@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 248
-# Total fn definitions: 2805
-# Total LOC: 11957
+# Total rods: 249
+# Total fn definitions: 2808
+# Total LOC: 11972
 
 [[rod]]
 name           = "activation2"
@@ -280,6 +280,15 @@ function_count = 1
 cfile_count    = 1
 loc            = 8
 imports        = ["canny"]
+
+[[rod]]
+name           = "capabilities"
+path           = "stdlib/rods/capabilities.nr"
+description    = "Capability token catalog (Phase 1 disclosure)"
+function_count = 3
+cfile_count    = 0
+loc            = 15
+imports        = []
 
 [[rod]]
 name           = "catmullrom"

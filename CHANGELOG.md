@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.290] — 2026-05-05
+
+**R05-D3 Phase 1 — capability catalog disclosure (`stdlib/rods/capabilities.nr`).**
+
+### Bug
+
+`compiler/nucleor_s1_compiler.nr:17115` + `:18315` recognize ONLY
+`RandomCap` as a capability type. Adopters reading the
+effect/capability RFC reasonably assume `FsCap`, `NetCap`,
+`TimeCap`, `EnvCap`, `SchedCap` are also enforceable — a `pure fn`
+requiring `FsCap` is NOT actually constrained at build. Audit-
+classified HIGH (R05-D3).
+
+### Fix (Phase 1, audit's "remove + disclose" rollback path)
+
+NEW `stdlib/rods/capabilities.nr` ships:
+- `capability_supported(name) -> i64` — 1 for `RandomCap`, 0 for
+  the 5 Phase 2 caps (`FsCap`, `NetCap`, `TimeCap`, `EnvCap`,
+  `SchedCap`).
+- `capability_only_supported() -> str` — returns `"RandomCap"`.
+- `capabilities_limitations() -> str` — names the gaps + Phase 2.
+
+### Tests
+
+`tests/features/capability_catalog_disclosure_smoke.nr` — 8
+invariants.
+
+### Self-host fixed-point
+
+`83912a227e745bf799d16140dba59a7e` (preserved — new stdlib rod).
+
 ## [0.8.289] — 2026-05-05
 
 **R03-D3 Phase 1 — RT-004 heuristic-vs-certified-WCET doc honesty.**
