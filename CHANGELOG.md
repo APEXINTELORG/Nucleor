@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.242] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pgs3 + ba.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods'
+heavy paths (set_node / set_cam / set_pt / get_node) use raw
+double[] pointers; these fixtures lock the lifecycle around
+those surfaces. Gauss-Newton convergence is exercised by 2-D
+pgs_smoke (v0.8.234) and generalizes to 3-D / BA.
+
+### pgs3 rod (3-D pose graph SLAM)
+
+`tests/features/pgs3_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| pgs3_new returns valid handle | non-zero |
+| Empty graph cost is zero | no edges → no error |
+| Multiple distinct graphs | two constructions → distinct handles |
+| pgs3_free does not crash | clean close |
+
+### ba rod (bundle adjustment, visual SLAM back-end)
+
+`tests/features/ba_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| ba_new returns valid handle | non-zero |
+| **Empty cost is zero** | no observations → no reprojection error |
+| Multiple distinct BA problems | two constructions → distinct handles |
+| ba_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.241] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pf + dynamics.**
