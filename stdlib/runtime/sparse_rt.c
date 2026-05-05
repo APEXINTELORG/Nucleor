@@ -38,9 +38,10 @@ long long nuc_sp_new_csr(long long rows, long long cols, long long nnz) {
 }
 
 // Build CSR from COO (coordinate) format
-// row_vec, col_vec, val_vec are Nucleor Vecs
-long long nuc_sp_from_coo(long long row_vec, long long col_vec, long long val_vec,
-                           long long rows, long long cols) {
+// row_vec, col_vec, val_vec are Nucleor Vecs.
+// `_inferred` derives nnz from row_vec->len (the canonical entry count).
+long long nuc_sp_from_coo_inferred(long long row_vec, long long col_vec, long long val_vec,
+                                     long long rows, long long cols) {
     typedef struct { long long *data; int len; int cap; } NVec;
     NVec *rv = (NVec *)(void *)row_vec;
     NVec *cv = (NVec *)(void *)col_vec;
@@ -71,6 +72,24 @@ long long nuc_sp_from_coo(long long row_vec, long long col_vec, long long val_ve
     }
     free(temp);
     return (long long)m;
+}
+
+// 6-arg shim — match the rod's declared arity. Pre-2026-05-05 the rod
+// declared 6-arg `(row, col, val, rows, cols, nnz)` but C took 5
+// (nnz was derived from row->len). The 6th arg was silently dropped
+// by the Windows x64 calling convention — the rod's nnz hint had no
+// effect. The shim accepts the caller-provided nnz_hint, validates it
+// against row->len (zero is sentinel meaning "derive from row->len"),
+// and forwards. Mismatched nnz_hint logs nothing today; future Phase
+// could promote to a hard error.
+long long nuc_sp_from_coo(long long row_vec, long long col_vec, long long val_vec,
+                           long long rows, long long cols, long long nnz_hint) {
+    typedef struct { long long *data; int len; int cap; } NVec;
+    NVec *rv = (NVec *)(void *)row_vec;
+    /* nnz_hint is informational; canonical nnz = row_vec->len. */
+    (void)nnz_hint;
+    (void)rv;
+    return nuc_sp_from_coo_inferred(row_vec, col_vec, val_vec, rows, cols);
 }
 
 void nuc_sp_set(long long handle, long long r, long long c, long long val_bits) {

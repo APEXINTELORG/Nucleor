@@ -10,6 +10,7 @@
 
 extern fn nuc_sp_new_csr(rows: i64, cols: i64, nnz: i64) -> i64;
 extern fn nuc_sp_from_coo(row_vec: i64, col_vec: i64, val_vec: i64, rows: i64, cols: i64, nnz: i64) -> i64;
+extern fn nuc_sp_from_coo_inferred(row_vec: i64, col_vec: i64, val_vec: i64, rows: i64, cols: i64) -> i64;
 extern fn nuc_sp_from_dense(mh: i64) -> i64;
 extern fn nuc_sp_set(h: i64, r: i64, c: i64, val: i64);
 extern fn nuc_sp_get(h: i64, r: i64, c: i64) -> i64;
@@ -24,6 +25,9 @@ extern fn nuc_sp_free(h: i64);
 
 fn sparse_new_csr(rows: i64, cols: i64, nnz: i64) -> i64 { return nuc_sp_new_csr(rows, cols, nnz); }
 fn sparse_from_coo(row_v: i64, col_v: i64, val_v: i64, rows: i64, cols: i64, nnz: i64) -> i64 { return nuc_sp_from_coo(row_v, col_v, val_v, rows, cols, nnz); }
+fn sparse_from_coo_inferred(row_v: i64, col_v: i64, val_v: i64, rows: i64, cols: i64) -> i64 {
+    return nuc_sp_from_coo_inferred(row_v, col_v, val_v, rows, cols);
+}
 fn sparse_from_dense(m: i64) -> i64 { return nuc_sp_from_dense(m); }
 fn sparse_set(h: i64, r: i64, c: i64, v: i64) { nuc_sp_set(h, r, c, v); }
 fn sparse_get(h: i64, r: i64, c: i64) -> i64 { return nuc_sp_get(h, r, c); }
