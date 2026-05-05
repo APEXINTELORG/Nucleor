@@ -1,49 +1,44 @@
 {
-  "instructions_read": "v0.6.72-post-v0.8.292-refresh",
-  "current_task": "A2 u64 strict arithmetic runtime/LLVM overflow closure",
+  "instructions_read": "v0.8.313-post-A2-integration",
+  "current_task": "main: post-A2 punchlist work (no active parallel-agent slice on this tree)",
   "roadmap_phase": "v1_numeric_correctness_punchlist",
-  "current_punchlist_item": "A2",
-  "edits_in_main_tree": false,
-  "rebased_on_origin_main": "28779f5c",
-  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_v0886_u64_strict_arith",
-  "branch": "probe/u64-strict-arith-v0886",
-  "status": "ready-for-integration",
+  "current_punchlist_item": "main_integrated",
+  "edits_in_main_tree": true,
+  "rebased_on_origin_main": "5fcdf09c",
+  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
+  "branch": "main",
+  "status": "integrated",
   "validation": {
     "main_completion_check": {
-      "status": "not_already_completed",
-      "origin_main": "28779f5c",
-      "evidence": "origin/main lacks panic_add_u64, llvm.uadd.with.overflow.i64, binop_u64_type, and __has_u64_v886"
+      "status": "completed",
+      "origin_main": "5fcdf09c",
+      "evidence": "main contains panic_add_u64, llvm.uadd.with.overflow.i64, binop_u64_type, and __has_u64_v886 (cherry-picked from probe/u64-strict-arith-v0886 in commit c4318ca5; bin+seed rebuilt locally to canonical fixed point in 5fcdf09c)."
     },
     "self_host_fixed_point": {
       "status": "pass",
-      "md5": "96c47158b22f96ce1dae38418345be82",
+      "md5": "92a6b77baec09726f3c04b3224280ce5",
       "command": "bash tools/check_self_host_md5.sh"
     },
     "compiler_drift": {
       "status": "pass",
       "command": "bash tools/check_compiler_drift.sh"
     },
-    "focused_verify": {
-      "status": "pass",
-      "command": "bash tools/verify.sh --only \"T3.strict intrinsic overflow i8/i16/i32/u64 + env precedence\"",
-      "result": "PASS 1, SKIP 274"
-    },
-    "perf_gate": {
-      "status": "pass",
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
-      "cold_seconds": 3.75,
-      "hot_seconds": 0.42,
-      "peak_mem_mb": 304
-    },
     "manual_fixture_matrix": {
       "status": "pass",
-      "intrinsic_path": "u64 add/sub/mul emitted llvm.uadd/usub/umul.with.overflow.i64 and trapped at runtime",
-      "legacy_helper_path": "NUCLEOR_INT_STRICT_INTRIN=0 emitted __nucleor_panic_add/sub/mul_u64 and trapped at runtime"
+      "intrinsic_path": "NUCLEOR_INT_STRICT_ARITH=1 build of tests/fixtures/strict_intrin_u64_add_overflow.nr panics with 'integer overflow' on u64::MAX+1 (rc=1)."
     }
   },
   "caveats": {
-    "native_rss_sampler": "Native RSS helper produced false OWN-008 exits during perf sampling; tools/rss_estop_lib.ps1 now defaults to the PowerShell sampler and keeps native helper opt-in via NUC_RSS_ENABLE_NATIVE=1.",
-    "full_verify": "Not rerun for this slice because full verify is long-running; focused verify, compiler drift, fixed-point self-host, and perf gate passed."
+    "stale_predecessor_heartbeat": "Pre-v0.8.313 this file was the probe agent's pre-integration heartbeat (rebased_on_origin_main: 28779f5c, status: ready-for-integration, evidence: 'main lacks ...'). Refreshed v0.8.313 / 2026-05-05 by main-tree integrator after probe/u64-strict-arith-v0886 was cherry-picked.",
+    "probe_branch_disposition": "Probe branch superseded by integration. Probe pushed origin/probe/u64-strict-arith-v0886 at 641c6d73 as backup + perf evidence — DO NOT merge over main."
   },
-  "summary": "A2 closed on probe/u64-strict-arith-v0886: u64 +/-/* strict intrinsic lowering now uses unsigned LLVM overflow intrinsics; legacy strict helper mode has u64 panic helpers; focused fixtures cover add/sub/mul. Branch is rebased on v0.8.292 and ready for integration."
+  "perf_evidence_post_integration": {
+    "main_formal": { "cold_seconds": 4.76, "hot_seconds": 0.87, "peak_mem_mb": 312 },
+    "probe_branch_formal": { "cold_seconds": 4.39, "hot_seconds": 0.98, "peak_mem_mb": 312 },
+    "probe_branch_direct_phase": { "linked_cold_seconds": 3.672 },
+    "probe_branch_no_link_loop_median_seconds": 2.50,
+    "probe_branch_linked_loop_median_seconds": 3.63,
+    "wall_clock_variance_note": "Outliers above 4s observed in linked-loop runs; probe agent attributes to Windows wall-clock variance around clang/link/process startup + host load + harness overhead, not to the u64 implementation. Compiler path itself is capable of ~3s linked cold builds on this hardware."
+  },
+  "summary": "A2 integrated into main at v0.8.313 (5fcdf09c). u64 +/-/* strict intrinsic lowering uses unsigned LLVM overflow intrinsics; legacy helper mode has __nucleor_panic_*_u64 panic helpers; 3 new fixtures cover add/sub/mul. Self-host fixed-point md5 92a6b77b. Probe branch superseded; probe pushed origin/probe/u64-strict-arith-v0886 @ 641c6d73 as backup-only — do not re-merge."
 }
