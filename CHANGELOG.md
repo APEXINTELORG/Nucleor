@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.196] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — quantize + quantum.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### quantize rod (Q4 weight quantization)
+
+`tests/features/quantize_smoke.nr` locks three Q4 round-trip
+invariants:
+
+| Test | Path |
+|---|---|
+| **Constant round-trip** | 32-element vector of 0.5 → encode → decode → all elements within 0.1 of 0.5 |
+| Length preservation | 32-element input → 32-element decoded output (block-aligned) |
+| **±1.0 endpoints** | encode + decode of [-1.0, 0.5, 0.0, 0.5, 1.0...] → endpoints within Q4 error (0.2) |
+
+### quantum rod (statevector simulator core gates)
+
+`tests/features/quantum_smoke.nr` locks four textbook quantum-
+state invariants:
+
+| Test | Path |
+|---|---|
+| Initial \|0⟩ | `prob0` on freshly-init 2-qubit state == 1.0 |
+| **X flips \|0⟩→\|1⟩** | after `qsim_x(0)`, `prob0(0) == 0.0` |
+| **HH = I** | `qsim_h(0); qsim_h(0)` → returns to \|0⟩, `prob0 ≈ 1.0` |
+| **CNOT in \|10⟩** | X q0 then CNOT(0,1) → \|11⟩, `prob0(1) == 0.0` |
+
+All pass. rc=0.
+
 ## [0.8.195] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — queue + process.**
