@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.252] — 2026-05-05
+
+**kv_cache rod ↔ runtime arity drift FIXED + first test coverage.**
+Closes the silent-miscompute surfaced 2026-05-05 in probe-finding
+`kv_cache_arity_mismatch_2026-05-05.md`.
+
+### Bug
+
+Pre-v0.8.252, `stdlib/rods/kv_cache.nr` declared:
+
+```
+extern fn nuc_kv_cache_get_k(ch, layer, head, pos) -> i64;
+extern fn nuc_kv_cache_get_v(ch, layer, head, pos) -> i64;
+```
+
+But `stdlib/runtime/kv_cache_rt.c` defined them with five args
+(`start_pos, end_pos`). The 4-arg call site read garbage from
+the un-pushed `end_pos` slot; result Vec was sized
+`(garbage - start_pos) * head_dim` with random contents. Same
+bug class as the v0.8.45 ML-1 attention2 6-vs-7-arg drift.
+
+### Fix (Plan B — non-breaking)
+
+`stdlib/runtime/kv_cache_rt.c`:
+
+| Before | After |
+|---|---|
+| `nuc_kv_cache_get_k` (5-arg range) | renamed to `nuc_kv_cache_get_k_range` |
+| — | new 4-arg `nuc_kv_cache_get_k(ch, l, h, pos)` calling `_range(pos, pos+1)` |
+
+Same for `_v`. The rod's pre-existing 4-arg call site now does
+what the API name promised: returns one position's `head_dim`
+values.
+
+`stdlib/rods/kv_cache.nr`: keeps existing 4-arg externs and
+adds new 5-arg `_range` externs + `kv_get_k_range` /
+`kv_get_v_range` rod wrappers for callers that want the
+multi-position gather.
+
+### Coverage
+
+`tests/features/kv_cache_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| **Lifecycle** | `kv_new` non-zero handle, `kv_free` no crash |
+| **Initial state** | `seq_len == 0`, `blocks_used == 0` |
+| **Insert advances seq_len** | pos=0 → 1, then pos=2 → 3 |
+| **Single-position get** | `kv_get_k`/`_v` returns Vec of length `head_dim` |
+| **Range matches single** | `_range(p, p+1)` length and first element match `kv_get_k(p)` |
+
+All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e` (no compiler edit).
+
 ## [0.8.251] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — diff_drive.**
