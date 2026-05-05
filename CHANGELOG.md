@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.179] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — strings + taylor.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### strings rod (manipulation primitives)
+
+`tests/features/strings_smoke.nr` locks 8 invariants:
+
+| Test | Path |
+|---|---|
+| contains / starts_with / ends_with | truthy + falsey |
+| index_of | present (returns position 6 for "world" in "hello world"); absent (-1) |
+| **split** | `"a,b,c"` by `","` → 3 parts |
+| **join** | `["a","b","c"]` by `"-"` → `"a-b-c"` |
+| trim | `"  hi  "` → `"hi"` |
+| to_upper / to_lower | round-trip on `"hello"` ↔ `"HELLO"` |
+| replace | `"hello world"` × `"hello"` → `"HELLO"` → `"HELLO world"` |
+| repeat | `"ab" * 3` → `"ababab"` |
+
+### taylor rod (validated Taylor Model ODE integrator)
+
+`tests/features/taylor_smoke.nr` locks four lifecycle invariants
+on the Boussinesq-class integrator:
+
+| Test | Path |
+|---|---|
+| Init returns success | `tm_init(N=8, order=3)` returns 1 |
+| Initial state | `steps == 0`, `time ≈ 0.0` after init |
+| Setters | `set_nu`, `set_omega`, `set_theta` complete without faulting |
+| **Step advances** | one `tm_step` → `steps >= 1` |
+
+Heavy numerical-convergence verification deferred — the
+Boussinesq research workstream exercises that path.
+
+All pass. rc=0.
+
 ## [0.8.178] — 2026-05-04
 
 **stdlib/rods/string_type.nr first test coverage.** Pure
