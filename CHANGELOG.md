@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.129] — 2026-05-04
+
+**stdlib/rods/env.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+`tests/features/env_smoke.nr` covers two invariant classes:
+
+| Test | Invariant |
+|---|---|
+| PATH set | `env_get("PATH")` non-empty; `env_has("PATH") == 1` (PATH is universally set on POSIX + Windows) |
+| missing var | clearly-fictitious var (`NUCLEOR_TEST_VAR_DOES_NOT_EXIST_123XYZ`) → `env_get == ""`, `env_has == 0` |
+
+All pass. rc=0. Cold 2.22s.
+
+Catches regressions in `getenv` FFI (the runtime returns NULL
+for missing → empty str in Nucleor; `env_has` checks str_len > 0).
+
+## [0.8.128] — 2026-05-04
+
+**stdlib/rods/collision.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+Geometric collision primitives — sphere-sphere, AABB-AABB.
+GJK + EPA queued (need support function pointers).
+
+`tests/features/collision_smoke.nr` covers five invariants:
+
+| Test | Result |
+|---|---|
+| sphere-sphere overlap | radius-1 spheres at distance 1 → 1 |
+| sphere-sphere clear | radius-1 spheres at distance 5 → 0 |
+| AABB overlap | `[0..2]³` vs `[1..3]³` → 1 |
+| AABB clear | `[0..1]³` vs `[5..6]³` → 0 |
+| AABB touching face | `[0..1]` vs `[1..2]` → 0 or 1 (policy-tolerant; verifies no garbage) |
+
+All pass. rc=0. Cold 1.10s.
+
+Catches regressions in distance comparison vs sum-radii, AABB
+SAT separating-axis test, and the touching-edge boundary case.
+
 ## [0.8.127] — 2026-05-04
 
 **stdlib/rods/color.nr first test coverage.** Pure fixture, no
