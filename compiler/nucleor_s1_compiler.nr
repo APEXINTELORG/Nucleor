@@ -28999,6 +28999,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v0143_fixed_total > 0 {
         print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
     };
+    // v0.8.145 (RFC-0046 Phase B step-1, V2.1 frontier easy-win)
+    // — `Pose<F>` + `Frame_*` marker audit. The `kinematics_frame`
+    // rod already ships zero-cost marker structs (`Frame_World`,
+    // `Frame_Base`, `Frame_Camera`, `Frame_Lidar`, `Frame_IMU`).
+    // Adopters using these as phantom frame tags get no build-
+    // time signal that they're using them. Phase B step-2 (true
+    // phantom-type checking — `types_compatible(Pose<Camera>,
+    // Pose<Base>) == 0`) is the ~200 LOC compiler ship.
+    // This Phase B step-1 surfaces the surface, matching the
+    // RFC-0043 fixed<I,F> pattern.
+    let v0145_pose_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Po", "se<"));
+    let v0145_pose_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Po", "se<"));
+    let v0145_pose_total: i64 = v0145_pose_colon + v0145_pose_arrow;
+    if v0145_pose_total > 0 {
+        print(str_concat("audit: Pose<F> phantom-frame type-position occurrences: ", str_from_int(v0145_pose_total)));
+    };
+    let v0145_frame_marker: i64 = simple_attribute_audit_count(after_async, str_concat(": Fra", "me_"));
+    if v0145_frame_marker > 0 {
+        print(str_concat("audit: Frame_* marker uses (let/arg position): ", str_from_int(v0145_frame_marker)));
+    };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
     // adopters use today: @hot (strict perf), @const_fn (compile-

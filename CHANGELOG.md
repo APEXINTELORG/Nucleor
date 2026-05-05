@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.145] — 2026-05-04
+
+**RFC-0046 Phase B step-1 — `Pose<F>` + `Frame_*` marker audit
+(V2.1 frontier easy-win).** Compiler edit; stage1↔stage2 IR md5
+fixed-point validated.
+
+### Why
+
+The `kinematics_frame` rod already ships zero-cost marker
+structs (`Frame_World`, `Frame_Base`, `Frame_Camera`,
+`Frame_Lidar`, `Frame_IMU`) — adopters can tag their data with
+these to disambiguate coordinate frames. Pre-v0.8.145 there was
+NO build-time signal that an adopter was using these. RFC-0046
+is the first frontier easy-win — mixing camera-frame data with
+base-frame data is the Mars Climate Orbiter bug class. Phase B
+step-2 (true `types_compatible(Pose<Camera>, Pose<Base>) == 0`
+phantom-type enforcement) is the ~200 LOC compiler ship.
+
+This Phase B step-1 surfaces usage at build time, matching the
+RFC-0043 fixed<I,F> audit pattern and the v0.8.5/v0.8.6 attribute
+audit family.
+
+### What
+
+| Change | Path |
+|---|---|
+| Audit pass — `: Pose<` and `-> Pose<` type-position counts | `compiler/nucleor_s1_compiler.nr` ~29010 |
+| Audit pass — `: Frame_` marker counts | `compiler/nucleor_s1_compiler.nr` ~29024 |
+| Smoke fixture | `tests/features/pose_frame_audit_smoke.nr` |
+
+### Locks
+
+| Test | Path |
+|---|---|
+| Fixture compiles + runs rc=0 | exercises 5 frame markers in let-position |
+| Audit fires | build emits `audit: Frame_* marker uses (let/arg position): 8` (5 marker uses + 3 from imported rod's own type definitions) |
+
+Stage1 IR md5 = stage2 IR md5 = `DC4946B0CC14596BA30E44ABBC12CC13`.
+
+Perf gate: cold 3.76s, hot 0.42s, peak 315MB — helper's
+v0.8.144 wins held.
+
+### Where this sits in the roadmap
+
+- V2.1 of `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` (Tier A — easy
+  wins, run BEFORE deep V1 work per spine §2026-05-03).
+- Sister to V2.2 `unit<T, [...]>` typed dimensional units
+  (RFC-0047) — same architectural pattern (phantom param).
+
 ## [0.8.144] — 2026-05-04
 
 **Helper-agent perf-hotpath integration — cherry-picked + replayed
