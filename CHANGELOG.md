@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.124] — 2026-05-04
+
+**stdlib/rods/csv_table.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+Sister to v0.8.105's csv.nr coverage. `csv_table` is the
+whole-file random-access API (load file → cell get/set → write
+file), distinct from `csv.nr`'s streaming line parser.
+
+`tests/features/csv_table_smoke.nr` locks four invariant classes:
+
+| Test | Path |
+|---|---|
+| new dimensions | `csv_table_new(3, 4)` → rows=3, cols=4 |
+| set / get int | "10"/"20"/"30"/"40" stored at (0,0)/(0,1)/(1,0)/(1,1); read-back as int matches |
+| set / get float | f64-bits round-trip (`3.14`, `2.718`) |
+| write / read round-trip | 2×3 table written to `target/_csv_table_smoke.csv`, re-read, dimensions + cells preserve |
+
+All four pass. rc=0. Cold 2.05s.
+
+Catches silent regressions in cell-storage indexing, int/float
+getter dispatch, file write/read serialization (CSV escape +
+parse), and dimension preservation.
+
 ## [0.8.123] — 2026-05-04
 
 **stdlib/rods/cli.nr first test coverage.** Pure fixture, no
