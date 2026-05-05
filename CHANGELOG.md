@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.178] — 2026-05-04
+
+**stdlib/rods/string_type.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+Heap-allocated String type (RFC-0017) — growable, length-
+tracked UTF-8 byte buffer. Distinct from immutable `str` views.
+
+`tests/features/string_type_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| Empty | `string_make()` → length 0 |
+| Make-from-str | `string_of("hello")` → length 5; `equals_str("hello") == 1` |
+| Concat str literal | empty + `push_str("hi")` → length 2; `equals_str("hi")` |
+| **Push byte** | empty + `push_byte(65)` → length 1; `byte_at(0) == 65` |
+| **Predicates** | `"hello world"` → has_prefix("hello"), has_suffix("world"), has_substr("lo wo") |
+
+All pass. rc=0.
+
 ## [0.8.177] — 2026-05-04
 
 **stdlib/rods/simd.nr first test coverage.** Pure fixture, no
