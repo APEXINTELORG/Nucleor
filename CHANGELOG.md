@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.301] — 2026-05-05
+
+**R12-D7 Phase 1.5 — 3-way import cycle test (broadens v0.8.294 coverage).**
+
+### Context
+
+This iteration began with a RACE-004 detector attempt (`static
+mut`-style shared mutable state). Discovery: Nucleor's parser
+panics on `static mut` declarations BEFORE the diagnostic
+pipeline runs, so the detector would never fire on real code
+today. Backed out the dead emitter cleanly (self-host md5
+restored to v0.8.300 state `be108d378…`); shipped a more useful
+fixture-only addition instead.
+
+### Fix
+
+`tests/err/err_import_cycle_3way_a.nr` + `_3way_b.nr` +
+`_3way_c.nr` — three files where A imports B, B imports C, C
+imports A. Verifies the v0.8.294 MOD-005 detector handles
+indirect (depth-3) cycles, not just direct A↔B back-edges.
+
+Verified output:
+```
+error[MOD-005]: import cycle detected:
+  tests/err/err_import_cycle_3way_a.nr ->
+  tests/err/err_import_cycle_3way_b.nr ->
+  tests/err/err_import_cycle_3way_c.nr ->
+  tests/err/err_import_cycle_3way_a.nr
+PANIC: nucleor: import cycle (MOD-005); see error above
+```
+
+The active-stack design from v0.8.294 generalizes to arbitrary
+cycle depth — the chain rendering walks the full
+`active_paths` Vec, not just the immediate parent.
+
+### Self-host fixed-point
+
+Unchanged at `be108d37860467329bdd830bbbe74406` (test-fixture-
+only ship, no compiler edit).
+
 ## [0.8.300] — 2026-05-05
 
 **R04-D3 Phase 1.5 — RACE-007 emitter (deadline + actor await composition).**
