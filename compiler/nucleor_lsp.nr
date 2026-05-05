@@ -255,42 +255,101 @@ fn lsp_json_escape(s: str) -> str {
     return out;
 }
 
-// Build a single LSP diagnostic JSON object from a compiler
-// output line. Returns "" if the line is not a diagnostic.
-fn lsp_line_to_diagnostic(line: str) -> str {
-    let sev: i64 = lsp_diag_severity(line);
+// v0.8.157 Phase A2.7: parse a `LINE:COL` location pair out of
+// the compiler's `--> fn FOO@line LINE:COL` annotation. Returns
+// (line, col) packed as line * 10000 + col, or -1 if not found.
+// LINE/COL are 1-based in the compiler output; we return them
+// as-is and convert to 0-based at the JSON-emission site.
+fn lsp_extract_line_col(annot: str) -> i64 {
+    let needle: str = "@line ";
+    let pos: i64 = lsp_find(annot, needle);
+    if pos < 0 { return 0 - 1; };
+    let nlen: i64 = str_len(needle);
+    let alen: i64 = str_len(annot);
+    let mut p: i64 = pos + nlen;
+    let mut line_n: i64 = 0;
+    let mut got_line: i64 = 0;
+    while p < alen {
+        let c: i64 = str_char_at(annot, p);
+        if c >= 48 && c <= 57 { line_n = line_n * 10 + (c - 48); got_line = 1; p = p + 1; }
+        else { break; };
+    };
+    if got_line == 0 { return 0 - 1; };
+    if p >= alen || str_char_at(annot, p) != 58 { return 0 - 1; }; // expect ':'
+    p = p + 1;
+    let mut col_n: i64 = 0;
+    let mut got_col: i64 = 0;
+    while p < alen {
+        let c: i64 = str_char_at(annot, p);
+        if c >= 48 && c <= 57 { col_n = col_n * 10 + (c - 48); got_col = 1; p = p + 1; }
+        else { break; };
+    };
+    if got_col == 0 { return 0 - 1; };
+    return line_n * 10000 + col_n;
+}
+
+// Build a single LSP diagnostic JSON object from a diagnostic
+// line and an optional location annotation (the `--> fn FOO@line
+// LINE:COL` line that immediately follows). loc_packed = -1 means
+// no location; use placeholder 0:0-0:1 range.
+fn lsp_line_to_diagnostic_at(diag_line: str, loc_packed: i64) -> str {
+    let sev: i64 = lsp_diag_severity(diag_line);
     if sev == 0 { return ""; };
-    // Use 0:0-0:1 as the placeholder range. Real range
-    // extraction (parsing `at file:LINE:COL`) is straightforward
-    // but skipped here because the `--emit-diagnostics-json`
-    // flag on nucleor.exe (which would emit structured ranges)
-    // is the cleaner path; this textual heuristic is the
-    // fallback until that ships.
-    let msg: str = lsp_json_escape(line);
+    let mut line_n: i64 = 0;
+    let mut col_n: i64 = 0;
+    if loc_packed >= 0 {
+        // Compiler is 1-based; LSP is 0-based.
+        line_n = (loc_packed / 10000) - 1;
+        col_n = (loc_packed - (line_n + 1) * 10000) - 1;
+        if line_n < 0 { line_n = 0; };
+        if col_n < 0 { col_n = 0; };
+    };
+    let line_s: str = str_from_int(line_n);
+    let col_s: str = str_from_int(col_n);
+    let col_end: str = str_from_int(col_n + 1);
+    let msg: str = lsp_json_escape(diag_line);
     let body: str = str_concat(
-        "{\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},\"severity\":",
-        str_concat(str_from_int(sev), str_concat(",\"source\":\"nucleor\",\"message\":\"", str_concat(msg, "\"}")))
+        str_concat("{\"range\":{\"start\":{\"line\":", line_s),
+        str_concat(",\"character\":", str_concat(col_s,
+            str_concat("},\"end\":{\"line\":", str_concat(line_s,
+                str_concat(",\"character\":", str_concat(col_end,
+                    str_concat("}},\"severity\":", str_concat(str_from_int(sev),
+                        str_concat(",\"source\":\"nucleor\",\"message\":\"", str_concat(msg, "\"}")))))))))
     );
     return body;
 }
 
 // Extract diagnostics array elements from raw compiler output.
-// Walks line-by-line; returns the comma-separated JSON object
-// list for splicing into a publishDiagnostics array.
+// State machine: when we see a diagnostic line, peek the next
+// line for `--> ... @line LINE:COL`; emit with extracted range
+// if found, placeholder otherwise.
 fn lsp_diagnostics_from_output(output: str) -> str {
     let olen: i64 = str_len(output);
     let mut result: str = "";
     let mut first: i64 = 1;
     let mut p: i64 = 0;
     while p < olen {
-        // Find end of current line.
         let mut q: i64 = p;
         while q < olen && str_char_at(output, q) != 10 { q = q + 1; };
         let line: str = str_substring(output, p, q);
-        let diag: str = lsp_line_to_diagnostic(line);
-        if str_len(diag) > 0 {
-            if first == 0 { result = str_concat(result, ","); } else { first = 0; };
-            result = str_concat(result, diag);
+        let sev: i64 = lsp_diag_severity(line);
+        if sev > 0 {
+            // Peek the next line for `--> ... @line LINE:COL`.
+            let mut loc: i64 = 0 - 1;
+            let mut next_p: i64 = q + 1;
+            if next_p < olen {
+                let mut next_q: i64 = next_p;
+                while next_q < olen && str_char_at(output, next_q) != 10 { next_q = next_q + 1; };
+                let next_line: str = str_substring(output, next_p, next_q);
+                if lsp_find(next_line, "@line ") >= 0 {
+                    loc = lsp_extract_line_col(next_line);
+                };
+            };
+            let diag: str = lsp_line_to_diagnostic_at(line, loc);
+            if str_len(diag) > 0 {
+                if first == 0 { result = str_concat(result, ","); } else { first = 0; };
+                result = str_concat(result, diag);
+            };
         };
         p = q + 1;
     };

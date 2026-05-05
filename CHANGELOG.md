@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.157] — 2026-05-04
+
+**V1.16 LSP server Phase A2.7 — proper LINE:COL range extraction
+from compiler output for editor squiggle positioning.** LSP
+daemon edit; ~70 LOC added.
+
+### Why
+
+Phase A2.6 (v0.8.156) emitted real diagnostics but used a
+placeholder `0:0-0:1` range — every red squiggle landed at the
+top of the file regardless of the actual error location.
+A2.7 makes squiggles land at the actual offending token.
+
+### What
+
+Compiler output format:
+```
+warning[TYP-005]: undefined function `undefined_fn()` ...
+  --> fn main@line 2:12
+  |
+2 |     return undefined_fn(0);
+  |            ^
+```
+
+The daemon now:
+1. Detects a diagnostic line (`error[`/`warning[`/`info[`).
+2. Peeks the next line for the `@line LINE:COL` annotation.
+3. Parses LINE:COL out of it (1-based in compiler, converts to
+   0-based for LSP).
+4. Emits a `Range{start:{line,col}, end:{line,col+1}}` with
+   the extracted position; falls back to placeholder when the
+   annotation is absent.
+
+| Change | Path |
+|---|---|
+| `lsp_extract_line_col(annot)` — parses `@line LINE:COL` returns packed `line*10000+col` | `compiler/nucleor_lsp.nr` |
+| `lsp_line_to_diagnostic_at(diag_line, loc_packed)` — emits LSP diagnostic with extracted range | `compiler/nucleor_lsp.nr` |
+| `lsp_diagnostics_from_output(output)` rewritten — peek-next-line state machine | `compiler/nucleor_lsp.nr` |
+
+### Verified end-to-end
+
+didOpen on `target/lsp_bad.nr` (`return undefined_fn(0);` at
+line 2 col 12) emits:
+
+```json
+"diagnostics":[
+  {"range":{"start":{"line":1,"character":11},
+            "end":{"line":1,"character":12}},
+   "severity":2,
+   "source":"nucleor",
+   "message":"warning[TYP-005]: undefined function ..."},
+  {"range":{"start":{"line":0,"character":0},
+            "end":{"line":0,"character":1}},
+   "severity":1,"source":"nucleor",
+   "message":"error[TYP-005]: undefined function ..."},
+  ...
+]
+```
+
+The `warning` (which has the `--> @line 2:12` annotation) lands
+at exactly line 1 char 11 (0-based) — correct! Editors will
+draw the yellow squiggle on `undefined_fn` itself.
+
+The `error` and summary lines that don't have `--> @line ...`
+annotations correctly fall back to the placeholder range.
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server progression:
+  - Phase A0 → ✅ v0.8.150
+  - Phase A1 dep → ✅ v0.8.152
+  - Phase A1 main → ✅ v0.8.153
+  - Phase A2 → ✅ v0.8.154
+  - Phase A2.5 deps → ✅ v0.8.155
+  - Phase A2.6 main (real diagnostics) → ✅ v0.8.156
+  - **Phase A2.7 (LINE:COL ranges) → ✅ v0.8.157** (this ship)
+  - Phase A2.8 (next): JSON-escape backtick or use a more
+    structured `--emit-diagnostics-json` flag on nucleor.exe so
+    every diagnostic gets a real range, not just the warning
+    primary site.
+  - Phase v1 → deferred (~3000 LOC compiler frontend refactor)
+
+### v0 LSP MVP closure progress
+
+The v0 LSP server now provides editors with:
+- Real-time push diagnostics (severity 1/2/3)
+- Per-error file paths via URI conversion
+- Properly positioned ranges for primary diagnostic sites
+- Standard LSP base protocol over Content-Length-framed
+  JSON-RPC
+
+This is the textbook v0 subprocess-mode LSP experience per
+the spec. Adopters can now ship VS Code/Neovim/Helix/Emacs
+configs that produce useful real-time feedback.
+
 ## [0.8.156] — 2026-05-04
 
 **V1.16 LSP server Phase A2.6 — REAL diagnostic forwarding
