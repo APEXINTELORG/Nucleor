@@ -78,3 +78,62 @@ fn tf_lookup(h: i64, source_id: i64, target_id: i64,
 }
 
 fn tf_free(h: i64) { nuc_tf_free(h); }
+
+// === R07-D2 Phase 1 (v0.8.268) — typed TF wrappers ===
+//
+// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D2 (HIGH):
+// pre-v0.8.268 the TF rod accepted any i64 as frame_id, so adopters
+// could pass arbitrary integers (1, 2, 47, -999) outside the type
+// checker's visibility. The typed wrappers below restrict callers
+// to the canonical kinematics_frame ID range (0..7 or -1) and reject
+// out-of-range IDs at runtime.
+//
+// Adopter pattern (typed):
+//
+//   import "stdlib/rods/tf.nr"
+//   import "stdlib/rods/kinematics_frame.nr"
+//
+//   let h: i64 = tf_new(16);
+//   let cam: i64 = kinematics_frame_id_camera();
+//   let base: i64 = kinematics_frame_id_base();
+//   let _ = tf_add_frame_typed(h, cam, base, t_ptr, q_ptr);
+//
+// Raw `tf_add_frame` / `tf_set_pose` / `tf_lookup` remain available
+// for adopters who manage their own ID space (e.g. URDF link
+// indices). Phase 2 promotes the typed wrappers to compile-time
+// type-checked Pose<F> per RFC-0046 Phase B.
+
+// Returns 1 if `id` is in the canonical range (0..7 inclusive or
+// -1 sentinel), 0 otherwise.
+fn tf_is_canonical_frame_id(id: i64) -> i64 {
+    if id == 0 - 1 { return 1; };  // unknown sentinel
+    if id >= 0 && id <= 7 { return 1; };
+    return 0;
+}
+
+// Typed `tf_add_frame`: validates both `frame_id` and `parent_id`
+// are canonical kinematics_frame IDs before forwarding. Returns
+// 0 on validation failure (does NOT call the raw API), or the raw
+// API's result (1 success / 0 failure) on validation success.
+fn tf_add_frame_typed(h: i64, frame_id: i64, parent_id: i64,
+    t_ptr: i64, q_ptr: i64) -> i64
+{
+    if tf_is_canonical_frame_id(frame_id) == 0 { return 0; };
+    if tf_is_canonical_frame_id(parent_id) == 0 { return 0; };
+    return nuc_tf_add_frame(h, frame_id, parent_id, t_ptr, q_ptr);
+}
+
+// Typed `tf_set_pose`: validates `frame_id` is canonical.
+fn tf_set_pose_typed(h: i64, frame_id: i64, t_ptr: i64, q_ptr: i64) -> i64 {
+    if tf_is_canonical_frame_id(frame_id) == 0 { return 0; };
+    return nuc_tf_set_pose(h, frame_id, t_ptr, q_ptr);
+}
+
+// Typed `tf_lookup`: validates both source and target are canonical.
+fn tf_lookup_typed(h: i64, source_id: i64, target_id: i64,
+    t_out_ptr: i64, q_out_ptr: i64) -> i64
+{
+    if tf_is_canonical_frame_id(source_id) == 0 { return 0; };
+    if tf_is_canonical_frame_id(target_id) == 0 { return 0; };
+    return nuc_tf_lookup(h, source_id, target_id, t_out_ptr, q_out_ptr);
+}
