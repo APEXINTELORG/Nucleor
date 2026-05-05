@@ -1,61 +1,42 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "windows_pe_autodrop_bootstrap_fix",
-  "roadmap_phase": "D1_windows_pe_unblocker",
-  "current_punchlist_item": "D1",
+  "current_task": "length_aware_source_scan_perf_recovery",
+  "roadmap_phase": "post_D1_perf_recovery",
+  "current_punchlist_item": "perf_cold_compile_recovery",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "b4cf2049",
+  "rebased_on_origin_main": "c4b1ca59",
   "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_pe_fix",
   "branch": "probe/windows-pe-autodrop-fix",
-  "status": "ready-for-review",
+  "status": "ready-for-integration",
   "validation": {
-    "stage1_build": {
+    "pre_rebase_pefix_perf_gate": {
       "status": "pass",
-      "command": ".\\bin\\nucleor.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s1_pefix --no-cache --time-passes",
-      "time_total_native_ms": 3547,
-      "output": "target\\nucleor_s1_pefix.exe"
+      "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1",
+      "cold_seconds": 3.78,
+      "hot_seconds": 0.42,
+      "peak_mem_mb": 321,
+      "note": "Pre-rebase measurement after reducing bootstrap #[manual_drop] markers from the blanket 772-marker set to the smaller heap-local-risk set."
     },
-    "stage1_focused_fixture_guarded": {
+    "length_aware_source_scan_perf_gate": {
       "status": "pass",
-      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s1_pefix.exe build tests\\features\\t3_char_cast_audit_lock.nr -o _pe_pefix_fixture --no-cache --time-passes",
-      "time_total_ms": 32
+      "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1",
+      "cold_seconds": 3.67,
+      "hot_seconds": 0.41,
+      "peak_mem_mb": 321,
+      "note": "Rebased onto v0.8.120 / c4b1ca59, regenerated bin+seed, cleared .nuc_cache and target before the official gate. Recovered cold compile to the 3-second regime by avoiding repeated needle str_len in source-scan loops."
     },
-    "stage1_self_host_guarded": {
+    "length_aware_source_scan_rss_samples": {
       "status": "pass",
-      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s1_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s2_pefix --no-cache --time-passes",
-      "time_total_native_ms": 6766,
-      "output": "target\\nucleor_s2_pefix.exe"
-    },
-    "stage1_self_host_noguard": {
-      "status": "pass",
-      "command": ".\\target\\nucleor_s1_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s2_pefix_noguard --no-cache --time-passes",
-      "time_total_native_ms": 3734,
-      "output": "target\\nucleor_s2_pefix_noguard.exe"
-    },
-    "stage2_focused_fixture_guarded": {
-      "status": "pass",
-      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s2_pefix.exe build tests\\features\\t3_char_cast_audit_lock.nr -o _pe_pefix_s2_fixture --no-cache --time-passes",
-      "time_total_ms": 47
-    },
-    "stage2_self_host_guarded": {
-      "status": "pass",
-      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s2_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s3_pefix --no-cache --time-passes",
-      "time_total_native_ms": 3546,
-      "output": "target\\nucleor_s3_pefix.exe"
+      "command": "pwsh -NoProfile -File tools\\measure_peak_build.ps1 ... -Bin bin\\nucleor.exe",
+      "wall_seconds": [4.01, 6.833, 3.328],
+      "peak_mem_mb": [315, 314, 302],
+      "note": "Sequential samples after v0.8.120 rebase; one host-jitter outlier, peak memory stayed normal. Canonical perf gate is the figure of merit."
     },
     "fixed_point": {
       "status": "pass",
-      "files": [
-        "target\\nucleor_s2_pefix.ll",
-        "target\\nucleor_s3_pefix.ll"
-      ],
-      "sha256": "D83ADB0F979F849635F5D7D199BB825B13E5010A004F5E98607F3061BC1D525D"
-    },
-    "diff_check": {
-      "status": "pass",
-      "command": "git diff --check -- compiler\\nucleor_s1_compiler.nr",
-      "note": "Only Git CRLF normalization warning observed."
+      "stage2_seed_sha256": "55A5C8015BDC5B397FE57E0C04A657A4A1494459FE0F5747885516C3785603D2",
+      "stage3_seed_sha256": "55A5C8015BDC5B397FE57E0C04A657A4A1494459FE0F5747885516C3785603D2"
     }
   },
-  "summary": "Windows PE failure was an autodrop ownership/bootstrap problem, not an LLD PE link bug. The patch makes autodrop ownership conservative for borrowed-returning calls and handoff/reuse patterns, suppresses default autodrop when lowering the self-host compiler source, and pins current bootstrap semantics with #[manual_drop] markers so the checked-in old compiler can build a safe stage1."
+  "summary": "Windows PE failure was an autodrop ownership/bootstrap problem, not an LLD PE link bug. Post-PE perf recovery replaces repeated str_eq_at needle-length recomputation in hot source scanners with str_eq_at_len. Rebased onto v0.8.120, promoted fixed-point bin/seed; official perf gate is cold=3.67s, hot=0.41s, peak_mem=321MB."
 }
