@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.150] — 2026-05-04
+
+**V1.16 LSP server Phase A0 — `--lsp-mode` flag wiring +
+server-capabilities JSON advertisement.** Compiler edit;
+stage1↔stage2 IR md5 fixed-point validated.
+
+### Phase shape
+
+`SPEC-LSP-server.md` calls for two phases:
+
+- **v0 (subprocess-mode LSP):** ~600 LOC daemon + ~200 LOC
+  compiler-side. Spawns `nucleor.exe --lsp-mode` per request.
+- **v1 (library-mode LSP):** ~3000 LOC compiler frontend
+  refactor. <10ms latency; live diagnostics on every keystroke.
+
+Phase A0 (this ship) lands the `--lsp-mode` flag wiring with a
+**capabilities advertisement** — editor extensions can already
+probe what the eventual full daemon will support. Phase A1
+(real LSP base protocol with Content-Length-framed JSON-RPC
+over stdin/stdout) needs a raw stdin byte-read primitive added
+to the io_rt surface first — `rods_io_read_line` strips
+trailing `\n`, which loses the protocol body-boundary signal.
+
+### What
+
+| Change | Path |
+|---|---|
+| `--lsp-mode` flag dispatch in main | `compiler/nucleor_s1_compiler.nr` ~36100 |
+| Server-capabilities JSON advertisement | inline (single-line JSON literal) |
+| Smoke fixture | `tests/features/lsp_mode_smoke.nr` |
+
+### Verify
+
+```
+$ nucleor.exe --lsp-mode
+{"server":"nucleor-lsp","version":"v0.8.150","phase":"A0","capabilities":{...}}
+```
+
+Advertised v0 capabilities (will be implemented in Phase A1+):
+- textDocumentSync (open/close + incremental change)
+- diagnosticProvider (push diagnostics)
+- completionProvider (`.` trigger)
+- codeActionProvider (workaround-pointer quick-fixes)
+- documentFormattingProvider (`nuc fmt` invoke)
+
+Hover + go-to-definition deferred to v1 library-mode per spec.
+
+Stage1 IR md5 = stage2 IR md5 = `6807E054BB6EDEADB821E7BA05C95844`.
+
+### Where this sits in the roadmap
+
+- V1.16 of `RFC_v1_FORWARD_ROADMAP.md` — Phase A0 of v0 shipped.
+- Phase A1 dependencies: raw stdin byte-read primitive in
+  `io_rt`. Stub a `nucleor-lsp.exe` daemon binary that spawns
+  `nucleor --lsp-mode` per JSON-RPC request once the protocol
+  parser is in place.
+- Editor extensions (VS Code TS shim ~200 LOC, Neovim ~50 LOC,
+  Helix ~15 LOC, Emacs ~30 LOC) are parallel work, can start
+  consuming the advertised capabilities even before Phase A1.
+
 ## [0.8.149] — 2026-05-04
 
 **RFC-0061 Tier 2 — `nuc deps graph` with 4 format renderers

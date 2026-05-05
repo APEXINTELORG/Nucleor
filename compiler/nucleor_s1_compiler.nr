@@ -36097,6 +36097,18 @@ fn main() -> i64 {
     if str_eq(cmd, "explain") {
         return run_explain_command(argc);
     };
+    // v0.8.150 V1.16 Phase A0 — `--lsp-mode` flag stub.
+    // SPEC-LSP-server.md calls for ~600 LOC subprocess-mode LSP
+    // daemon. Phase A0 wires the flag and emits the server-
+    // capabilities advertisement as JSON-on-stdout so editor
+    // extensions can probe what's supported. Phase A1 (real LSP
+    // base protocol with Content-Length-framed JSON-RPC) is the
+    // follow-on ship — needs raw stdin byte reads added to the
+    // io_rt surface first.
+    if str_eq(cmd, "--lsp-mode") {
+        print("{\"server\":\"nucleor-lsp\",\"version\":\"v0.8.150\",\"phase\":\"A0\",\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1},\"diagnosticProvider\":{\"interFileDependencies\":false,\"workspaceDiagnostics\":false},\"hoverProvider\":false,\"definitionProvider\":false,\"completionProvider\":{\"triggerCharacters\":[\".\"]},\"codeActionProvider\":true,\"documentFormattingProvider\":true},\"phaseA0\":\"capabilities-advertisement-only; real LSP base protocol lands in Phase A1 (needs raw stdin byte-read primitive)\"}");
+        return 0;
+    };
     if str_eq(cmd, "bootstrap") {
         return run_bootstrap_command(argc);
     };
