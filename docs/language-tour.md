@@ -518,10 +518,10 @@ fn dot(xs: Vec<i32>, ys: Vec<i32>, n: i64) -> i64 {
 }
 ```
 
-- `@law(...)` declares algebraic laws the optimizer can use to rewrite call sites (identity elimination, reassociation, etc.).
+- `@law(...)` declares algebraic-law metadata. Current builds capture and report it; user-law-driven rewrites and generated property tests are tracked for later RFC-0031 algebraic-laws phases.
 - `@const_fn` marks a function as eligible for compile-time evaluation.
 - `@hot` enforces no heap allocation, no string formatting, and no indirect dispatch in the function's body.
 
-Run `nuc perf <file>.nr` to see what the optimizer found and what was rewritten.
+Run `nuc perf <file>.nr` to see what the optimizer and performance diagnostics found.
 
 See [language-reference.md](language-reference.md) for the full attribute catalog and grammar.

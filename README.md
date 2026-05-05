@@ -24,7 +24,7 @@ Nucleor is what happens when you build a small programming language and don't st
 - **PDE solvers that actually solve PDEs.** Multigrid Poisson, Lattice Boltzmann fluids, FDTD electromagnetics, heat transfer.
 - **Physics built in.** 17 CODATA 2018 constants. SI unit conversion across mass, length, time, temperature, pressure, energy, force, frequency, voltage, current. 3D rigid-body dynamics. Orbital mechanics (Kepler, Hohmann, vis-viva).
 - **Modern ML in the box.** Reverse-mode autodiff. Mamba selective scan, RWKV, xLSTM cells. Mixture-of-experts routing. GATv2 graph neural networks. Full state-vector quantum simulator.
-- **Algebraic optimization.** Declare a function commutative or associative and the optimizer rewrites call sites accordingly. `@hot` enforces no-heap, no-format, no-indirect-dispatch in a function's body.
+- **Performance and algebraic metadata.** Built-in arithmetic identities are optimized today. `@law(...)` annotations are captured and surfaced for audit, while user-law-driven rewrites and generated law property tests are tracked for the next RFC-0031 algebraic-laws phases. `@hot` enforces no-heap, no-format, no-indirect-dispatch in a function's body.
 - **Real interop.** The shipping `rust_bridge` demonstrates calling Rust crates (regex, base64, hashing) from Nucleor through the C ABI. The same pattern works for any language with `extern "C"` static-library output.
 - **Black-Scholes and Greeks** because why not. Plus PCA, PID, Kalman filter, control state-space models.
 
@@ -135,7 +135,7 @@ or anything that accepts CSV.
 - [Language Reference](docs/language-reference.md) — formal-style spec of types, control flow, attributes, the CLI.
 - [Rods and Runtime](docs/rods-and-runtime.md) — the rod catalog with one-liners for each one.
 - [Math and Physics](docs/math-and-physics.md) — worked examples across the scientific-computing rods.
-- [Architecture](docs/architecture.md) — pipeline (lex → parse → IR → algebraic-rewrite → LLVM → clang), the self-host bootstrap chain, the optimizer.
+- [Architecture](docs/architecture.md) — pipeline (lex → parse → IR → optimize → LLVM → clang), the self-host bootstrap chain, the optimizer.
 - [Memory Architecture](docs/memory-architecture.md) — how the compiler keeps self-host RSS at 67 MB (down from 19 GB), the gate-enforced 100 MB allocation budget, and the diagnostic backbone (`NUC_TRACE_ALLOC`).
 - [Benchmarks](docs/benchmarks.md) — reproducible numbers from `nuc bench`.
 

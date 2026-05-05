@@ -14,9 +14,12 @@
 
 ## 1. Summary
 
-Today `@law(commutative, associative, identity=0)` annotations drive
-the optimizer's algebraic-rewriting pass. This RFC promotes them to
-**verified rewrites** — each declared law generates:
+Today `@law(commutative, associative, identity=0)` annotations are
+captured and surfaced as algebraic-law metadata. The optimizer has a
+metadata-only law pass scaffold; user-law-driven rewrites, generated
+property tests, and SMT proof obligations are reserved for later phases.
+This RFC promotes the metadata into **verified rewrites** - each declared
+law will generate:
 
 1. A property test (run with `nuc test --check-laws`)
 2. An optimizer-pass entry (existing)
@@ -39,17 +42,20 @@ fn check_my_laws() {
 A rewrite the compiler depends on is now also one the user can
 verify. Closes the trust loop.
 
+Current implementation status: Phase 1 capture/scaffold work is in tree
+and must remain part of the build path. The remaining phases are
+implementation work, not a deletion of the feature.
+
 ---
 
 ## 2. Motivation
 
-Today `@law` is user-asserted; the optimizer takes the user's word.
-If the user mis-states (e.g., float subtraction is NOT associative),
-the optimizer produces wrong results.
+Today `@law` is user-asserted metadata. It does not drive user-law
+rewrites yet, so a misstated law cannot currently rewrite code, but it
+also gives no property-test or proof guarantee.
 
-Promoting `@law` to verifiable closes this gap. Plus: nobody else
-has user-declared algebraic laws driving codegen + verification. It's
-a Nucleor-unique feature, worth investment.
+Promoting `@law` to verifiable closes this gap. The target feature is
+user-declared algebraic laws driving codegen plus verification.
 
 ---
 
@@ -155,8 +161,9 @@ which downgrades to property-test-only.
 
 ### 3.5 Optimizer interaction
 
-Optimizer's algebraic-rewriting pass already consumes `@law`. No
-change to that pass; just adds the test+proof side.
+The current optimizer has a metadata-only `@law` pass scaffold. Later
+phases must wire captured law metadata into actual rewrites, then add
+the test/proof side.
 
 In `--profile=cert`, optimizer rewrites are restricted to
 **proven** laws only. This blocks float-arithmetic rewrites in cert

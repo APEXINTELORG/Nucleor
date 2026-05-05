@@ -115,7 +115,22 @@ launch. After memory safety completes, these are next-priority.
 
 ### Algebraic Laws
 - Source: `gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md`
-- Phase 1: property test set for math identities.
+- **Status:** IN FLIGHT — do not remove or demote. Current compiler
+  captures `@law(...)` at lex time, has a metadata-only optimizer pass
+  scaffold, reserves LAW diagnostics, and has smoke fixtures for
+  capture / `--check-laws` acknowledgment / optimizer identity
+  eligibility.
+- **Phase 1 honesty pass:** DONE in docs on 2026-05-05 — public docs now
+  say the current shipped contract is capture + audit metadata, not
+  finished user-law rewrites or generated property tests.
+- **Phase 2:** wire captured law metadata into verified low-risk
+  rewrites (`identity`, `absorbing`, `idempotent`, `involution`) behind
+  a proof/check gate.
+- **Phase 3:** add generated property tests for `nuc test --check-laws`
+  and canonical-law validation (`LAW-001`, `LAW-006`, `LAW-007`,
+  `LAW-008`).
+- **Phase 4:** add cert-profile SMT/proof obligations and float-law
+  safeguards (`LAW-002`, `LAW-004`).
 
 ## Tier B items (compilation, runtime, execution)
 
