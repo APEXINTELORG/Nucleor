@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.256] — 2026-05-05
+
+**quantize ternary GEMV rod ↔ runtime arity drift FIXED + coverage.**
+Closes the silent-miscompute surfaced 2026-05-05 by parallel-agent
+TRACK A `extern_arity_drift_quantize_2026-05-05`. Fifth in the same
+class — see v0.8.45 ML-1, v0.8.252 kv_cache, v0.8.254 transformer,
+v0.8.255 bayesian.
+
+### Bug
+
+`stdlib/rods/quantize.nr` declared `nuc_quant_ternary_gemv` as 3-arg
+`(tw, x, rows)` but `stdlib/runtime/quantize_rt.c` defined it 4-arg
+`(tw, x, rows, cols)`. The 3-arg call site read garbage from the
+un-pushed `cols` slot — inner loop bounds were random, causing
+segfault or truncated output. **MLV/MGN ternary inference miscomputed
+today.**
+
+### Fix (Plan B — non-breaking)
+
+`stdlib/runtime/quantize_rt.c`:
+
+| Before | After |
+|---|---|
+| `nuc_quant_ternary_gemv` (4-arg) | renamed to `nuc_quant_ternary_gemv_full` |
+| — | new 3-arg `nuc_quant_ternary_gemv(tw, x, rows)` recovering `cols = x->len` and calling `_full(tw, x, rows, cols)` |
+
+`stdlib/rods/quantize.nr`: keeps existing 3-arg extern + wrapper;
+adds 4-arg `_full` extern + `quant_ternary_gemv_full` rod fn for
+callers that want explicit cols (slice / padded x).
+
+### Coverage
+
+`tests/features/quantize_ternary_smoke.nr` locks 2 invariants on a
+2×2 identity-like matrix `[4, 0; 0, 4]` → trits `[+1, 0, 0, +1]`,
+absmean = 2.0:
+
+| Test | Path |
+|---|---|
+| **3-arg shim recovers cols correctly** | y = [+1·1+0·2, 0·1+(+1)·2]·absmean = [2.0, 4.0] for x=[1.0, 2.0] |
+| **3-arg matches 4-arg `_full`** | bit-identical output when cols passed explicitly |
+
+Existing `quantize_smoke.nr` (Q4 round-trip) still passes — no
+regression. All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e` (no compiler edit; runtime + rod
++ fixture only).
+
 ## [0.8.255] — 2026-05-05
 
 **bayesian rod ↔ runtime arity + name drift FIXED + first test coverage.**
