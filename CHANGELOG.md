@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.180] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — tensor_nd +
+target_caps.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### tensor_nd rod (3D tensor — shape, set/get, fill, scale)
+
+`tests/features/tensor_nd_smoke.nr` locks 5 invariants on a
+2×3×4 tensor:
+
+| Test | Path |
+|---|---|
+| Shape | ndim=3; per-dim shape matches construction |
+| Total | 24 elements |
+| **Set + get round-trip** | `set(1,2,3, 42.5)` → `get(1,2,3) == 42.5` |
+| Fill | `fill(7.0)` → all 24 flat-indexed elements == 7.0 |
+| **Scale** | `fill(3.0) × scale(2.0)` → 6.0 everywhere |
+
+### target_caps rod (RFC-0048 Phase A hardware capabilities)
+
+Sister to v0.8.147 RFC-0048 Phase B step-1 audit (which surfaces
+`target.has(...)` syntax usage). This rod is the runtime API.
+
+`tests/features/target_caps_smoke.nr` locks 4 invariants:
+
+| Test | Path |
+|---|---|
+| Stable cap IDs | fp4=1, fp8=2, bf16=3, avx2=10, cuda=21 |
+| Phase A device caps return 0 | fp4/avx512/cuda/metal all 0 (no accel dispatch yet) |
+| **OS family one-hot** | exactly one of windows/linux/macos returns 1 |
+| `has_id` round-trip | `has_id(1) == has_fp4()`; unknown id → 0 |
+
+All pass. rc=0.
+
 ## [0.8.179] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — strings + taylor.**
