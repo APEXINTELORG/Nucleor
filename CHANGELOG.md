@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.153] — 2026-05-04
+
+**V1.16 LSP server Phase A1 main work — `nucleor-lsp.exe`
+daemon with real LSP base protocol over stdin/stdout.** Self-
+hosted Nucleor binary; ~165 LOC daemon source.
+
+### Why
+
+Phase A0 (v0.8.150) wired the `--lsp-mode` flag with a
+capabilities advertisement. Phase A1 builds the actual
+subprocess-mode LSP daemon per `SPEC-LSP-server.md`.
+
+### What
+
+| Change | Path |
+|---|---|
+| Standalone LSP daemon source | `compiler/nucleor_lsp.nr` (~165 LOC) |
+| Daemon binary | `bin/nucleor-lsp.exe` |
+| Build-path smoke marker | `tests/features/lsp_protocol_smoke.nr` |
+
+### Phase A1 surface (working end-to-end)
+
+- **Header parsing:** reads `Content-Length: N` headers, skips to
+  blank-line terminator.
+- **Body reading:** uses v0.8.152's `io_read_bytes(N)` to read
+  exactly N body bytes (faithful — preserves embedded newlines
+  in JSON strings).
+- **JSON probe:** minimal substring search for `"method":"..."`
+  and `"id":<int>` (full JSON parsing deferred).
+- **Method dispatch:**
+  - `initialize` → returns server capabilities + serverInfo
+  - `shutdown` → returns `null` result
+  - `exit` → process exits cleanly
+  - Other methods with id → `MethodNotFound` (-32601) error
+  - Notifications (no id) → silently acked
+- **Response framing:** all responses emit
+  `Content-Length: N\r\n\r\n<body>` to stdout.
+
+### Verified end-to-end
+
+```
+$ printf 'Content-Length: 58\r\n\r\n{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\
+Content-Length: 44\r\n\r\n{"jsonrpc":"2.0","id":2,"method":"shutdown"}\
+Content-Length: 33\r\n\r\n{"jsonrpc":"2.0","method":"exit"}' | bin/nucleor-lsp.exe
+Content-Length: 401
+
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{...},"serverInfo":{"name":"nucleor-lsp","version":"v0.8.153-A1"}}}Content-Length: 38
+
+{"jsonrpc":"2.0","id":2,"result":null}
+$ echo "exit rc=$?"
+exit rc=0
+```
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server progression:
+  - Phase A0 → ✅ v0.8.150 (`--lsp-mode` flag + capabilities ad)
+  - Phase A1 dependency → ✅ v0.8.152 (`io_read_bytes(n)`)
+  - Phase A1 main → ✅ v0.8.153 (this ship — daemon binary +
+    real LSP base protocol)
+  - Phase A2 → next ship (forward diagnostics via per-request
+    `nucleor.exe --lsp-mode --emit-diagnostics-json` spawn,
+    wire textDocument/didOpen + didChange + didClose)
+  - Phase v1 → deferred (~3000 LOC compiler frontend refactor
+    for library-mode LSP, <10ms incremental diagnostics)
+
+### Editor integration (parallel work, can start now)
+
+Phase A1's daemon is enough for editors to register the
+language server. VS Code TS extension shim (~200 LOC), Neovim
+`lspconfig` snippet (~50 LOC), Helix `languages.toml` (~15 LOC),
+Emacs `lsp-mode` config (~30 LOC) — all unblocked.
+
 ## [0.8.152] — 2026-05-04
 
 **V1.16 LSP Phase A1 dependency — `io_read_bytes(n)` raw stdin
