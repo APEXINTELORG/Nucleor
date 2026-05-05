@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.141] — 2026-05-04
+
+**stdlib/rods/control.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+PID controller. Foundational for robotics / signal processing /
+guidance-control adopters. Pre-v0.8.141: zero coverage.
+
+`tests/features/control_smoke.nr` locks three textbook PID
+invariants:
+
+| Test | Path |
+|---|---|
+| Pure-proportional | `pid_new(Kp=2, 0, 0)` → `update(sp=10, meas=4)` returns 12 = Kp · error |
+| Zero error → zero output | sp == meas on a fresh controller → output ≈ 0 (no integral / derivative wind-up) |
+| **Reset clears integral** | wind up integral over 10 non-zero-error updates → `pid_reset` → zero-error update returns ≈ 0 (lock against integral persistence after reset) |
+
+State-space + Kalman take Vec<i64> matrix handles needing
+matrix-flatten setup outside smoke scope.
+
+All pass. rc=0.
+
 ## [0.8.140] — 2026-05-04
 
 **stdlib/rods/concurrency.nr first test coverage.** Pure
