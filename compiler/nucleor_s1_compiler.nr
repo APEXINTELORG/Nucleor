@@ -16654,6 +16654,98 @@ fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === R05-D1 Phase 1 (v0.8.307): pure fn purity enforcement in s1 ===
+//
+// Per audit `BUILD_PLAN_R05_effect_capability.md` §1 R05-D1
+// (CRITICAL): `pure fn` parses but the s1 build path does NOT run
+// the effect checker. tools-suite (`nuc check`) emits EFF-001 for
+// pure-with-effects, but `nuc build` ships the binary regardless.
+//
+// Phase 1: port the same body-substring scan from
+// enforce_const_fn_purity (v0.8.293 NUM-009) for the `pure fn`
+// surface. Direct builtin check only — transitive user-call
+// closure is Phase 2 (audit ship plan step 2).
+
+// Returns 0 (clean) or non-zero code naming the first effect:
+//   1 = print
+//   2 = allocation (Vec::new / Box::new)
+//   3 = ambient capability (ambient_random / ambient_*)
+#[manual_drop]
+fn pure_fn_body_effect_code(source: str, fn_name: str) -> i64 {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut found_at: i64 = 0 - 1;
+    while p + nlen <= slen && found_at < 0 {
+        if str_eq_at_len(source, p, needle, nlen) == 1 { found_at = p; }
+        else { p = p + 1; };
+    };
+    if found_at < 0 { return 0; };
+    let mut q: i64 = found_at + nlen;
+    while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+    if q >= slen { return 0; };
+    let body_start: i64 = q + 1;
+    q = body_start;
+    let mut depth: i64 = 1;
+    let mut body_end: i64 = slen;
+    while q < slen && depth > 0 {
+        let c: i64 = str_char_at(source, q);
+        if c == 123 { depth = depth + 1; };
+        if c == 125 {
+            depth = depth - 1;
+            if depth == 0 { body_end = q; };
+        };
+        q = q + 1;
+    };
+    let body: str = str_substring(source, body_start, body_end);
+    if str_index_of(body, "print(") >= 0 { return 1; };
+    if str_index_of(body, "println(") >= 0 { return 1; };
+    if str_index_of(body, "Vec::new") >= 0 { return 2; };
+    if str_index_of(body, "Box::new") >= 0 { return 2; };
+    if str_index_of(body, "ambient_random") >= 0 { return 3; };
+    return 0;
+}
+
+// Walks the source line-by-line. When a line declares `pure fn
+// <name>(`, scans the body for effects and emits EFF-001.
+#[manual_drop]
+fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let trimmed: str = str_trim(line);
+        let is_comment: i64 = if str_index_of(trimmed, "//") == 0 { 1 } else { 0 };
+        if is_comment == 0 && str_index_of(line, "pure fn ") >= 0 {
+            // Extract fn name. Pattern: optional `pub`, then `pure fn <name>(`.
+            let pos: i64 = str_index_of(line, "pure fn ");
+            let after: i64 = pos + 8; // len("pure fn ")
+            let llen: i64 = str_len(line);
+            let mut np: i64 = after;
+            while np < llen && (str_char_at(line, np) == 32 || str_char_at(line, np) == 9) { np = np + 1; };
+            let mut ne: i64 = np;
+            while ne < llen && (is_alnum(str_char_at(line, ne)) == 1 || str_char_at(line, ne) == 95) { ne = ne + 1; };
+            if ne > np {
+                let fn_name: str = str_substring(line, np, ne);
+                let code: i64 = pure_fn_body_effect_code(source, fn_name);
+                if code > 0 {
+                    let kind: str = if code == 1 { "calls print() / println() — I/O is not pure" }
+                        else if code == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
+                        else { "uses ambient capability (ambient_*) — non-deterministic input is not pure" };
+                    let msg: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
+                    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                    diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return diags;
+}
+
 // === R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3 detection ===
 //
 // Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2:
@@ -30808,6 +30900,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3.
     // Per-iteration Vec::new/Box::new in any while/loop body.
     diags = enforce_heap_in_loop(diags, max_depth_source);
+    // R05-D1 Phase 1 (v0.8.307): `pure fn` purity enforcement
+    // in s1 build path. Pre-v0.8.307 only `nuc check` flagged
+    // pure-with-effects; `nuc build` shipped binaries that
+    // violated their declared purity contract.
+    diags = enforce_pure_fn_purity(diags, max_depth_source);
     // R04-D3 Phase 1 (v0.8.299): RACE-002 emitter — unawaited
     // async_spawn (fire-and-forget breaks completion ordering).
     diags = enforce_unawaited_spawn(diags, max_depth_source);
