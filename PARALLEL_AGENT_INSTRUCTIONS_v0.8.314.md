@@ -12,8 +12,8 @@
 - Canonical repo: `C:\Users\JoeWe\Desktop\Nucleor_OSS`
 - Branch: `main`
 - Current `origin/main`: fetch it live before creating the helper branch.
-  Redirect base as of 2026-05-05 is `c4610e763a3799c43557a3d18ea803bca19882a0` / `v0.8.316`.
-- Compiler baseline underneath this redirect: `c4610e763a3799c43557a3d18ea803bca19882a0` / `v0.8.316`
+  Redirect base as of 2026-05-05 is `c5fd41c2c02ba1f9e2961a743f188462f1c4844e`.
+- Compiler baseline underneath this redirect: `c5fd41c2c02ba1f9e2961a743f188462f1c4844e`
 - Self-host fixed-point md5: `9c991a17cfa5b0f97a8ce0021cac6fe3`
 - Handoff from previous main agent:
   `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\HANDOFF_FOR_NEXT_AGENT_2026-05-05.md`
