@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.217] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — option + overflow.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** the overflow fixture caught Phase A
+`wrapping{}` block-expr's i32-clamped boundary semantic
+(documented in the rod prologue but easy to miss); locked the
+modular check at i32 range with a Phase B promotion note.
+
+### option rod (Option<T> Some/None v0.1 stub)
+
+`tests/features/option_smoke.nr` locks four invariants Phase B
+compiler ADT (RFC-0016) must NOT regress when it replaces this
+stub:
+
+| Test | Path |
+|---|---|
+| Tag stability | Some=1, None=0 (wire format) |
+| Predicates | is_some/is_none agree on both sides |
+| **unwrap_or default** | None.unwrap_or(99) = 99; Some(7).unwrap_or(99) = 7 |
+| unwrap on Some returns payload | unwrap(Some(42)) = 42 |
+
+### overflow rod (RFC-0044 Phase A overflow modes)
+
+`tests/features/overflow_smoke.nr` locks four invariants. Phase
+B compiler enforcement of inline-suffix syntax (`a *#wrap b`,
+`a +#sat b`, `a /#trap b`) must NOT regress these:
+
+| Test | Path |
+|---|---|
+| Stable mode tags | default=0, wrap=1, sat=2, trap=3 |
+| Trap on safe inputs returns same as plain | add/sub/mul/neg trap on non-overflow paths |
+| **Wrap on overflow modular (i32 range)** | max32 + 1 wraps to min32 |
+| Mode dispatch routes correctly | add/mul/sub_with_mode on each tag, default arm = plain |
+
+Trap-on-overflow PANIC paths intentionally NOT tested (would
+crash the test process); Phase B fixture extends to full i64.
+
+All pass. rc=0.
+
 ## [0.8.216] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — octree + path.**
