@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2774
-# Total LOC: 11811
+# Total fn definitions: 2775
+# Total LOC: 11815
 
 [[rod]]
 name           = "activation2"
@@ -978,9 +978,9 @@ imports        = ["interval"]
 name           = "io"
 path           = "stdlib/rods/io.nr"
 description    = "Input/Output operations"
-function_count = 7
+function_count = 8
 cfile_count    = 1
-loc            = 25
+loc            = 29
 imports        = ["io"]
 
 [[rod]]
