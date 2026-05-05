@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2782
-# Total LOC: 11849
+# Total fn definitions: 2783
+# Total LOC: 11853
 
 [[rod]]
 name           = "activation2"
@@ -1995,9 +1995,9 @@ imports        = ["taylor"]
 name           = "tensor_decomp"
 path           = "stdlib/rods/tensor_decomp.nr"
 description    = "Tensor Decompositions"
-function_count = 4
+function_count = 5
 cfile_count    = 1
-loc            = 17
+loc            = 21
 imports        = ["tensor_decomp"]
 
 [[rod]]
