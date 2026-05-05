@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.265] — 2026-05-05
+
+**R14-D2 Phase 1 — `opt_law_rewrite_block` scaffold wired into optimizer driver.**
+Closes the fourth deficiency from `BUILD_PLAN_R14_algebraic_laws.md`:
+the optimizer's missing law-rewrite pass slot.
+
+### Bug
+
+Pre-v0.8.265 the optimizer driver `opt_fn` (compiler/nucleor_s1_compiler.nr:6181)
+ran fold → prop → fold → CSE → dead-store → DCE with no slot for
+law-aware rewrites. Even if `@law` metadata existed (it doesn't yet
+in IR), there was no place for the optimizer to consume it. The
+audit's R14-D2 (HIGH) flagged this as the optimizer-side gap.
+
+### Fix (Phase 1, additive — metadata-only no-op pass)
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **NEW** `opt_law_rewrite_block(blk: Vec<i32>) -> i64` — returns 0.
+   Scaffold for the future law-rewrite pass.
+2. **Wired into `opt_fn`** in both Iteration-1 and Iteration-2 loops
+   alongside fold/prop/CSE/dead-store/DCE.
+
+### Why "metadata-only no-op"
+
+Per build-plan §1 R14-D2 ship sequence: "implement metadata-only
+no-op pass, require proof flag, then enable one identity rewrite."
+Phase 1 ships the slot. Phase 2 will:
+
+1. Consume `@law` metadata stored at lex (R14-D1 v0.8.262).
+2. Gate behind a proof flag from `--check-laws` property-test
+   results (R14-D3 Phase 2).
+3. Enable the first concrete rewrite: `f(a, identity) → a` for
+   verified identity laws.
+
+### Acceptance status
+
+| Criterion | Status |
+|---|---|
+| **Optimizer uses only verified laws** | ✅ trivially — no rewrites fire |
+| **False law never triggers rewrite** | ✅ trivially — no law triggers any rewrite |
+| **Pass exists in opt_fn pass list** | ✅ both Iteration-1 + Iteration-2 |
+| Cold compile ≤ 4s | ✅ 3.58s (under) |
+
+### Coverage
+
+`tests/features/law_optimizer_identity_smoke.nr` — 3 `@law`-annotated
+fns (`add_law` commutative+associative+identity=0, `mul_law`
+commutative+associative+identity=1+absorbing=0, `max_law` idempotent).
+Verifies runtime semantics under the full optimizer pass list:
+
+| Test | Path |
+|---|---|
+| Identity law correct | `add_law(x, 0) == x`, `mul_law(x, 1) == x` |
+| Absorbing law correct | `mul_law(x, 0) == 0` |
+| Commutativity holds | `add_law(a, b) == add_law(b, a)`, same for mul |
+| Associativity holds | `add_law(add_law(1,2), 3) == add_law(1, add_law(2,3))` |
+| Idempotence | `max_law(x, x) == x` |
+
+3 `info[LAW-CAPTURE]` records emit at compile time. Existing
+`tests/attrs/laws.nr` regression-clean.
+
+### Self-host fixed-point md5 ROTATED
+
+| | Before | After |
+|---|---|---|
+| Stage1/2/seed md5 | `45802a11e9c6e5b1af3bf6e948f5f56f` | `8053d33975991b1ad335ed5d05b2dc5c` |
+
+`bootstrap/nucleor_s1_seed.ll` refreshed; `bin/nucleor.exe` promoted.
+
+### Gates
+
+- Self-host fixed-point: ✅ at new md5
+- Bootstrap seed match: ✅
+- Perf cold: 3.58s ✅
+- Perf hot: 1.18s ✅ (under 1.74s max)
+- Perf peak mem: 303MB ✅
+- Drift: ✅
+
+### Rollback (per build plan §1 R14-D2)
+
+Remove the two `total = total + opt_law_rewrite_block(blk);` calls
+in `opt_fn` Iteration-1 and Iteration-2 loops; keep the
+`opt_law_rewrite_block` definition in place for future phases.
+
+### Next R14 ships (per spine §15.2)
+
+| # | Phase | Scope |
+|---|---|---|
+| 5 | R14-D4 Phase 1 | Property + Arbitrary + cert proof scaffolding |
+| 6 | R14-D3 Phase 2 | compiler-side `--check-laws` dispatch + property-test generator + counterexample exit code |
+| 7 | R14-D5 Phase 2 | compiler-side recognition + `LAW-006`/`LAW-007`/`LAW-008` diagnostics on aliases |
+| 8 | R14-D2 Phase 2 | populate `opt_law_rewrite_block` body — first identity rewrite gated on verified law |
+| 9+ | Phase 2/3/4 | actual rewrites, hard errors, Z3 integration |
+
 ## [0.8.264] — 2026-05-05
 
 **R14-D5 Phase 1 — `@law(...)` canonical schema locked across docs.**
