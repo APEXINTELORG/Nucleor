@@ -30597,25 +30597,30 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency rod's `cancel_token` (C-1) is a linker bomb on Linux (extern fn declared, body absent in nucleor_llvm_rt.c POSIX path) and POSIX channel helpers (C-2) are silent no-op stubs that lose all messages. Programs using these on Linux either fail at link time or run with broken concurrency. Phase 2b adds the missing POSIX implementations; Phase 4 enforces a CI gate that builds + smokes a concurrency test on Linux. Adopter discipline today: avoid these helpers if targeting Linux. Reference: docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md C-1, C-2.");
         };
     };
-    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability silent-discard
-    // audit-pass info. Counts `pure fn`, `requires(`, `restricts(`
-    // keyword occurrences. Today these all silently discard with NO
-    // diagnostic + NO enforcement (E-1: pure fn body not checked,
-    // E-2: requires brackets thrown away, E-3: restricts not even
-    // a keyword). Phase 2b adds per-fn enforcement.
+    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability audit-pass info.
+    // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
+    // no-signal class with EFF-001 for print/alloc/ambient capability use.
+    // The remaining trust gap is the effect-row surface:
+    // `requires [...]`, block-form `restricts [...]`, transitive effect
+    // inference, and cross-module propagation are not fully enforced by
+    // s1. Phase 2b moves effect-row enforcement into the main build path.
     // Shared gate: skip if none of the three keywords are textually
     // present (most adopter code doesn't use these keywords).
     let v0848_has_pure: i64 = if str_index_of(after_async, str_concat("pure ", "fn ")) >= 0 { 1 } else { 0 };
-    let v0848_has_requires: i64 = if str_index_of(after_async, str_concat("requires", "(")) >= 0 { 1 } else { 0 };
-    let v0848_has_restricts: i64 = if str_index_of(after_async, str_concat("restricts", "(")) >= 0 { 1 } else { 0 };
+    let v0848_has_requires_spaced: i64 = if str_index_of(after_async, str_concat("requires", " [")) >= 0 { 1 } else { 0 };
+    let v0848_has_requires_compact: i64 = if str_index_of(after_async, str_concat("requires", "[")) >= 0 { 1 } else { 0 };
+    let v0848_has_requires: i64 = if v0848_has_requires_spaced == 1 || v0848_has_requires_compact == 1 { 1 } else { 0 };
+    let v0848_has_restricts_spaced: i64 = if str_index_of(after_async, str_concat("restricts", " [")) >= 0 { 1 } else { 0 };
+    let v0848_has_restricts_compact: i64 = if str_index_of(after_async, str_concat("restricts", "[")) >= 0 { 1 } else { 0 };
+    let v0848_has_restricts: i64 = if v0848_has_restricts_spaced == 1 || v0848_has_restricts_compact == 1 { 1 } else { 0 };
     if v0848_has_pure == 1 || v0848_has_requires == 1 || v0848_has_restricts == 1 {
         let v0848_pure_count: i64 = if v0848_has_pure == 1 { simple_attribute_audit_count(after_async, str_concat("pure ", "fn ")) } else { 0 };
-        let v0848_requires_count: i64 = if v0848_has_requires == 1 { simple_attribute_audit_count(after_async, str_concat("requires", "(")) } else { 0 };
-        let v0848_restricts_count: i64 = if v0848_has_restricts == 1 { simple_attribute_audit_count(after_async, str_concat("restricts", "(")) } else { 0 };
+        let v0848_requires_count: i64 = simple_attribute_audit_count(after_async, str_concat("requires", " [")) + simple_attribute_audit_count(after_async, str_concat("requires", "["));
+        let v0848_restricts_count: i64 = simple_attribute_audit_count(after_async, str_concat("restricts", " [")) + simple_attribute_audit_count(after_async, str_concat("restricts", "["));
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): `pure fn`, `requires(...)`, and `restricts(...)` annotations parse but are SILENTLY DISCARDED at compile time. No EFF-001 or EFF-002 diagnostic fires; no purity check; no capability-set enforcement. A `pure fn` containing `print(\"x\")` compiles cleanly and runs the print. Phase 2b adds per-fn effect inference + enforcement; Phase 4 promotes silent violations to hard errors. Adopter discipline today: treat these annotations as documentation only — do NOT rely on them as compile-time guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-1, E-2, E-3.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. The remaining open surface is effect-row completeness: `requires [...]`, block-form `restricts [...]`, transitive user-call inference, and cross-module propagation are not yet fully enforced by s1. Treat those rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
