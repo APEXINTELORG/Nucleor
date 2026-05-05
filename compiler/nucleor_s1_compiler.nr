@@ -6176,12 +6176,43 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
     return rewrites;
 }
 
+// R14-D2 Phase 1 (v0.8.265) — metadata-only law-rewrite pass (no-op).
+//
+// Per audit `BUILD_PLAN_R14_algebraic_laws.md` §1 R14-D2 (HIGH):
+// the optimizer must have a slot for law-aware rewrites that ONLY
+// fires under a proof flag. Phase 1 ships the pass-list slot as a
+// no-op; Phase 2 wires law metadata (stored at @law lex-capture +
+// AST node attachment) into the body so the pass actually
+// reassociates / commutes per a verified law.
+//
+// Acceptance criteria (this Phase 1):
+//   - the pass exists in opt_fn's pass list (observable scaffold);
+//   - returns 0 rewrites (no-op — matches "implement metadata-only
+//     no-op pass" from build plan §1 R14-D2 ship sequence);
+//   - "false law never triggers rewrite" trivially holds because
+//     no law triggers any rewrite yet.
+//
+// Phase 2 will: (1) consume law metadata from a side table populated
+// at lex/parse time; (2) gate behind a proof flag (e.g. property-test
+// passed) so unverified laws can't drive unsound rewrites; (3) enable
+// one identity rewrite (`f(a, identity) → a`) as the first concrete
+// optimization.
+//
+// Rollback: replace opt_fn's call to opt_law_rewrite_block with a
+// no-op (0) and keep this fn definition in place for future phases.
+#[manual_drop]
+fn opt_law_rewrite_block(blk: Vec<i32>) -> i64 {
+    // Phase 1: observe-only pass slot. No metadata to consume yet,
+    // so no rewrites fire. Phase 2 populates the body.
+    return 0;
+}
+
 // --- Optimizer driver: runs all passes on an entire function ---
 #[manual_drop]
 fn opt_fn(f: Vec<i32>) -> i64 {
     let mut total: i64 = 0;
     let mut bi: i64 = 0;
-    // Iteration 1: fold → prop → fold → CSE → dead store → DCE
+    // Iteration 1: fold → prop → fold → CSE → dead store → DCE → law (no-op Phase 1)
     let mut bc: i64 = ir_fn_block_count(f);
     bi = 0;
     while bi < bc {
@@ -6192,6 +6223,7 @@ fn opt_fn(f: Vec<i32>) -> i64 {
         total = total + opt_cse_block(blk);
         total = total + opt_dead_store_block(blk);
         total = total + opt_dce_block(blk);
+        total = total + opt_law_rewrite_block(blk);
         bi = bi + 1;
     };
     // Block merging disabled — predecessor counting doesn't account for
@@ -6206,6 +6238,7 @@ fn opt_fn(f: Vec<i32>) -> i64 {
         total = total + opt_fold_block(blk);
         total = total + opt_dead_store_block(blk);
         total = total + opt_dce_block(blk);
+        total = total + opt_law_rewrite_block(blk);
         bi = bi + 1;
     };
     return total;

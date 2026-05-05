@@ -54088,13 +54088,22 @@ L5:
   ret i64 %r.333
 }
 
+define i64 @opt_law_rewrite_block(i64 %p.0) {
+bb.entry:
+  %r.0 = alloca i64
+  %r.1 = add i64 %p.0, 0
+  store i64 %r.1, ptr %r.0
+  %r.2 = add i64 0, 0
+  ret i64 %r.2
+}
+
 define i64 @opt_fn(i64 %p.0) {
 bb.entry:
   %r.2 = alloca i64
   %r.4 = alloca i64
   %r.6 = alloca i64
   %r.13 = alloca i64
-  %r.50 = alloca i64
+  %r.54 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -54192,52 +54201,52 @@ L13:
   unreachable
 L14:
   store i64 %r.40, ptr %r.2
-  %r.41 = load i64, ptr %r.4
-  %r.42 = add i64 1, 0
-  %r.43.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.41, i64 %r.42)
-  %r.43 = extractvalue { i64, i1 } %r.43.ov, 0
-  %r.43.of = extractvalue { i64, i1 } %r.43.ov, 1
-  br i1 %r.43.of, label %L15, label %L16
+  %r.41 = load i64, ptr %r.2
+  %r.42 = load i64, ptr %r.13
+  %r.43 = call i64 @opt_law_rewrite_block(i64 %r.42)
+  %r.44.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.41, i64 %r.43)
+  %r.44 = extractvalue { i64, i1 } %r.44.ov, 0
+  %r.44.of = extractvalue { i64, i1 } %r.44.ov, 1
+  br i1 %r.44.of, label %L15, label %L16
 L15:
-  %r.43.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.44.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
 L16:
-  store i64 %r.43, ptr %r.4
+  store i64 %r.44, ptr %r.2
+  %r.45 = load i64, ptr %r.4
+  %r.46 = add i64 1, 0
+  %r.47.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.45, i64 %r.46)
+  %r.47 = extractvalue { i64, i1 } %r.47.ov, 0
+  %r.47.of = extractvalue { i64, i1 } %r.47.ov, 1
+  br i1 %r.47.of, label %L17, label %L18
+L17:
+  %r.47.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L18:
+  store i64 %r.47, ptr %r.4
   br label %L0
 L2:
-  %r.44 = load i64, ptr %r.0
-  %r.45 = call i64 @ir_fn_block_count(i64 %r.44)
-  store i64 %r.45, ptr %r.6
-  %r.46 = add i64 0, 0
-  store i64 %r.46, ptr %r.4
-  br label %L17
-L17:
-  %r.47 = load i64, ptr %r.4
-  %r.48 = load i64, ptr %r.6
-  %r.49.cmp = icmp slt i64 %r.47, %r.48
-  %r.49 = zext i1 %r.49.cmp to i64
-  %br.49.cond = icmp ne i64 %r.49, 0
-  br i1 %br.49.cond, label %L18, label %L19
-L18:
-  %r.51 = load i64, ptr %r.0
-  %r.52 = load i64, ptr %r.4
-  %r.53 = call i64 @ir_fn_get_block(i64 %r.51, i64 %r.52)
-  store i64 %r.53, ptr %r.50
-  %r.54 = load i64, ptr %r.2
-  %r.55 = load i64, ptr %r.50
-  %r.56 = call i64 @opt_fold_block(i64 %r.55)
-  %r.57.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.54, i64 %r.56)
-  %r.57 = extractvalue { i64, i1 } %r.57.ov, 0
-  %r.57.of = extractvalue { i64, i1 } %r.57.ov, 1
-  br i1 %r.57.of, label %L20, label %L21
+  %r.48 = load i64, ptr %r.0
+  %r.49 = call i64 @ir_fn_block_count(i64 %r.48)
+  store i64 %r.49, ptr %r.6
+  %r.50 = add i64 0, 0
+  store i64 %r.50, ptr %r.4
+  br label %L19
+L19:
+  %r.51 = load i64, ptr %r.4
+  %r.52 = load i64, ptr %r.6
+  %r.53.cmp = icmp slt i64 %r.51, %r.52
+  %r.53 = zext i1 %r.53.cmp to i64
+  %br.53.cond = icmp ne i64 %r.53, 0
+  br i1 %br.53.cond, label %L20, label %L21
 L20:
-  %r.57.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L21:
-  store i64 %r.57, ptr %r.2
+  %r.55 = load i64, ptr %r.0
+  %r.56 = load i64, ptr %r.4
+  %r.57 = call i64 @ir_fn_get_block(i64 %r.55, i64 %r.56)
+  store i64 %r.57, ptr %r.54
   %r.58 = load i64, ptr %r.2
-  %r.59 = load i64, ptr %r.50
-  %r.60 = call i64 @opt_prop_block(i64 %r.59)
+  %r.59 = load i64, ptr %r.54
+  %r.60 = call i64 @opt_fold_block(i64 %r.59)
   %r.61.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.58, i64 %r.60)
   %r.61 = extractvalue { i64, i1 } %r.61.ov, 0
   %r.61.of = extractvalue { i64, i1 } %r.61.ov, 1
@@ -54248,8 +54257,8 @@ L22:
 L23:
   store i64 %r.61, ptr %r.2
   %r.62 = load i64, ptr %r.2
-  %r.63 = load i64, ptr %r.50
-  %r.64 = call i64 @opt_fold_block(i64 %r.63)
+  %r.63 = load i64, ptr %r.54
+  %r.64 = call i64 @opt_prop_block(i64 %r.63)
   %r.65.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.62, i64 %r.64)
   %r.65 = extractvalue { i64, i1 } %r.65.ov, 0
   %r.65.of = extractvalue { i64, i1 } %r.65.ov, 1
@@ -54260,8 +54269,8 @@ L24:
 L25:
   store i64 %r.65, ptr %r.2
   %r.66 = load i64, ptr %r.2
-  %r.67 = load i64, ptr %r.50
-  %r.68 = call i64 @opt_dead_store_block(i64 %r.67)
+  %r.67 = load i64, ptr %r.54
+  %r.68 = call i64 @opt_fold_block(i64 %r.67)
   %r.69.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.66, i64 %r.68)
   %r.69 = extractvalue { i64, i1 } %r.69.ov, 0
   %r.69.of = extractvalue { i64, i1 } %r.69.ov, 1
@@ -54272,8 +54281,8 @@ L26:
 L27:
   store i64 %r.69, ptr %r.2
   %r.70 = load i64, ptr %r.2
-  %r.71 = load i64, ptr %r.50
-  %r.72 = call i64 @opt_dce_block(i64 %r.71)
+  %r.71 = load i64, ptr %r.54
+  %r.72 = call i64 @opt_dead_store_block(i64 %r.71)
   %r.73.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.70, i64 %r.72)
   %r.73 = extractvalue { i64, i1 } %r.73.ov, 0
   %r.73.of = extractvalue { i64, i1 } %r.73.ov, 1
@@ -54283,21 +54292,45 @@ L28:
   unreachable
 L29:
   store i64 %r.73, ptr %r.2
-  %r.74 = load i64, ptr %r.4
-  %r.75 = add i64 1, 0
-  %r.76.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.74, i64 %r.75)
-  %r.76 = extractvalue { i64, i1 } %r.76.ov, 0
-  %r.76.of = extractvalue { i64, i1 } %r.76.ov, 1
-  br i1 %r.76.of, label %L30, label %L31
+  %r.74 = load i64, ptr %r.2
+  %r.75 = load i64, ptr %r.54
+  %r.76 = call i64 @opt_dce_block(i64 %r.75)
+  %r.77.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.74, i64 %r.76)
+  %r.77 = extractvalue { i64, i1 } %r.77.ov, 0
+  %r.77.of = extractvalue { i64, i1 } %r.77.ov, 1
+  br i1 %r.77.of, label %L30, label %L31
 L30:
-  %r.76.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.77.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
 L31:
-  store i64 %r.76, ptr %r.4
-  br label %L17
-L19:
-  %r.77 = load i64, ptr %r.2
-  ret i64 %r.77
+  store i64 %r.77, ptr %r.2
+  %r.78 = load i64, ptr %r.2
+  %r.79 = load i64, ptr %r.54
+  %r.80 = call i64 @opt_law_rewrite_block(i64 %r.79)
+  %r.81.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.78, i64 %r.80)
+  %r.81 = extractvalue { i64, i1 } %r.81.ov, 0
+  %r.81.of = extractvalue { i64, i1 } %r.81.ov, 1
+  br i1 %r.81.of, label %L32, label %L33
+L32:
+  %r.81.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L33:
+  store i64 %r.81, ptr %r.2
+  %r.82 = load i64, ptr %r.4
+  %r.83 = add i64 1, 0
+  %r.84.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.82, i64 %r.83)
+  %r.84 = extractvalue { i64, i1 } %r.84.ov, 0
+  %r.84.of = extractvalue { i64, i1 } %r.84.ov, 1
+  br i1 %r.84.of, label %L34, label %L35
+L34:
+  %r.84.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L35:
+  store i64 %r.84, ptr %r.4
+  br label %L19
+L21:
+  %r.85 = load i64, ptr %r.2
+  ret i64 %r.85
 }
 
 define i64 @get_rt_name(i64 %p.0) {
