@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.184] — 2026-05-05
+
+**Helper integration — native Windows RSS e-stop helper for the
+perf gate.** Tooling-only; no compiler/runtime/stdlib edit;
+self-host fixed-point unchanged.
+
+### Why
+
+The 4-second-line conversation that drove v0.8.181's audit
+gating was diagnosing a real audit-pass overhead AND a
+measurement-noise problem layered on top. The PowerShell
+`tools/rss_estop_lib.ps1` wrapper was using ~100ms process-tree
+polling per sample, with WmiPrvSE / MsMpEng background activity
+introducing variance that hit individual cold-sample reads with
+0.5-1.0s jitter spikes — inflating the perceived cold time
+toward 4.5s on this host even though the compiler itself was at
+3.7s.
+
+Helper's diagnosis: the gate measured "compiler work + sampler
+overhead", and the sampler was the variable part.
+
+### What
+
+| Change | Path |
+|---|---|
+| New native Windows e-stop helper (~534 LOC C) | `tools/nuc_rss_estop.c` |
+| Wrapper updated to invoke native helper by default on Windows | `tools/rss_estop_lib.ps1` |
+| Heartbeat updated | `findings/heartbeat.json` |
+
+Helper binary is **generated lazily** at
+`tools\.nuc_rss_estop\nuc_rss_estop.exe` — deliberately outside
+`target/` so cold-cache cleanup doesn't re-charge sampler-build
+time as compiler time. Not checked in.
+
+### Validation
+
+| Sample | cold | hot | peak |
+|---|---|---|---|
+| Helper-reported pre-fix | 4.51s | 0.42s | 313MB |
+| Helper-reported post-fix | 3.74s | 0.31s | 315MB |
+| Local re-run #1 | 3.74s | 0.32s | 314MB |
+| Local re-run #2 | 4.28s | 0.32s | 308MB (background defender scan visible in WmiPrvSE/MsMpEng cpu deltas) |
+| Local re-run #3 | 3.59s | 0.34s | 313MB |
+
+Median 3.74s on this machine — matches helper's reported number
+exactly.
+
+### Side-quest read on Desktop/Rev (helper's note)
+
+Helper agrees with my prior read: source-side audit gating was
+the substantive idea (already integrated as v0.8.181). Remaining
+useful Rev items: LSP `--no-link` diagnostics + `path_exists`
+sweep. Auto-drop default-flip inversion is **explicitly NOT
+recommended for wholesale apply**.
+
 ## [0.8.183] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — trajectory +
