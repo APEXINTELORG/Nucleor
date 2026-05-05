@@ -16213,8 +16213,17 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     // Counts `;` (statements) inside the named fn body, separately
     // counts `while` keywords, applies a coarse multiplier ladder
     // (1, 100, 1000, 10000 for 0/1/2/3+ loops). Hard-capped at 1e6
-    // units. No string/comment skipping — false positives on `;`
-    // inside string literals are an acceptable v1 tradeoff.
+    // units.
+    //
+    // R03-D3 Phase 1.5 (v0.8.291): the scan now SKIPS content inside
+    // `"` string literals (with `\"` escape) and `//` line comments.
+    // Pre-v0.8.291 a body containing `print(";a;b;c;")` over-counted
+    // 4 spurious statements; the line-comment skip removes a similar
+    // false-positive on `// while (...)` text. This closes one of
+    // the named "not modeled" gaps from the v0.8.289 doc-honesty
+    // pass — it's a real estimator improvement, not just a comment
+    // rewrite. Callee-cost aggregation + constant-bound loops are
+    // still Phase 2 work.
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
     let slen: i64 = str_len(source);
@@ -16239,22 +16248,45 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     let mut stmt_count: i64 = 0;
     let mut while_count: i64 = 0;
     let stmt_cap: i64 = 1000000;
+    let mut in_string: i64 = 0;
+    let mut in_line_comment: i64 = 0;
     while q < slen && depth > 0 && stmt_count < stmt_cap {
         let c: i64 = str_char_at(source, q);
-        if c == 123 { depth = depth + 1; };
-        if c == 125 { depth = depth - 1; };
-        if c == 59 { stmt_count = stmt_count + 1; };
-        if c == 119 && q + 5 <= slen {
-            if str_char_at(source, q + 1) == 104 && str_char_at(source, q + 2) == 105
-                && str_char_at(source, q + 3) == 108 && str_char_at(source, q + 4) == 101 {
-                let prev: i64 = if q > 0 { str_char_at(source, q - 1) } else { 32 };
-                let next: i64 = if q + 5 < slen { str_char_at(source, q + 5) } else { 32 };
-                let prev_ok: i64 = if is_alnum(prev) == 0 && prev != 95 { 1 } else { 0 };
-                let next_ok: i64 = if is_alnum(next) == 0 && next != 95 { 1 } else { 0 };
-                if prev_ok == 1 && next_ok == 1 { while_count = while_count + 1; };
+        if in_line_comment == 1 {
+            if c == 10 { in_line_comment = 0; };
+            q = q + 1;
+        } else {
+            if in_string == 1 {
+                if c == 92 && q + 1 < slen { q = q + 2; }
+                else {
+                    if c == 34 { in_string = 0; };
+                    q = q + 1;
+                };
+            } else {
+                if c == 34 { in_string = 1; q = q + 1; }
+                else {
+                    if c == 47 && q + 1 < slen && str_char_at(source, q + 1) == 47 {
+                        in_line_comment = 1;
+                        q = q + 2;
+                    } else {
+                        if c == 123 { depth = depth + 1; };
+                        if c == 125 { depth = depth - 1; };
+                        if c == 59 { stmt_count = stmt_count + 1; };
+                        if c == 119 && q + 5 <= slen {
+                            if str_char_at(source, q + 1) == 104 && str_char_at(source, q + 2) == 105
+                                && str_char_at(source, q + 3) == 108 && str_char_at(source, q + 4) == 101 {
+                                let prev: i64 = if q > 0 { str_char_at(source, q - 1) } else { 32 };
+                                let next: i64 = if q + 5 < slen { str_char_at(source, q + 5) } else { 32 };
+                                let prev_ok: i64 = if is_alnum(prev) == 0 && prev != 95 { 1 } else { 0 };
+                                let next_ok: i64 = if is_alnum(next) == 0 && next != 95 { 1 } else { 0 };
+                                if prev_ok == 1 && next_ok == 1 { while_count = while_count + 1; };
+                            };
+                        };
+                        q = q + 1;
+                    };
+                };
             };
         };
-        q = q + 1;
     };
     let mut multiplier: i64 = 1;
     if while_count == 1 { multiplier = 100; };
