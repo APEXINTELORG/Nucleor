@@ -92,3 +92,19 @@ fn ahrs_update(h: i64, gyro_ptr: i64, accel_ptr: i64, dt_b: i64) {
 fn ahrs_get_bias(h: i64, bias_ptr: i64) { nuc_ahrs_get_bias(h, bias_ptr); }
 
 fn ahrs_free(h: i64) { nuc_ahrs_free(h); }
+
+// === R07-D4 Phase 1 (v0.8.270) — limitation diagnostic ===
+//
+// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
+// pre-v0.8.270 AHRS's documented approximations were not surfaced
+// to adopters as queryable constraints. Phase 1 ships a string
+// helper that returns the rod's known limitations so adopter test
+// harnesses can `print(ahrs_limitations())` or assert key terms
+// are present before committing to production deployment.
+//
+// Phase 2 (per build plan §1 R07-D4): improve algorithms behind
+// the same API (e.g. add a magnetometer-fused 9-DOF mode that
+// removes the no-yaw-observability limitation).
+fn ahrs_limitations() -> str {
+    return "AHRS Mahony complementary filter limitations (ROBO-10): (1) no yaw observability without magnetometer; (2) accel correction assumes near-static motion; (3) Ki term assumes constant gyro bias, no thermal model; (4) not optimal for aggressive motion. Phase 2 may add 9-DOF magnetometer fusion.";
+}

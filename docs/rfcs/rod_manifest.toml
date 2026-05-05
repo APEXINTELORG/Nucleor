@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2791
-# Total LOC: 11892
+# Total fn definitions: 2794
+# Total LOC: 11901
 
 [[rod]]
 name           = "activation2"
@@ -33,9 +33,9 @@ imports        = ["admit"]
 name           = "ahrs"
 path           = "stdlib/rods/ahrs.nr"
 description    = "Attitude & Heading Reference System via the"
-function_count = 8
+function_count = 9
 cfile_count    = 1
-loc            = 21
+loc            = 24
 imports        = ["ahrs"]
 
 [[rod]]
@@ -303,9 +303,9 @@ imports        = []
 name           = "chomp"
 path           = "stdlib/rods/chomp.nr"
 description    = "Covariant Hamiltonian Optimization for Motion"
-function_count = 2
+function_count = 3
 cfile_count    = 1
-loc            = 23
+loc            = 26
 imports        = []
 
 [[rod]]
@@ -2094,9 +2094,9 @@ imports        = ["topp"]
 name           = "trajectory"
 path           = "stdlib/rods/trajectory.nr"
 description    = "Smooth time-parameterized joint trajectories."
-function_count = 67
+function_count = 68
 cfile_count    = 1
-loc            = 210
+loc            = 213
 imports        = []
 
 [[rod]]

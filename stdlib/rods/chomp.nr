@@ -65,3 +65,11 @@ fn chomp_cost(path_ptr: i64, N: i64, n_dim: i64,
 {
     return nuc_chomp_cost(path_ptr, N, n_dim, w_smooth_b, w_obs_b, obs_cost_fp);
 }
+
+// === R07-D4 Phase 1 (v0.8.270) — limitation diagnostic ===
+//
+// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
+// surfaces CHOMP's documented approximations as a queryable string.
+fn chomp_limitations() -> str {
+    return "CHOMP limitations (ROBO-12): (1) joint-space only, no Cartesian variant; (2) obstacle gradient via finite differences (slower than exact SDF gradients); (3) per-step move magnitude clamped instead of full covariant A^-1 grad-F preconditioning (simpler, similar empirical behavior on typical paths); (4) endpoints clamped — start and goal never move. Phase 2 may add Cartesian variant + exact gradients.";
+}
