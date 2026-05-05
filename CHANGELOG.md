@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.170] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — signal + sparse.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### signal rod (DSP — windows + zero-crossings + downsample)
+
+`tests/features/signal_smoke.nr` locks four DSP invariants:
+
+| Test | Path |
+|---|---|
+| Hamming window length | `window_hamming(64)` returns 64-element Vec |
+| Hann window endpoint | `Hann(8)[0] = 0.5 * (1 - cos(0)) = 0` (defining property) |
+| **Zero crossings** | `[+1,-1,+1,-1]` → 3 crossings (locked actual contract: returns Vec<i64> of crossing indices, not a count) |
+| Downsample halves length | 10-sample signal at factor 2 → 5 samples |
+
+### sparse rod (CSR matrix + COO construction + mat-vec)
+
+`tests/features/sparse_smoke.nr` locks four invariants on a 3×3
+identity matrix:
+
+| Test | Path |
+|---|---|
+| **Construction shape** | `from_coo(I_3)` → rows=3, cols=3, nnz=3 |
+| Diagonal | `get(i, i) == 1.0` for i ∈ {0, 1, 2} |
+| Off-diagonal | `get(i, j) == 0` for i ≠ j (CSR returns 0 for missing entries) |
+| **Mat-vec identity** | `I · [7,8,9] == [7,8,9]` |
+
+All pass. rc=0.
+
 ## [0.8.169] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — state_machine
