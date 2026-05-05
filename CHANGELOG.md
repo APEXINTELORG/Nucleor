@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.213] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — kinematics + logical_qubit.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### kinematics rod (3-D math primitives — Vec3 / Quat / Pose)
+
+`tests/features/kinematics_smoke.nr` locks four textbook
+3-D-math invariants (sister to `quat.nr` which is `[4]double`
+form):
+
+| Test | Path |
+|---|---|
+| Vec3 component round-trip | vec3_f64(1,2,3) → x=1, y=2, z=3 |
+| **Cross product orthogonality** | x̂ × ŷ = ẑ |
+| Quat identity rotation | identity rotates v → v |
+| Pose identity apply | identity_pose · v = v |
+
+### logical_qubit rod (RFC-0054 Phase A)
+
+`tests/features/logical_qubit_smoke.nr` locks four invariants
+Phase B compiler enforcement (~600 LOC compiler + ~1200 LOC
+stdlib + per-backend calibration parsers, deferred) must NOT
+regress:
+
+| Test | Path |
+|---|---|
+| QEC codes + physical formulas | surface(d=3)=17, Steane=7, Shor=9 |
+| LogicalQubit construction round-trip | code+distance preserved; registry count tracks |
+| **Schedule push tracks total_duration** | two back-to-back pulses → start at 0, d₁; total = d₁+d₂ |
+| Calibration T1/T2 round-trip | set_t1(q, 95us) → t1_q1616 = 95 * 65536 (Q1.16) |
+
+All pass. rc=0.
+
 ## [0.8.212] — 2026-05-05
 
 **Two zero-coverage rod fixtures + extern-sig drift finding.**
