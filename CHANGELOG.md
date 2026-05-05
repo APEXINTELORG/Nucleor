@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.163] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — uuid + stats.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### uuid rod (RFC 4122 §4.4 v4 format)
+
+`tests/features/uuid_smoke.nr` locks four UUID v4 format
+invariants:
+
+| Test | Path |
+|---|---|
+| Length 36 | `xxxxxxxx-xxxx-Mxxx-Vxxx-xxxxxxxxxxxx` = 8+4+4+4+12+4 dashes |
+| Dashes at 8/13/18/23 | RFC 4122 mandated positions |
+| **Version byte == '4'** | char at index 14 is the literal `'4'` |
+| nil round-trip | `uuid_nil() == "00000000-..."`; `uuid_is_nil(uuid_v4()) == 0` |
+
+### stats rod (mean / median / variance / linreg / correlation)
+
+`tests/features/stats_smoke.nr` locks five textbook statistical
+invariants on closed-form inputs:
+
+| Test | Path |
+|---|---|
+| Mean of [1,2,3,4,5] | == 3 |
+| Median of [1,2,3,4,5] | == 3 (odd-length: middle) |
+| Variance | accepts either population (2.0) or sample (2.5) by checking [1.5, 3.0] |
+| **Linear regression** | y=2x+1 → slope=2, intercept=1, R²=1 (all bit-exact within 1e-9) |
+| **Correlation** | perfectly linear data → r ≈ 1 |
+
+Both pass. rc=0.
+
 ## [0.8.162] — 2026-05-04
 
 **Two more zero-coverage rod fixtures — datetime + fs_extras.**
