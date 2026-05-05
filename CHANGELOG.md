@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.186] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — transformer +
+test.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### transformer rod (softmax invariants)
+
+`tests/features/transformer_smoke.nr` locks four softmax
+invariants (most contained primitive — single Vec input):
+
+| Test | Path |
+|---|---|
+| **Sum to 1** | `softmax([1, 2, 3])` entries sum to 1.0 |
+| **Argmax preserved** | softmax preserves argmax (largest in → largest out) |
+| Equal inputs → uniform | `softmax([1,1,1,1])` → all 1/4 |
+| **Translation invariance** | `softmax(x) == softmax(x + 10)` element-wise |
+
+Attention / multi-head / layer-norm / feedforward use Q/K/V/W
+matrix handles needing more setup — deferred to a dedicated
+ML/ship.
+
+### test rod (the test framework itself, meta-tested)
+
+`tests/features/test_smoke.nr` locks four framework invariants
+on the underlying Vec layout (documented in rod source:
+[0]=total, [1]=pass, [2]=fail):
+
+| Test | Path |
+|---|---|
+| Fresh context | total=0, passed=0, failed=0 |
+| `assert_true` increments | truthy cond → pass count goes up |
+| `assert_false` increments | falsey cond → pass count goes up |
+| `assert_eq` mismatch → fail | `eq(5, 7)` → fail count goes up, pass stays |
+
+All pass. rc=0.
+
 ## [0.8.185] — 2026-05-05
 
 **stdlib/rods/zmp.nr first test coverage.** Pure fixture, no
