@@ -224,6 +224,19 @@ function Format-NucRssDetail($Processes) {
         ForEach-Object { "{0}:{1}MB" -f $_.Name, ([Math]::Round($_.WorkingSet64 / 1MB, 1)) }) -join ", ")
 }
 
+function Get-NucRssSumBytes($Processes) {
+    $sum = 0L
+    foreach ($p in @($Processes)) {
+        try { $sum += [int64]$p.WorkingSet64 } catch { }
+    }
+    return $sum
+}
+
+function Get-NucCompilerProcesses($Processes, [string]$CompilerProcessName) {
+    if ([string]::IsNullOrWhiteSpace($CompilerProcessName)) { return @() }
+    return @($Processes | Where-Object { $_.ProcessName -ieq $CompilerProcessName })
+}
+
 function Get-NucNativeRssCompiler {
     if (-not [string]::IsNullOrWhiteSpace($env:NUC_RSS_NATIVE_CC)) {
         if (Test-Path $env:NUC_RSS_NATIVE_CC) { return $env:NUC_RSS_NATIVE_CC }
@@ -395,13 +408,30 @@ function Invoke-NucRssEstop {
         $rootStartTime = $proc.StartTime
     } catch { }
 
-    $peakBytes = 0L
-    $peakDetail = ""
+    $rootProcessName = ""
+    try { $rootProcessName = [string]$proc.ProcessName } catch { }
+
+    $processTreePeakBytes = 0L
+    $processTreePeakDetail = ""
+    $compilerPeakBytes = 0L
+    $compilerPeakDetail = ""
+    $rootPeakBytes = 0L
+    $rootPeakDetail = ""
     try {
         $proc.Refresh()
-        if ($proc.WorkingSet64 -gt $peakBytes) {
-            $peakBytes = [int64]$proc.WorkingSet64
-            $peakDetail = "{0}:{1}MB (root initial)" -f $proc.ProcessName, ([Math]::Round($proc.WorkingSet64 / 1MB, 1))
+        $initialRootBytes = [int64]$proc.WorkingSet64
+        $initialDetail = "{0}:{1}MB (root initial)" -f $proc.ProcessName, ([Math]::Round($proc.WorkingSet64 / 1MB, 1))
+        if ($initialRootBytes -gt $rootPeakBytes) {
+            $rootPeakBytes = $initialRootBytes
+            $rootPeakDetail = $initialDetail
+        }
+        if ($initialRootBytes -gt $compilerPeakBytes) {
+            $compilerPeakBytes = $initialRootBytes
+            $compilerPeakDetail = $initialDetail
+        }
+        if ($initialRootBytes -gt $processTreePeakBytes) {
+            $processTreePeakBytes = $initialRootBytes
+            $processTreePeakDetail = $initialDetail
         }
     } catch { }
 
@@ -436,10 +466,24 @@ function Invoke-NucRssEstop {
         $procs = @(Get-NucFreshWatchedProcesses $ids $proc.Id $rootStartTime)
         if ($procs.Count -eq 0) { break }
 
-        $rss = ($procs | Measure-Object -Property WorkingSet64 -Sum).Sum
-        if ($rss -gt $peakBytes) {
-            $peakBytes = [int64]$rss
-            $peakDetail = Format-NucRssDetail $procs
+        $rss = Get-NucRssSumBytes $procs
+        if ($rss -gt $processTreePeakBytes) {
+            $processTreePeakBytes = [int64]$rss
+            $processTreePeakDetail = Format-NucRssDetail $procs
+        }
+
+        $compilerProcs = @(Get-NucCompilerProcesses $procs $rootProcessName)
+        $compilerRss = Get-NucRssSumBytes $compilerProcs
+        if ($compilerRss -gt $compilerPeakBytes) {
+            $compilerPeakBytes = [int64]$compilerRss
+            $compilerPeakDetail = Format-NucRssDetail $compilerProcs
+        }
+
+        $rootProcs = @($procs | Where-Object { $_.Id -eq $proc.Id })
+        $rootRss = Get-NucRssSumBytes $rootProcs
+        if ($rootRss -gt $rootPeakBytes) {
+            $rootPeakBytes = [int64]$rootRss
+            $rootPeakDetail = Format-NucRssDetail $rootProcs
         }
 
         if ((-not $crossedWarning) -and $rss -gt $warningBytes) {
@@ -487,9 +531,18 @@ function Invoke-NucRssEstop {
     $sw.Stop()
     try {
         $rootPeak = [int64]$proc.PeakWorkingSet64
-        if ($rootPeak -gt $peakBytes) {
-            $peakBytes = $rootPeak
-            $peakDetail = "{0}:{1}MB (root peak)" -f $proc.ProcessName, ([Math]::Round($rootPeak / 1MB, 1))
+        $rootPeakFinalDetail = "{0}:{1}MB (root peak)" -f $proc.ProcessName, ([Math]::Round($rootPeak / 1MB, 1))
+        if ($rootPeak -gt $rootPeakBytes) {
+            $rootPeakBytes = $rootPeak
+            $rootPeakDetail = $rootPeakFinalDetail
+        }
+        if ($rootPeak -gt $compilerPeakBytes) {
+            $compilerPeakBytes = $rootPeak
+            $compilerPeakDetail = $rootPeakFinalDetail
+        }
+        if ($rootPeak -gt $processTreePeakBytes) {
+            $processTreePeakBytes = $rootPeak
+            $processTreePeakDetail = $rootPeakFinalDetail
         }
     } catch { }
     if ($jobHandle -ne [IntPtr]::Zero) {
@@ -506,8 +559,14 @@ function Invoke-NucRssEstop {
         crossed_warning = $crossedWarning
         warning_at_seconds = $warningAtSeconds
         warning_detail = $warningDetail
-        peak_mb = [Math]::Round($peakBytes / 1MB, 1)
-        peak_detail = $peakDetail
+        peak_mb = [Math]::Round($processTreePeakBytes / 1MB, 1)
+        peak_detail = $processTreePeakDetail
+        process_tree_peak_mb = [Math]::Round($processTreePeakBytes / 1MB, 1)
+        process_tree_peak_detail = $processTreePeakDetail
+        compiler_peak_mb = [Math]::Round($compilerPeakBytes / 1MB, 1)
+        compiler_peak_detail = $compilerPeakDetail
+        root_peak_mb = [Math]::Round($rootPeakBytes / 1MB, 1)
+        root_peak_detail = $rootPeakDetail
         wall_seconds = [Math]::Round($sw.Elapsed.TotalSeconds, 3)
         sample_ms = $SampleMs
         stdout = $StdoutPath

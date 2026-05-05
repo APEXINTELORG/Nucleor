@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.317] — 2026-05-05
+
+**R10-D5 Phase 2 — split compiler/process-tree memory accounting.**
+
+### Changed
+
+- `tools/rss_estop_lib.ps1` now reports `process_tree_peak_mb`,
+  `compiler_peak_mb`, and `root_peak_mb` in addition to the legacy
+  `peak_mb` process-tree alias.
+- The opt-in native helper `tools/nuc_rss_estop.c` emits the same split
+  memory fields so `NUC_RSS_ENABLE_NATIVE=1` keeps the JSON contract.
+- `tools/check_perf_regression.ps1` now tracks cold and hot memory
+  independently for both process-tree and compiler-only views.
+- `tools/perf_baseline.json` locks split memory baselines while keeping
+  `cold_peak_memory_mb` as a process-tree compatibility alias.
+- Tightened hot memory ceilings to `128MB` process-tree and `64MB`
+  compiler-only so hot-cache excursions no longer hide behind the cold
+  process-tree cap.
+
+### Validation
+
+- `pwsh -NoProfile -File tools\check_perf_regression.ps1` passed:
+  cold `3.60s`, hot `0.25s`, cold process-tree memory `301MB`,
+  cold compiler memory `287MB`, hot process-tree memory `31MB`,
+  hot compiler memory `17MB`.
+
 ## [0.8.316] — 2026-05-05
 
 **R12-D2 registry remotes Phase 1 + isolated-link cold-path recovery.**

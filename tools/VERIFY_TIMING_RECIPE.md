@@ -48,8 +48,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - Job-object containment is opt-in with `NUC_RSS_USE_JOB=1`. The default uses
   parent-process-tree RSS sampling because Job assignment can cause self-host
   compiler shutdown hangs on this Windows toolchain.
+- The RSS summary reports multiple memory views:
+  - `process_tree_peak_mb`: launched compiler plus descendants such as
+    `clang` / `lld`; this remains the safety/e-stop view.
+  - `compiler_peak_mb`: Nucleor compiler processes only; this separates
+    compiler drift from linker/runtime-toolchain variance.
+  - `peak_mb`: compatibility alias for `process_tree_peak_mb`.
 - The watchdog writes stdout/stderr logs under `target/` plus the normal
   `NUC_VERIFY_CSV` timing rows, so the killed step remains diagnosable.
+
+## v0.8.317 — cold/hot memory split for the perf gate
+
+`tools/check_perf_regression.ps1` now reads the split RSS fields and enforces
+four memory ceilings independently:
+
+- cold process-tree memory: `cold_max_allowed_memory_mb`
+- cold compiler-only memory: `cold_max_allowed_compiler_memory_mb`
+- hot process-tree memory: `hot_max_allowed_memory_mb`
+- hot compiler-only memory: `hot_max_allowed_compiler_memory_mb`
+
+`tools/perf_baseline.json` keeps `cold_peak_memory_mb` as a compatibility
+alias for cold process-tree memory, but new automation should prefer
+`cold_process_tree_peak_memory_mb`, `cold_compiler_peak_memory_mb`,
+`hot_process_tree_peak_memory_mb`, and `hot_compiler_peak_memory_mb`.
+This matters because a clang/lld or Defender-induced process-tree spike is a
+different problem from a compiler allocation regression, and a hot-cache memory
+excursion should not be hidden by the larger cold-cache ceiling.
 
 ## v0.5.17 — per-agent CSV namespacing
 
