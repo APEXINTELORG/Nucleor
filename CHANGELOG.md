@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.152] — 2026-05-04
+
+**V1.16 LSP Phase A1 dependency — `io_read_bytes(n)` raw stdin
+byte-read primitive.** Runtime + rod surface edit; bin rebuild
+not needed (no compiler change).
+
+### Why
+
+Phase A1 of the LSP server (real LSP base protocol over
+stdin/stdout) needs faithful body reading. LSP frames each
+JSON-RPC payload as:
+
+```
+Content-Length: 123\r\n
+\r\n
+{"jsonrpc":"2.0","id":1,...}
+```
+
+The existing `io_read_line()` strips `\n` and `\r`, breaking
+any JSON body that embeds a `\n` inside a string value. Phase
+A1 needs **exactly N bytes** read from stdin verbatim — no
+newline stripping, no LF-as-terminator.
+
+### What
+
+| Change | Path |
+|---|---|
+| `rods_io_read_n_bytes(long long n)` — fread-loop until N bytes or EOF; null-terminated malloc'd buffer | `stdlib/rods/io_rt.c` |
+| `extern fn rods_io_read_n_bytes(n: i64) -> str` + `fn io_read_bytes(n)` | `stdlib/rods/io.nr` |
+| Build-path smoke | `tests/features/io_read_bytes_smoke.nr` |
+| Behavioral smoke | `tests/features/io_read_bytes_real.nr` — `"hello world" | exe` reads exactly `"hello"` |
+
+### Locks
+
+`echo "hello world" | tests/features/io_read_bytes_real.exe`
+prints `hello` and exits rc=0. Verified.
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server Phase A0 → ✅ v0.8.150 (`--lsp-mode` flag +
+  capabilities advertisement)
+- V1.16 LSP server Phase A1 dependency → ✅ v0.8.152 (this
+  ship: raw stdin byte-read primitive)
+- V1.16 LSP server Phase A1 main work → next ship (LSP base
+  protocol implementation: parse Content-Length header, read
+  body, dispatch initialize/initialized/shutdown/exit + textDoc
+  lifecycle messages over stdin/stdout)
+
 ## [0.8.151] — 2026-05-04
 
 **RFC-0061 Tier 3 Phase A acceptance lock — qsim entanglement

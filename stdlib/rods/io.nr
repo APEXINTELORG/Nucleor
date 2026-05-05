@@ -9,11 +9,22 @@
 #cfile "io_rt.c"
 
 extern fn rods_io_read_line() -> str;
+// v0.8.152 V1.16 Phase A1 dependency — raw N-byte stdin read.
+// LSP base protocol needs faithful body-reading because JSON
+// strings can contain \n.
+extern fn rods_io_read_n_bytes(n: i64) -> str;
 extern fn rods_io_print_no_newline(s: str);
 extern fn rods_io_eprint(s: str);
 
 fn io_read_line() -> str {
     return rods_io_read_line();
+}
+
+// Read exactly `n` bytes from stdin into a string. Returns
+// shorter on EOF. Use for protocol-framed input (LSP body
+// after Content-Length).
+fn io_read_bytes(n: i64) -> str {
+    return rods_io_read_n_bytes(n);
 }
 
 fn io_print(s: str) {
