@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.216] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — octree + path.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### octree rod (sparse 3-D occupancy + collision pruning)
+
+`tests/features/octree_smoke.nr` exercises the occupancy state
+machine (0=unknown, 1=free, 2=occupied) on a root-at-origin
+half-size-10m max_depth-6 tree (≈0.31m leaves):
+
+| Test | Path |
+|---|---|
+| Unknown before insert | query of never-inserted point returns 0 |
+| Insert + query round-trip | insert(p, occupied=1) → query(p)=2 |
+| Free vs occupied tracked separately | distinct points stay distinct |
+| **Out-of-bounds insert returns -1** | (50,0,0) outside half-size 10 cube |
+
+### path rod (path manipulation utilities)
+
+`tests/features/path_smoke.nr` locks four invariants over the
+core surface (pure Nucleor over `stdlib/strings`):
+
+| Test | Path |
+|---|---|
+| path_join inserts separator | "a"+"b"="a/b"; "a/"+"b"="a/b" (no double) |
+| **Decompose agrees** | "src/foo.nr" → ext=".nr", stem="foo", filename="foo.nr", parent="src" |
+| is_absolute | "/abs"=1, "rel"=0, "C:/abs"=1 |
+| normalize collapses + flips | "a\\b//c" → "a/b/c", trailing slash removed |
+
+All pass. rc=0.
+
 ## [0.8.215] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — hnsw + multigrid.**
