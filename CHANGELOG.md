@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.276] — 2026-05-05
+
+**R09-D3 Phase 1 — stable complex algorithms (hypot + Smith's div).**
+
+### Bug
+
+`stdlib/rods/complex_rt.c` had unstable formulas for large/small
+arguments:
+
+| Function | Pre-v0.8.276 | Failure mode |
+|---|---|---|
+| `rods_complex_abs` | `sqrt(a*a + b*b)` | overflows when a^2 > DBL_MAX (~1.8e308); underflows to 0 when a*b < DBL_MIN (~5e-324) |
+| `rods_complex_div` | `(a*c+b*d) / (c*c+d*d)` | denominator overflows when |c| or |d| approaches f64 extreme |
+| `rods_complex_log` | magnitude via `sqrt(a*a + b*b)` | inherits abs's overflow/underflow |
+
+Audit-classified HIGH (R09-D3).
+
+### Fix (Phase 1, additive — runtime-only edits)
+
+1. **`rods_complex_abs`** uses C99 `hypot(a, b)` — scaled, stable
+   across full f64 range.
+2. **`rods_complex_log`** magnitude via `hypot(a, b)`.
+3. **`rods_complex_div`** uses Smith's algorithm — branches on
+   `|c| >= |d|` and scales by the larger of the two, keeping
+   intermediates well-conditioned even at f64 extremes.
+
+```c
+if (abs_c >= abs_d) {
+    double r = d / c;
+    double denom = c + r * d;
+    re = (a + r * b) / denom;
+    im = (b - r * a) / denom;
+} else { /* mirror */ }
+```
+
+### Coverage
+
+`tests/features/complex_large_arg_smoke.nr` locks 5 invariants:
+
+| Test | Path |
+|---|---|
+| **Basic `abs(3+4i) = 5.0`** | Pythagorean sanity |
+| **Large `abs(1e200 + 1e200·i)` ≈ √2·1e200** | direct sqrt overflows; hypot finite |
+| **Tiny `abs(1e-200 + 1e-200·i)` ≈ √2·1e-200** | direct underflows to 0; hypot preserves magnitude |
+| **Smith's `(1+0i) / (1e200+1e200i)`** | direct denom=2e400 overflows; Smith's gives `5e-201 - 5e-201·i` |
+| **Basic `(4+2i) / (3+1i) = 1.4 + 0.2i`** | preserves correctness for normal-range inputs |
+
+All pass. rc=0. Existing `complex_smoke.nr` regression-clean.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Large/small argument fixtures match documented tolerances** | ✅ relative-tolerance close-check at 1e-12 |
+| Cold compile ≤ 4s | ✅ unchanged (runtime-only) |
+
+### Runtime-only edit → s1 fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R09-D3)
+
+Revert to `sqrt(a*a + b*b)` in abs/log; revert `cx_div` to direct
+formula. The unstable extreme behavior returns.
+
+### R09 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.275 | R09-D5 — saturating mul pre-clamp | ✅ |
+| v0.8.276 | R09-D3 — stable complex algorithms | ✅ |
+| next | R09-D2 — interval pool exhaustion + rigorous trig | ⏳ HIGH |
+| then | R09-D1 — full `fixed<I,F>` type tracking | ⏳ HIGH (compiler edit) |
+| then | R09-D4 — `@const_fn` evaluation | ⏳ CRITICAL (compiler edit) |
+
 ## [0.8.275] — 2026-05-05
 
 **R09-D5 Phase 1 — small-width signed saturating multiply pre-clamp.**

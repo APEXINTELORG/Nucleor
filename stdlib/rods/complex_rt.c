@@ -92,15 +92,30 @@ long long rods_complex_mul(long long c1, long long c2) {
     return rods_complex_new(f2i(re), f2i(im));
 }
 
-// (a+bi) / (c+di) = ((ac+bd) + (bc-ad)i) / (c^2+d^2)
+// (a+bi) / (c+di) — R09-D3 Phase 1 (v0.8.276): Smith's algorithm for
+// numerical stability. Direct `(a*c+b*d) / (c^2+d^2)` overflows when
+// |c| or |d| is large enough that c^2 exceeds DBL_MAX, and underflows
+// when both are very small. Smith's variant scales by the larger of
+// the two magnitudes to stay in the well-conditioned regime.
 long long rods_complex_div(long long c1, long long c2) {
     long long *p1 = (long long *)c1;
     long long *p2 = (long long *)c2;
     double a = i2f(p1[0]), b = i2f(p1[1]);
     double c = i2f(p2[0]), d = i2f(p2[1]);
-    double denom = c * c + d * d;
-    double re = (a * c + b * d) / denom;
-    double im = (b * c - a * d) / denom;
+    double abs_c = c < 0 ? -c : c;
+    double abs_d = d < 0 ? -d : d;
+    double re, im;
+    if (abs_c >= abs_d) {
+        double r = d / c;
+        double denom = c + r * d;
+        re = (a + r * b) / denom;
+        im = (b - r * a) / denom;
+    } else {
+        double r = c / d;
+        double denom = d + r * c;
+        re = (a * r + b) / denom;
+        im = (b * r - a) / denom;
+    }
     return rods_complex_new(f2i(re), f2i(im));
 }
 
@@ -127,11 +142,16 @@ long long rods_complex_conj(long long c) {
     return rods_complex_new(p[0], f2i(-i2f(p[1])));
 }
 
-// Magnitude (absolute value): |a+bi| = sqrt(a^2 + b^2)
+// Magnitude (absolute value): |a+bi|.
+// R09-D3 Phase 1 (v0.8.276): use `hypot(a, b)` instead of
+// `sqrt(a*a + b*b)`. Direct sqrt overflows for large |a| or |b|
+// (a^2 exceeds DBL_MAX) and underflows for very small. `hypot` is
+// the C99 standard library implementation specifically scaled to
+// avoid both ends.
 long long rods_complex_abs(long long c) {
     long long *p = (long long *)c;
     double a = i2f(p[0]), b = i2f(p[1]);
-    return f2i(sqrt(a * a + b * b));
+    return f2i(hypot(a, b));
 }
 
 // Squared magnitude: |a+bi|^2 = a^2 + b^2 (avoids sqrt for probability)
@@ -167,11 +187,14 @@ long long rods_complex_sqrt(long long c) {
     return rods_complex_new(f2i(sr * cos(theta / 2.0)), f2i(sr * sin(theta / 2.0)));
 }
 
-// ln(a+bi) = ln|z| + i*arg(z)
+// ln(a+bi) = ln|z| + i*arg(z).
+// R09-D3 Phase 1 (v0.8.276): magnitude via `hypot(a, b)` (stable
+// at extremes). Direct `sqrt(a*a + b*b)` had the same overflow/
+// underflow issues as `rods_complex_abs`.
 long long rods_complex_log(long long c) {
     long long *p = (long long *)c;
     double a = i2f(p[0]), b = i2f(p[1]);
-    double r = sqrt(a * a + b * b);
+    double r = hypot(a, b);
     double theta = atan2(b, a);
     return rods_complex_new(f2i(log(r)), f2i(theta));
 }
