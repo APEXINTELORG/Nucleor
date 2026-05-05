@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.259] — 2026-05-05
+
+**vision rod ↔ cam rod `nuc_cam_project` symbol collision FIXED + coverage.**
+Closes the link-order-dependent silent miscompute surfaced 2026-05-05
+by parallel-agent TRACK A `extern_arity_drift_duplicate_symbol_collisions_2026-05-05`.
+First in a new bug class (symbol rename rather than arity shim).
+
+### Bug
+
+Two C functions with the same external name in different rods:
+
+| Rod | Symbol | Arity |
+|---|---|---|
+| `cam.nr` → `cam_rt.c` | `nuc_cam_project` | 3-arg `(handle, X, uv)` |
+| `vision.nr` → `vision_rt.c` | `nuc_cam_project` | 5-arg `(K, R, t, X, uv)` |
+
+Importing both rods in one program was a duplicate-symbol link
+error; if only one definition was visible, the other rod's calls
+dispatched to the wrong body and silently miscomputed (3-arg
+caller → 5-arg body reads garbage from un-pushed slots; 5-arg
+caller → 3-arg body interprets K_ptr as camera handle).
+
+### Fix
+
+Renamed at the namespace boundary on the `vision` side (cam keeps
+the canonical `nuc_cam_*` namespace):
+
+- `vision_rt.c::nuc_cam_project` (5-arg) → `nuc_vision_project`
+- `vision_rt.c::nuc_cam_project_batch` (6-arg) → `nuc_vision_project_batch`
+- Internal call site in `nuc_vision_project_batch` updated.
+- `vision.nr` extern decls + Nucleor wrappers renamed `cam_project` → `vision_project`, same for `_batch`.
+
+### Breaking change
+
+Any Nucleor adopter who imported vision.nr and called `cam_project`
+5-arg must migrate to `vision_project`. No in-tree callers existed
+(vision.nr was uncovered).
+
+### Coverage
+
+`tests/features/vision_collision_smoke.nr` imports **both** cam.nr
+and vision.nr (the test that this file links + runs is itself the
+proof that the symbol collision is gone) and locks 7 invariants:
+
+| Test | Path |
+|---|---|
+| **5 null-input rejections** | `vision_project` returns 0 for null K/R/t/X/uv |
+| **Batch zero-N rejection** | `vision_project_batch(N=0)` returns 0 |
+| **Both rods can link together** | reaching `main` proves no duplicate-symbol error |
+
+Existing `cam_smoke.nr` (cam handle lifecycle) still passes — no
+regression. All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e`.
+
 ## [0.8.258] — 2026-05-05
 
 **tensor_decomp tt_svd_3d rod ↔ runtime arity drift FIXED + coverage.**

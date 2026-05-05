@@ -36,11 +36,14 @@
 extern fn nuc_cam_intrinsics_set(K_ptr: i64,
     fx_b: i64, fy_b: i64, cx_b: i64, cy_b: i64) -> i64;
 
-extern fn nuc_cam_project(K_ptr: i64,
+// Pre-v0.8.259 these were named `nuc_cam_project` / `nuc_cam_project_batch`
+// — collided with cam.nr's 3-arg `nuc_cam_project` (link-order
+// dependent silent miscompute). Renamed to the rod's namespace prefix.
+extern fn nuc_vision_project(K_ptr: i64,
     R_ptr: i64, t_ptr: i64,
     X_ptr: i64, uv_out_ptr: i64) -> i64;
 
-extern fn nuc_cam_project_batch(K_ptr: i64,
+extern fn nuc_vision_project_batch(K_ptr: i64,
     R_ptr: i64, t_ptr: i64,
     X_ptr: i64, N: i64, uv_out_ptr: i64) -> i64;
 
@@ -98,18 +101,23 @@ fn cam_intrinsics_set(K_ptr: i64,
 // success (point in front of camera), 0 if behind. R is a
 // `double[9]` row-major rotation; t is `double[3]` translation;
 // X is `double[3]` (the world point); uv_out is `double[2]`.
-fn cam_project(K_ptr: i64, R_ptr: i64, t_ptr: i64,
+//
+// Renamed from `cam_project` 2026-05-05 to break the symbol
+// collision with cam.nr's 3-arg `cam_project(handle, X, uv)`.
+// Adopters who imported vision.nr and called `cam_project` 5-arg
+// must migrate to `vision_project`.
+fn vision_project(K_ptr: i64, R_ptr: i64, t_ptr: i64,
     X_ptr: i64, uv_out_ptr: i64) -> i64
 {
-    return nuc_cam_project(K_ptr, R_ptr, t_ptr, X_ptr, uv_out_ptr);
+    return nuc_vision_project(K_ptr, R_ptr, t_ptr, X_ptr, uv_out_ptr);
 }
 
 // Batch project N 3D points. Writes (NaN, NaN) for points behind
 // the camera. Returns the number of points successfully projected.
-fn cam_project_batch(K_ptr: i64, R_ptr: i64, t_ptr: i64,
+fn vision_project_batch(K_ptr: i64, R_ptr: i64, t_ptr: i64,
     X_ptr: i64, N: i64, uv_out_ptr: i64) -> i64
 {
-    return nuc_cam_project_batch(K_ptr, R_ptr, t_ptr, X_ptr, N, uv_out_ptr);
+    return nuc_vision_project_batch(K_ptr, R_ptr, t_ptr, X_ptr, N, uv_out_ptr);
 }
 
 // Image (interaction) Jacobian L (2×6, row-major) for a single

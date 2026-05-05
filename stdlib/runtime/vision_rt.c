@@ -44,7 +44,13 @@ long long nuc_cam_intrinsics_set(long long K_ptr,
 // Project a single 3D world point to pixel coordinates via the
 // pinhole model. Returns 1 on success (point in front of camera),
 // 0 if the point is behind (z ≤ 0). Writes (u, v) to uv_out_ptr.
-long long nuc_cam_project(long long K_ptr,
+//
+// Pre-v0.8.259 this function was named `nuc_cam_project`, which
+// collided with cam.nr's 3-arg `nuc_cam_project(handle, X, uv)` —
+// a duplicate-symbol link error if both rods linked together, or
+// a silent wrong-target call if only one definition was visible.
+// Renamed to `nuc_vision_project` per the rod's namespace.
+long long nuc_vision_project(long long K_ptr,
     long long R_ptr, long long t_ptr,
     long long X_ptr, long long uv_out_ptr)
 {
@@ -73,7 +79,7 @@ long long nuc_cam_project(long long K_ptr,
 // Batch project N 3D points. Skips (writes NaN) for points behind
 // the camera. `X_ptr` is a `double[N*3]` world-frame point array;
 // `uv_out_ptr` is a `double[N*2]` output buffer.
-long long nuc_cam_project_batch(long long K_ptr,
+long long nuc_vision_project_batch(long long K_ptr,
     long long R_ptr, long long t_ptr,
     long long X_ptr, long long N_,
     long long uv_out_ptr)
@@ -87,7 +93,7 @@ long long nuc_cam_project_batch(long long K_ptr,
     double pt[3], px[2];
     for (int i = 0; i < N; i++) {
         pt[0] = X[i*3+0]; pt[1] = X[i*3+1]; pt[2] = X[i*3+2];
-        long long s = nuc_cam_project(K_ptr, R_ptr, t_ptr,
+        long long s = nuc_vision_project(K_ptr, R_ptr, t_ptr,
             (long long)(size_t)pt, (long long)(size_t)px);
         if (s) {
             uv[i*2+0] = px[0]; uv[i*2+1] = px[1];
