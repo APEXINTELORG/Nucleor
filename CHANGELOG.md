@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.220] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — neuromorphic + numeric.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### neuromorphic rod (RFC-0053 Phase A spike + LIF surface)
+
+`tests/features/neuromorphic_smoke.nr` locks four invariants
+Phase B compiler enforcement (~600 LOC compiler + ~800 LOC
+stdlib + Loihi 2 / NorthPole / Akida / SpiNNaker dispatch,
+deferred) must NOT regress:
+
+| Test | Path |
+|---|---|
+| Stable neuron-model IDs | LIF=1, Izhikevich=2, AdEx=3, HodgkinHuxley=4 |
+| Spike construction round-trip | spike(1234, 7) → ts=1234, neuron=7 |
+| **SpikeTrain push tracks count** | 3 pushes → count=3, get(0/2) round-trip |
+| LIF reset → 0 potential | newly-reset state reads zero membrane voltage |
+
+### numeric rod (RFC-0015 numeric type operations)
+
+`tests/features/numeric_smoke.nr` locks four invariants on
+explicit-overflow integer arithmetic + narrow truncation +
+f32/bf16 software math:
+
+| Test | Path |
+|---|---|
+| **Saturating add at i64 max** | n_saturating_add(max, 1) stays at max |
+| Truncation masks correctly | as_u8(257) = 1, as_u16(65537) = 1 |
+| f32 round-trip | f32(7) → f32_int → 7 (signed too) |
+| bf16 round-trip preserves small ints | bf16(42) → bf16_int → 42 |
+
+All pass. rc=0.
+
 ## [0.8.219] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — os_info + photonic.**
