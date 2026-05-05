@@ -62,11 +62,15 @@ launch. After memory safety completes, these are next-priority.
   `nuc build` emits `EFF-001` for direct print/alloc/ambient-capability
   use; active fixtures `err_pure_print_build.nr` and
   `err_pure_ambient_random.nr` lock this.
+- **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
+  Phase 1 — `nuc build` emits `EFF-002`; active fixture
+  `err_pure_requires.nr` locks this.
 - **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
-- **Still open:** `requires [...]`, block-form `restricts [...]`,
-  transitive user-call effect inference, and cross-module propagation.
+- **Still open:** standalone `requires [...]` row enforcement,
+  block-form `restricts [...]`, transitive user-call effect inference,
+  and cross-module propagation.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
@@ -222,3 +226,10 @@ proper analysis → Phase 4 hard error):
   fixtures, and passed the perf gate at cold 3.57s / 309MB
   process-tree RSS. The prior Windows-PE link-hang concern is no
   longer a current blocker for queued compiler-edit punchlist lanes.
+- **2026-05-05** v0.8.320: Effect/capability Phase 1 advanced.
+  `pure fn ... requires [...]` now emits `EFF-002` during `nuc build`;
+  promoted `err_pure_requires.nr` from `_unimplemented/` into the
+  active negative suite and added missing EXPECT headers to active
+  import-cycle helper fixtures. Self-host fixed-point md5:
+  `697bea7d73dc8d72ceeba86e9b886f79`; perf gate: cold 3.60s / 307MB
+  process-tree RSS.

@@ -7,7 +7,7 @@ compiler**:
 
 | Feature | Tests |
 |---|---|
-| `pure fn` keyword (`compute` cannot call `read_data`) | `err_pure_*` (5) |
+| `pure fn` keyword (`compute` cannot call `read_data`) | `err_pure_*` (4 remaining; `err_pure_requires.nr` promoted in v0.8.320) |
 | `requires [effect]` clauses on functions | `err_effect_*` (4), `err_restricts_*` (3) |
 | `unit<T, dim>` dimensional units (`m + s` rejected) | `err_unit_*` (3) |
 | `Box<T>` heap allocation | `err_box_use_after_move` |

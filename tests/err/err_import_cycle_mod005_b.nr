@@ -1,3 +1,4 @@
+// EXPECT: error[MOD-005]
 // Helper for err_import_cycle_mod005.nr — imports back to A.
 import "err_import_cycle_mod005.nr"
 
