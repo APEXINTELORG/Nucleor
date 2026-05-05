@@ -16219,11 +16219,17 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     // `"` string literals (with `\"` escape) and `//` line comments.
     // Pre-v0.8.291 a body containing `print(";a;b;c;")` over-counted
     // 4 spurious statements; the line-comment skip removes a similar
-    // false-positive on `// while (...)` text. This closes one of
-    // the named "not modeled" gaps from the v0.8.289 doc-honesty
-    // pass — it's a real estimator improvement, not just a comment
-    // rewrite. Callee-cost aggregation + constant-bound loops are
-    // still Phase 2 work.
+    // false-positive on `// while (...)` text.
+    //
+    // R03-D3 Phase 1.6 (v0.8.292): `loop { ... }` (Nucleor's
+    // unbounded-loop form, desugars to `while true`, see s1 lex
+    // around line 3843) is now counted toward `while_count` so it
+    // participates in the multiplier ladder. Pre-v0.8.292 a `pure fn
+    // { loop { ...; ...; }}` tallied while_count=0 → multiplier=1 →
+    // severe under-estimate. Closes a real false-NEGATIVE.
+    //
+    // Callee-cost aggregation + constant-bound loop bounds are still
+    // Phase 2 work.
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
     let slen: i64 = str_len(source);
@@ -16280,6 +16286,22 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
                                 let prev_ok: i64 = if is_alnum(prev) == 0 && prev != 95 { 1 } else { 0 };
                                 let next_ok: i64 = if is_alnum(next) == 0 && next != 95 { 1 } else { 0 };
                                 if prev_ok == 1 && next_ok == 1 { while_count = while_count + 1; };
+                            };
+                        };
+                        // R03-D3 Phase 1.6 (v0.8.292): `loop {` is the
+                        // unbounded-loop form. Pre-v0.8.292 the estimator
+                        // counted `while` only, so a `loop { ... }` body
+                        // tallied 0 loops → multiplier=1 → severe under-
+                        // estimate. Now treat `loop` as a loop too.
+                        // Match: l, o, o, p, then non-ident.
+                        if c == 108 && q + 4 <= slen {
+                            if str_char_at(source, q + 1) == 111 && str_char_at(source, q + 2) == 111
+                                && str_char_at(source, q + 3) == 112 {
+                                let prev_l: i64 = if q > 0 { str_char_at(source, q - 1) } else { 32 };
+                                let next_l: i64 = if q + 4 < slen { str_char_at(source, q + 4) } else { 32 };
+                                let prev_ok_l: i64 = if is_alnum(prev_l) == 0 && prev_l != 95 { 1 } else { 0 };
+                                let next_ok_l: i64 = if is_alnum(next_l) == 0 && next_l != 95 { 1 } else { 0 };
+                                if prev_ok_l == 1 && next_ok_l == 1 { while_count = while_count + 1; };
                             };
                         };
                         q = q + 1;
