@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
 # Total fn definitions: 2780
-# Total LOC: 11835
+# Total LOC: 11841
 
 [[rod]]
 name           = "activation2"
@@ -134,7 +134,7 @@ path           = "stdlib/rods/bayesian.nr"
 description    = "MCMC Bayesian inference"
 function_count = 7
 cfile_count    = 1
-loc            = 19
+loc            = 25
 imports        = ["bayesian"]
 
 [[rod]]

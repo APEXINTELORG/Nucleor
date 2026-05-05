@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.255] — 2026-05-05
+
+**bayesian rod ↔ runtime arity + name drift FIXED + first test coverage.**
+Closes the silent-miscompute surfaced 2026-05-05 by parallel-agent
+TRACK A `extern_arity_drift_bayesian_2026-05-05`. Fourth in the same
+class — see v0.8.45 ML-1, v0.8.252 kv_cache, v0.8.254 transformer.
+
+### Bug
+
+Pre-v0.8.255 the rod declared:
+
+```
+extern fn nuc_bayes_mcmc_scalar(log_post, x0, n_steps, step_size) -> i64;  // 4
+extern fn nuc_bayes_mcmc_multi(log_post, x0, n_steps, step_size) -> i64;   // 4
+```
+
+But `stdlib/runtime/bayesian_rt.c` defined them with 5 args
+(`log_post_ptr, x0_bits, proposal_std_bits, n_samples, burnin`).
+**Doubly broken** — even the matching-arity slots disagreed on
+meaning: rod's `n_steps` integer was read as C's `proposal_std_bits`
+f64 (sigma in [1e-300, 1e+300] depending on int value); rod's
+`step_size` f64-bits was read as C's `n_samples` integer (negative
+or wildly large). Every `bayes_mcmc_scalar` / `bayes_mcmc_multi`
+call silently miscomputed.
+
+### Fix
+
+Rod ABI corrected to match C exactly — 5-arg
+`(log_post, x0, proposal_std, n_samples, burnin)`. **NOT a
+non-breaking shim** because the old rod API was producing garbage
+anyway; no real adopter could be using it correctly. Verified no
+external callers in-tree (only the rod file referenced these names).
+
+| Rod fn | Old sig (broken) | New sig |
+|---|---|---|
+| `bayes_mcmc_scalar` | `(log_post, x0, n_steps, step)` | `(log_post, x0, proposal_std, n_samples, burnin)` |
+| `bayes_mcmc_multi` | same broken 4-arg | same correct 5-arg |
+
+### Coverage
+
+`tests/features/bayesian_smoke.nr` locks 4 chain-statistic invariants
+(the MCMC integrator path requires function-pointer log-posterior,
+deferred to follow-up):
+
+| Test | Path |
+|---|---|
+| **Lifecycle** | `bayes_seed(42)` / `bayes_seed(0)` / `bayes_seed(-1)` no crash |
+| **chain_mean** | mean of [1,2,3,4] = 2.5 |
+| **chain_std** | population std of [1,2,3,4] = sqrt(1.25) ≈ 1.1180 |
+| **acceptance_rate** | distinct → 1.0, constant → 0.0 |
+
+All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e` (no compiler edit; rod + fixture only).
+
 ## [0.8.254] — 2026-05-05
 
 **transformer attention rod ↔ runtime arity drift FIXED + coverage.**
