@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.230] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — mmap + plot.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### mmap rod (memory-mapped file I/O)
+
+`tests/features/mmap_smoke.nr` locks four invariants. File is
+pre-populated via io_write_file (mmap_open returns 0 for empty
+files):
+
+| Test | Path |
+|---|---|
+| Open returns valid handle | for an existing 16-byte file |
+| mmap_size matches file size | 16 bytes |
+| **write_f64 + sync + reopen + read_f64 round-trip** | known bit pattern survives the whole loop |
+| Open of nonexistent in read mode returns 0 | non-crash |
+
+Named SHM APIs not exercised (system-wide visibility risk on
+shared CI hosts).
+
+### plot rod (SVG plotting)
+
+`tests/features/plot_smoke.nr` locks four lifecycle invariants
+(pixel-level layout intentionally NOT asserted):
+
+| Test | Path |
+|---|---|
+| plot_new returns valid handle | non-zero for reasonable canvas |
+| plot_line accepts xs/ys Vecs | doesn't crash |
+| **plot_save_svg writes non-empty file containing `<svg`** | end-to-end IO |
+| plot_free does not crash | clean close path |
+
+All pass. rc=0.
+
 ## [0.8.229] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — attention2 + multi_core.**
