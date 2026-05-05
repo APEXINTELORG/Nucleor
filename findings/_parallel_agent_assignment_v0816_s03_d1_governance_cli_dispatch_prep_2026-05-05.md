@@ -1,7 +1,7 @@
 # Parallel Agent Assignment - v0.8.316 S03-D1 redirect
 
 **Issued:** 2026-05-05
-**Base:** freshly fetched `origin/main` at `c4610e763a3799c43557a3d18ea803bca19882a0` (`v0.8.316`).
+**Base:** freshly fetched `origin/main` at `c5fd41c2c02ba1f9e2961a743f188462f1c4844e`.
 **Instruction file:** `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
 **Redirect source:** main-agent redirect after R12-D2 integration.
 
@@ -20,6 +20,9 @@ governance CLI dispatch prep item from the audit build plan:
   - `docs/rfcs/RFC-0060-governance-rod.md` promises `nuc gov authored / policy / check / evidence / sign / verify / status`.
   - `compiler/nucleor_tools_suite.nr` has top-level `audit`, `policy`, `certify`, `translate`, and `evidence` surfaces, plus governance rod helpers.
   - `compiler/nucleor_s1_compiler.nr` help text already groups governance commands, but does not necessarily prove a top-level `gov` dispatch contract.
+
+Do **not** take `R12-D1`; main has that lane almost ready in
+`probe/r12-posix-proof-prep-v0815`.
 
 ### Hard rule
 
@@ -45,7 +48,7 @@ git merge-base HEAD origin/main
 Expected base/merge-base:
 
 ```text
-c4610e763a3799c43557a3d18ea803bca19882a0
+c5fd41c2c02ba1f9e2961a743f188462f1c4844e
 ```
 
 ### Investigation checklist
@@ -135,7 +138,7 @@ Update `findings/heartbeat.json` in that branch with:
 - `instructions_read = "v0.8.316-s03-d1-redirect"`
 - `current_task = "helper: S03-D1 governance CLI dispatch prep"`
 - `current_punchlist_item = "S03-D1"`
-- `rebased_on_origin_main = "c4610e763a3799c43557a3d18ea803bca19882a0"`
+- `rebased_on_origin_main = "c5fd41c2c02ba1f9e2961a743f188462f1c4844e"`
 - branch, HEAD, merge-base, changed files, validation, and perf numbers if patched
 - either `status = "ready-for-integration"` or `status = "blocked-finding-ready"`
 
