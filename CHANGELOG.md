@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.147] — 2026-05-04
+
+**RFC-0048 / RFC-0049 / RFC-0051 Phase B step-1 — three-up
+frontier easy-win audit batch (V2.3 + V2.4 + V2.6).** Single
+compiler edit; one stage1↔stage2 IR md5 fixed-point; three new
+audit surfaces.
+
+### Why batch?
+
+V2.3 / V2.4 / V2.6 are all the same architectural pattern as
+v0.8.145 (Pose<F>) and v0.8.146 (unit<T,[...]>): phantom-typed
+tag in source, zero runtime cost, audit at build to surface
+adopter usage. Each Phase B step-2 (real type-checked
+enforcement) is a larger compiler ship per the individual RFC.
+Batching keeps the self-host fixed-point cycle to one round.
+
+### What
+
+| RFC | V# | Audit needle | Phase B step-1 surfaces |
+|---|---|---|---|
+| RFC-0048 | V2.3 | `target.has(`, `target.os(` | compile-time hardware capability queries |
+| RFC-0049 | V2.4 | `: MemSpace_`, `, MemSpace_` | memory-space type tags on Tensor |
+| RFC-0051 | V2.6 | `: Model<`, `-> Model<` | foundation-model provenance wrappers |
+
+Phase B step-2 deferred for each (real DCE for target.has,
+real `types_compatible` enforcement for MemSpace + Model).
+
+### Locks
+
+`tests/features/frontier_audit_smoke.nr` declares marker types
+and verifies the 3 audit lines fire at build:
+
+```
+audit: target.has()/target.os() compile-time queries: 2
+audit: MemSpace_* type-position occurrences: 4
+audit: Model<Arch,...> provenance type-position occurrences: 1
+```
+
+(Counts include comment-text false-positives — same shape as
+the v0.8.5 `@differentiable` audit, accepted at Phase B step-1.)
+
+Stage1 IR md5 = stage2 IR md5 = `399CA503C07895FB29F5A30D1E48CABD`.
+
+Perf gate: cold 3.85s, hot 0.77s, peak 315MB — helper's
+v0.8.144 wins held across the +56 LOC compiler diff.
+
+### Roadmap status — Tier-A frontier easy-wins (V2.1–V2.6)
+
+| V# | RFC | Phase | Ship |
+|---|---|---|---|
+| V2.1 | RFC-0046 Pose<F> + Frame_* | B step-1 audit | v0.8.145 |
+| V2.2 | RFC-0047 unit<T,[...]> | B step-1 audit | v0.8.146 |
+| V2.3 | RFC-0048 target.has/target.os | B step-1 audit | v0.8.147 (this ship) |
+| V2.4 | RFC-0049 MemSpace_* | B step-1 audit | v0.8.147 (this ship) |
+| V2.5 | RFC-0050 @energy/@thermal | B step-1+2+3 audit | v0.8.6 / v0.8.11 / v0.8.13 (already shipped) |
+| V2.6 | RFC-0051 Model<Arch,...> | B step-1 audit | v0.8.147 (this ship) |
+
+**All 6 Tier-A frontier easy-wins are now Phase B step-1 audit-
+shipped.** Phase B step-2 (real type-checked enforcement) is the
+multi-RFC follow-on work block per the spine roadmap.
+
 ## [0.8.146] — 2026-05-04
 
 **RFC-0047 Phase B step-1 — typed dimensional units `unit<T,
