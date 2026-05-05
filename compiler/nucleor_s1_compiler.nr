@@ -16420,6 +16420,184 @@ fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
     return 0;
 }
 
+// === v0.8.308 — consolidated body-diagnostics single-walk pass ===
+//
+// Background: between v0.8.293 and v0.8.307 we added 6 separate
+// emitters, each walking the source independently:
+//   enforce_const_fn_purity (NUM-009)         — v0.8.293
+//   enforce_hot_fn_purity   (PERF-2)          — v0.8.297
+//   enforce_heap_in_loop    (PERF-3)          — v0.8.298
+//   enforce_unawaited_spawn (RACE-002)        — v0.8.299
+//   enforce_deadline_with_await (RACE-007)    — v0.8.300
+//   enforce_pure_fn_purity  (EFF-001)         — v0.8.307
+//
+// User-measured cold compile time blew up: baseline 4.64s ->
+// ~12s (2.6×). Each emitter does an O(F·S) per-fn body extraction
+// — 6 of them stack to ~36M ops on a 12K-line source.
+//
+// This consolidated pass walks the source EXACTLY ONCE, tracks
+// the most recent attribute lines (for `@const_fn` / `@hot`
+// recognition), extracts each fn body in-place (no re-scan from
+// position 0), and runs ALL six checks against the same body
+// substring. Total cost ~O(S + total_body_size) — well under
+// the baseline budget.
+//
+// The 6 individual emitters above are kept as dead code (callable
+// but unwired) so any external integration that imports them
+// keeps working; the wire-in dispatch in compile_file_mode now
+// calls only this consolidated pass.
+#[manual_drop]
+fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    // Tracks attribute lines accumulated since the last non-attr
+    // non-comment non-blank line. Cleared on encountering a fn decl
+    // (consumed by the fn) or a non-attr code line (cleared).
+    let mut prev_attrs: str = "";
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let trimmed: str = str_trim(line);
+        let is_blank: i64 = if str_len(trimmed) == 0 { 1 } else { 0 };
+        let is_comment: i64 = if str_index_of(trimmed, "//") == 0 { 1 } else { 0 };
+        let starts_attr: i64 = if str_index_of(trimmed, "@") == 0 { 1 } else { if str_index_of(trimmed, "#[") == 0 { 1 } else { 0 } };
+        if is_blank == 1 || is_comment == 1 {
+            p = eol + 1;
+            continue;
+        };
+        if starts_attr == 1 {
+            prev_attrs = str_concat(prev_attrs, str_concat(line, "\n"));
+            p = eol + 1;
+            continue;
+        };
+        // Non-attr code line — possibly a fn decl.
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            // Find body opening brace. Start from the fn-decl line
+            // start (`p`), not `eol`, because a fn decl ending in `{`
+            // means `eol` lands at the `\n` AFTER the `{` — scanning
+            // forward from there finds the NEXT fn's brace.
+            let mut q: i64 = p;
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            let mut body: str = "";
+            let mut body_q: i64 = q;
+            if q < slen {
+                let body_start: i64 = q + 1;
+                q = q + 1;
+                let mut depth: i64 = 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                body = str_substring(source, body_start, q - 1);
+                body_q = q;
+            };
+            let bod_len: i64 = str_len(body);
+            if bod_len > 0 {
+                // Pre-compute a single set of substring presence flags.
+                let has_print: i64 = if str_index_of(body, "print(") >= 0 { 1 } else { if str_index_of(body, "println(") >= 0 { 1 } else { 0 } };
+                let has_alloc: i64 = if str_index_of(body, "Vec::new") >= 0 { 1 } else { if str_index_of(body, "Box::new") >= 0 { 1 } else { 0 } };
+                let has_panic: i64 = if str_index_of(body, "panic(") >= 0 { 1 } else {
+                    if str_index_of(body, ".unwrap(") >= 0 { 1 } else {
+                        if str_index_of(body, ".expect(") >= 0 { 1 } else {
+                            if str_index_of(body, "assert_eq(") >= 0 { 1 } else {
+                                if str_index_of(body, "assert_ne(") >= 0 { 1 } else { 0 } } } } };
+                let has_ambient: i64 = if str_index_of(body, "ambient_random") >= 0 { 1 } else { 0 };
+                let has_async_spawn: i64 = if str_index_of(body, "async_spawn(") >= 0 { 1 } else { 0 };
+                let has_async_await: i64 = if str_index_of(body, "async_await(") >= 0 { 1 } else { 0 };
+                let attrs_have_const_fn: i64 = if str_index_of(prev_attrs, "@const_fn") >= 0 { 1 } else { 0 };
+                let attrs_have_hot: i64 = if str_index_of(prev_attrs, "@hot") >= 0 { 1 } else { 0 };
+                let line_has_pure_fn: i64 = if str_index_of(line, "pure fn ") >= 0 { 1 } else { 0 };
+                let is_dl_inner: i64 = if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 { 1 } else { 0 };
+
+                // === NUM-009 (R09-D4): @const_fn must be pure ===
+                if attrs_have_const_fn == 1 {
+                    let mut code: i64 = 0;
+                    if has_print == 1 { code = 1; };
+                    if code == 0 && has_alloc == 1 { code = 2; };
+                    if code == 0 && has_panic == 1 { code = 3; };
+                    if code == 0 && has_ambient == 1 { code = 4; };
+                    if code > 0 {
+                        let kind: str = if code == 1 { "calls print() — I/O is not const" }
+                            else if code == 2 { "calls Vec::new()/Box::new() — heap allocation is not const" }
+                            else if code == 3 { "may panic (panic/unwrap/expect/assert) — control-flow trap is not const" }
+                            else { "uses ambient capability (ambient_*) — non-deterministic input is not const" };
+                        let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn (audit R09-D4 v0.8.293)"))));
+                        let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "error", "num", "NUM-009", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    };
+                };
+
+                // === EFF-001 (R05-D1): pure fn must be pure ===
+                if line_has_pure_fn == 1 {
+                    let mut pcode: i64 = 0;
+                    if has_print == 1 { pcode = 1; };
+                    if pcode == 0 && has_alloc == 1 { pcode = 2; };
+                    if pcode == 0 && has_ambient == 1 { pcode = 3; };
+                    if pcode > 0 {
+                        let kind2: str = if pcode == 1 { "calls print() / println() — I/O is not pure" }
+                            else if pcode == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
+                            else { "uses ambient capability (ambient_*) — non-deterministic input is not pure" };
+                        let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
+                        let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
+                    };
+                };
+
+                // === PERF-2 (R10-D2): @hot must be alloc/IO-free ===
+                if attrs_have_hot == 1 {
+                    let mut hcode: i64 = 0;
+                    if has_alloc == 1 { hcode = 1; };
+                    if hcode == 0 && has_print == 1 { hcode = 2; };
+                    if hcode > 0 {
+                        let hkind: str = if hcode == 1 { "allocates (Vec::new / Box::new) — heap allocation in a perf-critical path" }
+                            else { "performs I/O (print / println / panic) — blocking syscall in a perf-critical path" };
+                        let hmsg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(hkind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path (audit R10-D2 v0.8.297)"))));
+                        let hlc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "warning", "perf", "PERF-2", hmsg, fn_name, vec_get(hlc, 0), vec_get(hlc, 1), "");
+                    };
+                };
+
+                // === PERF-3 (R10-D2): heap alloc inside while/loop ===
+                if has_alloc == 1 {
+                    if detect_heap_in_loop_in_body(body) == 1 {
+                        let p3msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional (audit R10-D2 v0.8.298)"));
+                        let p3lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "warning", "perf", "PERF-3", p3msg, fn_name, vec_get(p3lc, 0), vec_get(p3lc, 1), "");
+                    };
+                };
+
+                // === RACE-002 (R04-D3): unawaited async_spawn ===
+                if has_async_spawn == 1 && has_async_await == 0 {
+                    let r2msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional (audit R04-D3 v0.8.299)"));
+                    let r2lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                    diag_add_ex(diags, "warning", "race", "RACE-002", r2msg, fn_name, vec_get(r2lc, 0), vec_get(r2lc, 1), "");
+                };
+
+                // === RACE-007 (R04-D3): __nuc_dl_inner_* + async_await ===
+                if is_dl_inner == 1 && has_async_await == 1 {
+                    let r7msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn (audit R04-D3 v0.8.300)"));
+                    let r7lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                    diag_add_ex(diags, "warning", "race", "RACE-007", r7msg, fn_name, vec_get(r7lc, 0), vec_get(r7lc, 1), "");
+                };
+            };
+            prev_attrs = "";
+            // Advance past the body's close brace.
+            if body_q > eol { p = body_q; }
+            else { p = eol + 1; };
+            continue;
+        };
+        // Non-fn code line — clear pending attrs and advance.
+        prev_attrs = "";
+        p = eol + 1;
+    };
+    return diags;
+}
+
 #[manual_drop]
 fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
     let needle: str = str_concat("@h", "ot");
@@ -30889,32 +31067,13 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, max_depth_source);
-    // R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement.
-    // Pre-v0.8.293 @const_fn was silently ignored (NUM-G9). Now an
-    // effectful @const_fn body fails build with error[NUM-009].
-    diags = enforce_const_fn_purity(diags, max_depth_source);
-    // R10-D2 Phase 1 (v0.8.297): @hot HotViolation enforcement.
-    // Pre-v0.8.297 @hot was discovery-only. Now alloc / I/O in
-    // an @hot body emits warning[PERF-2].
-    diags = enforce_hot_fn_purity(diags, max_depth_source);
-    // R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3.
-    // Per-iteration Vec::new/Box::new in any while/loop body.
-    diags = enforce_heap_in_loop(diags, max_depth_source);
-    // R05-D1 Phase 1 (v0.8.307): `pure fn` purity enforcement
-    // in s1 build path. Pre-v0.8.307 only `nuc check` flagged
-    // pure-with-effects; `nuc build` shipped binaries that
-    // violated their declared purity contract.
-    diags = enforce_pure_fn_purity(diags, max_depth_source);
-    // R04-D3 Phase 1 (v0.8.299): RACE-002 emitter — unawaited
-    // async_spawn (fire-and-forget breaks completion ordering).
-    diags = enforce_unawaited_spawn(diags, max_depth_source);
-    // R04-D3 Phase 1.5 (v0.8.300): RACE-007 emitter — deadline +
-    // async_await composition (deadline checker can't see past
-    // actor executor boundary). Uses post-rewrite `max_depth_source`
-    // because the deadline attribute is desugared into
-    // `deadline_check(...)` calls inside the rewritten body — that's
-    // the signature the detector matches.
-    diags = enforce_deadline_with_await(diags, max_depth_source);
+    // v0.8.308: consolidated single-walk body diagnostics covering
+    // NUM-009 (R09-D4 @const_fn purity), EFF-001 (R05-D1 pure fn),
+    // PERF-2 (R10-D2 @hot violation), PERF-3 (R10-D2 HeapInLoop),
+    // RACE-002 (R04-D3 unawaited spawn), RACE-007 (R04-D3 deadline+
+    // await). Replaces 6 prior O(F·S) per-emitter walks with a single
+    // O(S + ΣB) pass — ~2.6× cold compile regression resolved.
+    diags = enforce_body_diagnostics_unified(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
