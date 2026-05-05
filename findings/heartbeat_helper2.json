@@ -1,0 +1,52 @@
+{
+  "instructions_read": "helper2-r13-d6-v0819",
+  "current_task": "helper2: R13-D6 cache/gate docs + Windows recovery docs/script prep",
+  "roadmap_phase": "v1_launch_blocker_final_buildout",
+  "current_punchlist_item": "R13-D6 Phase 2",
+  "edits_in_main_tree": false,
+  "required_base": "fetch current origin/main; known handoff base 5ea94cecbcb07036e8511023829c44c8623b6043",
+  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper2_r13_d6_windows_recovery",
+  "branch": "probe/r13-d6-windows-recovery-v0819",
+  "status": "assigned",
+  "paths": {
+    "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
+    "assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0819_r13_d6_windows_recovery_2026-05-05.md",
+    "build_plan": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans\\BUILD_PLAN_R13_self_hosting_bootstrap.md",
+    "canonical_spine": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\BUILD_PATH_v0.4_to_v1.3.md"
+  },
+  "do_not_edit": [
+    "compiler/nucleor_s1_compiler.nr",
+    "bin/",
+    "bootstrap/",
+    "tools/perf_baseline.json",
+    "CHANGELOG.md",
+    "RELEASES.md"
+  ],
+  "owned_scope": [
+    "docs/architecture.md",
+    "NUCLEOR_BOOTSTRAP_CONTRACT.md",
+    "bootstrap/README.md",
+    "tools/bootstrap_windows.ps1 if cleanly docs/tooling-only",
+    "findings/heartbeat_helper2.json"
+  ],
+  "parallel_lanes": {
+    "helper1": "S03-D1 governance CLI dispatch prep on probe/s03-d1-governance-cli-dispatch-prep-v0816",
+    "main": "R13-D1 / compiler-risk lanes; integrate helper branches only after review"
+  },
+  "validation_required": [
+    "python -m json.tool findings\\heartbeat_helper2.json",
+    "git diff --check",
+    "PowerShell parser check for tools\\bootstrap_windows.ps1 if added",
+    "pwsh -NoProfile -File tools\\bootstrap_windows.ps1 -DryRun if added",
+    "pwsh -NoProfile -File tools\\check_perf_regression.ps1 if nontrivial tooling behavior changes"
+  ],
+  "perf_gate": {
+    "cold_max_seconds": 4.0,
+    "hot_max_seconds": 1.0,
+    "cold_process_tree_memory_max_mb": 400,
+    "cold_compiler_memory_max_mb": 350,
+    "hot_process_tree_memory_max_mb": 128,
+    "hot_compiler_memory_max_mb": 64
+  },
+  "handoff_note": "R13-D6 Phase 1 shipped in v0.8.281. Helper2 should verify live docs first, then prepare a safe Windows recovery script only if it stays out of restricted files and can dry-run honestly."
+}
