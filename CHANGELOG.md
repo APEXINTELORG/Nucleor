@@ -5,6 +5,122 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.266] — 2026-05-05
+
+**R14-D4 Phase 1 — LAW explain text honesty cleanup + LAW-006/007/008 reservations.**
+Closes the fifth and final Phase 1 deficiency from
+`BUILD_PLAN_R14_algebraic_laws.md`. **All 5 R14 deficiencies now have
+Phase 1 closure.**
+
+### Bug
+
+The compiler's `explain` registry over-claimed shipped behavior:
+
+| Code | Pre-v0.8.266 explain text |
+|---|---|
+| `LAW-001` | "RFC-0031 generates a property test from each @law. The test ran ~1000 random inputs and found a counterexample…" |
+| `LAW-002` | "In --profile=cert, RFC-0031 routes laws through Z3/CVC5 for proof. The SMT solver disproved the law…" |
+| `LAW-003` | "An @law citation pointed at a law the optimizer can't pattern-match…" |
+| `LAW-004` | "Float operations are not exactly associative; claiming `a + (b + c) == (a + b) + c` for f32/f64 in --profile=cert without an explicit eps is rejected." |
+
+Every one of these implied shipped behavior that **does not exist
+today**. No property tests run; no SMT solver runs; no optimizer
+pattern-match consumes laws (Phase 1 v0.8.265 ships the slot as a
+no-op; Phase 2 is unwritten).
+
+The audit's R14-D4 acceptance criterion is unambiguous: "explain
+text never claims shipped SMT/property proof before implementation."
+
+### Fix (Phase 1, additive)
+
+`compiler/nucleor_tools_suite.nr` — three explain registry functions:
+
+1. **`explain_error_title`** — LAW-001..004 now end "(RESERVED — Phase 2 not shipped)"; new entries for LAW-006/007/008.
+2. **`explain_error_summary`** — LAW-001..004 rewritten to start "RESERVED diagnostic. Phase 2 of RFC-0031 will…"; new entries for LAW-006/007/008.
+3. **`explain_error_explanation`** — LAW-001..004 rewritten to start "RESERVED. Phase 2 of RFC-0031…"; new entries for LAW-006/007/008.
+
+`compiler/nucleor_s1_compiler.nr` — `is_known_diag_code`:
+
+4. Added LAW-006, LAW-007, LAW-008 to the known-codes registry.
+   `nuc explain LAW-006/007/008` now resolves cleanly instead of
+   "unknown error code".
+
+### LAW-006/007/008 codes wired (per R14-D5 canonical schema, v0.8.264)
+
+| Code | Trigger (Phase 2) |
+|---|---|
+| `LAW-006` | Deprecated alias `zero = Z`; use `absorbing = Z` |
+| `LAW-007` | Bare `distributive` (incomplete); use `distributive_over = g` |
+| `LAW-008` | Unrecognized law name (not in canonical 9-law set) |
+
+All three are RESERVED in Phase 1; Phase 2 wires the actual
+detection at compiler-side `--check-laws` recognition.
+
+### Honesty audit verification
+
+```
+$ bin/nucleor.exe explain LAW-001
+LAW-001: Property test fails (RESERVED — Phase 2 not shipped)
+RESERVED diagnostic. Phase 2 of RFC-0031 will generate a property test (~1000 random inputs)…
+RESERVED. Phase 2 of RFC-0031 (R14 audit-driven build arc) will generate a property test…
+```
+
+No line claims shipped behavior. The acceptance criterion is met.
+
+### Acceptance status
+
+| Criterion | Status |
+|---|---|
+| **Explain text never claims shipped SMT/property proof before implementation** | ✅ all LAW-* entries marked RESERVED with phase pointer |
+| LAW-006/007/008 known to compiler | ✅ wired into `is_known_diag_code` + all three explain levels |
+| `nuc explain LAW-006` resolves | ✅ |
+
+### Self-host fixed-point md5 ROTATED
+
+| | Before | After |
+|---|---|---|
+| Stage1/2/seed md5 | `8053d33975991b1ad335ed5d05b2dc5c` | `12777d1c1bdb18cde6bbfcb22479eefc` |
+
+`bootstrap/nucleor_s1_seed.ll` refreshed; `bin/nucleor.exe` and
+`bin/nucleor_tools.exe` both promoted (tools-suite is a separate
+binary at `bin/nucleor_tools.exe`; rebuilt from updated source +
+copied in place).
+
+### Gates
+
+- Self-host fixed-point: ✅ at new md5
+- Bootstrap seed match: ✅
+- Perf cold: 3.52s ✅ (max 5.93s; under 4s soft target)
+- Perf hot: 0.8s ✅
+- Perf peak mem: 287MB ✅
+- `tests/attrs/laws.nr`: ✅ rc=0
+- `tests/features/law_metadata_smoke.nr`: ✅ rc=0
+
+### Rollback (per build plan §1 R14-D4)
+
+Revert the explain text in `compiler/nucleor_tools_suite.nr` for
+LAW-001..004 to the pre-v0.8.266 strings. Remove LAW-006/007/008
+entries from explain_error_title/summary/explanation and
+is_known_diag_code. No other code paths depend on these reservations
+in Phase 1.
+
+### R14 Phase 1 — COMPLETE
+
+5 of 5 deficiencies have Phase 1 closure:
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.262 | R14-D1 — `@law(...)` lex-time capture | ✅ |
+| v0.8.263 | R14-D3 — `--check-laws` un-ignored at router | ✅ |
+| v0.8.264 | R14-D5 — canonical schema locked across docs | ✅ |
+| v0.8.265 | R14-D2 — `opt_law_rewrite_block` scaffold in optimizer | ✅ |
+| v0.8.266 | R14-D4 — LAW explain text honesty + LAW-006/7/8 reservations | ✅ |
+
+**Phase 2 work begins next iteration:** real property-test generation
+(R14-D3 Phase 2), alias detection emitting LAW-006/007/008 (R14-D5
+Phase 2), populated optimizer body (R14-D2 Phase 2). v0.9 cut absorbs
+the full Phase 2 arc per spine §15.2.
+
 ## [0.8.265] — 2026-05-05
 
 **R14-D2 Phase 1 — `opt_law_rewrite_block` scaffold wired into optimizer driver.**
