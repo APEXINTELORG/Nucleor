@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.167] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — stack +
+tokenizer.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### stack rod (LIFO Vec wrapper)
+
+`tests/features/stack_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty | `len=0`, `is_empty=1`, `pop()` returns -1 |
+| **LIFO** | push 1, 2, 3 → pop returns 3, 2, 1 |
+| Peek non-destructive | `peek` returns top; `len` unchanged; subsequent `pop` returns same value |
+| Length tracking | push grows length, pop shrinks |
+
+### tokenizer rod (BPE + char-level)
+
+`tests/features/tokenizer_smoke.nr` locks the char-level path
+(BPE training deferred — needs larger corpus, separate ship):
+
+| Test | Path |
+|---|---|
+| Char-level length | `tok_char_level("hello")` → 5-token sequence |
+| **Per-byte distinctness** | `tok_char_level("abc")` → 3 tokens, all 3 distinct (different ids for 'a', 'b', 'c') |
+
+All pass. rc=0.
+
 ## [0.8.166] — 2026-05-04
 
 **stdlib/rods/units.nr first test coverage.** Pure fixture, no
