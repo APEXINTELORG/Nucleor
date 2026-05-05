@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.293] — 2026-05-05
+
+**R09-D4 Phase 1 — `@const_fn` purity enforcement (CRITICAL audit item, REAL implementation).**
+
+### Bug
+
+Pre-v0.8.293 the `@const_fn` attribute was **silently ignored**
+semantically. A `@const_fn` containing `print()`, `Vec::new()`,
+`panic()`, etc. compiled cleanly and ran the side effects at
+runtime. Adopters relying on `@const_fn` for compile-time
+evaluation guarantees got nothing. Audit-classified CRITICAL
+(R09-D4) per `BUILD_PLAN_R09_numeric_correctness.md` §1, RFC
+gap NUM-G9.
+
+### Fix (real fail-closed enforcement, NOT disclosure)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+
+- `const_fn_body_effect_code(source, fn_name) -> i64` — opens
+  the named fn body and scans for effectful substrings; returns
+  0 (pure) or a code naming the first effect found:
+  - 1 = `print(`
+  - 2 = `Vec::new` / `Box::new` (allocation)
+  - 3 = `panic(` / `.unwrap(` / `.expect(` / `assert_*` (panic-capable)
+  - 4 = `ambient_random` / ambient capability
+- `enforce_const_fn_purity(diags, source)` — walks every
+  `@const_fn` annotated fn name (via `attribute_audit_fn_names`)
+  and emits `error[NUM-009]` with a fn-name span when the body
+  is effectful. Build fails closed.
+
+Wired in the diagnostics pipeline immediately after
+`enforce_static_wcet`. New error code `NUM-009` registered in
+`is_known_diag_code` + tools-suite explain registry (title +
+body + comparison-vs-Rust note).
+
+This is the third REAL improvement in the user-pushback thread
+("can this be fixed as opposed to just saying can't do it?")
+after v0.8.291 (string-literal skip) and v0.8.292 (loop keyword).
+v0.8.293 is the most invasive of the three — it adds a new
+diagnostic and a new compiler pass, not just a scan tweak.
+
+### Tests
+
+- `tests/features/const_fn_eval_smoke.nr` (positive) —
+  `@const_fn fn add_squares(x, y) { let xs = x*x; let ys = y*y;
+  return xs + ys; }` compiles cleanly and `add_squares(3, 4)`
+  returns 25 at runtime. Phase 2 will evaluate at compile time.
+- `tests/err/err_const_fn_effectful.nr` (negative) —
+  `@const_fn fn impure_const() { print("..."); return 0; }`
+  fails with `error[NUM-009]: ... calls print() — I/O is not
+  const; remove the @const_fn annotation ...`.
+
+### Self-host fixed-point
+
+**Rotated** `e4492963ec4ae34a21fbbff925efed2a` →
+`7b0c2ce1ef0579db73dadaad31801b01`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+Tools-suite rebuilt + promoted; `nucleor_tools.exe explain
+NUM-009` returns the new entry.
+
 ## [0.8.292] — 2026-05-05
 
 **R03-D3 Phase 1.6 — RT-004 estimator counts `loop { ... }` bodies (closes false-NEGATIVE).**

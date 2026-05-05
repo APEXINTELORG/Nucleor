@@ -11059,6 +11059,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NUM-007") == 1 { return 1; };
     if str_eq(code, "NUM-008") == 1 { return 1; };
     if str_eq(code, "NUM-009") == 1 { return 1; };
+    if str_eq(code, "NUM-009") == 1 { return 1; };
     if str_eq(code, "NUM-010") == 1 { return 1; };
     if str_eq(code, "NUM-011") == 1 { return 1; };
     if str_eq(code, "NUM-012") == 1 { return 1; };
@@ -16317,6 +16318,111 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     let units: i64 = stmt_count * multiplier;
     if units > stmt_cap { return stmt_cap; };
     return units;
+}
+
+// === R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement ===
+//
+// Per audit `BUILD_PLAN_R09_numeric_correctness.md` §1 R09-D4
+// (CRITICAL): pre-v0.8.293 `@const_fn` was silently ignored
+// semantically — the audit only printed an info count of usages
+// (NUM-G289). A `@const_fn` containing `print()`, `Vec::new()`,
+// `panic()`, etc. compiled cleanly and ran the side effects.
+// Adopters relying on @const_fn for compile-time evaluation
+// guarantees got nothing.
+//
+// User pushback after v0.8.291/.292 ("can this be fixed?") drove
+// this to a real implementation. This is fail-closed: a
+// `@const_fn` body containing any known-effectful pattern fails
+// build with `error[NUM-009]`.
+//
+// Phase 2 work (deferred): actually evaluate the const_fn body
+// at compile time and substitute the result. Today's pass just
+// rejects effectful bodies.
+
+// Find the body of `fn <name>(...)` and scan for effectful
+// substrings. Returns 0 if pure (or not found), or a non-zero
+// code naming the first effect found:
+//   1 = print
+//   2 = allocation (Vec::new / Box::new)
+//   3 = panic / unwrap / expect / assert
+//   4 = ambient capability (ambient_random / ambient_*)
+#[manual_drop]
+fn const_fn_body_effect_code(source: str, fn_name: str) -> i64 {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut found_at: i64 = 0 - 1;
+    while p + nlen <= slen && found_at < 0 {
+        if str_eq_at_len(source, p, needle, nlen) == 1 { found_at = p; }
+        else { p = p + 1; };
+    };
+    if found_at < 0 { return 0; };
+    let mut q: i64 = found_at + nlen;
+    while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+    if q >= slen { return 0; };
+    let body_start: i64 = q + 1;
+    q = body_start;
+    let mut depth: i64 = 1;
+    let mut body_end: i64 = slen;
+    while q < slen && depth > 0 {
+        let c: i64 = str_char_at(source, q);
+        if c == 123 { depth = depth + 1; };
+        if c == 125 {
+            depth = depth - 1;
+            if depth == 0 { body_end = q; };
+        };
+        q = q + 1;
+    };
+    let body: str = str_substring(source, body_start, body_end);
+    if str_index_of(body, "print(") >= 0 { return 1; };
+    if str_index_of(body, "Vec::new") >= 0 { return 2; };
+    if str_index_of(body, "Box::new") >= 0 { return 2; };
+    if str_index_of(body, "panic(") >= 0 { return 3; };
+    if str_index_of(body, ".unwrap(") >= 0 { return 3; };
+    if str_index_of(body, ".expect(") >= 0 { return 3; };
+    if str_index_of(body, "assert_eq(") >= 0 { return 3; };
+    if str_index_of(body, "assert_ne(") >= 0 { return 3; };
+    if str_index_of(body, "ambient_random") >= 0 { return 4; };
+    return 0;
+}
+
+#[manual_drop]
+fn enforce_const_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Walk every `@const_fn` annotated fn name (semicolon-separated
+    // string from attribute_audit_fn_names) and reject effectful
+    // bodies with NUM-009.
+    let needle: str = str_concat("@const_", "fn");
+    let names: str = attribute_audit_fn_names(source, needle);
+    let nlen: i64 = str_len(names);
+    if nlen == 0 { return diags; };
+    let mut start: i64 = 0;
+    let mut q: i64 = 0;
+    while q <= nlen {
+        let at_end: i64 = if q == nlen { 1 } else { 0 };
+        let is_sep: i64 = if at_end == 0 && str_char_at(names, q) == 59 { 1 } else { 0 };
+        if at_end == 1 || is_sep == 1 {
+            let raw: str = str_substring(names, start, q);
+            let fn_name: str = str_trim(raw);
+            if str_len(fn_name) > 0 {
+                let code: i64 = const_fn_body_effect_code(source, fn_name);
+                if code > 0 {
+                    let kind: str = if code == 1 { "calls print() — I/O is not const" }
+                        else if code == 2 { "calls Vec::new()/Box::new() — heap allocation is not const" }
+                        else if code == 3 { "may panic (panic/unwrap/expect/assert) — control-flow trap is not const" }
+                        else { "uses ambient capability (ambient_*) — non-deterministic input is not const" };
+                    let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn (audit R09-D4 v0.8.293)"))));
+                    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                    diag_add_ex(diags, "error", "num", "NUM-009", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                };
+            };
+            start = q + 2;
+            q = q + 2;
+        } else {
+            q = q + 1;
+        };
+    };
+    return diags;
 }
 
 #[manual_drop]
@@ -30148,6 +30254,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, max_depth_source);
+    // R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement.
+    // Pre-v0.8.293 @const_fn was silently ignored (NUM-G9). Now an
+    // effectful @const_fn body fails build with error[NUM-009].
+    diags = enforce_const_fn_purity(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
