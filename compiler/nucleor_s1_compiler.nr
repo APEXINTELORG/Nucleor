@@ -29039,6 +29039,45 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v0146_unit_total > 0 {
         print(str_concat("audit: unit<T,[...]> typed-dim type-position occurrences: ", str_from_int(v0146_unit_total)));
     };
+    // v0.8.147 (RFC-0048 Phase B step-1, V2.3 frontier easy-win)
+    // — hardware capability query audit. Adopters use
+    // `target.has(FP4)` / `target.has(AVX512)` / `target.os(...)`
+    // for compile-time-resolved kernel selection. Phase B step-2
+    // (real compile-time evaluation that prunes non-target
+    // branches via DCE before lowering) is the larger ship.
+    // This Phase B step-1 surfaces usage by counting `target.has(`
+    // and `target.os(` occurrences.
+    let v0147_target_has: i64 = simple_attribute_audit_count(after_async, str_concat("target.h", "as("));
+    let v0147_target_os: i64 = simple_attribute_audit_count(after_async, str_concat("target.", "os("));
+    let v0147_target_total: i64 = v0147_target_has + v0147_target_os;
+    if v0147_target_total > 0 {
+        print(str_concat("audit: target.has()/target.os() compile-time queries: ", str_from_int(v0147_target_total)));
+    };
+    // v0.8.148 (RFC-0049 Phase B step-1, V2.4 frontier easy-win)
+    // — memory-space type-tag audit. Same architectural pattern
+    // as RFC-0046 Pose<F>: phantom Space parameter on Tensor.
+    // Surfaces adopter usage of `Tensor<f32, MemSpace_HBM>` etc.
+    // Phase B step-2 (types_compatible enforcement on Space) is
+    // the real ship.
+    let v0148_memspace: i64 = simple_attribute_audit_count(after_async, str_concat(": MemSp", "ace_"));
+    let v0148_tensor_space: i64 = simple_attribute_audit_count(after_async, str_concat(", MemSp", "ace_"));
+    let v0148_memspace_total: i64 = v0148_memspace + v0148_tensor_space;
+    if v0148_memspace_total > 0 {
+        print(str_concat("audit: MemSpace_* type-position occurrences: ", str_from_int(v0148_memspace_total)));
+    };
+    // v0.8.149 (RFC-0051 Phase B step-1, V2.6 frontier easy-win)
+    // — Model<Arch, ...> provenance audit. Surfaces adopter
+    // usage of typed foundation-model wrappers carrying
+    // weights_hash / dataset_lineage / license / safety_eval /
+    // quantization at the type level. Phase B step-2 (real
+    // type-checked Model<...> with SPDX-validated license arg
+    // etc.) is the larger ship.
+    let v0149_model_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Mo", "del<"));
+    let v0149_model_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Mo", "del<"));
+    let v0149_model_total: i64 = v0149_model_colon + v0149_model_arrow;
+    if v0149_model_total > 0 {
+        print(str_concat("audit: Model<Arch,...> provenance type-position occurrences: ", str_from_int(v0149_model_total)));
+    };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
     // adopters use today: @hot (strict perf), @const_fn (compile-
