@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.191] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — governance + gnn.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### governance rod (RFC-0060 Phase 2a AuthorRecord registry)
+
+`tests/features/governance_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| Empty registry | count == 0 after clear |
+| **Register + count** | new AuthorRecord increments count by 1 |
+| **Round-trip via get** | all 5 fields (by/tool/date/commit/review) read back exactly |
+| JSON serialization | output contains all 5 keys + caller-supplied values |
+| Bare-constructor empty | `governance_authored(by, tool, date)` leaves commit/review = "" |
+
+### gnn rod (utility primitives)
+
+`tests/features/gnn_smoke.nr` locks two utility invariants
+(circuit_to_graph already covered in v0.8.148 RFC-0061 Tier 1):
+
+| Test | Path |
+|---|---|
+| **ReLU clipping** | `relu([1, -1, 2, -3])` → `[1, 0, 2, 0]` |
+| **LayerNorm zero-mean** | normalized sequence sums to ≈ 0 within 1e-6 |
+
+All pass. rc=0.
+
 ## [0.8.190] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — emag + fluid.**
