@@ -74,7 +74,11 @@ launch. After memory safety completes, these are next-priority.
 
 - **T-3 char-cast Phase 1:** DONE v0.8.46 audit-pass info, locked v0.8.78 fixture.
 - **T-4 empty-type compat Phase 1:** DONE v0.8.79 canary fixture (well-typed path locked; inversion protocol encoded for when Phase 2b strict mode lands).
-- **Phase 2b for both:** queued — needs compiler edit, currently blocked by the v0.8.79/v0.8.83 Windows-PE link hang (compiler.nr edits going through seed-rebuild produce binaries that hang on user-source compile).
+- **Phase 2b for both:** queued — needs compiler edit. The earlier
+  v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
+  as a current blocker after v0.8.319 rebuilt/promoted
+  `bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`, passed
+  self-host fixed-point, and compiled focused user fixtures.
 
 ### BOOT-3, BOOT-4 — Self-host fixed-point integrity
 
@@ -106,7 +110,9 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
 - **Severity:** SAFETY (Mars Climate Orbiter failure mode is live)
-- **Status:** OPEN — needs new types + compiler edit. Blocked by Windows-PE link hang for compiler-edit ships.
+- **Status:** OPEN — needs new types + compiler edit. Compiler-edit
+  shipping is unblocked by v0.8.319 evidence; implementation remains
+  queued behind higher-priority trust-gap closure.
 - **Phase 1:** Add unit-of-measure tagging to frame types.
 - **Phase 2b:** Compile-time check that frame tags are consistent across operations.
 
@@ -207,5 +213,12 @@ proper analysis → Phase 4 hard error):
 ## Updates log
 
 - **2026-05-04** v0.8.43: Punchlist file created. 14 gap RFCs integrated into spine. RFC-0062 memory-safety remains in flight; other 13 queued behind it.
-- **2026-05-04** v0.8.113: Punchlist refreshed to reflect v0.8.45 → v0.8.112 progress. RFC-0062 Phase 2b-3 final landed v0.8.75 (unconditional default-flip). NUM-G1 retired (probe wrong-class). NUM-G2 fully closed (math_abs/gcd/lcm v0.8.80, math_pow_int v0.8.81). NUM-G8 closed (TLS overflow flag v0.8.82). C-1/C-2/C-3 closed (helper v0.8.83, me v0.8.85/.86). ML-1 closed (v0.8.45/.66 sisters). T-3/T-4 Phase 1 done (audit + canary). PKG-3 fully closed for v1.0 semver (v0.8.89-.93). PERF-11 closed (v0.8.84). QM-7 Phase 1 done (12 assertions v0.8.87/.88). 16 stdlib rods first-coverage (v0.8.94 - .112). 4 pre-existing bugs surfaced; 3 fixed (CSV trailing-empty v0.8.105, dt mktime/gmtime v0.8.106, bm25 doc_count v0.8.108). E-1/2/3, BOOT-3/4, NUM-G9, ROBO-7 remain OPEN — all blocked by Windows-PE link hang for any compiler-edit ship. PKG-1 needs Linux runner.
+- **2026-05-04** v0.8.113: Punchlist refreshed to reflect v0.8.45 → v0.8.112 progress. RFC-0062 Phase 2b-3 final landed v0.8.75 (unconditional default-flip). NUM-G1 retired (probe wrong-class). NUM-G2 fully closed (math_abs/gcd/lcm v0.8.80, math_pow_int v0.8.81). NUM-G8 closed (TLS overflow flag v0.8.82). C-1/C-2/C-3 closed (helper v0.8.83, me v0.8.85/.86). ML-1 closed (v0.8.45/.66 sisters). T-3/T-4 Phase 1 done (audit + canary). PKG-3 fully closed for v1.0 semver (v0.8.89-.93). PERF-11 closed (v0.8.84). QM-7 Phase 1 done (12 assertions v0.8.87/.88). 16 stdlib rods first-coverage (v0.8.94 - .112). 4 pre-existing bugs surfaced; 3 fixed (CSV trailing-empty v0.8.105, dt mktime/gmtime v0.8.106, bm25 doc_count v0.8.108). At that snapshot, E-1/2/3, BOOT-3/4, NUM-G9, ROBO-7 remained OPEN pending compiler-edit ship proof. PKG-1 needs Linux runner.
 - **2026-05-05**: BOOT-3/BOOT-4 rechecked against current `tools/check_self_host_md5.sh`; the live gate already verifies full compiler self-IR fixed point and seed md5, not a smoke proxy. Marked DONE with md5 `9c991a17cfa5b0f97a8ce0021cac6fe3`.
+- **2026-05-05** v0.8.319: Compiler-edit ship path revalidated.
+  Rebuilt/promoted `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll`
+  from a compiler source edit, proved self-host fixed-point md5
+  `fc9c22e7b2e36a43eb6705071bd3db16`, rechecked focused EFF user
+  fixtures, and passed the perf gate at cold 3.57s / 309MB
+  process-tree RSS. The prior Windows-PE link-hang concern is no
+  longer a current blocker for queued compiler-edit punchlist lanes.
