@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.189] — 2026-05-05
+
+**stdlib/rods/differentiable.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+RFC-0045 Phase A — differentiability metadata registry.
+Sister to v0.8.5 audit pass and v0.8.181 audit gating; this is
+the runtime registry adopters call from fn bodies. Closes the
+V1.12-V1.14 drift-restoration fixture lane (RFC-0043 fixed_point
+fixture v0.8.187, RFC-0044 OverflowMode audit at v0.8.173, this
+RFC-0045 fixture).
+
+`tests/features/differentiable_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| Mode IDs | reverse=1, forward=2, mixed=3, unknown=0 |
+| Mode-name round-trip | `name(1) == "reverse"`, `name(99) == "unknown"` |
+| Empty registry | count == 0 after clear; `is("nonexistent") == 0` |
+| **Register + lookup** | `register("loss")` → count == 1, `is("loss") == 1`, `lookup ≥ 0` |
+| JSON round-trip | serialized contains both name and mode fields |
+
+All pass. rc=0.
+
 ## [0.8.188] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — dstar + enclave.**
