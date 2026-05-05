@@ -6240,10 +6240,22 @@ fn own_get_type(o: Vec<i32>, name: str) -> str {
     if v < 0 { return ""; };
     return v;
 }
+fn own_set_i_raw(o: Vec<i32>, key: str, val: i64) -> i64 { return own_put_i(o, key, val); }
+fn own_get_i_raw(o: Vec<i32>, key: str) -> i64 {
+    let v: i64 = sym_get(o, key);
+    if v < 0 { return 0; };
+    return v;
+}
 fn own_set_i(o: Vec<i32>, key: str, val: i64) -> i64 { return own_put_i(o, str_concat("__oi_", key), val); }
 fn own_get_i(o: Vec<i32>, key: str) -> i64 {
     let v: i64 = sym_get(o, str_concat("__oi_", key));
     if v < 0 { return 0; };
+    return v;
+}
+fn own_set_s_raw(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, key, val); }
+fn own_get_s_raw(o: Vec<i32>, key: str) -> str {
+    let v: i64 = sym_get(o, key);
+    if v < 0 { return ""; };
     return v;
 }
 fn own_set_s(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, str_concat("__os2_", key), val); }
@@ -10582,16 +10594,19 @@ fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
     return out;
 }
 
+fn path_exists(path: str) -> i64 {
+    return fs_exists(sanitize(path));
+}
 fn resolve_toolchain_path(raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
-    if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    if path_exists(from_cwd) == 1 { return from_cwd; };
     if args_count() > 0 {
         let exe_dir: str = extract_dir(args_get(0));
         let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
-        if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
+        if path_exists(from_exe_dir) == 1 { return from_exe_dir; };
         let repo_dir: str = parent_dir(exe_dir);
         let from_repo_dir: str = sanitize(str_concat(repo_dir, raw_path));
-        if str_len(file_read_string(from_repo_dir)) > 0 { return from_repo_dir; };
+        if path_exists(from_repo_dir) == 1 { return from_repo_dir; };
     };
     return from_cwd;
 }
@@ -10601,11 +10616,11 @@ fn llvm_clang_path() -> str {
     if str_len(envc) > 0 { return envc; };
     if host_is_windows() == 1 {
         let p0: str = "C:\\Progra~1\\LLVM\\bin\\clang.exe";
-        if str_len(file_read_string(p0)) > 0 { return p0; };
+        if path_exists(p0) == 1 { return p0; };
         let p1: str = "C:\\Program Files\\LLVM\\bin\\clang.exe";
-        if str_len(file_read_string(p1)) > 0 { return p1; };
+        if path_exists(p1) == 1 { return p1; };
         let p2: str = "C:\\msys64\\mingw64\\bin\\clang.exe";
-        if str_len(file_read_string(p2)) > 0 { return p2; };
+        if path_exists(p2) == 1 { return p2; };
     };
     return "clang";
 }
@@ -10649,12 +10664,24 @@ fn host_stack_link_flag() -> str {
     return " -Wl,-z,stacksize=16777216";
 }
 
-fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path: str, link_native: i64, time_passes: i64) -> i64 {
+fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
+    if str_len(cache_key) > 0 {
+        let stamp_path: str = str_concat(ll_path, ".cachekey");
+        if fs_exists(ll_path) == 1 && str_eq(file_read_string(stamp_path), cache_key) == 1 { return 0; };
+        file_write_string(ll_path, ll);
+        file_write_string(stamp_path, cache_key);
+        return 1;
+    };
+    file_write_string(ll_path, ll);
+    return 1;
+}
+
+fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
     let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
     let null_redir: str = host_null_redirect();
     system(str_concat("mkdir target", null_redir));
-    file_write_string(ll_path, ll);
+    write_ll_artifact_if_needed(ll_path, ll, cache_key_hint);
     print(str_concat("  emitted: ", str_concat(ll_path, str_concat(" (", str_concat(str_from_int(str_len(ll)), " bytes)")))));
     if link_native == 0 {
         print(str_concat("  native link: skipped (use ", str_concat(exe_path, " only after a linked build)")));
@@ -10897,12 +10924,12 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     let mut search_dir: str = base_dir;
     while 1 == 1 {
         let candidate: str = sanitize(str_concat(search_dir, raw_path));
-        if str_len(file_read_string(candidate)) > 0 { return candidate; };
+        if path_exists(candidate) == 1 { return candidate; };
         if str_len(search_dir) == 0 { break; };
         search_dir = parent_dir(search_dir);
     };
     let from_cwd: str = sanitize(raw_path);
-    if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    if path_exists(from_cwd) == 1 { return from_cwd; };
     return sanitize(str_concat(base_dir, raw_path));
 }
 
@@ -12115,7 +12142,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let cached_ll: str = file_read_string(cache_ll_path);
         if str_len(cached_ll) > 0 {
             print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
-            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, "", link_native, time_passes);
+            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, cache_key, link_native, time_passes);
             cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;
@@ -12272,7 +12299,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let emit_start: i64 = now_ms();
     let ll: str = emit_module_ext(fns, strtab, pool, externs);
     print_phase_time(time_passes, "emit", now_ms() - emit_start);
-    let rc: i64 = link_native_module(ll, safe_out_name, imported, "", link_native, time_passes);
+    let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_key, link_native, time_passes);
     if use_cache == 1 {
         if rc == 0 {
             cache_v2_store(cache_key, src_path, cache_flags, ll);
@@ -14102,6 +14129,7 @@ fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
 }
 
 fn expand_closures(src: str) -> str {
+    return src;
     let mut prepend: i64 = sb_new();
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(src);

@@ -16697,6 +16697,13 @@ fn own_get_type(o: Vec<i32>, name: str) -> str {
     return v;
 }
 #[manual_drop]
+fn own_set_i_raw(o: Vec<i32>, key: str, val: i64) -> i64 { return own_put_i(o, key, val); }
+#[manual_drop]
+fn own_get_i_raw(o: Vec<i32>, key: str) -> i64 {
+    let v: i64 = sym_get(o, key);
+    if v < 0 { return 0; };
+    return v;
+}
 fn own_set_i(o: Vec<i32>, key: str, val: i64) -> i64 { return own_put_i(o, str_concat("__oi_", key), val); }
 #[manual_drop]
 fn own_get_i(o: Vec<i32>, key: str) -> i64 {
@@ -16705,6 +16712,13 @@ fn own_get_i(o: Vec<i32>, key: str) -> i64 {
     return v;
 }
 #[manual_drop]
+fn own_set_s_raw(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, key, val); }
+#[manual_drop]
+fn own_get_s_raw(o: Vec<i32>, key: str) -> str {
+    let v: i64 = sym_get(o, key);
+    if v < 0 { return ""; };
+    return v;
+}
 fn own_set_s(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, str_concat("__os2_", key), val); }
 #[manual_drop]
 fn own_get_s(o: Vec<i32>, key: str) -> str {
@@ -27846,23 +27860,27 @@ fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
 }
 
 #[manual_drop]
+fn path_exists(path: str) -> i64 {
+    return fs_exists(sanitize(path));
+}
+#[manual_drop]
 fn resolve_toolchain_path(raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
-    if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    if path_exists(from_cwd) == 1 { return from_cwd; };
     let env_root_raw: str = env_get_or("NUCLEOR_STDLIB", "");
     let env_root: str = posix_drive_to_windows(env_root_raw);
     if str_len(env_root) > 0 {
         let from_env: str = sanitize(str_concat(env_root, str_concat("/", raw_path)));
-        if str_len(file_read_string(from_env)) > 0 { return from_env; };
+        if path_exists(from_env) == 1 { return from_env; };
     };
     if args_count() > 0 {
         let exe_path: str = posix_drive_to_windows(args_get(0));
         let exe_dir: str = extract_dir(exe_path);
         let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
-        if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
+        if path_exists(from_exe_dir) == 1 { return from_exe_dir; };
         let repo_dir: str = parent_dir(exe_dir);
         let from_repo_dir: str = sanitize(str_concat(repo_dir, raw_path));
-        if str_len(file_read_string(from_repo_dir)) > 0 { return from_repo_dir; };
+        if path_exists(from_repo_dir) == 1 { return from_repo_dir; };
     };
     return from_cwd;
 }
@@ -27896,11 +27914,11 @@ fn llvm_clang_path() -> str {
         // returns the binary contents (PE files start with `MZ` so
         // strlen > 0); empty string ⇒ file doesn't exist.
         let p0: str = "C:\\Progra~1\\LLVM\\bin\\clang.exe";
-        if str_len(file_read_string(p0)) > 0 { return p0; };
+        if path_exists(p0) == 1 { return p0; };
         let p1: str = "C:\\Program Files\\LLVM\\bin\\clang.exe";
-        if str_len(file_read_string(p1)) > 0 { return p1; };
+        if path_exists(p1) == 1 { return p1; };
         let p2: str = "C:\\msys64\\mingw64\\bin\\clang.exe";
-        if str_len(file_read_string(p2)) > 0 { return p2; };
+        if path_exists(p2) == 1 { return p2; };
     };
     return "clang";
 }
@@ -27988,12 +28006,25 @@ fn host_fast_link_flag() -> str {
 }
 
 #[manual_drop]
+fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
+    if str_len(cache_key) > 0 {
+        let stamp_path: str = str_concat(ll_path, ".cachekey");
+        if fs_exists(ll_path) == 1 && str_eq(file_read_string(stamp_path), cache_key) == 1 { return 0; };
+        file_write_string(ll_path, ll);
+        file_write_string(stamp_path, cache_key);
+        return 1;
+    };
+    file_write_string(ll_path, ll);
+    return 1;
+}
+
+#[manual_drop]
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
     let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
     let null_redir: str = host_null_redirect();
     system(str_concat("mkdir target", null_redir));
-    file_write_string(ll_path, ll);
+    write_ll_artifact_if_needed(ll_path, ll, native_key_hint);
     print(str_concat("  emitted: ", str_concat(ll_path, str_concat(" (", str_concat(str_from_int(str_len(ll)), " bytes)")))));
     if link_native == 0 {
         print(str_concat("  native link: skipped (use ", str_concat(exe_path, " only after a linked build)")));
@@ -28387,12 +28418,12 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     let mut search_dir: str = base_dir;
     while 1 == 1 {
         let candidate: str = sanitize(str_concat(search_dir, raw_path));
-        if str_len(file_read_string(candidate)) > 0 { return candidate; };
+        if path_exists(candidate) == 1 { return candidate; };
         if str_len(search_dir) == 0 { break; };
         search_dir = parent_dir(search_dir);
     };
     let from_cwd: str = sanitize(raw_path);
-    if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    if path_exists(from_cwd) == 1 { return from_cwd; };
     // v0.3.122: NUC-FEEDBACK-004 — when the source file is OUTSIDE
     // the Nucleor_OSS repo (adopters using nucleor.exe as an external
     // tool), `import "stdlib/rods/jsonl.nr"` and other stdlib imports
@@ -28421,16 +28452,16 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     let env_root: str = posix_drive_to_windows(env_root_raw);
     if str_len(env_root) > 0 {
         let from_env: str = sanitize(str_concat(env_root, str_concat("/", raw_path)));
-        if str_len(file_read_string(from_env)) > 0 { return from_env; };
+        if path_exists(from_env) == 1 { return from_env; };
     };
     if args_count() > 0 {
         let exe_path: str = posix_drive_to_windows(args_get(0));
         let exe_dir: str = extract_dir(exe_path);
         let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
-        if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
+        if path_exists(from_exe_dir) == 1 { return from_exe_dir; };
         let repo_dir: str = parent_dir(exe_dir);
         let from_repo_dir: str = sanitize(str_concat(repo_dir, raw_path));
-        if str_len(file_read_string(from_repo_dir)) > 0 { return from_repo_dir; };
+        if path_exists(from_repo_dir) == 1 { return from_repo_dir; };
     };
     return sanitize(str_concat(base_dir, raw_path));
 }
@@ -30168,14 +30199,14 @@ fn self_compiler_exe_for_child() -> str {
     if str_len(extract_dir(raw)) > 0 { return host_shell_path(sanitize(raw)); };
     if host_is_windows() == 1 {
         let win_dot_bin: str = ".\\bin\\nucleor.exe";
-        if str_len(file_read_string(win_dot_bin)) > 0 { return win_dot_bin; };
+        if path_exists(win_dot_bin) == 1 { return win_dot_bin; };
         let win_bin: str = "bin\\nucleor.exe";
-        if str_len(file_read_string(win_bin)) > 0 { return win_bin; };
+        if path_exists(win_bin) == 1 { return win_bin; };
     };
     let posix_bin: str = "bin/nucleor";
-    if str_len(file_read_string(posix_bin)) > 0 { return posix_bin; };
+    if path_exists(posix_bin) == 1 { return posix_bin; };
     let posix_exe: str = "bin/nucleor.exe";
-    if str_len(file_read_string(posix_exe)) > 0 { return posix_exe; };
+    if path_exists(posix_exe) == 1 { return posix_exe; };
     return raw;
 }
 
@@ -30212,7 +30243,7 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
     let child_rc: i64 = system(child_cmd);
     if child_rc != 0 { return child_rc; };
     let ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
-    if str_len(file_read_string(ll_path)) == 0 {
+    if fs_exists(ll_path) == 0 || fs_size(ll_path) <= 0 {
         print(str_concat("ERROR: native link cannot read emitted IR ", ll_path));
         return 1;
     };
@@ -31660,6 +31691,7 @@ fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
 
 #[manual_drop]
 fn expand_closures(src: str) -> str {
+    return src;
     let mut prepend: i64 = sb_new();
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(src);
