@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.308] — 2026-05-05
+
+**Perf — consolidate 6 body-diagnostic emitters into one single-walk pass (12s → ~3.7s cold).**
+
+### Bug
+
+User-measured cold compile time: **~12s on `nucleor_s1_compiler.nr`**,
+2.6× over the locked 4.64s baseline and 2× the 5.93s hard ceiling.
+Root cause: between v0.8.293 and v0.8.307 we added 6 separate
+emitters (`enforce_const_fn_purity`, `enforce_hot_fn_purity`,
+`enforce_heap_in_loop`, `enforce_unawaited_spawn`,
+`enforce_deadline_with_await`, `enforce_pure_fn_purity`), each
+walking the source independently with O(F·S) per-fn body
+extraction. 6 stacked passes on a 12K-line source = ~36M ops.
+
+User direction: condense + use existing scan infrastructure.
+
+### Fix
+
+NEW `enforce_body_diagnostics_unified(diags, source)` —
+single-walk pass that:
+- Walks source line-by-line ONCE, tracking `prev_attrs`
+  (accumulated `@`/`#[` lines).
+- On a fn decl, extracts the body **in-place** (scans forward
+  from line start `p` to find `{` — fixed a bug where starting
+  from `eol` skipped past the brace and grabbed the NEXT fn's body).
+- Pre-computes presence flags ONCE per body (`has_print`,
+  `has_alloc`, `has_panic`, `has_ambient`, `has_async_spawn`,
+  `has_async_await`).
+- Runs ALL 6 checks (NUM-009 / EFF-001 / PERF-2 / PERF-3 /
+  RACE-002 / RACE-007) against the same body using those flags.
+
+The 6 individual emitters are kept as defined-but-unwired so any
+external integration that imports them still compiles. The
+diagnostics pipeline now has 1 wire-in instead of 6.
+
+### Tests
+
+All 6 emit codes verified to still fire on their respective
+fixtures after consolidation:
+- NUM-009 on `tests/err/err_const_fn_effectful.nr`
+- EFF-001 on `tests/err/err_pure_print_build.nr`
+- PERF-2 on `tests/features/perf_hot_violation_smoke.nr`
+- PERF-3 on `tests/features/perf_heap_in_loop_smoke.nr`
+- RACE-002 on `tests/err/err_race_unawaited_spawn.nr`
+- RACE-007 on `tests/err/err_race_deadline_await.nr`
+
+### Cold-compile benchmark (5 fresh-cache runs, PowerShell stopwatch)
+
+```
+PRE  (v0.8.307): 12.205s
+POST (v0.8.308): 2.077, 3.576, 3.687, 3.719, 3.996  (median 3.687s, mean 3.41s, p95 3.996s)
+```
+
+**All 5 samples under 4s.** 3.3× speedup. Median is now BELOW
+the locked baseline of 4.64s.
+
+### Self-host fixed-point
+
+**Rotated** `a2f232d8bdae7534f1fe0b7f8869ad13` →
+`7ff8d0955e09083f2bb338ac326d5bb1`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.307] — 2026-05-05
 
 **R05-D1 Phase 1 — `pure fn` purity enforcement in s1 build path (CRITICAL audit closed).**
