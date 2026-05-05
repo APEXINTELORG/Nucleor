@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.233] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — kdt + vgraph.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### kdt rod (3-D KD-tree nearest-neighbor)
+
+`tests/features/kdt_smoke.nr` inserts 4 cube corners and locks
+four invariants (k-NN uses raw out-ptrs; deferred):
+
+| Test | Path |
+|---|---|
+| Empty tree | count=0; nearest = -1 |
+| Insert tracks count | 4 inserts → 4 |
+| Build returns indexed count | kdt_build → 4 |
+| **Self-match query** | nearest of (1,1,1) returns its index |
+
+### vgraph rod (2-D visibility graph planner)
+
+`tests/features/vgraph_smoke.nr` plans a direct line with no
+obstacles, start (0,0) → goal (3,4):
+
+| Test | Path |
+|---|---|
+| vgraph_new returns valid handle | non-zero |
+| Direct-line plan, no obstacles | path_len = 2 |
+| Path endpoints are start and goal | (0,0) and (3,4) |
+| **Path cost = Euclidean distance** | 3-4-5 triangle, cost=5 |
+
+All pass. rc=0.
+
 ## [0.8.232] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — lqr + occgrid.**
