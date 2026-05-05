@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
 # Total fn definitions: 2794
-# Total LOC: 11901
+# Total LOC: 11902
 
 [[rod]]
 name           = "activation2"
@@ -1745,7 +1745,7 @@ path           = "stdlib/rods/rust.nr"
 description    = "Rust interop via C ABI"
 function_count = 5
 cfile_count    = 0
-loc            = 31
+loc            = 32
 imports        = ["rust"]
 
 [[rod]]
