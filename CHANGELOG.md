@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.199] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — sdf + scurve.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### sdf rod (2D signed distance field)
+
+`tests/features/sdf_smoke.nr` locks four invariants on a 10×10
+grid at dx=1.0 origin (0,0):
+
+| Test | Path |
+|---|---|
+| Construction shape | `width=10, height=10, dx=1.0` |
+| Set + get round-trip | per-cell f64 value preserved |
+| **Initial all-free** | fresh cells default to +1e18 ("free everywhere") |
+| **Bilinear query** | 2×2 corner cluster set to V=5.0 → query at center (1.5, 1.5) returns 5.0 |
+
+### scurve rod (jerk-limited 7-phase time-parameterization)
+
+Sister to v0.8.182 `topp_smoke` (trapezoidal — the simpler
+fallback). s-curve is production-grade jerk-limited.
+
+`tests/features/scurve_smoke.nr` locks four invariants on a
+full-profile path (L=100, v_max=2, a_max=1, j_max=2):
+
+| Test | Path |
+|---|---|
+| Construction | non-zero handle when path length supports full 7-phase profile |
+| Path length round-trip | `path_length(L=100) == 100.0` |
+| Position at t=0 | == 0.0 |
+| **Position at t=T_total** | ≈ L (within 1e-3 — jerk-limited integration tolerance) |
+
+All pass. rc=0.
+
 ## [0.8.198] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — ridge + python.**
