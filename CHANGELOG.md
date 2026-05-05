@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.200] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — rod_helpers + scan.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### rod_helpers rod (cross-rod interop — Vec<str> bridge)
+
+`tests/features/rod_helpers_smoke.nr` locks two invariants on
+the str-bridge surface (fn-pointer surface needs callback
+fixtures, deferred):
+
+| Test | Path |
+|---|---|
+| `vec_str_push + vec_str_get` round-trip | 3 strings push/get bit-identical |
+| `hvec_str_set` overwrite | replace existing index, others unchanged |
+
+### scan rod (parallel scan / prefix-sum kernels)
+
+`tests/features/scan_smoke.nr` locks four textbook prefix-scan
+invariants:
+
+| Test | Path |
+|---|---|
+| **Inclusive prefix sum** | `[1,2,3,4]` → `[1,3,6,10]` |
+| **Exclusive prefix sum** | `[1,2,3,4]` → `[0,1,3,6]` |
+| Prefix product | `[1,2,3,4]` → `[1,2,6,24]` |
+| **Prefix max** | `[3,1,4,1,5,9]` → `[3,3,4,4,5,9]` |
+
+All pass. rc=0.
+
 ## [0.8.199] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — sdf + scurve.**
