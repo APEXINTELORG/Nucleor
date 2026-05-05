@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.222] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — pidc.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### pidc rod (PID controller w/ anti-windup + output clamp)
+
+`tests/features/pidc_smoke.nr` locks four control-theory
+invariants (sister to `control.nr` simpler PID):
+
+| Test | Path |
+|---|---|
+| Zero error → zero output | setpoint == measurement |
+| P-only first step | kp=2, e=3 → u=6 (i and d still 0 on first tick) |
+| **Output clamp saturates** | kp=10, e=10, u_clamp [-1,1] → u=1 |
+| Reset clears integral | step + step → integral non-zero → reset → 0 |
+
+All pass. rc=0.
+
 ## [0.8.221] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pqueue + physics.**
