@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.243] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — fsp + thread.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### fsp rod (bipedal footstep planner)
+
+`tests/features/fsp_smoke.nr`. plan needs fn-pointer
+collision-callback; deferred:
+
+| Test | Path |
+|---|---|
+| fsp_new returns valid handle | non-zero |
+| path_len before plan is 0 | no plan → no path |
+| **set_resolution + tolerance + add_action** | scalar-only setter path |
+| fsp_free does not crash | clean close |
+
+### thread rod (thread pool + futures + parallel map)
+
+`tests/features/thread_smoke.nr`. submit / map / future_get
+need fn-pointer task callbacks; deferred:
+
+| Test | Path |
+|---|---|
+| thread_pool_new returns valid handle | non-zero |
+| Multiple distinct pools | two constructions → distinct handles |
+| Single-thread pool valid | n_threads=1 degenerate case |
+| thread_pool_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.242] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pgs3 + ba.**
