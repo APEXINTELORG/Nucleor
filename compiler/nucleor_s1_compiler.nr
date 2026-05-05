@@ -16446,6 +16446,142 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === R04-D3 Phase 1.5 (v0.8.300): RACE-007 emitter (deadline + actor await) ===
+//
+// Per audit RACE-007 = "Deadline composition under actor await
+// is invalid". Detect: a fn carries `#[deadline = ...]` AND its
+// body calls `async_await(`. The deadline checker can't see
+// past the actor executor boundary — the awaited task may take
+// arbitrarily long.
+//
+// Severity = warning. Suppress with `#[allow_fn(RACE-007)]`.
+#[manual_drop]
+fn enforce_deadline_with_await(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Post-deadline-rewrite the `#[deadline = ...]` attribute is
+    // desugared into `deadline_check(__nuc_dl_start, ...)` calls
+    // injected at the top of the (renamed) inner fn. Detection: walk
+    // every fn body; if it contains BOTH `deadline_check(` (deadline
+    // marker) AND `async_await(` (the actor-suspend call), emit
+    // RACE-007. The `__nuc_dl_inner_*` rewrite means the ORIGINAL fn
+    // name is no longer recoverable from the post-rewrite source —
+    // we report against the wrapper / inner name as found.
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            let nd: str = str_concat("fn ", str_concat(fn_name, "("));
+            let ndl: i64 = str_len(nd);
+            let mut sp: i64 = 0;
+            let mut found: i64 = 0 - 1;
+            while sp + ndl <= slen && found < 0 {
+                if str_eq_at_len(source, sp, nd, ndl) == 1 { found = sp; }
+                else { sp = sp + 1; };
+            };
+            if found >= 0 {
+                let mut bp: i64 = found + ndl;
+                while bp < slen && str_char_at(source, bp) != 123 { bp = bp + 1; };
+                if bp < slen {
+                    let body_start: i64 = bp + 1;
+                    bp = bp + 1;
+                    let mut depth: i64 = 1;
+                    while bp < slen && depth > 0 {
+                        let c: i64 = str_char_at(source, bp);
+                        if c == 123 { depth = depth + 1; };
+                        if c == 125 { depth = depth - 1; };
+                        bp = bp + 1;
+                    };
+                    let body: str = str_substring(source, body_start, bp - 1);
+                    // The deadline-wrap rewrite splits the original fn into
+                    // a wrapper (carrying `deadline_check(...)`) and an inner
+                    // (`__nuc_dl_inner_*` carrying the original body, including
+                    // any `async_await(...)`). Detect the inner by name prefix,
+                    // and check it for `async_await(`.
+                    let is_inner: i64 = if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 { 1 } else { 0 };
+                    if is_inner == 1 && str_index_of(body, "async_await(") >= 0 {
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn (audit R04-D3 v0.8.300)"));
+                        let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "warning", "race", "RACE-007", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    };
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return diags;
+}
+
+#[manual_drop]
+fn _enforce_deadline_with_await_unused_VESTIGIAL(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Removed scaffolding — the actual emitter is `enforce_deadline_with_await` above.
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let trimmed_outer: str = str_trim(line);
+        let is_outer_comment: i64 = if str_index_of(trimmed_outer, "//") == 0 { 1 } else { 0 };
+        if is_outer_comment == 0 && str_index_of(line, "#[deadline") >= 0 {
+            // Walk forward past attr lines + whitespace to find fn decl.
+            let mut np: i64 = eol + 1;
+            let mut tries: i64 = 0;
+            while np < slen && tries < 32 {
+                let mut nle: i64 = np;
+                while nle < slen && str_char_at(source, nle) != 10 { nle = nle + 1; };
+                let nline: str = str_substring(source, np, nle);
+                let trimmed: str = str_trim(nline);
+                if str_len(trimmed) == 0 || str_index_of(trimmed, "//") == 0 || str_index_of(trimmed, "#[") == 0 || str_index_of(trimmed, "@") == 0 {
+                    np = nle + 1;
+                    tries = tries + 1;
+                } else {
+                    let info: Vec<i32> = priv_extract_fn_decl_info(nline);
+                    let fn_name: str = vec_get(info, 0);
+                    if str_len(fn_name) > 0 {
+                        // Scan that fn body for async_await(.
+                        let nd: str = str_concat("fn ", str_concat(fn_name, "("));
+                        let ndl: i64 = str_len(nd);
+                        let mut sp: i64 = np;
+                        let mut found: i64 = 0 - 1;
+                        while sp + ndl <= slen && found < 0 {
+                            if str_eq_at_len(source, sp, nd, ndl) == 1 { found = sp; }
+                            else { sp = sp + 1; };
+                        };
+                        if found >= 0 {
+                            let mut bp: i64 = found + ndl;
+                            while bp < slen && str_char_at(source, bp) != 123 { bp = bp + 1; };
+                            if bp < slen {
+                                let body_start: i64 = bp + 1;
+                                bp = bp + 1;
+                                let mut depth: i64 = 1;
+                                while bp < slen && depth > 0 {
+                                    let c: i64 = str_char_at(source, bp);
+                                    if c == 123 { depth = depth + 1; };
+                                    if c == 125 { depth = depth - 1; };
+                                    bp = bp + 1;
+                                };
+                                let body: str = str_substring(source, body_start, bp - 1);
+                                if str_index_of(body, "async_await(") >= 0 {
+                                    let msg: str = str_concat("function `", str_concat(fn_name, "` carries `#[deadline = ...]` AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` (audit R04-D3 v0.8.300)"));
+                                    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                                    diag_add_ex(diags, "warning", "race", "RACE-007", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                                };
+                            };
+                        };
+                    };
+                    tries = 32;
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return diags;
+}
+
 // === R04-D3 Phase 1 (v0.8.299): RACE-002 emitter (unawaited spawn) ===
 //
 // Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D3 (HIGH):
@@ -30668,6 +30804,13 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // R04-D3 Phase 1 (v0.8.299): RACE-002 emitter — unawaited
     // async_spawn (fire-and-forget breaks completion ordering).
     diags = enforce_unawaited_spawn(diags, max_depth_source);
+    // R04-D3 Phase 1.5 (v0.8.300): RACE-007 emitter — deadline +
+    // async_await composition (deadline checker can't see past
+    // actor executor boundary). Uses post-rewrite `max_depth_source`
+    // because the deadline attribute is desugared into
+    // `deadline_check(...)` calls inside the rewritten body — that's
+    // the signature the detector matches.
+    diags = enforce_deadline_with_await(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.

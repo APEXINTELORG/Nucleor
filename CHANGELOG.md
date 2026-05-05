@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.300] — 2026-05-05
+
+**R04-D3 Phase 1.5 — RACE-007 emitter (deadline + actor await composition).**
+
+### Bug
+
+RACE-007 = "Deadline composition under actor await is invalid"
+was registered in `is_known_diag_code` + tools-suite explain
+registry but had no emitter. Audit-classified HIGH (R04-D3).
+
+### Fix (real conservative pattern check, post-rewrite-aware)
+
+`enforce_deadline_with_await(diags, source)` walks every fn
+declaration and checks the body. The detection had to navigate
+the deadline-attribute desugaring pipeline:
+
+- The `#[deadline = X]` attribute is rewritten EARLIER in the
+  pipeline into a `deadline_check(...)` call inserted at the top
+  of an inner fn renamed `__nuc_dl_inner_<hash>_<idx>`.
+- The original fn becomes a wrapper that calls the inner.
+- So `deadline_check(...)` and `async_await(...)` end up in
+  DIFFERENT bodies (wrapper vs inner respectively).
+
+Detection: a fn whose name starts with `__nuc_dl_inner_`
+unambiguously originated from a `#[deadline]` annotation; if
+its body contains `async_await(`, fire `warning[RACE-007]`. The
+inner-name proof is stronger than the substring proof.
+
+Wired immediately after `enforce_unawaited_spawn` using
+`max_depth_source` (the post-rewrite stream).
+
+This is the tenth REAL improvement in the user-pushback thread,
+and the seventh new diagnostic-code emission shipped: NUM-009,
+MOD-005, RT-009, PERF-2, PERF-3, RACE-002, RACE-007.
+
+### Tests
+
+- `tests/err/err_race_deadline_await.nr` — `#[deadline = 1ms]
+  fn deadline_with_await { ... async_await(h) ... }` fires
+  `warning[RACE-007]: function '__nuc_dl_inner_98d3104b_0' is
+  the inner of a #[deadline]-wrapped fn AND calls
+  async_await(...) — the deadline checker cannot see past the
+  actor executor boundary ...`. Verified.
+- Regression: `examples/01_hello.nr` clean.
+
+### Self-host fixed-point
+
+**Rotated** `7d436d86ceb4c2c048bedde5dbb38eb6` →
+`be108d37860467329bdd830bbbe74406`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.299] — 2026-05-05
 
 **R04-D3 Phase 1 — RACE-002 emitter (unawaited async_spawn).**
