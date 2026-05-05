@@ -16459,6 +16459,172 @@ fn registry_dir_native(argc: i64, arg_start: i64) -> str {
     return ".nucleor/registry";
 }
 
+fn registry_remotes_config_path_native() -> str { return ".nucleor/registry-remotes.txt"; }
+
+fn registry_remote_name_is_valid_native(name: str) -> i64 {
+    let nlen: i64 = str_len(name);
+    if nlen == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < nlen {
+        let c: i64 = str_char_at(name, i);
+        let is_ok: i64 = if is_alnum(c) == 1 || c == 95 || c == 45 || c == 46 { 1 } else { 0 };
+        if is_ok == 0 { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+fn registry_remote_url_is_valid_native(url: str) -> i64 {
+    let ulen: i64 = str_len(url);
+    if ulen == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < ulen {
+        let c: i64 = str_char_at(url, i);
+        if c == 9 || c == 10 || c == 13 || c == 32 { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+fn registry_remotes_load_native() -> Vec<i32> {
+    let mut remotes: Vec<i32> = Vec::new();
+    let raw: str = file_read_string(registry_remotes_config_path_native());
+    let rlen: i64 = str_len(raw);
+    let mut p: i64 = 0;
+    while p <= rlen {
+        let mut eol: i64 = p;
+        while eol < rlen && str_char_at(raw, eol) != 10 { eol = eol + 1; };
+        let line: str = trim_ws(str_substring(raw, p, eol));
+        let llen: i64 = str_len(line);
+        if llen > 0 && str_char_at(line, 0) != 35 {
+            let mut sep: i64 = 0 - 1;
+            let mut i: i64 = 0;
+            while i < llen && sep < 0 {
+                let c: i64 = str_char_at(line, i);
+                if c == 9 || c == 32 { sep = i; };
+                i = i + 1;
+            };
+            if sep > 0 {
+                let name: str = trim_ws(str_substring(line, 0, sep));
+                let url: str = trim_ws(str_substring(line, sep + 1, llen));
+                if registry_remote_name_is_valid_native(name) == 1 && registry_remote_url_is_valid_native(url) == 1 {
+                    remotes.push(name);
+                    remotes.push(url);
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return remotes;
+}
+
+fn registry_remote_find_native(remotes: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(remotes) {
+        if str_eq(vec_get(remotes, i), name) == 1 { return i; };
+        i = i + 2;
+    };
+    return 0 - 1;
+}
+
+fn registry_remotes_render_native(remotes: Vec<i32>) -> str {
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(remotes) {
+        sb_append(sb, vec_get(remotes, i));
+        sb_append(sb, "\t");
+        sb_append(sb, vec_get(remotes, i + 1));
+        sb_append(sb, "\n");
+        i = i + 2;
+    };
+    return sb_to_str(sb);
+}
+
+fn registry_remotes_write_native(remotes: Vec<i32>) -> i64 {
+    fs_create_dir_all(".nucleor");
+    file_write_string(registry_remotes_config_path_native(), registry_remotes_render_native(remotes));
+    return 0;
+}
+
+fn run_registry_remote_command_native(positionals: Vec<i32>) -> i64 {
+    if vec_len(positionals) < 2 {
+        print("Usage: nuc registry remote [add <name> <url>|list|remove <name>]");
+        return 1;
+    };
+    let op: str = vec_get(positionals, 1);
+    if str_eq(op, "list") == 1 {
+        if vec_len(positionals) != 2 {
+            print("Usage: nuc registry remote list");
+            return 1;
+        };
+        let remotes: Vec<i32> = registry_remotes_load_native();
+        print(str_concat("registry remotes: ", registry_remotes_config_path_native()));
+        if vec_len(remotes) == 0 {
+            print("remotes: 0");
+            return 0;
+        };
+        let mut i: i64 = 0;
+        while i + 1 < vec_len(remotes) {
+            print(str_concat(vec_get(remotes, i), str_concat("  ", vec_get(remotes, i + 1))));
+            i = i + 2;
+        };
+        return 0;
+    };
+    if str_eq(op, "add") == 1 {
+        if vec_len(positionals) != 4 {
+            print("Usage: nuc registry remote add <name> <url>");
+            return 1;
+        };
+        let name: str = vec_get(positionals, 2);
+        let url: str = vec_get(positionals, 3);
+        if registry_remote_name_is_valid_native(name) == 0 {
+            print(str_concat("ERROR: invalid registry remote name: ", name));
+            print("Remote names may contain ASCII letters, digits, _, -, and .");
+            return 1;
+        };
+        if registry_remote_url_is_valid_native(url) == 0 {
+            print(str_concat("ERROR: invalid registry remote URL: ", url));
+            return 1;
+        };
+        let remotes: Vec<i32> = registry_remotes_load_native();
+        if registry_remote_find_native(remotes, name) >= 0 {
+            print(str_concat("ERROR: registry remote already exists: ", name));
+            return 1;
+        };
+        remotes.push(name);
+        remotes.push(url);
+        registry_remotes_write_native(remotes);
+        print(str_concat("added registry remote: ", str_concat(name, str_concat("  ", url))));
+        return 0;
+    };
+    if str_eq(op, "remove") == 1 {
+        if vec_len(positionals) != 3 {
+            print("Usage: nuc registry remote remove <name>");
+            return 1;
+        };
+        let name2: str = vec_get(positionals, 2);
+        let remotes2: Vec<i32> = registry_remotes_load_native();
+        if registry_remote_find_native(remotes2, name2) < 0 {
+            print(str_concat("ERROR: registry remote not found: ", name2));
+            return 1;
+        };
+        let mut out: Vec<i32> = Vec::new();
+        let mut i: i64 = 0;
+        while i + 1 < vec_len(remotes2) {
+            if str_eq(vec_get(remotes2, i), name2) == 0 {
+                out.push(vec_get(remotes2, i));
+                out.push(vec_get(remotes2, i + 1));
+            };
+            i = i + 2;
+        };
+        registry_remotes_write_native(out);
+        print(str_concat("removed registry remote: ", name2));
+        return 0;
+    };
+    print("Usage: nuc registry remote [add <name> <url>|list|remove <name>]");
+    return 1;
+}
+
 fn semver_score(version: str) -> i64 {
     let vlen: i64 = str_len(version);
     let mut parts: Vec<i32> = Vec::new();
@@ -18652,6 +18818,9 @@ fn run_registry_command(argc: i64) -> i64 {
         };
         return 0;
     };
+    if str_eq(subcmd, "remote") == 1 {
+        return run_registry_remote_command_native(positionals);
+    };
     if str_eq(subcmd, "export-static") == 1 {
         // T1.4 (v0.2.344): convert a local registry directory tree into
         // the GitHub-Pages-publishable static-site shape documented in
@@ -18695,22 +18864,7 @@ fn run_registry_command(argc: i64) -> i64 {
         print("  (remote fetch ships in T1.4b once the TLS rod lands per RFC-0019 §6.3)");
         return 0;
     };
-    // v0.8.56 PKG-4 Phase 1: detect `nuc registry remote ...`
-    // and emit a clear diagnostic instead of falling through to
-    // the generic Usage. RFC-0019 §5.4 documents `remote add /
-    // list / remove` but `run_registry_command` has no `remote`
-    // branch — pre-fix users hitting this saw the generic Usage
-    // line which doesn't include `remote`, leaving them confused
-    // about whether the command exists.
-    if str_eq(subcmd, "remote") == 1 {
-        print("error[PKG-4]: `nuc registry remote` is documented (RFC-0019 §5.4) but not yet implemented.");
-        print("  Per RFC sister gap PKG-4 (Module/Packaging): `nuc registry remote add / list / remove` — the consumer-side commands for pulling published packages from a remote registry — are documented but `run_registry_command` has no `remote` branch. Single blocker on community consumption of published packages (cf. PKG-1, fixed v0.8.51, which addressed the producer side `nuc publish --sign`).");
-        print("  Phase 2b plan: implement `remote add <name> <url>`, `remote list`, `remote remove <name>` — backed by `~/.nucleor/remotes.json` config + TLS fetch (per RFC-0019 §6.3 once the TLS rod lands).");
-        print("  Workaround today: `git clone` the remote registry's gh-pages branch into a local directory and point `--registry <local-path>`.");
-        print("  Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-4.");
-        return 2;
-    };
-    print("Usage: nuc registry [list|search <query>|versions <package>|verify <package|package@version>|export-static <out_dir>] [--registry <dir>]");
+    print("Usage: nuc registry [list|search <query>|versions <package>|verify <package|package@version>|remote add <name> <url>|remote list|remote remove <name>|export-static <out_dir>] [--registry <dir>]");
     return 1;
 }
 
@@ -19552,7 +19706,7 @@ fn print_help() -> i64 {
     print("  doc <file> [--out f]   Emit Markdown reference for `pub fn` / `fn` decls (RFC-0029)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
-    print("  registry [subcmd]      List/search/inspect packages in a local registry");
+    print("  registry [subcmd]      Inspect local packages and configure registry remotes");
     print("    list|search|versions|verify");
     print("  sage <subcmd> <file>   Sage_NS prove / certificate / gap checks");
     print("    prove|certificate|gaps");

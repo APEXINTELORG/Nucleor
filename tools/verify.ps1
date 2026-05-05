@@ -202,7 +202,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + 1 (queue smoke) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 120 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke, +1 Track L cache v2
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 121 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke, +1 Track L cache v2
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -245,6 +245,39 @@ Step "tools-suite rebuild" {
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
     return $true
+}
+
+Step "R12-D2 registry remote add/list/remove" {
+    $toolsBin = Join-Path $root "target\nucleor_tools.exe"
+    if (-not (Test-Path $toolsBin)) { $toolsBin = Join-Path $root "bin\nucleor_tools.exe" }
+    if (-not (Test-Path $toolsBin)) { $toolsBin = $bin }
+    $tmp = Join-Path $env:TEMP ("nuc_r12_registry_remote_" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tmp -Force *> $null
+    Push-Location $tmp
+    try {
+        $out = & $toolsBin registry remote list 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $out -notmatch "remotes: 0") { return $false }
+        $out = & $toolsBin registry remote add origin https://example.invalid/nucleor 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $out -notmatch "added registry remote: origin") { return $false }
+        $store = Join-Path $tmp ".nucleor\registry-remotes.txt"
+        if (-not (Test-Path $store)) { return $false }
+        $raw = Get-Content $store -Raw
+        if ($raw -notmatch "origin\s+https://example\.invalid/nucleor") { return $false }
+        $out = & $toolsBin registry remote list 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $out -notmatch "origin\s+https://example\.invalid/nucleor") { return $false }
+        $out = & $toolsBin registry remote add origin https://example.invalid/again 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -or $out -notmatch "already exists") { return $false }
+        $out = & $toolsBin registry remote remove missing 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -or $out -notmatch "not found") { return $false }
+        $out = & $toolsBin registry remote remove origin 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $out -notmatch "removed registry remote: origin") { return $false }
+        $out = & $toolsBin registry remote list 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $out -notmatch "remotes: 0") { return $false }
+        return $true
+    } finally {
+        Pop-Location
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    }
 }
 
 Step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" {
