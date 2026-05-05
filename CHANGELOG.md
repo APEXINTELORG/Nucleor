@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.140] — 2026-05-04
+
+**stdlib/rods/concurrency.nr first test coverage.** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+Structured-concurrency wrappers — channels, mutex, atomic
+counter, CPU count.
+
+`tests/features/concurrency_smoke.nr` locks four single-threaded
+invariants:
+
+| Test | Path |
+|---|---|
+| **Channel FIFO** | send 100, 200, 300 → recv 100, 200, 300 in order |
+| Channel length | `channel_len` tracks queued-but-unreceived items (0 → 2 → 1 across send/recv) |
+| Mutex cycle | lock + unlock + relock-after-unlock without deadlock or fault |
+| `cpu_count > 0` | foundational system query — auto-sized worker pools depend on this |
+
+Multi-thread spawn / join / parallel-map are out-of-scope here:
+need a worker-fn pointer + scheduler activity belonging to their
+own dedicated test infrastructure (documented in fixture header).
+
+All pass. rc=0.
+
 ## [0.8.139] — 2026-05-04
 
 **stdlib/rods/checkpoint.nr first test coverage.** Pure fixture,
