@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.165] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — sort + vecdeque.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### sort rod (insertion sort + str cmp + parallel keys)
+
+`tests/features/sort_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Reverse-sorted ints | `[5,4,3,2,1]` → `[1,2,3,4,5]` |
+| `is_sorted` predicate | true on sorted, false on `[3,1,4,1,5,9,2,6]`, true after sort |
+| String cmp triple | `cmp("a","b") < 0`; `cmp("b","a") > 0`; `cmp("ab","ab") == 0`; `cmp("ab","abc") < 0` |
+| `sort_by` parallel keys | values=[10,20,30], keys=[3,1,2] → values reorder to [20,30,10] (ascending key order) |
+
+### vecdeque rod (RFC-0017 ring-buffer deque)
+
+`tests/features/vecdeque_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| **FIFO** via `push_back` / `pop_front` | 1,2,3 in → 1,2,3 out |
+| **LIFO** via `push_back` / `pop_back` | 1,2,3 in → 3,2,1 out |
+| Mixed-end push | `push_front(1)`, `push_back(2)`, `push_front(0)` → indexed [0,1,2] front-to-back |
+| Empty / clear | fresh deque is empty; `clear()` empties a non-empty one |
+
+All pass. rc=0.
+
 ## [0.8.164] — 2026-05-04
 
 **stdlib/rods/time_typed.nr first test coverage.** Pure
