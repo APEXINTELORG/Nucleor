@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.245] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — tf + urdf.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### tf rod (hierarchical coordinate-frame transform tree)
+
+`tests/features/tf_smoke.nr`. add_frame / set_pose / lookup
+all use raw double[] for poses (t[3], q[4]); deferred:
+
+| Test | Path |
+|---|---|
+| tf_new returns valid handle | non-zero for reasonable max_frames |
+| Multiple distinct trees | two constructions → distinct handles |
+| Small max_frames is allowed | max=1 still works |
+| tf_free does not crash | clean close |
+
+### urdf rod (minimal URDF parser + FK chain)
+
+`tests/features/urdf_smoke.nr`. urdf_parse takes a raw
+NUL-terminated src_ptr (no Nucleor `str_to_ptr` in the OSS
+surface yet); deferred until the str→ptr bridge lands:
+
+| Test | Path |
+|---|---|
+| urdf_new returns valid handle | non-zero |
+| **joint_count == 0 pre-parse** | empty parser state |
+| Multiple distinct URDF parsers | two constructions → distinct handles |
+| urdf_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.244] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — rrt + ukf.**
