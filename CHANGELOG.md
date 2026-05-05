@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.144] — 2026-05-04
+
+**Helper-agent perf-hotpath integration — cherry-picked + replayed
+on top of v0.8.143.** Compiler edit; stage1↔stage2 IR md5
+fixed-point validated.
+
+Helper agent ran a cold-compile / hot-cache review pass on
+`probe/perf-hotpath-followup` (commits `5439c394`, `4548815a`,
+`6c4e0978`, `5da92f4c`). Forked from `v0.8.128-129`; could not
+fast-forward merge because helper's branch predates v0.8.130-143
+fixture+RFC ships. Integrated by:
+
+1. Checking out helper's `compiler/nucleor_s1_compiler.nr` and
+   `compiler/nucleor_tools_suite.nr` onto current main.
+2. Reapplying the v0.8.143 RFC-0043 Phase B step-1 audit on top
+   (the `fixed<I,F>/ufixed<I,F>` audit pass at line ~28983).
+3. Rebuilding stage1, stage2 to a fresh self-host fixed-point.
+4. Re-running all 13 fixtures shipped v0.8.130-143.
+
+### Perf wins landed
+
+| Metric | Pre-helper baseline | Post-helper | Delta |
+|---|---|---|---|
+| Cold compile | 4.64s (locked at v0.5-track-l-perf-cache) | **3.7s** | −20% |
+| Hot compile | 1.22s | **0.4s** | −67% |
+| Peak memory | 679 MB | **316 MB** | −53% |
+
+Perf gate: `OK perf: cold=3.7s (max 5.93s) | hot=0.4s (max
+1.74s) | peak_mem=316MB (max 747MB)`.
+
+### Source-level changes (helper authored)
+
+- `path_exists(path) -> i64` helper replaces `str_len(file_read_string(path)) > 0` checks in `resolve_toolchain_path` and `llvm_clang_path` — file-existence test no longer reads the full file body. Major cold-compile win for repeat probes of LLVM toolchain paths.
+- `write_ll_artifact_if_needed(ll_path, ll, cache_key)` — IR `.ll` write skipped when stamp matches cache key. Hot-cache wins.
+- Dead `expand_closures` pass bypassed in the hot path.
+- Native-isolation parent process no longer reads the full 11 MB IR just to check it exists.
+- Raw ownership-key helper (`own_set_i_raw` / `own_get_i_raw` / `own_set_s_raw` / `own_get_s_raw`) added — call-sites of these were reverted because they reproduced intermittent OWN-008 false positives. Helpers themselves are kept for future targeted use.
+
+### Self-host fixed-point
+
+Stage1 IR md5 = stage2 IR md5 = `7D51C0F29C2CD6B7DC3704C687E0E2EE`.
+
+### Adopter-visible
+
+None. Pure perf + internal helpers. The audit surface from
+v0.8.143 is preserved.
+
 ## [0.8.143] — 2026-05-04
 
 **RFC-0043 Phase B step-1 — `fixed<I, F>` / `ufixed<I, F>` type-
