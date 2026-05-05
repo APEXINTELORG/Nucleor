@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.188] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — dstar + enclave.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### dstar rod (D* Lite incremental replanner)
+
+`tests/features/dstar_smoke.nr` locks three replanner invariants
+on a 5×5 8-connected grid:
+
+| Test | Path |
+|---|---|
+| Plan succeeds on open grid | start (0,0) → goal (4,4) → `plan` returns 1 + non-empty path |
+| **Replan after obstacle** | drop obstacle in middle → `replan` succeeds with valid path |
+| **Unreachable goal** | wall off entire row → `plan` returns 0 (no path) |
+
+### enclave rod (RFC-0057 Phase A info-flow lattice)
+
+`tests/features/enclave_smoke.nr` locks five textbook info-flow
++ enclave invariants:
+
+| Test | Path |
+|---|---|
+| Engine ID stable | TDX=1, SEV-SNP=2, Apple=3, H100=4, ArmCCA=5, Software=6, Unknown=0 |
+| Engine name round-trip | `name(1) == "TDX"`, `name(99) == "Unknown"` |
+| **Public flows everywhere** | Public → Public/Confidential/Secret all == 1 |
+| **Secret only to Secret** | Secret → Public/Confidential == 0; Secret → Secret == 1 |
+| Promote takes max | `promote(Public, Secret) == Secret`; `promote(EC, Secret) == ExportControlled` |
+
+All pass. rc=0.
+
 ## [0.8.187] — 2026-05-05
 
 **stdlib/rods/fixed_point.nr first test coverage.** Pure
