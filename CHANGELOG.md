@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.250] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — canny.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### canny rod (Canny edge detector)
+
+`tests/features/canny_smoke.nr` exercises the bad-input null
++ size guards. Algorithmic path needs raw double[] image arrays:
+
+| Test | Path |
+|---|---|
+| Null img returns 0 | bad input |
+| Null edges returns 0 | bad output buffer |
+| W < 3 returns 0 | degenerate width (NMS needs 3×3 window) |
+| H < 3 returns 0 | degenerate height |
+
+All pass. rc=0.
+
 ## [0.8.249] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — catmullrom + cubicspline.**
