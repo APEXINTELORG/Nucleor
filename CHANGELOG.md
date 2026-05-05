@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.177] — 2026-05-04
+
+**stdlib/rods/simd.nr first test coverage.** Pure fixture, no
+compiler/runtime/stdlib edit.
+
+Software-emulated packed SIMD primitives (RFC-0033 preview) —
+f32x4 + i32x4 with arithmetic, lane access, dot product,
+horizontal sum.
+
+`tests/features/simd_smoke.nr` locks four invariants on the
+i32x4 lane:
+
+| Test | Path |
+|---|---|
+| Lane access | `i32x4(1,2,3,4)` → lane(0)=1, lane(3)=4 |
+| Splat | `splat(7)` → all 4 lanes are 7 |
+| **Add (lanewise)** | `[1,2,3,4] + [10,20,30,40] → [11,22,33,44]` |
+| Horizontal sum | `[1,2,3,4]` → 10 |
+
+All pass. rc=0.
+
 ## [0.8.176] — 2026-05-04
 
 **stdlib/rods/toml.nr first test coverage.** Pure fixture, no
