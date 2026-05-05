@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.203] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — distributed + interval.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### distributed rod (RFC-0055 Phase A collectives + sharding)
+
+`tests/features/distributed_smoke.nr` locks four invariants
+that real Phase B backend dispatch (NCCL/RCCL/MPI/RDMA) MUST
+NOT regress:
+
+| Test | Path |
+|---|---|
+| Init + topology | distributed_init(0,1) → rank=0, world_size=1 |
+| **Collectives identity on world=1** | all_reduce + broadcast return input unchanged |
+| call_count tracks barriers | 3 collective calls → counter += 3 |
+| ShardSpec round-trip | shard_spec_shard(2) → kind=2, param=2 |
+
+### interval rod (rigorous interval arithmetic)
+
+`tests/features/interval_smoke.nr` locks four interval-arithmetic
+invariants — foundational for computer-assisted proofs:
+
+| Test | Path |
+|---|---|
+| Construction round-trip | iv_new(2,5) → lo=2, hi=5, width=3, mid=3.5 |
+| Containment | 3 ∈ [2,5], 1 ∉ [2,5] |
+| Add | [1,2] + [3,4] = [4,6] |
+| **Neg flips bounds** | -[2,5] = [-5,-2] |
+
+All pass. rc=0.
+
 ## [0.8.202] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — activation2 + autodiff.**
