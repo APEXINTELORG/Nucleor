@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.190] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — emag + fluid.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### emag rod (FDTD electromagnetics, 2D Yee grid)
+
+`tests/features/emag_smoke.nr` locks four lifecycle invariants
+on a 16×16 grid at dx=1mm, dt=1ps:
+
+| Test | Path |
+|---|---|
+| Construction | `em_new_2d` returns valid handle |
+| **Initial fields zero** | Ez/Hx/Hy at any cell == 0 pre-step |
+| Initial energy zero | `em_energy == 0` with no source |
+| **Source drives field** | source at (8,8), 5 steps → energy > 0 |
+
+### fluid rod (2D Lattice Boltzmann D2Q9)
+
+`tests/features/fluid_smoke.nr` locks four lifecycle invariants
+on a 32×32 LBM grid:
+
+| Test | Path |
+|---|---|
+| Construction | `lbm_new_2d` returns valid handle |
+| **Initial density ≈ 1.0** | D2Q9 equilibrium ρ=1.0 |
+| Initial velocity zero | vx, vy at any cell == 0 |
+| Inlet + steps | `set_inlet(0.1)` + 5 steps → vorticity finite (no NaN/inf) |
+
+All pass. rc=0.
+
 ## [0.8.189] — 2026-05-05
 
 **stdlib/rods/differentiable.nr first test coverage.** Pure
