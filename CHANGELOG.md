@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.240] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — mpc + mppi.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both control
+rods take fn-pointer dynamics + cost callbacks; these fixtures
+lock the lifecycle path around those surfaces.
+
+### mpc rod (receding-horizon MPC over iLQR)
+
+`tests/features/mpc_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| mpc_new returns valid handle | non-zero |
+| last_iters == 0 pre-step | no MPC ticks yet |
+| **mpc_reset does not crash** | re-zero warm-start sequence |
+| mpc_free does not crash | clean close |
+
+### mppi rod (Model Predictive Path Integral, sample-based MPC)
+
+`tests/features/mppi_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| mppi_new returns valid handle | non-zero |
+| **set_sigma per dim** | scalar per-dim noise-stddev setter |
+| mppi_reset does not crash | re-zero warm-start nominal |
+| mppi_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.239] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — prm + reach.**
