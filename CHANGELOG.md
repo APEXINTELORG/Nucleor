@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.143] — 2026-05-04
+
+**RFC-0043 Phase B step-1 — `fixed<I, F>` / `ufixed<I, F>` type-
+position audit (V1.12 drift restoration).** Compiler edit;
+stage1↔stage2 self-host fixed-point validated.
+
+### Why
+
+Adopters porting embedded / DSP / financial Rust code use
+`fixed<I, F>` for predictable fractional arithmetic. Pre-v0.8.143
+the type collapses silently to bare `i64` at line ~9902 of the
+self-hosted compiler with NO build-time signal — adopters had no
+way to grep "where do I use fixed-point types in this codebase"
+or audit the surface.
+
+This Phase B step-1 ship surfaces usage with an audit-count
+summary, matching the v0.8.5 `@differentiable` and v0.8.6
+`@energy` / `@thermal` pattern. Phase B step-2 (true
+`IrTypeFixed` width tracking, BinOp width propagation,
+mul/div helpers) is a follow-on ship per the RFC's ~300 LOC
+estimate.
+
+### What
+
+| Change | Path |
+|---|---|
+| Audit pass — counts type-position `fixed<` and `ufixed<` occurrences across `: fix<`, `-> fix<`, `: ufix<`, `-> ufix<` | `compiler/nucleor_s1_compiler.nr` ~28953 |
+| Smoke fixture | `tests/features/fixed_audit_smoke.nr` |
+
+Position-aware needles (`: ` and `-> ` prefix) avoid false
+positives on identifiers ending in "fixed" or "ufixed".
+
+### Locks
+
+| Test | Path |
+|---|---|
+| `fixed<I, F>` parses at fn-arg + fn-return + let | fixture compiles + runs rc=0 |
+| Audit summary fires | build emits `audit: fixed<I,F>/ufixed<I,F> type-position occurrences: 8` (7 colon + 1 arrow positions in the fixture) |
+
+Stage1 sha `e4085597d7ab` matches stage2 sha (cache hit) — IR
+fixed-point holds.
+
+### Where this sits in the roadmap
+
+- V1.12 of `docs/rfcs/RFC_v1_FORWARD_ROADMAP.md` (Tier 4 drift
+  restoration).
+- Sister to RFC-0044 V1.13 per-BinOp `OverflowMode` (next ship)
+  and RFC-0045 V1.14 `@differentiable` (already audit-shipped at
+  v0.8.5 / v0.8.15).
+
 ## [0.8.142] — 2026-05-04
 
 **stdlib/rods/clifford.nr first test coverage.** Pure fixture,
