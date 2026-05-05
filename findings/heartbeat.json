@@ -7,8 +7,8 @@
   "rebased_on_origin_main": "main at 75740d33 before v0.8.315 R09-D1 slice",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "head": "pending v0.8.315 commit after validation",
-  "status": "ready_for_commit",
+  "head": "ce977bc1 v0.8.315",
+  "status": "shipped_v0.8.315",
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
     "helper_worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper_r12_registry",
