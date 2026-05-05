@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.162] — 2026-05-04
+
+**Two more zero-coverage rod fixtures — datetime + fs_extras.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### datetime rod (UTC ymd, day-of-week, day/hour add)
+
+`tests/features/datetime_smoke.nr` locks five textbook calendar-
+arithmetic invariants:
+
+| Test | Path |
+|---|---|
+| **UTC ymd round-trip** | `from_ymd_utc(2026,5,4,12,30,45)` → `to_ymd` → exact bit-equal |
+| diff_days | `2026-05-04` minus `2026-05-01` == 3 |
+| add_days | `2026-05-01 + 3` → `2026-05-04` |
+| add_hours wraps days | `2026-05-01 12:00 + 24h` → `2026-05-02 12:00` |
+| **day_of_week** | `2026-05-04` is Monday (tm_wday=1) |
+
+### fs_extras rod (mkdir, rename, path manipulation)
+
+`tests/features/fs_extras_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Path manipulation | `basename("a/b/c.nr") == "c.nr"`; `extension("foo.nr") == "nr"` (no leading dot per the C-runtime contract) |
+| mkdir round-trip | `fsx_mkdir(p)` then `fsx_is_dir(p)` |
+| **mkdir_p deep nesting** | `target/_a/b/c` created end-to-end; every parent component exists as a dir |
+| rename | file moves between paths; src no longer exists, dst does |
+
+Surfaced one minor-doc corrective: `fs_extension` returns `"nr"`
+not `".nr"` (no leading dot). The fixture documents the actual
+contract.
+
+All pass. rc=0.
+
 ## [0.8.161] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — cspline + conv.**
