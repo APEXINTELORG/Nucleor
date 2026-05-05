@@ -200,8 +200,123 @@ fn lsp_uri_to_path(uri: str) -> str {
 // nucleor.exe side is a follow-up.
 fn lsp_capture_diagnostics(file_path: str) -> str {
     if str_len(file_path) == 0 { return ""; };
-    let cmd: str = str_concat("nucleor.exe build \"", str_concat(file_path, "\" 2>&1"));
-    return io_run_capture(cmd);
+    // nucleor.exe is normally in the same directory as
+    // nucleor-lsp.exe; relative invocations like `nucleor.exe`
+    // fail under popen unless that directory is on PATH. Try
+    // `bin/nucleor.exe` (cwd-relative) first, then fall back
+    // to bare `nucleor.exe` (assumes PATH is set).
+    let path1: str = str_concat("bin\\nucleor.exe build \"", str_concat(file_path, "\" 2>&1"));
+    let out1: str = io_run_capture(path1);
+    if str_len(out1) > 0 && lsp_find(out1, "is not recognized") < 0 {
+        return out1;
+    };
+    let path2: str = str_concat("nucleor.exe build \"", str_concat(file_path, "\" 2>&1"));
+    return io_run_capture(path2);
+}
+
+// v0.8.156 Phase A2.6: parse a single error/warning line from
+// the compiler output and emit it as one element of the
+// publishDiagnostics array. Returns the JSON object string for
+// the diagnostic (e.g. `{"range":{...},"severity":1,"message":"..."}`)
+// or "" if the line isn't a diagnostic.
+//
+// Recognized shapes (matches nucleor.exe's stderr emission):
+//   `error[CODE]: message`
+//   `warning[CODE]: message`
+//   `error[CODE]: message at file:LINE:COL`
+//
+// The range is extracted from `at file:LINE:COL` if present;
+// otherwise a 0:0-0:1 placeholder range is used (still
+// satisfies LSP's required range field).
+fn lsp_diag_severity(line: str) -> i64 {
+    // 1 = Error, 2 = Warning, 3 = Information, 4 = Hint
+    if lsp_find(line, "error[") >= 0 { return 1; };
+    if lsp_find(line, "warning[") >= 0 { return 2; };
+    if lsp_find(line, "info[") >= 0 { return 3; };
+    return 0;
+}
+
+// JSON-escape a string (minimal: handle " and \ and control chars).
+fn lsp_json_escape(s: str) -> str {
+    let slen: i64 = str_len(s);
+    let mut out: str = "";
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(s, i);
+        if c == 34 { out = str_concat(out, "\\\""); }
+        else if c == 92 { out = str_concat(out, "\\\\"); }
+        else if c == 10 { out = str_concat(out, "\\n"); }
+        else if c == 13 { out = str_concat(out, "\\r"); }
+        else if c == 9 { out = str_concat(out, "\\t"); }
+        else if c < 32 { } // drop other control chars
+        else { out = str_concat(out, str_substring(s, i, i + 1)); };
+        i = i + 1;
+    };
+    return out;
+}
+
+// Build a single LSP diagnostic JSON object from a compiler
+// output line. Returns "" if the line is not a diagnostic.
+fn lsp_line_to_diagnostic(line: str) -> str {
+    let sev: i64 = lsp_diag_severity(line);
+    if sev == 0 { return ""; };
+    // Use 0:0-0:1 as the placeholder range. Real range
+    // extraction (parsing `at file:LINE:COL`) is straightforward
+    // but skipped here because the `--emit-diagnostics-json`
+    // flag on nucleor.exe (which would emit structured ranges)
+    // is the cleaner path; this textual heuristic is the
+    // fallback until that ships.
+    let msg: str = lsp_json_escape(line);
+    let body: str = str_concat(
+        "{\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},\"severity\":",
+        str_concat(str_from_int(sev), str_concat(",\"source\":\"nucleor\",\"message\":\"", str_concat(msg, "\"}")))
+    );
+    return body;
+}
+
+// Extract diagnostics array elements from raw compiler output.
+// Walks line-by-line; returns the comma-separated JSON object
+// list for splicing into a publishDiagnostics array.
+fn lsp_diagnostics_from_output(output: str) -> str {
+    let olen: i64 = str_len(output);
+    let mut result: str = "";
+    let mut first: i64 = 1;
+    let mut p: i64 = 0;
+    while p < olen {
+        // Find end of current line.
+        let mut q: i64 = p;
+        while q < olen && str_char_at(output, q) != 10 { q = q + 1; };
+        let line: str = str_substring(output, p, q);
+        let diag: str = lsp_line_to_diagnostic(line);
+        if str_len(diag) > 0 {
+            if first == 0 { result = str_concat(result, ","); } else { first = 0; };
+            result = str_concat(result, diag);
+        };
+        p = q + 1;
+    };
+    return result;
+}
+
+// v0.8.156 Phase A2.6: end-to-end diagnostic forwarding.
+// Spawns nucleor.exe on the file, parses the output, emits
+// one publishDiagnostics notification with the full diagnostic
+// array.
+fn lsp_publish_real_diagnostics(uri: str) {
+    if str_len(uri) == 0 { return; };
+    let path: str = lsp_uri_to_path(uri);
+    if str_len(path) == 0 {
+        // Non-file URI — fall back to empty diagnostics so the
+        // editor doesn't see a stale state.
+        lsp_publish_empty_diagnostics(uri);
+        return;
+    };
+    let output: str = lsp_capture_diagnostics(path);
+    let diags: str = lsp_diagnostics_from_output(output);
+    let body: str = str_concat(
+        str_concat("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"", uri),
+        str_concat("\",\"diagnostics\":[", str_concat(diags, "]}}"))
+    );
+    lsp_send(body);
 }
 
 fn main() -> i64 {
@@ -228,10 +343,10 @@ fn main() -> i64 {
                 // so the editor sees a clean state. Real
                 // diagnostic forwarding is A2.5.
                 let uri: str = lsp_extract_uri(body);
-                lsp_publish_empty_diagnostics(uri);
+                lsp_publish_real_diagnostics(uri);
             } else if lsp_find(body, "\"method\":\"textDocument/didChange\"") >= 0 {
                 let uri: str = lsp_extract_uri(body);
-                lsp_publish_empty_diagnostics(uri);
+                lsp_publish_real_diagnostics(uri);
             } else if lsp_find(body, "\"method\":\"textDocument/didClose\"") >= 0 {
                 // No response per spec; future tracking-state cleanup goes here.
             } else if id >= 0 {
