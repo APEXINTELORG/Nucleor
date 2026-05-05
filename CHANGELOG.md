@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.254] — 2026-05-05
+
+**transformer attention rod ↔ runtime arity drift FIXED + coverage.**
+Closes the silent-miscompute surfaced 2026-05-05 by parallel-agent
+TRACK A `extern_arity_drift_sweep_2026-05-05` (third in the same
+class — see v0.8.45 ML-1 nuc_attn_flash and v0.8.252 kv_cache).
+
+### Bug
+
+`stdlib/rods/transformer.nr` declared:
+
+```
+extern fn nuc_tf_attention(Q, K, V, seq_len, d_k) -> i64;            // 5
+extern fn nuc_tf_multihead(Q, K, V, seq_len, d_model, n_heads) -> i64;  // 6
+```
+
+But `stdlib/runtime/transformer_rt.c` defined them with 7 args
+(`seq_q, seq_k, d_k, d_v` for attention; `seq_q, seq_k, d_model,
+n_heads` for multihead). The 5/6-arg call sites read garbage from
+un-pushed slots; result Vec was sized `seq_q * d_v` with random
+contents. Every transformer-based NLP / attention adopter
+silently miscomputes today.
+
+### Fix (Plan B — non-breaking)
+
+`stdlib/runtime/transformer_rt.c`:
+
+| Before | After |
+|---|---|
+| `nuc_tf_attention` (7-arg full) | renamed to `nuc_tf_attention_split` |
+| `nuc_tf_multihead` (7-arg full) | renamed to `nuc_tf_multihead_split` |
+| — | new 5-arg `nuc_tf_attention(Q, K, V, seq_len, d_k)` calling `_split(Q, K, V, seq_len, seq_len, d_k, d_k)` (self-attention assumption) |
+| — | new 6-arg `nuc_tf_multihead(Q, K, V, seq_len, d_model, n_heads)` calling `_split(...)` similarly |
+| internal `nuc_tf_multihead → nuc_tf_attention(7-arg)` call site | now `nuc_tf_attention_split(7-arg)` |
+
+`stdlib/rods/transformer.nr`: keeps existing 5-arg + 6-arg externs;
+adds `nuc_tf_attention_split` / `nuc_tf_multihead_split` externs +
+`tf_attention_split` / `tf_multihead_split` rod wrappers for adopters
+who want cross-attention or asymmetric d_k/d_v.
+
+### Coverage
+
+`tests/features/transformer_attention_smoke.nr` locks 3 invariants:
+
+| Test | Path |
+|---|---|
+| **Single-token self-attention is identity** | seq_len=1 / d_k=2 / V=[3.0, 4.0] → output [3.0, 4.0] |
+| **5-arg agrees with 7-arg `_split`** | bit-identical output for `seq_q=seq_k=seq_len, d_k=d_v=d_k` |
+| **Multihead n_heads=1 equals attention** | `tf_multihead(q,k,v,1,2,1)` matches `tf_attention(q,k,v,1,2)` |
+
+Existing `transformer_smoke.nr` (softmax-only) still passes — no
+regression. All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e` (no compiler edit; runtime + rod
++ fixture only).
+
 ## [0.8.253] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — bicycle.**

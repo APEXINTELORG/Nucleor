@@ -19,6 +19,8 @@ extern fn nuc_tf_softmax(vh: i64) -> i64;
 extern fn nuc_tf_layer_norm(xh: i64, gamma_h: i64, beta_h: i64) -> i64;
 extern fn nuc_tf_attention(Q_h: i64, K_h: i64, V_h: i64, seq_len: i64, d_k: i64) -> i64;
 extern fn nuc_tf_multihead(Q_h: i64, K_h: i64, V_h: i64, seq_len: i64, d_model: i64, n_heads: i64) -> i64;
+extern fn nuc_tf_attention_split(Q_h: i64, K_h: i64, V_h: i64, seq_q: i64, seq_k: i64, d_k: i64, d_v: i64) -> i64;
+extern fn nuc_tf_multihead_split(Q_h: i64, K_h: i64, V_h: i64, seq_q: i64, seq_k: i64, d_model: i64, n_heads: i64) -> i64;
 extern fn nuc_tf_feedforward(xh: i64, W1_h: i64, b1_h: i64, W2_h: i64, b2_h: i64, d_in: i64, d_hidden: i64) -> i64;
 extern fn nuc_tf_positional_encoding(seq_len: i64, d_model: i64) -> i64;
 extern fn nuc_tf_cross_entropy(pred_h: i64, target: i64) -> i64;
@@ -32,6 +34,12 @@ fn tf_attention(Q: i64, K: i64, V: i64, seq_len: i64, d_k: i64) -> i64 {
 }
 fn tf_multihead(Q: i64, K: i64, V: i64, seq_len: i64, d_model: i64, n_heads: i64) -> i64 {
     return nuc_tf_multihead(Q, K, V, seq_len, d_model, n_heads);
+}
+fn tf_attention_split(Q: i64, K: i64, V: i64, seq_q: i64, seq_k: i64, d_k: i64, d_v: i64) -> i64 {
+    return nuc_tf_attention_split(Q, K, V, seq_q, seq_k, d_k, d_v);
+}
+fn tf_multihead_split(Q: i64, K: i64, V: i64, seq_q: i64, seq_k: i64, d_model: i64, n_heads: i64) -> i64 {
+    return nuc_tf_multihead_split(Q, K, V, seq_q, seq_k, d_model, n_heads);
 }
 fn tf_feedforward(x: i64, W1: i64, b1: i64, W2: i64, b2: i64, d_in: i64, d_hidden: i64) -> i64 {
     return nuc_tf_feedforward(x, W1, b1, W2, b2, d_in, d_hidden);

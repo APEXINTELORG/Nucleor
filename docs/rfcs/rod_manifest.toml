@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2778
-# Total LOC: 11827
+# Total fn definitions: 2780
+# Total LOC: 11835
 
 [[rod]]
 name           = "activation2"
@@ -2103,9 +2103,9 @@ imports        = []
 name           = "transformer"
 path           = "stdlib/rods/transformer.nr"
 description    = "Classic transformer building blocks"
-function_count = 7
+function_count = 9
 cfile_count    = 1
-loc            = 27
+loc            = 35
 imports        = []
 
 [[rod]]
