@@ -172,6 +172,10 @@ proper analysis → Phase 4 hard error):
 - All Phase 4 promotions land together
 - Adopter migration window 30 days
 
+## Deferred tail (do not preempt active lanes)
+
+- **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DEFERRED. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The deferred cleanup is only the product/toolchain path where `compiler/nucleor_s1_compiler.nr` shells out to `python -c "import filecmp"` inside `verify-reproducible`; replace it later with a Nucleor/toolchain-native byte comparison, then rebuild/promote `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll` with normal md5/drift/perf validation.
+
 ## Updates log
 
 - **2026-05-04** v0.8.43: Punchlist file created. 14 gap RFCs integrated into spine. RFC-0062 memory-safety remains in flight; other 13 queued behind it.
