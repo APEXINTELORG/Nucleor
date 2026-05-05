@@ -18,6 +18,58 @@ const char *rods_io_read_line(void) {
     return "";
 }
 
+// v0.8.155 V1.16 Phase A2.5 dep — popen-style subprocess capture.
+//
+// Runs `cmd` via the platform's command interpreter and returns
+// the captured stdout as a malloc'd null-terminated string.
+// Caller frees via nucleor's str-handle path. On failure (popen
+// returns NULL or read fails) returns "".
+//
+// Used by the LSP daemon to spawn `nucleor.exe --emit-diagnostics-
+// json <file>` and forward results as publishDiagnostics
+// notifications. Generally useful for any nucleor program that
+// needs to capture subprocess stdout.
+const char *rods_io_run_capture(const char *cmd) {
+    if (!cmd || !*cmd) return "";
+    FILE *p = NULL;
+#ifdef _WIN32
+    p = _popen(cmd, "r");
+#else
+    p = popen(cmd, "r");
+#endif
+    if (!p) return "";
+    size_t cap = 4096;
+    size_t len = 0;
+    char *buf = (char *)malloc(cap);
+    if (!buf) {
+#ifdef _WIN32
+        _pclose(p);
+#else
+        pclose(p);
+#endif
+        return "";
+    }
+    while (1) {
+        if (len + 1 >= cap) {
+            size_t new_cap = cap * 2;
+            char *nb = (char *)realloc(buf, new_cap);
+            if (!nb) break;
+            buf = nb;
+            cap = new_cap;
+        }
+        size_t r = fread(buf + len, 1, cap - len - 1, p);
+        if (r == 0) break;
+        len += r;
+    }
+    buf[len] = '\0';
+#ifdef _WIN32
+    _pclose(p);
+#else
+    pclose(p);
+#endif
+    return buf;
+}
+
 // v0.8.152 V1.16 Phase A1 dependency — raw N-byte stdin read.
 //
 // LSP base protocol frames JSON-RPC payloads with a Content-
