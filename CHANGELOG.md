@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.306] — 2026-05-05
+
+**R11-D4 Phase 1 — qsim_graph status surface (closes R11 Phase 1 entirely).**
+
+### Bug
+
+`qsim_gate_record` and the entanglement registers in
+`stdlib/rods/qsim_graph.nr` returned `-1` on overflow /
+out-of-range silently. Adopters could not query the cap (1024
+qubits / 4096 gate-DAG slots), couldn't decode WHY a -1 came
+back, and couldn't preflight. Audit-classified HIGH (R11-D4) per
+`BUILD_PLAN_R11_quantum_subsystem.md` §1.
+
+### Fix (Phase 1, audit's "expose status" path)
+
+`stdlib/rods/qsim_graph.nr` adds:
+- `qsim_graph_max_qubits() = 1024` / `qsim_graph_max_gates() = 4096`.
+- `qsim_graph_qubit_in_range(q)` predicate.
+- `qsim_graph_gate_slots_remaining()` — preflight before record.
+- `qsim_graph_status_explain(q1, q2) -> str` — decodes a -1
+  return as `"out_of_range"`, `"dag_full"`, or `"ok"` (the -1
+  was for a different reason).
+- `qsim_graph_limitations()` — names the 4 gaps (caps, no
+  structured error yet, no auto-entangle-from-CNOT, process-
+  local non-thread-safe state). Phase 2 replaces the raw -1
+  returns with structured codes throughout the runtime.
+
+### Tests
+
+`tests/features/qsim_graph_status_disclosure_smoke.nr` — 7
+invariants covering caps, qubit-in-range predicate at boundaries,
+status_explain, limitations text.
+
+### R11 Phase 1 status
+
+**R11 Phase 1 closed: 4 of 5 deficiencies materially addressed**
+across this thread:
+- D1 (qsim state surface) — v0.8.304
+- D2 (named gate wrappers) — v0.8.305
+- D3 (MPS coverage diagnostics) — v0.8.305 (combined with D2)
+- D4 (qsim_graph status) — v0.8.306 (this ship)
+- D5 (logical_qubit limitations) — v0.8.285
+
+### Self-host fixed-point
+
+`be108d37860467329bdd830bbbe74406` (preserved — stdlib-rod-only).
+
 ## [0.8.305] — 2026-05-05
 
 **R11-D2/D3 Phase 1 — MPS named gate wrappers + coverage disclosure.**
