@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2780
-# Total LOC: 11841
+# Total fn definitions: 2781
+# Total LOC: 11845
 
 [[rod]]
 name           = "activation2"
@@ -1581,9 +1581,9 @@ imports        = ["quad"]
 name           = "quantize"
 path           = "stdlib/rods/quantize.nr"
 description    = "Weight + activation quantization (Q4 / int8 / ternary / FP8)"
-function_count = 10
+function_count = 11
 cfile_count    = 1
-loc            = 21
+loc            = 25
 imports        = []
 
 [[rod]]

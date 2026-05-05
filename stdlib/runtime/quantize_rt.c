@@ -191,8 +191,8 @@ long long nuc_quant_ternary_encode(long long weights_h, long long n) {
 }
 
 // Ternary GEMV: y = W_ternary * x (additions only, no multiplies)
-long long nuc_quant_ternary_gemv(long long tw_handle, long long x_h,
-                                   long long rows, long long cols) {
+long long nuc_quant_ternary_gemv_full(long long tw_handle, long long x_h,
+                                        long long rows, long long cols) {
     long long *h = (long long *)(void *)tw_handle;
     unsigned int *packed = (unsigned int *)(void *)h[0];
     double absmean = _qz_i2f(h[2]);
@@ -217,6 +217,17 @@ long long nuc_quant_ternary_gemv(long long tw_handle, long long x_h,
         y->data[i] = _qz_f2i(sum * absmean);
     }
     return (long long)y;
+}
+
+// 3-arg shim — match the rod's declared arity. Pre-2026-05-05 the rod
+// declared `(tw, x, rows)` but C took 4 (`tw, x, rows, cols`), reading
+// garbage from the un-pushed cols slot — the inner loop bounds were
+// random, segfault or truncated output. Cols is recovered as x->len
+// (the input vector length is the matrix's column count by definition).
+long long nuc_quant_ternary_gemv(long long tw_handle, long long x_h, long long rows) {
+    QZVec *x = (QZVec *)(void *)x_h;
+    long long cols = (long long)x->len;
+    return nuc_quant_ternary_gemv_full(tw_handle, x_h, rows, cols);
 }
 
 // ================================================================
