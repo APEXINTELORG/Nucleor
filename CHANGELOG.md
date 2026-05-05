@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.219] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — os_info + photonic.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### os_info rod (OS family + pointer-width + env mutation)
+
+`tests/features/os_info_smoke.nr` locks four invariants
+(fixture runs on Windows by default; mutually-exclusive family
+assertion is host-portable):
+
+| Test | Path |
+|---|---|
+| Exactly one OS family is true | sum of windows/linux/macos/bsd predicates == 1 |
+| Family name matches the boolean | os_is_windows ↔ "windows", etc. |
+| 64-bit pointer width | os_is_64bit == 1, os_pointer_bits == 64 |
+| **env round-trip** | env_set + getenv read; env_unset removes |
+
+### photonic rod (RFC-0052 Phase A photonic-compute surface)
+
+`tests/features/photonic_smoke.nr` locks four invariants
+Phase B compiler enforcement of TYP-008 wavelength-mismatch
+must NOT regress:
+
+| Test | Path |
+|---|---|
+| Canonical wavelength bands | telecom O/C/L = 1310/1550/1625; RGB = 700/550/450 |
+| **Wavelength compatibility** | same nm = 1; cross-band = 0 (silent-miscompute guard) |
+| Phase Q1.16 fixed-point | phase_radians(2) → q1616 = 131072 |
+| CPU-fallback warning counter | clear → 0; one matmul stub call → > 0 |
+
+All pass. rc=0.
+
 ## [0.8.218] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pca + orbit.**
