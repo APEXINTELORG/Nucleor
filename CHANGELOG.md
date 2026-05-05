@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.311] — 2026-05-05
+
+**R04-D5 Phase 1.5 — atomic rod limitation disclosure (extends v0.8.310).**
+
+### Bug
+
+`stdlib/rods/atomic.nr` ships AtomicI64/U64/I32/U32/Bool with full
+RFC-0007 memory orders (Relaxed/Acquire/Release/AcqRel/SeqCst).
+Adopters can't tell what's MISSING: AtomicI16/I8/Usize/Ptr,
+atomic floats, fetch-min/max, wait/notify futex primitives. Audit
+MEDIUM (R04-D5).
+
+### Fix
+
+`stdlib/rods/atomic.nr` adds `atomic_limitations() -> str` —
+names 5 gaps (narrower-width atomics, atomic floats, Consume
+order semantics, fetch-min/max, wait/notify). Phase 2 wires the
+missing surfaces per audit ship plan.
+
+### Tests
+
+`tests/features/concurrency_disclosure_smoke.nr` extended to 8
+invariants (added atomic_limitations covers + WAIT/NOTIFY name
+check).
+
+### R04-D4 status
+
+R04-D4 (actor mailbox/executor semantics) was investigated this
+iteration: no `stdlib/rods/actor.nr` rod exists — actors are
+purely compiler-rewritten structs with no mailbox runtime.
+R04-D4 needs new runtime + RFC work, not a Phase 1 disclosure
+ship; deferred.
+
+### Self-host fixed-point
+
+`7ff8d0955e09083f2bb338ac326d5bb1` (preserved — stdlib-rod-only).
+
 ## [0.8.310] — 2026-05-05
 
 **R04-D5 Phase 1 — concurrency + thread rod limitation disclosures.**

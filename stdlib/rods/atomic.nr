@@ -243,3 +243,8 @@ fn atomic_compare_exchange_bool(a: &AtomicBool, expected: bool, desired: bool,
         Err(v) => return Err(v != 0),
     }
 }
+
+// === R04-D5 Phase 1.5 (v0.8.311) — atomic rod limitations ===
+fn atomic_limitations() -> str {
+    return "Atomic rod limitations (CONC-3, audit R04-D5 v0.8.311): (1) WIDTHS: AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool shipped. NO AtomicI16 / AtomicU16 / AtomicI8 / AtomicU8 / AtomicUsize / AtomicPtr — adopters needing narrower atomics must pack/unpack manually into i64. (2) NO ATOMIC FLOATS: no AtomicF32 / AtomicF64 (Rust core lacks these too — workaround is bits-in-AtomicU64 via to_bits/from_bits). (3) MEMORY ORDERS: Relaxed/Acquire/Release/AcqRel/SeqCst all lower correctly to LLVM intrinsics; Consume is NOT a separate variant (LLVM treats Consume as Acquire — matches C++20 std::memory_order). (4) NO FETCH-MIN/MAX yet — adopter must compose via compare_exchange loop. (5) WAIT/NOTIFY (`atomic_wait` / `atomic_notify_one` / `atomic_notify_all` futex-style) NOT shipped. Phase 2 wires platform futex / WaitOnAddress per audit ship plan.";
+}
