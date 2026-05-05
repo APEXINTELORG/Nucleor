@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.246] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — dubins.**
+Pure fixture, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** discovered the C runtime null-checks
+`type_out_ptr`, enabling smoke coverage by passing 0 to skip the
+type-id output and exercising the length-only path. Earlier
+sweep iterations classified dubins as "raw out_ptr blocked";
+that classification was overly conservative.
+
+### dubins rod (Dubins shortest-path for car-like robot)
+
+`tests/features/dubins_smoke.nr` locks four classical Dubins
+invariants:
+
+| Test | Path |
+|---|---|
+| **Straight-line path (5,0,0)→(5,0,0)** | collinear poses with same heading → length = D = 5 |
+| Negative R returns -1 | invalid-input sentinel |
+| Self-pose returns 0 | start ≡ goal |
+| Larger separation gives larger length | (10,0,0) > (5,0,0) at same R |
+
+All pass. rc=0.
+
 ## [0.8.245] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — tf + urdf.**
