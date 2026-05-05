@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.137] — 2026-05-04
+
+**stdlib/rods/asserts.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+RFC-0021 assertion + debug wrappers around the `__nucleor_assert*`
++ `__nucleor_dbg*` builtins.
+
+`tests/features/asserts_smoke.nr` locks five passing-path
+invariants:
+
+| Test | Path |
+|---|---|
+| `check(1)` returns 0 | true cond doesn't panic |
+| `check_eq(42, 42)` | matching int eq passes |
+| `check_ne(1, 2)` | distinct int ne passes |
+| `dbg(99) == 99` | debug print returns argument untouched |
+| `check_with(1, _)` | true cond + msg returns 0 |
+
+Failing-path assertions panic and are out of scope for a smoke
+fixture (would terminate the process).
+
+All pass. rc=0.
+
 ## [0.8.136] — 2026-05-04
 
 **stdlib/rods/compress.nr first test coverage + missing
