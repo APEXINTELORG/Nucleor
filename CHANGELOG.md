@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.223] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pursuit + rigid_body.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### pursuit rod (path-following: pure pursuit + Stanley)
+
+`tests/features/pursuit_smoke.nr` builds a 3-point straight
+path along the x-axis and locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty path | pursuit_new(8) → point_count == 0 |
+| add_point tracks count | 3 add_points → 3 |
+| Distance-to-goal at goal == 0 | at (10, 0) |
+| **Distance-to-goal at start == 10** | straight-line to final waypoint |
+
+Step-fn outputs (omega/delta) deferred to dedicated controller
+fixtures.
+
+### rigid_body rod (3-D rigid-body physics)
+
+`tests/features/rigid_body_smoke.nr` locks four
+physics-integration invariants:
+
+| Test | Path |
+|---|---|
+| Set/get position round-trip | set (1,2,3) → get px=1, py=2, pz=3 |
+| **Free-fall under gravity** | g=-9.81, dt=1s → vy ≈ -9.81 |
+| Sphere collision detection | unit spheres at d=1.5 collide; at d=3.0 don't |
+| Reset restarts IDs | rb_reset → new bodies start from 0 |
+
+All pass. rc=0.
+
 ## [0.8.222] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — pidc.**
