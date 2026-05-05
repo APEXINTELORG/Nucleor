@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.272] — 2026-05-05
+
+**R06-D4 Phase 1 — deterministic FNV-1a hash added to Rust bridge.**
+Closes the fourth R06 deficiency (MEDIUM); 2 of 4 R06 deficiencies
+now have Phase 1 closure (D1 v0.8.271, D4 this ship).
+
+### Bug
+
+`rust_hash_string` in `stdlib/rods/rust_bridge/src/lib.rs:69` used
+`std::collections::hash_map::DefaultHasher` which seeds via
+process-local `RandomState`. Same input string produces DIFFERENT
+hash values across process runs — unsuitable for reproducible
+artifacts, content-addressed caching, or stable serialization.
+Audit-classified MEDIUM (R06-D4).
+
+### Fix (Phase 1, additive — bridge + extern + fixture)
+
+`stdlib/rods/rust_bridge/src/lib.rs`:
+
+1. **Doc warning added** to `rust_hash_string` — flags the
+   per-process-randomized behavior, points to the new deterministic
+   alternative.
+2. **NEW `rust_hash_string_fnv1a`** — canonical FNV-1a 64-bit:
+   ```
+   offset_basis = 0xcbf29ce484222325
+   prime        = 0x100000001b3
+   per-byte: hash = (hash XOR byte) * prime  (wrapping)
+   ```
+   Same input ALWAYS produces same output across processes,
+   machines, and Rust versions.
+
+`stdlib/rods/rust.nr`: `extern fn rust_hash_string_fnv1a(s: str) -> i64;`
+
+### Cargo rebuild
+
+`cargo build --release` from `stdlib/rods/rust_bridge/` regenerates
+`nucleor_rust_bridge.lib` (verified 0.48s on dev machine).
+
+### Coverage
+
+`tests/features/rust_bridge_hash_deterministic.nr` locks 4
+invariants:
+
+| Test | Path |
+|---|---|
+| **Determinism within run** | `hash("hello") == hash("hello")` |
+| **Distinct inputs distinct outputs** | `hash("hello") != hash("world")` |
+| **Empty-string pinned** | `hash("") == 0xcbf29ce484222325 as i64 == -3750763034362895579` (canonical FNV-1a offset_basis identity) |
+| **Old `rust_hash_string` still callable** | backward compat preserved |
+
+All pass. rc=0.
+
+### Acceptance
+
+| Criterion (audit) | Status |
+|---|---|
+| **Same input produces same output across repeated process runs** | ✅ FNV-1a is deterministic by construction; pinned empty-string value verifies the algorithm identity across Rust versions |
+| Cold compile ≤ 4s | ✅ unchanged (no compiler edit) |
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`.
+
+### R06 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.271 | R06-D1 — `rust_free_str` reclamation | ✅ |
+| v0.8.272 | R06-D4 — deterministic FNV-1a hash | ✅ |
+| next | R06-D2 — Python GIL + result-free | ⏳ HIGH |
+| next | R06-D3 — ABI fail-closed + exports | ⏳ HIGH |
+
+### Audit launch-blocker progress (extended)
+
+| # | Item | Phase 1 |
+|---|---|---|
+| 1 | R14 algebraic laws | ✅ COMPLETE (5/5) |
+| 2 | R07 Pose<Frame> | ✅ COMPLETE (4/4) |
+| 5 | R06 FFI | 🟡 2/4 done (D1, D4) |
+| Other | (3, 4, 6+) | ⏳ |
+
 ## [0.8.271] — 2026-05-05
 
 **R06-D1 Phase 1 — `rust_free_str` reclamation path landed.**

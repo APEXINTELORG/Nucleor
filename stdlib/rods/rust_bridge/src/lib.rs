@@ -85,6 +85,16 @@ pub extern "C" fn rust_regex_replace_all(
 // === Hashing (from Rust std) ===
 
 /// Compute a 64-bit hash of a string using Rust's DefaultHasher.
+///
+/// **WARNING (R06-D4 v0.8.272):** `DefaultHasher` uses Rust's
+/// `RandomState` which is randomized per process (and per Rust
+/// version). The same input string produces DIFFERENT 64-bit hash
+/// values across process runs. **Unsuitable for reproducible
+/// artifacts, content-addressed caching, or stable serialization.**
+///
+/// For deterministic hashing use `rust_hash_string_fnv1a` below.
+/// `rust_hash_string` is preserved here for callers who genuinely
+/// want process-local randomization (e.g. defending against HashDoS).
 #[no_mangle]
 pub extern "C" fn rust_hash_string(s: *const c_char) -> i64 {
     use std::hash::{Hash, Hasher};
@@ -93,6 +103,33 @@ pub extern "C" fn rust_hash_string(s: *const c_char) -> i64 {
     let mut hasher = DefaultHasher::new();
     s.hash(&mut hasher);
     hasher.finish() as i64
+}
+
+/// R06-D4 Phase 1 (v0.8.272) — deterministic 64-bit string hash via
+/// FNV-1a (Fowler–Noll–Vo). Same input ALWAYS produces same output
+/// across process runs, machines, and Rust versions. Use this for
+/// reproducible artifacts, content-addressed caching, stable
+/// serialization, or any hash that must round-trip through
+/// build/CI/distribution.
+///
+/// FNV-1a 64-bit canonical constants:
+///   offset_basis = 0xcbf29ce484222325
+///   prime        = 0x100000001b3
+///
+/// Per-byte: `hash = (hash XOR byte) * prime`.
+///
+/// Returned as `i64` (sign-extended from u64 via `as i64`); callers
+/// that need the unsigned form must reinterpret the bits.
+#[no_mangle]
+pub extern "C" fn rust_hash_string_fnv1a(s: *const c_char) -> i64 {
+    let s = unsafe { CStr::from_ptr(s) }.to_str().unwrap_or("");
+    let mut hash: u64 = 0xcbf29ce484222325u64;
+    let prime: u64 = 0x100000001b3u64;
+    for byte in s.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(prime);
+    }
+    hash as i64
 }
 
 // === Sorting (Rust's highly optimized sort) ===
