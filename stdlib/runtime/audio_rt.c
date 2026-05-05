@@ -30,6 +30,24 @@ typedef struct {
     int channels;
 } AudioClip;
 
+// v0.8.132: programmatic AudioClip constructor. Adopters can
+// synthesize / generate audio without round-tripping through a
+// WAV file. samples_h is a Vec<i64> of f64-bit-cast samples in
+// [-1.0, 1.0]. sample_rate is plain Hz.
+long long nuc_audio_new(long long samples_h, long long sample_rate) {
+    AUVec *v = (AUVec *)(void *)(size_t)samples_h;
+    if (!v || v->len <= 0) return 0;
+    AudioClip *clip = (AudioClip *)malloc(sizeof(AudioClip));
+    clip->n_samples = v->len;
+    clip->sample_rate = (int)sample_rate;
+    clip->channels = 1;
+    clip->samples = (float *)malloc((size_t)v->len * sizeof(float));
+    for (int i = 0; i < v->len; i++) {
+        clip->samples[i] = (float)_au_i2f(v->data[i]);
+    }
+    return (long long)clip;
+}
+
 long long nuc_audio_load_wav(const char *path) {
     if (!path) return 0;
     FILE *f = fopen(path, "rb");
@@ -54,9 +72,13 @@ long long nuc_audio_load_wav(const char *path) {
             fread(&audio_fmt, 2, 1, f);
             fread(&channels, 2, 1, f);
             fread(&sample_rate, 4, 1, f);
-            fseek(f, chunk_size - 10, SEEK_CUR);
-            // Read remaining fmt fields
-            continue; // simplified
+            // v0.8.132: was `chunk_size - 10` but only 8 bytes were
+            // read (audio_fmt 2 + channels 2 + sample_rate 4) so the
+            // skip undershot the chunk by 2 bytes, putting the next
+            // chunk_id read inside the fmt body. Fixes save+load
+            // round-trip surfaced by tests/features/audio_smoke.nr.
+            fseek(f, chunk_size - 8, SEEK_CUR);
+            continue;
         }
         if (memcmp(chunk_id, "data", 4) == 0) {
             int n_samples = chunk_size / (channels * (bits_per_sample / 8));
