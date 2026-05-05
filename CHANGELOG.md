@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.166] — 2026-05-04
+
+**stdlib/rods/units.nr first test coverage.** Pure fixture, no
+compiler/runtime/stdlib edit.
+
+Runtime SI-unit conversion across length / mass / time /
+temperature. Sister to v0.8.146 RFC-0047 typed-dim audit (which
+surfaces type-position usage of `unit<T,[...]>` annotations).
+This rod is the value-conversion runtime that backs typed-dim
+arithmetic.
+
+`tests/features/units_smoke.nr` locks five textbook unit
+conversions (all within 1e-6 absolute tolerance):
+
+| Test | Path |
+|---|---|
+| 1 km == 1000 m | length scale |
+| 1 kg == 1000 g | mass scale |
+| 1 hr == 3600 s | time scale |
+| **0 °C == 273.15 K** | temperature OFFSET (not scale) — Kelvin's zero is at -273.15 °C |
+| **32 °F == 0 °C** | Fahrenheit zero point — fundamental US ↔ metric bridge |
+
+All pass. rc=0.
+
 ## [0.8.165] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — sort + vecdeque.**
