@@ -89,3 +89,14 @@ fn conc_map(items: Vec<i32>, fn_ptr: i64) -> Vec<i32> {
     };
     return results;
 }
+
+// === R04-D5 Phase 1 (v0.8.310) — concurrency rod limitations ===
+//
+// Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D5 (MEDIUM):
+// document which primitives are sequential fallbacks vs real
+// parallel/concurrent dispatch.
+fn concurrency_limitations() -> str {
+    return "Concurrency rod limitations (CONC-1, audit R04-D5 v0.8.310): (1) conc_map IS A SEQUENTIAL FALLBACK as of v0.8.270 (R04-D2 closure of silent-zero placeholder bug). It correctly maps fn_ptr over every item, but does NOT spawn threads — the loop runs in the caller's thread. Phase 2 wires real parallel dispatch via thread_pool when nuc_threadpool_map proves stable across platforms. (2) NO BARRIER PRIMITIVE: a sync_barrier(n)-style primitive is not in this rod yet; combine N async_spawn + N async_await calls or wait on the thread_pool for fan-in. (3) NO STRUCTURED-CONCURRENCY scope: there is no scoped `nursery`-style spawner that joins on scope exit. Phase 2 adds RFC-0027 phase 2's structured-concurrency surface. (4) NO CHANNEL-CLOSE diagnostic: when a channel is dropped while a writer is mid-send, the failure mode is silent (no panic, no Result::Err). Phase 2 ships channel_close_status per audit ship plan.";
+}
+
+fn conc_map_is_parallel() -> i64 { return 0; }
