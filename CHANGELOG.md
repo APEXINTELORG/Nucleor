@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.202] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — activation2 + autodiff.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### activation2 rod (transformer activations + norms)
+
+`tests/features/activation2_smoke.nr` locks four textbook
+fixed-point invariants:
+
+| Test | Path |
+|---|---|
+| GELU(0) == 0 | x · 0.5 · (1 + erf(0)) = 0 |
+| SiLU(0) == 0 | x · sigmoid(x) at x=0 |
+| Sigmoid(0) == 0.5 | 1/(1+e⁰) = 1/2 |
+| **JumpReLU below threshold == 0** | jumprelu([0.5], θ=1.0) gates to 0 |
+
+SwiGLU/GeGLU/RoPE/RMSNorm/QK-Norm/DeepNorm/DyT/softmax surfaces
+also exposed but smoke kept tight; full battery in dedicated ML
+ships.
+
+### autodiff rod (reverse-mode AD)
+
+`tests/features/autodiff_smoke.nr` locks four calculus invariants:
+
+| Test | Path |
+|---|---|
+| Forward x·y at (2,3) == 6 | multiplicative forward pass |
+| **d/dx(x²) at x=3 == 6** | power rule via x·x |
+| d/dx(sin(x)) at x=0 == 1 | cos(0) = 1 |
+| d/dx(x+y) == 1 (both vars) | sum rule |
+
+Each test runs `ad_reset()` first to clear the tape.
+
+All pass. rc=0.
+
 ## [0.8.201] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — rl + qtraj.**
