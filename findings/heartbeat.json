@@ -1,45 +1,41 @@
 {
-  "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "native_rss_estop_perf_gate_recovery",
-  "roadmap_phase": "post_v0.8.183_perf_recovery",
-  "current_punchlist_item": "perf_gate_native_rss_estop",
+  "instructions_read": "v0.6.72-post-v0.8.189-refresh",
+  "current_task": "P2/R1 ownership-key hot-path allocation reduction",
+  "roadmap_phase": "v2_post_investigation",
+  "current_punchlist_item": "P2,R1",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "688fab95",
+  "rebased_on_origin_main": "193462d4",
   "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_pe_fix",
-  "branch": "probe/main-perf-regression",
+  "branch": "probe/perf-attribution-build-slice",
   "status": "ready-for-integration",
   "validation": {
-    "current_main_pre_helper_perf_gate": {
-      "status": "pass_but_regressed",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
-      "cold_seconds": 4.51,
-      "hot_seconds": 0.42,
-      "peak_mem_mb": 313,
-      "note": "Fresh v0.8.182/v0.8.183 main measurement before this helper slice. v0.8.181 source audit gating is present, but the PowerShell RSS wrapper path still produced 4s+ cold readings on this host."
-    },
-    "native_rss_estop_helper": {
+    "self_host_fixed_point": {
       "status": "pass",
-      "command": ". .\\tools\\rss_estop_lib.ps1; Get-NucNativeRssEstopPath; Invoke-NucRssEstop bin\\nucleor.exe help",
-      "result": "tools\\.nuc_rss_estop\\nuc_rss_estop.exe built from tools\\nuc_rss_estop.c; native=true; exit=0",
-      "note": "Helper binary is generated under tools/.nuc_rss_estop, not target/, so cold-cache perf samples do not rebuild the sampler after target cleanup. No binary is checked in."
+      "md5": "f26490fa833d690dff9981982e2fdde1",
+      "command": "bash tools/check_self_host_md5.sh"
     },
-    "post_helper_perf_gate": {
+    "perf_gate_3_run_median": {
       "status": "pass",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
-      "cold_seconds": 3.74,
-      "hot_seconds": 0.31,
-      "peak_mem_mb": 315,
-      "note": "Official gate rerun alone after native helper. A prior failed hot-cache run was invalidated by a concurrent direct cold-loop deleting .nuc_cache/target."
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1 (x3)",
+      "cold_seconds_samples": [3.63, 3.62, 4.05],
+      "cold_seconds_median": 3.63,
+      "hot_seconds_samples": [0.31, 0.78, 0.31],
+      "hot_seconds_median": 0.31,
+      "peak_mem_mb_samples": [295, 300, 290],
+      "peak_mem_mb_median": 295
     },
-    "syntax_and_diff": {
+    "profile_delta": {
       "status": "pass",
-      "command": "bash -n tools/check_self_host_md5.sh tools/verify_fast.sh tools/verify.sh && git diff --check",
-      "note": "Shell syntax and whitespace checks passed."
+      "str_concat_before": 1255998,
+      "str_concat_after": 805380,
+      "str_concat_delta": -450618,
+      "tracked_alloc_before_bytes": 282680268,
+      "tracked_alloc_after_bytes": 276295507
     }
   },
   "caveats": {
-    "main_source_perf": "v0.8.181 already landed source-side audit-pass gating. This slice does not duplicate that compiler change; it fixes the Windows perf gate wrapper so the gate measures compiler work instead of PowerShell sampler overhead/flakiness.",
-    "host_jitter": "Windows Defender/MsMpEng and WmiPrvSE still show up in host snapshots. Single samples can outlier; the official median with the native helper is back in the 3-second regime."
+    "rejected_experiments": "Scope last-name cache caused OWN-008 false positives; expand_format_macros_with_src no-macro fast path caused a priv_mangle_private_fns OWN-008 perf-gate failure. Both were backed out.",
+    "full_verify": "Not rerun for this slice because the cheap fixed-point and perf gates passed and full verify is long-running."
   },
-  "summary": "On top of v0.8.183 / 688fab95, added a source-built native Windows RSS e-stop helper for tools/rss_estop_lib.ps1. It avoids the PowerShell/pwsh 100ms process-tree polling path and caches its generated helper outside target/ so cold perf cleanup does not charge sampler compilation to compiler time. Latest official perf gate: cold=3.74s, hot=0.31s, peak_mem=315MB."
+  "summary": "P2/R1 slice: debug-symbolized caller attribution identified nested ownership metadata key construction as the largest proven str_concat allocation cluster. Direct final-key wrappers remove 450,618 str_concat calls and about 6.1MB tracked allocation per self-host. Unsafe scope-cache and format-macro fast-path variants were rejected and backed out. Promoted bin/seed fixed point f26490fa833d690dff9981982e2fdde1; perf median cold=3.63s hot=0.31s peak=295MB."
 }
