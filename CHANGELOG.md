@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.295] — 2026-05-05
+
+**R03-D2 Phase 1 — implicit panic source detection in `#[no_panic]` (NEW RT-009 warning).**
+
+### Bug
+
+Pre-v0.8.295 the `check_no_panic_violations` body scan only
+caught **explicit** panic-name calls (`panic`, `unwrap`,
+`expect`, `assert_eq`, `assert_ne`). Integer `/` and `%`
+operators panic on divisor=0 but were invisible to the
+checker — a `#[no_panic] fn risky_divide(a, b) { return a / b; }`
+compiled cleanly. Audit-classified HIGH (R03-D2) per
+`BUILD_PLAN_R03_realtime_determinism.md` §1.
+
+### Fix (Phase 1, audit's "tag implicit panic-capable nodes" path)
+
+`compiler/nucleor_s1_compiler.nr::check_no_panic_violations`
+extended with a char-by-char body scan after the existing
+explicit-name pass:
+
+- `/` not followed by `=` (compound `/=`), `/` (line comment),
+  or `*` (block comment open) → integer divide → emit
+  `warning[RT-009]`.
+- `%` not followed by `=` (compound `%=`) → integer modulo →
+  emit `warning[RT-009]`.
+
+Severity is **warning** not error because the checker can't yet
+prove divisor non-zero at the IR level — Phase 2 (R03-D2) adds
+that. Adopters who have proven safety suppress per-fn with
+`#[allow_fn(RT-009)]` or file-wide with `#[allow(RT-009)]`,
+matching the existing RT-004 / RT-007 / RT-008 allow-list pattern.
+
+New code `RT-009` registered in `is_known_diag_code` + tools-
+suite explain registry (title + body + Rust-comparison note).
+
+This is the fifth REAL improvement in the user-pushback thread
+("can this be fixed as opposed to just saying can't do it?"):
+v0.8.291 (string skip), v0.8.292 (loop keyword), v0.8.293
+(@const_fn purity NUM-009), v0.8.294 (import cycles MOD-005),
+v0.8.295 (implicit panic RT-009).
+
+### Tests
+
+- `tests/err/err_no_panic_div_zero.nr` — `#[no_panic] fn
+  risky_divide(a, b) { return a / b; }` fires
+  `warning[RT-009]: integer / divide can panic on divisor=0;
+  ... (use checked_div for explicit handling, or
+  #[allow_fn(RT-009)] when divisor is provably non-zero)`.
+- `tests/err/err_no_panic_oob_index.nr` (renamed from audit
+  spec; carries the modulo case for now since indexing detection
+  is Phase 2 work) — `risky_mod` fires the modulo variant.
+- Regression: `examples/01_hello.nr` clean (no spurious RT-009).
+
+### Self-host fixed-point
+
+**Rotated** `b0f4acac9e3aa6d75c6ac5898c6cddb6` →
+`fb43d2503e01f1a1ffdc3d18b069fdaf`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`. Tools-suite
+rebuilt + promoted; `nucleor_tools.exe explain RT-009` returns
+the new entry.
+
 ## [0.8.294] — 2026-05-05
 
 **R12-D7 Phase 1 — import cycle MOD-005 detection (REAL implementation, not disclosure).**
