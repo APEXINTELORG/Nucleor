@@ -1,14 +1,14 @@
 {
-  "instructions_read": "v0.8.316-s03-d1-helper-redirect",
-  "current_task": "main: helper redirected to S03-D1 governance CLI dispatch prep",
+  "instructions_read": "v0.8.317-r10-d5-memory-split",
+  "current_task": "main: R10-D5 Phase 2 memory accounting split complete; helper continues S03-D1 governance CLI dispatch prep",
   "roadmap_phase": "v1_launch_blocker_final_buildout",
-  "current_punchlist_item": "S03-D1 helper assignment issued",
+  "current_punchlist_item": "R10-D5 Phase 2 shipped; S03-D1 remains helper-owned",
   "edits_in_main_tree": true,
-  "rebased_on_origin_main": "local main equals origin/main at c5fd41c2c02ba1f9e2961a743f188462f1c4844e",
+  "rebased_on_origin_main": "local main matched origin/main at c22498c7 before the v0.8.317 R10-D5 commit",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "head": "c5fd41c2c02ba1f9e2961a743f188462f1c4844e",
-  "status": "helper_redirect_ready",
+  "head": "pending v0.8.317 commit; run git log --oneline -1 after pull",
+  "status": "r10_d5_phase2_ready",
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
     "helper_worktree": "helper should create/update from fresh origin/main",
@@ -55,28 +55,37 @@
   "validation": {
     "tools_suite_rebuild": "PASS",
     "verify_scripts_parse": "PASS",
-    "focused_verify": "PASS: bash tools/verify.sh --only \"R12-D2 registry remote add/list/remove\"",
+    "focused_verify": "not rerun for tooling-only R10-D5; helper continues S03-D1",
     "compiler_drift": "PASS",
-    "self_host_md5": "PASS: bash tools/check_self_host_md5.sh md5=9c991a17cfa5b0f97a8ce0021cac6fe3",
+    "self_host_md5": "unchanged; no compiler/bin/bootstrap edits in R10-D5 Phase 2",
     "diff_check": "PASS",
     "perf": {
       "hard_gate": "PASS",
-      "cold_seconds": 3.73,
+      "cold_seconds": 3.47,
       "cold_max_seconds": 4.0,
       "hot_seconds": 0.26,
       "hot_max_seconds": 1.0,
-      "peak_memory_mb": 308,
-      "peak_memory_max_mb": 400,
+      "cold_process_tree_memory_mb": 309,
+      "cold_process_tree_memory_max_mb": 400,
+      "cold_compiler_memory_mb": 292,
+      "cold_compiler_memory_max_mb": 350,
+      "hot_process_tree_memory_mb": 31,
+      "hot_process_tree_memory_max_mb": 128,
+      "hot_compiler_memory_mb": 17,
+      "hot_compiler_memory_max_mb": 64,
       "command": "pwsh -NoProfile -File tools\\check_perf_regression.ps1",
-      "note": "Strict gate now passes with the tightened 4.00s cold ceiling and 400MB process-tree RSS ceiling after a real compiler cold-path optimization."
+      "note": "R10-D5 Phase 2 split RSS gate passes; hot memory now has independent tightened process-tree/compiler ceilings."
     }
   },
   "perf_context": {
     "target_cold_seconds": 4.0,
-    "latest_main_cold_seconds": 3.73,
+    "latest_main_cold_seconds": 3.47,
     "latest_main_hot_seconds": 0.26,
-    "latest_main_peak_memory_mb": 308,
-    "note": "Do not absorb linked-wall soft misses into baseline; current gate enforces sub-4 cold compile and 400MB process-tree memory ceiling."
+    "latest_main_cold_process_tree_memory_mb": 309,
+    "latest_main_cold_compiler_memory_mb": 292,
+    "latest_main_hot_process_tree_memory_mb": 31,
+    "latest_main_hot_compiler_memory_mb": 17,
+    "note": "Do not absorb linked-wall soft misses into baseline; current gate enforces sub-4 cold compile, 400MB cold process-tree memory, 350MB cold compiler memory, 128MB hot process-tree memory, and 64MB hot compiler memory."
   },
   "helper_next": {
     "status": "redirected",

@@ -42,6 +42,12 @@ typedef struct {
     WCHAR warning_detail[1024];
     double peak_mb;
     WCHAR peak_detail[1024];
+    double process_tree_peak_mb;
+    WCHAR process_tree_peak_detail[1024];
+    double compiler_peak_mb;
+    WCHAR compiler_peak_detail[1024];
+    double root_peak_mb;
+    WCHAR root_peak_detail[1024];
     double wall_seconds;
     int sample_ms;
     const WCHAR *stdout_path;
@@ -111,6 +117,15 @@ static int append_command_arg(WCHAR **buf, size_t *len, size_t *cap, const WCHAR
         }
     }
     return append_w(buf, len, cap, arg);
+}
+
+static const WCHAR *basename_w(const WCHAR *path) {
+    if (!path) return L"";
+    const WCHAR *base = path;
+    for (const WCHAR *p = path; *p; p++) {
+        if (*p == L'\\' || *p == L'/') base = p + 1;
+    }
+    return base;
 }
 
 static WCHAR *build_command_line(const WCHAR *file, int argc, WCHAR **argv, int arg_start, const WCHAR *arg_string) {
@@ -288,6 +303,33 @@ static void terminate_samples(SampleVec *samples) {
     }
 }
 
+static uint64_t sum_samples(SampleVec *samples) {
+    uint64_t total = 0;
+    for (size_t i = 0; i < samples->count; i++) total += (uint64_t)samples->items[i].rss;
+    return total;
+}
+
+static SampleVec filter_samples_by_name(SampleVec *samples, const WCHAR *name) {
+    SampleVec out = {0};
+    if (!name || !name[0]) return out;
+    for (size_t i = 0; i < samples->count; i++) {
+        if (_wcsicmp(samples->items[i].name, name) == 0) {
+            sample_vec_push(&out, samples->items[i]);
+        }
+    }
+    return out;
+}
+
+static SampleVec filter_samples_by_pid(SampleVec *samples, DWORD pid) {
+    SampleVec out = {0};
+    for (size_t i = 0; i < samples->count; i++) {
+        if (samples->items[i].pid == pid) {
+            sample_vec_push(&out, samples->items[i]);
+        }
+    }
+    return out;
+}
+
 static void json_wstr(const WCHAR *s) {
     putchar('"');
     if (s) {
@@ -327,6 +369,12 @@ static void print_summary_json(const Summary *s) {
     printf("\"warning_detail\":"); json_wstr(s->warning_detail); printf(",");
     printf("\"peak_mb\":%.1f,", s->peak_mb);
     printf("\"peak_detail\":"); json_wstr(s->peak_detail); printf(",");
+    printf("\"process_tree_peak_mb\":%.1f,", s->process_tree_peak_mb);
+    printf("\"process_tree_peak_detail\":"); json_wstr(s->process_tree_peak_detail); printf(",");
+    printf("\"compiler_peak_mb\":%.1f,", s->compiler_peak_mb);
+    printf("\"compiler_peak_detail\":"); json_wstr(s->compiler_peak_detail); printf(",");
+    printf("\"root_peak_mb\":%.1f,", s->root_peak_mb);
+    printf("\"root_peak_detail\":"); json_wstr(s->root_peak_detail); printf(",");
     printf("\"wall_seconds\":%.3f,", s->wall_seconds);
     printf("\"sample_ms\":%d,", s->sample_ms);
     printf("\"stdout\":"); json_wstr(s->stdout_path); printf(",");
@@ -451,7 +499,10 @@ int wmain(int argc, WCHAR **argv) {
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
 
-    SIZE_T peak_bytes = 0;
+    const WCHAR *root_name = basename_w(file);
+    SIZE_T process_tree_peak_bytes = 0;
+    SIZE_T compiler_peak_bytes = 0;
+    SIZE_T root_peak_bytes = 0;
     int killed = 0;
     DWORD exit_code = 0;
     const uint64_t limit_bytes = (uint64_t)budget_mb * 1024ULL * 1024ULL;
@@ -463,13 +514,30 @@ int wmain(int argc, WCHAR **argv) {
         int root_exited = (root_status != STILL_ACTIVE);
 
         SampleVec samples = sample_tree(pi.dwProcessId, root_exited, root_created);
-        uint64_t rss = 0;
-        for (size_t i = 0; i < samples.count; i++) rss += (uint64_t)samples.items[i].rss;
+        uint64_t rss = sum_samples(&samples);
 
-        if (rss > peak_bytes) {
-            peak_bytes = (SIZE_T)rss;
-            format_detail(&samples, summary.peak_detail, sizeof(summary.peak_detail) / sizeof(summary.peak_detail[0]));
+        if (rss > process_tree_peak_bytes) {
+            process_tree_peak_bytes = (SIZE_T)rss;
+            format_detail(&samples, summary.process_tree_peak_detail, sizeof(summary.process_tree_peak_detail) / sizeof(summary.process_tree_peak_detail[0]));
+            wcsncpy(summary.peak_detail, summary.process_tree_peak_detail, (sizeof(summary.peak_detail) / sizeof(summary.peak_detail[0])) - 1);
+            summary.peak_detail[(sizeof(summary.peak_detail) / sizeof(summary.peak_detail[0])) - 1] = 0;
         }
+
+        SampleVec compiler_samples = filter_samples_by_name(&samples, root_name);
+        uint64_t compiler_rss = sum_samples(&compiler_samples);
+        if (compiler_rss > compiler_peak_bytes) {
+            compiler_peak_bytes = (SIZE_T)compiler_rss;
+            format_detail(&compiler_samples, summary.compiler_peak_detail, sizeof(summary.compiler_peak_detail) / sizeof(summary.compiler_peak_detail[0]));
+        }
+
+        SampleVec root_samples = filter_samples_by_pid(&samples, pi.dwProcessId);
+        uint64_t root_rss = sum_samples(&root_samples);
+        if (root_rss > root_peak_bytes) {
+            root_peak_bytes = (SIZE_T)root_rss;
+            format_detail(&root_samples, summary.root_peak_detail, sizeof(summary.root_peak_detail) / sizeof(summary.root_peak_detail[0]));
+        }
+        free(compiler_samples.items);
+        free(root_samples.items);
 
         if (!summary.crossed_warning && rss > warning_bytes) {
             summary.crossed_warning = 1;
@@ -527,7 +595,10 @@ int wmain(int argc, WCHAR **argv) {
 
     summary.exit_code = (int)exit_code;
     summary.killed = killed;
-    summary.peak_mb = (double)peak_bytes / (1024.0 * 1024.0);
+    summary.peak_mb = (double)process_tree_peak_bytes / (1024.0 * 1024.0);
+    summary.process_tree_peak_mb = summary.peak_mb;
+    summary.compiler_peak_mb = (double)compiler_peak_bytes / (1024.0 * 1024.0);
+    summary.root_peak_mb = (double)root_peak_bytes / (1024.0 * 1024.0);
     summary.wall_seconds = seconds_since(start, freq);
     print_summary_json(&summary);
     return (int)exit_code;

@@ -1,15 +1,22 @@
 {
-  "_comment": "Self-build perf + memory baseline. v0.8.316 locks the cold gate to the current sub-4s project target after a real isolated-link cold-path optimization and keeps the process-tree memory gate in the 400 MB class. Update via tools/check_perf_regression.ps1 -Update only after a justified intentional improvement; never bump to absorb a regression. Cold = full rebuild from scratch. Hot = immediate re-run with caches warm. Peak memory is process-tree WorkingSet64 for the launched compiler and descendants. The runtime e-stop is an emergency stop, not the budget.",
-  "version_locked_at": "v0.8.316-isolated-link-cachekey",
+  "_comment": "Self-build perf + memory baseline. v0.8.317 splits compiler-only and process-tree memory reporting. Update via tools/check_perf_regression.ps1 -Update only after a justified intentional improvement; never bump to absorb a regression. Cold = full rebuild from scratch. Hot = immediate re-run with caches warm. process_tree = launched compiler plus descendants such as clang/lld; compiler = Nucleor compiler processes only. The runtime e-stop is an emergency stop, not the budget.",
+  "version_locked_at": "v0.8.317-r10-d5-memory-split",
   "locked_at_date": "2026-05-05",
   "cold_self_build_seconds": 3.73,
   "cold_max_allowed_seconds": 4.0,
   "hot_self_build_seconds": 0.26,
   "hot_max_allowed_seconds": 1.0,
-  "cold_peak_memory_mb": 308,
+  "cold_peak_memory_mb": 301,
+  "cold_process_tree_peak_memory_mb": 301,
+  "cold_compiler_peak_memory_mb": 287,
   "cold_max_allowed_memory_mb": 400,
-  "_r10_d5_phase1_note": "R10-D5 Phase 1 (v0.8.279, audit BUILD_PLAN_R10_performance_envelope.md §1 R10-D5): added hot_max_allowed_memory_mb as an independent ceiling for the hot-path. Pre-v0.8.279 the hot path inherited cold_max_allowed_memory_mb implicitly. Phase 2 will split cold_peak_memory_mb into compiler_only_peak_mb (compiler process WorkingSet64) + process_tree_peak_mb (current behavior — compiler + clang + lld descendants); the existing cold_peak_memory_mb tracks process_tree by convention until then.",
-  "hot_max_allowed_memory_mb": 400,
+  "cold_max_allowed_compiler_memory_mb": 350,
+  "_r10_d5_phase1_note": "R10-D5 Phase 1 (v0.8.279, audit BUILD_PLAN_R10_performance_envelope.md §1 R10-D5): added hot_max_allowed_memory_mb as an independent ceiling for the hot-path. Pre-v0.8.279 the hot path inherited cold_max_allowed_memory_mb implicitly.",
+  "_r10_d5_phase2_note": "R10-D5 Phase 2 (v0.8.317): split cold/hot process-tree memory from compiler-only memory. cold_peak_memory_mb remains a process-tree compatibility alias. Hot memory now has a tightened independent ceiling instead of inheriting the cold process-tree cap.",
+  "hot_process_tree_peak_memory_mb": 31,
+  "hot_compiler_peak_memory_mb": 17,
+  "hot_max_allowed_memory_mb": 128,
+  "hot_max_allowed_compiler_memory_mb": 64,
   "_anti_compound_rule": "Each ship must come in at or below the ceilings above. If you observe drift >5% but <10%, investigate before shipping — do not chain small creeps. Never -Update the baseline to absorb a regression; only update when you've intentionally pushed perf in a measured way (e.g., the v0.3.220 13x revert).",
   "_history": [
     {
@@ -76,6 +83,16 @@
       "hot_seconds": 0.26,
       "memory_mb": 308,
       "note": "Post-R12-D2 integration plus compiler cold-path recovery. The isolated native self-host parent now reuses the child-emitted target/<out>.ll.cachekey instead of re-reading and re-hashing the compiler source for native-link cache lookup. Strict perf gate: cold median 3.73s, hot 0.26s, peak process-tree RSS 308 MB. New ceilings remain cold 4.00s, hot 1.00s, process-tree RSS 400 MB. This is a real downward lock, not regression absorption."
+    },
+    {
+      "version": "v0.8.317-r10-d5-memory-split",
+      "cold_seconds": 3.6,
+      "hot_seconds": 0.25,
+      "process_tree_memory_mb": 301,
+      "compiler_memory_mb": 287,
+      "hot_process_tree_memory_mb": 31,
+      "hot_compiler_memory_mb": 17,
+      "note": "R10-D5 Phase 2 measurement under split RSS accounting. Strict perf gate now reports process-tree and compiler-only peaks separately and enforces hot memory with its own tightened 128 MB process-tree / 64 MB compiler ceilings. cold_peak_memory_mb remains a process-tree compatibility alias."
     }
   ]
 }

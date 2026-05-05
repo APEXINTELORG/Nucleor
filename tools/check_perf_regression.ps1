@@ -94,6 +94,31 @@ function Format-NucPerfHostSnapshot($Snapshot) {
         $Snapshot.Stamp, $Snapshot.CpuPercent, $Snapshot.LogicalProcessors, $Snapshot.TopCpu)
 }
 
+function Get-NucJsonNumber($Obj, [string]$Name, [double]$Fallback) {
+    $prop = $Obj.PSObject.Properties[$Name]
+    if ($null -ne $prop -and $null -ne $prop.Value) {
+        try { return [double]$prop.Value } catch { }
+    }
+    return $Fallback
+}
+
+function Get-NucJsonString($Obj, [string]$Name, [string]$Fallback) {
+    $prop = $Obj.PSObject.Properties[$Name]
+    if ($null -ne $prop -and $null -ne $prop.Value) {
+        return [string]$prop.Value
+    }
+    return $Fallback
+}
+
+function Set-NucJsonProperty($Obj, [string]$Name, $Value) {
+    $prop = $Obj.PSObject.Properties[$Name]
+    if ($null -ne $prop) {
+        $prop.Value = $Value
+    } else {
+        $Obj | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
+    }
+}
+
 function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("nuc_perf_{0}_{1}" -f $PID, [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
@@ -111,15 +136,23 @@ function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
             -StdoutPath $stdoutPath `
             -StderrPath $stderrPath
 
-        $peakRounded = [int][Math]::Ceiling([double]$summary.peak_mb)
+        $processTreePeak = Get-NucJsonNumber $summary "process_tree_peak_mb" ([double]$summary.peak_mb)
+        $compilerPeak = Get-NucJsonNumber $summary "compiler_peak_mb" $processTreePeak
+        $rootPeak = Get-NucJsonNumber $summary "root_peak_mb" $compilerPeak
+        $processTreePeakRounded = [int][Math]::Ceiling($processTreePeak)
+        $compilerPeakRounded = [int][Math]::Ceiling($compilerPeak)
+        $rootPeakRounded = [int][Math]::Ceiling($rootPeak)
+        $processTreePeakDetail = Get-NucJsonString $summary "process_tree_peak_detail" ([string]$summary.peak_detail)
+        $compilerPeakDetail = Get-NucJsonString $summary "compiler_peak_detail" $processTreePeakDetail
+        $rootPeakDetail = Get-NucJsonString $summary "root_peak_detail" $compilerPeakDetail
         if ($summary.killed) {
-            throw "$Label failed: peak ${peakRounded} MB / ${BudgetMb} MB e-stop ($($summary.reason)); $($summary.peak_detail)"
+            throw "$Label failed: process-tree peak ${processTreePeakRounded} MB / ${BudgetMb} MB e-stop ($($summary.reason)); $processTreePeakDetail"
         }
         if ([int]$summary.exit_code -ne 0) {
             $tail = ""
             if (Test-Path $stdoutPath) { $tail += (Get-Content -LiteralPath $stdoutPath -Tail 8 | Out-String) }
             if (Test-Path $stderrPath) { $tail += (Get-Content -LiteralPath $stderrPath -Tail 8 | Out-String) }
-            throw "$Label exited $($summary.exit_code), peak ${peakRounded} MB / ${BudgetMb} MB e-stop`n$tail"
+            throw "$Label exited $($summary.exit_code), process-tree peak ${processTreePeakRounded} MB / ${BudgetMb} MB e-stop`n$tail"
         }
         $cacheLine = ""
         $stdoutTail = ""
@@ -137,7 +170,13 @@ function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
         }
         return [pscustomobject]@{
             WallSec = [double]$summary.wall_seconds
-            PeakMb = $peakRounded
+            PeakMb = $processTreePeakRounded
+            ProcessTreePeakMb = $processTreePeakRounded
+            CompilerPeakMb = $compilerPeakRounded
+            RootPeakMb = $rootPeakRounded
+            ProcessTreePeakDetail = $processTreePeakDetail
+            CompilerPeakDetail = $compilerPeakDetail
+            RootPeakDetail = $rootPeakDetail
             CrossedWarning = [bool]$summary.crossed_warning
             WarningDetail = [string]$summary.warning_detail
             CacheLine = [string]$cacheLine
@@ -166,7 +205,9 @@ try {
     # does not fail an otherwise stable compiler. Peak memory remains
     # the max across all samples.
     $coldResults = @()
-    $cold_mem_mb = 0
+    $cold_process_tree_mb = 0
+    $cold_compiler_mb = 0
+    $cold_root_mb = 0
     for ($coldSample = 1; $coldSample -le 3; $coldSample++) {
         Remove-Item -Recurse -Force .nuc_cache,target -ErrorAction SilentlyContinue
         $coldResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "cold self-build sample $coldSample"
@@ -174,7 +215,9 @@ try {
             throw "cold self-build sample $coldSample did not start from cold cache: $($coldResult.CacheLine)`nstdout tail:`n$($coldResult.StdoutTail)`nstderr tail:`n$($coldResult.StderrTail)"
         }
         $coldResults += $coldResult
-        if ($coldResult.PeakMb -gt $cold_mem_mb) { $cold_mem_mb = $coldResult.PeakMb }
+        if ($coldResult.ProcessTreePeakMb -gt $cold_process_tree_mb) { $cold_process_tree_mb = $coldResult.ProcessTreePeakMb }
+        if ($coldResult.CompilerPeakMb -gt $cold_compiler_mb) { $cold_compiler_mb = $coldResult.CompilerPeakMb }
+        if ($coldResult.RootPeakMb -gt $cold_root_mb) { $cold_root_mb = $coldResult.RootPeakMb }
     }
     $cold = Get-MedianSeconds $coldResults
 
@@ -182,16 +225,20 @@ try {
     # so OS process-spawn / scheduler jitter cannot fail the gate, but
     # still fail if any hot run exits nonzero or misses the cache.
     $hotResults = @()
+    $hot_process_tree_mb = 0
+    $hot_compiler_mb = 0
+    $hot_root_mb = 0
     for ($hotSample = 1; $hotSample -le 3; $hotSample++) {
         $hotResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "hot self-build sample $hotSample"
         if ($hotResult.CacheLine -notmatch '^cache: hit') {
             throw "hot self-build sample $hotSample did not hit cache: $($hotResult.CacheLine)`nstdout tail:`n$($hotResult.StdoutTail)`nstderr tail:`n$($hotResult.StderrTail)"
         }
         $hotResults += $hotResult
-        if ($hotResult.PeakMb -gt $cold_mem_mb) { $cold_mem_mb = $hotResult.PeakMb }
+        if ($hotResult.ProcessTreePeakMb -gt $hot_process_tree_mb) { $hot_process_tree_mb = $hotResult.ProcessTreePeakMb }
+        if ($hotResult.CompilerPeakMb -gt $hot_compiler_mb) { $hot_compiler_mb = $hotResult.CompilerPeakMb }
+        if ($hotResult.RootPeakMb -gt $hot_root_mb) { $hot_root_mb = $hotResult.RootPeakMb }
     }
     $hot = Get-MedianSeconds $hotResults
-    $hot_mem_mb = ($hotResults | ForEach-Object { [int]$_.PeakMb } | Measure-Object -Maximum).Maximum
     $crossed_warning = $false
     foreach ($coldResult in $coldResults) {
         if ($coldResult.CrossedWarning) { $crossed_warning = $true }
@@ -209,8 +256,14 @@ $cold_max = [double]$baseline.cold_max_allowed_seconds
 $hot_max = [double]$baseline.hot_max_allowed_seconds
 $cold_baseline = [double]$baseline.cold_self_build_seconds
 $hot_baseline = [double]$baseline.hot_self_build_seconds
-$mem_max = [int]$baseline.cold_max_allowed_memory_mb
-$mem_baseline = [int]$baseline.cold_peak_memory_mb
+$cold_process_tree_max = [int](Get-NucJsonNumber $baseline "cold_max_allowed_memory_mb" 400)
+$hot_process_tree_max = [int](Get-NucJsonNumber $baseline "hot_max_allowed_memory_mb" $cold_process_tree_max)
+$cold_process_tree_baseline = [int](Get-NucJsonNumber $baseline "cold_process_tree_peak_memory_mb" (Get-NucJsonNumber $baseline "cold_peak_memory_mb" $cold_process_tree_mb))
+$hot_process_tree_baseline = [int](Get-NucJsonNumber $baseline "hot_process_tree_peak_memory_mb" $hot_process_tree_mb)
+$cold_compiler_max = [int](Get-NucJsonNumber $baseline "cold_max_allowed_compiler_memory_mb" $cold_process_tree_max)
+$hot_compiler_max = [int](Get-NucJsonNumber $baseline "hot_max_allowed_compiler_memory_mb" $hot_process_tree_max)
+$cold_compiler_baseline = [int](Get-NucJsonNumber $baseline "cold_compiler_peak_memory_mb" $cold_compiler_mb)
+$hot_compiler_baseline = [int](Get-NucJsonNumber $baseline "hot_compiler_peak_memory_mb" $hot_compiler_mb)
 
 $cold_round = [math]::Round($cold, 2)
 $hot_round = [math]::Round($hot, 2)
@@ -218,22 +271,36 @@ $hot_round = [math]::Round($hot, 2)
 if ($Update) {
     $baseline.cold_self_build_seconds = $cold_round
     $baseline.hot_self_build_seconds = $hot_round
-    $baseline.cold_peak_memory_mb = $cold_mem_mb
+    Set-NucJsonProperty $baseline "cold_peak_memory_mb" $cold_process_tree_mb
+    Set-NucJsonProperty $baseline "cold_process_tree_peak_memory_mb" $cold_process_tree_mb
+    Set-NucJsonProperty $baseline "cold_compiler_peak_memory_mb" $cold_compiler_mb
+    Set-NucJsonProperty $baseline "cold_root_peak_memory_mb" $cold_root_mb
+    Set-NucJsonProperty $baseline "hot_process_tree_peak_memory_mb" $hot_process_tree_mb
+    Set-NucJsonProperty $baseline "hot_compiler_peak_memory_mb" $hot_compiler_mb
+    Set-NucJsonProperty $baseline "hot_root_peak_memory_mb" $hot_root_mb
     $baseline.version_locked_at = "manual"
     $baseline.locked_at_date = (Get-Date).ToString("yyyy-MM-dd")
     $baseline | ConvertTo-Json -Depth 4 | Set-Content $baseline_path
-    Write-Host ("UPDATED baseline: cold={0}s hot={1}s mem={2}MB" -f $cold_round, $hot_round, $cold_mem_mb) -ForegroundColor Green
+    Write-Host ("UPDATED baseline: cold={0}s hot={1}s mem cold_tree={2}MB cold_compiler={3}MB hot_tree={4}MB hot_compiler={5}MB" -f
+        $cold_round, $hot_round, $cold_process_tree_mb, $cold_compiler_mb, $hot_process_tree_mb, $hot_compiler_mb) -ForegroundColor Green
     exit 0
 }
 
 $cold_ok = $cold -le $cold_max
 $hot_ok = $hot -le $hot_max
-$mem_ok = $cold_mem_mb -le $mem_max
+$cold_process_tree_ok = $cold_process_tree_mb -le $cold_process_tree_max
+$hot_process_tree_ok = $hot_process_tree_mb -le $hot_process_tree_max
+$cold_compiler_ok = $cold_compiler_mb -le $cold_compiler_max
+$hot_compiler_ok = $hot_compiler_mb -le $hot_compiler_max
 
-if ($cold_ok -and $hot_ok -and $mem_ok) {
+if ($cold_ok -and $hot_ok -and $cold_process_tree_ok -and $hot_process_tree_ok -and $cold_compiler_ok -and $hot_compiler_ok) {
     if (-not $Quiet) {
-        Write-Host ("OK perf: cold={0}s (max {1}s) | hot={2}s (max {3}s) | peak_mem={4}MB (max {5}MB)" -f
-            $cold_round, $cold_max, $hot_round, $hot_max, $cold_mem_mb, $mem_max) -ForegroundColor Green
+        Write-Host ("OK perf: cold={0}s (max {1}s) | hot={2}s (max {3}s) | mem cold_tree={4}/{5}MB cold_compiler={6}/{7}MB hot_tree={8}/{9}MB hot_compiler={10}/{11}MB" -f
+            $cold_round, $cold_max, $hot_round, $hot_max,
+            $cold_process_tree_mb, $cold_process_tree_max,
+            $cold_compiler_mb, $cold_compiler_max,
+            $hot_process_tree_mb, $hot_process_tree_max,
+            $hot_compiler_mb, $hot_compiler_max) -ForegroundColor Green
         Write-Host ("  host start: {0}" -f (Format-NucPerfHostSnapshot $hostStart))
         Write-Host ("  host end:   {0}" -f (Format-NucPerfHostSnapshot $hostEnd))
         if ($crossed_warning) {
@@ -258,10 +325,25 @@ if (-not $hot_ok) {
     Write-Host ("  HOT self-build:  {0}s vs baseline {1}s ({2}x slower, max {3}s)" -f
         $hot_round, $hot_baseline, $hot_x, $hot_max) -ForegroundColor Red
 }
-if (-not $mem_ok) {
-    $mem_x = [math]::Round($cold_mem_mb / [double]$mem_baseline, 1)
-    Write-Host ("  PEAK MEMORY:     {0}MB vs baseline {1}MB ({2}x larger, max {3}MB)" -f
-        $cold_mem_mb, $mem_baseline, $mem_x, $mem_max) -ForegroundColor Red
+if (-not $cold_process_tree_ok) {
+    $mem_x = [math]::Round($cold_process_tree_mb / [double]$cold_process_tree_baseline, 1)
+    Write-Host ("  COLD PROCESS-TREE MEMORY: {0}MB vs baseline {1}MB ({2}x larger, max {3}MB)" -f
+        $cold_process_tree_mb, $cold_process_tree_baseline, $mem_x, $cold_process_tree_max) -ForegroundColor Red
+}
+if (-not $cold_compiler_ok) {
+    $mem_x = [math]::Round($cold_compiler_mb / [double]$cold_compiler_baseline, 1)
+    Write-Host ("  COLD COMPILER MEMORY:     {0}MB vs baseline {1}MB ({2}x larger, max {3}MB)" -f
+        $cold_compiler_mb, $cold_compiler_baseline, $mem_x, $cold_compiler_max) -ForegroundColor Red
+}
+if (-not $hot_process_tree_ok) {
+    $mem_x = [math]::Round($hot_process_tree_mb / [double]$hot_process_tree_baseline, 1)
+    Write-Host ("  HOT PROCESS-TREE MEMORY:  {0}MB vs baseline {1}MB ({2}x larger, max {3}MB)" -f
+        $hot_process_tree_mb, $hot_process_tree_baseline, $mem_x, $hot_process_tree_max) -ForegroundColor Red
+}
+if (-not $hot_compiler_ok) {
+    $mem_x = [math]::Round($hot_compiler_mb / [double]$hot_compiler_baseline, 1)
+    Write-Host ("  HOT COMPILER MEMORY:      {0}MB vs baseline {1}MB ({2}x larger, max {3}MB)" -f
+        $hot_compiler_mb, $hot_compiler_baseline, $mem_x, $hot_compiler_max) -ForegroundColor Red
 }
 Write-Host ""
 Write-Host "Common causes:" -ForegroundColor Yellow
