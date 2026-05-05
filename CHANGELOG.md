@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.305] — 2026-05-05
+
+**R11-D2/D3 Phase 1 — MPS named gate wrappers + coverage disclosure.**
+
+### Bug
+
+`stdlib/rods/mps.nr` exposed `mps_gate(h, gate_type, q0, q1, angle)`
+with `gate_type` as a raw integer (0=H, 1=CNOT, 2=X, 3=Z, 4=RZ,
+5=RX). Adopters had to memorize the dispatch table from
+`mps_rt.c:365` to use it. Audit-classified HIGH (R11-D2) per
+`BUILD_PLAN_R11_quantum_subsystem.md` §1.
+
+### Fix (Phase 1, audit's "named wrappers + raw escape hatch" path)
+
+`stdlib/rods/mps.nr` adds:
+- Gate-type constants: `mps_gate_h() = 0`, `mps_gate_cnot() = 1`,
+  `mps_gate_x() = 2`, `mps_gate_z() = 3`, `mps_gate_rz() = 4`,
+  `mps_gate_rx() = 5`.
+- `mps_gate_type_supported(code)` predicate — adopters check
+  before calling raw `mps_gate`.
+- 1q named wrappers: `mps_h(h, q)`, `mps_x(h, q)`, `mps_z(h, q)`,
+  `mps_rz(h, q, angle)`, `mps_rx(h, q, angle)`.
+- 2q named wrapper: `mps_cnot(h, ctrl, tgt)`.
+- `mps_limitations()` text — names the 4 gaps (gate coverage,
+  no typed enum, no bond-dim diagnostic, non-adjacent CNOT
+  inflation). Phase 2 ships missing gates + typed enum +
+  diagnostics per audit R11-D2/D3 ship plan.
+
+The raw `mps_gate(h, code, q0, q1, angle)` is preserved as the
+escape hatch.
+
+### Tests
+
+`tests/features/mps_named_gate_wrappers_smoke.nr` — 8 invariants
+covering all 6 gate-type constants, 5 supported/rejected queries,
+and limitations text.
+
+### Self-host fixed-point
+
+`be108d37860467329bdd830bbbe74406` (preserved — stdlib-rod-only).
+
 ## [0.8.304] — 2026-05-05
 
 **R11-D1 Phase 1 — qsim state-surface disclosure (`qsim_max_qubits()` / `qsim_supports_n_qubits()` / `qsim_limitations()`).**
