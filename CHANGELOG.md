@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.229] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — attention2 + multi_core.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** the attention2 fixture caught the
+sliding-window's CAUSAL semantics (vs. flash's bidirectional)
+— first iteration assumed both were bidirectional; re-locked
+with the proper causal expectation.
+
+### attention2 rod (FlashAttention / GQA / MLA / sliding / differential)
+
+`tests/features/attention2_smoke.nr` builds Q=K=zeros so
+attention is uniform; V=[(3,4),(5,6)]:
+
+| Test | Path |
+|---|---|
+| Output length matches seq * d_k | flat layout |
+| **Uniform softmax produces V mean** | output[0] = (4, 5) |
+| Both rows identical | uniform attention over both tokens |
+| Sliding-window is causal | token 0 sees only V[0]; token 1 sees uniform |
+
+ML-1 sig fixes (v0.8.45 / v0.8.66) wired the rod to the C
+runtime; this fixture guards the corrected sigs.
+
+### multi_core rod (N-core quantum noise ensemble)
+
+`tests/features/multi_core_smoke.nr` builds a 2-qubit, 4-core
+ensemble and locks four lifecycle invariants (sister to
+twin_core_smoke v0.8.226):
+
+| Test | Path |
+|---|---|
+| mc_ncores returns n_cores arg | round-trip 4 → 4 |
+| mc_nq returns nq arg | round-trip 2 → 2 |
+| Step counter starts at 0 | fresh ensemble, no ops |
+| **Core 0 is clean** | mc_p1q(c=0) == 0 (regardless of p1q_base) |
+
+All pass. rc=0.
+
 ## [0.8.228] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — io + diff_sim.**
