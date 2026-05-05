@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2773
-# Total LOC: 11809
+# Total fn definitions: 2774
+# Total LOC: 11811
 
 [[rod]]
 name           = "activation2"
@@ -384,9 +384,9 @@ imports        = ["complex"]
 name           = "compress"
 path           = "stdlib/rods/compress.nr"
 description    = "Lossless compression"
-function_count = 3
+function_count = 4
 cfile_count    = 1
-loc            = 7
+loc            = 9
 imports        = ["compress"]
 
 [[rod]]

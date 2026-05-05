@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.136] — 2026-05-04
+
+**stdlib/rods/compress.nr first test coverage + missing
+decompress_lz77 surface fix.**
+
+Pre-v0.8.136: rod exposed `compress_lz77` + `compress_size` +
+`compress_free` only. The C runtime has always had
+`nuc_decompress_lz77` but the rod never surfaced it — adopters
+could compress but not decompress through the rod-only API
+(had to drop to `extern fn`). Surface gap surfaced while writing
+the round-trip fixture.
+
+| Change | Path |
+|---|---|
+| `decompress_lz77(buf) -> str` rod fn | `stdlib/rods/compress.nr` — surfaces existing C symbol |
+
+`tests/features/compress_smoke.nr` locks two invariants:
+
+| Test | Path |
+|---|---|
+| **Round-trip** | `decompress(compress("...")) == original` for ASCII text with repetition |
+| Compression ratio | 256-byte "ABAB..." compresses to <128 bytes (≥2× ratio); restored bytes match original |
+
+All pass. rc=0.
+
 ## [0.8.135] — 2026-05-04
 
 **stdlib/rods/atomic.nr first test coverage.** Pure fixture, no
