@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.234] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pgs + wbc.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### pgs rod (2-D pose graph SLAM)
+
+`tests/features/pgs_smoke.nr` builds a 2-node graph with one
+mismatched edge and locks four invariants (get_node uses raw
+out-ptrs; deferred):
+
+| Test | Path |
+|---|---|
+| Empty graph cost is zero | no edges → no error |
+| Initial cost > 0 | mismatched node + edge measurement |
+| optimize iters > 0 | non-trivial problem |
+| **Cost decreases after optimize** | post < pre (Gauss-Newton convergence) |
+
+### wbc rod (weighted-QP whole-body controller)
+
+`tests/features/wbc_smoke.nr` exercises the empty-task path
+where the QP reduces to `min α‖q̇‖²` → q̇ = 0:
+
+| Test | Path |
+|---|---|
+| wbc_new returns valid handle | non-zero |
+| Empty-task solve succeeds | returns 1 |
+| **Empty-task qdot is zero** | every joint i: q̇ᵢ = 0 |
+| clear + re-solve idempotent zero | resilient empty-task path |
+
+All pass. rc=0.
+
 ## [0.8.233] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — kdt + vgraph.**
