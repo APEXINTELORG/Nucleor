@@ -16107,24 +16107,43 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
-// === T3.3 (v0.3.2): static WCET (v1 estimator, RT-004) ===
+// === T3.3 (v0.3.2): heuristic deadline estimate (RT-004, NOT certified WCET) ===
+//
+// R03-D3 Phase 1 (v0.8.289, audit BUILD_PLAN_R03_realtime_determinism.md
+// §1 R03-D3): the audit verdict is that this estimator IS NOT certified
+// WCET — it is a fast, conservative heuristic that triggers a warning
+// when a function looks expensive relative to its declared deadline.
+// Pre-v0.8.289 wording said "static WCET" and "v1 estimator", which
+// reasonably reads as a real WCET model — clarified here, in the
+// emitted diagnostic, and in RFC-0001 to call this out as heuristic.
+// A certified WCET / cost-table contract is Phase 2 (RFC-0001 §WCET).
+//
+// What this pass does:
 // Parses every `#[deadline = N]` fn, estimates its worst-case
 // execution time via a simple statement counter, and emits a
 // compile-time RT-004 warning when the estimate exceeds the
 // declared deadline.
 //
-// v1 estimator heuristics (conservative, prone to false positives
-// — explicitly documented so users can `#[allow(RT-004)]` when
-// the estimator is wrong):
+// Heuristic (conservative, prone to false positives + false
+// negatives — both documented so adopters use `#[allow(RT-004)]`
+// or `#[allow_fn(RT-004)]` to suppress when the estimator is
+// demonstrably wrong for the body in question):
 //   - Each `;` (statement terminator) = 1 unit = 0.1 µs
 //   - Each `while` keyword multiplies the inner unit count by a
 //     coarse multiplier (1, 100, 1000, 10000 for 0/1/2/3+ whiles)
 //   - Hard cap at 1e6 units to prevent runaway
+//   - No call-target costing (callees are NOT inlined into the
+//     estimate; an `O(n)` helper inside a tight loop is invisible
+//     to this pass)
+//   - No backend / ISA / cache / branch-prediction modeling
+//   - String-literal `;` and comment-`while` are NOT skipped —
+//     accepted v1 false-positive surface
 // Conversion: estimated_us = ceil(units / 10).
 //
 // Ship shape: warning-level diagnostic (not error) because the
-// estimator is deliberately crude. v0.3.2b's AST-based v2 will
-// tighten the estimate + promote to error for unambiguous cases.
+// estimator is deliberately crude. A certified WCET / cost-table
+// pass is Phase 2 (per audit R03-D3); the heuristic remains
+// available alongside it as a fast / opt-in early signal.
 
 #[manual_drop]
 fn wcet_collect_deadline_fns(source: str) -> Vec<i32> {
@@ -16260,7 +16279,7 @@ fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
         let units: i64 = wcet_estimate_fn_units(source, inner_name);
         let estimated_us: i64 = (units + 9) / 10;
         if estimated_us > limit_us {
-            let msg: str = str_concat("static WCET estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (v1 estimator -- use #[allow(RT-004)] file-wide or #[allow_fn(RT-004)] per-fn if the estimate is wrong; default loop multiplier 100x)", "")))))));
+            let msg: str = str_concat("heuristic deadline estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (RT-004 is a heuristic, NOT certified WCET; no callee/ISA/cache modeling; use #[allow(RT-004)] file-wide or #[allow_fn(RT-004)] per-fn when the estimate is wrong; default loop multiplier 100x)", "")))))));
             diag_add_ex(diags, "warning", "rt", "RT-004", msg, inner_name, 0, 0, "");
         };
         i = i + 2;

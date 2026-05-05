@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.289] — 2026-05-05
+
+**R03-D3 Phase 1 — RT-004 heuristic-vs-certified-WCET doc honesty.**
+
+### Bug
+
+Pre-v0.8.289 the RT-004 deadline-overrun diagnostic was labeled
+"static WCET" in three places (the compiler's `T3.3` comment +
+emitted warning text + tools-suite explain registry) and as
+"Static WCET exceeds declared #[deadline]" in `RFC-0001` §3 error
+table. That wording reasonably reads as a real WCET model — but
+the implementation is a heuristic: a `;`-counter + coarse loop
+multiplier with no callee / ISA / cache / branch-prediction
+modeling. Audit-classified MEDIUM (R03-D3) per
+`BUILD_PLAN_R03_realtime_determinism.md` §1.
+
+### Fix (Phase 1, audit's "rename/clarify diagnostics" path)
+
+- `compiler/nucleor_s1_compiler.nr` T3.3 comment block rewritten:
+  RT-004 is now explicitly described as a **heuristic deadline
+  estimate, NOT certified WCET**. Lists what the estimator does
+  NOT model (callee cost, ISA, cache, branch prediction,
+  string-literal `;`).
+- The emitted warning text changes from `static WCET estimate
+  ... (v1 estimator ...)` to `heuristic deadline estimate ...
+  (RT-004 is a heuristic, NOT certified WCET; no callee/ISA/cache
+  modeling; ...)`.
+- `compiler/nucleor_tools_suite.nr` explain registry: title and
+  body for `RT-004` now lead with "HEURISTIC" and point to the
+  Phase 2 certified-WCET RFC section.
+- `docs/rfcs/RFC-0001-rt-attributes.md` §3 error table updates
+  the `RT-004` row + adds a new `Heuristic vs certified WCET`
+  subsection naming the four classes of unmodeled cost and
+  describing the Phase 2 split into `RT-004-heuristic` warning
+  + `RT-004-certified` error.
+
+### Tests
+
+No new fixture — this is documentation / diagnostic-text honesty.
+The existing `t317_allow_fn_rt004.nr` suppression fixture
+preserves behavior. Verified via `bin/nucleor_tools.exe explain
+RT-004` → output now leads with the heuristic disclaimer.
+
+### Self-host fixed-point
+
+**Rotated** `12777d1c1bdb18cde6bbfcb22479eefc` →
+`83912a227e745bf799d16140dba59a7e`. Compiler-source comment +
+emitted-string change rotates the IR. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.288] — 2026-05-05
 
 **R08-D1 Phase 1 — tensor shape/dtype metadata (`tensor_dtype()` / `tensor_can_matmul_2d()` / `tensor_shape_eq()` / `tensor_limitations()`).**
