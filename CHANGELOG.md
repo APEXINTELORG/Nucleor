@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.131] — 2026-05-04
+
+**stdlib/rods/energy_budget.nr first test coverage.** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+RFC-0050 Phase A: per-fn energy + thermal budget metadata
+registry.
+
+`tests/features/energy_budget_smoke.nr` locks three invariants:
+
+| Test | Path |
+|---|---|
+| unit-id constants | pJ=1, nJ=2, uJ=3, mJ=4, J=5, kJ=6, K=10, C=11, F=12 |
+| unit names | `unit_name(4) == "mJ"`, `thermal_unit_name(11) == "C"` |
+| declare round-trip | declare a budget; count increments; get_name/get_unit at index returns what was declared |
+
+All pass. rc=0. Cold 0.63s.
+
+## [0.8.130] — 2026-05-04
+
+**stdlib/rods/digest.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+Hash + Base64 + UUID helpers. SHA-256 + Base64 + CRC32 +
+UUID v4.
+
+`tests/features/digest_smoke.nr` locks four invariant classes:
+
+| Test | Path |
+|---|---|
+| **SHA-256 FIPS 180-4 vectors** | `SHA-256("") = e3b0c442...b855`; `SHA-256("abc") = ba7816bf...15ad` |
+| Base64 RFC 4648 | `b64_encode("foobar") == "Zm9vYmFy"`; round-trip via decode |
+| **CRC32 IEEE 802.3** | `CRC32("") == 0`; `CRC32("123456789") == 0xCBF43926` (the canonical test vector) |
+| UUID v4 | length 36, 4 hyphens (8-4-4-4-12 format) |
+
+All pass. rc=0. Cold 0.57s.
+
+The SHA-256 and CRC32 reference vectors are the canonical
+test points used by every standards-conformant implementation.
+A regression here means the hash function has drifted from
+spec — easy to detect, very expensive to ship without.
+
 ## [0.8.129] — 2026-05-04
 
 **stdlib/rods/env.nr first test coverage.** Pure fixture, no
