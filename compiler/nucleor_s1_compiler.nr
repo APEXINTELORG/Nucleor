@@ -28994,13 +28994,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // @thermal pattern. Position-aware needles (`: ` and `-> `
     // prefix) avoid false positives on identifiers ending in
     // "fixed" or "ufixed".
-    let v0143_fixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": fix", "ed<"));
-    let v0143_fixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> fix", "ed<"));
-    let v0143_ufixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": ufix", "ed<"));
-    let v0143_ufixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> ufix", "ed<"));
-    let v0143_fixed_total: i64 = v0143_fixed_colon + v0143_fixed_arrow + v0143_ufixed_colon + v0143_ufixed_arrow;
-    if v0143_fixed_total > 0 {
-        print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
+    // v0.8.181 perf: gate the per-needle scans behind a single
+    // cheap probe. Most builds don't contain `fixed<` or `ufixed<`
+    // — without the gate this block ran 4 full-source scans
+    // unconditionally on every compile. Same shape applied to the
+    // other audit families below.
+    if str_index_of(after_async, "fixed<") >= 0 {
+        let v0143_fixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": fix", "ed<"));
+        let v0143_fixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> fix", "ed<"));
+        let v0143_ufixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": ufix", "ed<"));
+        let v0143_ufixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> ufix", "ed<"));
+        let v0143_fixed_total: i64 = v0143_fixed_colon + v0143_fixed_arrow + v0143_ufixed_colon + v0143_ufixed_arrow;
+        if v0143_fixed_total > 0 {
+            print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
+        };
     };
     // v0.8.173 (RFC-0044 Phase B step-1, V1.13 drift restoration)
     // — per-BinOp `OverflowMode` audit. RFC-0044 calls for two
@@ -29013,15 +29020,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // usage of either form so future ships can lock the block-form
     // wiring + add the inline-suffix lex extension. Phase B step-2
     // (real per-BinOp lowering) is the larger ~150 LOC compiler ship.
-    let v0173_wrap_block: i64 = simple_attribute_audit_count(after_async, str_concat("wrap", "ping {"));
-    let v0173_sat_block: i64 = simple_attribute_audit_count(after_async, str_concat("satur", "ating {"));
-    let v0173_check_block: i64 = simple_attribute_audit_count(after_async, str_concat("check", "ed {"));
-    let v0173_inline_wrap: i64 = simple_attribute_audit_count(after_async, "#wrap");
-    let v0173_inline_sat: i64 = simple_attribute_audit_count(after_async, "#sat");
-    let v0173_inline_trap: i64 = simple_attribute_audit_count(after_async, "#trap");
-    let v0173_overflow_total: i64 = v0173_wrap_block + v0173_sat_block + v0173_check_block + v0173_inline_wrap + v0173_inline_sat + v0173_inline_trap;
-    if v0173_overflow_total > 0 {
-        print(str_concat("audit: per-BinOp OverflowMode usages (block + inline): ", str_from_int(v0173_overflow_total)));
+    if str_index_of(after_async, "wrapping ") >= 0 || str_index_of(after_async, "saturating ") >= 0 || str_index_of(after_async, "#wrap") >= 0 || str_index_of(after_async, "#sat") >= 0 || str_index_of(after_async, "#trap") >= 0 {
+        let v0173_wrap_block: i64 = simple_attribute_audit_count(after_async, str_concat("wrap", "ping {"));
+        let v0173_sat_block: i64 = simple_attribute_audit_count(after_async, str_concat("satur", "ating {"));
+        let v0173_check_block: i64 = simple_attribute_audit_count(after_async, str_concat("check", "ed {"));
+        let v0173_inline_wrap: i64 = simple_attribute_audit_count(after_async, "#wrap");
+        let v0173_inline_sat: i64 = simple_attribute_audit_count(after_async, "#sat");
+        let v0173_inline_trap: i64 = simple_attribute_audit_count(after_async, "#trap");
+        let v0173_overflow_total: i64 = v0173_wrap_block + v0173_sat_block + v0173_check_block + v0173_inline_wrap + v0173_inline_sat + v0173_inline_trap;
+        if v0173_overflow_total > 0 {
+            print(str_concat("audit: per-BinOp OverflowMode usages (block + inline): ", str_from_int(v0173_overflow_total)));
+        };
     };
     // v0.8.145 (RFC-0046 Phase B step-1, V2.1 frontier easy-win)
     // — `Pose<F>` + `Frame_*` marker audit. The `kinematics_frame`
@@ -29033,15 +29042,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // Pose<Base>) == 0`) is the ~200 LOC compiler ship.
     // This Phase B step-1 surfaces the surface, matching the
     // RFC-0043 fixed<I,F> pattern.
-    let v0145_pose_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Po", "se<"));
-    let v0145_pose_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Po", "se<"));
-    let v0145_pose_total: i64 = v0145_pose_colon + v0145_pose_arrow;
-    if v0145_pose_total > 0 {
-        print(str_concat("audit: Pose<F> phantom-frame type-position occurrences: ", str_from_int(v0145_pose_total)));
-    };
-    let v0145_frame_marker: i64 = simple_attribute_audit_count(after_async, str_concat(": Fra", "me_"));
-    if v0145_frame_marker > 0 {
-        print(str_concat("audit: Frame_* marker uses (let/arg position): ", str_from_int(v0145_frame_marker)));
+    if str_index_of(after_async, "Pose<") >= 0 || str_index_of(after_async, "Frame_") >= 0 {
+        let v0145_pose_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Po", "se<"));
+        let v0145_pose_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Po", "se<"));
+        let v0145_pose_total: i64 = v0145_pose_colon + v0145_pose_arrow;
+        if v0145_pose_total > 0 {
+            print(str_concat("audit: Pose<F> phantom-frame type-position occurrences: ", str_from_int(v0145_pose_total)));
+        };
+        let v0145_frame_marker: i64 = simple_attribute_audit_count(after_async, str_concat(": Fra", "me_"));
+        if v0145_frame_marker > 0 {
+            print(str_concat("audit: Frame_* marker uses (let/arg position): ", str_from_int(v0145_frame_marker)));
+        };
     };
     // v0.8.146 (RFC-0047 Phase B step-1, V2.2 frontier easy-win)
     // — typed dimensional units `unit<T, [kg, m, s, A, K, mol,
@@ -29053,15 +29064,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // unit<T, [...]> + the existing dimension-aliased `Mass<>`
     // / `Length<>` / `Force<>` / `Acceleration<>` shapes that
     // adopters might already be drafting.
-    let v0146_unit_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": un", "it<"));
-    let v0146_unit_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> un", "it<"));
-    let v0146_mass_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Ma", "ss<"));
-    let v0146_length_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Len", "gth<"));
-    let v0146_force_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": For", "ce<"));
-    let v0146_accel_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Accelera", "tion<"));
-    let v0146_unit_total: i64 = v0146_unit_colon + v0146_unit_arrow + v0146_mass_colon + v0146_length_colon + v0146_force_colon + v0146_accel_colon;
-    if v0146_unit_total > 0 {
-        print(str_concat("audit: unit<T,[...]> typed-dim type-position occurrences: ", str_from_int(v0146_unit_total)));
+    if str_index_of(after_async, "unit<") >= 0 || str_index_of(after_async, "Mass<") >= 0 || str_index_of(after_async, "Length<") >= 0 || str_index_of(after_async, "Force<") >= 0 || str_index_of(after_async, "Acceleration<") >= 0 {
+        let v0146_unit_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": un", "it<"));
+        let v0146_unit_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> un", "it<"));
+        let v0146_mass_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Ma", "ss<"));
+        let v0146_length_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Len", "gth<"));
+        let v0146_force_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": For", "ce<"));
+        let v0146_accel_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Accelera", "tion<"));
+        let v0146_unit_total: i64 = v0146_unit_colon + v0146_unit_arrow + v0146_mass_colon + v0146_length_colon + v0146_force_colon + v0146_accel_colon;
+        if v0146_unit_total > 0 {
+            print(str_concat("audit: unit<T,[...]> typed-dim type-position occurrences: ", str_from_int(v0146_unit_total)));
+        };
     };
     // v0.8.147 (RFC-0048 Phase B step-1, V2.3 frontier easy-win)
     // — hardware capability query audit. Adopters use
@@ -29071,11 +29084,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // branches via DCE before lowering) is the larger ship.
     // This Phase B step-1 surfaces usage by counting `target.has(`
     // and `target.os(` occurrences.
-    let v0147_target_has: i64 = simple_attribute_audit_count(after_async, str_concat("target.h", "as("));
-    let v0147_target_os: i64 = simple_attribute_audit_count(after_async, str_concat("target.", "os("));
-    let v0147_target_total: i64 = v0147_target_has + v0147_target_os;
-    if v0147_target_total > 0 {
-        print(str_concat("audit: target.has()/target.os() compile-time queries: ", str_from_int(v0147_target_total)));
+    if str_index_of(after_async, "target.") >= 0 {
+        let v0147_target_has: i64 = simple_attribute_audit_count(after_async, str_concat("target.h", "as("));
+        let v0147_target_os: i64 = simple_attribute_audit_count(after_async, str_concat("target.", "os("));
+        let v0147_target_total: i64 = v0147_target_has + v0147_target_os;
+        if v0147_target_total > 0 {
+            print(str_concat("audit: target.has()/target.os() compile-time queries: ", str_from_int(v0147_target_total)));
+        };
     };
     // v0.8.148 (RFC-0049 Phase B step-1, V2.4 frontier easy-win)
     // — memory-space type-tag audit. Same architectural pattern
@@ -29083,11 +29098,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // Surfaces adopter usage of `Tensor<f32, MemSpace_HBM>` etc.
     // Phase B step-2 (types_compatible enforcement on Space) is
     // the real ship.
-    let v0148_memspace: i64 = simple_attribute_audit_count(after_async, str_concat(": MemSp", "ace_"));
-    let v0148_tensor_space: i64 = simple_attribute_audit_count(after_async, str_concat(", MemSp", "ace_"));
-    let v0148_memspace_total: i64 = v0148_memspace + v0148_tensor_space;
-    if v0148_memspace_total > 0 {
-        print(str_concat("audit: MemSpace_* type-position occurrences: ", str_from_int(v0148_memspace_total)));
+    if str_index_of(after_async, "MemSpace_") >= 0 {
+        let v0148_memspace: i64 = simple_attribute_audit_count(after_async, str_concat(": MemSp", "ace_"));
+        let v0148_tensor_space: i64 = simple_attribute_audit_count(after_async, str_concat(", MemSp", "ace_"));
+        let v0148_memspace_total: i64 = v0148_memspace + v0148_tensor_space;
+        if v0148_memspace_total > 0 {
+            print(str_concat("audit: MemSpace_* type-position occurrences: ", str_from_int(v0148_memspace_total)));
+        };
     };
     // v0.8.149 (RFC-0051 Phase B step-1, V2.6 frontier easy-win)
     // — Model<Arch, ...> provenance audit. Surfaces adopter
@@ -29096,11 +29113,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // quantization at the type level. Phase B step-2 (real
     // type-checked Model<...> with SPDX-validated license arg
     // etc.) is the larger ship.
-    let v0149_model_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Mo", "del<"));
-    let v0149_model_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Mo", "del<"));
-    let v0149_model_total: i64 = v0149_model_colon + v0149_model_arrow;
-    if v0149_model_total > 0 {
-        print(str_concat("audit: Model<Arch,...> provenance type-position occurrences: ", str_from_int(v0149_model_total)));
+    if str_index_of(after_async, "Model<") >= 0 {
+        let v0149_model_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Mo", "del<"));
+        let v0149_model_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Mo", "del<"));
+        let v0149_model_total: i64 = v0149_model_colon + v0149_model_arrow;
+        if v0149_model_total > 0 {
+            print(str_concat("audit: Model<Arch,...> provenance type-position occurrences: ", str_from_int(v0149_model_total)));
+        };
     };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
