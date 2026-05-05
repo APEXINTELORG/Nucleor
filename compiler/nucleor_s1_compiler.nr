@@ -10914,6 +10914,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "ASYNC-001") == 1 { return 1; };
     if str_eq(code, "RT-007") == 1 { return 1; };
     if str_eq(code, "RT-008") == 1 { return 1; };
+    if str_eq(code, "RT-009") == 1 { return 1; };
     // RFC-0002 allocators
     if str_eq(code, "ALLOC-001") == 1 { return 1; };
     if str_eq(code, "ALLOC-002") == 1 { return 1; };
@@ -14571,6 +14572,39 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
                         diag_add_ex(diags, "error", "rt", "RT-002", msg, fn_name, 0, 0, "");
                     };
                     ai = ai + 1;
+                };
+                // R03-D2 Phase 1 (v0.8.295, audit
+                // BUILD_PLAN_R03_realtime_determinism.md §1 R03-D2 HIGH):
+                // implicit panic sources. Integer `/` and `%` panic on
+                // divide-by-zero. Adopters annotate `#[no_panic]` and
+                // expect the compiler to flag these. Phase 1 emits
+                // warning[RT-009] (warning not error because the
+                // estimator can't prove the divisor is non-zero —
+                // adopter uses #[allow_fn(RT-009)] when verified safe).
+                // Phase 2 will add IR-level non-zero divisor proof.
+                let blen: i64 = str_len(body);
+                let mut bp: i64 = 0;
+                let mut div_found: i64 = 0;
+                let mut mod_found: i64 = 0;
+                while bp < blen {
+                    let bc: i64 = str_char_at(body, bp);
+                    if bc == 47 {
+                        let next_c: i64 = if bp + 1 < blen { str_char_at(body, bp + 1) } else { 32 };
+                        if next_c != 61 && next_c != 47 && next_c != 42 { div_found = 1; };
+                    };
+                    if bc == 37 {
+                        let next_m: i64 = if bp + 1 < blen { str_char_at(body, bp + 1) } else { 32 };
+                        if next_m != 61 { mod_found = 1; };
+                    };
+                    bp = bp + 1;
+                };
+                if div_found == 1 {
+                    let msg_div: str = str_concat("integer `/` divide can panic on divisor=0; `", str_concat(fn_name, "` is marked #[no_panic] (use `checked_div` for explicit handling, or `#[allow_fn(RT-009)]` when divisor is provably non-zero)"));
+                    diag_add_ex(diags, "warning", "rt", "RT-009", msg_div, fn_name, 0, 0, "");
+                };
+                if mod_found == 1 {
+                    let msg_mod: str = str_concat("integer `%` modulo can panic on divisor=0; `", str_concat(fn_name, "` is marked #[no_panic] (use `checked_rem` for explicit handling, or `#[allow_fn(RT-009)]` when divisor is provably non-zero)"));
+                    diag_add_ex(diags, "warning", "rt", "RT-009", msg_mod, fn_name, 0, 0, "");
                 };
             };
             return;
