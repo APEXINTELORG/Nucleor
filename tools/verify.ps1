@@ -2777,6 +2777,59 @@ Step "v0.5 Track L content-addressed cache v2 correctness" {
     $out5 = (& $bin build $tmpSrc -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) | Out-String
     if ($LASTEXITCODE -ne 0) { Write-Host $out5; return $false }
     if ($out5 -notmatch "cache: miss -> stored") { Write-Host $out5; return $false }
+
+    # R10-D4 Phase 2: strict-arith is a behavior-changing codegen env.
+    # Flipping it must change the cache key, then flipping back must
+    # hit the original cache entry.
+    function Get-CacheShaFromOutput([string]$Text) {
+        $m = [regex]::Match($Text, "sha=([^,\)]+)")
+        if ($m.Success) { return $m.Groups[1].Value }
+        return ""
+    }
+
+    Remove-Item -Recurse -Force (Join-Path $root "target\.nuc_cache_v2") -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $root ".nuc_cache") -ErrorAction SilentlyContinue
+    $oldStrictIntrin = $env:NUCLEOR_INT_STRICT_INTRIN
+    $oldStrictArith = $env:NUCLEOR_INT_STRICT_ARITH
+    try {
+        $env:NUCLEOR_INT_STRICT_INTRIN = "1"
+        Remove-Item Env:\NUCLEOR_INT_STRICT_ARITH -ErrorAction SilentlyContinue
+        $out6 = (& $bin build "tests/features/cache_strict_arith_key_smoke.nr" -o "_cache_strict_arith_key" --no-link --cache-stats 2>&1) | Out-String
+        $out6 = $out6.Replace("`r", "")
+        if ($LASTEXITCODE -ne 0) { Write-Host $out6; return $false }
+        if ($out6 -notmatch "cache: miss -> stored") { Write-Host $out6; return $false }
+        if ($out6 -notmatch "cache stats: hits=0 misses=1") { Write-Host $out6; return $false }
+        $shaUnset = Get-CacheShaFromOutput $out6
+        if ([string]::IsNullOrWhiteSpace($shaUnset)) { Write-Host "could not parse unset strict-arith cache sha"; Write-Host $out6; return $false }
+
+        $env:NUCLEOR_INT_STRICT_ARITH = "1"
+        $out7 = (& $bin build "tests/features/cache_strict_arith_key_smoke.nr" -o "_cache_strict_arith_key" --no-link --cache-stats 2>&1) | Out-String
+        $out7 = $out7.Replace("`r", "")
+        if ($LASTEXITCODE -ne 0) { Write-Host $out7; return $false }
+        if ($out7 -notmatch "cache: miss -> stored") { Write-Host $out7; return $false }
+        if ($out7 -notmatch "cache stats: hits=0 misses=1") { Write-Host $out7; return $false }
+        $shaStrict = Get-CacheShaFromOutput $out7
+        if ([string]::IsNullOrWhiteSpace($shaStrict)) { Write-Host "could not parse strict-arith cache sha"; Write-Host $out7; return $false }
+        if ($shaUnset -eq $shaStrict) {
+            Write-Host "NUCLEOR_INT_STRICT_ARITH did not change cache sha ($shaUnset)"
+            return $false
+        }
+
+        Remove-Item Env:\NUCLEOR_INT_STRICT_ARITH -ErrorAction SilentlyContinue
+        $out8 = (& $bin build "tests/features/cache_strict_arith_key_smoke.nr" -o "_cache_strict_arith_key" --no-link --cache-stats 2>&1) | Out-String
+        $out8 = $out8.Replace("`r", "")
+        if ($LASTEXITCODE -ne 0) { Write-Host $out8; return $false }
+        if ($out8 -notmatch "cache: hit") { Write-Host $out8; return $false }
+        if ($out8 -notmatch "cache stats: hits=1 misses=0") { Write-Host $out8; return $false }
+        $shaUnsetAgain = Get-CacheShaFromOutput $out8
+        if ($shaUnsetAgain -ne $shaUnset) {
+            Write-Host "strict-arith unset did not return to original cache sha ($shaUnsetAgain vs $shaUnset)"
+            return $false
+        }
+    } finally {
+        if ($null -eq $oldStrictIntrin) { Remove-Item Env:\NUCLEOR_INT_STRICT_INTRIN -ErrorAction SilentlyContinue } else { $env:NUCLEOR_INT_STRICT_INTRIN = $oldStrictIntrin }
+        if ($null -eq $oldStrictArith) { Remove-Item Env:\NUCLEOR_INT_STRICT_ARITH -ErrorAction SilentlyContinue } else { $env:NUCLEOR_INT_STRICT_ARITH = $oldStrictArith }
+    }
     return $true
 }
 

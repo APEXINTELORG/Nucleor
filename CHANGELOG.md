@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.318] — 2026-05-05
+
+**R10-D4 Phase 2 — executable strict-arith cache-key acceptance gate.**
+
+### Fixed
+
+- `tools/verify.sh`, `tools/verify_fast.sh`, and `tools/verify.ps1` now
+  prove the R10-D4 cache-key contract directly:
+  unset `NUCLEOR_INT_STRICT_ARITH` stores a cache miss, enabling
+  `NUCLEOR_INT_STRICT_ARITH=1` stores a second miss with a different SHA,
+  and unsetting it again hits the original cache entry.
+- The bash gates now use a WSL-aware Windows `.exe` bridge for this check.
+  When `bash` is running under WSL but the compiler is `bin/nucleor.exe`,
+  the strict-arith env vars are set through `cmd.exe` so the actual Windows
+  process receives them. Plain `VAR=1 ./bin/nucleor.exe` only affects the
+  WSL interop bridge and can create false same-cache evidence.
+- Captured cache output is normalized before matching so Windows CRLF text
+  does not create brittle false failures.
+
+### Notes
+
+- No compiler, runtime, binary, or bootstrap artifacts changed. The compiler
+  cache-key fix itself shipped in v0.8.296; this release turns the manual
+  acceptance proof into a committed gate.
+- Helper assignments are now explicit: helper1 owns the findings-only
+  cross-rod extern ABI arity sweep, and helper2 owns the findings-only
+  R10-D3 POSIX perf/repro parity audit with the WSL/native-Linux RSS boundary.
+
+### Validation
+
+- `bash tools/verify.sh --only "v0.5 Track L content-addressed cache v2 correctness"` passed.
+- `bash tools/verify_fast.sh --only "v0.5 Track L content-addressed cache v2 correctness"` passed.
+- `bash tools/check_compiler_drift.sh` passed.
+- `bash -n tools/verify.sh tools/verify_fast.sh` passed.
+- PowerShell parser check for `tools\verify.ps1` passed.
+- `git diff --check` passed.
+- `pwsh -NoProfile -File tools\check_perf_regression.ps1` passed:
+  cold `3.70s`, hot `0.27s`, cold process-tree memory `307MB`,
+  cold compiler memory `293MB`, hot process-tree memory `31MB`,
+  hot compiler memory `17MB`.
+
 ## [0.8.317] — 2026-05-05
 
 **R10-D5 Phase 2 — split compiler/process-tree memory accounting.**

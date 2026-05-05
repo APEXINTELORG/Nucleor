@@ -5082,7 +5082,42 @@ num024_audit_zero() {
 cache_v2_correctness() {
     rm -rf "$ROOT/target/.nuc_cache_v2" "$ROOT/.nuc_cache" 2>/dev/null || true
 
-    local out1 out2 out3 out4 out5 tmp_src
+    local out1 out2 out3 out4 out5 out6 out7 out8 tmp_src sha_unset sha_strict sha_unset_again
+    _cache_v2_contains_text() {
+        case "$1" in
+            *"$2"*) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+    _cache_v2_fail() {
+        printf '       FAIL: %s\n' "$1"
+        printf '%s\n' "$2" | sed 's/^/       /'
+    }
+    _cache_v2_build_strict_arith_smoke() {
+        local strict_arith="$1"
+        if command -v wslpath >/dev/null 2>&1; then
+            case "$(uname -s):$BIN" in
+                Linux*:*.exe)
+                    local root_win cmd
+                    root_win="$(wslpath -w "$ROOT")"
+                    cmd="cd /d $root_win && set NUCLEOR_INT_STRICT_INTRIN=1&& "
+                    if [ "$strict_arith" = "1" ]; then
+                        cmd="${cmd}set NUCLEOR_INT_STRICT_ARITH=1&& "
+                    else
+                        cmd="${cmd}set NUCLEOR_INT_STRICT_ARITH=&& "
+                    fi
+                    cmd="${cmd}bin\\nucleor.exe build tests\\features\\cache_strict_arith_key_smoke.nr -o _cache_strict_arith_key --no-link --cache-stats"
+                    cmd.exe /C "$cmd"
+                    return "$?"
+                    ;;
+            esac
+        fi
+        if [ "$strict_arith" = "1" ]; then
+            NUCLEOR_INT_STRICT_ARITH=1 NUCLEOR_INT_STRICT_INTRIN=1 "$BIN" build "tests/features/cache_strict_arith_key_smoke.nr" -o "_cache_strict_arith_key" --no-link --cache-stats
+        else
+            env -u NUCLEOR_INT_STRICT_ARITH NUCLEOR_INT_STRICT_INTRIN=1 "$BIN" build "tests/features/cache_strict_arith_key_smoke.nr" -o "_cache_strict_arith_key" --no-link --cache-stats
+        fi
+    }
     out1=$("$BIN" build "tests/features/cache_v2_round_trip.nr" -o "_cache_v2_round_trip" --no-link --cache-stats 2>&1) || {
         echo "$out1" | sed 's/^/       /'
         return 1
@@ -5125,6 +5160,47 @@ cache_v2_correctness() {
         return 1
     }
     echo "$out5" | grep -q "cache: miss -> stored" || { echo "$out5" | sed 's/^/       /'; return 1; }
+
+    # R10-D4 Phase 2: strict-arith is a behavior-changing codegen env.
+    # Flipping it must change the cache key, then flipping back must
+    # hit the original cache entry.
+    rm -rf "$ROOT/target/.nuc_cache_v2" "$ROOT/.nuc_cache" 2>/dev/null || true
+    out6=$(_cache_v2_build_strict_arith_smoke 0 2>&1) || {
+        echo "$out6" | sed 's/^/       /'
+        return 1
+    }
+    out6=${out6//$'\r'/}
+    _cache_v2_contains_text "$out6" "cache: miss -> stored" || { _cache_v2_fail "strict-arith unset build did not store a miss" "$out6"; return 1; }
+    _cache_v2_contains_text "$out6" "cache stats: hits=0 misses=1" || { _cache_v2_fail "strict-arith unset build had unexpected cache stats" "$out6"; return 1; }
+    sha_unset=$(printf '%s\n' "$out6" | sed -n 's/.*sha=\([^,)]*\).*/\1/p' | tr -d '[:space:]' | tail -1)
+    [ -n "$sha_unset" ] || { _cache_v2_fail "could not parse unset strict-arith cache sha" "$out6"; return 1; }
+
+    out7=$(_cache_v2_build_strict_arith_smoke 1 2>&1) || {
+        echo "$out7" | sed 's/^/       /'
+        return 1
+    }
+    out7=${out7//$'\r'/}
+    _cache_v2_contains_text "$out7" "cache: miss -> stored" || { _cache_v2_fail "strict-arith enabled build did not store a miss" "$out7"; return 1; }
+    _cache_v2_contains_text "$out7" "cache stats: hits=0 misses=1" || { _cache_v2_fail "strict-arith enabled build had unexpected cache stats" "$out7"; return 1; }
+    sha_strict=$(printf '%s\n' "$out7" | sed -n 's/.*sha=\([^,)]*\).*/\1/p' | tr -d '[:space:]' | tail -1)
+    [ -n "$sha_strict" ] || { _cache_v2_fail "could not parse strict-arith cache sha" "$out7"; return 1; }
+    [ "$sha_unset" != "$sha_strict" ] || {
+        echo "       FAIL: NUCLEOR_INT_STRICT_ARITH did not change cache sha ($sha_unset)"
+        return 1
+    }
+
+    out8=$(_cache_v2_build_strict_arith_smoke 0 2>&1) || {
+        echo "$out8" | sed 's/^/       /'
+        return 1
+    }
+    out8=${out8//$'\r'/}
+    _cache_v2_contains_text "$out8" "cache: hit" || { _cache_v2_fail "strict-arith unset rebuild did not hit the original cache entry" "$out8"; return 1; }
+    _cache_v2_contains_text "$out8" "cache stats: hits=1 misses=0" || { _cache_v2_fail "strict-arith unset rebuild had unexpected cache stats" "$out8"; return 1; }
+    sha_unset_again=$(printf '%s\n' "$out8" | sed -n 's/.*sha=\([^,)]*\).*/\1/p' | tr -d '[:space:]' | tail -1)
+    [ "$sha_unset_again" = "$sha_unset" ] || {
+        echo "       FAIL: strict-arith unset did not return to original cache sha ($sha_unset_again vs $sha_unset)"
+        return 1
+    }
     return 0
 }
 
