@@ -11227,7 +11227,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "RT-001") { return "Allocation in #[no_alloc] function"; };
     if str_eq(code, "RT-002") { return "Possibly-panicking expression in #[no_panic] function"; };
     if str_eq(code, "RT-003") { return "Dynamic dispatch in #[no_dyn] function"; };
-    if str_eq(code, "RT-004") { return "Static WCET exceeds declared #[deadline]"; };
+    if str_eq(code, "RT-004") { return "Heuristic deadline estimate exceeds declared #[deadline] (NOT certified WCET)"; };
     if str_eq(code, "RT-005") { return "FFI call in RT function without #[ffi_no_*] annotation"; };
     if str_eq(code, "RT-006") { return "RT attribute on async fn"; };
     if str_eq(code, "ASYNC-001") { return "`async` keyword on fn is silently stripped (v0.5 has no Future/.await; use async_spawn + async_await for threading)"; };
@@ -11478,7 +11478,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "RT-001") { return "A #[no_alloc] function called something that allocates from the global heap."; };
     if str_eq(code, "RT-002") { return "A #[no_panic] function contains an expression the compiler cannot prove is panic-free."; };
     if str_eq(code, "RT-003") { return "A #[no_dyn] function uses dynamic (vtable) dispatch via dyn Trait."; };
-    if str_eq(code, "RT-004") { return "Static WCET analysis estimates the function exceeds its declared #[deadline]."; };
+    if str_eq(code, "RT-004") { return "A HEURISTIC compile-time estimator (statement-counter + coarse loop multiplier) flags this function as likely to exceed its declared #[deadline]. RT-004 is NOT certified WCET — it does not model callee cost, ISA, cache, or branch prediction. Use #[allow(RT-004)] / #[allow_fn(RT-004)] when the estimate is wrong; treat the runtime deadline check as the actual contract. Certified WCET is Phase 2 (RFC-0001 §Heuristic vs certified WCET, audit R03-D3)."; };
     if str_eq(code, "RT-005") { return "An RT-tagged function called an extern fn lacking #[ffi_no_alloc] or #[ffi_no_panic]."; };
     if str_eq(code, "RT-006") { return "RT attributes (#[no_alloc], #[deadline] etc.) cannot be applied to async fn — async semantics break the deadline guarantee."; };
     if str_eq(code, "ASYNC-001") { return "Pre-v0.5.19 `async fn foo() { ... }` was silently stripped to `fn foo()` and ran sync immediately. Adopters writing the canonical Rust async pattern got immediate execution with no signal. Nucleor v0.5 has no Future / .await polling; threading is via `async_spawn(fn_ptr, arg)` + `async_await(handle)` (RFC-0027 phase 1). Either drop the `async` keyword for sync fns, or call `async_spawn` to actually thread."; };

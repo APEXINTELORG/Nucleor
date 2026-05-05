@@ -376,11 +376,39 @@ allocation-free.
 | `RT-001` | Allocation in `#[no_alloc]` function |
 | `RT-002` | Possibly-panicking expression in `#[no_panic]` function |
 | `RT-003` | Dynamic dispatch in `#[no_dyn]` function |
-| `RT-004` | Static WCET exceeds declared `#[deadline]` |
+| `RT-004` | Heuristic deadline estimate exceeds declared `#[deadline]` (NOT certified WCET — see §"Heuristic vs certified WCET" below) |
 | `RT-005` | FFI call in RT function without `#[ffi_no_*]` annotation |
 | `RT-006` | RT attribute on an `async fn` (rejected; async is non-RT) |
 | `RT-007` | Deadline annotation without `no_alloc` or `no_panic` (warning) |
 | `RT-008` | Recursive call in `#[deadline]` function (warning; bounded recursion OK if `#[max_depth = N]`) |
+
+### Heuristic vs certified WCET (R03-D3, v0.8.289)
+
+RT-004 today is a **heuristic deadline-overrun estimate, NOT a
+certified WCET model.** The pass at `nucleor_s1_compiler.nr` (T3.3,
+shipped v0.3.2) counts statement terminators and applies a coarse
+loop multiplier to estimate µs cost. It deliberately does NOT
+model:
+
+- callee cost (helpers / rod calls are invisible — an `O(n)`
+  helper inside a tight loop does not contribute to the estimate),
+- ISA / cache / branch-prediction effects,
+- string-literal `;` or comment-`while` (false-positive surface),
+- non-loop control-flow weight (`if` arms, `match`, recursion).
+
+The estimator's job is to flag bodies that *look* expensive
+relative to `#[deadline]` so adopters investigate before shipping;
+it is NOT a guarantee. Users should suppress with
+`#[allow(RT-004)]` (file-wide) or `#[allow_fn(RT-004)]` (per-fn)
+when the estimate is wrong, and treat the runtime deadline check
+(hardware-timer trap on overrun) as the actual real-time
+contract.
+
+A certified WCET / cost-table pass (Heptane / IRISA-style or a
+Nucleor-native cost-table contract) is Phase 2 work tracked under
+this RFC. When it lands, RT-004 will split into two diagnostics
+(`RT-004-heuristic` warning + `RT-004-certified` error), with the
+heuristic remaining as a fast early signal.
 
 ---
 
