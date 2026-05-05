@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2783
-# Total LOC: 11853
+# Total fn definitions: 2787
+# Total LOC: 11869
 
 [[rod]]
 name           = "activation2"
@@ -1032,9 +1032,9 @@ imports        = []
 name           = "kinematics_frame"
 path           = "stdlib/rods/kinematics_frame.nr"
 description    = "RFC-0046 Phase A: coordinate-frame"
-function_count = 11
+function_count = 15
 cfile_count    = 0
-loc            = 35
+loc            = 51
 imports        = ["kinematics_frame"]
 
 [[rod]]

@@ -5,6 +5,98 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.267] — 2026-05-05
+
+**R07-D1 Phase 1 — runtime frame-check helpers + adopter pattern.**
+Closes the runtime layer of the audit's #2 priority pillar (R07
+robotics control); compile-time TYP-008 type-checker enforcement
+remains Phase 2 per RFC-0046 Phase B (~200 LOC compiler edit).
+
+### Bug
+
+Pre-v0.8.267 RFC-0046 Phase A shipped only the marker structs
+(`Frame_Camera`, `Frame_Base`, etc.) + numeric IDs + lenient
+`kinematics_frame_compatible` (which let `unknown` match anything).
+Adopters could mix camera-frame and base-frame poses with no
+compile-time AND no strict runtime rejection — the **Mars Climate
+Orbiter failure mode**, audit-classified CRITICAL.
+
+### Fix (Phase 1, additive — rod-only, no compiler edit)
+
+`stdlib/rods/kinematics_frame.nr` adds 4 helper functions:
+
+| Helper | Returns | Use |
+|---|---|---|
+| `kinematics_frame_compatible_strict(a, b)` | 1 if `a == b` else 0 | unlike lenient `kinematics_frame_compatible`, rejects `unknown` against anything except itself |
+| `kinematics_frame_assert(pose_id, expected_id)` | 1 on match, 0 on mismatch | gate the production correctness path |
+| `kinematics_frame_require(pose_id, expected_id)` | `expected_id` on match, `-1` on mismatch | chainable; lets adopters write `require(p, EXPECTED) != -1` |
+| `kinematics_frame_check_pair(a_id, b_id)` | 1 if both match else 0 | pre-compose check for Pose-Pose ops |
+
+### Adopter pattern (Phase 1)
+
+```nucleor
+import "stdlib/rods/kinematics_frame.nr"
+
+// Track (pose_handle, frame_id) as a tuple in adopter code.
+let cam_frame: i64 = kinematics_frame_id_camera();
+let pose_h: i64 = pose_new(...);
+
+// Before consuming pose in a base-frame operation, assert:
+let base_frame: i64 = kinematics_frame_id_base();
+if kinematics_frame_assert(cam_frame, base_frame) == 0 {
+    // mismatch — abort or transform first
+    return -1;
+};
+// safe to consume
+```
+
+Phase 2 (compiler-side TYP-008) makes the `kinematics_frame_assert`
+check a **compile-time error** for typed `Pose<F>` callers. The
+runtime helper layer remains as the opt-out `unsafe`-style escape.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **`Pose<Camera>` cannot be consumed as `Pose<Base>` without explicit transform** | ✅ Phase 1 — at runtime via `kinematics_frame_assert`/`require`; ⏳ Phase 2 — compile-time TYP-008 |
+| **Cold compile ≤ 4s** | ✅ unchanged (no compiler edit) |
+| **`tests/err/err_pose_frame_mismatch.nr`** | ⏳ Phase 2 — requires compile-time emission |
+
+### Coverage
+
+`tests/features/pose_frame_check_smoke.nr` locks 6 invariants:
+
+| Test | Path |
+|---|---|
+| **Strict-compat self-match** | `compatible_strict(camera, camera) == 1` |
+| **Strict-compat distinct rejects** | `compatible_strict(camera, base) == 0` (Mars-Climate-Orbiter scenario) |
+| **Strict-compat unknown does NOT pass** | unlike lenient mode, `compatible_strict(unknown, camera) == 0` |
+| **frame_assert match** | match → 1, mismatch → 0 |
+| **frame_require match returns expected** | match → expected_id, mismatch → -1 |
+| **frame_check_pair** | both match → 1, mismatch → 0 |
+
+Existing `kinematics_frame_smoke.nr` (RFC-0046 Phase A audit)
+regression-clean.
+
+### No compiler edit → self-host fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R07-D1)
+
+Remove the 4 helper fns from `stdlib/rods/kinematics_frame.nr`;
+delete the new fixture. The Phase A marker audit fixture is
+unaffected.
+
+### Next R07 ships (per audit ship sequence R07-D1 → R07-D2 → R07-D3 → R07-D4)
+
+| # | Phase | Scope |
+|---|---|---|
+| 2 | R07-D2 (HIGH) | typed TF API layer — wrappers around raw integer frame IDs |
+| 3 | R07-D3 (HIGH) | end-to-end IK→planner→trajectory typed-correctness fixture |
+| 4 | R07-D4 (MEDIUM) | TOPP/AHRS/CHOMP limitation diagnostics surfaced |
+| Phase 2 | R07-D1 Phase 2 | compile-time TYP-008 frame-mismatch error per RFC-0046 Phase B (~200 LOC compiler edit) |
+
 ## [0.8.266] — 2026-05-05
 
 **R14-D4 Phase 1 — LAW explain text honesty cleanup + LAW-006/007/008 reservations.**
