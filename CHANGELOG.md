@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.208] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — math_typed + jsonl.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### math_typed rod (typed f64 elementary math wrappers)
+
+`tests/features/math_typed_smoke.nr` locks four textbook
+elementary-function fixed points (sister to math_typed_special
+shipped v0.8.205):
+
+| Test | Path |
+|---|---|
+| sqrt(4) == 2; sqrt(9) == 3 | square-root of perfect squares |
+| exp(0) == 1 | e⁰ = 1 |
+| log(1) == 0 | ln(1) = 0 |
+| **pow(2, 10) == 1024** | base^exp identity |
+
+### jsonl rod (NUC-IMPROVE-003 evidence emitter)
+
+`tests/features/jsonl_smoke.nr` locks four `jsonl_quote`
+escaping invariants — Python parity runners parse via
+`json.loads` and break on bad escaping:
+
+| Test | Path |
+|---|---|
+| Plain ASCII | quote("hi") == `"hi"` |
+| Backslash escape | input `a\b` → output `\\` (escaped backslash) |
+| Double-quote escape | input `a"b` → output `\"` |
+| **Newline escape** | input embedded \n → output `\n` (visible, not raw) |
+
+All pass. rc=0.
+
 ## [0.8.207] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — json + log.**
