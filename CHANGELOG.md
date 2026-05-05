@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.302] — 2026-05-05
+
+**Codebase quality — file-wide `#[allow(PERF-3)]` on `nucleor_s1_compiler.nr` (suppress 56 legitimate sites).**
+
+### Bug
+
+v0.8.298 shipped PERF-3 (HeapInLoop) — `Vec::new` inside
+`while`/`loop` blocks. Counted 56 sites in the compiler's own
+source (`lex` / `parse_*` / `expect_tok` / etc.). Each is
+intentional: bounded per-token / per-stmt allocation while
+building the AST, not a per-iteration leak. The 56 warnings
+clouded any real adopter signal during self-host builds.
+
+### Fix
+
+Added `#[allow(PERF-3)]` (file-wide) at the top of
+`compiler/nucleor_s1_compiler.nr`. The existing
+`filter_allow_suppressed` mechanism (line 10708) reads
+`#[allow(CODE)]` tokens from the source and drops matching
+warnings before output.
+
+### Tests
+
+- Self-build now emits 0 PERF-3 warnings (was 56). Verified via
+  fresh-cache `nuc build compiler/nucleor_s1_compiler.nr | grep
+  -c PERF-3` → `0`.
+- Adopter code without `#[allow(PERF-3)]` still triggers PERF-3
+  on legitimate hits (verified earlier in v0.8.298's
+  `tests/features/perf_heap_in_loop_smoke.nr`).
+
+### Self-host fixed-point
+
+**Unchanged at `be108d37860467329bdd830bbbe74406`** — the
+`#[allow(...)]` token affects only diagnostic filtering, not
+generated IR. Pure quality-of-output ship.
+
 ## [0.8.301] — 2026-05-05
 
 **R12-D7 Phase 1.5 — 3-way import cycle test (broadens v0.8.294 coverage).**
