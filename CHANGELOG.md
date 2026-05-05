@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.122] — 2026-05-04
+
+**stdlib/rods/fs.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+`fs.nr` (file exists / is_file / is_dir / size / rename /
+remove / read / write + path helpers join/ext/stem/parent/
+filename) had no existing tests.
+
+`tests/features/fs_smoke.nr` locks three invariant classes
+(in-tree under `target/_fs_smoke_tmp*.txt`, cleaned at exit):
+
+| Test | Invariant |
+|---|---|
+| path helpers | `fs_path_ext("foo.txt") == ".txt"`, `fs_path_ext("foo") == ""`, `fs_path_stem("foo.txt") == "foo"`, `fs_path_filename("a/b/c.txt") == "c.txt"`, parent/join accept either separator |
+| write + read round-trip | write → exists/is_file/size/read all consistent; is_dir 0 |
+| remove | write then remove → subsequent exists is 0 |
+
+All pass. rc=0. Cold 0.65s.
+
+Catches silent regressions in path-helper edges, file-type
+predicates, byte-exact write/read, remove semantics.
+
+## [0.8.121] — 2026-05-04
+
+**Perf: `str_eq_at_len` helper for hot source scans.**
+Probe-authored (16b815c3), main-agent merged + integrated
+(8a7c87bb).
+
+Replaces hot `str_eq_at(...)` call sites where the needle
+length was already precomputed, eliminating redundant strlen
+calls per comparison.
+
+### Validation
+
+- Fixed-point seed md5: `55A5C8015BDC5B397FE57E0C04A657A4A1494459FE0F5747885516C3785603D2`
+- Cold: 3.67s (canonical gate, after cache/target clear)
+- Hot: 0.41s; peak 321 MB
+- bin/nucleor.exe regenerated; canary T-3 fixture passed rc=130
+
+Host/clang jitter on individual direct samples noted; canonical
+gate landed back in the 3-second regime.
+
 ## [0.8.120] — 2026-05-05
 
 **Rust stdlib namespace path auto-strip in type-annotation position.**
