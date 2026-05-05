@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.304] — 2026-05-05
+
+**R11-D1 Phase 1 — qsim state-surface disclosure (`qsim_max_qubits()` / `qsim_supports_n_qubits()` / `qsim_limitations()`).**
+
+### Bug
+
+`stdlib/rods/quantum.nr` exposes `qsim_init(n: i64)` but adopters
+can't query the safe qubit-count cap, can't readout amplitudes
+through a typed accessor, and can't tell what's missing without
+trial-and-error. Audit-classified HIGH (R11-D1) per
+`BUILD_PLAN_R11_quantum_subsystem.md` §1.
+
+### Fix (Phase 1, audit's "expose state query" path)
+
+`stdlib/rods/quantum.nr` adds:
+- `qsim_max_qubits() -> i64` — returns 24 (256 MB working set
+  bound).
+- `qsim_supports_n_qubits(n) -> i64` — adopter check before
+  `qsim_init`.
+- `qsim_limitations() -> str` — names the 4 gaps (hard cap,
+  no safe statevec accessor, no density-matrix backend, no noise
+  model). Phase 2 ships safe statevec readout per audit ship plan.
+
+### Tests
+
+`tests/features/qsim_state_disclosure_smoke.nr` — 6 invariants
+covering cap value, supported/rejected n, and limitations text.
+
+### Self-host fixed-point
+
+`be108d37860467329bdd830bbbe74406` (preserved — stdlib-rod-only).
+
 ## [0.8.303] — 2026-05-05
 
 **Codebase quality — file-wide `#[allow(PERF-3)]` on `nucleor_tools_suite.nr` (suppress 26 legitimate sites).**
