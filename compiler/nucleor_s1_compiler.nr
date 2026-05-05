@@ -11120,11 +11120,14 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TGT-002") == 1 { return 1; };
     if str_eq(code, "TGT-003") == 1 { return 1; };
     if str_eq(code, "TGT-004") == 1 { return 1; };
-    // RFC-0031 algebraic laws
+    // RFC-0031 algebraic laws (R14 reservations through Phase 2)
     if str_eq(code, "LAW-001") == 1 { return 1; };
     if str_eq(code, "LAW-002") == 1 { return 1; };
     if str_eq(code, "LAW-003") == 1 { return 1; };
     if str_eq(code, "LAW-004") == 1 { return 1; };
+    if str_eq(code, "LAW-006") == 1 { return 1; };
+    if str_eq(code, "LAW-007") == 1 { return 1; };
+    if str_eq(code, "LAW-008") == 1 { return 1; };
     // RFC-0032 effects
     if str_eq(code, "EFF-001") == 1 { return 1; };
     if str_eq(code, "EFF-002") == 1 { return 1; };

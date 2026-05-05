@@ -11412,11 +11412,14 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "Mutually-recursive max_depth cycle violates bounds"; };
     if str_eq(code, "DEPTH-004") { return "Invalid #[max_depth] attribute placement or value"; };
     if str_eq(code, "DEPTH-005") { return "Total stack budget exceeded"; };
-    // RFC-0031 laws
-    if str_eq(code, "LAW-001") { return "Property test fails (auto-generated from @law)"; };
-    if str_eq(code, "LAW-002") { return "SMT disproves law"; };
-    if str_eq(code, "LAW-003") { return "Law cited but optimizer cannot use it"; };
-    if str_eq(code, "LAW-004") { return "Float operation claimed exact associative (warn)"; };
+    // RFC-0031 laws (R14 audit reservations)
+    if str_eq(code, "LAW-001") { return "Property test fails (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-002") { return "SMT disproves law (RESERVED — Phase 3 not shipped)"; };
+    if str_eq(code, "LAW-003") { return "Law cited but optimizer cannot use it (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-004") { return "Float operation claimed exact associative (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-006") { return "Deprecated alias `zero = Z`; use `absorbing = Z` (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-007") { return "Deprecated alias bare `distributive`; use `distributive_over = g` (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-008") { return "Unrecognized law name (RESERVED — Phase 2 not shipped)"; };
     // RFC-0032 effects
     if str_eq(code, "EFF-001") { return "Function uses effect not in declared row"; };
     if str_eq(code, "EFF-002") { return "pure fn calls effectful fn"; };
@@ -11637,10 +11640,13 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
     if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
     if str_eq(code, "DEPTH-005") { return "Sum of (max_depth_i * estimated_frame_size_i) along a recursion chain exceeds the project's stack budget."; };
-    if str_eq(code, "LAW-001") { return "RFC-0031 generates a property test from each @law. The test ran ~1000 random inputs and found a counterexample. Adjust the law's eps, mark @law(approximate), or remove the false claim."; };
-    if str_eq(code, "LAW-002") { return "In --profile=cert, RFC-0031 routes laws through Z3/CVC5 for proof. The SMT solver disproved the law and produced a counterexample."; };
-    if str_eq(code, "LAW-003") { return "An @law citation pointed at a law the optimizer can't pattern-match. Either rewrite the law in a canonical form or remove the citation."; };
-    if str_eq(code, "LAW-004") { return "Float operations are not exactly associative; claiming `a + (b + c) == (a + b) + c` for f32/f64 in --profile=cert without an explicit eps is rejected."; };
+    if str_eq(code, "LAW-001") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will generate a property test (~1000 random inputs) per @law and emit LAW-001 on counterexample. Phase 1 (v0.8.262/265) only captures @law at lex and provides an optimizer scaffold; no property tests run today. If you want to assert a law, write your own #[test] that exercises the property until Phase 2 ships."; };
+    if str_eq(code, "LAW-002") { return "RESERVED diagnostic. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. Phase 1 (v0.8.265) does not run any solver; LAW-002 is reserved for future emission."; };
+    if str_eq(code, "LAW-003") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will pattern-match @law citations during optimizer pass; today the law-rewrite pass is a metadata-only no-op (v0.8.265). LAW-003 is reserved for the rewrite pass once it has real semantics."; };
+    if str_eq(code, "LAW-004") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. Today the diagnostic is not enforced; the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md) lists eps as a modifier for floats."; };
+    if str_eq(code, "LAW-006") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject the deprecated alias `zero = Z`; use the canonical `absorbing = Z`. The schema migration table is at docs/spec/Nucleor_Algebraic_Laws_Schema.md §3."; };
+    if str_eq(code, "LAW-007") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject the deprecated bare `distributive`; use the canonical `distributive_over = g` (the partner operator is required). See docs/spec/Nucleor_Algebraic_Laws_Schema.md §3."; };
+    if str_eq(code, "LAW-008") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). Suggest a canonical spelling. See docs/spec/Nucleor_Algebraic_Laws_Schema.md §1."; };
     if str_eq(code, "EFF-001") { return "RFC-0032 effect rows are checked at type-check. The function body uses an effect (io.read, alloc, etc.) not declared in its signature's `+ effect_row`."; };
     if str_eq(code, "EFF-002") { return "pure fn cannot perform side effects. Either remove the call, mark the callee pure, or remove the pure annotation from the caller."; };
     if str_eq(code, "EFF-003") { return "restricts [...] forbids the listed effects in the callee. The callee uses an effect on the restrict list."; };
@@ -11855,10 +11861,13 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
     if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };
     if str_eq(code, "DEPTH-005") { return "RFC-0014 stack-budget check multiplies declared depth by estimated frame size. Reduce locals/frame size, reduce N, or convert recursion to iteration."; };
-    if str_eq(code, "LAW-001") { return "RFC-0031 §3.2 — @law generates a property test that runs ~1000 random inputs of the relevant type. The test failed with a concrete counterexample. Common causes: float associativity is not exact (use eps tolerance), commutativity violated by side effects (mark fn pure), or the law is simply wrong."; };
-    if str_eq(code, "LAW-002") { return "RFC-0031 §3.4 — in --profile=cert, laws are SMT-proved by Z3 or CVC5. The solver returned UNSAT, meaning the law does not hold."; };
-    if str_eq(code, "LAW-003") { return "RFC-0031 — @law(use=other_law) cited a law the optimizer pattern-matcher cannot recognize. Either rewrite the original law in canonical form (LHS = RHS with simple structure) or remove the citation."; };
-    if str_eq(code, "LAW-004") { return "RFC-0031 §3.3 — IEEE 754 add/mul are not exactly associative. Claiming `(a + b) + c == a + (b + c)` for f32/f64 in --profile=cert without an explicit eps is a likely correctness bug. Add eps=<tolerance> or mark @law(approximate)."; };
+    if str_eq(code, "LAW-001") { return "RESERVED. Phase 2 of RFC-0031 (R14 audit-driven build arc) will generate a property test (~1000 random inputs) per @law and emit LAW-001 on counterexample. As of v0.8.265 (Phase 1) the compiler captures @law at lex (R14-D1) and ships an optimizer-pass scaffold (R14-D2) that does NOT run any property tests. Adopters who need a real property test today must hand-write a #[test] until Phase 2 lands."; };
+    if str_eq(code, "LAW-002") { return "RESERVED. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. As of v0.8.265 (Phase 1) no solver runs; LAW-002 is reserved for future emission."; };
+    if str_eq(code, "LAW-003") { return "RESERVED. Phase 2 of RFC-0031 will pattern-match @law citations during the optimizer's law-rewrite pass. As of v0.8.265 the law-rewrite pass (`opt_law_rewrite_block`) is a metadata-only no-op; LAW-003 is reserved for emission once the rewrite path has real semantics."; };
+    if str_eq(code, "LAW-004") { return "RESERVED. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. The canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md §2) lists `eps = T` as the modifier for floats. As of v0.8.265 the diagnostic is not emitted."; };
+    if str_eq(code, "LAW-006") { return "RESERVED. Phase 2 of R14-D5 will reject the deprecated alias `zero = Z`; rename to `absorbing = Z` per the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md §3). As of v0.8.265 (Phase 1, locked schema) the alias is still accepted at lex but documented deprecated."; };
+    if str_eq(code, "LAW-007") { return "RESERVED. Phase 2 of R14-D5 will reject bare `distributive` (the partner operator is required); rename to `distributive_over = g` per the canonical schema. As of v0.8.265 the alias is documented deprecated."; };
+    if str_eq(code, "LAW-008") { return "RESERVED. Phase 2 of R14-D5 will reject any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). As of v0.8.265 (Phase 1) unknown names are still consumed by the generic @attr skip path; the canonical set is locked at docs/spec/Nucleor_Algebraic_Laws_Schema.md §1."; };
     if str_eq(code, "EFF-001") { return "RFC-0032 §3.1 — every function carries an effect row. Use a function with effects requires the caller to permit those effects. Either declare the effects in the caller's row or remove the call."; };
     if str_eq(code, "EFF-002") { return "RFC-0032 §3.2 — pure fn means no side effects (io, alloc, random, time, panic). The compiler can prove the call violates this."; };
     if str_eq(code, "EFF-003") { return "RFC-0032 §3.4 — restricts [...] is a contract on callbacks. Pass a different callback or remove the restrict."; };
