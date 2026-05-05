@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.281] — 2026-05-05
+
+**R13-D6 Phase 1 — cache/gate docs refreshed + Windows recovery procedure documented.**
+
+### Bug
+
+| Site | Stale claim |
+|---|---|
+| `docs/architecture.md:140` | "writes per-function LLVM IR to `.nuc_cache/<fn_hash>.ll`" — that's the v0.2.x design; live `.nuc_cache/` holds module-graph manifests + native-link logs, not per-function IR |
+| `NUCLEOR_BOOTSTRAP_CONTRACT.md:182-190` | "gate runs **204 steps as of v0.2.131**" — stale; current is v0.8.x with hundreds of steps |
+| `NUCLEOR_BOOTSTRAP_CONTRACT.md` | no Windows seed-recovery procedure documented (audit's R13-D6 acceptance) |
+
+Audit-classified MEDIUM (R13-D6).
+
+### Fix (Phase 1, doc-only)
+
+`docs/architecture.md`:
+
+1. Replaced the "per-function LLVM IR" cache description with the
+   live three-family layout: module-graph manifests
+   (`modgraph_<hash>.{manifest,resolved,max_depth}`), native-link
+   logs (`clang_link.<artifact>.log`), and noted the function-level
+   sub-cache is reserved for Phase 2.
+
+`NUCLEOR_BOOTSTRAP_CONTRACT.md`:
+
+2. Replaced "204 steps as of v0.2.131" with "dynamically composed —
+   step count grows with each ship; run `bash tools/verify.sh` for
+   the live count."
+3. **NEW** Windows seed-recovery procedure: explicit
+   `clang.exe -fuse-ld=lld bootstrap\nucleor_s1_seed.ll …` command
+   for adopters whose `bin/nucleor.exe` got corrupted. Documents
+   the canonical fixed-point loop verification afterward. Phase 2
+   may script this as `tools/bootstrap_windows.ps1`.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Docs match current code** | ✅ cache description matches `.nuc_cache/` listing; gate count description matches dynamic reality |
+| **Windows recovery dry run command documented** | ✅ explicit `clang.exe ... bootstrap/nucleor_s1_seed.ll ...` recipe in CONTRACT.md |
+| Cold compile ≤ 4s | ✅ unchanged (doc-only) |
+
+### Doc-only edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### R13 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.280 | R13-D1 — bootstrap docs ↔ bin reality | ✅ |
+| v0.8.281 | R13-D6 — cache/gate docs + Windows recovery | ✅ |
+| next | R13-D2 / D3 / D5 | ⏳ POSIX-environment dependent |
+| next | R13-D4 — POSIX pipe functions | ⏳ MEDIUM (need Linux box) |
+
+2 of 6 R13 deficiencies have Phase 1 closure. The remaining 4 are
+POSIX-environment-dependent — deferred until Linux machine
+available.
+
 ## [0.8.280] — 2026-05-05
 
 **R13-D1 Phase 1 — bootstrap docs reconciled with live `bin/` reality.**

@@ -179,15 +179,51 @@ cd Nucleor
 powershell -ExecutionPolicy Bypass -File tools\verify.ps1
 ```
 
-The gate runs **204 steps as of v0.2.131**: binary present,
-ABI parity, tools-suite rebuild, mojibake check, err-EXPECT-
-headers (since v0.2.118), 14 CLI smoke steps (help-coverage,
-utility, JSON, version, showcase build, explain single + full
-161-code spec catalog, bootstrap, check+abi, inspectors,
-diagnostics, init, doc, lock, test), every example (18),
-every test in `tests/{lang,attrs,runtime,rods,features}`
-(~140), every negative test in `tests/err` (33), and the
-self-host rebuild at the end.
+The gate is dynamically composed — step count grows with each ship
+that adds a new check. Pre-v0.8.281 this doc claimed "204 steps as
+of v0.2.131"; per audit R13-D6 (v0.8.281, 2026-05-05) that's stale.
+The gate now runs hundreds of steps; run `bash tools/verify.sh` and
+read the per-step output for the live count.
+
+Step categories (as of v0.8.281; new categories may have been added
+since):
+- binary present, ABI parity, tools-suite rebuild, mojibake check
+- err-EXPECT-headers (since v0.2.118)
+- CLI smoke (help-coverage, utility, JSON, version, showcase build,
+  explain catalog, bootstrap, check+abi, inspectors, diagnostics,
+  init, doc, lock, test)
+- every example
+- every test in `tests/{lang,attrs,runtime,rods,features}`
+- every negative test in `tests/err`
+- self-host rebuild + IR md5 fixed-point gate (T1.8 since v0.8.171)
+- perf regression gate (Windows; POSIX parity is R13-D2 Phase 2 work)
+- per-ship category additions per the active milestone
+
+### Windows seed-recovery procedure (R13-D6 Phase 1 v0.8.281)
+
+If `bin/nucleor.exe` is corrupted or missing on a Windows dev box:
+
+```powershell
+# Re-bootstrap from the committed seed.
+cd <repo-root>
+clang.exe -fuse-ld=lld bootstrap\nucleor_s1_seed.ll `
+    stdlib\runtime\nucleor_llvm_rt.c -o bin\nucleor.exe `
+    -Wl,/STACK:16777216
+# Verify self-host fixed-point holds:
+bash tools\check_self_host_md5.sh
+```
+
+The committed seed at `bootstrap/nucleor_s1_seed.ll` is target-
+agnostic (no `target triple` / `target datalayout`); clang lowers
+it for the host's native triple. After this rebuild, `bin/nucleor.exe`
+identifies as the version locked into the seed at last refresh —
+run `bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o
+target\nucleor_seed_check.exe` and confirm the rebuilt-from-seed
+compiler can re-emit the seed itself (the canonical fixed-point
+loop).
+
+A scripted version (`tools/bootstrap_windows.ps1`) is Phase 2 per
+audit R13-D6.
 
 If the gate is green, the bootstrap is healthy. If it fails, the
 diagnostic output names the failing step.
