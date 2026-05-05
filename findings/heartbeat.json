@@ -1,44 +1,54 @@
 {
-  "instructions_read": "v0.8.313-post-A2-integration",
-  "current_task": "main: post-A2 punchlist work (no active parallel-agent slice on this tree)",
-  "roadmap_phase": "v1_numeric_correctness_punchlist",
-  "current_punchlist_item": "main_integrated",
+  "instructions_read": "v0.8.314-main-and-helper-refresh",
+  "current_task": "main: helper handoff written; main lane preparing R09-D1 fixed<I,F> type tracking",
+  "roadmap_phase": "v1_launch_blocker_final_buildout",
+  "current_punchlist_item": "main:R09-D1 helper:R12-D2",
   "edits_in_main_tree": true,
-  "rebased_on_origin_main": "5fcdf09c",
+  "rebased_on_origin_main": "fa445e60",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "status": "integrated",
+  "head": "fa445e60",
+  "status": "coordination_refresh",
+  "helper_assignment": {
+    "instructions_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md",
+    "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0814_2026-05-05.md",
+    "primary": "R12-D2 registry remotes Phase 1",
+    "recommended_branch": "probe/r12-registry-remotes-v0814",
+    "write_scope": [
+      "compiler/nucleor_tools_suite.nr",
+      "focused CLI tests",
+      "docs only if needed"
+    ],
+    "avoid_scope": [
+      "compiler/nucleor_s1_compiler.nr",
+      "bootstrap/nucleor_s1_seed.ll",
+      "bin/nucleor.exe",
+      "tools/perf_baseline.json",
+      "CHANGELOG.md",
+      "RELEASES.md"
+    ],
+    "status": "issued"
+  },
+  "main_lane": {
+    "candidate": "R09-D1 full fixed<I,F> type tracking",
+    "build_plan": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans\\BUILD_PLAN_R09_numeric_correctness.md",
+    "perf_rule": "hold sub-4s cold compile soft target; do not absorb drift into baseline"
+  },
   "validation": {
-    "main_completion_check": {
-      "status": "completed",
-      "origin_main": "5fcdf09c",
-      "evidence": "main contains panic_add_u64, llvm.uadd.with.overflow.i64, binop_u64_type, and __has_u64_v886 (cherry-picked from probe/u64-strict-arith-v0886 in commit c4318ca5; bin+seed rebuilt locally to canonical fixed point in 5fcdf09c)."
-    },
-    "self_host_fixed_point": {
-      "status": "pass",
-      "md5": "92a6b77baec09726f3c04b3224280ce5",
-      "command": "bash tools/check_self_host_md5.sh"
-    },
-    "compiler_drift": {
-      "status": "pass",
-      "command": "bash tools/check_compiler_drift.sh"
-    },
-    "manual_fixture_matrix": {
-      "status": "pass",
-      "intrinsic_path": "NUCLEOR_INT_STRICT_ARITH=1 build of tests/fixtures/strict_intrin_u64_add_overflow.nr panics with 'integer overflow' on u64::MAX+1 (rc=1)."
+    "repo_state_before_refresh": {
+      "status": "clean",
+      "head": "fa445e60",
+      "origin_main": "fa445e60"
     }
   },
+  "perf_context": {
+    "v0.8.314_note": "compiler self-time about 2.5-2.8s; linked wall variance above 4s attributed to clang/Defender spikes, not acceptable as a reason to ignore future compiler drift",
+    "soft_target_cold_seconds": 4.0,
+    "hard_target_cold_seconds": 5.93,
+    "peak_memory_recent_mb": "305-312"
+  },
   "caveats": {
-    "stale_predecessor_heartbeat": "Pre-v0.8.313 this file was the probe agent's pre-integration heartbeat (rebased_on_origin_main: 28779f5c, status: ready-for-integration, evidence: 'main lacks ...'). Refreshed v0.8.313 / 2026-05-05 by main-tree integrator after probe/u64-strict-arith-v0886 was cherry-picked.",
-    "probe_branch_disposition": "Probe branch superseded by integration. Probe pushed origin/probe/u64-strict-arith-v0886 at 641c6d73 as backup + perf evidence — DO NOT merge over main."
-  },
-  "perf_evidence_post_integration": {
-    "main_formal": { "cold_seconds": 4.76, "hot_seconds": 0.87, "peak_mem_mb": 312 },
-    "probe_branch_formal": { "cold_seconds": 4.39, "hot_seconds": 0.98, "peak_mem_mb": 312 },
-    "probe_branch_direct_phase": { "linked_cold_seconds": 3.672 },
-    "probe_branch_no_link_loop_median_seconds": 2.50,
-    "probe_branch_linked_loop_median_seconds": 3.63,
-    "wall_clock_variance_note": "Outliers above 4s observed in linked-loop runs; probe agent attributes to Windows wall-clock variance around clang/link/process startup + host load + harness overhead, not to the u64 implementation. Compiler path itself is capable of ~3s linked cold builds on this hardware."
-  },
-  "summary": "A2 integrated into main at v0.8.313 (5fcdf09c). u64 +/-/* strict intrinsic lowering uses unsigned LLVM overflow intrinsics; legacy helper mode has __nucleor_panic_*_u64 panic helpers; 3 new fixtures cover add/sub/mul. Self-host fixed-point md5 92a6b77b. Probe branch superseded; probe pushed origin/probe/u64-strict-arith-v0886 @ 641c6d73 as backup-only — do not re-merge."
+    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and now point to v0.8.314 instructions.",
+    "probe_branch_disposition": "origin/probe/u64-strict-arith-v0886 remains backup-only; do not merge."
+  }
 }
