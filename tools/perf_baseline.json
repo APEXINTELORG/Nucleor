@@ -8,6 +8,8 @@
   "hot_max_allowed_seconds": 1.74,
   "cold_peak_memory_mb": 679,
   "cold_max_allowed_memory_mb": 747,
+  "_r10_d5_phase1_note": "R10-D5 Phase 1 (v0.8.279, audit BUILD_PLAN_R10_performance_envelope.md §1 R10-D5): added hot_max_allowed_memory_mb as an independent ceiling for the hot-path. Pre-v0.8.279 the hot path inherited cold_max_allowed_memory_mb implicitly. Phase 2 will split cold_peak_memory_mb into compiler_only_peak_mb (compiler process WorkingSet64) + process_tree_peak_mb (current behavior — compiler + clang + lld descendants); the existing cold_peak_memory_mb tracks process_tree by convention until then.",
+  "hot_max_allowed_memory_mb": 400,
   "_anti_compound_rule": "Each ship must come in at or below the ceilings above. If you observe drift >5% but <10%, investigate before shipping — do not chain small creeps. Never -Update the baseline to absorb a regression; only update when you've intentionally pushed perf in a measured way (e.g., the v0.3.220 13x revert).",
   "_history": [
     {

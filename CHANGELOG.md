@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.279] — 2026-05-05
+
+**R10-D5 Phase 1 — `hot_max_allowed_memory_mb` ceiling added.**
+
+### Bug
+
+`tools/perf_baseline.json` had a single `cold_max_allowed_memory_mb`
+ceiling. The hot path implicitly inherited it, but in practice hot
+runs use less memory (warmer cache, no cold-allocator amortization).
+A 747MB ceiling on the hot path was effectively no ceiling. Plus
+the cold metric mixes compiler-only WorkingSet with process-tree
+(compiler + clang + lld). Audit-classified MEDIUM (R10-D5).
+
+### Fix (Phase 1, JSON-only)
+
+`tools/perf_baseline.json` adds:
+
+```json
+"hot_max_allowed_memory_mb": 400,
+```
+
+with a documented `_r10_d5_phase1_note` explaining:
+
+1. The new ceiling is independent of cold; previously the hot path
+   inherited cold's 747MB.
+2. Phase 2 will split `cold_peak_memory_mb` into:
+   - `compiler_only_peak_mb` — just the compiler process WorkingSet64
+   - `process_tree_peak_mb` — current behavior (compiler + clang + lld)
+3. Until Phase 2, `cold_peak_memory_mb` continues to track
+   process-tree by convention.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Baseline reports both memory views** | ⏳ Phase 2 — split path requires perf-script edit |
+| **Independently checks hot memory** | ✅ `hot_max_allowed_memory_mb: 400` ceiling now in baseline |
+| Cold compile ≤ 4s | ✅ unchanged (JSON-only) |
+
+### Gates
+
+- Perf gate re-verified post-edit: cold 4.08s, hot 0.82s, peak 299MB. No regression.
+- Self-host fixed-point: unchanged at `12777d1c1bdb18cde6bbfcb22479eefc`.
+- Drift: clean.
+
+### Rollback
+
+Delete the `hot_max_allowed_memory_mb` field + `_r10_d5_phase1_note`
+from `tools/perf_baseline.json`. The hot path returns to inheriting
+cold's ceiling.
+
+### R10 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.278 | R10-D6 — Cranelift honesty | ✅ |
+| v0.8.278 | R10-D1 — tier validation (router) | 🟡 partial |
+| v0.8.279 | R10-D5 — hot memory ceiling | ✅ |
+| next | R10-D2 — named perf diagnostics | ⏳ HIGH (compiler edit) |
+| next | R10-D3 — POSIX perf parity | ⏳ HIGH (Linux box needed) |
+| next | R10-D4 — cache key NUCLEOR_INT_STRICT_ARITH | ⏳ HIGH (compiler edit) |
+
+3 of 6 R10 deficiencies have Phase 1 progress (D6, D1 partial, D5).
+
 ## [0.8.278] — 2026-05-05
 
 **R10-D6 + R10-D1 Phase 1 — Cranelift honesty + tier validation.**
