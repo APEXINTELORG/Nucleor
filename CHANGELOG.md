@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.249] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — catmullrom + cubicspline.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods'
+algorithmic paths need raw double[] arrays; these fixtures lock
+the bad-input null-check + size guards.
+
+### catmullrom rod (Catmull-Rom spline, centripetal)
+
+`tests/features/catmullrom_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| **n_ctrl < 4 returns 0** | degenerate (segment between i+1, i+2 needs i and i+3) |
+| Null ctrl_ptr returns 0 (2-D) | null-check guard |
+| Null out_ptr returns 0 (2-D) | parallel guard |
+| 3-D variant has same n≥4 + null guards | parallel surface |
+
+### cubicspline rod (natural cubic spline interpolation)
+
+`tests/features/cubicspline_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| fit with n < 2 returns 0 | degenerate |
+| fit with null ptrs returns 0 | null-check guard |
+| sample with n < 2 returns 0 | degenerate |
+| sample with null ptrs returns 0 | null-check guard |
+
+All pass. rc=0.
+
 ## [0.8.248] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — bezier + apf.**
