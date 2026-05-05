@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.291] — 2026-05-05
+
+**R03-D3 Phase 1.5 — RT-004 estimator string-literal + line-comment skip (REAL improvement, not just disclosure).**
+
+### Context (user pushback after v0.8.289)
+
+User asked "R03-D3 — are you skipping stuff here? can this be fixed
+as opposed to just saying can't do it?" v0.8.289's R03-D3 ship was
+audit-prescribed doc honesty (rename "static WCET" → "heuristic
+deadline estimate"). But the explicit "false positive surface"
+documented there — `;` inside string literals + `while` inside
+comments — IS fixable today and IS shipped now.
+
+### Fix (real estimator improvement, not a label rewrite)
+
+`compiler/nucleor_s1_compiler.nr::wcet_estimate_fn_units` (T3.3,
+RT-004) now tracks two state flags during the body scan:
+
+- `in_string`: enters on `"`, exits on unescaped `"`. While in
+  string: skip ALL counting. `\\` advances 2 chars to handle
+  `\\"` correctly.
+- `in_line_comment`: enters on `//`, exits on `\\n`. While in
+  comment: skip ALL counting.
+
+Pre-v0.8.291 a function whose body contained `let s = ";a;b;c;";`
+would over-tally 4 spurious `;` toward stmt_count. Now it tallies
+1 (the real terminator). Same for `// while …` text: pre-v0.8.291
+would have falsely incremented the loop-multiplier ladder.
+
+This closes ONE of the four "not modeled" gaps the v0.8.289
+explanation registry called out:
+- ~~string-literal `;` + comment-`while` (false-positive surface)~~ — FIXED v0.8.291
+- callee cost — still Phase 2 (requires recursive estimation +
+  cycle detection)
+- ISA / cache / branch prediction — still Phase 2 (full WCET model)
+- non-loop control-flow weight — still Phase 2
+
+### Tests
+
+`tests/features/rt004_string_literal_skip_smoke.nr` — locks the
+behavior. A `#[deadline = 1000us]` `pure fn` with a `;`-loaded
+string literal + `while …` text in a `//` comment compiles
+without RT-004 warning. The literal `;` are no longer counted as
+statements.
+
+### Self-host fixed-point
+
+**Rotated** `83912a227e745bf799d16140dba59a7e` →
+`7cd77001cfa3732eb1b228a4e203ef88`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.290] — 2026-05-05
 
 **R05-D3 Phase 1 — capability catalog disclosure (`stdlib/rods/capabilities.nr`).**
