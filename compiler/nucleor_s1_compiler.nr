@@ -259,6 +259,16 @@ fn lex(src: str) -> Vec<i32> {
         let c: i64 = str_char_at(src, p);
         if is_ws(c) == 1 { p = p + 1; }
         else if c == 64 {
+            // R14-D1 Phase 1 — preserve @law(...) annotations through
+            // the lex skip path. The generic @attr skip below silently
+            // consumes them; Phase 1 detects @law specifically and
+            // emits a position + body-length record so future compiler
+            // phases (and tests) can observe what was captured at lex
+            // time. Phase 2b will replace this with a side-table store
+            // + AST node attachment + optimizer law-rewrite pass.
+            let law_at: i64 = p;
+            let is_law: i64 = str_eq_at(src, p, "@law(");
+            let law_body_start: i64 = if is_law == 1 { p + 5 } else { 0 };
             if p + 1 < slen && is_alnum(str_char_at(src, p + 1)) == 1 {
                 // Skip attributes like @authored(...), @policy(...), @hot, @const_fn.
                 p = p + 1;
@@ -285,6 +295,14 @@ fn lex(src: str) -> Vec<i32> {
             } else {
                 tokens.push(tok_new(122, 0, p));
                 p = p + 1;
+            };
+            // After the skip, p points just past the matching ')' for
+            // parenthesized attrs. Emit the @law observation now.
+            if is_law == 1 {
+                let body_len: i64 = (p - 1) - law_body_start;
+                print(str_concat(
+                    str_concat("info[LAW-CAPTURE]: @law at position ", str_from_int(law_at)),
+                    str_concat(", body length ", str_from_int(body_len))));
             };
         }
         else if c == 35 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
