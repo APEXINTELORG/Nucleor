@@ -31579,17 +31579,17 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
     if use_cache == 0 { child_cmd = str_concat(child_cmd, " --no-cache"); };
     if cache_v2_stats_enabled() == 1 { child_cmd = str_concat(child_cmd, " --cache-stats"); };
     if time_passes == 1 { child_cmd = str_concat(child_cmd, " --time-passes"); };
-    let mut native_key_hint: str = "";
-    if use_cache == 1 {
-        let native_source_for_key: str = file_read_string(src_path);
-        if str_len(native_source_for_key) > 0 { native_key_hint = build_cache_key(native_source_for_key, strict_mode); };
-    };
     let child_rc: i64 = system(child_cmd);
     if child_rc != 0 { return child_rc; };
     let ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
     if fs_exists(ll_path) == 0 || fs_size(ll_path) <= 0 {
         print(str_concat("ERROR: native link cannot read emitted IR ", ll_path));
         return 1;
+    };
+    let mut native_key_hint: str = "";
+    if use_cache == 1 {
+        let key_path: str = str_concat(ll_path, ".cachekey");
+        if fs_exists(key_path) == 1 { native_key_hint = file_read_string(key_path); };
     };
     let imported: Vec<i32> = Vec::new();
     let rc: i64 = link_existing_native_module(ll_path, safe_out_name, imported, native_key_hint, time_passes);

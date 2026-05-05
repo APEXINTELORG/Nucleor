@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.316] — 2026-05-05
+
+**R12-D2 registry remotes Phase 1 + isolated-link cold-path recovery.**
+
+### Added
+
+- `nuc registry remote add <name> <url>` persists a deterministic local
+  remote entry in `.nucleor/registry-remotes.txt`.
+- `nuc registry remote list` prints configured remote names and URLs.
+- `nuc registry remote remove <name>` removes a configured remote.
+- Added the R12-D2 add/list/remove smoke to `tools/verify.sh`,
+  `tools/verify_fast.sh`, and `tools/verify.ps1`.
+
+### Changed
+
+- RFC-0019 and the module-packaging gap analysis now state the honest
+  split: remote configuration is implemented, while TLS-backed remote
+  fetch/install remains the follow-on phase.
+- The isolated native self-host path now reuses the child-emitted
+  `target/<out>.ll.cachekey` when probing the native-link cache instead
+  of re-reading and re-hashing the compiler source in the parent process.
+  This removes duplicate cold-path work without changing cache identity.
+- Tightened the cold self-build perf gate from the old Track-L ceiling
+  (`5.93s`) to the current sub-4s project target (`4.00s`). Peak
+  process-tree memory ceiling is now `400MB`, matching the current
+  300MB-class self-host profile instead of the old 700MB-class guard.
+
+### Validation
+
+- Tools-suite rebuild passed.
+- Promoted refreshed `bin/nucleor.exe` and
+  `bootstrap/nucleor_s1_seed.ll`.
+- Focused verify passed:
+  `bash tools/verify.sh --only "R12-D2 registry remote add/list/remove"`.
+- `bash tools/check_compiler_drift.sh` passed.
+- `bash tools/check_self_host_md5.sh` passed:
+  fixed-point md5 `9c991a17cfa5b0f97a8ce0021cac6fe3`.
+- `git diff --check` passed.
+- Strict perf gate passed after the compiler cold-path fix:
+  cold `3.73s` (max `4.00s`), hot `0.26s` (max `1.00s`),
+  peak process-tree memory `308MB` (max `400MB`).
+
 ## [0.8.315] — 2026-05-05
 
 **R09-D1 fixed<I,F> semantic type tracking + ownership metadata flake fix.**
