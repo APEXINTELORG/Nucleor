@@ -6,6 +6,11 @@
 //   source -> lex -> parse -> lower -> emit LLVM IR -> clang -> native exe
 // Usage: nucleor_s1 <source.nr> <output_name>
 // =====================================================
+// v0.8.303: file-wide PERF-3 suppression — same rationale as
+// nucleor_s1_compiler.nr v0.8.302. Tools-suite shares lex / parse
+// helpers from s1; 26 sites are intentional bounded per-token
+// allocation.
+#[allow(PERF-3)]
 
 // T1.1 Phase 3c (v0.2.310): widened internal arithmetic to i64
 // (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
