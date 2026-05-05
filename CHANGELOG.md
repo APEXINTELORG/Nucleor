@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.292] — 2026-05-05
+
+**R03-D3 Phase 1.6 — RT-004 estimator counts `loop { ... }` bodies (closes false-NEGATIVE).**
+
+### Bug
+
+Pre-v0.8.292 the RT-004 estimator counted only `while` keywords
+toward `while_count`, so a `pure fn { loop { ...; ...; } }` body
+tallied 0 loops → multiplier=1 → severe under-estimate. `loop {}`
+desugars to `while true` (per s1 lex around line 3843) but the
+estimator never saw it as a loop, so unbounded loops slipped past
+the deadline check.
+
+### Fix (real estimator improvement, continuing v0.8.291's thread)
+
+`compiler/nucleor_s1_compiler.nr::wcet_estimate_fn_units` now
+recognizes `loop` as a loop keyword alongside `while`. Same
+boundary-check pattern (alphanumeric/underscore guard on prev +
+next char) so identifiers like `out_loop_counter` aren't
+miscounted.
+
+This is the second real estimator improvement after v0.8.291
+(string-literal + line-comment skip). Together they close two of
+the four "not modeled" gaps the v0.8.289 explain registry called
+out:
+- ~~string-literal `;` + comment-`while` (false-positive)~~ — FIXED v0.8.291
+- ~~`loop {}` not counted as a loop (false-NEGATIVE)~~ — FIXED v0.8.292
+- callee cost — Phase 2 (recursive estimation + cycle detection)
+- ISA / cache / branch prediction — Phase 2 (full WCET model)
+
+### Tests
+
+`tests/err/err_rt004_loop_keyword_counted.nr` — a `#[deadline = 1us]`
+fn with `loop { ...20 stmts...; if break; }` now fires
+`warning[RT-004]: heuristic deadline estimate 250 us …` (pre-fix:
+silent, ~22us tally with multiplier=1).
+
+Regression-checked `tests/fixtures/t317_allow_fn_rt004.nr` —
+existing `while`-based suppression fixture still emits RT-004
+(60us > 1us) and the `#[allow_fn]` suppression behavior is
+preserved.
+
+### Self-host fixed-point
+
+**Rotated** `7cd77001cfa3732eb1b228a4e203ef88` →
+`e4492963ec4ae34a21fbbff925efed2a`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.291] — 2026-05-05
 
 **R03-D3 Phase 1.5 — RT-004 estimator string-literal + line-comment skip (REAL improvement, not just disclosure).**
