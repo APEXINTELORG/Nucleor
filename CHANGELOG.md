@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.218] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pca + orbit.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### pca rod (Principal Component Analysis)
+
+`tests/features/pca_smoke.nr` uses a perfectly correlated
+4×2 dataset (1,1)(2,2)(3,3)(4,4) → covariance has eigenvalues
+{2, 0}. Locks four foundational PCA invariants:
+
+| Test | Path |
+|---|---|
+| **PC1 captures 100% of variance** | variance_ratio(0) ≈ 1.0 |
+| Variance ratios sum to 1 | across all components |
+| Eigenvalues sorted descending | eig(0) ≥ eig(1) |
+| Eigenvalues non-negative | covariance is PSD; allow -1e-9 tolerance for Jacobi numerical error |
+
+### orbit rod (orbital mechanics)
+
+`tests/features/orbit_smoke.nr` uses Earth's μ = 398600.4418
+km³/s² and locks four classical fixed points (Vallado §1.4, §6.3):
+
+| Test | Path |
+|---|---|
+| Kepler 3rd law | period of a=7000km LEO ≈ 5829s (~97 min) |
+| Vis-viva at circular | v = sqrt(μ/r); r=a=7000 → ≈ 7.546 km/s |
+| **Escape velocity at Earth surface** | v_esc = sqrt(2μ/r); r=6378 → ≈ 11.18 km/s |
+| Hohmann Δv positive | non-trivial transfer r1=7000 → r2=10000 has Δv > 0 |
+
+All pass. rc=0.
+
 ## [0.8.217] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — option + overflow.**
