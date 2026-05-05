@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.206] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — kinematics_frame + hashmap.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### kinematics_frame rod (RFC-0046 Phase A coordinate-frame tags)
+
+Mars-Climate-Orbiter-class silent miscompute prevention. Phase B
+compiler enforcement of TYP-008 frame mismatch must NOT regress
+these:
+
+| Test | Path |
+|---|---|
+| Stable IDs | world=0, base=1, camera=2, lidar=3, imu=4, gripper=5, map=6, odom=7, unknown=-1 |
+| Compatibility same | frame_compatible(camera, camera) = 1 |
+| Compatibility unknown | unknown side always compatible (both directions) |
+| **Cross-frame fails** | camera vs base = 0 (the core silent-miscompute guard) |
+
+### hashmap rod (string-keyed hash map)
+
+`tests/features/hashmap_smoke.nr` locks four lifecycle/semantics
+invariants distinct from the compiler-builtin HashMap:
+
+| Test | Path |
+|---|---|
+| Empty map | map_new → len 0; missing key → has 0 |
+| Set tracks get + len | 3 distinct keys → len 3, each get returns its set value |
+| **Overwrite same key** | set "k" twice → len stays 1, get returns latest |
+| Delete | flips has to 0 and drops len by 1 |
+
+All pass. rc=0.
+
 ## [0.8.205] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — math_typed_special + hashset.**
