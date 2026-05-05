@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.224] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — qsim_graph + os.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### qsim_graph rod (RFC-0061 Tier 3 Phase A entanglement + DAG)
+
+`tests/features/qsim_graph_smoke.nr` locks four invariants on
+the union-find entanglement tracker + gate-influence DAG
+surface (sister to Tier 1 CLOSED v0.7.86 + Tier 2 v0.7.94):
+
+| Test | Path |
+|---|---|
+| **Transitive close on union-find** | (0,1) + (1,2) → all three same component |
+| Component size and count | size=3, count=1 after merge chain |
+| Distinct components don't merge | (0,1) + (5,6) → q0 ≠ q5, count=2 |
+| Gate DAG depends_on after re-touching qubit | H on q0 (g0), CNOT 0→1 (g1) → g1 depends g0 |
+
+### os rod (operating-system interface)
+
+`tests/features/os_smoke.nr` locks four lifecycle invariants
+(`os_exit`/`os_system` intentionally not exercised — would
+side-effect the test process):
+
+| Test | Path |
+|---|---|
+| getpid > 0 | no process has PID 0 |
+| getcwd non-empty | every process has a CWD |
+| Missing env var returns empty | unset name → "" |
+| **Set env round-trip** | env_set + getenv reads back; cross-checks os_info mutation |
+
+All pass. rc=0.
+
 ## [0.8.223] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pursuit + rigid_body.**
