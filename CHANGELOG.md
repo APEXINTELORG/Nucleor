@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.205] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — math_typed_special + hashset.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### math_typed_special rod (typed f64 special functions)
+
+`tests/features/math_typed_special_smoke.nr` locks four
+textbook special-function fixed points:
+
+| Test | Path |
+|---|---|
+| erf(0) == 0 | odd function through origin |
+| erfc(0) == 1 | erfc(x) = 1 - erf(x) |
+| **gamma(5) == 24** | Γ(n) = (n-1)!; 4! = 24 |
+| norm_cdf(0) == 0.5 | standard normal at zero |
+
+### hashset rod (HashSet<str> over HashMap<str,1>)
+
+`tests/features/hashset_smoke.nr` locks four set-semantics
+invariants:
+
+| Test | Path |
+|---|---|
+| Empty set | hss_new → len 0, is_empty 1 |
+| Insert tracks contains | "alpha" present, "beta" absent |
+| **Duplicate insert no-op** | insert("x") twice → len 1 |
+| Remove flips contains | insert+remove → contains 0, len 0 |
+
+All pass. rc=0.
+
 ## [0.8.204] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — memspace + loss.**
