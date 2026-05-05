@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.261] — 2026-05-05
+
+**scurve rod ↔ trajectory rod `nuc_scurve_*` symbol collisions FIXED + coverage.
+LAST item of parallel-agent TRACK A — primary lane CLOSED.**
+
+Closes 2 link-order-dependent silent miscomputes (`nuc_scurve_new`
+arity drift + `nuc_scurve_free` struct mismatch) plus 4 namespace-
+violation siblings. Third symbol-rename ship in this loop session
+(cf. v0.8.259 cam/vision, v0.8.260 kinematics/quat).
+
+### Bug
+
+Both rods exported `nuc_scurve_new` + `nuc_scurve_free` from their
+runtime files with incompatible signatures + struct layouts:
+
+| Symbol | scurve_rt.c | trajectory_rt.c |
+|---|---|---|
+| `nuc_scurve_new` | 4-arg `(L, v_max, a_max, j_max)` returning SCurve* | 5-arg `(q0, qT, vmax, amax, jmax)` returning NSCurve* |
+| `nuc_scurve_free` | frees SCurve* | frees NSCurve* (incompatible struct) |
+
+Plus 4 trajectory-only `nuc_scurve_*` namespace violators
+(`_duration`, `_peak_v`, `_peak_a`, `_pos_at`) sharing scurve.nr's
+namespace and at risk of future overlap. Importing both rods was a
+duplicate-symbol link error or silent wrong-target call.
+
+### Fix (trajectory renames; scurve keeps canonical namespace)
+
+- `trajectory_rt.c`: 6 `nuc_scurve_*` → `nuc_traj_scurve_*` (new, duration, peak_v, peak_a, pos_at, free).
+- `trajectory.nr`: extern decls + Nucleor wrappers renamed `scurve_*` → `traj_scurve_*`, including all `_f64` convenience variants.
+- `tests/rods/trajectory_smoke.nr` + `tests/features/trajectory_f64.nr` updated to call the new names.
+- `scurve.nr` untouched (keeps canonical `nuc_scurve_*`).
+
+### Breaking change
+
+Adopters who imported `trajectory.nr` and called `scurve_new(q0, qT, vmax, amax, jmax)` 5-arg or `scurve_*_f64` variants must migrate to `traj_scurve_*`. Two in-tree callers updated in this ship.
+
+### Coverage
+
+`tests/features/scurve_trajectory_collision_smoke.nr` imports
+**both** rods and locks 4 invariants:
+
+| Test | Path |
+|---|---|
+| **`traj_scurve_new` + `traj_scurve_duration`** | non-zero handle, dur > 0 |
+| **`traj_scurve_pos_at(0)`** | position at t=0 ≈ q0=0 |
+| **scurve.nr 4-arg API still works in same file** | scurve.nr's distinct API on the same import |
+| **Both rods can link together** | reaching `main` proves no duplicate-symbol error |
+
+All existing fixtures pass: `scurve_smoke.nr`, `trajectory_smoke.nr`,
+`trajectory_f64.nr`, `tests/rods/trajectory_smoke.nr`. rc=0. Self-host
+fixed-point md5 unchanged at `7b4966b9b69526674ef5ce3208a8274e`.
+
+### TRACK A close-out
+
+This ships the LAST item from parallel-agent TRACK A
+(`extern_arity_drift_sweep_2026-05-05`). Lane summary:
+
+| # | Class | Closure |
+|---|---|---|
+| 1–5 | CRITICAL silent-miscompute arity drifts | v0.8.252, .254, .255, .256 + v0.8.45 prior |
+| 6–7 | HIGH rod-overdeclares-C | v0.8.257, .258 |
+| 8 | cam/vision symbol collision | v0.8.259 |
+| 9–10 | kinematics/quat symbol collisions (×2) | v0.8.260 |
+| 11 | scurve/trajectory symbol collision | v0.8.261 (this ship) |
+
+**TRACK A CLOSED.** Loop pivots next to spine §15.2 R14-D1 Phase 1
+(`@law` parser preservation) per principal directive 2026-05-05.
+
 ## [0.8.260] — 2026-05-05
 
 **kinematics rod ↔ quat rod `nuc_quat_*` symbol collisions FIXED + coverage.**

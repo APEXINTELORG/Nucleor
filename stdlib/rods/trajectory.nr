@@ -78,21 +78,26 @@ fn trapezoid_free(h: i64) { nuc_trapezoid_free(h); }
 // zero, then cruise phase shrinks to zero) and the actual peak
 // v / peak a are reduced. Read back via `scurve_peak_v` /
 // `scurve_peak_a`.
-extern fn nuc_scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64;
-extern fn nuc_scurve_duration(h: i64) -> i64;
-extern fn nuc_scurve_peak_v(h: i64) -> i64;
-extern fn nuc_scurve_peak_a(h: i64) -> i64;
-extern fn nuc_scurve_pos_at(h: i64, t_bits: i64) -> i64;
-extern fn nuc_scurve_free(h: i64);
+// Pre-v0.8.261 these were named `nuc_scurve_*` — collided with
+// scurve.nr's simpler 4-arg API (different rod, different struct).
+// Renamed to the trajectory rod's `nuc_traj_*` namespace.
+extern fn nuc_traj_scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64;
+extern fn nuc_traj_scurve_duration(h: i64) -> i64;
+extern fn nuc_traj_scurve_peak_v(h: i64) -> i64;
+extern fn nuc_traj_scurve_peak_a(h: i64) -> i64;
+extern fn nuc_traj_scurve_pos_at(h: i64, t_bits: i64) -> i64;
+extern fn nuc_traj_scurve_free(h: i64);
 
-fn scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64 {
-    return nuc_scurve_new(q0_bits, qT_bits, vmax_bits, amax_bits, jmax_bits);
+// Renamed from `scurve_*` 2026-05-05 to break Nucleor-level + C-level
+// symbol collisions with scurve.nr.
+fn traj_scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64 {
+    return nuc_traj_scurve_new(q0_bits, qT_bits, vmax_bits, amax_bits, jmax_bits);
 }
-fn scurve_duration(h: i64) -> i64 { return nuc_scurve_duration(h); }
-fn scurve_peak_v(h: i64) -> i64 { return nuc_scurve_peak_v(h); }
-fn scurve_peak_a(h: i64) -> i64 { return nuc_scurve_peak_a(h); }
-fn scurve_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_scurve_pos_at(h, t_bits); }
-fn scurve_free(h: i64) { nuc_scurve_free(h); }
+fn traj_scurve_duration(h: i64) -> i64 { return nuc_traj_scurve_duration(h); }
+fn traj_scurve_peak_v(h: i64) -> i64 { return nuc_traj_scurve_peak_v(h); }
+fn traj_scurve_peak_a(h: i64) -> i64 { return nuc_traj_scurve_peak_a(h); }
+fn traj_scurve_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_traj_scurve_pos_at(h, t_bits); }
+fn traj_scurve_free(h: i64) { nuc_traj_scurve_free(h); }
 
 // === Ergonomic f64 wrappers — motion profiles (v0.4.264) ===
 //
@@ -150,23 +155,24 @@ fn trapezoid_vel_at_f64(h: i64, t: f64) -> f64 {
     return f64_from_bits(nuc_trapezoid_vel_at(h, f64_to_bits(t)));
 }
 
-// --- S-curve ---
-fn scurve_new_f64(q0: f64, qT: f64, vmax: f64, amax: f64, jmax: f64) -> i64 {
-    return nuc_scurve_new(
+// --- S-curve --- (renamed from `scurve_*_f64` 2026-05-05; bodies
+// route to the new `nuc_traj_scurve_*` runtime symbols.)
+fn traj_scurve_new_f64(q0: f64, qT: f64, vmax: f64, amax: f64, jmax: f64) -> i64 {
+    return nuc_traj_scurve_new(
         f64_to_bits(q0), f64_to_bits(qT),
         f64_to_bits(vmax), f64_to_bits(amax), f64_to_bits(jmax));
 }
-fn scurve_duration_f64(h: i64) -> f64 {
-    return f64_from_bits(nuc_scurve_duration(h));
+fn traj_scurve_duration_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_traj_scurve_duration(h));
 }
-fn scurve_peak_v_f64(h: i64) -> f64 {
-    return f64_from_bits(nuc_scurve_peak_v(h));
+fn traj_scurve_peak_v_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_traj_scurve_peak_v(h));
 }
-fn scurve_peak_a_f64(h: i64) -> f64 {
-    return f64_from_bits(nuc_scurve_peak_a(h));
+fn traj_scurve_peak_a_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_traj_scurve_peak_a(h));
 }
-fn scurve_pos_at_f64(h: i64, t: f64) -> f64 {
-    return f64_from_bits(nuc_scurve_pos_at(h, f64_to_bits(t)));
+fn traj_scurve_pos_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_traj_scurve_pos_at(h, f64_to_bits(t)));
 }
 
 // === Dynamic Movement Primitives (DMP) (v0.2.192) ===
