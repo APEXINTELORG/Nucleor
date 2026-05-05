@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.149] — 2026-05-04
+
+**RFC-0061 Tier 2 — `nuc deps graph` with 4 format renderers
+(V1.17b).** Tools-suite edit; drift gate clean.
+
+### Why
+
+Mirrors `cargo tree` / `go mod graph` / `npm ls` for Nucleor's
+package dependency graph. Reuses existing
+`lock_build_graph_recursive` machinery — the same engine that
+backs `nuc lock`.
+
+### What
+
+| Change | Path |
+|---|---|
+| `render_deps_graph_native(root_manifest, graph, fmt)` — 4-format renderer | `compiler/nucleor_tools_suite.nr` ~15901 |
+| `run_deps_command(argc)` — CLI dispatch + arg parse | `compiler/nucleor_tools_suite.nr` ~16000+ |
+| `nuc deps` verb wiring | `compiler/nucleor_tools_suite.nr` main dispatch |
+
+### Usage
+
+```
+nuc deps graph [path/to/Nucleor.toml|project_dir] [--format=text|json|dot|mermaid]
+```
+
+### Format examples (verified on `myproject/`)
+
+**text** (default — tree listing):
+```
+deps graph (1 package(s)):
+myproject@0.1.0
+```
+
+**json** (machine-readable):
+```
+{"packages":[{"name":"myproject","version":"0.1.0","dependencies":[]}]}
+```
+
+**dot** (Graphviz):
+```
+digraph deps {
+  rankdir=LR;
+  "myproject@0.1.0";
+}
+```
+
+**mermaid** (markdown-embeddable):
+```
+graph TD
+```
+
+(empty for a no-dep root package — non-empty for any project
+with declared deps.)
+
+### Where this sits in the roadmap
+
+- V1.17b Tier 2 of RFC-0061 — **CLOSED.**
+- Combined with v0.8.148, the Tier 1+2+5 graph remediation arc
+  is now closed:
+  - V1.17a Tier 1 (wrappers + matrix view + smoke fixtures + CLI
+    docs) → ✅ v0.7.78–81 + v0.8.148
+  - V1.17b Tier 2 (`nuc deps graph` with 4 renderers) → ✅
+    v0.8.149 (this ship)
+  - V1.17c Tier 5 (`docs/graph-capabilities.md` consolidation) →
+    ✅ v0.8.4
+- Tier 3 (V1.18 qsim entanglement queries) and Tier 4 (V1.19
+  graph-aware optimization) remain open per RFC-0061 §Tier 3+4.
+
 ## [0.8.148] — 2026-05-04
 
 **RFC-0061 Tier 1 close-out — 3 missing graph smoke fixtures
