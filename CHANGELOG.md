@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.185] — 2026-05-05
+
+**stdlib/rods/zmp.nr first test coverage.** Pure fixture, no
+compiler/runtime/stdlib edit.
+
+Zero Moment Point (ZMP) tracking via cart-table + finite-horizon
+LQR (Kajita 2003 / 2014) — bipedal-locomotion primitive.
+Pre-v0.8.185: zero coverage.
+
+`tests/features/zmp_smoke.nr` locks three lifecycle invariants on
+a 50-step trajectory at dt=0.01s, h=0.8m, with constant ZMP
+reference at x=0:
+
+| Test | Path |
+|---|---|
+| Construction handle | `zmp_new` returns non-zero for valid inputs |
+| Initial state retained | `c0=0, cdot0=0, cddot0=0` + zero ZMP ref → `com[0] == 0` post-solve |
+| **Bounded under zero ref** | CoM stays within ±0.1m of zero across all 51 steps when ref==0 (no runaway under LQR) |
+
+All pass. rc=0.
+
 ## [0.8.184] — 2026-05-05
 
 **Helper integration — native Windows RSS e-stop helper for the
