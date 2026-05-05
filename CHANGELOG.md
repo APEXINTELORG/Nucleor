@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.148] — 2026-05-04
+
+**RFC-0061 Tier 1 close-out — 3 missing graph smoke fixtures
+(V1.17a final piece).** Pure fixture work, no compiler / runtime
+/ stdlib edit.
+
+### What was already done
+
+Tier 1 wrappers + matrix view + CLI verb docs were shipped in
+prior cycles:
+
+| Item | Ship |
+|---|---|
+| `gnn_circuit_to_graph` wrapper | v0.7.78 |
+| `astar_free` wrapper | v0.7.78 |
+| `graph_has_negative_cycle` + `graph_negative_cycle_path` | v0.7.80 |
+| `graph_to_adjacency_matrix` + `_from_adjacency_matrix` + `_adjacency_density` | v0.7.81 |
+| `nuc graph` + `nuc impact` CLI docs (language-reference §10) | (earlier) |
+| Tier 5 `docs/graph-capabilities.md` consolidation | v0.8.4 |
+
+The only RFC-0061 Tier 1 acceptance item NOT shipped was the 3
+smoke fixtures.
+
+### What this ship adds
+
+| Fixture | Locks |
+|---|---|
+| `tests/features/gnn_circuit_to_graph_smoke.nr` | Bell-circuit (H, CNOT, H) → 3-node GNN graph; `gnn_graph_n_nodes(g) == 3` |
+| `tests/features/graph_negative_cycle_smoke.nr` | Acyclic positive graph → `has_negative_cycle == 0`; sum-negative triangle (1, -5, 1) → `has_negative_cycle == 1` |
+| `tests/features/graph_adjacency_matrix_smoke.nr` | Matrix handle non-zero; sparse 4-node 3-edge graph density < 0.5; fully-connected 4-node graph density > 0.5 |
+
+All edge weights pass through `f64_to_bits()` per the rod's
+`w: i64` ABI (weights are f64 bit-cast as i64) — surfaced while
+writing the negative-cycle fixture, where raw int weights (1,
+-5, 1) decoded as garbage f64 and Bellman-Ford couldn't relax.
+
+All 3 pass. rc=0.
+
+### Where this sits in the roadmap
+
+- V1.17a Tier 1 of RFC-0061 — **CLOSED**.
+- Next: Tier 2 (`nuc deps graph` CLI verb with text/json/dot/
+  mermaid renderers), then LSP server (V1.16).
+- Tier 4 (graph-aware optimization) deferred per RFC §Tier 4 —
+  needs Sonnet confirm-pass against V2 source first.
+
 ## [0.8.147] — 2026-05-04
 
 **RFC-0048 / RFC-0049 / RFC-0051 Phase B step-1 — three-up
