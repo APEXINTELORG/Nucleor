@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.299] — 2026-05-05
+
+**R04-D3 Phase 1 — RACE-002 emitter (unawaited async_spawn).**
+
+### Bug
+
+Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D3 (HIGH): RACE
+codes RACE-002 / 004 / 006 / 007 / 009 / 010 are registered in
+`is_known_diag_code` + tools-suite explain registry but **NO CODE
+PATH EMITS THEM**. `nuc explain RACE-002` overstated the shipped
+checker — adopters who looked up the code learned it existed,
+then wrote code that should have triggered it, and got nothing.
+
+### Fix (real conservative pattern check)
+
+`compiler/nucleor_s1_compiler.nr::enforce_unawaited_spawn(diags,
+source)` walks every fn declaration. For each body it scans for
+`async_spawn(` and `async_await(` substrings:
+
+- Body has `async_spawn(` AND lacks `async_await(` → emit
+  `warning[RACE-002]` with fn-name span. The handle returned by
+  spawn is never awaited; the task runs fire-and-forget and
+  completion ordering is not enforced. May also leak the
+  handle.
+
+Wired immediately after `enforce_heap_in_loop`. Severity =
+warning (conservative — adopter may want fire-and-forget).
+Suppress with `#[allow_fn(RACE-002)]`.
+
+This is the ninth REAL improvement in the user-pushback thread,
+and the SIXTH new diagnostic-code emission shipped: NUM-009,
+MOD-005, RT-009, PERF-2, PERF-3, RACE-002.
+
+Phase 2 (R04-D3) lights the other 5 unemitted RACE codes
+(RACE-004 / 006 / 007 / 009 / 010) with deeper analysis.
+
+### Tests
+
+- `tests/err/err_race_unawaited_spawn.nr` — `fn fire_and_forget()
+  { let h = async_spawn(fp, 5); return h; }` fires
+  `warning[RACE-002]: function 'fire_and_forget' calls
+  async_spawn(...) but never async_await(...) — fire-and-forget
+  breaks completion ordering and may leak the task handle ...`.
+  Verified.
+- Regression: `examples/01_hello.nr` clean (no spurious RACE-002
+  — hello has no async).
+
+### Self-host fixed-point
+
+**Rotated** `c4444b1e5f5807b58392424ed4b1575c` →
+`7d436d86ceb4c2c048bedde5dbb38eb6`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.298] — 2026-05-05
 
 **R10-D2 Phase 1.5 — HeapInLoop PERF-3 detection (NEW warning, second named perf diag).**

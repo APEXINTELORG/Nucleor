@@ -16446,6 +16446,71 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === R04-D3 Phase 1 (v0.8.299): RACE-002 emitter (unawaited spawn) ===
+//
+// Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D3 (HIGH):
+// RACE codes RACE-002 / 004 / 006 / 007 / 009 / 010 are registered
+// in `is_known_diag_code` + tools-suite explain registry but NO
+// CODE PATH EMITS THEM. `nuc explain RACE-002` overstates the
+// shipped checker.
+//
+// Phase 1: light up RACE-002 ("Actor method called without await")
+// via a conservative source-pattern check — body contains
+// `async_spawn(` but does NOT contain `async_await(`. That's the
+// fire-and-forget pattern: the spawn returns a handle that's
+// never awaited, so completion ordering is not enforced.
+//
+// Severity = warning. Suppress via `#[allow_fn(RACE-002)]` for
+// genuinely fire-and-forget tasks. Phase 2 lights RACE-004/006/
+// 007 with deeper pattern checks.
+#[manual_drop]
+fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+            let nlen: i64 = str_len(needle);
+            let mut sp: i64 = 0;
+            let mut found: i64 = 0 - 1;
+            while sp + nlen <= slen && found < 0 {
+                if str_eq_at_len(source, sp, needle, nlen) == 1 { found = sp; }
+                else { sp = sp + 1; };
+            };
+            if found >= 0 {
+                let mut q: i64 = found + nlen;
+                while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+                if q < slen {
+                    let body_start: i64 = q + 1;
+                    q = q + 1;
+                    let mut depth: i64 = 1;
+                    while q < slen && depth > 0 {
+                        let c: i64 = str_char_at(source, q);
+                        if c == 123 { depth = depth + 1; };
+                        if c == 125 { depth = depth - 1; };
+                        q = q + 1;
+                    };
+                    let body: str = str_substring(source, body_start, q - 1);
+                    let has_spawn: i64 = if str_index_of(body, "async_spawn(") >= 0 { 1 } else { 0 };
+                    let has_await: i64 = if str_index_of(body, "async_await(") >= 0 { 1 } else { 0 };
+                    if has_spawn == 1 && has_await == 0 {
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional (audit R04-D3 v0.8.299)"));
+                        let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "warning", "race", "RACE-002", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    };
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return diags;
+}
+
 // === R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3 detection ===
 //
 // Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2:
@@ -30600,6 +30665,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3.
     // Per-iteration Vec::new/Box::new in any while/loop body.
     diags = enforce_heap_in_loop(diags, max_depth_source);
+    // R04-D3 Phase 1 (v0.8.299): RACE-002 emitter — unawaited
+    // async_spawn (fire-and-forget breaks completion ordering).
+    diags = enforce_unawaited_spawn(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
