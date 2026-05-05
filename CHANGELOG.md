@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.268] — 2026-05-05
+
+**R07-D2 Phase 1 — typed TF wrapper layer.**
+Closes the second R07 deficiency from `BUILD_PLAN_R07_robotics_control.md`.
+
+### Bug
+
+Pre-v0.8.268 `stdlib/rods/tf.nr` accepted any i64 as `frame_id` /
+`parent_id`. Adopters could pass arbitrary out-of-range integers
+(999, -47) outside the type checker's visibility — frame mixing
+silently invisible to compile-time analysis. Audit-classified HIGH.
+
+### Fix (Phase 1, additive — rod-only, no compiler edit)
+
+`stdlib/rods/tf.nr` adds 4 functions:
+
+| Helper | Purpose |
+|---|---|
+| `tf_is_canonical_frame_id(id)` | Returns 1 if `id` ∈ {0..7, -1}, 0 otherwise. The canonical kinematics_frame range. |
+| `tf_add_frame_typed(h, frame_id, parent_id, t_ptr, q_ptr)` | Validates both IDs canonical before forwarding to `nuc_tf_add_frame`. Returns 0 on validation failure. |
+| `tf_set_pose_typed(h, frame_id, t_ptr, q_ptr)` | Validates `frame_id` canonical. |
+| `tf_lookup_typed(h, source_id, target_id, t_out, q_out)` | Validates both source + target canonical. |
+
+Raw `tf_add_frame` / `tf_set_pose` / `tf_lookup` remain available
+for adopters managing their own ID space (e.g. URDF link indices).
+They are now documented as "audited escape hatch" in the rod header.
+
+### Adopter pattern
+
+```nucleor
+import "stdlib/rods/tf.nr"
+import "stdlib/rods/kinematics_frame.nr"
+
+let h: i64 = tf_new(16);
+let cam: i64 = kinematics_frame_id_camera();
+let base: i64 = kinematics_frame_id_base();
+let _ = tf_add_frame_typed(h, cam, base, t_ptr, q_ptr);
+```
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Typed wrapper fixture passes** | ✅ |
+| **Raw ID path remains available with explicit warning** | ✅ raw fns retained; rod header marks them audited |
+| **Cold compile ≤ 4s** | ✅ unchanged (no compiler edit) |
+
+### Coverage
+
+`tests/features/tf_typed_frame_smoke.nr` locks 8 invariants:
+- `tf_is_canonical_frame_id` predicate truth table (0, 7, -1, 8, 999, -2)
+- `tf_add_frame_typed` rejects out-of-range frame_id (999) — returns 0 without invoking raw API
+- `tf_add_frame_typed` rejects out-of-range parent_id (999)
+
+Existing `tf_smoke.nr` (lifecycle) regression-clean.
+
+### No compiler edit → self-host fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R07-D2)
+
+Remove the 4 helper fns from `stdlib/rods/tf.nr`; delete the new
+fixture. Raw API path is untouched.
+
+### Next R07 ships (per audit ship sequence)
+
+| # | Phase | Scope |
+|---|---|---|
+| 3 | R07-D3 (HIGH) | end-to-end IK→planner→trajectory typed-correctness fixture |
+| 4 | R07-D4 (MEDIUM) | TOPP/AHRS/CHOMP limitation diagnostics surfaced |
+| Phase 2 | R07-D1/D2 Phase 2 | compile-time TYP-008 frame-mismatch error (~200 LOC compiler edit per RFC-0046 Phase B) |
+
 ## [0.8.267] — 2026-05-05
 
 **R07-D1 Phase 1 — runtime frame-check helpers + adopter pattern.**
