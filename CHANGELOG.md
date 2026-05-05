@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.169] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — state_machine
++ time.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### state_machine rod (FSM with named states + history)
+
+`tests/features/state_machine_smoke.nr` locks four FSM
+invariants on a 3-state traffic-light machine
+(Red=0, Yellow=1, Green=2):
+
+| Test | Path |
+|---|---|
+| Initial state | `current()` returns configured initial after `set_initial(0)` |
+| **Transition fires** | wired Red→Green→Yellow→Red cycle; surfaced that `fsm_fire()` returns the NEW state, not 1 (locked actual contract) |
+| `can_fire` | true on configured transition; false on uncovered event id |
+| **History tracking** | N fires produce N+1 history entries (initial + N transitions) |
+
+### time rod (legacy wall-clock API)
+
+Pre-v0.8.169 zero coverage. Sister to v0.8.164 typed-time
+modern replacement.
+
+`tests/features/time_smoke.nr` locks three invariants:
+
+| Test | Path |
+|---|---|
+| Plausible epoch | `time_now_ms` ∈ [1.7e12, 4.0e12] ms (post-2023, pre-2096) |
+| Sleep advances | `sleep_ms(5)` → delta ≥ 4ms |
+| **Format shape** | `time_format_ms(t)` produces exactly 19-char "YYYY-MM-DD HH:MM:SS" with dashes at 4/7, space at 10, colons at 13/16 |
+
+All pass. rc=0.
+
 ## [0.8.168] — 2026-05-04
 
 **stdlib/rods/string_algo.nr first test coverage.** Pure
