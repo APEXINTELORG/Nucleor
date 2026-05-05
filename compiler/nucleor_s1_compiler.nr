@@ -28950,6 +28950,24 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   timing values: ", v0811_within_vals));
         };
     };
+    // v0.8.143 (RFC-0043 Phase B step-1, V1.12 drift restoration)
+    // — `fixed<I, F>` + `ufixed<I, F>` audit. The type still
+    // collapses to i64 storage at line ~9902 (Phase B step-2
+    // deferred — true IrTypeFixed width tracking is the ~300 LOC
+    // ship). This Phase B step-1 surfaces adopter usage by
+    // counting type-position occurrences and emitting a one-line
+    // build summary, matching the @differentiable / @energy /
+    // @thermal pattern. Position-aware needles (`: ` and `-> `
+    // prefix) avoid false positives on identifiers ending in
+    // "fixed" or "ufixed".
+    let v0143_fixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": fix", "ed<"));
+    let v0143_fixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> fix", "ed<"));
+    let v0143_ufixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": ufix", "ed<"));
+    let v0143_ufixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> ufix", "ed<"));
+    let v0143_fixed_total: i64 = v0143_fixed_colon + v0143_fixed_arrow + v0143_ufixed_colon + v0143_ufixed_arrow;
+    if v0143_fixed_total > 0 {
+        print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
+    };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
     // adopters use today: @hot (strict perf), @const_fn (compile-
