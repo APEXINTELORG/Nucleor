@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.260] — 2026-05-05
+
+**kinematics rod ↔ quat rod `nuc_quat_*` symbol collisions FIXED + coverage.**
+Closes 2 link-order-dependent silent miscomputes surfaced 2026-05-05
+by parallel-agent TRACK A `extern_arity_drift_duplicate_symbol_collisions_2026-05-05`.
+Second symbol-rename ship in this loop session (cf. v0.8.259 cam/vision).
+
+### Bug
+
+Both rods exported the same C symbol names with incompatible signatures:
+
+| Symbol | kinematics_rt.c | quat_rt.c |
+|---|---|---|
+| `nuc_quat_from_axis_angle` | 2-arg `(axis_h, angle_bits)` Vec-handle API | 3-arg `(axis_ptr, theta_b, q_out_ptr)` raw-pointer API |
+| `nuc_quat_mul` | 2-arg `(ah, bh)` Vec-handle API | 3-arg `(a_ptr, b_ptr, out_ptr)` raw-pointer API |
+
+Plus the Nucleor-level wrapper names `quat_from_axis_angle` and
+`quat_mul` ALSO collided. Importing both rods was a duplicate-symbol
+link error or silent wrong-target call (handle-passing caller →
+raw-pointer body dereferences a small int as a `double*` → segfault
+or garbage).
+
+### Fix (kinematics renames; quat keeps canonical namespace)
+
+- `kinematics_rt.c::nuc_quat_from_axis_angle` (2-arg) → `nuc_kin_quat_from_axis_angle`
+- `kinematics_rt.c::nuc_quat_mul` (2-arg) → `nuc_kin_quat_mul`
+- `kinematics.nr` extern decls + Nucleor wrappers renamed:
+  - `quat_from_axis_angle` → `kin_quat_from_axis_angle`
+  - `quat_mul` → `kin_quat_mul`
+- `kinematics.nr::quat_from_axis_angle_f64` (convenience) keeps its
+  unique name; body now calls `nuc_kin_quat_from_axis_angle`.
+- `tests/rods/kinematics_smoke.nr` updated: `quat_mul` → `kin_quat_mul` (the only in-tree caller of the old 2-arg form).
+- `quat.nr` (3-arg, raw-pointer API) untouched.
+
+### Breaking change
+
+Adopters who imported `kinematics.nr` and called `quat_from_axis_angle(axis, angle_bits)` or `quat_mul(a, b)` 2-arg must migrate to `kin_quat_*`. Only one in-tree caller existed; updated in this ship.
+
+### Coverage
+
+`tests/features/kinematics_quat_collision_smoke.nr` imports **both**
+`kinematics.nr` and `quat.nr` (the file linking + running is itself
+proof that the collision is gone) and locks 3 invariants:
+
+| Test | Path |
+|---|---|
+| **`kin_quat_mul` identity composition** | non-zero `quat_w` after `qid·qid` |
+| **`kin_quat_from_axis_angle` zero-angle** | non-zero quat handle, non-zero `quat_w` |
+| **Both rods can link together** | reaching `main` proves no duplicate-symbol error |
+
+All existing kinematics fixtures pass: `kinematics_smoke.nr`,
+`kinematics_f64.nr`, `kinematics_frame_smoke.nr`, and the older
+`tests/rods/kinematics_smoke.nr`. rc=0. Self-host fixed-point md5
+unchanged at `7b4966b9b69526674ef5ce3208a8274e`.
+
 ## [0.8.259] — 2026-05-05
 
 **vision rod ↔ cam rod `nuc_cam_project` symbol collision FIXED + coverage.**

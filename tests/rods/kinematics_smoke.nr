@@ -20,7 +20,7 @@ fn main() -> i64 {
 
     // Quaternion identity composition.
     let qid: i64 = quat_identity();
-    let qid2: i64 = quat_mul(qid, qid);
+    let qid2: i64 = kin_quat_mul(qid, qid);
     let w: i64 = quat_w(qid2);
     if w == 0 { fail = fail + 1; print("FAIL identity quat composition"); };
 

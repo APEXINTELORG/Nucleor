@@ -94,7 +94,12 @@ long long nuc_quat_identity(void) {
 }
 
 // Build a quaternion from an axis (unit Vec3) and an angle (radians).
-long long nuc_quat_from_axis_angle(long long axis_h, long long angle_bits) {
+//
+// Pre-v0.8.260 named `nuc_quat_from_axis_angle` — collided with
+// `quat_rt.c::nuc_quat_from_axis_angle` (3-arg, raw-pointer API).
+// Renamed to `nuc_kin_quat_from_axis_angle` per the kinematics rod's
+// `nuc_kin_*` namespace.
+long long nuc_kin_quat_from_axis_angle(long long axis_h, long long angle_bits) {
     double *a = (double *)(void *)(size_t)axis_h;
     double angle = _i2f(angle_bits);
     double half = angle * 0.5;
@@ -109,7 +114,11 @@ long long nuc_quat_get_y(long long h) { double *q = (double *)(void *)(size_t)h;
 long long nuc_quat_get_z(long long h) { double *q = (double *)(void *)(size_t)h; return _f2i(q[3]); }
 
 // Hamilton product q1 * q2.
-long long nuc_quat_mul(long long ah, long long bh) {
+//
+// Pre-v0.8.260 named `nuc_quat_mul` — collided with
+// `quat_rt.c::nuc_quat_mul` (3-arg, raw-pointer API).
+// Renamed to `nuc_kin_quat_mul` per the kinematics rod's namespace.
+long long nuc_kin_quat_mul(long long ah, long long bh) {
     double *a = (double *)(void *)(size_t)ah;
     double *b = (double *)(void *)(size_t)bh;
     double w = a[0]*b[0] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3];
