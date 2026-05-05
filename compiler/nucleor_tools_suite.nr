@@ -15898,6 +15898,145 @@ fn lock_build_graph_recursive(manifest_path: str, graph: Vec<i32>, seen: Vec<i32
     return 0;
 }
 
+// v0.8.149 RFC-0061 Tier 2 (V1.17b) — render the lock-graph in
+// one of four formats for `nuc deps graph`. Reuses the existing
+// lock_build_graph_recursive output. Pure additive; doesn't
+// touch the lockfile renderer.
+fn render_deps_graph_native(root_manifest: str, graph: Vec<i32>, fmt: str) -> str {
+    let mut sb: i64 = sb_new();
+    let n: i64 = vec_len(graph);
+    if str_eq(fmt, "json") == 1 {
+        sb_append(sb, "{\"packages\":[");
+        let mut gi: i64 = 0;
+        while gi < n {
+            let pkg: Vec<i32> = vec_get(graph, gi);
+            let nm: str = vec_get(pkg, 1);
+            let vr: str = vec_get(pkg, 2);
+            let deps: Vec<i32> = vec_get(pkg, 5);
+            if gi > 0 { sb_append(sb, ","); };
+            sb_append(sb, "{\"name\":\""); sb_append(sb, json_escape(nm));
+            sb_append(sb, "\",\"version\":\""); sb_append(sb, json_escape(vr));
+            sb_append(sb, "\",\"dependencies\":[");
+            let mut di: i64 = 0;
+            let mut first: i64 = 1;
+            while di < vec_len(deps) {
+                let alias: str = vec_get(deps, di);
+                if first == 0 { sb_append(sb, ","); } else { first = 0; };
+                sb_append(sb, "\""); sb_append(sb, json_escape(alias)); sb_append(sb, "\"");
+                di = di + 3;
+            };
+            sb_append(sb, "]}");
+            gi = gi + 1;
+        };
+        sb_append(sb, "]}\n");
+        return sb_to_str(sb);
+    };
+    if str_eq(fmt, "dot") == 1 {
+        sb_append(sb, "digraph deps {\n");
+        sb_append(sb, "  rankdir=LR;\n");
+        let mut gi: i64 = 0;
+        while gi < n {
+            let pkg: Vec<i32> = vec_get(graph, gi);
+            let nm: str = vec_get(pkg, 1);
+            let vr: str = vec_get(pkg, 2);
+            let deps: Vec<i32> = vec_get(pkg, 5);
+            sb_append(sb, "  \""); sb_append(sb, nm); sb_append(sb, "@"); sb_append(sb, vr); sb_append(sb, "\";\n");
+            let mut di: i64 = 0;
+            while di < vec_len(deps) {
+                let alias: str = vec_get(deps, di);
+                sb_append(sb, "  \""); sb_append(sb, nm); sb_append(sb, "@"); sb_append(sb, vr);
+                sb_append(sb, "\" -> \""); sb_append(sb, alias); sb_append(sb, "\";\n");
+                di = di + 3;
+            };
+            gi = gi + 1;
+        };
+        sb_append(sb, "}\n");
+        return sb_to_str(sb);
+    };
+    if str_eq(fmt, "mermaid") == 1 {
+        sb_append(sb, "graph TD\n");
+        let mut gi: i64 = 0;
+        while gi < n {
+            let pkg: Vec<i32> = vec_get(graph, gi);
+            let nm: str = vec_get(pkg, 1);
+            let deps: Vec<i32> = vec_get(pkg, 5);
+            let mut di: i64 = 0;
+            while di < vec_len(deps) {
+                let alias: str = vec_get(deps, di);
+                sb_append(sb, "  "); sb_append(sb, nm); sb_append(sb, "-->"); sb_append(sb, alias); sb_append(sb, "\n");
+                di = di + 3;
+            };
+            gi = gi + 1;
+        };
+        return sb_to_str(sb);
+    };
+    // text (default): tree-style listing
+    sb_append(sb, "deps graph (");
+    sb_append(sb, str_from_int(n)); sb_append(sb, " package(s)):\n");
+    let mut gi: i64 = 0;
+    while gi < n {
+        let pkg: Vec<i32> = vec_get(graph, gi);
+        let nm: str = vec_get(pkg, 1);
+        let vr: str = vec_get(pkg, 2);
+        let deps: Vec<i32> = vec_get(pkg, 5);
+        sb_append(sb, nm); sb_append(sb, "@"); sb_append(sb, vr); sb_append(sb, "\n");
+        let mut di: i64 = 0;
+        while di < vec_len(deps) {
+            let alias: str = vec_get(deps, di);
+            sb_append(sb, "  -> "); sb_append(sb, alias); sb_append(sb, "\n");
+            di = di + 3;
+        };
+        gi = gi + 1;
+    };
+    return sb_to_str(sb);
+}
+
+fn run_deps_command(argc: i64) -> i64 {
+    // nuc deps graph [path] [--format=text|json|dot|mermaid]
+    if argc < 3 {
+        print("Usage: nuc deps graph [path/to/Nucleor.toml|project_dir] [--format=text|json|dot|mermaid]");
+        return 1;
+    };
+    let sub: str = args_get(2);
+    if str_eq(sub, "graph") != 1 {
+        print(str_concat("ERROR: unknown deps subcommand: ", sub));
+        print("Supported: nuc deps graph");
+        return 1;
+    };
+    let mut fmt: str = "text";
+    let mut target: str = "";
+    let mut i: i64 = 3;
+    while i < argc {
+        let a: str = args_get(i);
+        if str_eq(a, "--format=text") == 1 { fmt = "text"; }
+        else if str_eq(a, "--format=json") == 1 { fmt = "json"; }
+        else if str_eq(a, "--format=dot") == 1 { fmt = "dot"; }
+        else if str_eq(a, "--format=mermaid") == 1 { fmt = "mermaid"; }
+        else if str_eq(a, "--format") == 1 && i + 1 < argc {
+            fmt = args_get(i + 1);
+            i = i + 1;
+        } else if cli_is_flag(a) == 0 && str_len(target) == 0 { target = a; };
+        i = i + 1;
+    };
+    let manifest_path: str = lock_resolve_manifest_target(target);
+    if str_len(manifest_path) == 0 {
+        print("ERROR: no Nucleor.toml found");
+        print("Usage: nuc deps graph [path/to/Nucleor.toml|project_dir] [--format=text|json|dot|mermaid]");
+        return 1;
+    };
+    let mut graph: Vec<i32> = Vec::new();
+    let mut seen: Vec<i32> = Vec::new();
+    let mut stack: Vec<i32> = Vec::new();
+    let mut errors: Vec<i32> = Vec::new();
+    if lock_build_graph_recursive(manifest_path, graph, seen, stack, errors) != 0 || vec_len(errors) > 0 {
+        let err: str = if vec_len(errors) > 0 { vec_get(errors, 0) } else { "unknown lock graph error" };
+        print(str_concat("ERROR: ", err));
+        return 1;
+    };
+    print(render_deps_graph_native(manifest_path, graph, fmt));
+    return 0;
+}
+
 fn render_lockfile_native(root_manifest: str, graph: Vec<i32>) -> str {
     let root_dir: str = path_with_sep(parent_dir(root_manifest));
     let root_settings: Vec<i32> = manifest_parse_settings(root_manifest, file_read_string(root_manifest));
@@ -19394,6 +19533,9 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "lock") {
         return run_lock_command(argc);
+    };
+    if str_eq(cmd, "deps") {
+        return run_deps_command(argc);
     };
     if str_eq(cmd, "fix") {
         // Parse: nuc fix [--imports|--numeric] <file>
