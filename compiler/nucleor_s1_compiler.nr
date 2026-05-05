@@ -10001,7 +10001,7 @@ fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
     let mut sb: i64 = sb_new();
     let mut p: i64 = 0;
     while p < rlen {
-        if p + nlen <= rlen && str_eq_at(rtype, p, name) == 1 {
+        if p + nlen <= rlen && str_eq_at_len(rtype, p, name, nlen) == 1 {
             let before_ok: i64 = if p == 0 { 1 } else {
                 let cb: i64 = str_char_at(rtype, p - 1);
                 if is_alnum(cb) == 1 || cb == 95 { 0 } else { 1 }
@@ -10209,7 +10209,7 @@ fn source_find(haystack: str, needle: str) -> i64 {
     if hlen < nlen { return 0 - 1; };
     let mut i: i64 = 0;
     while i <= hlen - nlen {
-        if str_eq_at(haystack, i, needle) == 1 { return i; };
+        if str_eq_at_len(haystack, i, needle, nlen) == 1 { return i; };
         i = i + 1;
     };
     return 0 - 1;
@@ -11324,7 +11324,7 @@ fn collect_headers_with_effect(source: str, effect_name: str, pat: str) -> Vec<i
             p = p + 1;
             continue;
         };
-        if str_eq_at(source, p, pat) == 1 {
+        if str_eq_at_len(source, p, pat, plen) == 1 {
             let is_extern_fn: i64 = if str_eq(pat, "fn ") == 1 && p >= 7 && str_eq_at(source, p - 7, "extern ") == 1 { 1 } else { 0 };
             if is_extern_fn == 1 {
                 p = p + plen;
@@ -12440,7 +12440,7 @@ fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
             p = p + 1;
             continue;
         };
-        if str_eq_at(source, p, pat) == 0 { p = p + 1; continue; };
+        if str_eq_at_len(source, p, pat, plen) == 0 { p = p + 1; continue; };
         let after: i64 = if p + plen < slen { str_char_at(source, p + plen) } else { 0 };
         let attr_boundary_isr31: i64 = if after == 93 || after == 40 || is_ws(after) == 1 { 1 } else { 0 };
         if attr_boundary_isr31 == 0 { p = p + 1; continue; };
@@ -13441,7 +13441,7 @@ fn sendable_type_forced_not(source: str, typ: str) -> i64 {
     let slen: i64 = str_len(source);
     let mut i: i64 = 0;
     while i + plen <= slen {
-        if str_eq_at(source, i, pat) == 1 {
+        if str_eq_at_len(source, i, pat, plen) == 1 {
             let mut j: i64 = i + plen;
             while j + 7 <= slen && str_eq_at(source, j, "struct ") == 0 {
                 j = j + 1;
@@ -13577,7 +13577,7 @@ fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> 
     let mut added: i64 = 0;
     let mut i: i64 = 0;
     while i + plen <= slen {
-        if str_eq_at(source, i, pat) == 0 { i = i + 1; continue; };
+        if str_eq_at_len(source, i, pat, plen) == 0 { i = i + 1; continue; };
         let hit: i64 = i;
         let open_pos: i64 = hit + plen - 1;
         let close_pos: i64 = sendable_find_matching_paren(source, open_pos);
@@ -13622,7 +13622,7 @@ fn sendable_collect_actor_names(source: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let mut i: i64 = 0;
     while i + plen <= slen {
-        if str_eq_at(source, i, pat) == 1 {
+        if str_eq_at_len(source, i, pat, plen) == 1 {
             let mut q: i64 = i + plen;
             let ns: i64 = q;
             while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
@@ -14714,7 +14714,7 @@ fn atomic_find_pattern_from(text: str, pat: str, start: i64) -> i64 {
     if plen == 0 || tlen < plen { return 0 - 1; };
     let mut p: i64 = start;
     while p + plen <= tlen {
-        if str_eq_at(text, p, pat) == 1 { return p; };
+        if str_eq_at_len(text, p, pat, plen) == 1 { return p; };
         p = p + 1;
     };
     return 0 - 1;
@@ -15556,7 +15556,7 @@ fn md_guard_limit_with_helpers(source: str, body_compact: str, param_name: str) 
     let blen: i64 = str_len(body_compact);
     let mut p: i64 = 0;
     while p + alen <= blen {
-        if str_eq_at(body_compact, p, arg_pat) == 1 {
+        if str_eq_at_len(body_compact, p, arg_pat, alen) == 1 {
             let v: i64 = md_parse_digits_at(body_compact, p + alen);
             if v >= 0 {
                 let mut ns: i64 = p - 1;
@@ -16322,7 +16322,7 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     let mut i: i64 = 0;
     let mut fn_start: i64 = 0 - 1;
     while i < slen - tlen {
-        if str_eq_at(source, i, target) == 1 { fn_start = i; i = slen; };
+        if str_eq_at_len(source, i, target, tlen) == 1 { fn_start = i; i = slen; };
         i = i + 1;
     };
     if fn_start < 0 { out.push(0); out.push(0); return out; };
@@ -16330,7 +16330,7 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     let mut col: i64 = 1;
     i = fn_start;
     while i < slen - vlen {
-        if str_eq_at(source, i, var_name) == 1 {
+        if str_eq_at_len(source, i, var_name, vlen) == 1 {
             out.push(line);
             out.push(col);
             return out;
@@ -16836,6 +16836,15 @@ fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
     // (was ~25 s) because the per-call str_len walked the entire
     // 485 KB source for every byte position scanned.
     let tlen: i64 = str_len(target);
+    let mut k: i64 = 0;
+    while k < tlen {
+        if str_char_at(source, pos + k) != str_char_at(target, k) { return 0; };
+        k = k + 1;
+    };
+    return 1;
+}
+#[manual_drop]
+fn str_eq_at_len(source: str, pos: i64, target: str, tlen: i64) -> i64 {
     let mut k: i64 = 0;
     while k < tlen {
         if str_char_at(source, pos + k) != str_char_at(target, k) { return 0; };
@@ -18284,7 +18293,7 @@ fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 
     if llen < tlen { return 0; };
     let mut i: i64 = 0;
     while i <= llen - tlen {
-        if str_eq_at(txt, i, text) == 1 { return 1; };
+        if str_eq_at_len(txt, i, text, tlen) == 1 { return 1; };
         i = i + 1;
     };
     return 0;
@@ -18296,7 +18305,7 @@ fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
     let slen: i64 = str_len(source);
     let mut i: i64 = 0;
     while i <= slen - tlen {
-        if str_eq_at(source, i, target) == 1 {
+        if str_eq_at_len(source, i, target, tlen) == 1 {
             let mut end: i64 = i + tlen;
             while end < slen && str_char_at(source, end) != 62 { end = end + 1; };
             if end < slen { return str_concat("Box<", str_concat(str_substring(source, i + tlen, end), ">")); };
@@ -21646,7 +21655,7 @@ fn text_contains(hay: str, needle: str) -> i64 {
     if hlen < nlen { return 0; };
     let mut i: i64 = 0;
     while i <= hlen - nlen {
-        if str_eq_at(hay, i, needle) == 1 { return 1; };
+        if str_eq_at_len(hay, i, needle, nlen) == 1 { return 1; };
         i = i + 1;
     };
     return 0;
@@ -30423,7 +30432,7 @@ fn differentiable_audit_count(src: str) -> i64 {
     if nlen <= 0 { return 0; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             count = count + 1;
             p = p + nlen;
         } else {
@@ -30485,7 +30494,7 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
     if nlen <= 0 { return 0; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             count = count + 1;
             p = p + nlen;
         } else {
@@ -30510,15 +30519,15 @@ fn audit_count_three_needles_total(src: str, n1: str, n2: str, n3: str) -> i64 {
     let l3: i64 = str_len(n3);
     let mut p: i64 = 0;
     while p < slen {
-        if l1 > 0 && p + l1 <= slen && str_eq_at(src, p, n1) == 1 {
+        if l1 > 0 && p + l1 <= slen && str_eq_at_len(src, p, n1, l1) == 1 {
             count = count + 1;
             p = p + l1;
         } else {
-            if l2 > 0 && p + l2 <= slen && str_eq_at(src, p, n2) == 1 {
+            if l2 > 0 && p + l2 <= slen && str_eq_at_len(src, p, n2, l2) == 1 {
                 count = count + 1;
                 p = p + l2;
             } else {
-                if l3 > 0 && p + l3 <= slen && str_eq_at(src, p, n3) == 1 {
+                if l3 > 0 && p + l3 <= slen && str_eq_at_len(src, p, n3, l3) == 1 {
                     count = count + 1;
                     p = p + l3;
                 } else {
@@ -30549,7 +30558,7 @@ fn attribute_audit_fn_names(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             // Walk past attribute args (paren or bracket form),
             // newlines, additional attribute lines, doc comments,
             // and `pub` to land on `fn`.
@@ -30617,7 +30626,7 @@ fn attribute_audit_bracket_device(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             let q: i64 = p + nlen;
             let dev_needle: str = str_concat("dev", "ice=");
             let dlen: i64 = str_len(dev_needle);
@@ -30630,7 +30639,7 @@ fn attribute_audit_bracket_device(src: str, needle: str) -> str {
             let mut k: i64 = q;
             let mut found: i64 = 0 - 1;
             while k + dlen <= close && found < 0 {
-                if str_eq_at(src, k, dev_needle) == 1 { found = k + dlen; };
+                if str_eq_at_len(src, k, dev_needle, dlen) == 1 { found = k + dlen; };
                 k = k + 1;
             };
             if found >= 0 {
@@ -30678,7 +30687,7 @@ fn attribute_audit_all_kv_pairs(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             let q: i64 = p + nlen;
             // Walk to the matching close-paren (depth aware).
             let mut depth: i64 = 1;
@@ -30740,7 +30749,7 @@ fn attribute_audit_value_arg(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             // Find the start of the value: after `=` if present
             // before the close, otherwise immediately after `(`.
             let mut q: i64 = p + nlen;
@@ -30795,7 +30804,7 @@ fn attribute_audit_first_ident_arg(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             // Walk forward past `(` then optional whitespace.
             let mut q: i64 = p + nlen;
             while q < slen && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9) {
@@ -30836,7 +30845,7 @@ fn attribute_audit_first_str_arg(src: str, needle: str) -> str {
     if nlen <= 0 { return out; };
     let mut p: i64 = 0;
     while p + nlen <= slen {
-        if str_eq_at(src, p, needle) == 1 {
+        if str_eq_at_len(src, p, needle, nlen) == 1 {
             // Walk forward past `(`, optional whitespace, optional
             // `key=` or `device=` prefix, to the first `"`. Accept
             // chars until the next `"` or end-of-line.
@@ -34504,7 +34513,7 @@ fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i
     let mut i: i64 = 0;
     while i < n {
         let cur: str = vec_get(v, i);
-        if str_len(cur) == want_len && str_eq_at(src, start, cur) == 1 { return 1; };
+        if str_len(cur) == want_len && str_eq_at_len(src, start, cur, want_len) == 1 { return 1; };
         i = i + 1;
     };
     return 0;
@@ -34910,7 +34919,7 @@ fn manifest_entry_path() -> str {
     let klen: i64 = str_len(key);
     let mut p: i64 = 0;
     while p + klen <= clen {
-        if str_eq_at(compact, p, key) == 1 {
+        if str_eq_at_len(compact, p, key, klen) == 1 {
             let start: i64 = p + klen;
             let mut end: i64 = start;
             while end < clen && str_char_at(compact, end) != 34 { end = end + 1; };
