@@ -1,7 +1,7 @@
 # Parallel Agent Assignment - v0.8.314 final-buildout lane
 
 **Issued:** 2026-05-05
-**Base:** `origin/main` at `fa445e60` / `v0.8.314`
+**Base:** `origin/main` at `ecec0728` (`docs: refresh helper final-buildout handoff`), with compiler baseline `fa445e60` / `v0.8.314` underneath.
 **Instruction file:** `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
 
 ## Primary assignment: R12-D2 registry remotes Phase 1
