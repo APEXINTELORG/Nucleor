@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.257] — 2026-05-05
+
+**sparse from_coo rod ↔ runtime arity drift FIXED + coverage.**
+Closes the surface-drift surfaced 2026-05-05 by parallel-agent
+TRACK A `extern_arity_drift_sparse_2026-05-05`. Sixth in the
+arity-drift family (5 CRITICAL + 1 HIGH so far).
+
+### Bug
+
+`stdlib/rods/sparse.nr` declared `nuc_sp_from_coo` 6-arg
+`(row, col, val, rows, cols, nnz)`, but `stdlib/runtime/sparse_rt.c`
+defined it 5-arg (C derived nnz from row->len). The rod's 6th arg
+was silently dropped by Windows x64 calling convention. **No silent
+miscompute** (C got correct nnz from Vec length) but the public rod
+API did not match runtime semantics. HIGH severity, "wrong-error"
+class — adopters relying on the rod's nnz hint were misled.
+
+### Fix (Plan B — non-breaking)
+
+`stdlib/runtime/sparse_rt.c`:
+
+| Before | After |
+|---|---|
+| `nuc_sp_from_coo` (5-arg, derives nnz) | renamed to `nuc_sp_from_coo_inferred` |
+| — | new 6-arg `nuc_sp_from_coo(..., nnz_hint)` accepting the caller's nnz hint (informational; canonical = row->len) and forwarding to `_inferred` |
+
+`stdlib/rods/sparse.nr`: keeps existing 6-arg extern + wrapper;
+adds 5-arg `_inferred` extern + `sparse_from_coo_inferred` rod fn.
+
+### Coverage
+
+`tests/features/sparse_arity_drift_smoke.nr` locks 2 invariants on
+a 2×2 identity built from COO format:
+
+| Test | Path |
+|---|---|
+| **6-arg from_coo round-trip** | sparse_get diagonal = 1.0, off-diagonal = 0.0; rows/cols/nnz accessors match |
+| **5-arg `_inferred` matches 6-arg** | same matrix produces same get / rows / cols / nnz |
+
+Existing `sparse_smoke.nr` (3×3 identity matvec) still passes — no
+regression. All pass. rc=0. Self-host fixed-point md5 unchanged at
+`7b4966b9b69526674ef5ce3208a8274e` (no compiler edit; runtime + rod
++ fixture only).
+
 ## [0.8.256] — 2026-05-05
 
 **quantize ternary GEMV rod ↔ runtime arity drift FIXED + coverage.**

@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2781
-# Total LOC: 11845
+# Total fn definitions: 2782
+# Total LOC: 11849
 
 [[rod]]
 name           = "activation2"
@@ -1869,9 +1869,9 @@ imports        = ["sort"]
 name           = "sparse"
 path           = "stdlib/rods/sparse.nr"
 description    = "Sparse Matrix Operations (CSR Format)"
-function_count = 13
+function_count = 14
 cfile_count    = 1
-loc            = 27
+loc            = 31
 imports        = ["sparse"]
 
 [[rod]]
