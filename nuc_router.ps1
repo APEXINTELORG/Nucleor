@@ -891,5 +891,28 @@ if ($checkLawsRequested) {
     Write-Host "info[CHECK-LAWS]: --check-laws acknowledged (R14-D3 Phase 1). Compiler emits info[LAW-CAPTURE] per @law annotation; Phase 2 will add property-test generation + counterexample-driven exit code."
 }
 
+# R10-D1 Phase 1 (v0.8.278): validate --tier values. Pre-v0.8.278
+# the router accepted any --tier <X> token without checking X. Phase 1
+# rejects invalid tiers (must be 0, 1, or 2) at the router layer
+# with a clear diagnostic. Phase 2 wires the tier value through to
+# clang -O level + cache key + artifact metadata per
+# BUILD_PLAN_R10_performance_envelope.md §1 R10-D1.
+for ($_ti = 0; $_ti -lt $selfHostedArgs.Count; $_ti++) {
+    $_targ = $selfHostedArgs[$_ti]
+    if ($_targ -ieq "--tier" -and $_ti + 1 -lt $selfHostedArgs.Count) {
+        $_tval = $selfHostedArgs[$_ti + 1]
+        if ($_tval -notmatch '^[012]$') {
+            Write-Host "error[PERF-1]: invalid --tier value '$_tval'. Expected 0 (debug), 1 (default), or 2 (release). Phase 2 will wire the value through to clang -O level + cache key + artifact metadata."
+            exit 2
+        }
+    } elseif ($_targ -match '^--tier=(.+)$') {
+        $_tval = $matches[1]
+        if ($_tval -notmatch '^[012]$') {
+            Write-Host "error[PERF-1]: invalid --tier=$_tval value. Expected 0 (debug), 1 (default), or 2 (release). Phase 2 will wire the value through to clang -O level + cache key + artifact metadata."
+            exit 2
+        }
+    }
+}
+
 & $Self @selfHostedArgs
 exit $LASTEXITCODE
