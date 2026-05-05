@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.146] — 2026-05-04
+
+**RFC-0047 Phase B step-1 — typed dimensional units `unit<T,
+[kg, m, s, A, K, mol, cd]>` audit (V2.2 frontier easy-win).**
+Compiler edit; stage1↔stage2 IR md5 fixed-point validated.
+
+### Why
+
+Sister to RFC-0046 Pose<F> phantom-frame audit. Mars Climate
+Orbiter problem is two-headed: frame mismatch (RFC-0046) AND
+unit mismatch. Adopters writing `let force = 9.81 * mass` get
+no warning if `mass` is in kg and `9.81` is acceleration —
+Newtons fall out, not what was intended.
+
+V2 had typed `unit<T, [...]>` with a 7-element SI dimension
+vector tracked in IR. Phase B step-2 (real dim-vector add/sub
+on multiplication/division) is the ~400 LOC compiler ship.
+This Phase B step-1 surfaces type-position usage of
+`unit<T, [...]>` and SI dimension aliases (`Mass<T>`,
+`Length<T>`, `Force<T>`, `Acceleration<T>`) at build time.
+
+### What
+
+| Change | Path |
+|---|---|
+| Audit pass — `: unit<`, `-> unit<`, `: Mass<`, `: Length<`, `: Force<`, `: Acceleration<` type-position counts | `compiler/nucleor_s1_compiler.nr` ~29033 |
+| Smoke fixture | `tests/features/unit_dim_audit_smoke.nr` |
+
+### Locks
+
+| Test | Path |
+|---|---|
+| Fixture compiles + runs rc=0 | exercises 4 SI dimension aliases (Mass / Length / Acceleration / Force) in let-position |
+| Audit fires | build emits `audit: unit<T,[...]> typed-dim type-position occurrences: 4` |
+
+Stage1 IR md5 = stage2 IR md5 = `A8631DCEC8E4367C399041436F31B905`.
+
+### Where this sits in the roadmap
+
+- V2.2 of `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` (Tier A — easy
+  wins).
+- Sister to v0.8.145 RFC-0046 Pose<F> Phase B step-1 — same
+  phantom-type architectural pattern.
+- Fixture documents that f64 arithmetic on `value: T` fields
+  needs the f64 helper rod (Nucleor's i64-everywhere ABI does
+  not implicitly do f64 multiplication on bit-cast values).
+
 ## [0.8.145] — 2026-05-04
 
 **RFC-0046 Phase B step-1 — `Pose<F>` + `Frame_*` marker audit
