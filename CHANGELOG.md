@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.269] — 2026-05-05
+
+**R07-D3 Phase 1 — typed-frame pose chain end-to-end fixture.**
+Closes the third R07 deficiency (HIGH) at Phase 1 scope.
+
+### Bug
+
+Pre-v0.8.269 IK / planner / trajectory rods had build-only smoke
+coverage; full-stack typed-frame correctness was not locked. The
+audit's full IK→planner→trajectory chain requires raw `double*`
+construction Nucleor's current surface can't easily build from a
+fixture (no `vec_ptr_i64` builtin).
+
+### Fix (Phase 1, fixture-only — no rod or compiler edit)
+
+`tests/features/robotics_typed_pose_chain_smoke.nr` exercises the
+**typed-frame pose chain** end-to-end using `kinematics.nr`'s
+Vec-handle pose API + `kinematics_frame.nr`'s typed-check helpers
+(R07-D1 v0.8.267) + `tf.nr`'s canonical-ID validator (R07-D2
+v0.8.268). Same correctness pattern as full IK→planner→trajectory:
+typed frames preserved through composition, mismatch rejected at
+compose time.
+
+Phase 2 (per build plan §1 R07-D3 + R07-D1 Phase 2): extend to full
+IK→planner→trajectory once compile-time TYP-008 + raw-`double*`
+fixture-construction land (~200 LOC compiler edit per RFC-0046
+Phase B).
+
+### Coverage — 5 invariants
+
+| Test | Path |
+|---|---|
+| **Identity-pose chain compose + apply** | `pose_compose(pid, pid)` ∘ pid; apply to `(1, 2, 3)` returns `(1, 2, 3)` |
+| **Typed frames canonical + distinct** | world (0), base (1), camera (2) all canonical and pairwise-distinct |
+| **Wrong-frame compose rejection** | camera vs base: `check_pair = 0`, `assert = 0`, `require = -1` |
+| **Quaternion identity through pose** | `pose_quat(pose_identity())` has `w=1.0`, `x=0.0` |
+| **Chain IDs all canonical** | world/base/camera all in `{0..7, -1}` |
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **End-to-end positive fixture passes** | ✅ pose chain compose + apply rc=0 |
+| **Wrong-frame fixture fails (returns rejection sentinel)** | ✅ all 3 R07-D1 helpers reject the camera-vs-base mismatch |
+| **Cold compile ≤ 4s** | ✅ unchanged (no rod or compiler edit) |
+
+### Caveats (recorded for Phase 2)
+
+- The fixture exercises the **typed-frame correctness pattern**, not
+  the full IK→planner→trajectory chain. Full chain requires raw
+  `double*` arg construction (no `vec_ptr_i64` builtin) which is
+  Phase 2 fixture infrastructure work.
+- Wrong-frame "fails" via runtime sentinel (returning 0/-1), not
+  compile-time error. Phase 2 (RFC-0046 Phase B) promotes to
+  TYP-008 hard error.
+
+### No compiler / rod edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Next R07 ship
+
+R07-D4 (MEDIUM): TOPP/AHRS/CHOMP limitation diagnostics surfaced as
+adopter-facing constraints.
+
 ## [0.8.268] — 2026-05-05
 
 **R07-D2 Phase 1 — typed TF wrapper layer.**
