@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.197] — 2026-05-05
+
+**stdlib/rods/replay.nr first test coverage.** Pure fixture, no
+compiler/runtime/stdlib edit.
+
+RFC-0056 Phase A — deterministic-replay event log with
+record/replay/audit modes and 6 canonical event kinds.
+
+`tests/features/replay_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| Mode IDs | record=1, replay=2, audit=3 |
+| Mode names | round-trip with `unknown` fallback |
+| Event-kind IDs | rng_draw=1, kernel_launch=2, sensor_read=3, actuator_write=4, model_load=5, checkpoint=6 |
+| Event-kind names | `name(1) == "RngDraw"`, `name(99) == "Unknown"` |
+| **Open + append + read-back** | record-mode log accepts events; `event_count` tracks; read accessors round-trip values exactly |
+
+**Surfaced contract:** `replay_log_open` returns a slot index
+in `[0, MAX_LOGS)`; **-1 means table-full**, NOT 0. Slot 0 is a
+valid handle. Documented in fixture.
+
+All pass. rc=0.
+
 ## [0.8.196] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — quantize + quantum.**
