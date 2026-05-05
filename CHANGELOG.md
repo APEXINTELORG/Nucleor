@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.303] — 2026-05-05
+
+**Codebase quality — file-wide `#[allow(PERF-3)]` on `nucleor_tools_suite.nr` (suppress 26 legitimate sites).**
+
+### Bug
+
+Same shape as v0.8.302. Tools-suite shares lex/parse helpers from
+the s1 compiler — 26 PERF-3 sites in `nucleor_tools_suite.nr`
+are intentional bounded per-token / per-stmt allocation building
+its own AST.
+
+### Fix
+
+Added `#[allow(PERF-3)]` (file-wide) at the top of
+`compiler/nucleor_tools_suite.nr`. Self-build now emits 0 PERF-3
+warnings (was 26).
+
+### Self-host fixed-point
+
+**Unchanged at `be108d37860467329bdd830bbbe74406`** — same
+filter-only-no-IR property as v0.8.302.
+
 ## [0.8.302] — 2026-05-05
 
 **Codebase quality — file-wide `#[allow(PERF-3)]` on `nucleor_s1_compiler.nr` (suppress 56 legitimate sites).**
