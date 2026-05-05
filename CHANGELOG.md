@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.159] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — base64 and
+allocator.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### base64 rod (RFC 4648 reference vectors)
+
+`tests/features/base64_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty round-trip | `b64_encode("") == ""`; `b64_decode("") == ""` |
+| **RFC 4648 §10 vector** | `b64_encode("foobar") == "Zm9vYmFy"` |
+| **RFC 4648 §10 short vector** | `b64_encode("f") == "Zg=="` (padding) |
+| 12-char round-trip | `decode(encode("the lazy fox")) == "the lazy fox"` |
+
+Note: base64 is also re-exported via `digest.nr` (covered at
+v0.8.130). This adds standalone-rod coverage.
+
+### allocator rod (Arena / Pool / Stack)
+
+`tests/features/allocator_smoke.nr` locks invariants across all
+three allocator flavors:
+
+| Test | Path |
+|---|---|
+| **Arena (bump)** | fresh used=0/peak=0; alloc tracks used; peak is high-water; reset zeros used but preserves peak |
+| **Object Pool** | available + used == capacity invariant; alloc/free_slot round-trip |
+| **Stack (mark/pop)** | mark + push + pop returns to marked offset; subsequent push from marked point succeeds |
+
+All foundational for per-frame / per-request memory patterns
+in robotics / game / RT-control workloads. RFC-0002 `Box<T, A>`
++ `Allocator` trait integration arrives later; this rod is the
+ergonomic wrapper today.
+
+All pass. rc=0.
+
 ## [0.8.158] — 2026-05-04
 
 **V1.16 LSP — editor integration configs (VS Code / Neovim /
