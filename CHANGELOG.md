@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.193] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — graph + diffusion.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### graph rod (BFS / DFS / Dijkstra / topo-sort / connected-components)
+
+`tests/features/graph_smoke.nr` locks five textbook graph-
+algorithm invariants. Sister to v0.8.148 (negative-cycle +
+adjacency-matrix) which covered the Tier 1 wrappers.
+
+| Test | Path |
+|---|---|
+| BFS visit-all | 4-node line traversed → length == 4 |
+| DFS visit-all | same → length == 4 |
+| **Dijkstra shortest path** | 0→1→3 (cost 2) chosen over 0→2→3 (cost 3) |
+| Topo-sort acyclic DAG | 3-node DAG → valid topo order length 3 |
+| **Connected components** | 2 disjoint pairs → 2 distinct component ids |
+
+### diffusion rod (DDPM schedules + rectified flow)
+
+`tests/features/diffusion_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Linear schedule | T=10 → flat Vec of 5*T = 50 elements (betas/alphas/alpha_bars/sqrt_ab/sqrt_one_minus_ab — surfaced flat layout) |
+| Cosine schedule | same 5*T shape |
+| **Rectified-flow t=0** | `interp(x0, x1, t=0)` == `x0` element-wise |
+| **Rectified-flow target** | `target(x0, x1)` == `x1 - x0` element-wise (e.g. [1,2] → [5,7] gives [4, 5]) |
+
+All pass. rc=0.
+
 ## [0.8.192] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — gpu + graph_render.**
