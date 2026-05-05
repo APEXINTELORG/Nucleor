@@ -31,12 +31,12 @@ extern fn nuc_vec3_free(h: i64);
 
 extern fn nuc_quat_new(w_bits: i64, x_bits: i64, y_bits: i64, z_bits: i64) -> i64;
 extern fn nuc_quat_identity() -> i64;
-extern fn nuc_quat_from_axis_angle(axis: i64, angle_bits: i64) -> i64;
+extern fn nuc_kin_quat_from_axis_angle(axis: i64, angle_bits: i64) -> i64;
 extern fn nuc_quat_get_w(h: i64) -> i64;
 extern fn nuc_quat_get_x(h: i64) -> i64;
 extern fn nuc_quat_get_y(h: i64) -> i64;
 extern fn nuc_quat_get_z(h: i64) -> i64;
-extern fn nuc_quat_mul(a: i64, b: i64) -> i64;
+extern fn nuc_kin_quat_mul(a: i64, b: i64) -> i64;
 extern fn nuc_quat_conjugate(h: i64) -> i64;
 extern fn nuc_quat_rotate(q: i64, v: i64) -> i64;
 extern fn nuc_quat_free(h: i64);
@@ -67,14 +67,18 @@ fn quat(w_bits: i64, x_bits: i64, y_bits: i64, z_bits: i64) -> i64 {
     return nuc_quat_new(w_bits, x_bits, y_bits, z_bits);
 }
 fn quat_identity() -> i64 { return nuc_quat_identity(); }
-fn quat_from_axis_angle(axis: i64, angle_bits: i64) -> i64 {
-    return nuc_quat_from_axis_angle(axis, angle_bits);
+// Renamed from `quat_from_axis_angle` 2026-05-05 to break the
+// Nucleor-level + C-level symbol collision with quat.nr.
+fn kin_quat_from_axis_angle(axis: i64, angle_bits: i64) -> i64 {
+    return nuc_kin_quat_from_axis_angle(axis, angle_bits);
 }
 fn quat_w(q: i64) -> i64 { return nuc_quat_get_w(q); }
 fn quat_x(q: i64) -> i64 { return nuc_quat_get_x(q); }
 fn quat_y(q: i64) -> i64 { return nuc_quat_get_y(q); }
 fn quat_z(q: i64) -> i64 { return nuc_quat_get_z(q); }
-fn quat_mul(a: i64, b: i64) -> i64 { return nuc_quat_mul(a, b); }
+// Renamed from `quat_mul` 2026-05-05 to break the Nucleor-level +
+// C-level symbol collision with quat.nr.
+fn kin_quat_mul(a: i64, b: i64) -> i64 { return nuc_kin_quat_mul(a, b); }
 fn quat_conjugate(q: i64) -> i64 { return nuc_quat_conjugate(q); }
 fn quat_rotate(q: i64, v: i64) -> i64 { return nuc_quat_rotate(q, v); }
 fn quat_free(q: i64) { nuc_quat_free(q); }
@@ -116,7 +120,7 @@ fn quat_f64(w: f64, x: f64, y: f64, z: f64) -> i64 {
     return nuc_quat_new(f64_to_bits(w), f64_to_bits(x), f64_to_bits(y), f64_to_bits(z));
 }
 fn quat_from_axis_angle_f64(axis: i64, angle: f64) -> i64 {
-    return nuc_quat_from_axis_angle(axis, f64_to_bits(angle));
+    return nuc_kin_quat_from_axis_angle(axis, f64_to_bits(angle));
 }
 fn quat_w_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_w(q)); }
 fn quat_x_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_x(q)); }
