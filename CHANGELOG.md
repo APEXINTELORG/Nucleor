@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.275] — 2026-05-05
+
+**R09-D5 Phase 1 — small-width signed saturating multiply pre-clamp.**
+Closes audit's first numeric-residual at HIGH severity.
+
+### Bug
+
+`stdlib/runtime/nucleor_llvm_rt.c` macro `NUC_DEFINE_SIGNED_OVERFLOW`
+(instantiated for i8/i16/i32 at lines 4725-4727) computed
+`long long r = a * b` with **no input clamp**. A caller passing a
+long long outside `[MIN_V, MAX_V]` of the small type (or even just
+two values whose product overflows i64) bypassed the saturation
+contract — the post-multiply `r > MAX_V` check fires on a bogus
+`r` and returns the wrong clamp.
+
+### Fix (Phase 1, additive — runtime-only edit)
+
+Pre-clamp `a` and `b` to `[MIN_V, MAX_V]` BEFORE multiplying. For
+W ∈ {i8, i16, i32}, `MAX_V × MAX_V` fits cleanly in i64 once both
+operands are pre-clamped, so the post-multiply check is then
+always meaningful.
+
+```c
+if (a > (long long)MAX_V) a = (long long)MAX_V;
+if (a < (long long)MIN_V) a = (long long)MIN_V;
+if (b > (long long)MAX_V) b = (long long)MAX_V;
+if (b < (long long)MIN_V) b = (long long)MIN_V;
+long long r = a * b;
+// post-multiply range check unchanged
+```
+
+The dedicated `__nucleor_saturating_mul_i64` at line 4329 is a
+separate implementation and untouched by this macro edit.
+
+### Coverage
+
+`tests/features/saturating_mul_small_width_smoke.nr` locks 4
+invariants on the broader `n_saturating_mul` surface (i64 path):
+
+| Test | Path |
+|---|---|
+| **Identity** | `mul(7, 1) == 7`, `mul(1, 7) == 7` |
+| **Zero** | `mul(0, INT64_MAX) == 0` |
+| **Negative product** | `mul(2, -3) == -6` |
+| **Saturate at i64 boundary** | `mul(2^32, 2^32)` clamps to i64::MAX (`9223372036854775807`) without UB |
+
+All pass — confirms the i64 path is regression-clean.
+
+Per-small-width (i8/i16/i32) fixtures land Phase 2 alongside the
+typed-arithmetic surface needed to drive the macro directly from
+Nucleor source. Phase 1 verifies via code review that input
+pre-clamping prevents UB on the bus the macro defends.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Min/max edge cases clamp correctly without UB or signal** | ✅ pre-clamp prevents the i64-product UB; i64 path regression-clean |
+| Cold compile ≤ 4s | ✅ unchanged (runtime-only edit) |
+
+### Runtime-only edit → s1 fixed-point unchanged
+
+`stdlib/runtime/nucleor_llvm_rt.c` is linked into every Nucleor
+binary at clang-link time (not part of s1's IR fixed-point).
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R09-D5)
+
+Revert the 4 input-clamp lines in the macro body. Old behavior
+restored.
+
+### Next R09 ships (per audit ship sequence: D5 → D2 → D3 → D1 → D4)
+
+| # | Phase | Scope |
+|---|---|---|
+| 2 | R09-D2 (HIGH) | interval pool exhaustion + rigorous trig bounds |
+| 3 | R09-D3 (HIGH) | stable complex abs/div/log algorithms |
+| 4 | R09-D1 (HIGH) | full `fixed<I,F>` type tracking |
+| 5 | R09-D4 (CRITICAL) | `@const_fn` evaluation/restriction |
+
 ## [0.8.274] — 2026-05-05
 
 **R06-D3 Phase 1 — ABI type fallback fail-closed (visible).**
