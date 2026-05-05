@@ -88,8 +88,8 @@ long long nuc_tf_layer_norm(long long xh, long long gamma_h, long long beta_h) {
 //  All stored as flat Vec<f64>
 // ================================================================
 
-long long nuc_tf_attention(long long Q_h, long long K_h, long long V_h,
-                            long long seq_q, long long seq_k, long long d_k, long long d_v) {
+long long nuc_tf_attention_split(long long Q_h, long long K_h, long long V_h,
+                                   long long seq_q, long long seq_k, long long d_k, long long d_v) {
     TRVec *Q = (TRVec *)(void *)Q_h;
     TRVec *K = (TRVec *)(void *)K_h;
     TRVec *V = (TRVec *)(void *)V_h;
@@ -136,8 +136,8 @@ long long nuc_tf_attention(long long Q_h, long long K_h, long long V_h,
 //  Splits Q, K, V into n_heads, applies attention, concatenates.
 // ================================================================
 
-long long nuc_tf_multihead(long long Q_h, long long K_h, long long V_h,
-                            long long seq_q, long long seq_k, long long d_model, long long n_heads) {
+long long nuc_tf_multihead_split(long long Q_h, long long K_h, long long V_h,
+                                   long long seq_q, long long seq_k, long long d_model, long long n_heads) {
     TRVec *Q = (TRVec *)(void *)Q_h;
     TRVec *K = (TRVec *)(void *)K_h;
     TRVec *V = (TRVec *)(void *)V_h;
@@ -161,8 +161,8 @@ long long nuc_tf_multihead(long long Q_h, long long K_h, long long V_h,
                 Vh->data[i * dk + j] = V->data[i * dm + h * dk + j];
             }
 
-        long long attn = nuc_tf_attention((long long)Qh, (long long)Kh, (long long)Vh,
-                                           sq, sk, dk, dk);
+        long long attn = nuc_tf_attention_split((long long)Qh, (long long)Kh, (long long)Vh,
+                                                  sq, sk, dk, dk);
         TRVec *ah = (TRVec *)(void *)attn;
 
         // Copy to output
@@ -171,6 +171,22 @@ long long nuc_tf_multihead(long long Q_h, long long K_h, long long V_h,
                 out->data[i * dm + h * dk + j] = ah->data[i * dk + j];
     }
     return (long long)out;
+}
+
+// 5-arg / 6-arg shims — match the rod's declared arity. Pre-2026-05-05
+// the rod declared `(Q, K, V, seq_len, d_k)` but C took 7 args
+// (`seq_q, seq_k, d_k, d_v`), reading garbage from un-pushed slots.
+// These shims assume self-attention (seq_q == seq_k) and same K/V dim
+// (d_k == d_v) — the standard self-attention case. Adopters who need
+// cross-attention or asymmetric d_k/d_v call the `_split` form.
+long long nuc_tf_attention(long long Q_h, long long K_h, long long V_h,
+                             long long seq_len, long long d_k) {
+    return nuc_tf_attention_split(Q_h, K_h, V_h, seq_len, seq_len, d_k, d_k);
+}
+
+long long nuc_tf_multihead(long long Q_h, long long K_h, long long V_h,
+                             long long seq_len, long long d_model, long long n_heads) {
+    return nuc_tf_multihead_split(Q_h, K_h, V_h, seq_len, seq_len, d_model, n_heads);
 }
 
 // ================================================================
