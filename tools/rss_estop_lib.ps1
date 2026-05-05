@@ -3,8 +3,16 @@
 # The 1000 MB limit used by this repo is an emergency stop, not a
 # performance target. Callers should sample the whole launched process
 # tree and kill it immediately when resident memory crosses the limit.
+#
+# Default Windows path: a small native helper in tools/nuc_rss_estop.c.
+# This keeps the 100ms polling loop out of PowerShell/pwsh. The older
+# PowerShell/.NET sampler remains as a fallback, or for NUC_RSS_USE_JOB=1
+# focused probes. The helper binary is cached under tools/.nuc_rss_estop
+# because perf gates intentionally delete target/ between cold samples.
 
-if (-not ("NucRssJobApi" -as [type])) {
+$script:NucRssNativeDefault = ($env:OS -eq "Windows_NT" -and $env:NUC_RSS_DISABLE_NATIVE -ne "1")
+
+if ((-not $script:NucRssNativeDefault -or $env:NUC_RSS_USE_JOB -eq "1") -and -not ("NucRssJobApi" -as [type])) {
     Add-Type -TypeDefinition @"
 using System;
 using System.Collections.Generic;
@@ -122,6 +130,7 @@ public static class NucRssJobApi {
             CloseHandle(snapshot);
         }
     }
+
 }
 "@
 }
@@ -212,6 +221,99 @@ function Format-NucRssDetail($Processes) {
         ForEach-Object { "{0}:{1}MB" -f $_.Name, ([Math]::Round($_.WorkingSet64 / 1MB, 1)) }) -join ", ")
 }
 
+function Get-NucNativeRssCompiler {
+    if (-not [string]::IsNullOrWhiteSpace($env:NUC_RSS_NATIVE_CC)) {
+        if (Test-Path $env:NUC_RSS_NATIVE_CC) { return $env:NUC_RSS_NATIVE_CC }
+    }
+
+    $cmd = Get-Command clang -ErrorAction SilentlyContinue
+    if ($null -ne $cmd) { return $cmd.Source }
+
+    $candidates = @(
+        "C:\Progra~1\LLVM\bin\clang.exe",
+        "C:\Program Files\LLVM\bin\clang.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $candidate }
+    }
+    return ""
+}
+
+function Get-NucNativeRssEstopPath {
+    if (-not $script:NucRssNativeDefault) { return "" }
+
+    $root = Split-Path -Parent $PSScriptRoot
+    $src = Join-Path $PSScriptRoot "nuc_rss_estop.c"
+    if (-not (Test-Path $src)) { return "" }
+
+    $outDir = Join-Path $PSScriptRoot ".nuc_rss_estop"
+    $exe = Join-Path $outDir "nuc_rss_estop.exe"
+    if ((Test-Path $exe) -and ((Get-Item $exe).LastWriteTimeUtc -ge (Get-Item $src).LastWriteTimeUtc)) {
+        return $exe
+    }
+
+    $clang = Get-NucNativeRssCompiler
+    if ([string]::IsNullOrWhiteSpace($clang)) { return "" }
+
+    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+    $buildLog = Join-Path $outDir "nuc_rss_estop.build.log"
+    $oldErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & $clang "-O2" "-std=c11" $src "-o" $exe 2>&1
+        $exitCode = $LASTEXITCODE
+        $output | Out-File -FilePath $buildLog -Encoding utf8
+        if ($exitCode -ne 0 -or -not (Test-Path $exe)) { return "" }
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    return $exe
+}
+
+function Invoke-NucNativeRssEstop {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$ArgumentList = @(),
+        [string]$ArgumentString = "",
+        [switch]$UseArgumentString,
+        [string]$WorkingDirectory = "",
+        [int]$BudgetMb = 1000,
+        [int]$WarningMb = 800,
+        [int]$TimeoutSec = 0,
+        [int]$SampleMs = 100,
+        [string]$StdoutPath = "",
+        [string]$StderrPath = ""
+    )
+
+    if ($env:NUC_RSS_USE_JOB -eq "1") { return $null }
+
+    $helper = Get-NucNativeRssEstopPath
+    if ([string]::IsNullOrWhiteSpace($helper)) { return $null }
+
+    $nativeArgs = @(
+        "--file", $FilePath,
+        "--cwd", $WorkingDirectory,
+        "--budget-mb", [string]$BudgetMb,
+        "--warning-mb", [string]$WarningMb,
+        "--timeout-sec", [string]$TimeoutSec,
+        "--sample-ms", [string]$SampleMs,
+        "--stdout", $StdoutPath,
+        "--stderr", $StderrPath
+    )
+    if ($UseArgumentString) {
+        $nativeArgs += @("--arg-string", $ArgumentString)
+    } else {
+        $nativeArgs += @("--arg-count", [string]$ArgumentList.Count)
+        $nativeArgs += $ArgumentList
+    }
+
+    $jsonText = (& $helper @nativeArgs | Out-String)
+    if ([string]::IsNullOrWhiteSpace($jsonText)) {
+        throw "native RSS e-stop helper produced no summary"
+    }
+    return ($jsonText | ConvertFrom-Json)
+}
+
 function Invoke-NucRssEstop {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -246,6 +348,25 @@ function Invoke-NucRssEstop {
         New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
         if ([string]::IsNullOrWhiteSpace($StdoutPath)) { $StdoutPath = Join-Path $tmpDir "stdout.txt" }
         if ([string]::IsNullOrWhiteSpace($StderrPath)) { $StderrPath = Join-Path $tmpDir "stderr.txt" }
+    }
+
+    $nativeSummary = Invoke-NucNativeRssEstop `
+        -FilePath $FilePath `
+        -ArgumentList $ArgumentList `
+        -ArgumentString $ArgumentString `
+        -UseArgumentString:$UseArgumentString `
+        -WorkingDirectory $WorkingDirectory `
+        -BudgetMb $BudgetMb `
+        -WarningMb $WarningMb `
+        -TimeoutSec $TimeoutSec `
+        -SampleMs $SampleMs `
+        -StdoutPath $StdoutPath `
+        -StderrPath $StderrPath
+    if ($null -ne $nativeSummary) {
+        if (-not [string]::IsNullOrWhiteSpace($tmpDir)) {
+            $nativeSummary | Add-Member -NotePropertyName tmp_dir -NotePropertyValue $tmpDir -Force
+        }
+        return $nativeSummary
     }
 
     $startParams = @{
