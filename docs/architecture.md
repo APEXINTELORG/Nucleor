@@ -137,19 +137,29 @@ This single-translation-unit approach is intentional — it gives the optimizer 
 
 ## Caching
 
-A successful build writes per-build cache artifacts to `.nuc_cache/`
-in the project root. The cache holds three artifact families:
+A successful build writes cache and diagnostic artifacts in two
+places:
 
-- **Module-graph manifests** — `modgraph_<hash>.{manifest, resolved, max_depth}` per built source. Records the transitive-import graph + per-source content hashes that determined the build's output.
-- **Native-link logs** — `clang_link.<artifact>.log` capturing clang's exit code + stderr for the link step. Adopters debugging a link failure read these.
-- **(Phase 2)** — per-function LLVM IR sub-cache (originally documented as `.nuc_cache/<fn_hash>.ll`) was the v0.2.x design; today per-function IR is bundled into the per-source `.ll` emit at `target/`. The function-level sub-directory is reserved for a future ship.
+- **Project cache (`.nuc_cache/`)** - module-graph manifests
+  (`modgraph_<hash>.{manifest,resolved,max_depth}`) and per-output
+  native-link logs (`clang_link.<artifact>.log`). The link logs capture
+  clang's exit code and stderr for the link step.
+- **Target cache (`target/.nuc_cache_v2/`)** - content-addressed LLVM
+  IR cache entries. Each entry is grouped by hash prefix and contains
+  the cached `.ll` plus metadata (`meta.json`) describing the source,
+  canonical cache flags, compiler version, hash, and timestamp.
+- **Native-link cache (`target/.nuc_native_cache/`)** - cached native
+  executables keyed from the generated IR and link inputs when native
+  linking is enabled.
 
-Subsequent builds that don't change a source reuse the cache rather
-than re-emitting. Pass `--no-cache` to disable.
+Subsequent builds that do not change a source or the relevant cache
+flags can reuse these artifacts rather than re-emitting and relinking.
+Pass `--no-cache` to disable the IR/native cache path.
 
 R13-D6 Phase 1 (v0.8.281, audit 2026-05-05): pre-v0.8.281 this
-section described the v0.2.x `<fn_hash>.ll` layout; live layout is
-module-graph + link-log focused.
+section described the v0.2.x `.nuc_cache/<fn_hash>.ll` layout. Current
+code uses `target/.nuc_cache_v2/` for IR cache entries while keeping
+module-graph and link-log diagnostics under `.nuc_cache/`.
 
 ## What the runtime is not
 

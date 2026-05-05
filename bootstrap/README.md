@@ -32,6 +32,23 @@ which is compiled separately by the host clang.
 
 The bootstrap script `tools/bootstrap_linux.sh` automates steps 1–4.
 
+## Windows recovery
+
+Windows normally ships with `bin\nucleor.exe` already present. If that
+binary is corrupted or missing, print the seed-recovery command first:
+
+```powershell
+pwsh -NoProfile -File tools\bootstrap_windows.ps1 -DryRun
+```
+
+The real recovery path uses the same committed seed and runtime, refuses
+to overwrite `bin\nucleor.exe` unless `-Force` is passed, and can run the
+self-host fixed-point check when `-Verify` is requested:
+
+```powershell
+pwsh -NoProfile -File tools\bootstrap_windows.ps1 -Run -Force -Verify
+```
+
 ## When to refresh the seed
 
 Refresh the seed (re-run the Windows emit + commit the new `.ll`)
