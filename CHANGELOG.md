@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.175] — 2026-05-04
+
+**stdlib/rods/symbolic.nr first test coverage.** Pure fixture,
+no compiler/runtime/stdlib edit.
+
+Symbolic math expression trees, arithmetic, transcendentals,
+numerical evaluation. Pre-v0.8.175: zero coverage.
+
+`tests/features/symbolic_smoke.nr` locks three invariants:
+
+| Test | Path |
+|---|---|
+| Constant eval | `sym_const(5).eval(x=0)` → 5 |
+| Arithmetic eval | `(x + 3)` at x=2 → 5 |
+| **Polynomial eval** | `x²` at x=4 → 16 |
+
+**Surfaced limitation:** symbolic differentiation of `pow(x, n)`
+returns 0 in the current impl (chain-rule case for pow isn't
+wired). Documented in fixture; locking d/dx invariants is
+deferred until impl handles pow.
+
+All pass. rc=0.
+
 ## [0.8.174] — 2026-05-04
 
 **stdlib/rods/spsc_queue.nr first test coverage.** Pure
