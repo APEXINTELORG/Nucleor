@@ -142,6 +142,42 @@ fn lsp_handle_shutdown(id: i64) {
     lsp_send(body);
 }
 
+// v0.8.154 Phase A2: extract the textDocument URI from the
+// request body. Returns "" if not found. Looks for the
+// "uri":"<...>" pattern. Used to bind didOpen/didChange/didClose
+// to a specific file path for diagnostic spawning.
+fn lsp_extract_uri(body: str) -> str {
+    let needle: str = "\"uri\":\"";
+    let pos: i64 = lsp_find(body, needle);
+    if pos < 0 { return ""; };
+    let nlen: i64 = str_len(needle);
+    let blen: i64 = str_len(body);
+    let start: i64 = pos + nlen;
+    let mut p: i64 = start;
+    while p < blen {
+        let c: i64 = str_char_at(body, p);
+        if c == 34 { break; }; // closing quote
+        p = p + 1;
+    };
+    if p >= blen { return ""; };
+    return str_substring(body, start, p);
+}
+
+// v0.8.154 Phase A2: send an empty publishDiagnostics
+// notification for the given URI. Tells the editor "no
+// problems on this file." Real diagnostic emission (parse
+// the file, surface NR020 / TYP-005 / TYP-008 errors) is
+// Phase A2.5 — needs subprocess capture or temp-file
+// hand-off to be wired.
+fn lsp_publish_empty_diagnostics(uri: str) {
+    if str_len(uri) == 0 { return; };
+    let body: str = str_concat(
+        str_concat("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"", uri),
+        "\",\"diagnostics\":[]}}"
+    );
+    lsp_send(body);
+}
+
 fn main() -> i64 {
     let mut running: i64 = 1;
     while running == 1 {
@@ -161,6 +197,17 @@ fn main() -> i64 {
                 if id >= 0 { lsp_handle_shutdown(id); };
             } else if lsp_find(body, "\"method\":\"exit\"") >= 0 {
                 running = 0;
+            } else if lsp_find(body, "\"method\":\"textDocument/didOpen\"") >= 0 {
+                // v0.8.154 Phase A2: ack with empty diagnostics
+                // so the editor sees a clean state. Real
+                // diagnostic forwarding is A2.5.
+                let uri: str = lsp_extract_uri(body);
+                lsp_publish_empty_diagnostics(uri);
+            } else if lsp_find(body, "\"method\":\"textDocument/didChange\"") >= 0 {
+                let uri: str = lsp_extract_uri(body);
+                lsp_publish_empty_diagnostics(uri);
+            } else if lsp_find(body, "\"method\":\"textDocument/didClose\"") >= 0 {
+                // No response per spec; future tracking-state cleanup goes here.
             } else if id >= 0 {
                 // Unknown method with id — emit MethodNotFound error.
                 let err_body: str = str_concat(
