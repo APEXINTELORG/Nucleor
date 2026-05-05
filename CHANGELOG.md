@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.232] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — lqr + occgrid.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### lqr rod (discrete infinite-horizon LQR via Riccati)
+
+`tests/features/lqr_smoke.nr` solves a 1-D LQR with A=B=Q=R=1.
+The discrete algebraic Riccati equation reduces to P²-P-1=0
+with the **golden-ratio** solution. Locks four invariants:
+
+| Test | Path |
+|---|---|
+| lqr_new returns valid handle | non-zero |
+| solve runs at least one iteration | stabilizable system |
+| **Riccati P solves to φ ≈ 1.618** | textbook golden-ratio fixed point |
+| Optimal gain K = 1/φ ≈ 0.618 | golden-ratio reciprocal |
+
+### occgrid rod (2-D log-odds occupancy grid)
+
+`tests/features/occgrid_smoke.nr` builds a 10×20 grid with cell
+size 0.5 m and locks four invariants (find_frontiers /
+update_scan use raw out-ptrs / array-ptrs; deferred):
+
+| Test | Path |
+|---|---|
+| Topology round-trip | width=10, height=20, cell=0.5 |
+| Initial probability is 0.5 | log-odds 0 = unknown |
+| **update_ray drives p > 0.5 at hit cell** | sensor at (0.25, 0.25), range 1.0 |
+| clear restores p = 0.5 | grid reset semantics |
+
+All pass. rc=0.
+
 ## [0.8.231] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — admit + bt.**
