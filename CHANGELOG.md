@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.210] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — math + mem.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### math rod (integer math utilities)
+
+`tests/features/math_smoke.nr` locks four invariants — including
+the NUM-G2 abs/pow_int overflow guards (v0.8.80/81) which silent-
+miscompute under NUCLEOR_INT_STRICT_INTRIN=0:
+
+| Test | Path |
+|---|---|
+| Basics | abs(-7)=7, min/max/clamp at and beyond bounds |
+| **pow_int(2, 10) == 1024** | exponent identity (exercises overflow detection path) |
+| gcd(12, 18) == 6; gcd(17, 13) == 1; gcd(0, 5) == 5 | Euclidean algorithm |
+| Chain | lcm(4,6)=12, is_even(4)=1, is_odd(7)=1, sqrt_int(16)=4 |
+
+### mem rod (Vec memory-management extensions)
+
+`tests/features/mem_smoke.nr` locks four memory-lifecycle
+invariants:
+
+| Test | Path |
+|---|---|
+| Fresh Vec has positive mem_bytes | sizeof(NVec) at minimum |
+| mem_bytes grows after enough pushes | inline buffer exceeded → heap allocation |
+| **vec_clear resets len, preserves bytes** | backing allocation kept for reuse |
+| Cleared Vec is reusable | push after clear writes at index 0 |
+
+All pass. rc=0.
+
 ## [0.8.209] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — hashmap_str + lcp.**
