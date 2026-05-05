@@ -29002,6 +29002,27 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v0143_fixed_total > 0 {
         print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
     };
+    // v0.8.173 (RFC-0044 Phase B step-1, V1.13 drift restoration)
+    // — per-BinOp `OverflowMode` audit. RFC-0044 calls for two
+    // surface forms:
+    //   - block: `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
+    //   - inline-suffix: `*#wrap`, `+#sat`, `/#trap`, `as#sat`, etc.
+    // V2 carried `OverflowMode` as a per-BinOp IR field; OSS retained
+    // only the block form (and even that may not be implemented yet
+    // in current main). Phase B step-1 (this audit) surfaces adopter
+    // usage of either form so future ships can lock the block-form
+    // wiring + add the inline-suffix lex extension. Phase B step-2
+    // (real per-BinOp lowering) is the larger ~150 LOC compiler ship.
+    let v0173_wrap_block: i64 = simple_attribute_audit_count(after_async, str_concat("wrap", "ping {"));
+    let v0173_sat_block: i64 = simple_attribute_audit_count(after_async, str_concat("satur", "ating {"));
+    let v0173_check_block: i64 = simple_attribute_audit_count(after_async, str_concat("check", "ed {"));
+    let v0173_inline_wrap: i64 = simple_attribute_audit_count(after_async, "#wrap");
+    let v0173_inline_sat: i64 = simple_attribute_audit_count(after_async, "#sat");
+    let v0173_inline_trap: i64 = simple_attribute_audit_count(after_async, "#trap");
+    let v0173_overflow_total: i64 = v0173_wrap_block + v0173_sat_block + v0173_check_block + v0173_inline_wrap + v0173_inline_sat + v0173_inline_trap;
+    if v0173_overflow_total > 0 {
+        print(str_concat("audit: per-BinOp OverflowMode usages (block + inline): ", str_from_int(v0173_overflow_total)));
+    };
     // v0.8.145 (RFC-0046 Phase B step-1, V2.1 frontier easy-win)
     // — `Pose<F>` + `Frame_*` marker audit. The `kinematics_frame`
     // rod already ships zero-cost marker structs (`Frame_World`,

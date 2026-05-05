@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.173] — 2026-05-04
+
+**RFC-0044 Phase B step-1 — per-BinOp `OverflowMode` audit
+(V1.13 drift restoration).** Compiler edit; stage1↔stage2 IR
+md5 fixed-point validated.
+
+### What
+
+| Change | Path |
+|---|---|
+| Audit pass — counts `wrapping {` / `saturating {` / `checked {` blocks + `#wrap` / `#sat` / `#trap` inline suffixes | `compiler/nucleor_s1_compiler.nr` ~29005 |
+| Smoke fixture | `tests/features/overflow_mode_audit_smoke.nr` |
+
+Stage1 IR md5 = stage2 IR md5 = `8FBD1F770CFA56C41D209C62F4DF6520`.
+
+### Roadmap — V1.x drift restoration arc
+
+| V# | RFC | Status |
+|---|---|---|
+| V1.12 | RFC-0043 fixed<I,F> | ✅ Phase B step-1 v0.8.143 |
+| V1.13 | RFC-0044 OverflowMode | ✅ Phase B step-1 v0.8.173 |
+| V1.14 | RFC-0045 @differentiable | ✅ Phase B step-1 v0.8.5 + names v0.8.15 |
+
+All three V1.12-V1.14 drift-restoration RFCs now have Phase B
+step-1 audits in place.
+
 ## [0.8.172] — 2026-05-04
 
 **Helper-agent integration — TYP-027 strict-inference gate
