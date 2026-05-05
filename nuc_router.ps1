@@ -674,7 +674,19 @@ function Invoke-SelfCompat {
                 $ignored.Add($arg)
                 continue
             }
-            '^--(tier|backend|features|opt-level|registry|evidence|check-laws)$' {
+            '^--check-laws$' {
+                # R14-D3 Phase 1 (v0.8.263): no longer silently ignored.
+                # The compiler's lex path already emits info[LAW-CAPTURE]
+                # for every @law(...) annotation (R14-D1, v0.8.262); this
+                # branch acknowledges --check-laws was passed and surfaces
+                # the LAW-CAPTURE summary post-build. Phase 2 will
+                # generate bounded property tests + return nonzero on
+                # counterexamples per BUILD_PLAN_R14_algebraic_laws.md
+                # §1 R14-D3 acceptance.
+                Write-Host "info[CHECK-LAWS]: --check-laws acknowledged (R14-D3 Phase 1). Compiler emits info[LAW-CAPTURE] per @law annotation; Phase 2 will add property-test generation + counterexample-driven exit code." -ForegroundColor Cyan
+                continue
+            }
+            '^--(tier|backend|features|opt-level|registry|evidence)$' {
                 $ignored.Add($arg)
                 if ($i + 1 -lt $AllArgs.Count -and -not $AllArgs[$i + 1].StartsWith("-")) {
                     $skipNext = $true
@@ -863,6 +875,20 @@ if ($routeExt) {
     }
     & $Ext @sanitizedArgs
     exit $LASTEXITCODE
+}
+
+# R14-D3 Phase 1 (v0.8.263): if `--check-laws` was passed, surface a
+# visible acknowledgment so the flag is no longer silently ignored.
+# The compiler's lex path already emits info[LAW-CAPTURE] per @law
+# annotation (R14-D1, v0.8.262); this acknowledgment proves the
+# router sees the flag and sets the stage for Phase 2 property-test
+# generation per BUILD_PLAN_R14_algebraic_laws.md §1 R14-D3.
+$checkLawsRequested = $false
+foreach ($_chkArg in $selfHostedArgs) {
+    if ($_chkArg -ieq "--check-laws") { $checkLawsRequested = $true }
+}
+if ($checkLawsRequested) {
+    Write-Host "info[CHECK-LAWS]: --check-laws acknowledged (R14-D3 Phase 1). Compiler emits info[LAW-CAPTURE] per @law annotation; Phase 2 will add property-test generation + counterexample-driven exit code."
 }
 
 & $Self @selfHostedArgs

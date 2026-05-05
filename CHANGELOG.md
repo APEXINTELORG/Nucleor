@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.263] — 2026-05-05
+
+**R14-D3 Phase 1 — `--check-laws` un-ignored at the router layer.**
+Closes the second deficiency from `BUILD_PLAN_R14_algebraic_laws.md`
+at the audit's explicitly-cited site (`nuc_router.ps1:677`).
+
+### Bug
+
+`nuc_router.ps1:677` matched `--check-laws` in the regex
+`'^--(tier|backend|features|opt-level|registry|evidence|check-laws)$'`
+that swept the flag into `$ignored.Add($arg)` — silently dropped.
+Adopters running `nuc test --check-laws` got zero feedback that
+the flag had any effect.
+
+### Fix (Phase 1, additive)
+
+`nuc_router.ps1`:
+
+1. Removed `check-laws` from the ignored-flags regex on line 677
+   (the audit's literally-cited site).
+2. Added a dedicated `^--check-laws$` switch arm in
+   `Invoke-SelfCompat` that emits an `info[CHECK-LAWS]` Cyan
+   acknowledgment (no longer silently dropped).
+3. Added a top-level intercept BEFORE the default
+   `& $Self @selfHostedArgs` fall-through that emits the same
+   `info[CHECK-LAWS]` line whenever `--check-laws` is detected
+   in `$selfHostedArgs`.
+
+### Live-invocation gap (recorded for Phase 2)
+
+`nuc.bat` (the user-facing entry) bypasses `nuc_router.ps1`
+entirely — it invokes `bin\nucleor.exe %*` directly. The router
+is on the dispatch path for distro-packaged advanced commands but
+not for `nuc build`/`nuc test`. The compiler itself silently
+ignores unknown flags, so `nuc.bat build foo --check-laws`
+currently does not surface `info[CHECK-LAWS]` even after this
+ship. Phase 2 (compiler-side `--check-laws` recognition +
+property-test generation) closes this gap.
+
+This Phase 1 ship is consistent with the audit's literal citation
+(`nuc_router.ps1:677-680`) and removes that specific silent-drop
+path. Phase 2 covers the compiler-side path per build plan §1
+R14-D3 ("compiler/nucleor_tools_suite.nr or test command
+dispatcher — implement check path").
+
+### Coverage
+
+`tests/features/law_check_true_smoke.nr` declares two true
+algebraic laws (`@law(commutative, associative, identity = 0)`
+on `add_law`; `@law(commutative, associative, identity = 1)` on
+`mul_law`) and verifies:
+
+- Compile-time produces 2 `info[LAW-CAPTURE]` records via R14-D1.
+- Runtime exercises commutativity, associativity, and identity for
+  both fns; all properties hold (true laws on integer math).
+
+This fixture is the "true law passes" fixture from the build
+plan; the "false law fails" fixture (`tests/err/err_law_check_false.nr`)
+ships in Phase 2 alongside the property-test generator that can
+fail it.
+
+### Acceptance status
+
+| Criterion | Status |
+|---|---|
+| **Flag not ignored** (audit literal cite) | ✅ Phase 1 — `nuc_router.ps1:677` no longer drops it |
+| **True law passes** | ⚙️ Phase 1 partial — fixture exists; Phase 2 adds property-test driver |
+| **False law fails** | ⏳ Phase 2 |
+| Cold compile ≤ 4s | ✅ unchanged (no compiler edit) |
+
+### No compiler edit → self-host fixed-point unchanged
+
+md5 stays at `45802a11e9c6e5b1af3bf6e948f5f56f`. Drift gates clean.
+
+### Next R14 ships (per spine §15.2)
+
+| # | Phase | Scope |
+|---|---|---|
+| 3 | R14-D5 | reconcile law name schema across RFC-0031 + language-reference + tests/attrs/laws |
+| 4 | R14-D2 Phase 1 | metadata-only optimizer pass (observe-only) |
+| 5 | R14-D4 Phase 1 | Property + Arbitrary + cert proof scaffolding |
+| 6 | R14-D3 Phase 2 | compiler-side `--check-laws` dispatch + property-test generator + counterexample-driven exit code |
+| 7+ | Phase 2/3/4 | actual rewrites, hard errors, Z3 integration |
+
 ## [0.8.262] — 2026-05-05
 
 **R14-D1 Phase 1 — `@law(...)` lex-time capture LANDED.**
