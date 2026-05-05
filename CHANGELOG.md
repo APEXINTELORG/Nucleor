@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.155] — 2026-05-04
+
+**V1.16 LSP Phase A2.5 dependencies — `io_run_capture` popen-style
+subprocess capture + `lsp_uri_to_path` + `lsp_capture_diagnostics`
+scaffolding.** Runtime + rod surface + LSP daemon edit.
+
+### Why
+
+Phase A2.5 is the LSP server's diagnostic-forwarding ship: when
+the editor sends `textDocument/didOpen` or `textDocument/didChange`,
+the daemon spawns the Nucleor compiler on the file, captures the
+output (which contains `error[NR020]: ...`, `warning[TYP-005]: ...`
+etc.), and forwards each finding back to the editor as a
+`textDocument/publishDiagnostics` notification.
+
+Two load-bearing primitives didn't exist:
+1. **Subprocess output capture.** The `system()` builtin only
+   returns rc, not stdout. popen-style capture was needed.
+2. **URI-to-path conversion.** LSP files are identified by URI
+   (`file:///c:/path/to/file.nr`); the compiler takes a path.
+
+Both ship in this commit as additive primitives that the next
+ship (A2.6) wires into the dispatch path.
+
+### What
+
+| Change | Path |
+|---|---|
+| `rods_io_run_capture(cmd)` — `_popen`/`popen` wrapper, returns captured stdout as malloc'd string | `stdlib/rods/io_rt.c` |
+| `extern fn rods_io_run_capture` + `fn io_run_capture(cmd: str) -> str` | `stdlib/rods/io.nr` |
+| `lsp_uri_to_path(uri)` — converts `file:///c:/path` to `c:/path` | `compiler/nucleor_lsp.nr` |
+| `lsp_capture_diagnostics(file_path)` — runs `nucleor.exe build <path>` via shell, captures output | `compiler/nucleor_lsp.nr` |
+| Smoke fixture | `tests/features/io_run_capture_smoke.nr` |
+
+### Locks
+
+| Test | Path |
+|---|---|
+| `io_run_capture("echo hello")` returns string containing "hello" | smoke fixture invariant 1 |
+| `io_run_capture("")` returns `""` defensively | smoke fixture invariant 2 |
+| LSP daemon Phase A2 lifecycle still works (initialize/didOpen/exit) | end-to-end verify in CHANGELOG |
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server progression:
+  - Phase A0 → ✅ v0.8.150
+  - Phase A1 dep → ✅ v0.8.152 (`io_read_bytes`)
+  - Phase A1 main → ✅ v0.8.153 (LSP base protocol)
+  - Phase A2 → ✅ v0.8.154 (textDoc lifecycle + empty diag)
+  - Phase A2.5 deps → ✅ v0.8.155 (this ship — capture + URI primitives)
+  - Phase A2.6 main → next ship (parse compiler output, emit
+    per-error `textDocument/publishDiagnostics`, range-aware)
+  - Phase v1 → deferred (~3000 LOC compiler frontend refactor)
+
+### Adopter-visible
+
+`io_run_capture(cmd)` is a general-purpose subprocess capture
+primitive — useful for any nucleor program that needs to
+delegate to an external tool and read its output. Not LSP-
+specific.
+
 ## [0.8.154] — 2026-05-04
 
 **V1.16 LSP server Phase A2 — textDocument lifecycle wiring +

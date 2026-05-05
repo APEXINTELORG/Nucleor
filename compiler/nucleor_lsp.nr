@@ -164,11 +164,7 @@ fn lsp_extract_uri(body: str) -> str {
 }
 
 // v0.8.154 Phase A2: send an empty publishDiagnostics
-// notification for the given URI. Tells the editor "no
-// problems on this file." Real diagnostic emission (parse
-// the file, surface NR020 / TYP-005 / TYP-008 errors) is
-// Phase A2.5 — needs subprocess capture or temp-file
-// hand-off to be wired.
+// notification for the given URI.
 fn lsp_publish_empty_diagnostics(uri: str) {
     if str_len(uri) == 0 { return; };
     let body: str = str_concat(
@@ -176,6 +172,36 @@ fn lsp_publish_empty_diagnostics(uri: str) {
         "\",\"diagnostics\":[]}}"
     );
     lsp_send(body);
+}
+
+// v0.8.155 Phase A2.5: convert `file:///c:/path/to/file.nr` URI
+// to a Windows path `c:/path/to/file.nr`. Returns "" if the URI
+// doesn't have a `file://` prefix.
+fn lsp_uri_to_path(uri: str) -> str {
+    let prefix: str = "file:///";
+    let plen: i64 = str_len(prefix);
+    let ulen: i64 = str_len(uri);
+    if ulen <= plen { return ""; };
+    let head: str = str_substring(uri, 0, plen);
+    if str_eq(head, prefix) != 1 { return ""; };
+    return str_substring(uri, plen, ulen);
+}
+
+// v0.8.155 Phase A2.5: spawn `nucleor.exe build <path>` via the
+// platform shell, capture stdout. The captured output contains
+// any compiler diagnostics. Returns the raw output. Adopters
+// can grep this for "error[" / "warning[" surfaces.
+//
+// The full Phase A2 acceptance flow (parse output → emit each
+// error as a textDocument/publishDiagnostics range) needs an
+// `--emit-diagnostics-json` flag on nucleor.exe; this ship
+// lands the capture primitive and the URI-to-path conversion,
+// which were the load-bearing pieces. The JSON formatter on
+// nucleor.exe side is a follow-up.
+fn lsp_capture_diagnostics(file_path: str) -> str {
+    if str_len(file_path) == 0 { return ""; };
+    let cmd: str = str_concat("nucleor.exe build \"", str_concat(file_path, "\" 2>&1"));
+    return io_run_capture(cmd);
 }
 
 fn main() -> i64 {

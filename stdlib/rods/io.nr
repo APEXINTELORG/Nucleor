@@ -13,6 +13,8 @@ extern fn rods_io_read_line() -> str;
 // LSP base protocol needs faithful body-reading because JSON
 // strings can contain \n.
 extern fn rods_io_read_n_bytes(n: i64) -> str;
+// v0.8.155 V1.16 Phase A2.5 dep — popen-style subprocess capture.
+extern fn rods_io_run_capture(cmd: str) -> str;
 extern fn rods_io_print_no_newline(s: str);
 extern fn rods_io_eprint(s: str);
 
@@ -25,6 +27,13 @@ fn io_read_line() -> str {
 // after Content-Length).
 fn io_read_bytes(n: i64) -> str {
     return rods_io_read_n_bytes(n);
+}
+
+// Run `cmd` via the platform shell; capture stdout as a string.
+// Returns "" on failure. Used for subprocess delegation (e.g. LSP
+// daemon spawning nucleor.exe to emit diagnostics).
+fn io_run_capture(cmd: str) -> str {
+    return rods_io_run_capture(cmd);
 }
 
 fn io_print(s: str) {
