@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.296] — 2026-05-05
+
+**R10-D4 Phase 1 — cache key includes `NUCLEOR_INT_STRICT_ARITH` (correctness bug, REAL fix).**
+
+### Bug
+
+`NUCLEOR_INT_STRICT_ARITH=1` flips integer `+`/`-`/`*` lowering
+between the legacy native path and the panic-on-overflow path
+(verified at `compiler/nucleor_s1_compiler.nr:23322` + `:23471`).
+Pre-v0.8.296 the cache canonical-flags string did NOT include
+this env. An adopter running:
+
+```
+NUCLEOR_INT_STRICT_ARITH=1 nuc build foo.nr
+nuc build foo.nr  # env unset
+NUCLEOR_INT_STRICT_ARITH=1 nuc build foo.nr  # cache hit on stale non-strict IR!
+```
+
+…got semantically-wrong IR back from cache on the third build.
+Audit-classified HIGH (R10-D4) per
+`BUILD_PLAN_R10_performance_envelope.md` §1.
+
+### Fix (real correctness fix)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+
+- `cache_v2_strict_arith_flag()` — returns `"1"` if env is `"1"`,
+  `"0"` otherwise (parallel to `cache_v2_strict_intrin_flag`).
+- `cache_v2_canonical_flags()` includes `;strict-arith=<0|1>`
+  alongside the existing `dbc-mode` / `strict-intrin` / `strict-mode`
+  fields.
+
+Cache key SHA256 now changes when the env flips → cache miss →
+fresh build with correct semantics. Old cache entries (without
+the flag) hash differently and are naturally invalidated.
+
+### Tests
+
+`tests/features/cache_strict_arith_key_smoke.nr` — verified
+manually:
+- Build 1 (env unset): `cache: miss -> stored (sha=04160d46…)`
+- Build 2 (`NUCLEOR_INT_STRICT_ARITH=1`): `cache: miss -> stored (sha=853154d5…)` ← **different SHA**
+- Build 3 (env unset again): `cache: hit (sha=04160d46…)` ← matches Build 1
+
+Pre-fix Build 2 would have wrongly hit Build 1's cache.
+
+This is the sixth REAL improvement in the user-pushback thread:
+v0.8.291 (string skip), v0.8.292 (loop keyword), v0.8.293
+(@const_fn purity), v0.8.294 (import cycles), v0.8.295 (implicit
+panic), v0.8.296 (cache key correctness).
+
+### Self-host fixed-point
+
+**Rotated** `fb43d2503e01f1a1ffdc3d18b069fdaf` →
+`9aa7f758dc8aaf40e5347ab2647282ff`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.295] — 2026-05-05
 
 **R03-D2 Phase 1 — implicit panic source detection in `#[no_panic]` (NEW RT-009 warning).**
