@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.313] — 2026-05-05
+
+**A2 integration — u64 strict-arithmetic overflow closure (probe deliverable).**
+
+### Source
+
+Cherry-picked `3637dcd3` from `probe/u64-strict-arith-v0886`,
+the parallel agent's deliverable rebased onto v0.8.312.
+
+### What it ships
+
+- New runtime helpers: `__nucleor_panic_add_u64` / `_sub_u64` /
+  `_mul_u64` in `stdlib/runtime/nucleor_llvm_rt.c`. They check
+  for unsigned overflow and panic on hit.
+- LLVM unsigned-overflow intrinsics declared:
+  `llvm.uadd/usub/umul.with.overflow.i8/16/32/64`.
+- New compiler helper `binop_u64_type(pool, nid, sym, structs)`
+  that walks a binop's children to detect a u64-typed operand.
+- Strict-arith dispatch in `lower_expr` routes u64 binops to the
+  new unsigned panic helpers (or the LLVM unsigned overflow
+  intrinsic when `NUCLEOR_INT_STRICT_INTRIN=1`).
+- `__has_u64_v886` sym flag set whenever a `let`, fn param, or
+  fn return introduces a `u64` — gates the new dispatch path.
+- Tools-suite mirror tables updated.
+- 3 NEW fixtures: `tests/fixtures/strict_intrin_u64_{add,sub,mul}_overflow.nr`.
+
+### Tests
+
+`tests/fixtures/strict_intrin_u64_add_overflow.nr` —
+`add_u64(u64::MAX, 1)` under `NUCLEOR_INT_STRICT_ARITH=1` panics
+with `PANIC: integer overflow` (rc=1). Verified.
+
+### Self-host fixed-point
+
+The cherry-pick brought in a stale seed (md5
+`7ff8d0955e09083f2bb338ac326d5bb1` — the pre-cherry-pick seed).
+Rebuilt locally; stage1↔stage2 fixed point now holds at
+**`92a6b77baec09726f3c04b3224280ce5`** (matches probe's heartbeat
+report). bin/nucleor.exe + bootstrap/nucleor_s1_seed.ll both
+updated to the correct rebuild.
+
+### Cold compile
+
+3 fresh-cache samples post-integration: 3.862s / 4.378s / 4.255s.
+Median 4.255s, mean 4.16s. Slightly above 4s but well under the
+5.93s hard ceiling — the new u64-detection visit on every binop
+adds modest cost.
+
+### Probe agent acknowledgment
+
+A2 closed by parallel-agent worktree
+`C:\Users\JoeWe\Nucleor_OSS_v0886_u64_strict_arith` per
+`findings/heartbeat.json`. Validation reported on probe side:
+self-host fixed-point pass, focused verify (1/274), perf gate
+pass at cold 3.75s.
+
 ## [0.8.312] — 2026-05-05
 
 **QM-7 — clifford rod disclosure (`clifford_limitations()`).**
