@@ -1,102 +1,82 @@
 {
-  "instructions_read": "v0.8.317-r10-d5-memory-split",
-  "current_task": "main: R10-D5 Phase 2 memory accounting split complete; helper continues S03-D1 governance CLI dispatch prep",
+  "instructions_read": "v0.8.318-r10-d4-cache-key-gate",
+  "current_task": "main: R10-D4 strict-arith cache-key gate hardening ready; helper1/helper2 next lanes assigned",
   "roadmap_phase": "v1_launch_blocker_final_buildout",
-  "current_punchlist_item": "R10-D5 Phase 2 shipped; S03-D1 remains helper-owned",
+  "current_punchlist_item": "R10-D4 Phase 2 executable acceptance gate",
   "edits_in_main_tree": true,
-  "rebased_on_origin_main": "local main matched origin/main at c22498c7 before the v0.8.317 R10-D5 commit",
+  "rebased_on_origin_main": "local main fast-forwarded to origin/main 05a5839c before v0.8.318",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "head": "pending v0.8.317 commit; run git log --oneline -1 after pull",
-  "status": "r10_d5_phase2_ready",
+  "head": "pending v0.8.318 commit; run git log --oneline -1 after pull",
+  "status": "r10_d4_phase2_ready",
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
-    "helper_worktree": "helper should create/update from fresh origin/main",
-    "helper_branch": "probe/s03-d1-governance-cli-dispatch-prep-v0816",
-    "helper_instructions": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md",
-    "helper_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0816_s03_d1_governance_cli_dispatch_prep_2026-05-05.md",
     "canonical_spine": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\BUILD_PATH_v0.4_to_v1.3.md",
-    "build_plans": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans"
+    "build_plans": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans",
+    "helper1_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper1_assignment_v0821_extern_arity_sweep_2026-05-05.md",
+    "helper2_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0821_posix_perf_repro_audit_2026-05-05.md",
+    "helper2_heartbeat": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\heartbeat_helper2.json"
   },
-  "integrated_helper": {
-    "source_branch": "origin/probe/r12-registry-remotes-v0814",
-    "source_head": "49a117e2e82f5b1b5ad0aa5fc8ce00afcc2b1625",
-    "cherry_pick_commit": "5457001b",
-    "assignment": "R12-D2 registry remotes Phase 1",
-    "implementation": {
-      "storage": ".nucleor/registry-remotes.txt",
-      "commands": [
-        "nuc registry remote add <name> <url>",
-        "nuc registry remote list",
-        "nuc registry remote remove <name>"
-      ],
-      "phase_scope": "configuration only; TLS-backed remote fetch/install remains follow-on work"
-    },
+  "r10_d4_gate": {
+    "summary": "R10-D4 compiler cache-key fix already existed from v0.8.296, but the executable gate was source-level only. v0.8.318 makes the gate prove unset strict-arith miss, enabled strict-arith miss with different SHA, and unset rebuild hit on the original SHA.",
     "changed_files": [
-      "compiler/nucleor_tools_suite.nr",
-      "docs/rfcs/RFC-0019-package-manager.md",
-      "docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md",
-      "tools/verify.ps1",
       "tools/verify.sh",
       "tools/verify_fast.sh",
-      "tools/perf_baseline.json"
-    ]
-  },
-  "main_perf_fix": {
-    "changed_files": [
-      "compiler/nucleor_s1_compiler.nr",
-      "bin/nucleor.exe",
-      "bootstrap/nucleor_s1_seed.ll",
-      "tools/perf_baseline.json"
+      "tools/verify.ps1"
     ],
-    "summary": "compile_file_mode_native_isolated now reads the child-emitted target/<out>.ll.cachekey after the --no-link child build and passes that to link_existing_native_module, avoiding a redundant parent-side compiler source read + build_cache_key hash on every isolated native self-host cold build.",
-    "fixed_point_md5": "9c991a17cfa5b0f97a8ce0021cac6fe3"
+    "wsl_bridge_fix": "When bash runs under WSL and BIN is bin/nucleor.exe, strict-arith env vars must be set through cmd.exe so the Windows process receives them. Plain VAR=1 ./bin/nucleor.exe only affects the WSL interop bridge."
   },
   "validation": {
-    "tools_suite_rebuild": "PASS",
     "verify_scripts_parse": "PASS",
-    "focused_verify": "not rerun for tooling-only R10-D5; helper continues S03-D1",
+    "focused_verify": "PASS: bash tools/verify.sh --only \"v0.5 Track L content-addressed cache v2 correctness\"",
+    "focused_verify_fast": "PASS: bash tools/verify_fast.sh --only \"v0.5 Track L content-addressed cache v2 correctness\"",
     "compiler_drift": "PASS",
-    "self_host_md5": "unchanged; no compiler/bin/bootstrap edits in R10-D5 Phase 2",
+    "self_host_md5": "unchanged; no compiler/bin/bootstrap edits in R10-D4 Phase 2",
     "diff_check": "PASS",
     "perf": {
       "hard_gate": "PASS",
-      "cold_seconds": 3.47,
+      "cold_seconds": 3.7,
       "cold_max_seconds": 4.0,
-      "hot_seconds": 0.26,
+      "hot_seconds": 0.27,
       "hot_max_seconds": 1.0,
-      "cold_process_tree_memory_mb": 309,
+      "cold_process_tree_memory_mb": 307,
       "cold_process_tree_memory_max_mb": 400,
-      "cold_compiler_memory_mb": 292,
+      "cold_compiler_memory_mb": 293,
       "cold_compiler_memory_max_mb": 350,
       "hot_process_tree_memory_mb": 31,
       "hot_process_tree_memory_max_mb": 128,
       "hot_compiler_memory_mb": 17,
       "hot_compiler_memory_max_mb": 64,
-      "command": "pwsh -NoProfile -File tools\\check_perf_regression.ps1",
-      "note": "R10-D5 Phase 2 split RSS gate passes; hot memory now has independent tightened process-tree/compiler ceilings."
+      "command": "pwsh -NoProfile -File tools\\check_perf_regression.ps1"
     }
   },
   "perf_context": {
     "target_cold_seconds": 4.0,
-    "latest_main_cold_seconds": 3.47,
-    "latest_main_hot_seconds": 0.26,
-    "latest_main_cold_process_tree_memory_mb": 309,
-    "latest_main_cold_compiler_memory_mb": 292,
+    "latest_main_cold_seconds": 3.7,
+    "latest_main_hot_seconds": 0.27,
+    "latest_main_cold_process_tree_memory_mb": 307,
+    "latest_main_cold_compiler_memory_mb": 293,
     "latest_main_hot_process_tree_memory_mb": 31,
     "latest_main_hot_compiler_memory_mb": 17,
-    "note": "Do not absorb linked-wall soft misses into baseline; current gate enforces sub-4 cold compile, 400MB cold process-tree memory, 350MB cold compiler memory, 128MB hot process-tree memory, and 64MB hot compiler memory."
+    "note": "Do not use WSL /proc RSS numbers for Windows bin/nucleor.exe. Windows .exe memory/perf evidence must come from the PowerShell sampler; POSIX RSS evidence requires a native Linux Nucleor ELF process."
   },
   "helper_next": {
-    "status": "redirected",
-    "assignment": "S03-D1 governance CLI dispatch prep",
-    "branch": "probe/s03-d1-governance-cli-dispatch-prep-v0816",
-    "base": "origin/main at c5fd41c2c02ba1f9e2961a743f188462f1c4844e",
-    "recommendation": "helper should fetch origin, branch from origin/main, inspect S03-D1, avoid R12-D1 because main owns probe/r12-posix-proof-prep-v0815, and either prepare a tools-suite-only dispatch shim or file a finding and stop instead of forcing implementation"
+    "helper1": {
+      "assignment": "cross-rod extern ABI arity sweep",
+      "branch": "probe/helper1-extern-arity-sweep-v0821",
+      "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper1_assignment_v0821_extern_arity_sweep_2026-05-05.md",
+      "scope": "findings-only; no compiler/runtime/bin/bootstrap edits"
+    },
+    "helper2": {
+      "assignment": "R10-D3 POSIX perf/repro parity audit",
+      "branch": "probe/helper2-r10-d3-posix-perf-repro-audit-v0821",
+      "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0821_posix_perf_repro_audit_2026-05-05.md",
+      "scope": "findings-only; document WSL/native Linux evidence boundary"
+    }
   },
   "caveats": {
-    "network_fetch": "Remote registry fetch/install remains a follow-on TLS-backed phase; this release only manages configured remote URLs.",
-    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and superseded by v0.8.314 instructions.",
-    "probe_branch_disposition": "origin/probe/u64-strict-arith-v0886 remains backup-only; do not merge."
+    "wsl_rss": "WSL is OK for shell syntax checks and POSIX command prep, but not valid RSS evidence for Windows .exe runs.",
+    "native_linux": "POSIX process-tree RSS proof requires a native Linux compiler binary.",
+    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and superseded by v0.8.314 instructions."
   }
 }
