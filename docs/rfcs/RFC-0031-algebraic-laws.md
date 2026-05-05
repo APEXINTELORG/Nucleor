@@ -55,17 +55,36 @@ a Nucleor-unique feature, worth investment.
 
 ## 3. Design
 
-### 3.1 The `@law` set (existing)
+### 3.1 The `@law` set (canonical schema, v0.8.264)
+
+The canonical schema below supersedes earlier informal usage. Per
+build-plan R14-D5 (audit 2026-05-05), `docs/language-reference.md`,
+this RFC, and `tests/attrs/laws.nr` all agree on these names. The
+single source of truth is `docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
 
 ```
-@law(commutative)       // f(a, b) == f(b, a)
-@law(associative)       // f(f(a, b), c) == f(a, f(b, c))
-@law(identity = E)      // f(a, E) == a AND f(E, a) == a
-@law(idempotent)        // f(a, a) == a
+@law(commutative)             // f(a, b) == f(b, a)
+@law(associative)             // f(f(a, b), c) == f(a, f(b, c))
+@law(identity = E)            // f(a, E) == a AND f(E, a) == a
+@law(idempotent)              // f(a, a) == a
+@law(involution)              // f(f(a)) == a   (special case of inverse=f)
+@law(absorbing = Z)           // f(a, Z) == Z AND f(Z, a) == Z
 @law(distributive_over = g)   // f(a, g(b, c)) == g(f(a, b), f(a, c))
-@law(inverse = g)       // g(f(a)) == a
-@law(zero = Z)          // f(a, Z) == Z
+@law(inverse = g)             // g(f(a)) == a   (general inverse)
+@law(fusion)                  // (f ∘ g) ∘ h == f ∘ (g ∘ h) for composable maps
 ```
+
+**Renames effective v0.8.264** (R14-D5 canonical schema lock):
+
+| Pre-canonical alias | Canonical | Reason |
+|---|---|---|
+| `zero = Z` | `absorbing = Z` | aligns with language-reference and existing test fixtures; "absorbing" is the standard universal-algebra term |
+| `distributive` (bare) | `distributive_over = g` | the partner operator is required for the law to mean anything |
+
+Phase 2 (compiler-side `--check-laws` driver) will emit a clear
+diagnostic on the alias spellings; Phase 1 (this ship, v0.8.264)
+makes the three doc sources agree and adds the canonical-schema
+reference at `docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
 
 ### 3.2 Property-test generation
 

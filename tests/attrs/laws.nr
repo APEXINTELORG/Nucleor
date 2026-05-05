@@ -1,4 +1,9 @@
-// laws.nr — @law identity/associative/commutative are eligible for rewriting
+// laws.nr — @law identity/associative/commutative/absorbing are eligible
+// for compile-time rewrite by the optimizer (Phase 4+) and for property-
+// test generation (Phase 2+). Canonical schema lives at
+// `docs/spec/Nucleor_Algebraic_Laws_Schema.md` (locked v0.8.264 per
+// audit R14-D5). This fixture's spellings (`commutative`, `associative`,
+// `identity=N`, `absorbing=N`) are all canonical.
 @law(commutative, associative, identity=0)
 fn add(a: i64, b: i64) -> i64 {
     return a + b;

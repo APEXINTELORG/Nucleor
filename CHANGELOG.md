@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.264] — 2026-05-05
+
+**R14-D5 Phase 1 — `@law(...)` canonical schema locked across docs.**
+Closes the third deficiency from `BUILD_PLAN_R14_algebraic_laws.md`:
+the law-name schema drift the audit flagged at MEDIUM severity.
+
+### Bug
+
+Three sources disagreed on `@law(...)` law names:
+
+| Source | Names used |
+|---|---|
+| `RFC-0031:58-67` | …`distributive_over = g`, `inverse = g`, `zero = Z` |
+| `language-reference.md:223` | …`absorbing = N`, `distributive` (bare), `involution`, `fusion` |
+| `tests/attrs/laws.nr` | …`absorbing=0` |
+
+Conflicts:
+- `zero = Z` (RFC) vs `absorbing = Z` (language-ref + tests) — same concept (`f(a, Z) == Z`), two names.
+- `distributive_over = g` (RFC) vs bare `distributive` (language-ref) — bare form is incomplete.
+
+### Fix (Phase 1, doc-only — no compiler edit)
+
+1. **NEW canonical schema:** `docs/spec/Nucleor_Algebraic_Laws_Schema.md` is the single source of truth. 9 canonical laws + 4 modifier attributes + deprecated-alias migration table + reserved diagnostic codes (`LAW-006`/`LAW-007`/`LAW-008`).
+2. **RFC-0031 §3.1 rewritten** to match the canonical schema. `zero = Z` renamed to `absorbing = Z`. Adds `involution` and `fusion`.
+3. **language-reference.md §8** updated: `distributive` → `distributive_over = g`. Adds `inverse = g`. Notes `zero` is deprecated alias for `absorbing`.
+4. **tests/attrs/laws.nr** header updated to reference the canonical schema (its spellings — `commutative`, `associative`, `identity=N`, `absorbing=N` — are already canonical).
+
+### Canonical law set (v0.8.264)
+
+```
+@law(commutative)             // f(a, b) == f(b, a)
+@law(associative)             // f(f(a, b), c) == f(a, f(b, c))
+@law(identity = E)            // f(a, E) == a AND f(E, a) == a
+@law(idempotent)              // f(a, a) == a
+@law(involution)              // f(f(a)) == a
+@law(absorbing = Z)           // f(a, Z) == Z AND f(Z, a) == Z
+@law(distributive_over = g)   // f(a, g(b, c)) == g(f(a, b), f(a, c))
+@law(inverse = g)             // g(f(a)) == a AND f(g(a)) == a
+@law(fusion)                  // (f ∘ g) ∘ h == f ∘ (g ∘ h)
+```
+
+### Deprecated aliases
+
+| Alias | Canonical | Phase 1 (now) | Phase 2 (later) |
+|---|---|---|---|
+| `zero = Z` | `absorbing = Z` | accepted | hard error `LAW-006` |
+| `distributive` (bare) | `distributive_over = g` | accepted | hard error `LAW-007` |
+
+### Acceptance status
+
+| Criterion | Status |
+|---|---|
+| **Docs agree** | ✅ Phase 1 — RFC-0031 + language-reference + tests/attrs/laws + new schema doc all canonical |
+| **Alias fixture fails with clear diagnostic** | ⏳ Phase 2 — requires compiler-side recognition + `LAW-006`/`007`/`008` emission |
+| Cold compile ≤ 4s | ✅ unchanged (no compiler edit) |
+
+### No compiler edit → self-host fixed-point unchanged
+
+md5 stays at `45802a11e9c6e5b1af3bf6e948f5f56f`. Drift gates clean.
+`tests/attrs/laws.nr` regression-clean (still emits 2 LAW-CAPTURE
+records via R14-D1; runtime rc=0).
+
+### Next R14 ships (per spine §15.2)
+
+| # | Phase | Scope |
+|---|---|---|
+| 4 | R14-D2 Phase 1 | metadata-only optimizer pass (observe-only) |
+| 5 | R14-D4 Phase 1 | Property + Arbitrary + cert proof scaffolding |
+| 6 | R14-D3 Phase 2 | compiler-side `--check-laws` dispatch + property-test generator + counterexample-driven exit code |
+| 7 | R14-D5 Phase 2 | compiler-side recognition + `LAW-006`/`LAW-007`/`LAW-008` diagnostics on aliases |
+| 8+ | Phase 2/3/4 | actual rewrites, hard errors, Z3 integration |
+
 ## [0.8.263] — 2026-05-05
 
 **R14-D3 Phase 1 — `--check-laws` un-ignored at the router layer.**

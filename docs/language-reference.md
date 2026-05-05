@@ -220,7 +220,7 @@ These appear at module top level, before function declarations. Multiple directi
 |---|---|
 | `@hot`               | Strict performance enforcement: no heap allocation, no string formatting, no indirect dispatch in the function's body. The compiler reports violations as performance diagnostics. |
 | `@const_fn`          | Marks the function as eligible for compile-time evaluation when called with constant arguments. |
-| `@law(...)`          | Declares algebraic laws the optimizer may use to rewrite call sites. Supported laws: `commutative`, `associative`, `identity=N`, `absorbing=N`, `idempotent`, `involution`, `distributive`, `fusion`. |
+| `@law(...)`          | Declares algebraic laws the optimizer may use to rewrite call sites. Canonical laws (per `docs/spec/Nucleor_Algebraic_Laws_Schema.md`): `commutative`, `associative`, `identity = E`, `idempotent`, `involution`, `absorbing = Z`, `distributive_over = g`, `inverse = g`, `fusion`. (Pre-v0.8.264 aliases `zero = Z` and bare `distributive` are deprecated; use `absorbing = Z` and `distributive_over = g`.) |
 | `@region(name)`      | Binds the function's allocations to a named arena/region allocator. |
 
 Run `nuc perf <file>.nr` to see which laws fired and which violations were reported.
