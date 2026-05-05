@@ -99,3 +99,43 @@ fn qsim_graph_clear() -> i64 {
     qsim_gate_dag_clear();
     return 0;
 }
+
+// === R11-D4 Phase 1 (v0.8.306) — qsim_graph status surface ===
+//
+// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D4 (HIGH):
+// `qsim_gate_record` and the entanglement registers return `-1` on
+// overflow / out-of-range silently. Adopters can't query the cap,
+// can't decode WHY a -1 came back, and can't preflight.
+//
+// Phase 1: cap-query helpers + status decoder + limitations text.
+// Phase 2 (audit ship plan) replaces raw `-1` returns with
+// structured status codes throughout the runtime.
+
+fn qsim_graph_max_qubits() -> i64 { return 1024; }
+fn qsim_graph_max_gates() -> i64  { return 4096; }
+
+fn qsim_graph_qubit_in_range(q: i64) -> i64 {
+    if q < 0 { return 0; };
+    if q >= qsim_graph_max_qubits() { return 0; };
+    return 1;
+}
+
+fn qsim_graph_gate_slots_remaining() -> i64 {
+    return qsim_graph_max_gates() - qsim_gate_dag_size();
+}
+
+// Decode a -1 return: "out_of_range" / "dag_full" / "ok"
+// (ok = the -1 was for a different reason; check call args).
+fn qsim_graph_status_explain(q1: i64, q2: i64) -> str {
+    let m: i64 = qsim_graph_max_qubits();
+    let q1_bad: i64 = if q1 < 0 - 1 { 1 } else { if q1 >= m { 1 } else { 0 } };
+    let q2_bad: i64 = if q2 < 0 - 1 { 1 } else { if q2 >= m { 1 } else { 0 } };
+    if q1_bad == 1 { return "out_of_range"; };
+    if q2_bad == 1 { return "out_of_range"; };
+    if qsim_graph_gate_slots_remaining() <= 0 { return "dag_full"; };
+    return "ok";
+}
+
+fn qsim_graph_limitations() -> str {
+    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / qsim_gate_record return -1 silently. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining BEFORE invoking. (2) NO STRUCTURED ERROR YET: -1 conflates 'out-of-range qubit' with 'DAG full' with other internal failures; use qsim_graph_status_explain(q1, q2) to disambiguate. Phase 2 replaces -1 with explicit error codes per audit ship plan. (3) NO AUTO-ENTANGLE-FROM-GATE: qsim CNOT in stdlib/rods/quantum.nr emits rods_trace_entangle but does NOT auto-call qsim_entangle_register; adopters must call qsim_entangle_register manually after CNOT. (4) PROCESS-LOCAL state: not thread-safe across pthread/async boundaries.";
+}
