@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.235] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — fk_chain + hwbc.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### fk_chain rod (forward kinematics for serial joint chain)
+
+`tests/features/fk_chain_smoke.nr` locks four lifecycle
+invariants (update / link_pos use raw ptrs; deferred to IK
+ships):
+
+| Test | Path |
+|---|---|
+| **Stable joint type IDs** | revolute=0, prismatic=1, fixed=2 (RFC-0013 + URDF parser depend) |
+| Empty chain | fk_chain_new → count 0 |
+| add_joint tracks count | 3 joints → 3 |
+| joint_type round-trip | revolute / prismatic / fixed slots preserved per index |
+
+### hwbc rod (hierarchical strict-priority WBC)
+
+`tests/features/hwbc_smoke.nr` exercises the empty-task path —
+no tasks → q̇ = 0 (sister to wbc_smoke v0.8.234 soft-priority):
+
+| Test | Path |
+|---|---|
+| hwbc_new returns valid handle | non-zero |
+| Empty-task solve succeeds | returns 1 |
+| **Empty-task qdot is zero** | every joint i: q̇ᵢ = 0 |
+| clear + re-solve idempotent zero | resilient empty stack |
+
+All pass. rc=0.
+
 ## [0.8.234] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pgs + wbc.**
