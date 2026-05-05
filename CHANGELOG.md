@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.127] — 2026-05-04
+
+**stdlib/rods/color.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+Color space conversions (RGB ↔ HSV ↔ Lab) + delta_e + lerp.
+
+`tests/features/color_smoke.nr` locks six invariants:
+
+| Test | Invariant |
+|---|---|
+| pure red → HSV | (1,0,0) → H≈0, S=1, V=1 |
+| pure green → HSV | (0,1,0) → H≈120 |
+| white → HSV | (1,1,1) → S=0 (saturation undefined → 0) |
+| black → HSV | (0,0,0) → V=0 |
+| HSV→RGB→HSV | magenta (H=300, S=1, V=1) round-trips through RGB |
+| delta_e(lab, lab) | identical Lab points → delta_e=0 |
+
+All pass. rc=0. Cold 2.35s.
+
+Catches regressions in HSV hue computation (the cmax-branch
+selection at lines 37-39 of color_rt.c is easy to break),
+saturation-zero-on-grey, value-zero-on-black, and Lab delta_e
+distance metric.
+
+## [0.8.126] — 2026-05-04
+
+**stdlib/rods/btreeset.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+`BTreeSet<str>` built atop BTreeMap (RFC-0017 phase 3).
+
+`tests/features/btreeset_smoke.nr` locks six invariants:
+
+| Test | Path |
+|---|---|
+| empty | len=0; is_empty=1; contains 0 on missing |
+| insert + contains | three distinct → len=3; contains 1/0 correct |
+| insert duplicate | three inserts of "x" → len=1 (set semantics) |
+| remove | removed key → contains=0; len decrements |
+| clear | len resets to 0 |
+| iteration count | iterating positions yields exactly len elements |
+
+All pass. rc=0. Cold 1.51s.
+
+Sister to v0.8.125 btreemap. The set semantics (duplicate
+insert is no-op) is the load-bearing distinction.
+
 ## [0.8.125] — 2026-05-04
 
 **stdlib/rods/btreemap.nr first test coverage.** Pure fixture,
