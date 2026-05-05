@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.209] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — hashmap_str + lcp.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### hashmap_str rod (HashMap<str, i64> RFC-0017 phase 2)
+
+`tests/features/hashmap_str_smoke.nr` locks four lifecycle/
+semantics invariants (sister to `hashmap` rod which uses
+`nuc_map_*` runtime):
+
+| Test | Path |
+|---|---|
+| Empty map | hms_new → len 0, is_empty 1, contains missing 0 |
+| Insert tracks contains + len | 3 distinct keys → len 3, each get returns its value |
+| **get_or default for missing** | absent key returns the default |
+| Remove flips contains + drops len | insert+remove → contains 0, len -1 |
+
+### lcp rod (PGS box LCP solver)
+
+`tests/features/lcp_smoke.nr` locks four 1-D LCP invariants —
+n=1 admits closed-form solutions PGS must reach exactly:
+
+| Test | Path |
+|---|---|
+| Construction | lcp_pgs_new(n) returns non-zero handle |
+| Interior solution | M=1, q=-2, λ∈[0,∞) → λ=2 (w=0) |
+| **Clamped at lower bound** | M=1, q=5 → λ=0 (w=5≥0 satisfies complementarity at lo) |
+| Solver does iterations | non-trivial solve returns iters > 0 |
+
+The iteration that underlies MuJoCo / Bullet / ODE rigid-body
+contact solvers; this fixture is the lower-bound on correctness.
+
+All pass. rc=0.
+
 ## [0.8.208] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — math_typed + jsonl.**
