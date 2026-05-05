@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.288] — 2026-05-05
+
+**R08-D1 Phase 1 — tensor shape/dtype metadata (`tensor_dtype()` / `tensor_can_matmul_2d()` / `tensor_shape_eq()` / `tensor_limitations()`).**
+
+### Bug
+
+`stdlib/rods/tensor_nd.nr` exposes tensor handles as untyped `i64`
+slots. Adopters confusing 3D shape order or assuming an unsupported
+dtype get late or no errors — matmul / elementwise / bmm runtime
+paths may trap or return invalid handles without a stable diagnostic.
+Audit-classified HIGH (R08-D1) per
+`BUILD_PLAN_R08_tensor_ml_autodiff.md` §1.
+
+### Fix (Phase 1, audit's "expose metadata query" path)
+
+`stdlib/rods/tensor_nd.nr` adds:
+
+- `tensor_dtype(h: i64) -> str` — returns `"i64"` for valid handles,
+  `"invalid"` for null. Phase 2 wires f32/f64/i32 dtypes when the
+  runtime grows multi-dtype tensor classes.
+- `tensor_can_matmul_2d(a, b) -> i64` — returns 1 if both are 2D
+  and `A.cols == B.rows`. Adopters call this BEFORE invoking
+  matmul to avoid runtime trap.
+- `tensor_shape_eq(a, b) -> i64` — full rank+per-dim equality.
+- `tensor_limitations() -> str` — names the three current gaps
+  (single dtype, no compiler-visible TensorShape, no 2D matmul
+  alias) so adopters know what's NOT shipped.
+
+### Tests
+
+`tests/features/tensor_shape_dtype_smoke.nr` — locks 6 invariants
+across dtype / matmul-compat / shape-equality / limitations text.
+
+### Self-host fixed-point
+
+`12777d1c1bdb18cde6bbfcb22479eefc` (preserved — stdlib-rod-only edit).
+
 ## [0.8.287] — 2026-05-05
 
 **R08-D3 Phase 1 — quantization coverage disclosure (`quant_op_supported()` / `quantize_limitations()`).**
