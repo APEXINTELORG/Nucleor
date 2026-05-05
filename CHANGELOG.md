@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.294] — 2026-05-05
+
+**R12-D7 Phase 1 — import cycle MOD-005 detection (REAL implementation, not disclosure).**
+
+### Bug
+
+Pre-v0.8.294 the resolver in `compiler/nucleor_s1_compiler.nr`
+deduped imports via the global `imported` Vec — once a path was
+in the set it was silently skipped. That made A→B→A cycles
+indistinguishable from legitimate diamond dedupe (lib imported
+from siblings). The cycle never caused infinite recursion (good)
+but adopters got NO diagnostic about the source-level cycle (bad).
+`MOD-005` was registered in `is_known_diag_code` and the
+tools-suite explain registry but never emitted. Audit-classified
+HIGH (R12-D7) per `BUILD_PLAN_R12_module_packaging.md` §1.
+
+### Fix (real fail-closed enforcement)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+
+- New helper `resolve_source_with_records_active(...)` carrying a
+  5th param `active_paths: Vec<i32>` — the current in-flight
+  recursion chain.
+- Both import arms (Rust-`use` form + quoted-`import` form) now
+  perform a back-edge check BEFORE the legitimate-dedupe check:
+  if `path` is already on `active_paths`, that's a cycle →
+  `print("error[MOD-005]: import cycle detected: ... -> ...")`
+  followed by `panic` aborting the build.
+- Cycle path is rendered with arrows showing the full chain
+  (`A -> B -> A`).
+- `active_paths` is push'd before each recursive descent and
+  pop'd after, so siblings importing the same lib don't conflict.
+- Top-level `src_path` is seeded onto active_paths at line ~29122
+  (load_resolved_source_bundle) so a child re-importing the
+  entry source is detected (otherwise `imported` already contains
+  src_path and dedupe short-circuits).
+- Public-facing `resolve_source_with_records` and `resolve_source`
+  signatures unchanged — wrappers create empty active_paths.
+
+This is the fourth REAL improvement in the user-pushback thread
+("can this be fixed as opposed to just saying can't do it?"):
+v0.8.291 (string skip), v0.8.292 (loop keyword), v0.8.293
+(@const_fn purity), v0.8.294 (this — import cycles). All fail-
+closed enforcement, not disclosure helpers.
+
+### Tests
+
+- `tests/err/err_import_cycle_mod005.nr` + companion
+  `err_import_cycle_mod005_b.nr` — A→B→A cycle. Build emits
+  `error[MOD-005]: import cycle detected: A -> B -> A` and aborts
+  via panic. Verified.
+- `tests/features/import_acyclic_dedupe_smoke.nr` + companion
+  `import_dedupe_lib.nr` — main imports lib once cleanly,
+  `lib_value()` returns 42, `ok` printed, rc=0. Confirms the new
+  cycle detection does NOT false-flag legitimate imports.
+- Regression: `examples/01_hello.nr` still builds + runs cleanly.
+
+### Self-host fixed-point
+
+**Rotated** `7b0c2ce1ef0579db73dadaad31801b01` →
+`b0f4acac9e3aa6d75c6ac5898c6cddb6`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.293] — 2026-05-05
 
 **R09-D4 Phase 1 — `@const_fn` purity enforcement (CRITICAL audit item, REAL implementation).**

@@ -28852,7 +28852,23 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
 }
 
 #[manual_drop]
+// R12-D7 Phase 1 (v0.8.294, audit
+// `BUILD_PLAN_R12_module_packaging.md` §1 R12-D7 HIGH): pre-v0.8.294
+// the resolver dedupes imports via the global `imported` Vec — once
+// a path is in the set it's silently skipped. That makes legitimate
+// dedupe (lib imported from siblings) indistinguishable from a
+// cycle (A imports B imports A). Now an active-import stack
+// `active_paths` tracks the in-flight recursion chain: push before
+// descending into a file's content, pop after. When a `import "X"`
+// hits a path already on the active stack, that's a back-edge cycle
+// → emit `error[MOD-005]` and panic.
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
+    let active_paths: Vec<i32> = Vec::new();
+    return resolve_source_with_records_active(src, base_dir, imported, module_records, active_paths);
+}
+
+#[manual_drop]
+fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>, active_paths: Vec<i32>) -> str {
     let mut result: i64 = sb_new();
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
@@ -28932,7 +28948,7 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     sb_append(result, "// mod ");
                     sb_append(result, str_substring(src, sp, np));
                     sb_append(result, " { ... } (inlined block-form)\n");
-                    sb_append(result, resolve_source_with_records(body, base_dir, imported, module_records));
+                    sb_append(result, resolve_source_with_records_active(body, base_dir, imported, module_records, active_paths));
                     sb_append(result, "\n");
                     p = q;
                     continue;
@@ -28963,6 +28979,26 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     if str_eq(vec_get(imported, ii), path) { already = 1; };
                     ii = ii + 1;
                 };
+                // R12-D7 Phase 1: cycle detection. Path on active stack
+                // means we're already mid-resolution of it — back-edge.
+                let mut on_active_use: i64 = 0;
+                let mut ai_use: i64 = 0;
+                while ai_use < vec_len(active_paths) {
+                    if str_eq(vec_get(active_paths, ai_use), path) { on_active_use = 1; };
+                    ai_use = ai_use + 1;
+                };
+                if on_active_use == 1 {
+                    let mut chain: str = "";
+                    let mut ci: i64 = 0;
+                    while ci < vec_len(active_paths) {
+                        chain = str_concat(chain, vec_get(active_paths, ci));
+                        chain = str_concat(chain, " -> ");
+                        ci = ci + 1;
+                    };
+                    chain = str_concat(chain, path);
+                    print(str_concat("error[MOD-005]: import cycle detected: ", chain));
+                    panic("nucleor: import cycle (MOD-005); see error above");
+                };
                 if already == 0 {
                     imported.push(path);
                     let isrc: str = file_read_string(path);
@@ -28970,7 +29006,9 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                         let isrc_used: str = priv_apply_if_opted_in(isrc, path);
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
+                        active_paths.push(path);
+                        sb_append(result, resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths));
+                        active_paths.pop();
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read use path ", path));
@@ -28988,6 +29026,25 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     if str_eq(vec_get(imported, ii), path) { already = 1; };
                     ii = ii + 1;
                 };
+                // R12-D7 Phase 1: cycle detection (mirror of `use` arm).
+                let mut on_active_imp: i64 = 0;
+                let mut ai_imp: i64 = 0;
+                while ai_imp < vec_len(active_paths) {
+                    if str_eq(vec_get(active_paths, ai_imp), path) { on_active_imp = 1; };
+                    ai_imp = ai_imp + 1;
+                };
+                if on_active_imp == 1 {
+                    let mut chain_imp: str = "";
+                    let mut ci_imp: i64 = 0;
+                    while ci_imp < vec_len(active_paths) {
+                        chain_imp = str_concat(chain_imp, vec_get(active_paths, ci_imp));
+                        chain_imp = str_concat(chain_imp, " -> ");
+                        ci_imp = ci_imp + 1;
+                    };
+                    chain_imp = str_concat(chain_imp, path);
+                    print(str_concat("error[MOD-005]: import cycle detected: ", chain_imp));
+                    panic("nucleor: import cycle (MOD-005); see error above");
+                };
                 if already == 0 {
                     imported.push(path);
                     let isrc: str = file_read_string(path);
@@ -28995,7 +29052,9 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                         let isrc_used: str = priv_apply_if_opted_in(isrc, path);
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
+                        active_paths.push(path);
+                        sb_append(result, resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths));
+                        active_paths.pop();
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read import ", path));
@@ -29058,7 +29117,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut module_records: Vec<i32> = Vec::new();
     imported.push(src_path);
     module_record_add(module_records, src_path, raw_source);
-    let resolved: str = resolve_source_with_records(raw_source, extract_dir(src_path), imported, module_records);
+    // R12-D7 Phase 1 (v0.8.294): seed active_paths with src_path so a
+    // child module that re-imports the entry source is detected as a
+    // cycle via _active's back-edge check (otherwise `imported`
+    // already contains src_path and the dedupe short-circuits).
+    let mut active_paths_seed: Vec<i32> = Vec::new();
+    active_paths_seed.push(src_path);
+    let resolved: str = resolve_source_with_records_active(raw_source, extract_dir(src_path), imported, module_records, active_paths_seed);
     // v0.7.88 (defensive halt — Rust compile_error ! macro invocation).
     // Pre-fix the macro-call shape compile_error ! (...) was
     // silently dropped by the parser (Nucleor's `!`-after-ident
