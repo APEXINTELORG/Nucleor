@@ -7,7 +7,12 @@
   "required_base": "fetch current origin/main; known handoff base 5ea94cecbcb07036e8511023829c44c8623b6043",
   "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper2_r13_d6_windows_recovery",
   "branch": "probe/r13-d6-windows-recovery-v0819",
-  "status": "assigned",
+  "status": "ready-for-integration",
+  "head": "pending helper2 commit; run git log --oneline -1 after fetch/pull",
+  "base": {
+    "origin_main": "91aa48c75eb3ba78b9d6c05906059fd834c46099",
+    "merge_base_origin_main": "91aa48c75eb3ba78b9d6c05906059fd834c46099"
+  },
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
     "assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0819_r13_d6_windows_recovery_2026-05-05.md",
@@ -47,6 +52,51 @@
     "cold_compiler_memory_max_mb": 350,
     "hot_process_tree_memory_max_mb": 128,
     "hot_compiler_memory_max_mb": 64
+  },
+  "work_type": "script-prep",
+  "audit": {
+    "architecture_cache_docs": "updated to include live .nuc_cache diagnostics plus target/.nuc_cache_v2 IR cache and target/.nuc_native_cache native-link cache",
+    "bootstrap_contract_gate_wording": "already dynamic; no static historical gate count restored",
+    "windows_seed_recovery": "scripted dry-run/run/verify flow added around committed seed, runtime, and Windows stack linker flag",
+    "bootstrap_readme": "cross-linked Windows recovery dry-run and verify commands"
+  },
+  "changed_files": [
+    "docs/architecture.md",
+    "NUCLEOR_BOOTSTRAP_CONTRACT.md",
+    "bootstrap/README.md",
+    "tools/bootstrap_windows.ps1",
+    "findings/heartbeat_helper2.json"
+  ],
+  "validation": {
+    "powershell_parser": {
+      "command": "pwsh -NoProfile -Command '$errors = $null; [System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw tools\\bootstrap_windows.ps1), [ref]$errors) | Out-Null; if ($errors.Count) { $errors; exit 1 }'",
+      "result": "PASS"
+    },
+    "dry_run": {
+      "command": "pwsh -NoProfile -File tools\\bootstrap_windows.ps1 -DryRun",
+      "result": "PASS; resolved C:\\Program Files\\LLVM\\bin\\clang.exe and printed seed/runtime/output/stack command without writing"
+    },
+    "dry_run_verify": {
+      "command": "pwsh -NoProfile -File tools\\bootstrap_windows.ps1 -DryRun -Verify",
+      "result": "PASS; printed fixed-point verify command without running it"
+    },
+    "overwrite_guard": {
+      "command": "pwsh -NoProfile -File tools\\bootstrap_windows.ps1 -Run",
+      "result": "PASS; refused to overwrite existing bin\\nucleor.exe without -Force"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "result": "PASS; line-ending warning only for heartbeat_helper2.json"
+    },
+    "json": {
+      "command": "python -m json.tool findings\\heartbeat_helper2.json",
+      "result": "PASS"
+    }
+  },
+  "caveats": {
+    "full_verify": "not run; assignment says docs/tooling-only lanes should use focused syntax and dry-run validation by default",
+    "perf_gate": "not run; no compiler, binary, runtime, or perf baseline behavior changed",
+    "run_mode": "real recovery still requires explicit -Run and overwrites existing bin\\nucleor.exe only with -Force"
   },
   "handoff_note": "R13-D6 Phase 1 shipped in v0.8.281. Helper2 should verify live docs first, then prepare a safe Windows recovery script only if it stays out of restricted files and can dry-run honestly."
 }

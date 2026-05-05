@@ -204,13 +204,16 @@ since):
 If `bin/nucleor.exe` is corrupted or missing on a Windows dev box:
 
 ```powershell
-# Re-bootstrap from the committed seed.
+# Print the recovery command without touching bin\nucleor.exe.
 cd <repo-root>
-clang.exe -fuse-ld=lld bootstrap\nucleor_s1_seed.ll `
-    stdlib\runtime\nucleor_llvm_rt.c -o bin\nucleor.exe `
-    -Wl,/STACK:16777216
-# Verify self-host fixed-point holds:
-bash tools\check_self_host_md5.sh
+pwsh -NoProfile -File tools\bootstrap_windows.ps1 -DryRun
+
+# Re-bootstrap from the committed seed. Existing bin\nucleor.exe is
+# never overwritten unless -Force is passed.
+pwsh -NoProfile -File tools\bootstrap_windows.ps1 -Run -Force
+
+# Re-bootstrap and verify self-host fixed-point holds:
+pwsh -NoProfile -File tools\bootstrap_windows.ps1 -Run -Force -Verify
 ```
 
 The committed seed at `bootstrap/nucleor_s1_seed.ll` is target-
@@ -222,8 +225,10 @@ target\nucleor_seed_check.exe` and confirm the rebuilt-from-seed
 compiler can re-emit the seed itself (the canonical fixed-point
 loop).
 
-A scripted version (`tools/bootstrap_windows.ps1`) is Phase 2 per
-audit R13-D6.
+`tools/bootstrap_windows.ps1` resolves clang, links the committed seed
+with `stdlib/runtime/nucleor_llvm_rt.c`, includes the Windows stack
+linker flag (`-Wl,/STACK:16777216`), and only runs the fixed-point
+check when `-Verify` is requested and `bash` is available.
 
 If the gate is green, the bootstrap is healthy. If it fails, the
 diagnostic output names the failing step.
