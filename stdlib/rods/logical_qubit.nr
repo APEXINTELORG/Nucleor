@@ -253,3 +253,17 @@ fn calibration_t2_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
     if vec_len(c.t2_us_q1616) <= qubit_id { return 0; };
     return vec_get(c.t2_us_q1616, qubit_id);
 }
+
+// === R11-D5 Phase 1 (v0.8.285) — limitation diagnostics ===
+//
+// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D5
+// (MEDIUM): the rod surface presents convention-level support for
+// surface-code QEC, OpenQASM import/export, and mid-circuit
+// feedback, but the actual primitives are absent. Phase 1 ships a
+// `logical_qubit_limitations()` query helper that adopters can call
+// to learn what's NOT supported before relying on it. Phase 2
+// implements the primitives per the audit ship plan
+// (surface-code → export/import → mid-circuit feedback).
+fn logical_qubit_limitations() -> str {
+    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (3) QIR EXPORT: not implemented. (4) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan. Adopter discipline today: do NOT rely on these surfaces — use the existing qsim_statevec / mps / clifford rods for the primitives that ARE shipped.";
+}
