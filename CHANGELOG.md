@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.298] — 2026-05-05
+
+**R10-D2 Phase 1.5 — HeapInLoop PERF-3 detection (NEW warning, second named perf diag).**
+
+### Bug
+
+v0.8.297 shipped PERF-2 (HotViolation: alloc/I/O in `@hot` body).
+The audit's R10-D2 also names HeapInLoop as a documented perf
+diagnostic. Pre-v0.8.298 a `Vec::new()` / `Box::new()` inside a
+`while` or `loop {}` block — the dominant perf bug class —
+shipped silently.
+
+### Fix (real loop-depth-tracking scan)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+
+- `detect_heap_in_loop_in_body(body) -> i64` — state-machine scan:
+  tracks a `loop_depth` counter incremented when a `while` or
+  `loop` keyword is followed by `{`, decremented on the matching
+  `}`. Uses a `depth_stack: Vec<i32>` to remember whether each
+  brace level was a loop or just a block. When `Vec::new` /
+  `Box::new` is hit AND `loop_depth > 0`, returns 1.
+- `enforce_heap_in_loop(diags, source)` — walks every fn
+  declaration via `priv_extract_fn_decl_info`, locates body, runs
+  the depth-tracking scan, emits `warning[PERF-3]` on hit.
+
+Wired immediately after `enforce_hot_fn_purity`. Severity =
+warning. Suppress with `#[allow_fn(PERF-3)]` when intentional
+(e.g. amortized via `with_capacity` outside the loop).
+
+NEW code `PERF-3` registered in `is_known_diag_code` + tools-
+suite explain registry.
+
+This is the eighth REAL improvement in the user-pushback thread.
+
+### Tests
+
+- `tests/features/perf_heap_in_loop_smoke.nr` — `fn alloc_in_loop`
+  with `Vec::new` inside `while i < n {...}` fires
+  `warning[PERF-3]: function 'alloc_in_loop' allocates (Vec::new
+  / Box::new) inside a 'while' or 'loop' block ...`. Verified.
+- Regression: `examples/01_hello.nr` clean (no spurious PERF-3).
+- The compiler's own source has 1+ legitimate while+Vec::new
+  patterns that now warn during the self-host build (these are
+  intentional; suppression candidates for a future ship).
+
+### Self-host fixed-point
+
+**Rotated** `1e5e2eb9ea58155d5faf8670749ff0a7` →
+`c4444b1e5f5807b58392424ed4b1575c`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`. Tools-suite
+rebuilt + promoted; `nucleor_tools.exe explain PERF-3` returns
+the new entry.
+
 ## [0.8.297] — 2026-05-05
 
 **R10-D2 Phase 1 — `@hot` HotViolation enforcement (NEW PERF-2 warning).**

@@ -11062,6 +11062,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NUM-009") == 1 { return 1; };
     if str_eq(code, "PERF-1") == 1 { return 1; };
     if str_eq(code, "PERF-2") == 1 { return 1; };
+    if str_eq(code, "PERF-3") == 1 { return 1; };
     if str_eq(code, "NUM-010") == 1 { return 1; };
     if str_eq(code, "NUM-011") == 1 { return 1; };
     if str_eq(code, "NUM-012") == 1 { return 1; };
@@ -16441,6 +16442,126 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
         } else {
             q = q + 1;
         };
+    };
+    return diags;
+}
+
+// === R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3 detection ===
+//
+// Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2:
+// PERF-2 (v0.8.297) catches alloc / I/O at the @hot fn level.
+// HeapInLoop (PERF-3) catches `Vec::new` / `Box::new` INSIDE a
+// `while` or `loop {}` block — a per-iteration alloc that ships
+// silently is the dominant perf bug class for adopters.
+//
+// Scan ANY fn (not just @hot — the perf hit hurts everywhere).
+// Track loop-depth as we walk the body: enter on `while ... {`
+// or `loop {`, exit on the matching `}`. When we see an alloc
+// site WHILE depth > 0, emit warning[PERF-3].
+//
+// Severity = warning. Suppress with `#[allow_fn(PERF-3)]` when
+// the alloc is intentional (e.g. amortized via reserve()).
+#[manual_drop]
+fn detect_heap_in_loop_in_body(body: str) -> i64 {
+    // Returns 1 if any `Vec::new(` / `Box::new(` is found inside
+    // a while/loop block. State machine:
+    //   loop_depth: incremented when we just consumed `while`/`loop`
+    //               and then see `{`; decremented when we close.
+    let blen: i64 = str_len(body);
+    let mut bp: i64 = 0;
+    let mut loop_depth: i64 = 0;
+    let mut depth_stack: Vec<i32> = Vec::new();
+    let mut pending_loop: i64 = 0;
+    while bp < blen {
+        let c: i64 = str_char_at(body, bp);
+        if c == 119 && bp + 5 <= blen
+            && str_char_at(body, bp + 1) == 104 && str_char_at(body, bp + 2) == 105
+            && str_char_at(body, bp + 3) == 108 && str_char_at(body, bp + 4) == 101 {
+            let prev: i64 = if bp > 0 { str_char_at(body, bp - 1) } else { 32 };
+            let next: i64 = if bp + 5 < blen { str_char_at(body, bp + 5) } else { 32 };
+            if (is_alnum(prev) == 0 && prev != 95) && (is_alnum(next) == 0 && next != 95) {
+                pending_loop = 1;
+            };
+        };
+        if c == 108 && bp + 4 <= blen
+            && str_char_at(body, bp + 1) == 111 && str_char_at(body, bp + 2) == 111
+            && str_char_at(body, bp + 3) == 112 {
+            let prev_l: i64 = if bp > 0 { str_char_at(body, bp - 1) } else { 32 };
+            let next_l: i64 = if bp + 4 < blen { str_char_at(body, bp + 4) } else { 32 };
+            if (is_alnum(prev_l) == 0 && prev_l != 95) && (is_alnum(next_l) == 0 && next_l != 95) {
+                pending_loop = 1;
+            };
+        };
+        if c == 123 {
+            depth_stack.push(pending_loop);
+            if pending_loop == 1 { loop_depth = loop_depth + 1; };
+            pending_loop = 0;
+        };
+        if c == 125 {
+            let dlen: i64 = vec_len(depth_stack);
+            if dlen > 0 {
+                let was_loop: i64 = vec_get(depth_stack, dlen - 1);
+                depth_stack.pop();
+                if was_loop == 1 && loop_depth > 0 { loop_depth = loop_depth - 1; };
+            };
+        };
+        if loop_depth > 0 && bp + 8 <= blen {
+            if str_eq_at_len(body, bp, "Vec::new", 8) == 1 { return 1; };
+        };
+        if loop_depth > 0 && bp + 8 <= blen {
+            if str_eq_at_len(body, bp, "Box::new", 8) == 1 { return 1; };
+        };
+        bp = bp + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn enforce_heap_in_loop(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Walk every fn declaration in the source and check its body.
+    // This is broad — the warning fires anywhere, not just @hot —
+    // but per-iteration heap alloc is a portable perf bug.
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            // Find the body (matching `{...}` after the line).
+            let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+            let nlen: i64 = str_len(needle);
+            let mut sp: i64 = 0;
+            let mut found: i64 = 0 - 1;
+            while sp + nlen <= slen && found < 0 {
+                if str_eq_at_len(source, sp, needle, nlen) == 1 { found = sp; }
+                else { sp = sp + 1; };
+            };
+            if found >= 0 {
+                let mut q: i64 = found + nlen;
+                while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+                if q < slen {
+                    let body_start: i64 = q + 1;
+                    q = q + 1;
+                    let mut depth: i64 = 1;
+                    while q < slen && depth > 0 {
+                        let c: i64 = str_char_at(source, q);
+                        if c == 123 { depth = depth + 1; };
+                        if c == 125 { depth = depth - 1; };
+                        q = q + 1;
+                    };
+                    let body: str = str_substring(source, body_start, q - 1);
+                    if detect_heap_in_loop_in_body(body) == 1 {
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional (audit R10-D2 v0.8.298)"));
+                        let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "warning", "perf", "PERF-3", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    };
+                };
+            };
+        };
+        p = eol + 1;
     };
     return diags;
 }
@@ -30476,6 +30597,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Pre-v0.8.297 @hot was discovery-only. Now alloc / I/O in
     // an @hot body emits warning[PERF-2].
     diags = enforce_hot_fn_purity(diags, max_depth_source);
+    // R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3.
+    // Per-iteration Vec::new/Box::new in any while/loop body.
+    diags = enforce_heap_in_loop(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
