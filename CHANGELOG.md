@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.182] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — tensor_decomp +
+topp.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### tensor_decomp rod (Kronecker + Khatri-Rao products)
+
+`tests/features/tensor_decomp_smoke.nr` locks two textbook
+product invariants:
+
+| Test | Path |
+|---|---|
+| **Kronecker 2×2 ⊗ 2×2 → 4×4** | A=[1,2;3,4], B=[5,6;7,8] → C[0,0]=5, C[0,1]=6, C[0,2]=10, C[3,3]=32 |
+| **Khatri-Rao** (column-wise Kronecker) | A=[1,0;3,0], B=[5,0;7,0] → column 0 = [5, 7, 15, 21] |
+
+CP-ALS / TT-SVD invariants deferred — heavier numerical paths
+that warrant a dedicated ML/ship.
+
+### topp rod (trapezoidal time-parameterization)
+
+`tests/features/topp_smoke.nr` locks four invariants on a long-
+enough path (L=10, v_max=2, a_max=1) where cruise phase fits:
+
+| Test | Path |
+|---|---|
+| Construction handle | non-zero for positive inputs |
+| Path length round-trip | `path_length(L=10) == 10.0` |
+| **Peak velocity == v_max** | confirms cruise phase fits |
+| Position endpoints | `s(0) == 0` and `s(T) == L` |
+
+All pass. rc=0.
+
 ## [0.8.181] — 2026-05-05
 
 **Audit-pass perf gating — back under 4s cold compile.**
