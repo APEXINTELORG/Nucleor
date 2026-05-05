@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.307] — 2026-05-05
+
+**R05-D1 Phase 1 — `pure fn` purity enforcement in s1 build path (CRITICAL audit closed).**
+
+### Bug
+
+Pre-v0.8.307 `pure fn` parsed but the **s1 build path** did not
+run the effect checker. tools-suite (`nuc check`) emitted EFF-001
+for pure-with-effects, but `nuc build` shipped binaries that
+violated their declared purity contract — i.e., `pure fn
+impure() { print("x"); }` compiled cleanly and ran the print.
+Audit-classified CRITICAL (R05-D1) per
+`BUILD_PLAN_R05_effect_capability.md` §1.
+
+### Fix (real fail-closed enforcement, NOT disclosure)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+- `pure_fn_body_effect_code(source, fn_name) -> i64` — opens
+  a `pure fn`'s body and scans for known effects. Returns 0
+  (clean) / 1 (`print` / `println`) / 2 (`Vec::new` / `Box::new`) /
+  3 (`ambient_*` capability).
+- `enforce_pure_fn_purity(diags, source)` — walks the source
+  line-by-line; when a line declares `pure fn <name>(`, scans
+  body and emits `error[EFF-001]` with span on violation.
+  Wired immediately after `enforce_heap_in_loop`.
+
+This matches the same pattern as v0.8.293 NUM-009 (@const_fn
+purity) — same scan structure, different annotation.
+
+This is the eleventh REAL improvement in the user-pushback thread
+and the **eighth NEW diagnostic-code emission** wired to s1's
+build path: NUM-009, MOD-005, RT-009, PERF-2, PERF-3, RACE-002,
+RACE-007, **EFF-001**.
+
+### Tests
+
+`tests/err/err_pure_print_build.nr` — `pure fn impure_pure() {
+print(...); }` fires `error[EFF-001]: 'pure fn impure_pure' calls
+print() / println() — I/O is not pure; remove 'pure' qualifier
+or move the side effect to a normal fn (audit R05-D1 v0.8.307)`.
+
+Regression: `examples/01_hello.nr` clean (no spurious EFF-001).
+
+### Self-host fixed-point
+
+**Rotated** `be108d37860467329bdd830bbbe74406` →
+`a2f232d8bdae7534f1fe0b7f8869ad13`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`.
+
 ## [0.8.306] — 2026-05-05
 
 **R11-D4 Phase 1 — qsim_graph status surface (closes R11 Phase 1 entirely).**
