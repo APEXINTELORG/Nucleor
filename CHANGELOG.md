@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.277] — 2026-05-05
+
+**R09-D2 Phase 1 — interval pool fail-closed + rigorous trig bounds.**
+
+### Bug
+
+`stdlib/runtime/interval_rt.c` had two related correctness gaps:
+
+| Gap | Site | Impact |
+|---|---|---|
+| **Pool exhaustion silently wrapped** | line 80-85: `if (interval_next >= INTERVAL_POOL_SIZE) interval_next = 1;` | Wraps to slot 1, aliasing earlier still-live handles. Adopters holding a Vec of intervals saw later allocations silently overwrite the front of their data. **Interval-containment guarantees broke without diagnostic.** |
+| **Trig widening used fixed `DBL_EPSILON`** | line 342-343: `iv_alloc(lo - DBL_EPSILON, hi + DBL_EPSILON)` | DBL_EPSILON (~2.22e-16) is the f64 spacing at 1.0. For `lo` with `\|lo\| >> 1` (e.g. 1e10), the actual ULP is ~2e-6 — many orders of magnitude wider than DBL_EPSILON. The widening was narrower than 1 ULP, so the result interval did NOT rigorously contain the true mathematical sin/cos value. |
+
+Both audit-classified HIGH (R09-D2).
+
+### Fix (Phase 1, additive — runtime-only edit)
+
+1. **Pool exhaustion fail-closed** — `iv_alloc` returns 0 (the
+   canonical "invalid handle" — already rejected by `iv_get`'s
+   bounds check) when the pool fills. Adopters check `handle == 0`
+   after iv_alloc and bail safely. No silent aliasing. Phase 2 may
+   add pool growth or freelist; Phase 1 prefers fail-closed.
+2. **Rigorous trig outward rounding** — `nuc_interval_sin` widens
+   via `nextafter(lo, -INFINITY)` and `nextafter(hi, INFINITY)`.
+   That's exactly 1 ULP at the value's magnitude — the canonical
+   interval-arithmetic outward-rounding primitive. Result clamped
+   to `[-1, 1]` (sin's mathematical bounds; widening past those is
+   pointless). `nuc_interval_cos` reuses sin so it inherits the fix.
+
+### Coverage
+
+`tests/features/interval_trig_bounds_smoke.nr` locks 4 invariants:
+
+| Test | Path |
+|---|---|
+| **`sin([0,0])` contains 0.0** | point-interval at zero |
+| **`sin([0, 2π])` contains -1, 0, 1** | full period |
+| **`sin([1e10, 1e10])` within `[-1, 1]`** | large-magnitude input clamped to mathematical bounds |
+| **`sin([π/2, π/2])` contains 1.0** | peak value |
+
+Pool exhaustion is verified by code review (filling the 2M-slot
+pool in a fixture takes ~16MB and noticeable wall time;
+deferred to Phase 2 stress-harness). Existing
+`interval_smoke.nr` + `interval_arithmetic_smoke.nr` regression-clean.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Exhaustion never wraps silently** | ✅ returns invalid handle 0 |
+| **`sin/cos` fixture contains sampled truths** | ✅ 4 invariants pass |
+| Cold compile ≤ 4s | ✅ unchanged (runtime-only) |
+
+### Runtime-only edit → s1 fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R09-D2)
+
+Revert the iv_alloc change to `interval_next = 1` wrap; revert
+trig widening to `lo - DBL_EPSILON, hi + DBL_EPSILON`. The silent
+aliasing + narrow-widening behavior returns.
+
+### R09 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.275 | R09-D5 saturating mul pre-clamp | ✅ |
+| v0.8.276 | R09-D3 stable complex algorithms | ✅ |
+| v0.8.277 | R09-D2 interval fail-closed + rigorous trig | ✅ |
+| next | R09-D1 fixed<I,F> type tracking | ⏳ HIGH (compiler edit) |
+| next | R09-D4 `@const_fn` evaluation | ⏳ CRITICAL (compiler edit) |
+
+3 of 5 R09 deficiencies have Phase 1 closure. Remaining two (D1,
+D4) require multi-iteration compiler edits.
+
 ## [0.8.276] — 2026-05-05
 
 **R09-D3 Phase 1 — stable complex algorithms (hypot + Smith's div).**
