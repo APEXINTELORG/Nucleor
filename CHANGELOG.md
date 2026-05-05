@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.297] — 2026-05-05
+
+**R10-D2 Phase 1 — `@hot` HotViolation enforcement (NEW PERF-2 warning).**
+
+### Bug
+
+Pre-v0.8.297 the `@hot` attribute was discovery-only (audit count
+at line ~29487). A `@hot fn` containing `Vec::new()` / `Box::new()`
+/ `print()` / `println()` / `panic()` shipped silently despite
+docs naming HotViolation as a perf diagnostic. Audit-classified
+HIGH (R10-D2) per `BUILD_PLAN_R10_performance_envelope.md` §1.
+
+### Fix (real fail-soft enforcement)
+
+`compiler/nucleor_s1_compiler.nr` adds:
+
+- `hot_fn_body_violation_code(source, fn_name) -> i64` — opens
+  the `@hot`-annotated fn body and scans for known-expensive
+  patterns; returns 0 (clean) or 1 (alloc) / 2 (I/O).
+- `enforce_hot_fn_purity(diags, source)` — walks every `@hot`
+  name (via `attribute_audit_fn_names`) and emits
+  `warning[PERF-2]` with fn-name span on violation. Wired
+  immediately after `enforce_const_fn_purity`.
+
+Severity = warning (not error) because `@hot` is a hint not a
+hard contract. Adopters use `#[allow_fn(PERF-2)]` to suppress
+when the cost is intentional. HeapInLoop (PERF-3) is Phase 2
+work (needs nested-block tracking).
+
+NEW codes `PERF-1` (router-level --tier validation) +
+`PERF-2` (@hot HotViolation) registered in `is_known_diag_code`
++ tools-suite explain registry (title + body + Rust-comparison
+note).
+
+This is the seventh REAL improvement in the user-pushback thread.
+
+### Tests
+
+- `tests/features/perf_hot_violation_smoke.nr` — `@hot fn
+  hot_with_io { print("..."); ... }` fires
+  `warning[PERF-2]: '@hot' function 'hot_with_io' performs I/O
+  (print / println / panic) — blocking syscall in a perf-critical
+  path ...`. Verified.
+- Regression: `examples/01_hello.nr` clean (no spurious PERF-2
+  — the example doesn't use `@hot`).
+
+### Self-host fixed-point
+
+**Rotated** `9aa7f758dc8aaf40e5347ab2647282ff` →
+`1e5e2eb9ea58155d5faf8670749ff0a7`. Stage2 promoted to
+`bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`. Tools-suite
+rebuilt + promoted; `nucleor_tools.exe explain PERF-2` returns
+the new entry.
+
 ## [0.8.296] — 2026-05-05
 
 **R10-D4 Phase 1 — cache key includes `NUCLEOR_INT_STRICT_ARITH` (correctness bug, REAL fix).**
