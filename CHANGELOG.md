@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.237] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — pq.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### pq rod (Product Quantization for vector search)
+
+`tests/features/pq_smoke.nr` trains a PQ codebook on 4 vectors
+clustered into ±(1,1,5,5) groups (M=2 subspaces, K=2 centroids
+per subspace). Locks four invariants — distance table / ADC /
+search use raw codebook arrays; deferred:
+
+| Test | Path |
+|---|---|
+| pq_train returns valid handle | non-zero |
+| Encoded code Vec has length M | one cluster index per subspace |
+| **Same-cluster vectors get same codes** | identical inputs → identical codes |
+| Different-cluster vectors get different codes | at least one subspace splits A vs B |
+
+All pass. rc=0.
+
 ## [0.8.236] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — cam + ahrs.**
