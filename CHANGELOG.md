@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.270] — 2026-05-05
+
+**R07-D4 Phase 1 — limitation diagnostics for AHRS / CHOMP / TOPP.**
+**Closes the LAST R07 Phase 1 deficiency. R07 Phase 1 — COMPLETE.**
+
+### Bug
+
+Pre-v0.8.270 AHRS, CHOMP, and TOPP rods had documented approximations
+buried in source comments — no adopter-facing query. Adopters had to
+read the rod source to know what was approximated. Audit-classified
+MEDIUM (R07-D4).
+
+### Fix (Phase 1, additive — rod-only)
+
+Three new helpers, one per rod:
+
+| Helper | Returns |
+|---|---|
+| `ahrs_limitations()` | "AHRS Mahony complementary filter limitations (ROBO-10): no yaw observability without magnetometer; accel correction assumes near-static motion; Ki term assumes constant gyro bias…" |
+| `chomp_limitations()` | "CHOMP limitations (ROBO-12): joint-space only; obstacle gradient via finite differences; per-step move magnitude clamped instead of full covariant preconditioning; endpoints clamped." |
+| `topp_limitations()` | "TOPP limitations (ROBO-14): only piecewise-linear paths; symmetric box bounds; pure kinematic (no torque/dynamics)." |
+
+Phase 2 (per build plan §1 R07-D4): improve algorithms behind the
+same API (AHRS 9-DOF magnetometer fusion; CHOMP exact-grad SDF +
+Cartesian variant; TOPP-RA convex per-step + dynamics).
+
+### Coverage
+
+`tests/features/robo_limitations_smoke.nr` locks 4 invariants:
+
+| Test | Path |
+|---|---|
+| **AHRS limitations** | non-empty; contains `"Mahony"` + `"magnetometer"` |
+| **CHOMP limitations** | non-empty; contains `"joint-space"` + `"finite differences"` |
+| **TOPP limitations** | non-empty; contains `"piecewise-linear"` + `"kinematic"` |
+| **All three distinct** | adopters can tell them apart |
+
+### Acceptance
+
+| Criterion (audit) | Status |
+|---|---|
+| **Limitation fixture reports known constraints deterministically** | ✅ |
+| **Cold compile ≤ 4s** | ✅ unchanged (rod-only) |
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### R07 Phase 1 — COMPLETE
+
+4 of 4 R07 deficiencies have Phase 1 closure:
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.267 | R07-D1 — runtime frame-check helpers | ✅ |
+| v0.8.268 | R07-D2 — typed TF wrappers | ✅ |
+| v0.8.269 | R07-D3 — typed-pose chain end-to-end fixture | ✅ |
+| v0.8.270 | R07-D4 — limitation diagnostics (this ship) | ✅ |
+
+**Phase 2 work for R07** (deferred to v0.9 per spine §15.2):
+RFC-0046 Phase B compile-time TYP-008 frame-mismatch error
+(~200 LOC compiler edit); raw-`double*` fixture infrastructure;
+algorithm improvements behind limitation APIs.
+
+### Audit launch-blocker progress (priority order)
+
+| # | Item | Phase 1 |
+|---|---|---|
+| 1 | R14 algebraic laws | ✅ COMPLETE (5/5) |
+| 2 | R07 Pose<Frame> | ✅ COMPLETE (4/4) |
+| 3 | R05 effects in s1 build path | ⏳ next |
+| 4 | R01/R02 lifetime + Sendable | ⏳ |
+| 5 | R06 FFI string ownership | ⏳ |
+| 6 | R12/S03 POSIX signing + governance | ⏳ |
+| 7 | R10 tier + perf diagnostics | ⏳ |
+| 8 | R09 const_fn + numeric residuals | ⏳ |
+| 9 | R13 bootstrap reconciliation | ⏳ |
+| 10 | R08/R11 ML + quantum deeper | ⏳ |
+
 ## [0.8.269] — 2026-05-05
 
 **R07-D3 Phase 1 — typed-frame pose chain end-to-end fixture.**
