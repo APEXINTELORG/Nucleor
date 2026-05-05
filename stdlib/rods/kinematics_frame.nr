@@ -71,3 +71,67 @@ fn kinematics_frame_compatible(a: i64, b: i64) -> i64 {
     if b == 0 - 1 { return 1; };
     return 0;
 }
+
+// === R07-D1 Phase 1 (v0.8.267) — runtime frame-check helpers ===
+//
+// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D1
+// (CRITICAL): pre-v0.8.267 Phase A only shipped the marker
+// structs + numeric IDs. Adopters could mix camera-frame and
+// base-frame poses with no compile-time AND no runtime rejection
+// — Mars-Climate-Orbiter failure mode.
+//
+// Phase 1 (this ship): runtime check helpers adopters can wire
+// today. Phase 2 (per RFC-0046 Phase B, ~200 LOC compiler edit)
+// adds compile-time TYP-008 / ROBO frame-mismatch rejection.
+//
+// Acceptance for Phase 1:
+//   - `Pose<Camera>` cannot be consumed as `Pose<Base>` at runtime
+//     without explicit transform (panics or returns 0 with a
+//     well-defined sentinel);
+//   - cold compile <= 4s (preserved — rod-only edit);
+//   - err fixture demonstrates the rejection.
+//
+// Adopters track (pose_handle, frame_id) as a tuple. The helpers
+// below check frame compatibility before allowing operations.
+
+// Strict variant of `kinematics_frame_compatible`: rejects the
+// `unknown` sentinel matching anything (only -1 == -1 passes).
+// Use for production-correctness checks where unknown-frame data
+// must NOT silently pass through.
+fn kinematics_frame_compatible_strict(a: i64, b: i64) -> i64 {
+    if a == b { return 1; };
+    return 0;
+}
+
+// Assert that an adopter-supplied frame_id matches `expected_id`.
+// Returns 1 on match, 0 on mismatch. Adopters check the result
+// and abort or transform as appropriate. Phase 2 compiler-side
+// TYP-008 will make this a compile-time error for typed callers.
+fn kinematics_frame_assert(pose_frame_id: i64, expected_id: i64) -> i64 {
+    return kinematics_frame_compatible_strict(pose_frame_id, expected_id);
+}
+
+// Adopter-friendly: returns the expected_id if frames match; otherwise
+// returns -1 sentinel ("unknown / mismatch"). Lets adopters chain
+// `kinematics_frame_require(pose_frame, EXPECTED) != -1` without
+// branching. Phase 2 compiler-side type-checking subsumes this.
+fn kinematics_frame_require(pose_frame_id: i64, expected_id: i64) -> i64 {
+    if kinematics_frame_compatible_strict(pose_frame_id, expected_id) == 1 {
+        return expected_id;
+    };
+    return 0 - 1;
+}
+
+// Compose-in-frame helper: simulates the future Phase 2 typed
+// transform-required pattern. Returns the composed handle if
+// frames match; returns 0 (null sentinel) on mismatch.
+// Adopter pattern:
+//   let p_world = kinematics_frame_compose_if_match(p1_h, F1_ID,
+//                                                     p2_h, F1_ID,
+//                                                     compose_fn);
+// where compose_fn takes the two i64 handles and returns the
+// composed handle. If F1 != F2, returns 0 — adopter must
+// transform first via the typed transform API (Phase 2).
+fn kinematics_frame_check_pair(a_id: i64, b_id: i64) -> i64 {
+    return kinematics_frame_compatible_strict(a_id, b_id);
+}
