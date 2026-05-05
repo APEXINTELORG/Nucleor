@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.236] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — cam + ahrs.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods have
+extensive raw double-array ptr surfaces (project / unproject /
+distort / set_pose for cam; set_orientation / get_orientation /
+get_euler / get_bias / update for ahrs); these fixtures lock the
+scalar lifecycle path. Heavier project / fusion tests land in
+dedicated CV / IMU-fusion ships.
+
+### cam rod (pinhole + Brown-Conrady distortion)
+
+`tests/features/cam_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| cam_new returns valid handle | non-zero |
+| set_distortion zero coeffs | no-op identity case |
+| set_distortion non-zero | typical Brown-Conrady k1/k2/k3/p1/p2 |
+| cam_free does not crash | clean close |
+
+### ahrs rod (Mahony complementary IMU filter)
+
+`tests/features/ahrs_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| ahrs_new returns valid handle | non-zero |
+| set_gains typical | Kp=2.0, Ki=0.1 |
+| **set_gains zero Ki** | pure complementary mode (Ki disables bias est.) |
+| ahrs_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.235] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — fk_chain + hwbc.**
