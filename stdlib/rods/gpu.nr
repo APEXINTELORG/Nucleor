@@ -73,3 +73,42 @@ fn gpu_set_priority(level: str) -> i64 {
     if str_eq(level, "normal") { return 2; };
     return 0;
 }
+
+// === R08-D4 Phase 1 (v0.8.286) — backend disclosure ===
+//
+// Per audit `BUILD_PLAN_R08_tensor_ml_autodiff.md` §1 R08-D4 (HIGH):
+// `gpu_map`, `gpu_reduce`, `gpu_parallel_for` claim GPU acceleration
+// in their function names but execute as CPU sequential fallbacks
+// today (real Vulkan shader dispatch requires shader compilation
+// infrastructure not yet shipped). Adopter calling `gpu_map` could
+// reasonably believe their compute ran on the GPU.
+//
+// Phase 1: ship `gpu_backend()` returning the current dispatch
+// backend ("cpu-sequential" today) so adopters can query before
+// committing to a GPU-dependent design. Phase 2 wires real Vulkan
+// dispatch and `gpu_backend()` returns "vulkan-compute" when
+// available.
+
+// Returns the current backend used for `gpu_map` / `gpu_reduce` /
+// `gpu_parallel_for`. As of v0.8.286: always "cpu-sequential" —
+// the GPU runtime exists for `gpu_available` (Vulkan probe) but
+// the compute primitives have not been wired to Vulkan shader
+// dispatch yet. Adopters needing real GPU acceleration today must
+// drop down to the Vulkan FFI directly or wait for Phase 2.
+fn gpu_backend() -> str {
+    return "cpu-sequential";
+}
+
+// Returns 1 if the named operation is GPU-accelerated today;
+// 0 if it falls back to CPU. As of v0.8.286 all three return 0.
+fn gpu_op_is_accelerated(op: str) -> i64 {
+    // Explicit names for clarity — Phase 2 returns 1 when wired.
+    if str_eq(op, "gpu_map") == 1 { return 0; };
+    if str_eq(op, "gpu_reduce") == 1 { return 0; };
+    if str_eq(op, "gpu_parallel_for") == 1 { return 0; };
+    return 0;
+}
+
+fn gpu_limitations() -> str {
+    return "GPU compute limitations (ML-12, audit R08-D4 v0.8.286): (1) gpu_map/gpu_reduce/gpu_parallel_for execute as CPU sequential fallbacks; no Vulkan shader dispatch despite `gpu_available()` reporting Vulkan present. (2) gpu_set_priority maps to a stable integer code but does NOT actually adjust GPU scheduler priority — Phase 2 wires when the Vulkan VK_EXT_global_priority extension is available. (3) No memory transfer primitives (no buffer alloc, no host<->device copy) — adopter cannot stream tensors across PCIe yet. Query gpu_backend() for current dispatch path. Phase 2 wires real GPU dispatch + memory transfer + priority hints.";
+}
