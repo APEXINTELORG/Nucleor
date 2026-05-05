@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.214] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — moe + mps.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** the moe fixture caught a tight-eps softmax
+round-trip drift (~1e-7 vs eps=1e-9); switched to a more robust
+"dominant-winner" check. The mps fixture caught a docstring/
+behavior gap on `mps_max_bond` (returns CURRENT max bond, not
+the init cap) — re-locked at the correct value.
+
+### moe rod (Mixture-of-Experts routing)
+
+`tests/features/moe_smoke.nr` locks four invariants. Setup: 2
+tokens × 3 experts × K=2; logits row 0 = [10,0,0] (expert 0
+dominant), row 1 = [0,10,0] (expert 1 dominant):
+
+| Test | Path |
+|---|---|
+| Top-K winner is largest logit | token 0 picks expert 0 first; token 1 picks expert 1 first |
+| **Dominant-winner weight ≈ 1** | logits 22000:1 margin → renormalized w₀ ≈ 1 |
+| Indices in [0, n_experts) | no garbage IDs |
+| Balance CV non-zero on skewed dispatch | uneven load → non-zero coefficient of variation |
+
+### mps rod (Matrix Product States quantum sim)
+
+`tests/features/mps_smoke.nr` locks four textbook
+quantum-state invariants. Gate type IDs: 0=H, 1=CNOT, 2=X,
+3=Z, 4=RZ.
+
+| Test | Path |
+|---|---|
+| Initial \|0⟩ has ⟨Z⟩ = +1 | Z eigenvalue on \|0⟩ |
+| **X gate flips ⟨Z⟩ to -1** | X\|0⟩ = \|1⟩, ⟨Z⟩(\|1⟩) = -1 |
+| HH = I | applying H twice returns to \|0⟩, ⟨Z⟩ = +1 |
+| Fresh MPS has max_bond == 1 | product state \|0000⟩, all bonds = 1 |
+
+All pass. rc=0.
+
 ## [0.8.213] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — kinematics + logical_qubit.**
