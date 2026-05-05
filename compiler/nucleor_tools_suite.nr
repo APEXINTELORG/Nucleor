@@ -8044,7 +8044,10 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 type_diag(diags, source, fn_name, vname, "TYP-021", v21msg_t);
             };
             if str_len(tstr) > 0 {
-                if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
+                if str_len(init_t) == 0 && str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 {
+                    let v27msg_t: str = str_concat("type inference failed for binding '", str_concat(vname, "'; explicit annotation required"));
+                    type_diag(diags, source, fn_name, vname, "TYP-027", v27msg_t);
+                } else if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
                 } else {
                     let compat_start: i64 = tprof_start(tprof);
@@ -11283,6 +11286,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
     if str_eq(code, "TYP-026") { return "Non-void function reaches the end without returning a value"; };
+    if str_eq(code, "TYP-027") { return "Type inference failed"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
     if str_eq(code, "FMT-003") { return "Format string has more arguments than `{}` placeholders (extras would be silently dropped)"; };
     if str_eq(code, "TRAIT-001") { return "Missing From conversion for `?` error propagation"; };
@@ -11523,6 +11527,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
     if str_eq(code, "TYP-026") { return "A function declared to return a value has a path that can fall through without an explicit return or tail expression. Add the missing return value, or change the function to return void."; };
+    if str_eq(code, "TYP-027") { return "Strict inference mode found an expression whose type checker returned the empty-type sentinel. The compiler rejects it instead of treating the unknown type as compatible with every annotated type."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
     if str_eq(code, "FMT-003") { return "`format!(\"{}\", 1, 2, 3)` (more args than placeholders) silently dropped the extras pre-v0.5.11 — including any side effects in the dropped argument expressions. Either add `{}` placeholders for each extra arg or remove the unused args from the call. Mirrors the v0.4.70 placeholder>args check (the loud-direction asymmetry that left this case silent)."; };
     if str_eq(code, "TRAIT-001") { return "`?` on `Result<T, SrcErr>` inside a function returning `Result<U, DstErr>` requires `impl From<SrcErr> for DstErr` when the error payload types differ."; };
@@ -11740,6 +11745,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
     if str_eq(code, "TYP-026") { return "Audit every control-flow path and make the returned value explicit. For side-effect-only functions, declare `-> void` or omit the return type."; };
+    if str_eq(code, "TYP-027") { return "Add a concrete type annotation or route the expression through a helper whose return type is known to the type checker. For collection helpers, prefer typed methods or explicit wrappers until strict inference becomes the default."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
     if str_eq(code, "FMT-003") { return "Pre-v0.5.11 `format!(\"just {}\", 1, 2, 3)` silently dropped args 2 and 3 — the format expander walked the placeholders and stopped at the first arg, leaving the rest unevaluated/unreferenced. Adopter typos (left an arg after removing a placeholder) and refactor mistakes (renamed a placeholder, kept the arg) hit silently. v0.5.11 mirrors the v0.4.70 placeholder>args check direction so both asymmetries halt cleanly. Side-effecting expressions in dropped args (e.g. `format!(\"{}\", 1, expensive_call())`) no longer evaluate-then-discard."; };
     if str_eq(code, "TRAIT-001") { return "The `?` operator propagates the Err payload early. When the callee error type and enclosing function error type differ, Nucleor now performs the Rust-style `From<SrcErr> for DstErr` conversion. If that impl is absent, continuing would either return the wrong payload layout or silently expose the source error type through the destination API, so the compiler stops with TRAIT-001."; };

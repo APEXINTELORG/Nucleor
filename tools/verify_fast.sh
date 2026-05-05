@@ -427,7 +427,7 @@ TEST_DIRS=(lang attrs runtime rods features)
 # test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
 # them keeps the gate from treating them as duplicate-main failures.
 TEST_SKIP_REGEX='_aux\.nr$'
-ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$'
+ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$|err_t4_strict_inference\.nr$|err_numg2_math_abs_imin\.nr$|err_numg2_math_gcd_imin\.nr$|err_numg2_math_pow_int_overflow\.nr$'
 TEST_COUNT=0
 for d in "${TEST_DIRS[@]}"; do
     if [ -d "tests/$d" ]; then
@@ -730,7 +730,7 @@ cli_explain_full_smoke() {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
-        "TYP-026"
+        "TYP-026" "TYP-027"
         # FMT series — format macro expansion
         "FMT-002" "FMT-003"
         # TRAIT series — trait dispatch and conversions
@@ -1947,6 +1947,51 @@ t433_vec_set_wrong_type_halts() {
     [ "$rc" = "1" ] || return 1
     grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "Vec<i64>.set" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t4_strict_inference_rejects_empty_type() {
+    # E3 / T-4: in default-off mode the v0.8.79 canary keeps
+    # compiling, but NUC_STRICT_INFERENCE=1 must reject empty-type
+    # inference holes instead of treating "" as compatible with any
+    # annotated type.
+    nuc_build_with_env "NUC_STRICT_INFERENCE=1" "tests/err/err_t4_strict_inference.nr" "_t4_strict_inference" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "error\\[TYP-027\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "type inference failed" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+numg2_runtime_panic_guards() {
+    # v0.8.80/81 NUM-G2 runtime guard locks. These are runtime-panic
+    # fixtures, so they live outside the generic compile-time err
+    # sweep and are exercised explicitly here.
+    "$BIN" build "tests/err/err_numg2_math_abs_imin.nr" -o "_err_numg2_math_abs_imin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe_abs="target/_err_numg2_math_abs_imin"
+    [ -x "$exe_abs.exe" ] && exe_abs="$exe_abs.exe"
+    local out_abs
+    out_abs=$("$exe_abs" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$out_abs" | grep -q "math_abs(i64::MIN)" || return 1
+
+    "$BIN" build "tests/err/err_numg2_math_gcd_imin.nr" -o "_err_numg2_math_gcd_imin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe_gcd="target/_err_numg2_math_gcd_imin"
+    [ -x "$exe_gcd.exe" ] && exe_gcd="$exe_gcd.exe"
+    local out_gcd
+    out_gcd=$("$exe_gcd" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$out_gcd" | grep -q "math_abs(i64::MIN)" || return 1
+
+    "$BIN" build "tests/err/err_numg2_math_pow_int_overflow.nr" -o "_err_numg2_math_pow_int_overflow" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe_pow="target/_err_numg2_math_pow_int_overflow"
+    [ -x "$exe_pow.exe" ] && exe_pow="$exe_pow.exe"
+    local out_pow
+    out_pow=$("$exe_pow" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$out_pow" | grep -q "integer overflow" || return 1
     return 0
 }
 
@@ -4526,6 +4571,10 @@ t17_bootstrap_seed_matches() {
     [ "$seed_sha" = "$fresh_sha" ]
 }
 
+t18_self_host_compiler_fixed_point() {
+    bash "$ROOT/tools/check_self_host_md5.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+
 # Shared body for the per-source memory-budget steps.
 _memory_budget_for() {
     local src="$1"
@@ -4901,6 +4950,8 @@ step "T3.130 v0.4.83 TYP-008 ext — immutable let without initializer halts (wa
 step "T3.131 v0.4.84 TYP-008 ext — struct field type mismatch on literal RHS halts (was silent ptr-as-i64 miscompute)" t431_struct_field_type_mismatch_halts
 step "T3.132 v0.4.85 TYP-008 ext — Vec<T>.push(literal) wrong type halts (was silent str-ptr-as-i64-cell miscompute)" t432_vec_push_wrong_type_halts
 step "T3.133 v0.4.86 TYP-008 ext — Vec<T>.set/.insert(idx, literal) wrong type halts (extends v0.4.85)" t433_vec_set_wrong_type_halts
+step "v0.8 E3 T-4 strict inference rejects empty type" t4_strict_inference_rejects_empty_type
+step "v0.8 NUM-G2 math runtime panic guards" numg2_runtime_panic_guards
 step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_at/vec_remove_at (was clang link failure)" t434_vec_insert_remove_dispatch
 step "T3.135 v0.4.88 dispatch fix — s.len/contains/replace/split/starts_with/ends_with route to str_* (was silent vec_* miscompute)" t435_str_method_dispatch
 step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_start/trim_end/substring/char_at (7 more methods)" t436_str_more_methods_dispatch
@@ -4953,6 +5004,7 @@ step "v0.6.81 UFCS dispatch parses and routes through trait impl" v0681_ufcs_dis
 step "v0.6.87 str/String == auto-dispatches to content equality" v0687_str_string_eq_auto_dispatch
 step "v0.6.88 assert_eq!/assert_ne! route through equality" v0688_assert_eq_routes_through_eq
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
+step "T1.8 self-host compiler IR fixed point" t18_self_host_compiler_fixed_point
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches

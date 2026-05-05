@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.172] — 2026-05-04
+
+**Helper-agent integration — TYP-027 strict-inference gate
+(NUC_STRICT_INFERENCE=1) + self-host-md5 integrity tool.**
+Stage1↔stage2 IR md5 fixed-point validated.
+
+### Why integrate
+
+Helper agent (probe/perf-hotpath-followup `4046d657`) shipped:
+
+1. **TYP-027 strict-inference gate** — when `NUC_STRICT_INFERENCE=1`
+   is set in env, type-check emits `error[TYP-027]: type inference
+   failed for binding 'X'; explicit annotation required` for any
+   `let` whose RHS produces an empty inferred type. Off by default;
+   opt-in for adopters who want to lock down inference holes.
+2. **Self-host integrity gate** — `tools/check_self_host_md5.sh`
+   computes stage1↔stage2 IR md5 and bails with a friendly
+   diagnostic if they diverge. Runs in the verify gate, surfaces
+   self-host breaks immediately.
+3. **3 NUM-G2 err fixtures** + `err_t4_strict_inference.nr`
+   negative path.
+4. **Perf restoration** — earlier slice's strict-inference helper
+   was on the recursive `types_compatible` hot path, costing
+   ~25% cold compile. Helper moved the env-lookup to fire only
+   when init_t is empty — outside the recursion.
+
+### Self-host fixed-point
+
+Stage1 IR md5 = stage2 IR md5 = `3090AC29F2DF3C8EB4747F30CB6B64FB`.
+Matches helper's reported value.
+
+### Perf
+
+Helper reported on their machine: cold 3.68s, hot 0.43s, peak 315MB.
+
+Local re-run on this machine (with background contention from
+Taskmgr + MsMpEng): cold 4.05–4.34s across two runs, hot 0.4s,
+peak 317MB. All well under the 5.93s gate ceiling. Real wins
+vs the v0.5-track-l-perf-cache baseline (4.64s cold / 679MB
+peak) hold.
+
+### What I checked out from helper's branch
+
+- `compiler/nucleor_s1_compiler.nr` — TYP-027 + types_compatible refactor
+- `compiler/nucleor_tools_suite.nr` — TYP-027 plumbing
+- `docs/SELF_HOST_INTEGRITY.md` — adopter-facing integrity guarantee
+- `docs/spec/Nucleor_Error_Codes.md` — TYP-027 row
+- `tests/err/err_numg2_*` (3 files) — NUM-G2 hardening
+- `tests/err/err_t4_strict_inference.nr` — TYP-027 negative path
+- `tools/check_self_host_md5.sh` — integrity gate
+- `tools/verify.ps1`, `tools/verify.sh`, `tools/verify_fast.sh` —
+  wired the new gate into all three verify entry points
+- `findings/inbox/{self_host_integrity_gate,t4_strict_inference_gate}_2026-05-04.md` —
+  inbox findings
+
+### Spot-check after swap
+
+14 recent rod fixtures (audio, control, clifford, fixed_audit,
+pose_frame_audit, unit_dim_audit, frontier_audit, 3 graph-
+remediation Tier 1 fixtures, qsim_entanglement, io_read_bytes_real,
+sgrid, voxel) — pass.
+
 ## [0.8.171] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — voxel + sgrid.**
