@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.156] — 2026-05-04
+
+**V1.16 LSP server Phase A2.6 — REAL diagnostic forwarding
+end-to-end.** LSP daemon now spawns `nucleor.exe`, captures
+output, parses error/warning/info lines, emits them as proper
+`textDocument/publishDiagnostics` notifications. Editor sees
+red squiggles for actual compile errors.
+
+### Why
+
+Phase A2 (v0.8.154) emitted empty diagnostics. Phase A2.5
+(v0.8.155) wired the subprocess capture + URI primitives.
+Phase A2.6 (this ship) is the integration that makes the LSP
+server actually useful — adopters now get real feedback on
+their code in any LSP-aware editor.
+
+### What
+
+| Change | Path |
+|---|---|
+| `lsp_diag_severity(line)` — error/warning/info detection (LSP severity 1/2/3) | `compiler/nucleor_lsp.nr` |
+| `lsp_json_escape(s)` — JSON-escape diagnostic messages | `compiler/nucleor_lsp.nr` |
+| `lsp_line_to_diagnostic(line)` — convert one compiler-output line to a single LSP diagnostic JSON object | `compiler/nucleor_lsp.nr` |
+| `lsp_diagnostics_from_output(output)` — walk multi-line output, build JSON array | `compiler/nucleor_lsp.nr` |
+| `lsp_publish_real_diagnostics(uri)` — full pipeline: URI → path → spawn → parse → publish | `compiler/nucleor_lsp.nr` |
+| didOpen / didChange dispatch wired to the real publisher | `compiler/nucleor_lsp.nr` |
+| Path-fallback hardening: try `bin\nucleor.exe` first, then bare `nucleor.exe` | `compiler/nucleor_lsp.nr` |
+
+### Verified end-to-end
+
+`tests/features/lsp_bad.nr` (synthetic — `return undefined_fn(0)`)
+sent via didOpen produces a publishDiagnostics notification with
+**3 actual diagnostics**:
+
+1. `warning[TYP-005]: undefined function 'undefined_fn()' at type-check time...` (severity 2)
+2. `error[TYP-005]: undefined function 'undefined_fn()'. Check spelling...` (severity 1)
+3. `1 TYP-005 undefined-fn violation(s)` (severity 1)
+
+All formatted as proper LSP `Diagnostic` objects with
+`range`/`severity`/`source`/`message` fields. JSON message
+strings escaped (quotes, backslashes, newlines, tabs).
+
+### Known limitations (Phase A2.6 → A2.7)
+
+- **Range info is placeholder (0:0–0:1).** The compiler today
+  emits messages like `at file:LINE:COL` only on some error
+  classes. A2.7 should parse the LINE:COL when present and use
+  exact ranges. The simpler path is to add `--emit-diagnostics-
+  json` flag to nucleor.exe that emits structured ranges
+  natively (per spec).
+- **didChange triggers a full rebuild on every keystroke.** The
+  v0 spec accepts this (~50–200ms latency); v1 library-mode is
+  the <10ms path.
+- **No file-level state cache.** Each notification spawns its
+  own subprocess. Caching is a Phase A2.8 optimization.
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server progression:
+  - Phase A0 → ✅ v0.8.150
+  - Phase A1 dep → ✅ v0.8.152
+  - Phase A1 main → ✅ v0.8.153
+  - Phase A2 (textDoc lifecycle, empty diag) → ✅ v0.8.154
+  - Phase A2.5 deps → ✅ v0.8.155
+  - Phase A2.6 main (REAL diagnostic forwarding) → ✅ v0.8.156 (this ship)
+  - Phase A2.7 → next ship: parse LINE:COL ranges, or add
+    `--emit-diagnostics-json` to nucleor.exe
+  - Phase v1 → deferred (~3000 LOC compiler frontend refactor
+    for library-mode <10ms incremental)
+
+### Editor integration NOW PRODUCES REAL FEEDBACK
+
+Adopters can ship a VS Code/Neovim/Helix/Emacs LSP config that
+spawns `nucleor-lsp.exe` and get red/yellow squiggles for every
+compile error/warning. The textbook v0 LSP experience is
+operational.
+
 ## [0.8.155] — 2026-05-04
 
 **V1.16 LSP Phase A2.5 dependencies — `io_run_capture` popen-style
