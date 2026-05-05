@@ -4,16 +4,17 @@
 > Read this end-to-end before editing code. This supersedes
 > `PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md`,
 > `PARALLEL_AGENT_PUNCHLIST_v0.6.54.md`, and
-> `findings/_parallel_agent_assignment_v0851_2026-05-05.md` for the
-> current helper lane.
+> `findings/_parallel_agent_assignment_v0816_s03_d1_governance_cli_dispatch_prep_2026-05-05.md`
+> for the current helper lane.
 
 ## Current main state
 
 - Canonical repo: `C:\Users\JoeWe\Desktop\Nucleor_OSS`
 - Branch: `main`
-- Current `origin/main`: fetch it live before creating the helper branch
-- Compiler baseline underneath this handoff: `fa445e60` / `v0.8.314`
-- Self-host fixed-point md5: `92a6b77baec09726f3c04b3224280ce5`
+- Current `origin/main`: fetch it live before creating the helper branch.
+  Redirect base as of 2026-05-05 is `c4610e763a3799c43557a3d18ea803bca19882a0` / `v0.8.316`.
+- Compiler baseline underneath this redirect: `c4610e763a3799c43557a3d18ea803bca19882a0` / `v0.8.316`
+- Self-host fixed-point md5: `9c991a17cfa5b0f97a8ce0021cac6fe3`
 - Handoff from previous main agent:
   `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\HANDOFF_FOR_NEXT_AGENT_2026-05-05.md`
 - Canonical spine:

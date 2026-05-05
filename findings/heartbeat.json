@@ -1,20 +1,20 @@
 {
-  "instructions_read": "v0.8.314-main-and-helper-refresh",
-  "current_task": "main: integrated helper R12-D2 registry remotes Phase 1 and restored strict sub-4 cold self-build",
+  "instructions_read": "v0.8.316-s03-d1-helper-redirect",
+  "current_task": "main: helper redirected to S03-D1 governance CLI dispatch prep",
   "roadmap_phase": "v1_launch_blocker_final_buildout",
-  "current_punchlist_item": "R12-D2 integrated + isolated-link cache-key cold-path optimization",
+  "current_punchlist_item": "S03-D1 helper assignment issued",
   "edits_in_main_tree": true,
-  "rebased_on_origin_main": "helper rebased on 8ccdc379 before cherry-pick",
+  "rebased_on_origin_main": "local main equals origin/main at c4610e763a3799c43557a3d18ea803bca19882a0",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "head": "v0.8.316 release commit; use git rev-parse HEAD for exact hash after commit",
-  "status": "strict_sub4_perf_restored_ready_for_release_commit",
+  "head": "c4610e763a3799c43557a3d18ea803bca19882a0",
+  "status": "helper_redirect_ready",
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
-    "helper_worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper_r12_registry",
-    "helper_branch": "probe/r12-registry-remotes-v0814",
+    "helper_worktree": "helper should create/update from fresh origin/main",
+    "helper_branch": "probe/s03-d1-governance-cli-dispatch-prep-v0816",
     "helper_instructions": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md",
-    "helper_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0814_2026-05-05.md",
+    "helper_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0816_s03_d1_governance_cli_dispatch_prep_2026-05-05.md",
     "canonical_spine": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\BUILD_PATH_v0.4_to_v1.3.md",
     "build_plans": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans"
   },
@@ -79,8 +79,11 @@
     "note": "Do not absorb linked-wall soft misses into baseline; current gate enforces sub-4 cold compile and 400MB process-tree memory ceiling."
   },
   "helper_next": {
-    "status": "R12-D2 consumed by main",
-    "recommendation": "helper should rebase on post-v0.8.316 origin/main before taking the next non-overlapping tools/docs/runtime lane"
+    "status": "redirected",
+    "assignment": "S03-D1 governance CLI dispatch prep",
+    "branch": "probe/s03-d1-governance-cli-dispatch-prep-v0816",
+    "base": "origin/main at c4610e763a3799c43557a3d18ea803bca19882a0",
+    "recommendation": "helper should fetch origin, branch from origin/main, inspect S03-D1, and either prepare a tools-suite-only dispatch shim or file a finding and stop instead of forcing implementation"
   },
   "caveats": {
     "network_fetch": "Remote registry fetch/install remains a follow-on TLS-backed phase; this release only manages configured remote URLs.",
