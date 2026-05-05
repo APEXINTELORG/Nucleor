@@ -5,6 +5,109 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.271] — 2026-05-05
+
+**R06-D1 Phase 1 — `rust_free_str` reclamation path landed.**
+Closes the audit's #5 priority pillar at Phase 1 scope (CRITICAL
+silent miscompute / leak class).
+
+### Bug
+
+Pre-v0.8.271 seven `rust_*` functions in `stdlib/rods/rust_bridge/src/lib.rs`
+returned `*const c_char` via `CString::into_raw()` with **no exported
+reclamation path**:
+
+| Function | Returns owned heap str |
+|---|---|
+| `rust_regex_find` | line 28 |
+| `rust_regex_replace_all` | line 59 |
+| `rust_sort_ints` | line 90 |
+| `rust_sort_strings` | line 100 |
+| `rust_to_uppercase` | line 109 |
+| `rust_base64_encode` | line 117 |
+| `rust_base64_decode` | line 125 |
+
+Every call **leaked memory by design**. Adopters had no way to
+reclaim the allocation. Audit-classified CRITICAL.
+
+### Fix (Phase 1, additive)
+
+`stdlib/rods/rust_bridge/src/lib.rs`:
+
+1. **NEW header documenting the ownership convention** — every
+   `*const c_char` return transfers heap ownership to the caller;
+   caller MUST eventually pass the exact pointer to `rust_free_str`.
+2. **NEW `rust_free_str(s: *mut c_char)`** — calls
+   `CString::from_raw(s)` to reclaim the allocation. Null is safe
+   (no-op). Double-free is undefined behavior (caller's
+   responsibility).
+
+`stdlib/rods/rust.nr`:
+
+3. **Added `extern fn rust_free_str(s: str)`** — the Nucleor-side
+   declaration. Taking `str` directly avoids the i64-pointer cast
+   noise in adopter code.
+
+### Cargo rebuild
+
+`cargo build --release` from `stdlib/rods/rust_bridge/` regenerates
+`nucleor_rust_bridge.lib` with the new export. Verified on Windows
+(cargo 1.x; finished in 1.12s on dev machine).
+
+### Coverage
+
+`tests/features/rust_bridge_string_free_smoke.nr` locks 4 invariants:
+
+| Test | Path |
+|---|---|
+| **Round-trip uppercase** | `rust_to_uppercase("hello")` → `"HELLO"`; free does not crash |
+| **Round-trip regex_find** | find `"42"` in `"abc 42 def"`; free does not crash |
+| **Free of empty match** | non-matching find returns `""` (still a valid pointer); free does not crash |
+| **100 alloc+free cycles** | repeated `rust_to_uppercase` + `rust_free_str`; runtime does not crash |
+
+All pass. rc=0.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Every Rust string-return function has documented ownership and a free path** | ✅ all 7 documented in lib.rs header; `rust_free_str` exposed |
+| **Repeated fixture does not grow live allocation under available leak signal** | ⚙️ 100-cycle stress passes; ASAN/valgrind leak verification deferred to Phase 2 (would need Linux harness) |
+| Cold compile ≤ 4s | ✅ unchanged (no compiler edit) |
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback (per build plan §1 R06-D1)
+
+Revert the `rust_free_str` Rust function + extern declaration;
+restore `cargo build --release` to the pre-v0.8.271 state. Adopters
+fall back to leaking-by-design (the prior behavior).
+
+### Next R06 ships (per audit ship sequence)
+
+| # | Phase | Scope |
+|---|---|---|
+| 2 | R06-D2 (HIGH) | Python bridge GIL discipline + result-free API |
+| 3 | R06-D3 (HIGH) | ABI generator fail-closed on unknown types + exports report |
+| 4 | R06-D4 (MEDIUM) | reproducible Rust bridge hashing |
+
+### Audit launch-blocker progress
+
+| # | Item | Phase 1 |
+|---|---|---|
+| 1 | R14 algebraic laws | ✅ COMPLETE (5/5) |
+| 2 | R07 Pose<Frame> | ✅ COMPLETE (4/4) |
+| 3 | R05 effects in s1 | ⏳ deferred (multi-iteration) |
+| 4 | R01/R02 lifetime + Sendable | ⏳ |
+| 5 | R06 FFI | 🟡 Phase 1 partial (D1 done; D2/D3/D4 pending) |
+| 6 | R12/S03 POSIX signing | ⏳ |
+| 7 | R10 tier + perf | ⏳ |
+| 8 | R09 numeric residuals | ⏳ |
+| 9 | R13 bootstrap | ⏳ |
+| 10 | R08/R11 ML/quantum | ⏳ |
+
 ## [0.8.270] — 2026-05-05
 
 **R07-D4 Phase 1 — limitation diagnostics for AHRS / CHOMP / TOPP.**

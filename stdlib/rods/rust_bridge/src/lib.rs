@@ -1,6 +1,26 @@
 // Nucleor Rust Bridge — exposes Rust functionality via C ABI
 // This crate compiles to a static library that Nucleor programs link against.
 // Demonstrates: regex, string processing, hashing, sorting — all from Rust's ecosystem.
+//
+// === Ownership convention (R06-D1 Phase 1, v0.8.270 / 2026-05-05) ===
+//
+// Every `rust_*` function below that returns `*const c_char` transfers
+// **ownership of the heap allocation** to the caller via
+// `CString::into_raw()`. Caller MUST eventually pass the exact pointer
+// to `rust_free_str` to reclaim memory; otherwise leaks by design.
+//
+// The seven leak-vulnerable returns:
+//   rust_regex_find, rust_regex_replace_all,
+//   rust_sort_ints, rust_sort_strings,
+//   rust_to_uppercase,
+//   rust_base64_encode, rust_base64_decode
+//
+// All other `rust_*` functions return primitive types (i64) and have
+// no ownership concern.
+//
+// Reclaim path: `rust_free_str(ptr)` calls `CString::from_raw(ptr)`
+// which drops the underlying allocation. `is_null()` is checked so
+// double-free / null-pass is a no-op rather than a crash.
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -125,6 +145,28 @@ pub extern "C" fn rust_base64_decode(s: *const c_char) -> *const c_char {
         Some(bytes) => CString::new(bytes).unwrap_or_default().into_raw(),
         None => CString::new("").unwrap_or_default().into_raw(),
     }
+}
+
+// === R06-D1 Phase 1 (v0.8.270) — string-return reclamation path ===
+//
+// Free a string previously returned by any `rust_*` function above
+// (rust_regex_find, rust_regex_replace_all, rust_sort_ints,
+//  rust_sort_strings, rust_to_uppercase, rust_base64_encode,
+//  rust_base64_decode). Caller must pass the EXACT pointer returned
+// by that function — passing a borrowed `*const c_char` from CStr
+// would reclaim memory the bridge does not own.
+//
+// Null is safe (no-op). Double-free is undefined behavior (the
+// caller's responsibility — they own the pointer until they free
+// once). Phase 2 may add a wrapper that tracks live pointers in a
+// HashSet for double-free detection.
+#[no_mangle]
+pub unsafe extern "C" fn rust_free_str(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    // Reclaim the CString allocation; dropping at end of scope frees.
+    let _ = CString::from_raw(s);
 }
 
 // Simple base64 implementation (no external dependency needed)

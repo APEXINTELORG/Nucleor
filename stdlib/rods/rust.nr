@@ -26,6 +26,12 @@ extern fn rust_sort_strings(csv: str) -> str;
 extern fn rust_to_uppercase(s: str) -> str;
 extern fn rust_base64_encode(s: str) -> str;
 extern fn rust_base64_decode(s: str) -> str;
+// R06-D1 Phase 1 (v0.8.270) — reclamation hook for the 7 string-
+// returning functions above. Caller MUST pass the exact pointer
+// returned to reclaim the allocation. Audit cite:
+// stdlib/rods/rust_bridge/src/lib.rs FFI-1 — every into_raw() now
+// has a from_raw() reclaim path.
+extern fn rust_free_str(s: str);
 
 // Nucleor-friendly wrappers
 
