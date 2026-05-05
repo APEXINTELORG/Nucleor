@@ -54,3 +54,13 @@ fn cliff_error_detectable(h: i64, err: i64) -> i64 { return nuc_cliff_error_dete
 fn cliff_count_errors(h: i64) -> i64 { return nuc_cliff_count_detectable_errors(h); }
 fn cliff_best_d_k1(h: i64) -> i64 { return nuc_cliff_best_distance_k1(h); }
 fn cliff_random_gate(h: i64, gate_type: i64, seed: i64) { nuc_cliff_random_gate(h, gate_type, seed); }
+
+// === R11 Phase 1 (v0.8.312) — clifford rod disclosure (QM-7) ===
+//
+// Per s1 compiler audit comment ~line 29432 (QM-7 / Tier-C
+// correctness audit-pass): the Clifford-stabilizer rod ships a
+// usable surface but has ZERO TEST COVERAGE in the OSS verify
+// gate (no fixtures under tests/features/cliff_*.nr).
+fn clifford_limitations() -> str {
+    return "Clifford-stabilizer rod limitations (QM-7, audit info-pass v0.8.312): (1) ZERO TEST COVERAGE in this distribution — no tests/features/cliff_*.nr fixtures assert golden stabilizer-update outputs. The rod has been exercised in research scripts but those are not in the OSS verify gate. (2) NO ROUND-TRIP property test: cliff_add_stabilizer / cliff_reset / re-init does not have a documented invariant. (3) NO ERROR-MODEL coverage: cliff_error_detectable / cliff_count_errors operate against the active stabilizer set but their meaningfulness depends on the stabilizer construction the adopter built. (4) NO QASM / OpenQASM2 INTEROP. Discipline today: bring property tests for any production use; treat as experimental until Phase 2 lands fixtures per audit ship plan.";
+}

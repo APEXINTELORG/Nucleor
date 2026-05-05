@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 249
-# Total fn definitions: 2836
-# Total LOC: 12040
+# Total fn definitions: 2837
+# Total LOC: 12043
 
 [[rod]]
 name           = "activation2"
@@ -339,9 +339,9 @@ imports        = ["cli", "fmt", "strings"]
 name           = "clifford"
 path           = "stdlib/rods/clifford.nr"
 description    = "Clifford / stabilizer formalism (quantum error correction)"
-function_count = 22
+function_count = 23
 cfile_count    = 1
-loc            = 45
+loc            = 48
 imports        = ["clifford"]
 
 [[rod]]
