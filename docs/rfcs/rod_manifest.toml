@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2776
-# Total LOC: 11819
+# Total fn definitions: 2778
+# Total LOC: 11827
 
 [[rod]]
 name           = "activation2"
@@ -1050,9 +1050,9 @@ imports        = ["klt"]
 name           = "kv_cache"
 path           = "stdlib/rods/kv_cache.nr"
 description    = "KV cache for LLM inference (paged, with eviction)"
-function_count = 8
+function_count = 10
 cfile_count    = 1
-loc            = 21
+loc            = 29
 imports        = []
 
 [[rod]]

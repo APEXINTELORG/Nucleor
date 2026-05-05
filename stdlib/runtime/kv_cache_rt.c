@@ -125,11 +125,13 @@ void nuc_kv_cache_insert(long long ch, long long layer, long long head, long lon
 
 // ================================================================
 //  Lookup: gather KV for a range of positions
-//  Returns flat Vec [n_positions * head_dim] for K (and similarly V)
+//  Returns flat Vec [n_positions * head_dim] for K (and similarly V).
+//  4-arg form returns a single position's hd values (n=1).
+//  5-arg _range form returns ep-sp positions worth.
 // ================================================================
 
-long long nuc_kv_cache_get_k(long long ch, long long layer, long long head,
-                               long long start_pos, long long end_pos) {
+long long nuc_kv_cache_get_k_range(long long ch, long long layer, long long head,
+                                     long long start_pos, long long end_pos) {
     KVCache *cache = (KVCache *)(void *)ch;
     int l = (int)layer, h = (int)head;
     int sp = (int)start_pos, ep = (int)end_pos;
@@ -157,8 +159,8 @@ long long nuc_kv_cache_get_k(long long ch, long long layer, long long head,
     return (long long)out;
 }
 
-long long nuc_kv_cache_get_v(long long ch, long long layer, long long head,
-                               long long start_pos, long long end_pos) {
+long long nuc_kv_cache_get_v_range(long long ch, long long layer, long long head,
+                                     long long start_pos, long long end_pos) {
     KVCache *cache = (KVCache *)(void *)ch;
     int l = (int)layer, h = (int)head;
     int sp = (int)start_pos, ep = (int)end_pos;
@@ -184,6 +186,18 @@ long long nuc_kv_cache_get_v(long long ch, long long layer, long long head,
         }
     }
     return (long long)out;
+}
+
+// 4-arg single-position wrappers — match the rod's declared arity.
+// Pre-2026-05-05 these were the 5-arg range forms; the rod's 4-arg call
+// site read garbage from the un-pushed end_pos slot. Range form is now
+// `_range` and the original name returns one position worth of values.
+long long nuc_kv_cache_get_k(long long ch, long long layer, long long head, long long pos) {
+    return nuc_kv_cache_get_k_range(ch, layer, head, pos, pos + 1);
+}
+
+long long nuc_kv_cache_get_v(long long ch, long long layer, long long head, long long pos) {
+    return nuc_kv_cache_get_v_range(ch, layer, head, pos, pos + 1);
 }
 
 long long nuc_kv_cache_seq_len(long long ch) { return ((KVCache *)(void *)ch)->seq_len; }
