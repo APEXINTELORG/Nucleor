@@ -73,9 +73,11 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `gap-analyses/Nucleor_Self_Hosting_Bootstrap_Gap_Analysis_and_RFC_2026-05-04.md`
 - **Severity:** SELF-HOST INTEGRITY
-- **Symptom:** Fixed-point check guards a 50-line smoke proxy, NOT the 10K-line compiler self-IR.
-- **Phase 1:** Replace fixed-point check with compiler-self-IR md5 verification.
-- **Phase 2b:** CI gate enforces.
+- **Status:** DONE — `tools/check_self_host_md5.sh` builds the full
+  self-host compiler twice, compares stage1/stage2 emitted compiler IR,
+  and compares stage2 IR against `bootstrap/nucleor_s1_seed.ll`.
+- **Evidence:** 2026-05-05 gate PASS, md5
+  `9c991a17cfa5b0f97a8ce0021cac6fe3`.
 
 ### PKG-1, PKG-3 — Packaging
 
@@ -158,7 +160,7 @@ proper analysis → Phase 4 hard error):
 - T-3, T-4 (silent fallthroughs)
 - C-1, C-2 (Linux concurrency)
 - E-1, E-2, E-3 (effect trust gap)
-- BOOT-3, BOOT-4 (self-host integrity)
+- BOOT-3, BOOT-4 (self-host integrity) — DONE
 
 ### Wave 2: Other Tier A + Tier B
 - Real-Time / Determinism enforcement
@@ -184,3 +186,4 @@ proper analysis → Phase 4 hard error):
 
 - **2026-05-04** v0.8.43: Punchlist file created. 14 gap RFCs integrated into spine. RFC-0062 memory-safety remains in flight; other 13 queued behind it.
 - **2026-05-04** v0.8.113: Punchlist refreshed to reflect v0.8.45 → v0.8.112 progress. RFC-0062 Phase 2b-3 final landed v0.8.75 (unconditional default-flip). NUM-G1 retired (probe wrong-class). NUM-G2 fully closed (math_abs/gcd/lcm v0.8.80, math_pow_int v0.8.81). NUM-G8 closed (TLS overflow flag v0.8.82). C-1/C-2/C-3 closed (helper v0.8.83, me v0.8.85/.86). ML-1 closed (v0.8.45/.66 sisters). T-3/T-4 Phase 1 done (audit + canary). PKG-3 fully closed for v1.0 semver (v0.8.89-.93). PERF-11 closed (v0.8.84). QM-7 Phase 1 done (12 assertions v0.8.87/.88). 16 stdlib rods first-coverage (v0.8.94 - .112). 4 pre-existing bugs surfaced; 3 fixed (CSV trailing-empty v0.8.105, dt mktime/gmtime v0.8.106, bm25 doc_count v0.8.108). E-1/2/3, BOOT-3/4, NUM-G9, ROBO-7 remain OPEN — all blocked by Windows-PE link hang for any compiler-edit ship. PKG-1 needs Linux runner.
+- **2026-05-05**: BOOT-3/BOOT-4 rechecked against current `tools/check_self_host_md5.sh`; the live gate already verifies full compiler self-IR fixed point and seed md5, not a smoke proxy. Marked DONE with md5 `9c991a17cfa5b0f97a8ce0021cac6fe3`.
