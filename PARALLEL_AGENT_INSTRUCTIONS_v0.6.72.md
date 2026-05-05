@@ -1,3 +1,10 @@
+# SUPERSEDED - read `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
+
+This file is historical. For the current helper lane, read:
+
+- `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
+- `findings/_parallel_agent_assignment_v0814_2026-05-05.md`
+
 # Parallel Agent Instructions — post-v0.6.72
 
 > **Drafted 2026-05-03 by main agent, on user instruction.**

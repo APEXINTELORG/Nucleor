@@ -1,3 +1,10 @@
+# SUPERSEDED - read `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
+
+This file is historical. The current helper assignment is:
+
+- `PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md`
+- `findings/_parallel_agent_assignment_v0814_2026-05-05.md`
+
 # Parallel Agent Punchlist (post-v0.6.54, updated post-v0.6.61)
 
 > Drafted 2026-05-03 by main agent. Split of the forward-roadmap
