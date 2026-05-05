@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.231] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — admit + bt.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods have
+ptr-typed surfaces (admit_step takes raw force_meas_ptr; bt
+action/condition leaves take fn pointers); these fixtures lock
+the lifecycle / structure paths around those surfaces.
+
+### admit rod (per-DOF admittance controller)
+
+`tests/features/admit_smoke.nr` locks four lifecycle invariants
+(admit_step's raw force_meas_ptr is exercised by downstream MPC
+ships):
+
+| Test | Path |
+|---|---|
+| admit_new returns valid handle | non-zero |
+| Fresh state has zero position | virtual mass-spring at rest |
+| Fresh state has zero velocity | likewise |
+| **admit_reset re-zeros state** | even after gain change, (x, ẋ) back to zero |
+
+### bt rod (behavior tree composite + decorator structure)
+
+`tests/features/bt_smoke.nr` locks four structural invariants
+(action/condition leaves need fn-pointer callbacks; deferred):
+
+| Test | Path |
+|---|---|
+| Empty tree | bt_new → node_count 0 |
+| Single composite root | sequence at root → 1 |
+| **Composite with composite children** | root + 3 children → 4 |
+| Inverter adds a node | inverter increments count |
+
+All pass. rc=0.
+
 ## [0.8.230] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — mmap + plot.**
