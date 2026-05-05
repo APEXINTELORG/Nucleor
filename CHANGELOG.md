@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.135] — 2026-05-04
+
+**stdlib/rods/atomic.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+RFC-0007 atomics — load/store/RMW/CAS. Foundational for
+concurrent code. Single-threaded fixture exercises the full
+`atomicrmw` / `cmpxchg` lowering path — race-condition tests
+are out of scope for a smoke fixture but the contract is locked.
+
+`tests/features/atomic_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| load+store round-trip | `atomic_new(42)` → load == 42; store(7) → load == 7 |
+| inc/dec | RMW returns prior; cell delta == ±1 |
+| fetch_add/sub | `add(50)` returns prior; cell += 50; sub symmetric |
+| **CAS success/failure** | matching expected → cell becomes desired; mismatch → cell unchanged |
+| swap | returns prior; cell becomes new value (xchg) |
+
+All pass. rc=0.
+
 ## [0.8.134] — 2026-05-04
 
 **stdlib/rods/bloom.nr first test coverage.** Pure fixture, no
