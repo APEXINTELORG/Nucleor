@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.195] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — queue + process.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### queue rod (FIFO Vec wrapper)
+
+`tests/features/queue_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty | `len=0`, `is_empty=1` |
+| **FIFO ordering** | push 1, 2, 3 → pop returns 1, 2, 3 |
+| Peek non-destructive | peek + pop returns same value |
+| Length tracking | push grows, pop shrinks |
+
+### process rod (child-process primitives)
+
+`tests/features/process_smoke.nr` locks four invariants using
+Windows-builtin commands:
+
+| Test | Path |
+|---|---|
+| `proc_run` on echo | `cmd.exe /c echo hi` returns 0 |
+| **`proc_capture_stdout`** | `echo hello` output contains `"hello"` |
+| `capture_status` round-trip | matches the most recent capture's rc |
+| **Nonexistent command non-zero** | unknown cmd returns non-zero rc |
+
+All pass. rc=0.
+
 ## [0.8.194] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — regex + result.**
