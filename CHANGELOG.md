@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.134] — 2026-05-04
+
+**stdlib/rods/bloom.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+Bloom filter (probabilistic set membership) + HyperLogLog
+(cardinality estimation). Foundational for dedup pipelines and
+analytics — both shipped with zero coverage.
+
+`tests/features/bloom_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty no-member | `bloom_contains(empty, _) == 0` |
+| **No false negatives** | after add(k), contains(k) == 1 — the defining Bloom property |
+| Insert count | `bloom_count` tracks insertions exactly |
+| HLL ±20% | 100 distinct keys → estimate in [80, 120] (actual 96.4 — HLL p=10 typical ~3% error) |
+
+Also documents that `nuc_hll_count` returns f64 bit-cast as i64
+(needs `f64_from_bits`). Future adopters won't have to re-derive.
+
+All pass. rc=0.
+
 ## [0.8.133] — 2026-05-04
 
 **stdlib/rods/complex.nr first test coverage.** Pure fixture, no
