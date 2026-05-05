@@ -41,6 +41,10 @@ The user mandate is strict:
 - Keep peak memory minimal; the cap is an emergency stop, not a budget.
 - Prefer real implementation over disclosure-only work when the build
   plan has a real path.
+- Do not add new Python helpers or Python runtime dependencies for
+  Nucleor toolchain/product paths. Python interop is intentional; the
+  existing maintenance generators are deferred cleanup, not a pattern
+  to extend.
 
 ## Non-negotiable workflow
 
