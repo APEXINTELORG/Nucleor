@@ -24,7 +24,7 @@ source.nr
     │
     ▼
 ┌──────────┐
-│ Optimize │  Algebraic-rewrite optimizer + perf diagnostics. See §Optimizer.
+│ Optimize │  Built-in algebraic folds + perf diagnostics. See §Optimizer.
 └──────────┘
     │
     ▼
@@ -88,7 +88,9 @@ The default `nuc build` runs at tier 1.
 
 ## Optimizer
 
-The IR optimizer in `compiler/nucleor_s1_compiler.nr` runs an algebraic-rewrite pass before LLVM gets the IR. It uses two sources of information:
+The IR optimizer in `compiler/nucleor_s1_compiler.nr` runs before LLVM
+gets the IR. Today it applies built-in arithmetic identities and exposes a
+metadata-only `@law(...)` pass for the algebraic-laws roadmap.
 
 1. **Built-in arithmetic identities** that always apply:
    - `x + 0 → x`, `0 + x → x`
@@ -99,15 +101,14 @@ The IR optimizer in `compiler/nucleor_s1_compiler.nr` runs an algebraic-rewrite 
    - `-(-x) → x`, `!(!x) → x`
 
 2. **`@law(...)` declarations** on user functions:
-   - `identity=N`: removes calls of the form `f(x, N)` or `f(N, x)`.
-   - `absorbing=N`: replaces `f(x, N)` with `N`.
-   - `idempotent`: rewrites `f(f(x))` to `f(x)`.
-   - `involution`: rewrites `f(f(x))` to `x`.
-   - `associative`: normalizes call trees to left-leaning form (enables further fusion).
-   - `commutative`: enables argument reordering for canonical comparison.
-   - `fusion`: rewrites `f(a, f(b, c))` to `f(compose(a, b), c)` for fusion-eligible functions.
+   - Lex-time capture and audit/info surfacing are implemented.
+   - The optimizer has a metadata-only law pass scaffold.
+   - User-law-driven call-site rewrites, generated law property tests, and
+     SMT proof obligations are tracked for later RFC-0031 phases.
 
-Run `nuc perf <file>.nr` to see which laws fired and which performance violations were reported.
+Run `nuc perf <file>.nr` to see optimizer/performance diagnostics. Treat
+`@law(...)` as documentation and audit metadata until the tracked
+Phase 2/3 algebraic-laws work lands.
 
 ## Performance diagnostics
 

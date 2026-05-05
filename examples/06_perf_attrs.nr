@@ -4,8 +4,9 @@
 //
 // @hot          — strict performance enforcement (no heap, no string format,
 //                 no indirect dispatch in this function's body).
-// @law(...)     — algebraic laws the optimizer can use to rewrite call sites.
-//                 Identity-elimination, idempotence, fusion, etc. apply.
+// @law(...)     — algebraic-law metadata captured for audit today.
+//                 User-law rewrites and generated property tests are tracked
+//                 for later RFC-0031 algebraic-laws phases.
 // @const_fn     — function eligible for compile-time evaluation.
 
 @law(commutative, associative, identity=0)
@@ -44,8 +45,9 @@ fn str_from_int(n: i64) -> str {
 }
 
 fn main() -> i64 {
-    // The optimizer can fold add_i64(x, 0) -> x (identity law),
-    // and reassociate a chain of add_i64 calls (associative law).
+    // This call chain is law-eligible metadata today. Built-in arithmetic
+    // folds still apply inside function bodies, but user-law call-site
+    // rewrites are tracked for later RFC-0031 algebraic-laws phases.
     let s: i64 = add_i64(add_i64(add_i64(10, 0), 20), add_i64(0, 12));
     print(str_concat("add chain (laws-eligible) = ", str_from_int(s)));
 
