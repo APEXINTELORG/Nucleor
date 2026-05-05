@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.154] — 2026-05-04
+
+**V1.16 LSP server Phase A2 — textDocument lifecycle wiring +
+empty `publishDiagnostics` notifications back to client.**
+Daemon-side LSP server edit; ~30 LOC added.
+
+### What
+
+| Change | Path |
+|---|---|
+| `lsp_extract_uri(body)` — JSON URI extractor | `compiler/nucleor_lsp.nr` |
+| `lsp_publish_empty_diagnostics(uri)` — emit empty diagnostics notification | `compiler/nucleor_lsp.nr` |
+| Method dispatch: `textDocument/didOpen` + `didChange` + `didClose` | `compiler/nucleor_lsp.nr` |
+
+### Verified end-to-end
+
+```
+$ initialize → didOpen file:///c:/test.nr → didChange → didClose → exit
+```
+
+Daemon emits:
+- initialize response (server capabilities + serverInfo)
+- `publishDiagnostics` notification with empty array on didOpen
+- `publishDiagnostics` notification with empty array on didChange
+- (silent) on didClose
+- exits rc=0
+
+Editor sees clean "no problems" state on every file open + edit.
+
+### Phase A2.5 (deferred)
+
+Real diagnostic emission: spawn `nucleor.exe --emit-diagnostics-json
+<file>` per change, parse the output, populate the
+`diagnostics` array. Needs subprocess output capture (current
+`system()` builtin only returns rc). Two paths:
+
+- **Subprocess + temp file:** spawn nucleor → write JSON to tmp
+  → daemon reads tmp → forwards. ~50 LOC.
+- **`popen()`-style runtime helper:** add `rods_io_run_capture`
+  to io_rt that runs a command and returns stdout. ~20 LOC C +
+  ~10 LOC rod surface, then ~30 LOC daemon wiring.
+
+The second is cleaner and unblocks other CLI-tooling work.
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server progression:
+  - Phase A0 (`--lsp-mode` + capabilities ad) → ✅ v0.8.150
+  - Phase A1 dep (raw stdin byte-read) → ✅ v0.8.152
+  - Phase A1 main (daemon + LSP base protocol) → ✅ v0.8.153
+  - Phase A2 (textDoc lifecycle + empty diag) → ✅ v0.8.154 (this ship)
+  - Phase A2.5 (real diagnostic emission via subprocess capture) → next ship
+  - Phase v1 (library-mode, <10ms incremental) → deferred (~3000 LOC frontend refactor)
+
+### Editor integration ready
+
+Phase A2 is enough for editors to register the LSP server and
+get clean-state feedback on every keystroke + file open. VS
+Code / Neovim / Helix / Emacs configs can ship now; real
+diagnostic surfaces appear when A2.5 lands.
+
 ## [0.8.153] — 2026-05-04
 
 **V1.16 LSP server Phase A1 main work — `nucleor-lsp.exe`
