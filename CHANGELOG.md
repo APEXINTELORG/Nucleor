@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.287] — 2026-05-05
+
+**R08-D3 Phase 1 — quantization coverage disclosure (`quant_op_supported()` / `quantize_limitations()`).**
+
+### Bug
+
+`stdlib/rods/quantize.nr` ships encode + GEMV / dot for Q4, INT8,
+and ternary, plus `fp8_encode` — but does NOT ship FP8 decode,
+FP8 GEMV, INT8 decode, or any grouped quantization (no
+`grouped_encode` / `grouped_decode` / `grouped_gemv`). Per-scheme
+error bounds are not documented. Modern model-compression pipelines
+(AWQ, GPTQ groupwise, FP8 inference) cannot be expressed with the
+shipped surface — adopter could read the rod and assume FP8 GEMV
+or grouped quantization were available because the encode functions
+are present. Audit-classified HIGH (R08-D3) per
+`BUILD_PLAN_R08_tensor_ml_autodiff.md` §1.
+
+### Fix (Phase 1, audit's rollback path: per-op truth + limitation text)
+
+`stdlib/rods/quantize.nr` adds:
+
+- `quant_op_supported(op: str) -> i64` — returns 1 for the 9 shipped
+  ops (`q4_encode/decode/dot`, `int8_encode/gemv`,
+  `ternary_encode/gemv/gemv_full`, `fp8_encode`) and 0 for the 6
+  Phase 2 ops (`fp8_decode`, `fp8_gemv`, `int8_decode`,
+  `grouped_encode/decode/gemv`).
+- `quantize_limitations() -> str` — names the 4 known gaps so
+  adopters needing FP8 inference or grouped quantization can
+  short-circuit before designing around the shipped surface.
+
+### Tests
+
+`tests/features/quant_coverage_disclosure_smoke.nr` — locks 7
+invariants: 3 shipped ops report supported, 3 Phase 2 ops report
+unsupported, limitations text names "FP8" and "GROUPED".
+
+### Self-host fixed-point
+
+`12777d1c1bdb18cde6bbfcb22479eefc` (preserved — stdlib-rod-only edit).
+
 ## [0.8.286] — 2026-05-05
 
 **R08-D4 Phase 1 — GPU backend disclosure (`gpu_backend()` / `gpu_op_is_accelerated()` / `gpu_limitations()`).**
