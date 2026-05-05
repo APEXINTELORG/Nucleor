@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.278] — 2026-05-05
+
+**R10-D6 + R10-D1 Phase 1 — Cranelift honesty + tier validation.**
+
+### Bugs
+
+| ID | Severity | Site | Issue |
+|---|---|---|---|
+| R10-D6 | MEDIUM | `compiler/nucleor_tools_suite.nr:NR050 explain` | "Cranelift or LLVM rejected the IR" — Nucleor ships ONLY the LLVM backend. The Cranelift mention misled adopters about which backend was active. |
+| R10-D1 | HIGH | `nuc_router.ps1` | `--tier <X>` accepted any token without validation. `--tier 99` or `--tier debug` silently passed through. |
+
+### Fix (Phase 1, two surgical edits)
+
+**R10-D6 — Cranelift honesty:**
+
+`compiler/nucleor_tools_suite.nr` `explain_error_explanation` for
+NR050 — removed "Cranelift or"; now reads "LLVM rejected the IR…"
+and adds a parenthetical explaining the rationale + Phase 2 path:
+
+```
+NR050: Backend Code Generation Failure
+LLVM rejected the IR, hit an unsupported ABI path, or failed
+during object emission or linking preparation. (R10-D6 v0.8.278:
+removed 'Cranelift or' — Nucleor ships only the LLVM backend; no
+Cranelift backend exists. Phase 2 may add Cranelift as a tier-0
+fast-path; until then docs and diagnostics must not imply a
+backend that's not there.)
+```
+
+**R10-D1 — tier validation:**
+
+`nuc_router.ps1` (right before the `& $Self @selfHostedArgs`
+fall-through) — scans `selfHostedArgs` for `--tier <X>` or
+`--tier=<X>`; rejects with `error[PERF-1]: invalid --tier value …`
+and exits 2 if X is not 0/1/2. Phase 2 wires the validated tier
+through to clang -O level + cache key + artifact metadata.
+
+### Honest gap (recorded for Phase 2)
+
+`nuc.bat` (the user-facing entry on Windows) bypasses
+`nuc_router.ps1` entirely — `"%NUC_BIN%" %*` invokes the s1
+compiler directly. The router validation fires only on the
+distro-packaged advanced-CLI path. Same constraint as v0.8.263
+R14-D3 Phase 1 with `--check-laws`. Phase 2 will move tier
+validation into the compiler's argv parser so the live build path
+also catches invalid tiers.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **R10-D6: docs/output do not promise absent backend** | ✅ NR050 explain text demoted |
+| **R10-D6: footgun scanner catches obvious hot-loop scan** | ⏳ Phase 2 |
+| **R10-D1: tier 0/1/2 produce distinct flags/metadata** | ⏳ Phase 2 (router validates; compiler-side wiring deferred) |
+| **R10-D1: invalid tier rejected** | ✅ at router layer |
+| Cold compile ≤ 4s | ✅ unchanged (no s1 edit) |
+
+### Tools-suite-only edit → s1 fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Self-host gate
+re-verified post-promote — clean.
+
+### Rollback (per build plan §1)
+
+R10-D6: revert NR050 explain text to mention "Cranelift or".
+R10-D1: remove the tier-validation block in nuc_router.ps1 (the
+single `for` loop near the bottom of the file).
+
+### R10 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.278 | R10-D6 — Cranelift honesty | ✅ |
+| v0.8.278 | R10-D1 — tier validation (router-side) | 🟡 partial |
+| next | R10-D2 — named perf diagnostics | ⏳ HIGH (compiler edit) |
+| next | R10-D3 — POSIX perf parity | ⏳ HIGH (Linux box needed) |
+| next | R10-D4 — cache key NUCLEOR_INT_STRICT_ARITH | ⏳ HIGH (compiler edit) |
+| next | R10-D5 — memory accounting separation | ⏳ MEDIUM |
+
 ## [0.8.277] — 2026-05-05
 
 **R09-D2 Phase 1 — interval pool fail-closed + rigorous trig bounds.**
