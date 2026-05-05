@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.123] — 2026-05-04
+
+**stdlib/rods/cli.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+CLI argument parsing (flags, options, positionals, get/has)
+had no existing tests. Process-level argv parsing (`cli_parse`)
+queued for a follow-up subprocess fixture.
+
+`tests/features/cli_smoke.nr` locks five in-memory invariants:
+
+| Test | Path |
+|---|---|
+| cli_new | program name + description stored; positionals starts empty |
+| add + find flag | long name (`--verbose`) and short alias (`-v`) both findable; missing flag returns -1 |
+| add option | option with default value findable by long + short |
+| set / get / has | round-trip stored value; has returns 1/0 correctly |
+| get_int | "42" → 42 |
+
+All five pass. rc=0. Cold 0.60s.
+
+Catches silent regressions in flag-registration plumbing,
+short-vs-long alias matching, the parsed-names/parsed-vals
+parallel-vec lookup, and string-to-int conversion in
+`cli_get_int`.
+
 ## [0.8.122] — 2026-05-04
 
 **stdlib/rods/fs.nr first test coverage.** Pure fixture, no
