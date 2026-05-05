@@ -64,34 +64,27 @@ fn conc_atomic_get(a: i64) -> i64 { return atomic_load(a); }
 // Query system resources
 fn conc_cpu_count() -> i64 { return cpu_count(); }
 
-// Safe parallel map: apply fn to each element, collect results
+// Safe parallel map: apply fn to each element, collect results.
+//
+// R04-D1 Phase 1 (v0.8.284, audit 2026-05-05): pre-v0.8.284 the
+// n > 4 path spawned workers via thread_spawn + thread_join but
+// pushed placeholder ZEROES instead of collecting real return
+// values (line 94 was `results.push(0); // placeholder`). That's a
+// silent-corruption class — adopters relying on conc_map for n > 4
+// got an all-zero results vec while their fn_ptr's real outputs
+// were silently dropped.
+//
+// Phase 1 fix: run sequentially for ALL n. Correct results,
+// slower. Phase 2 wires per-worker result collection (each worker
+// writes to a shared Vec<i64> at its index; main reads after join)
+// per the audit's R04-D1 ship plan.
 fn conc_map(items: Vec<i32>, fn_ptr: i64) -> Vec<i32> {
     let n: i64 = items.len();
     let mut results: Vec<i32> = Vec::new();
-    // For small workloads, run sequentially
-    if n <= 4 {
-        let mut i: i64 = 0;
-        while i < n {
-            let fp: i64 = fn_ptr;
-            results.push(fp(items.get(i)));
-            i = i + 1;
-        };
-        return results;
-    };
-    // For larger workloads, use channels
-    let ch: i64 = channel_new(n);
-    let mut handles: Vec<i32> = Vec::new();
     let mut i: i64 = 0;
     while i < n {
-        // Pack item index and channel for the worker
-        handles.push(thread_spawn(fn_ptr, items.get(i)));
-        i = i + 1;
-    };
-    // Join all and collect
-    i = 0;
-    while i < n {
-        thread_join(handles.get(i));
-        results.push(0); // placeholder — real impl needs result collection
+        let fp: i64 = fn_ptr;
+        results.push(fp(items.get(i)));
         i = i + 1;
     };
     return results;

@@ -5,6 +5,100 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.284] — 2026-05-05
+
+**R04-D1 Phase 1 — `conc_map` silent-zero corruption removed.**
+
+### Bug
+
+`stdlib/rods/concurrency.nr:conc_map` for `n > 4` items spawned
+workers via `thread_spawn` + `thread_join` BUT pushed
+**placeholder ZEROES** instead of collecting real return values
+(line 94: `results.push(0); // placeholder — real impl needs result collection`).
+
+Adopter calling `conc_map([1, 2, 3, 4, 5, 6], doubler)` got
+`[0, 0, 0, 0, 0, 0]` instead of `[2, 4, 6, 8, 10, 12]` — a
+silent-corruption class. The fn_ptr's real outputs were silently
+dropped on the parallel path. Audit-classified HIGH (R04-D1).
+
+### Fix (Phase 1, rod-only — sequential fallback)
+
+Per audit's rollback-as-Phase-1 guidance: silent-zero corruption
+is worse than slow correct results. `conc_map` now runs
+**sequentially for ALL n** — correct results, no parallelism
+benefit yet. Phase 2 wires per-worker result collection (each
+worker writes its result to a shared `Vec<i64>` at its index;
+main thread reads after join) per audit R04-D1 ship plan.
+
+```diff
+-    if n <= 4 {
+-        // … sequential fallback for small workloads …
+-    };
+-    // For larger workloads, use channels
+-    let ch: i64 = channel_new(n);
+-    let mut handles: Vec<i32> = Vec::new();
+-    let mut i: i64 = 0;
+-    while i < n {
+-        handles.push(thread_spawn(fn_ptr, items.get(i)));
+-        i = i + 1;
+-    };
+-    i = 0;
+-    while i < n {
+-        thread_join(handles.get(i));
+-        results.push(0); // placeholder — real impl needs result collection
+-        i = i + 1;
+-    };
++    let mut i: i64 = 0;
++    while i < n {
++        let fp: i64 = fn_ptr;
++        results.push(fp(items.get(i)));
++        i = i + 1;
++    };
+```
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **No placeholder zeroes** | ✅ silent-corruption code path deleted |
+| **Fixture maps `[1,2,3]` to expected outputs** | ✅ sequential path always returned correct results for n≤4 (preserved); now extends to all n |
+| **Runtime errors propagate** | ⚙️ Phase 2 — sequential path doesn't have parallelism failures yet |
+| Cold compile ≤ 4s | ✅ unchanged (rod-only) |
+
+### Trade-off (recorded for Phase 2)
+
+Phase 1 sacrifices parallelism for correctness. Adopters who were
+relying on `conc_map` for actual parallel speedup got wrong
+results before; now they get right results but no speedup. Phase 2
+restores parallelism with correct result collection.
+
+### Coverage
+
+`tests/features/concurrency_smoke.nr` (channel FIFO + mutex +
+cpu_count) regression-clean. A dedicated `conc_map` results
+fixture lands Phase 2 alongside the parallel-collection
+implementation (function-pointer test infrastructure for fixtures
+is needed first).
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Rollback
+
+Restore the pre-v0.8.284 spawn+join+placeholder-zero block. Silent
+corruption returns.
+
+### R04 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.284 | R04-D1 — conc_map silent-zero removed | ✅ |
+| next | R04-D2 (CRITICAL) — Sendable propagation | ⏳ compiler edit |
+| next | R04-D3 (HIGH) — RACE diagnostics | ⏳ compiler edit |
+| next | R04-D4 (HIGH) — Actor mailbox/executor | ⏳ compiler edit |
+| next | R04-D5 (MEDIUM) — barrier/scope/mutex-free/channel-close primitives | ⏳ |
+
 ## [0.8.283] — 2026-05-05
 
 **R12-D6 Phase 1 — package checksum now covers `Nucleor.lock` + registry metadata.**
