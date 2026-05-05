@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.183] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — trajectory +
+thermo.** Pure fixtures, no compiler/runtime/stdlib edits.
+
+### trajectory rod (quintic 5th-order polynomial)
+
+`tests/features/trajectory_smoke.nr` locks five C²-continuity
+invariants on a `0 → 10` rest-to-rest move over T=2:
+
+| Test | Path |
+|---|---|
+| **Boundary at t=0** | pos=0, vel=0, acc=0 (matches input) |
+| **Boundary at t=T** | pos=10, vel=0, acc=0 (matches input) |
+| Duration round-trip | `duration() == T` input |
+| Constant trajectory | q0=qT=5, all derivs 0 → midpoint pos == 5 |
+| Midpoint intermediate | rest-to-rest 0→10 → mid in (0, 10) |
+
+### thermo rod (Carnot + ideal gas + Stefan-Boltzmann)
+
+`tests/features/thermo_smoke.nr` locks four physics invariants:
+
+| Test | Path |
+|---|---|
+| **Carnot 400K/300K** | η = 1 - 300/400 = 0.25 |
+| Carnot no gradient | η = 0 when Tc == Th |
+| **Ideal gas at STP** | P=0 (solve for) with V=22.4L, n=1, T=273K → P ∈ [99e3, 105e3] Pa |
+| **Stefan-Boltzmann** | P at T=1, ε=1, A=1 = σ = 5.670374419e-8 |
+
+All pass. rc=0.
+
 ## [0.8.182] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — tensor_decomp +
