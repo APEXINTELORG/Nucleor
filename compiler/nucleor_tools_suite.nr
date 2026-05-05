@@ -6303,12 +6303,13 @@ fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
     return own_set_i_raw(o, str_concat("__oi_mut_", key), on);
 }
 fn str_starts_with(s: str, prefix: str) -> i64 {
-    let slen: i64 = str_len(s);
-    let plen: i64 = str_len(prefix);
-    if slen < plen { return 0; };
     let mut i: i64 = 0;
-    while i < plen {
-        if str_char_at(s, i) != str_char_at(prefix, i) { return 0; };
+    while 1 == 1 {
+        let pc: i64 = str_char_at(prefix, i);
+        if pc == 0 { return 1; };
+        let sc: i64 = str_char_at(s, i);
+        if sc == 0 { return 0; };
+        if sc != pc { return 0; };
         i = i + 1;
     };
     return 1;

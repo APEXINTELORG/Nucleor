@@ -16818,15 +16818,13 @@ fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
 }
 #[manual_drop]
 fn str_starts_with(s: str, prefix: str) -> i64 {
-    // Non-allocating prefix check. Avoid str_len(s): this helper is
-    // hot in type-name probes, and str_char_at(s, strlen(s)) returns
-    // NUL, so a short source string fails safely while walking prefix.
-    let plen: i64 = str_len(prefix);
     let mut i: i64 = 0;
-    while i < plen {
+    while 1 == 1 {
+        let pc: i64 = str_char_at(prefix, i);
+        if pc == 0 { return 1; };
         let sc: i64 = str_char_at(s, i);
         if sc == 0 { return 0; };
-        if sc != str_char_at(prefix, i) { return 0; };
+        if sc != pc { return 0; };
         i = i + 1;
     };
     return 1;
