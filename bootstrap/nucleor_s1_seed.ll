@@ -152960,76 +152960,83 @@ bb.entry:
 define i64 @str_starts_with(i64 %p.0, i64 %p.1) {
 bb.entry:
   %r.4 = alloca i64
-  %r.7 = alloca i64
-  %r.12 = alloca i64
+  %r.9 = alloca i64
+  %r.17 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = alloca i64
   %r.3 = add i64 %p.1, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = load i64, ptr %r.2
-  %r.6.a0 = inttoptr i64 %r.5 to ptr
-  %r.6 = call i64 @__nucleor_str_len(ptr %r.6.a0)
-  store i64 %r.6, ptr %r.4
-  %r.8 = add i64 0, 0
-  store i64 %r.8, ptr %r.7
+  %r.5 = add i64 0, 0
+  store i64 %r.5, ptr %r.4
   br label %L0
 L0:
-  %r.9 = load i64, ptr %r.7
-  %r.10 = load i64, ptr %r.4
-  %r.11.cmp = icmp slt i64 %r.9, %r.10
-  %r.11 = zext i1 %r.11.cmp to i64
-  %br.11.cond = icmp ne i64 %r.11, 0
-  br i1 %br.11.cond, label %L1, label %L2
+  %r.6 = add i64 1, 0
+  %r.7 = add i64 1, 0
+  %r.8 = add i64 1, 0
+  %br.6.cond = icmp ne i64 %r.6, 0
+  br i1 %br.6.cond, label %L1, label %L2
 L1:
-  %r.13 = load i64, ptr %r.0
-  %r.14 = load i64, ptr %r.7
-  %r.15.sca.ptr = inttoptr i64 %r.13 to ptr
-  %r.15.sca.gep = getelementptr i8, ptr %r.15.sca.ptr, i64 %r.14
-  %r.15.sca.byte = load i8, ptr %r.15.sca.gep
-  %r.15 = zext i8 %r.15.sca.byte to i64
-  store i64 %r.15, ptr %r.12
-  %r.16 = load i64, ptr %r.12
-  %r.17 = add i64 0, 0
-  %r.18.cmp = icmp eq i64 %r.16, %r.17
-  %r.18 = zext i1 %r.18.cmp to i64
-  %br.18.cond = icmp ne i64 %r.18, 0
-  br i1 %br.18.cond, label %L3, label %L5
+  %r.10 = load i64, ptr %r.2
+  %r.11 = load i64, ptr %r.4
+  %r.12.sca.ptr = inttoptr i64 %r.10 to ptr
+  %r.12.sca.gep = getelementptr i8, ptr %r.12.sca.ptr, i64 %r.11
+  %r.12.sca.byte = load i8, ptr %r.12.sca.gep
+  %r.12 = zext i8 %r.12.sca.byte to i64
+  store i64 %r.12, ptr %r.9
+  %r.13 = load i64, ptr %r.9
+  %r.14 = add i64 0, 0
+  %r.15.cmp = icmp eq i64 %r.13, %r.14
+  %r.15 = zext i1 %r.15.cmp to i64
+  %br.15.cond = icmp ne i64 %r.15, 0
+  br i1 %br.15.cond, label %L3, label %L5
 L3:
-  %r.19 = add i64 0, 0
-  ret i64 %r.19
+  %r.16 = add i64 1, 0
+  ret i64 %r.16
 L5:
-  %r.20 = load i64, ptr %r.12
-  %r.21 = load i64, ptr %r.2
-  %r.22 = load i64, ptr %r.7
-  %r.23.sca.ptr = inttoptr i64 %r.21 to ptr
-  %r.23.sca.gep = getelementptr i8, ptr %r.23.sca.ptr, i64 %r.22
-  %r.23.sca.byte = load i8, ptr %r.23.sca.gep
-  %r.23 = zext i8 %r.23.sca.byte to i64
-  %r.24.cmp = icmp ne i64 %r.20, %r.23
-  %r.24 = zext i1 %r.24.cmp to i64
-  %br.24.cond = icmp ne i64 %r.24, 0
-  br i1 %br.24.cond, label %L6, label %L8
+  %r.18 = load i64, ptr %r.0
+  %r.19 = load i64, ptr %r.4
+  %r.20.sca.ptr = inttoptr i64 %r.18 to ptr
+  %r.20.sca.gep = getelementptr i8, ptr %r.20.sca.ptr, i64 %r.19
+  %r.20.sca.byte = load i8, ptr %r.20.sca.gep
+  %r.20 = zext i8 %r.20.sca.byte to i64
+  store i64 %r.20, ptr %r.17
+  %r.21 = load i64, ptr %r.17
+  %r.22 = add i64 0, 0
+  %r.23.cmp = icmp eq i64 %r.21, %r.22
+  %r.23 = zext i1 %r.23.cmp to i64
+  %br.23.cond = icmp ne i64 %r.23, 0
+  br i1 %br.23.cond, label %L6, label %L8
 L6:
-  %r.25 = add i64 0, 0
-  ret i64 %r.25
+  %r.24 = add i64 0, 0
+  ret i64 %r.24
 L8:
-  %r.26 = load i64, ptr %r.7
-  %r.27 = add i64 1, 0
-  %r.28.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.26, i64 %r.27)
-  %r.28 = extractvalue { i64, i1 } %r.28.ov, 0
-  %r.28.of = extractvalue { i64, i1 } %r.28.ov, 1
-  br i1 %r.28.of, label %L9, label %L10
+  %r.25 = load i64, ptr %r.17
+  %r.26 = load i64, ptr %r.9
+  %r.27.cmp = icmp ne i64 %r.25, %r.26
+  %r.27 = zext i1 %r.27.cmp to i64
+  %br.27.cond = icmp ne i64 %r.27, 0
+  br i1 %br.27.cond, label %L9, label %L11
 L9:
-  %r.28.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.28 = add i64 0, 0
+  ret i64 %r.28
+L11:
+  %r.29 = load i64, ptr %r.4
+  %r.30 = add i64 1, 0
+  %r.31.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.29, i64 %r.30)
+  %r.31 = extractvalue { i64, i1 } %r.31.ov, 0
+  %r.31.of = extractvalue { i64, i1 } %r.31.ov, 1
+  br i1 %r.31.of, label %L12, label %L13
+L12:
+  %r.31.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
-L10:
-  store i64 %r.28, ptr %r.7
+L13:
+  store i64 %r.31, ptr %r.4
   br label %L0
 L2:
-  %r.29 = add i64 1, 0
-  ret i64 %r.29
+  %r.32 = add i64 1, 0
+  ret i64 %r.32
 }
 
 define i64 @str_eq_at(i64 %p.0, i64 %p.1, i64 %p.2) {

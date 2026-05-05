@@ -1,41 +1,54 @@
 {
   "instructions_read": "v0.6.72-post-v0.8.189-refresh",
-  "current_task": "P2/R1 ownership-key hot-path allocation reduction",
+  "current_task": "P2/R2 source-level prefix helper hot-path reduction",
   "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "P2,R1",
+  "current_punchlist_item": "P2,R2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "193462d4",
+  "rebased_on_origin_main": "66913d9b",
   "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_pe_fix",
   "branch": "probe/perf-attribution-build-slice",
   "status": "ready-for-integration",
   "validation": {
     "self_host_fixed_point": {
       "status": "pass",
-      "md5": "f26490fa833d690dff9981982e2fdde1",
+      "md5": "7b4966b9b69526674ef5ce3208a8274e",
       "command": "bash tools/check_self_host_md5.sh"
     },
-    "perf_gate_3_run_median": {
+    "perf_gate_accepted_resample": {
       "status": "pass",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1 (x3)",
-      "cold_seconds_samples": [3.63, 3.62, 4.05],
-      "cold_seconds_median": 3.63,
-      "hot_seconds_samples": [0.31, 0.78, 0.31],
-      "hot_seconds_median": 0.31,
-      "peak_mem_mb_samples": [295, 300, 290],
-      "peak_mem_mb_median": 295
+      "cold_seconds_samples": [3.81, 3.55, 3.42],
+      "cold_seconds_median": 3.55,
+      "hot_seconds_samples": [1.25, 0.32, 0.77],
+      "hot_seconds_median": 0.77,
+      "peak_mem_mb_samples": [299, 301, 291],
+      "peak_mem_mb_median": 299
+    },
+    "post_rebase_perf_sanity": {
+      "status": "pass",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
+      "cold_seconds": 3.54,
+      "hot_seconds": 0.32,
+      "peak_mem_mb": 299
     },
     "profile_delta": {
       "status": "pass",
-      "str_concat_before": 1255998,
-      "str_concat_after": 805380,
-      "str_concat_delta": -450618,
-      "tracked_alloc_before_bytes": 282680268,
-      "tracked_alloc_after_bytes": 276295507
+      "str_len_before": 17148648,
+      "str_len_after": 11095810,
+      "str_len_delta": -6052838,
+      "total_helper_calls_before": 154999131,
+      "total_helper_calls_after": 148948027,
+      "total_helper_call_delta": -6051104
+    },
+    "previous_p2_r1_slice": {
+      "status": "pushed_in_prior_commit",
+      "summary": "Ownership metadata direct final-key wrappers removed 450,618 str_concat calls and about 6.1MB tracked allocation per self-host; fixed-point md5 f26490fa833d690dff9981982e2fdde1."
     }
   },
   "caveats": {
-    "rejected_experiments": "Scope last-name cache caused OWN-008 false positives; expand_format_macros_with_src no-macro fast path caused a priv_mangle_private_fns OWN-008 perf-gate failure. Both were backed out.",
-    "full_verify": "Not rerun for this slice because the cheap fixed-point and perf gates passed and full verify is long-running."
+    "first_perf_ladder": "Initial post-change ladder was cold=[3.98,4.43,3.54], median 3.98s, which tripped the punchlist drift alarm. It was resampled immediately; accepted resample median was 3.55s.",
+    "rejected_scope_key_experiment": "A structured own_get_scope final-key side vector reduced profile counts but failed post-promotion fixed-point with a false OWN-008 in smap_hash. It was backed out completely; do not retry without a focused ownership snapshot/restore invariant fixture.",
+    "full_verify": "Not rerun for this slice because full verify is long-running; self-host fixed point and perf ladder passed."
   },
-  "summary": "P2/R1 slice: debug-symbolized caller attribution identified nested ownership metadata key construction as the largest proven str_concat allocation cluster. Direct final-key wrappers remove 450,618 str_concat calls and about 6.1MB tracked allocation per self-host. Unsafe scope-cache and format-macro fast-path variants were rejected and backed out. Promoted bin/seed fixed point f26490fa833d690dff9981982e2fdde1; perf median cold=3.63s hot=0.31s peak=295MB."
+  "summary": "Second P2/R2 slice: source-level str_starts_with now uses a NUL-sentinel prefix walk, eliminating about 6.05M runtime str_len helper calls per self-host without changing string semantics. Promoted bin/seed fixed point 7b4966b9b69526674ef5ce3208a8274e; accepted perf median cold=3.55s hot=0.77s peak=299MB."
 }
