@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.207] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — json + log.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### json rod (parser + serializer)
+
+`tests/features/json_smoke.nr` locks four core JSON invariants:
+
+| Test | Path |
+|---|---|
+| Type tags | null=0, bool=1, int=2, str=3, array=4, object=5, f64=6 (stable wire format) |
+| Parse number | json_parse("42") → int=42; "-7" → int=-7 |
+| **Parse + index array** | "[10,20,30]" → array_len=3, array_get(1).int = 20 |
+| Stringify round-trip | stringify(parse("42")) == "42" |
+
+### log rod (structured logging w/ severity levels)
+
+`tests/features/log_smoke.nr` locks four invariants on the
+level/store API. Emit-side stdout effects are intentionally NOT
+tested:
+
+| Test | Path |
+|---|---|
+| Stable level constants | DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4 |
+| Default store level == INFO | DEBUG filtered by default |
+| set/get round-trip | set_level(WARN) → get_level == WARN |
+| **Last-write-wins** | two sets; only the second value is observed |
+
+All pass. rc=0.
+
 ## [0.8.206] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — kinematics_frame + hashmap.**
