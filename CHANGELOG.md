@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.211] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — linalg + model_provenance.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### linalg rod (dense linear algebra)
+
+`tests/features/linalg_smoke.nr` locks four foundational matrix
+invariants — heavier decompositions (LU / QR / Cholesky / eigen
+/ SVD / ridge) are exercised in dedicated ML ships:
+
+| Test | Path |
+|---|---|
+| Identity construction | eye(3) → 3×3, diagonal 1, off-diagonal 0 |
+| Trace of I_n == n | sum of diagonal |
+| **Det of I_n == 1** | by definition |
+| Transpose round-trip | transpose(transpose(A)) shape and entries match |
+
+### model_provenance rod (RFC-0051 Phase A)
+
+`tests/features/model_provenance_smoke.nr` locks four invariants
+Phase B compiler enforcement (~400 LOC, deferred) must NOT
+regress:
+
+| Test | Path |
+|---|---|
+| Stable arch / quant tag IDs | LLM=1, VLA=2, ...; FP32=32, FP16=16, FP4=4, ... |
+| Register round-trip | register(p) returns idx; get(idx) returns equal arch/quant |
+| **License predicates** | Apache-2.0/MIT → commercial_ok 1; GPL-3.0-only → 0 |
+| arch_is / quant_is | predicate matches registered values |
+
+All pass. rc=0.
+
 ## [0.8.210] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — math + mem.**
