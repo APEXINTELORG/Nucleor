@@ -5,6 +5,24 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.253] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — bicycle.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### bicycle rod (kinematic bicycle model, Euler + RK4 integrators)
+
+`tests/features/bicycle_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| Null out_ptr in step_euler returns 0 | bad output |
+| L ≤ 0 in step_euler returns 0 | degenerate wheelbase |
+| Null out_ptr in step_rk4 returns 0 | bad output |
+| L ≤ 0 in step_rk4 returns 0 | degenerate wheelbase |
+
+All pass. rc=0.
+
 ## [0.8.252] — 2026-05-05
 
 **kv_cache rod ↔ runtime arity drift FIXED + first test coverage.**
