@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.227] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — speculative + ssm.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### speculative rod (LLM speculative decoding)
+
+`tests/features/speculative_smoke.nr` locks four sampling
+invariants on `spec_sample` (verify and build_tree need
+careful tensor setup; deferred):
+
+| Test | Path |
+|---|---|
+| Top-K=1 picks first when first is largest | logits [10, 0, 0] → 0 |
+| Top-K=1 picks middle | [0, 10, 0] → 1 |
+| Top-K=1 picks last | [0, 0, 10] → 2 |
+| **Seeded RNG is reproducible** | spec_seed(42) twice → same sample |
+
+### ssm rod (state-space models — Mamba / RWKV / xLSTM)
+
+`tests/features/ssm_smoke.nr` locks four ZOH-discretization
+invariants on `ssm_discretize_zoh` (selective_scan / SSD /
+RWKV / xLSTM defer to dedicated training fixtures):
+
+| Test | Path |
+|---|---|
+| Output length is 2*N | Ab and Bb packed in one Vec |
+| **Ab[i] = exp(dt · A[i])** | A=[-1,-2], dt=1 → exp(-1), exp(-2) |
+| A=0 fallback uses Bb = dt · B | A=0, B=[1,2], dt=0.5 → Bb=[0.5, 1.0] |
+| A=0 fallback gives Ab = 1 | exp(0)=1 |
+
+All pass. rc=0.
+
 ## [0.8.226] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — nn + twin_core.**
