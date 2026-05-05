@@ -18690,12 +18690,20 @@ fn run_install_command(argc: i64) -> i64 {
         gi = gi + 1;
     };
     if str_len(git_url) > 0 {
-        print(str_concat("nuc install --git ", git_url));
+        // R12-D4 Phase 1 (v0.8.282, audit 2026-05-05): pre-v0.8.282
+        // this stub returned 0 (success) — adopters running
+        // `nuc install --git <url>` saw the deferred message and got
+        // exit 0, which CI scripts treated as "the install
+        // succeeded." That's silent-not-installed. Phase 1 prefixes
+        // the message with `error[PKG-6]:` and returns 2 so CI
+        // scripts gate the build correctly. Phase 2 implements the
+        // actual clone + verify + lock per the audit plan.
+        print(str_concat("error[PKG-6]: `nuc install --git ", str_concat(git_url, "` — clone/verify/lock not yet implemented; deferred to v0.5 with the package registry (RFC-0019 phase 3).")));
         if str_len(git_rev) > 0 {
             print(str_concat("                   --rev ", git_rev));
         };
         print("");
-        print("STATUS: deferred to v0.5 with the package registry (RFC-0019 phase 3).");
+        print("STATUS: deferred. Returning exit 2 (unsupported).");
         print("");
         print("The v0.5 release will:");
         print("  1. Clone <url> into .nucleor/git/<host>-<repo>-<sha>/");
@@ -18706,7 +18714,7 @@ fn run_install_command(argc: i64) -> i64 {
         print("");
         print("Today, on Windows, clone the repo manually and use a path");
         print("dependency: `[dependencies] foo = \"path/to/foo\"` then `nuc lock`.");
-        return 0;
+        return 2;
     };
     // RFC-0022 phase 3 — `nuc install sysroot --target=<triple>` stub.
     // Documents the planned UX (paired with TGT-002 explain entry) and

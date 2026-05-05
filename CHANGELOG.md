@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.282] — 2026-05-05
+
+**R12-D4 Phase 1 — `nuc install --git` returns nonzero on stub.**
+
+### Bug
+
+`compiler/nucleor_tools_suite.nr:18692-18710` (`run_install_command`)
+returned **exit 0** (success) when handling `nuc install --git <url>`
+even though the implementation is a stub. CI scripts treating exit 0
+as "install succeeded" silently shipped builds where the dependency
+was never installed. Audit-classified MEDIUM (R12-D4).
+
+### Fix (Phase 1, surgical tools-suite edit)
+
+1. Prefixed the deferred message with `error[PKG-6]:`.
+2. Changed `return 0` → `return 2` so CI scripts gate the build
+   correctly.
+
+Verified: `bin/nucleor.exe install --git https://example.com/foo`
+now exits with code **2** and the message starts with
+`error[PKG-6]:`.
+
+Phase 2 implements actual clone + verify + lock per RFC-0019 §3.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Stub returns nonzero unsupported diagnostic** | ✅ exit 2; `error[PKG-6]:` prefix |
+| **Git install writes lock entry / fails on hash mismatch** | ⏳ Phase 2 |
+| Cold compile ≤ 4s | ✅ unchanged (tools-suite-only) |
+
+### Tools-suite-only → s1 fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`.
+`bin/nucleor_tools.exe` rebuilt + promoted; self-host gate
+re-verified.
+
+### Rollback
+
+Revert `return 2` → `return 0` and remove `error[PKG-6]:` prefix.
+
+### R12 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.282 | R12-D4 — git install returns 2 | ✅ |
+| next | R12-D6 — package checksum metadata | ⏳ MEDIUM |
+| next | R12-D7 — import cycle MOD-005 | ⏳ HIGH (compiler edit) |
+
 ## [0.8.281] — 2026-05-05
 
 **R13-D6 Phase 1 — cache/gate docs refreshed + Windows recovery procedure documented.**
