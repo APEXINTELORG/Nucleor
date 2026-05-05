@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.286] — 2026-05-05
+
+**R08-D4 Phase 1 — GPU backend disclosure (`gpu_backend()` / `gpu_op_is_accelerated()` / `gpu_limitations()`).**
+
+### Bug
+
+`stdlib/rods/gpu.nr` ships `gpu_map`, `gpu_reduce`, and
+`gpu_parallel_for` whose names imply GPU dispatch. The
+implementations execute as **CPU sequential fallbacks** —
+`gpu_available()` correctly probes for Vulkan, but the compute
+primitives do not actually dispatch to a Vulkan compute shader.
+An adopter calling `gpu_map` could reasonably believe their
+workload ran on the GPU. Audit-classified HIGH (R08-D4) per
+`BUILD_PLAN_R08_tensor_ml_autodiff.md` §1.
+
+### Fix (Phase 1, audit's disclosure path: query before commit)
+
+`stdlib/rods/gpu.nr` adds:
+
+- `gpu_backend() -> str` — returns `"cpu-sequential"` today;
+  returns `"vulkan-compute"` when Phase 2 wires real dispatch.
+- `gpu_op_is_accelerated(op: str) -> i64` — returns 1 if the
+  named op is GPU-accelerated, 0 otherwise. As of v0.8.286 all
+  three `gpu_*` ops return 0.
+- `gpu_limitations() -> str` — names the three Phase 2 gaps
+  (no shader dispatch, no priority hint enforcement, no
+  host↔device memory transfer primitives) so adopters needing
+  real GPU acceleration can short-circuit before designing
+  around a fallback.
+
+### Tests
+
+`tests/features/gpu_backend_disclosure_smoke.nr` — locks 5
+invariants: backend = `"cpu-sequential"`, all three known ops
+return 0 from `gpu_op_is_accelerated`, and `gpu_limitations()`
+names "Vulkan" so adopters know the target backend.
+
+### Self-host fixed-point
+
+`12777d1c1bdb18cde6bbfcb22479eefc` (preserved — stdlib-rod-only edit).
+
 ## [0.8.285] — 2026-05-05
 
 **R11-D5 Phase 1 — `logical_qubit_limitations()` query helper.**
