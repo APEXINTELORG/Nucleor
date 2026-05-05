@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.204] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — memspace + loss.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### memspace rod (RFC-0049 Phase A memory-space tags)
+
+`tests/features/memspace_smoke.nr` locks four invariants. The
+audit-pass token-presence gate (v0.8.181) catches surface
+removal; this fixture guards behavior:
+
+| Test | Path |
+|---|---|
+| Stable IDs | hbm=1, ddr=2, default=0, unknown=-1, ... 8 IDs |
+| **Compatibility** | same==1, default-side==1, unknown-side==1, hbm vs ddr == 0 |
+| Host class | ddr / pinned / unified / default → host |
+| Device class | hbm / cxl / scratchpad / npu_sram / gpu_shared → device |
+
+### loss rod (NN losses — CE, KL, MSE, Huber, focal, InfoNCE)
+
+`tests/features/loss_smoke.nr` locks four textbook invariants:
+
+| Test | Path |
+|---|---|
+| MSE of identical vectors == 0 | pred==target |
+| MSE([1,2,3], [2,3,4]) == 1.0 | (1+1+1)/3 |
+| **KL(p ‖ p) == 0** | self-divergence is zero |
+| CE on uniform logits, target=0 | -log(1/3) = log(3) ≈ 1.0986 |
+
+All pass. rc=0.
+
 ## [0.8.203] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — distributed + interval.**
