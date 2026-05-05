@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.212] — 2026-05-05
+
+**Two zero-coverage rod fixtures + extern-sig drift finding.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### kdtree rod (k-d tree spatial index)
+
+`tests/features/kdtree_smoke.nr` builds a 4-point 2-D tree on
+the unit square and locks four invariants:
+
+| Test | Path |
+|---|---|
+| Build returns valid handle | non-zero for valid input |
+| **k=1 query at (0,0) returns index 0** | tree-point self-match |
+| k=2 returns 2 results | k-NN size matches request |
+| Range search at (0.5, 0.5) r=0.8 covers all 4 | √(0.5²+0.5²)=0.707<0.8 |
+
+### mesh rod (2-D rectangular FEM mesh)
+
+`tests/features/mesh_smoke.nr` builds a 2×2 cell mesh on the
+unit square (9 nodes, 8 triangles) and locks four invariants:
+
+| Test | Path |
+|---|---|
+| Node + element counts | (Nx+1)(Ny+1)=9, 2·Nx·Ny=8 |
+| Corner coordinates | node 0 at (0,0), node 8 at (1,1) |
+| **Boundary classification** | corners (0, 8) on boundary; center (4) interior |
+| Triangle has 3 distinct nodes | element 0 vertices pairwise distinct |
+
+### finding (drift): kv_cache rod-vs-runtime arg-count mismatch
+
+`findings/inbox/kv_cache_arity_mismatch_2026-05-05.md` —
+`stdlib/rods/kv_cache.nr` declares `nuc_kv_cache_get_k`
+(and `_v`) at 4 args; the C runtime takes 5
+(`start_pos`/`end_pos`). C reads garbage for the un-pushed slot.
+Same shape as the v0.8.45 ML-1 `attention_flash` bug. Proposed
+fix: C shim that maps single `pos` → range `(pos, pos+1)` to
+keep the rod's 4-arg semantics non-breaking. Smoke fixture for
+kv_cache held back to avoid false confidence.
+
+All shipped fixtures pass. rc=0.
+
 ## [0.8.211] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — linalg + model_provenance.**
