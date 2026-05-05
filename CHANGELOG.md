@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.174] — 2026-05-04
+
+**stdlib/rods/spsc_queue.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+Lock-free single-producer/single-consumer ring buffer (Lamport
+queue) backed by `AtomicI64` head + tail counters. Pre-v0.8.174:
+zero coverage on the typed-generic SPSC queue surface.
+
+`tests/features/spsc_queue_smoke.nr` locks four invariants on a
+capacity-4 `SpscQueue<i64>` (single-threaded — concurrent
+semantics deferred):
+
+| Test | Path |
+|---|---|
+| Empty pop | returns `None` |
+| Push + pop round-trip | `push(42)` → `pop()` returns `Some(42)` |
+| **FIFO ordering** | push 1, 2, 3 → pop returns `Some(1)`, `Some(2)`, `Some(3)` |
+| **Capacity guard** | push beyond capacity returns `false`; a pop frees a slot allowing subsequent push |
+
+All pass. rc=0.
+
 ## [0.8.173] — 2026-05-04
 
 **RFC-0044 Phase B step-1 — per-BinOp `OverflowMode` audit
