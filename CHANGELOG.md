@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.192] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — gpu + graph_render.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### gpu rod (Vulkan availability + info predicate)
+
+`tests/features/gpu_smoke.nr` locks two invariants:
+
+| Test | Path |
+|---|---|
+| `gpu_available` predicate | returns 0 or 1 (host-state query) |
+| `gpu_info` non-empty | always returns a descriptive string |
+
+Most of the gpu rod surface is fn-pointer-driven (gpu_map,
+gpu_reduce, gpu_parallel_for) — deferred to a future ship that
+can synthesize callbacks from fixture code.
+
+### graph_render rod (RFC-0061 Tier 2 Phase A renderers)
+
+Sister to v0.8.149 `nuc deps graph` Tier 2 implementation in
+tools_suite. This rod is the reusable rendering surface adopters
+call against any graph.
+
+`tests/features/graph_render_smoke.nr` locks five invariants on a
+3-node graph (0 → 1 → 2):
+
+| Test | Path |
+|---|---|
+| Format IDs | text=1, json=2, dot=3, mermaid=4 |
+| Format name round-trip | `name(3) == "dot"`; `id("dot") == 3`; `name(99) == "unknown"` |
+| **DOT format** | output contains `"->"` arrows |
+| **JSON format** | output contains both `"nodes"` and `"edges"` keys |
+| **Mermaid format** | output contains `"graph"` keyword |
+
+All pass. rc=0.
+
 ## [0.8.191] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — governance + gnn.**
