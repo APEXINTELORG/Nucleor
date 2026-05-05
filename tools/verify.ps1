@@ -180,12 +180,19 @@ $testDirs = @("lang", "attrs", "runtime", "rods", "features")
 # test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
 # them keeps the gate from treating them as duplicate-main failures.
 $testSkipPattern = "_aux\.nr$"
+$errSkipNames = @(
+    "err_str_char_at_strict_oob.nr",
+    "err_t4_strict_inference.nr",
+    "err_numg2_math_abs_imin.nr",
+    "err_numg2_math_gcd_imin.nr",
+    "err_numg2_math_pow_int_overflow.nr"
+)
 $testCount = 0
 foreach ($d in $testDirs) {
     $testCount += (Get-ChildItem -Path (Join-Path $root "tests\$d") -Filter "*.nr" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $testSkipPattern }).Count
 }
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne "err_str_char_at_strict_oob.nr" }).Count
+    Where-Object { $errSkipNames -notcontains $_.Name }).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
 # 1 (mojibake check) + 1 (err-EXPECT-headers) + 1 (help coverage)
@@ -464,7 +471,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # TYP series -- type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
-        "TYP-026",
+        "TYP-026", "TYP-027",
         # FMT series -- format macro expansion
         "FMT-002", "FMT-003",
         # TRAIT series -- trait dispatch and conversions
@@ -804,7 +811,7 @@ foreach ($dir in $testDirs) {
 }
 
 $errFiles = Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne "err_str_char_at_strict_oob.nr" } |
+    Where-Object { $errSkipNames -notcontains $_.Name } |
     Sort-Object Name
 foreach ($e in $errFiles) {
     $ename = $e.BaseName

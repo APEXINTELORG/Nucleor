@@ -1,4 +1,5 @@
 // v0.8.80 NUM-G2 Phase 1 — math_gcd cascade lock.
+// EXPECT: runtime panic math_abs(i64::MIN)
 // EXPECT-RUNTIME: math_abs(i64::MIN) is undefined behavior
 //
 // math_gcd internally calls math_abs on both arguments. Pre-fix:

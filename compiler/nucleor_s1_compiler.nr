@@ -10916,6 +10916,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-012") == 1 { return 1; };
     if str_eq(code, "TYP-013") == 1 { return 1; };
     if str_eq(code, "TYP-026") == 1 { return 1; };
+    if str_eq(code, "TYP-027") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -17883,7 +17884,6 @@ fn taint_inner_type(t: str) -> str {
     if str_starts_with(t, "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
     return t;
 }
-#[manual_drop]
 fn types_compatible(expected: str, actual: str) -> i64 {
     if str_len(expected) == 0 || str_len(actual) == 0 { return 1; };
     if str_eq(expected, "_") == 1 { return 1; };
@@ -20827,7 +20827,10 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-021", v21msg);
             };
             if str_len(tstr) > 0 {
-                if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
+                if str_len(init_t) == 0 && str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 {
+                    let v27msg: str = str_concat("type inference failed for binding '", str_concat(vname, "'; explicit annotation required"));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-027", v27msg);
+                } else if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
                 } else {
                     let compat_start: i64 = tprof_start(tprof);
