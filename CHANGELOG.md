@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.241] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pf + dynamics.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** dyn_new requires the FK chain to have
+joints registered (n_links > 0); first iteration with an empty
+fk_chain returned 0. Re-locked with a make_fk_with_joints helper.
+
+### pf rod (particle filter)
+
+`tests/features/pf_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| pf_new returns valid handle | non-zero |
+| **particle_count round-trip** | n_particles arg preserved across constructor |
+| Multiple distinct PFs | two constructions → distinct handles |
+| pf_free does not crash | clean close |
+
+### dynamics rod (RNEA inverse dynamics)
+
+`tests/features/dynamics_smoke.nr` requires a non-empty FK chain
+to construct. Locks four invariants on the scalar setter
+surface:
+
+| Test | Path |
+|---|---|
+| dyn_new returns valid handle | wraps fk_chain with joints |
+| set_link_mass + set_link_com per index | scalar per-link setters |
+| set_link_inertia per index | 6-arg symmetric inertia tensor setter |
+| **set_gravity does not crash** | typical Earth gravity (0, 0, -9.81) |
+
+All pass. rc=0.
+
 ## [0.8.240] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — mpc + mppi.**
