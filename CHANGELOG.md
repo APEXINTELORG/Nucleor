@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.142] — 2026-05-04
+
+**stdlib/rods/clifford.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+Clifford / stabilizer formalism — efficient quantum error
+correction simulation (polynomial in n, not exponential).
+
+`tests/features/clifford_smoke.nr` locks five textbook
+stabilizer-formalism invariants:
+
+| Test | Path |
+|---|---|
+| Initial \|0...0⟩ Z-measure | fresh state → all qubits measure 0 |
+| X flips | `cliff_x` → measurement returns 1 |
+| Z on \|0⟩ is identity | Z eigenstate; measurement still 0 |
+| HH = I | two H gates in a row → measurement still 0 |
+| **Bell correlation** | H q0 + CNOT(0,1) → m0 == m1 across 20 trials (defining property of \|Φ⁺⟩) |
+
+All pass. rc=0.
+
 ## [0.8.141] — 2026-05-04
 
 **stdlib/rods/control.nr first test coverage.** Pure fixture, no
