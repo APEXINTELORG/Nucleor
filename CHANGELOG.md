@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.133] — 2026-05-04
+
+**stdlib/rods/complex.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+The complex-number rod is foundational for quantum simulation,
+FFT, signal processing — and shipped with zero coverage.
+
+`tests/features/complex_smoke.nr` locks six textbook complex-
+arithmetic invariants:
+
+| Test | Path |
+|---|---|
+| **i² == -1** | the defining property of `i` |
+| `\|1+0i\| == 1` | `cx_one()` magnitude |
+| `\|0+0i\| == 0` | `cx_zero()` magnitude |
+| Additive inverse | `(3+4i) + -(3+4i) == 0` |
+| Conjugate product | `(3+4i)·(3-4i) == 25` (purely real, =a²+b²) |
+| **Euler's identity** | `e^(iπ) + 1 == 0` |
+
+All pass. rc=0. Compares via `cx_approx_eq` with eps=1e-6
+(loosened to 1e-5 for the transcendental Euler check).
+
 ## [0.8.132] — 2026-05-04
 
 **audio_new constructor + first audio rod test coverage + WAV
