@@ -3,6 +3,7 @@
 Date: 2026-05-05
 Branch: `probe/r13-d5-posix-rss-estop-v0818`
 Base: `origin/main` at `5ea94cec`
+Integrated: `main` at `fb8b7c0b`
 
 ## Summary
 
@@ -27,7 +28,7 @@ PowerShell sampler; native Linux builds can use `tools/run_capped.sh`.
 - `tools/verify_fast.sh` - same memory-budget behavior as `verify.sh`.
 - `tools/VERIFY_TIMING_RECIPE.md` - documents POSIX RSS use, exit codes, and
   WSL `.exe` rejection.
-- `docs/rfcs/v1_PUNCHLIST.md` - marks R13-D5 ready on this branch.
+- `docs/rfcs/v1_PUNCHLIST.md` - marks R13-D5 done on main.
 
 ## Validation
 
