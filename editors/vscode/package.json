@@ -1,0 +1,39 @@
+{
+  "name": "nucleor-lsp",
+  "displayName": "Nucleor Language Server",
+  "description": "LSP integration for Nucleor (.nr files) — real-time diagnostics via nucleor-lsp.exe",
+  "version": "0.1.0",
+  "publisher": "apexintelorg",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages", "Linters"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "nucleor",
+      "aliases": ["Nucleor"],
+      "extensions": [".nr"],
+      "configuration": "./language-configuration.json"
+    }],
+    "configuration": {
+      "title": "Nucleor",
+      "properties": {
+        "nucleor.lspServerPath": {
+          "type": "string",
+          "default": "nucleor-lsp.exe",
+          "description": "Path to nucleor-lsp.exe. If unset, looks on PATH. Set to absolute path if nucleor-lsp.exe is not on PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.0.0"
+  }
+}

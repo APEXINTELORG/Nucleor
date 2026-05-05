@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.158] — 2026-05-04
+
+**V1.16 LSP — editor integration configs (VS Code / Neovim /
+Helix / Emacs).** Pure docs/config, no compiler/runtime edit.
+
+The v0 LSP server has been functionally complete since v0.8.157
+(real diagnostics, properly positioned ranges). What was missing:
+the editor-side companion configs that the spec calls out.
+
+This ship lands all four:
+
+| Editor | Path | LOC |
+|---|---|---|
+| **VS Code** extension shim (TypeScript) | `editors/vscode/` | ~30 LOC TS + package.json + tsconfig + language-configuration.json |
+| **Neovim** lspconfig snippet (Lua) | `editors/neovim/nucleor-lsp.lua` | ~20 LOC |
+| **Helix** languages.toml entry | `editors/helix/languages.toml` | ~12 LOC |
+| **Emacs** lsp-mode config (elisp) | `editors/emacs/nucleor-lsp.el` | ~20 LOC |
+| Master README pointing adopters at the right config | `editors/README.md` | — |
+
+### What adopters get out of the box
+
+Drop the appropriate config into the editor's settings tree,
+ensure `nucleor-lsp.exe` and `bin/nucleor.exe` are on PATH, open
+a `.nr` file:
+
+- Real-time push diagnostics on every file open + save.
+- Severity-aware: `error[*]` red, `warning[*]` yellow, `info[*]` blue.
+- Range-aware: primary diagnostic site (with `--> @line LINE:COL`
+  annotation) lands at the exact offending token.
+
+### Prerequisites build path
+
+```
+nucleor.exe build compiler/nucleor_lsp.nr
+mv target/nucleor_lsp.exe bin/nucleor-lsp.exe
+```
+
+### Where this sits in the roadmap
+
+- V1.16 LSP server v0 — **functionally complete + editor
+  integration shipped.**
+- Adopter UX is the textbook v0 subprocess-mode LSP experience
+  per the spec: real-time diagnostics across 4 major editors,
+  properly positioned ranges, push-on-save model.
+- V1.16 Phase v1 (library-mode LSP, <10ms incremental) remains
+  the deferred ~3000 LOC compiler frontend refactor.
+
 ## [0.8.157] — 2026-05-04
 
 **V1.16 LSP server Phase A2.7 — proper LINE:COL range extraction
