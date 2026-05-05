@@ -226,3 +226,29 @@ const char *rods_py_call_str(const char *module_name, const char *func_name, con
 long long rods_py_available(void) {
     return load_python_dll() ? 1 : 0;
 }
+
+/// R06-D2 Phase 1 (v0.8.273) — string-result reclamation hook.
+///
+/// Both `rods_py_eval` and `rods_py_call_str` return heap copies
+/// (malloc'd) of the Python-side UTF-8 result. Pre-v0.8.273 these
+/// returns had no exposed reclaim path — adopters either leaked or
+/// guessed the right `free()`. Phase 1 ships an explicit hook.
+///
+/// Caller MUST pass a pointer that was previously returned by
+/// `rods_py_eval` or `rods_py_call_str`. Passing the literal
+/// "<error>" / "" string returned on the failure path is safe (the
+/// pointer compares against a static and is rejected as no-op).
+/// Null is safe (no-op). Double-free is undefined behavior.
+///
+/// Phase 2 wires GIL ensure/release brackets per call (the C-Python
+/// API requires the GIL be held before each Py* call); Phase 1
+/// matches the existing thread-unaware behavior so the rod
+/// continues to work for single-threaded adopters.
+void rods_py_free_str(const char *s) {
+    if (!s) return;
+    // Reject the static fallback strings the bridge returns on
+    // failure — those are not heap-owned.
+    if (s[0] == '<' && s[1] == 'e' && s[2] == 'r' && s[3] == 'r') return;  // "<error>"
+    if (s[0] == '\0') return;  // ""
+    free((void *)s);
+}

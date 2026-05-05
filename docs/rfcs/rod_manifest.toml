@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2794
-# Total LOC: 11903
+# Total fn definitions: 2795
+# Total LOC: 11905
 
 [[rod]]
 name           = "activation2"
@@ -1545,9 +1545,9 @@ imports        = []
 name           = "python"
 path           = "stdlib/rods/python.nr"
 description    = "Embedded Python interop"
-function_count = 5
+function_count = 6
 cfile_count    = 1
-loc            = 21
+loc            = 23
 imports        = ["python"]
 
 [[rod]]
