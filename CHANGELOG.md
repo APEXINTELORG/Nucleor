@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.258] — 2026-05-05
+
+**tensor_decomp tt_svd_3d rod ↔ runtime arity drift FIXED + coverage.**
+Closes the surface-drift surfaced 2026-05-05 by parallel-agent
+TRACK A `extern_arity_drift_tensor_decomp_2026-05-05`. Seventh in
+the arity-drift family.
+
+### Bug
+
+`stdlib/rods/tensor_decomp.nr` declared `nuc_td_tt_svd_3d` 6-arg
+`(X, n1, n2, n3, r1, r2)`, but `stdlib/runtime/tensor_decomp_rt.c`
+defined it 5-arg `(X, n1, n2, n3, max_rank)`. Rod's `r2` was
+silently dropped by Windows x64 calling convention; rod's `r1`
+was used as max_rank for both TT bond dimensions. No silent
+miscompute (single rank cap was applied consistently) but the API
+claimed two distinct bond-dim parameters. HIGH severity,
+"wrong-error" class.
+
+### Fix (Plan B — non-breaking)
+
+`stdlib/runtime/tensor_decomp_rt.c`:
+
+| Before | After |
+|---|---|
+| `nuc_td_tt_svd_3d` (5-arg, max_rank) | renamed to `nuc_td_tt_svd_3d_max_rank` |
+| — | new 6-arg `nuc_td_tt_svd_3d(X, n1, n2, n3, r1, r2)` collapsing `(r1, r2) → max(r1, r2)` and forwarding |
+
+Rationale for `max(r1, r2)` collapse: current implementation uses
+one rank cap for both bonds; the larger of the two is the
+conservative cap that preserves enough singular values for either
+bond. Future Phase B may refactor to true per-bond ranks.
+
+`stdlib/rods/tensor_decomp.nr`: keeps existing 6-arg extern +
+wrapper; adds 5-arg `_max_rank` extern + `tdecomp_tt_svd_3d_max_rank`
+rod fn for callers who want the explicit single-cap form.
+
+### Coverage
+
+`tests/features/tensor_decomp_tt_svd_smoke.nr` locks 2 invariants
+on a 2×2×2 tensor:
+
+| Test | Path |
+|---|---|
+| **6-arg returns valid handle** | non-zero handle; result Vec has header (6) + at least one core element |
+| **6-arg matches 5-arg `_max_rank`** | r1=r2=2 collapses to max_rank=2; same Vec length |
+
+Existing `tensor_decomp_smoke.nr` (Kronecker + Khatri-Rao) still
+passes — no regression. All pass. rc=0. Self-host fixed-point md5
+unchanged at `7b4966b9b69526674ef5ce3208a8274e`.
+
 ## [0.8.257] — 2026-05-05
 
 **sparse from_coo rod ↔ runtime arity drift FIXED + coverage.**

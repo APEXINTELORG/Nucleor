@@ -11,6 +11,7 @@
 
 extern fn nuc_td_cp_als(X: i64, I: i64, J: i64, K: i64, R: i64, max_iter: i64) -> i64;
 extern fn nuc_td_tt_svd_3d(X: i64, n1: i64, n2: i64, n3: i64, r1: i64, r2: i64) -> i64;
+extern fn nuc_td_tt_svd_3d_max_rank(X: i64, n1: i64, n2: i64, n3: i64, max_rank: i64) -> i64;
 extern fn nuc_td_kronecker(A: i64, B: i64, am: i64, an: i64, bm: i64, bn: i64) -> i64;
 extern fn nuc_td_khatri_rao(A: i64, B: i64, I: i64, J: i64, R: i64) -> i64;
 
@@ -20,6 +21,10 @@ fn tdecomp_cp_als(X: i64, I: i64, J: i64, K: i64, rank: i64, max_iter: i64) -> i
 
 fn tdecomp_tt_svd_3d(X: i64, n1: i64, n2: i64, n3: i64, r1: i64, r2: i64) -> i64 {
     return nuc_td_tt_svd_3d(X, n1, n2, n3, r1, r2);
+}
+
+fn tdecomp_tt_svd_3d_max_rank(X: i64, n1: i64, n2: i64, n3: i64, max_rank: i64) -> i64 {
+    return nuc_td_tt_svd_3d_max_rank(X, n1, n2, n3, max_rank);
 }
 
 fn tdecomp_kronecker(A: i64, B: i64, am: i64, an: i64, bm: i64, bn: i64) -> i64 {

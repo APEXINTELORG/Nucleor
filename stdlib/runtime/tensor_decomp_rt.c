@@ -139,8 +139,8 @@ long long nuc_td_cp_als(long long X_h, long long I, long long J, long long K, lo
 //  Simplified for 3D: T[n1, n2, n3] → G1[1, n1, r1] * G2[r1, n2, r2] * G3[r2, n3, 1]
 // ================================================================
 
-long long nuc_td_tt_svd_3d(long long X_h, long long n1, long long n2, long long n3,
-                             long long max_rank) {
+long long nuc_td_tt_svd_3d_max_rank(long long X_h, long long n1, long long n2, long long n3,
+                                      long long max_rank) {
     TDVec *X = (TDVec *)(void *)X_h;
     int d1 = (int)n1, d2 = (int)n2, d3 = (int)n3, mr = (int)max_rank;
 
@@ -201,6 +201,24 @@ long long nuc_td_tt_svd_3d(long long X_h, long long n1, long long n2, long long 
 
     free(Xd); free(G1); free(G2); free(G3); free(remainder);
     return (long long)result;
+}
+
+// 6-arg shim — match the rod's declared arity. Pre-2026-05-05 the rod
+// declared 6-arg `(X, n1, n2, n3, r1, r2)` but C took 5
+// `(X, n1, n2, n3, max_rank)`. The rod's `r2` was silently dropped by
+// Windows x64 calling convention, and the rod's `r1` was used as the
+// single max_rank cap for both TT bond dimensions.
+//
+// The current 5-arg implementation uses one rank cap for both bonds
+// (G1↔G2 and G2↔G3); future Phase B may refactor to true per-bond
+// ranks. The shim collapses r1 and r2 to `max(r1, r2)` — the
+// conservative cap that preserves enough singular values for either
+// bond. Callers wanting the explicit one-cap form call
+// `tdecomp_tt_svd_3d_max_rank`.
+long long nuc_td_tt_svd_3d(long long X_h, long long n1, long long n2, long long n3,
+                             long long r1, long long r2) {
+    long long max_rank = r1 > r2 ? r1 : r2;
+    return nuc_td_tt_svd_3d_max_rank(X_h, n1, n2, n3, max_rank);
 }
 
 // ================================================================
