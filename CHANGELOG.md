@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.171] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — voxel + sgrid.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### voxel rod (3D occupancy grid)
+
+`tests/features/voxel_smoke.nr` locks four invariants on a
+10×10×10 grid (10m cube at 1m resolution):
+
+| Test | Path |
+|---|---|
+| Total count | `total_count == 1000` (10³) |
+| Initial all-unknown | `occupied_count == 0` |
+| Insert + query round-trip | OCCUPIED at origin → query at origin returns non-zero |
+| Out-of-grid insert | `insert(100, 0, 0)` returns -1 (well beyond +5 grid extent) |
+
+### sgrid rod (spatial hash grid for 3D NN)
+
+`tests/features/sgrid_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty grid | `nearest()` on empty grid returns -1 |
+| Insert indices | first insert returns 0, second returns 1 |
+| Count tracks | 5 inserts → `count() == 5` |
+| **Nearest correctness** | 3 points at origin/x=10/y=10; query (1,0,0) → nn=0; query (9,0,0) → nn=1 |
+
+All pass. rc=0.
+
 ## [0.8.170] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — signal + sparse.**
