@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.273] — 2026-05-05
+
+**R06-D2 Phase 1 — Python bridge result-free hook landed.**
+3 of 4 R06 deficiencies now have Phase 1 closure (D1, D2, D4).
+
+### Bug
+
+`rods_py_eval` and `rods_py_call_str` in
+`stdlib/rods/python_rt.c:139,181` returned malloc'd heap copies of
+UTF-8 Python results with no exposed reclaim path. Adopters either
+leaked the allocation or guessed which `free()` to call (and got
+it wrong if the bridge had returned the static `"<error>"` /
+`""` fallback). HIGH severity per audit.
+
+### Fix (Phase 1, additive)
+
+`stdlib/rods/python_rt.c`:
+
+1. **NEW `rods_py_free_str(const char *s)`** — calls `free()` on
+   the heap-owned copy. **Critically, rejects the static fallback
+   strings** (`"<error>"` / `""`) that the bridge returns on the
+   failure path — those are pointer-equality safe to compare and
+   must NOT be `free()`'d.
+
+`stdlib/rods/python.nr`:
+
+2. **Added `extern fn rods_py_free_str(s: str)` + `py_free_str(s)` wrapper.**
+
+### What's NOT in Phase 1 (deferred to Phase 2)
+
+- **GIL ensure/release brackets.** The audit's full acceptance
+  ("calls are GIL-safe") requires loading `PyGILState_Ensure` /
+  `PyGILState_Release` function pointers and bracketing each Py*
+  call. The existing rod is single-threaded today; Phase 1 matches
+  that behavior so this is not a regression. Phase 2 wires the GIL
+  brackets for multi-threaded callers.
+
+### Coverage
+
+`tests/features/python_bridge_gil_free_smoke.nr` locks 3 invariants
+that don't require Python be installed:
+
+| Test | Path |
+|---|---|
+| **`py_available()` stable** | returns 0 or 1; never crashes |
+| **`py_free_str("")` no-op** | empty static fallback rejected safely |
+| **`py_free_str("<error>")` no-op** | error fallback rejected safely |
+
+All pass. rc=0.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Python string path has explicit ownership** | ✅ `py_free_str` exposed + static-fallback rejection prevents crash on misuse |
+| **Calls are GIL-safe** | ⏳ Phase 2 — single-threaded today (not a regression) |
+| **Unavailable runtime reports stable diagnostic** | ✅ `py_available()` returns 0 on systems without Python |
+| Cold compile ≤ 4s | ✅ unchanged (no compiler edit) |
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### R06 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.271 | R06-D1 — `rust_free_str` | ✅ |
+| v0.8.272 | R06-D4 — FNV-1a deterministic hash | ✅ |
+| v0.8.273 | R06-D2 — Python `py_free_str` | ✅ |
+| next | R06-D3 — ABI fail-closed + exports | ⏳ HIGH |
+
 ## [0.8.272] — 2026-05-05
 
 **R06-D4 Phase 1 — deterministic FNV-1a hash added to Rust bridge.**
