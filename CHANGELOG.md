@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.168] — 2026-05-04
+
+**stdlib/rods/string_algo.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+Advanced string algorithms — KMP search, Levenshtein edit
+distance, prefix trie. Surfaced (and locked) the actual KMP
+contract: returns a `Vec<i64>` of all match positions, not a
+single position.
+
+`tests/features/string_algo_smoke.nr` locks 8 invariants:
+
+| Test | Path |
+|---|---|
+| KMP found | `kmp("hello world", "world")` → vec [6] |
+| KMP not found | `kmp("abc", "xyz")` → empty vec |
+| **KMP multiple matches** | `kmp("ababab", "ab")` → vec [0, 2, 4] |
+| Levenshtein identity | `lev("kitten", "kitten") == 0` |
+| **Levenshtein classic** | `lev("kitten", "sitting") == 3` (k→s, e→i, +g) |
+| Levenshtein insertion-only | `lev("", "abc") == 3` |
+| Trie contains | inserted word found; uninserted word (even if a prefix of an inserted word) not found |
+| **Trie count_prefix** | 3 words start with "ap"; 1 starts with "apr" |
+
+All pass. rc=0.
+
 ## [0.8.167] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — stack +
