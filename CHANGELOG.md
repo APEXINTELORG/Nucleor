@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.164] — 2026-05-04
+
+**stdlib/rods/time_typed.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+Robotics-RFC §5.1 typed time API: distinct monotonic vs wall-
+clock surfaces + sleep granularity (ms / us).
+
+`tests/features/time_typed_smoke.nr` locks four textbook
+clock invariants:
+
+| Test | Path |
+|---|---|
+| **Monotonic non-decreasing** | back-to-back `time_mono_ns()` reads — t2 ≥ t1 always (the defining property of a monotonic clock) |
+| **Sleep advances monotonic** | `sleep_ms(5)` → `mono_ms` delta ≥ 4 (1ms slop for short-sleep granularity) |
+| Wall plausible epoch | `wall_seconds_since_epoch` ∈ [1700000000, 4000000000] (post-2023, pre-2096) |
+| `time_elapsed_ms` self-consistency | `start = mono_ms`, `elapsed = mono_ms - start ≥ 0` |
+
+All pass. rc=0.
+
 ## [0.8.163] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — uuid + stats.**
