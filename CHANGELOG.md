@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.139] — 2026-05-04
+
+**stdlib/rods/checkpoint.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+ML model activation checkpointing — save/restore activations at
+layer boundaries for memory-bounded training.
+
+`tests/features/checkpoint_smoke.nr` locks four invariants:
+
+| Test | Path |
+|---|---|
+| interval=1 stores all | 5 saves → 5 stored |
+| interval=4 stores 1/4 | 16 saves → 4 stored (at layers 0, 4, 8, 12); memory_saved > 0 |
+| **save+restore round-trip** | 3 f64 values preserved bit-exact through ckpt_save → ckpt_restore |
+| nearest_before(L) | returns largest checkpointed layer ≤ L (drives recompute) — `nearest_before(10) == 8`, `(4) == 4`, `(15) == 12` |
+
+All pass. rc=0.
+
 ## [0.8.138] — 2026-05-04
 
 **stdlib/rods/comm.nr first test coverage.** Pure fixture, no
