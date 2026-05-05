@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.187] — 2026-05-05
+
+**stdlib/rods/fixed_point.nr first test coverage.** Pure
+fixture, no compiler/runtime/stdlib edit.
+
+RFC-0043 Phase A — Q-format fixed-point arithmetic helpers
+(rod-only runtime API; the IR-type drift restoration Phase B is
+audit-shipped at v0.8.143 + v0.8.181 token-presence gating).
+
+`tests/features/fixed_point_smoke.nr` locks five textbook
+Q-format invariants on Q16.16:
+
+| Test | Path |
+|---|---|
+| Q-format encode/decode | `q_i_bits = 16, q_f_bits = 16` for `fixed_q16_16()` |
+| Integer round-trip | `from_int(3)` → `to_int` → 3 |
+| **from_parts** | `from_parts(1, 5000)` (= 1.5) → 98304 (1.5 × 2¹⁶) |
+| Add | `2 + 3` → `to_int` → 5 |
+| **Mul** | `1.5 × 2` → `to_int` → 3 (Q-format mul shifts right by f_bits) |
+
+All pass. rc=0.
+
 ## [0.8.186] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — transformer +
