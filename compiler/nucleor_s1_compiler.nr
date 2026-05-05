@@ -29019,6 +29019,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v0145_frame_marker > 0 {
         print(str_concat("audit: Frame_* marker uses (let/arg position): ", str_from_int(v0145_frame_marker)));
     };
+    // v0.8.146 (RFC-0047 Phase B step-1, V2.2 frontier easy-win)
+    // — typed dimensional units `unit<T, [kg, m, s, A, K, mol,
+    // cd]>` audit. Same architectural pattern as RFC-0046
+    // Pose<F>: phantom dimensional type parameter, zero runtime
+    // cost. Phase B step-2 (real dim-vector arithmetic in
+    // type-check) is the ~400 LOC compiler ship per the RFC.
+    // This Phase B step-1 surfaces type-position usage of
+    // unit<T, [...]> + the existing dimension-aliased `Mass<>`
+    // / `Length<>` / `Force<>` / `Acceleration<>` shapes that
+    // adopters might already be drafting.
+    let v0146_unit_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": un", "it<"));
+    let v0146_unit_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> un", "it<"));
+    let v0146_mass_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Ma", "ss<"));
+    let v0146_length_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Len", "gth<"));
+    let v0146_force_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": For", "ce<"));
+    let v0146_accel_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Accelera", "tion<"));
+    let v0146_unit_total: i64 = v0146_unit_colon + v0146_unit_arrow + v0146_mass_colon + v0146_length_colon + v0146_force_colon + v0146_accel_colon;
+    if v0146_unit_total > 0 {
+        print(str_concat("audit: unit<T,[...]> typed-dim type-position occurrences: ", str_from_int(v0146_unit_total)));
+    };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
     // adopters use today: @hot (strict perf), @const_fn (compile-
