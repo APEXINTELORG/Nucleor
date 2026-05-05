@@ -1,6 +1,11 @@
 // rods/audio — WAV I/O + STFT + MFCC
 #cfile "../runtime/audio_rt.c"
 
+// v0.8.132: programmatic constructor. Build an AudioClip from a
+// Vec<i64> of f64-bit-cast samples in [-1.0, 1.0] without WAV
+// round-trip. Use when synthesizing test signals, ML inputs,
+// procedurally-generated audio, etc.
+extern fn nuc_audio_new(samples: i64, sample_rate: i64) -> i64;
 extern fn nuc_audio_load_wav(path: str) -> i64;
 extern fn nuc_audio_save_wav(h: i64, path: str);
 extern fn nuc_audio_sample_rate(h: i64) -> i64;
@@ -10,6 +15,7 @@ extern fn nuc_audio_stft(samples: i64, window: i64, hop: i64) -> i64;
 extern fn nuc_audio_mfcc(samples: i64, sr: i64, n_mfcc: i64) -> i64;
 extern fn nuc_audio_free(h: i64);
 
+fn audio_new(samples: i64, sample_rate: i64) -> i64 { return nuc_audio_new(samples, sample_rate); }
 fn audio_load(path: str) -> i64 { return nuc_audio_load_wav(path); }
 fn audio_save(h: i64, path: str) { nuc_audio_save_wav(h, path); }
 fn audio_sample_rate(h: i64) -> i64 { return nuc_audio_sample_rate(h); }

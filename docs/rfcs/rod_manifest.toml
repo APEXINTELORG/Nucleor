@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2772
-# Total LOC: 11807
+# Total fn definitions: 2773
+# Total LOC: 11809
 
 [[rod]]
 name           = "activation2"
@@ -96,9 +96,9 @@ imports        = []
 name           = "audio"
 path           = "stdlib/rods/audio.nr"
 description    = "WAV I/O + STFT + MFCC"
-function_count = 8
+function_count = 9
 cfile_count    = 1
-loc            = 17
+loc            = 19
 imports        = []
 
 [[rod]]

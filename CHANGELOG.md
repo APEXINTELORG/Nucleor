@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.132] — 2026-05-04
+
+**audio_new constructor + first audio rod test coverage + WAV
+load fmt-chunk offset bug fix.**
+
+Pre-v0.8.132, `stdlib/rods/audio.nr` only had `audio_load(path)`
+for input — every adopter doing test-tone synthesis, ML training
+input generation, or procedural audio had to round-trip through
+a WAV file on disk. No constructor existed for building an
+`AudioClip` from in-memory samples.
+
+Three lockings:
+
+| Change | Path |
+|---|---|
+| `nuc_audio_new(samples_h, sample_rate)` | `stdlib/runtime/audio_rt.c` — constructs `AudioClip` from `Vec<i64>` of f64-bit-cast samples in [-1.0, 1.0]; mono; allocates owned `float *samples` |
+| `audio_new(samples, sample_rate)` rod fn | `stdlib/rods/audio.nr` — surface for the constructor |
+| WAV load fmt-chunk skip bug | `stdlib/runtime/audio_rt.c` — `nuc_audio_load_wav` was reading 8 fmt bytes (audio_fmt + channels + sample_rate) but seeking `chunk_size - 10`, undershooting by 2 bytes; next `chunk_id` read landed inside the fmt body so the data chunk was never found. Fixed: `chunk_size - 8`. Surfaced by `tests/features/audio_smoke.nr` save+load round-trip — no prior fixture had ever exercised the load path |
+
+`tests/features/audio_smoke.nr` locks two invariants:
+
+| Test | Path |
+|---|---|
+| `audio_new` constructor | non-zero handle; `sample_rate` + `n_samples` accessors round-trip what was declared |
+| WAV save+load round-trip | synthesize 8 samples at 8 kHz; save; load; sample_rate + n_samples preserved (16-bit PCM truncation expected — sample values not asserted byte-exact) |
+
+`tests/features/embedding_smoke.nr` (carryover from earlier zero-coverage pass) locks four embedding invariants: `cosine_sim(v, v) == 1.0`, `dot(v, v) == ||v||²`, orthogonal-vector cosine == 0, set + lookup round-trip preserves vector.
+
+Both pass. rc=0.
+
+Runtime change → bin/nucleor.exe rebuilt + spot-checked vs user
+source before swap.
+
+Drift gate: helper_manifest, rod_manifest (regenerated; rod count
+unchanged but counts re-tallied), RELEASES, CHANGELOG, tags all
+in sync.
+
 ## [0.8.131] — 2026-05-04
 
 **stdlib/rods/energy_budget.nr first test coverage.** Pure
