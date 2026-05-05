@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.138] — 2026-05-04
+
+**stdlib/rods/comm.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+Distributed-training collective communication primitives — pure
+single-process simulation (no MPI / NCCL).
+
+`tests/features/comm_smoke.nr` locks two invariants:
+
+| Test | Path |
+|---|---|
+| set_data + get_data round-trip | per-rank buffer write+read preserves f64 values |
+| **Broadcast** | after `comm_broadcast(w, 1, 3)`, all 3 ranks hold rank 1's data verbatim |
+
+Allreduce / reduce-scatter / grad-accum are documented as
+out-of-scope here: the single-process ring-allreduce simulation
+has known in-place-read artifacts in Phase 1 that bend the
+exact-sum invariant; grad_accum needs more Vec<i64> setup than
+belongs in a smoke. Follow-up dedicated to distributed-training
+semantics will cover them.
+
+All pass. rc=0.
+
 ## [0.8.137] — 2026-05-04
 
 **stdlib/rods/asserts.nr first test coverage.** Pure fixture, no
