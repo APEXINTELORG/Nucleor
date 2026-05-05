@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.310] — 2026-05-05
+
+**R04-D5 Phase 1 — concurrency + thread rod limitation disclosures.**
+
+### Bug
+
+Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D5 (MEDIUM):
+several concurrency claims overrun the shipped surface. Adopters
+calling `conc_map` get sequential fallback (v0.8.270 fix); calling
+`thread_pool_map` get real OS-thread dispatch — but the rod
+docs don't surface this distinction, and several missing
+primitives (barrier, structured concurrency, channel-close
+diagnostic) are silently absent.
+
+### Fix (Phase 1, audit's "document unsupported surfaces" path)
+
+`stdlib/rods/concurrency.nr` adds:
+- `concurrency_limitations() -> str` — names 4 gaps: sequential
+  conc_map, no barrier, no structured-concurrency scope, no
+  channel-close status.
+- `conc_map_is_parallel() -> i64` — returns 0 (sequential).
+
+`stdlib/rods/thread.nr` adds:
+- `thread_limitations() -> str` — confirms thread_pool IS real
+  parallel; documents 3 gaps (no work-stealing, no panic
+  propagation, no pool resize).
+- `thread_pool_is_parallel() -> i64` — returns 1 (real).
+
+### Tests
+
+`tests/features/concurrency_disclosure_smoke.nr` — 6 invariants
+covering both limitations texts + parallel-flag predicates.
+
+### Self-host fixed-point
+
+`7ff8d0955e09083f2bb338ac326d5bb1` (preserved — stdlib-rod-only).
+
 ## [0.8.309] — 2026-05-05
 
 **R05-D4 Phase 1 — fix `err_pure_ambient_random.nr` to expect EFF-001 (closes R05-D4).**
