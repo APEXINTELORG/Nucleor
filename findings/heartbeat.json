@@ -1,54 +1,49 @@
 {
-  "instructions_read": "v0.6.72-post-v0.8.189-refresh",
-  "current_task": "P2/R2 source-level prefix helper hot-path reduction",
-  "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "P2,R2",
+  "instructions_read": "v0.6.72-post-v0.8.292-refresh",
+  "current_task": "A2 u64 strict arithmetic runtime/LLVM overflow closure",
+  "roadmap_phase": "v1_numeric_correctness_punchlist",
+  "current_punchlist_item": "A2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "66913d9b",
-  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_pe_fix",
-  "branch": "probe/perf-attribution-build-slice",
+  "rebased_on_origin_main": "28779f5c",
+  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_v0886_u64_strict_arith",
+  "branch": "probe/u64-strict-arith-v0886",
   "status": "ready-for-integration",
   "validation": {
+    "main_completion_check": {
+      "status": "not_already_completed",
+      "origin_main": "28779f5c",
+      "evidence": "origin/main lacks panic_add_u64, llvm.uadd.with.overflow.i64, binop_u64_type, and __has_u64_v886"
+    },
     "self_host_fixed_point": {
       "status": "pass",
-      "md5": "7b4966b9b69526674ef5ce3208a8274e",
+      "md5": "96c47158b22f96ce1dae38418345be82",
       "command": "bash tools/check_self_host_md5.sh"
     },
-    "perf_gate_accepted_resample": {
+    "compiler_drift": {
       "status": "pass",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1 (x3)",
-      "cold_seconds_samples": [3.81, 3.55, 3.42],
-      "cold_seconds_median": 3.55,
-      "hot_seconds_samples": [1.25, 0.32, 0.77],
-      "hot_seconds_median": 0.77,
-      "peak_mem_mb_samples": [299, 301, 291],
-      "peak_mem_mb_median": 299
+      "command": "bash tools/check_compiler_drift.sh"
     },
-    "post_rebase_perf_sanity": {
+    "focused_verify": {
       "status": "pass",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
-      "cold_seconds": 3.54,
-      "hot_seconds": 0.32,
-      "peak_mem_mb": 299
+      "command": "bash tools/verify.sh --only \"T3.strict intrinsic overflow i8/i16/i32/u64 + env precedence\"",
+      "result": "PASS 1, SKIP 274"
     },
-    "profile_delta": {
+    "perf_gate": {
       "status": "pass",
-      "str_len_before": 17148648,
-      "str_len_after": 11095810,
-      "str_len_delta": -6052838,
-      "total_helper_calls_before": 154999131,
-      "total_helper_calls_after": 148948027,
-      "total_helper_call_delta": -6051104
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\tools\\check_perf_regression.ps1",
+      "cold_seconds": 3.75,
+      "hot_seconds": 0.42,
+      "peak_mem_mb": 304
     },
-    "previous_p2_r1_slice": {
-      "status": "pushed_in_prior_commit",
-      "summary": "Ownership metadata direct final-key wrappers removed 450,618 str_concat calls and about 6.1MB tracked allocation per self-host; fixed-point md5 f26490fa833d690dff9981982e2fdde1."
+    "manual_fixture_matrix": {
+      "status": "pass",
+      "intrinsic_path": "u64 add/sub/mul emitted llvm.uadd/usub/umul.with.overflow.i64 and trapped at runtime",
+      "legacy_helper_path": "NUCLEOR_INT_STRICT_INTRIN=0 emitted __nucleor_panic_add/sub/mul_u64 and trapped at runtime"
     }
   },
   "caveats": {
-    "first_perf_ladder": "Initial post-change ladder was cold=[3.98,4.43,3.54], median 3.98s, which tripped the punchlist drift alarm. It was resampled immediately; accepted resample median was 3.55s.",
-    "rejected_scope_key_experiment": "A structured own_get_scope final-key side vector reduced profile counts but failed post-promotion fixed-point with a false OWN-008 in smap_hash. It was backed out completely; do not retry without a focused ownership snapshot/restore invariant fixture.",
-    "full_verify": "Not rerun for this slice because full verify is long-running; self-host fixed point and perf ladder passed."
+    "native_rss_sampler": "Native RSS helper produced false OWN-008 exits during perf sampling; tools/rss_estop_lib.ps1 now defaults to the PowerShell sampler and keeps native helper opt-in via NUC_RSS_ENABLE_NATIVE=1.",
+    "full_verify": "Not rerun for this slice because full verify is long-running; focused verify, compiler drift, fixed-point self-host, and perf gate passed."
   },
-  "summary": "Second P2/R2 slice: source-level str_starts_with now uses a NUL-sentinel prefix walk, eliminating about 6.05M runtime str_len helper calls per self-host without changing string semantics. Promoted bin/seed fixed point 7b4966b9b69526674ef5ce3208a8274e; accepted perf median cold=3.55s hot=0.77s peak=299MB."
+  "summary": "A2 closed on probe/u64-strict-arith-v0886: u64 +/-/* strict intrinsic lowering now uses unsigned LLVM overflow intrinsics; legacy strict helper mode has u64 panic helpers; focused fixtures cover add/sub/mul. Branch is rebased on v0.8.292 and ready for integration."
 }

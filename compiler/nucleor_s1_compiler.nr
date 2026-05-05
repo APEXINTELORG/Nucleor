@@ -6683,6 +6683,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_add") { return "__nucleor_panic_add_i64"; };
     if str_eq(name, "panic_sub") { return "__nucleor_panic_sub_i64"; };
     if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
+    if str_eq(name, "panic_add_u64") { return "__nucleor_panic_add_u64"; };
+    if str_eq(name, "panic_sub_u64") { return "__nucleor_panic_sub_u64"; };
+    if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
     if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
@@ -8457,6 +8460,18 @@ fn emit_externs() -> str {
         sb_append(sb, "declare { i16, i1 } @llvm.smul.with.overflow.i16(i16, i16)\n");
         sb_append(sb, "declare { i32, i1 } @llvm.smul.with.overflow.i32(i32, i32)\n");
         sb_append(sb, "declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.uadd.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.uadd.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.uadd.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.uadd.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.usub.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.usub.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.usub.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.usub.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.umul.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.umul.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.umul.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.umul.with.overflow.i64(i64, i64)\n");
     };
     sb_append(sb, "declare i64 @__nucleor_as_i8(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_as_i16(i64)\n");
@@ -8530,6 +8545,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_add_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_add_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_sub_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_mul_u64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
@@ -24013,10 +24031,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut strict: i64 = 0;
             if str_eq(strict_env, "1") == 1 { strict = 1; };
             let mut sh: str = "";
+            let mut u64_binop_v886: i64 = 0;
+            if sym_get(sym, "__has_u64_v886") == 1 && (iop == 2 || iop == 3 || iop == 4) {
+                if binop_u64_type(pool, node_field(pool, nid, 2), sym, structs) == 1 {
+                    u64_binop_v886 = 1;
+                } else if binop_u64_type(pool, node_field(pool, nid, 3), sym, structs) == 1 {
+                    u64_binop_v886 = 1;
+                };
+            };
             if strict == 1 {
-                if iop == 2 { sh = "panic_add"; };
-                if iop == 3 { sh = "panic_sub"; };
-                if iop == 4 { sh = "panic_mul"; };
+                if u64_binop_v886 == 1 {
+                    if iop == 2 { sh = "panic_add_u64"; };
+                    if iop == 3 { sh = "panic_sub_u64"; };
+                    if iop == 4 { sh = "panic_mul_u64"; };
+                } else {
+                    if iop == 2 { sh = "panic_add"; };
+                    if iop == 3 { sh = "panic_sub"; };
+                    if iop == 4 { sh = "panic_mul"; };
+                };
                 if iop == 5 { sh = "panic_div"; };
                 if iop == 6 { sh = "panic_rem"; };
                 // v0.3.214: shifts get the panic surface too. Iops 23 (shl)
@@ -24077,7 +24109,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_eq(strict_intrin, "1") == 1 && arith_mode_explicit <= 0 && (iop == 2 || iop == 3 || iop == 4) {
                 let trap_lbl: i64 = ctr_next(lbls);
                 let cont_lbl: i64 = ctr_next(lbls);
-                ir_block_add(cur, ir_binop_overflow(iop, r, lr, rr, 0, trap_lbl));
+                let trap_width_v886: i64 = if u64_binop_v886 == 1 { 0 - 64 } else { 0 };
+                ir_block_add(cur, ir_binop_overflow(iop, r, lr, rr, trap_width_v886, trap_lbl));
             } else if str_len(sh) > 0 {
                 let mut sa: Vec<i32> = Vec::new();
                 sa.push(lr); sa.push(rr);
@@ -26782,6 +26815,40 @@ fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec
 }
 
 #[manual_drop]
+fn binop_u64_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> i64 {
+    if nid < 0 { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 1 { return 0; };
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        let ft: i64 = sym_get(sym, str_concat("__fulltype_", name));
+        if ft >= 0 && str_eq(type_base_name(ft), "u64") == 1 { return 1; };
+        let bt: i64 = sym_get(sym, str_concat("__type_", name));
+        if bt >= 0 && str_eq(type_base_name(bt), "u64") == 1 { return 1; };
+        return 0;
+    };
+    if kind == 4 {
+        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        if is_cmp_or_logic(iop) == 1 { return 0; };
+        if binop_u64_type(pool, node_field(pool, nid, 2), sym, structs) == 1 { return 1; };
+        if binop_u64_type(pool, node_field(pool, nid, 3), sym, structs) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 90 || kind == 91 || kind == 92 {
+        return binop_u64_type(pool, node_field(pool, nid, 1), sym, structs);
+    };
+    if kind == 99 {
+        if str_eq(type_base_name(node_field(pool, nid, 2)), "u64") == 1 { return 1; };
+        return 0;
+    };
+    if kind == 9 || kind == 10 || kind == 7 || kind == 8 || kind == 12 {
+        let full: str = expr_full_type_from_sym(pool, nid, sym, structs);
+        if str_eq(type_base_name(full), "u64") == 1 { return 1; };
+    };
+    return 0;
+}
+
+#[manual_drop]
 fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -27286,6 +27353,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             else if ik == 2 { tstr = "str"; };
         };
         let sbase: str = type_base_name(tstr);
+        if str_eq(sbase, "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
         // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): inline narrow-
         // width detection. Sign-encoded same as type_expr kind-3:
         // positive=signed, negative=unsigned, 0=untyped (i64).
@@ -28118,6 +28186,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         };
     };
     sym_set(sym, "__current_fn_full_return", node_field(pool, fn_nid, 3));
+    if str_eq(type_base_name(node_field(pool, fn_nid, 3)), "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
     let mut fir: Vec<i32> = ir_fn_new(name, pc);
     ir_fn_set_strtab_aux(fir, strtab_aux);
     let mut ebb0: Vec<i32> = ir_block_new(0);
@@ -28149,6 +28218,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         // 3b's narrow-arith dispatch on fn params.
         let ptype: str = node_field(pool, pnid, 2);
         let sbase: str = type_base_name(ptype);
+        if str_eq(sbase, "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
         let pblen: i64 = str_len(sbase);
         let mut wp: i64 = 0;
         if pblen == 2 {
@@ -35991,43 +36061,43 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
     // identifiers preceded by `.` (field/method access).
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
+    let mut priv_pos_v886: i64 = 0;
     let mut last_non_ws: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+    while priv_pos_v886 < slen {
+        let c: i64 = str_char_at(src, priv_pos_v886);
+        if c == 47 && priv_pos_v886 + 1 < slen && str_char_at(src, priv_pos_v886 + 1) == 47 {
             // // line comment — copy through to newline
-            let comment_start: i64 = p;
-            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
-            sb_append_range(sb, src, comment_start, p);
+            let comment_start: i64 = priv_pos_v886;
+            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 10 { priv_pos_v886 = priv_pos_v886 + 1; };
+            sb_append_range(sb, src, comment_start, priv_pos_v886);
             last_non_ws = 10;
         } else if c == 34 {
             // double-quoted string literal — copy with backslash escapes
-            let str_start: i64 = p;
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    p = p + 2;
+            let str_start: i64 = priv_pos_v886;
+            priv_pos_v886 = priv_pos_v886 + 1;
+            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 34 {
+                if str_char_at(src, priv_pos_v886) == 92 && priv_pos_v886 + 1 < slen {
+                    priv_pos_v886 = priv_pos_v886 + 2;
                 } else {
-                    p = p + 1;
+                    priv_pos_v886 = priv_pos_v886 + 1;
                 };
             };
-            if p < slen { p = p + 1; };
-            sb_append_range(sb, src, str_start, p);
+            if priv_pos_v886 < slen { priv_pos_v886 = priv_pos_v886 + 1; };
+            sb_append_range(sb, src, str_start, priv_pos_v886);
             last_non_ws = 34;
         } else if c == 39 {
             // single-quoted char literal
-            let char_start: i64 = p;
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 39 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    p = p + 2;
+            let char_start: i64 = priv_pos_v886;
+            priv_pos_v886 = priv_pos_v886 + 1;
+            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 39 {
+                if str_char_at(src, priv_pos_v886) == 92 && priv_pos_v886 + 1 < slen {
+                    priv_pos_v886 = priv_pos_v886 + 2;
                 } else {
-                    p = p + 1;
+                    priv_pos_v886 = priv_pos_v886 + 1;
                 };
             };
-            if p < slen { p = p + 1; };
-            sb_append_range(sb, src, char_start, p);
+            if priv_pos_v886 < slen { priv_pos_v886 = priv_pos_v886 + 1; };
+            sb_append_range(sb, src, char_start, priv_pos_v886);
             last_non_ws = 39;
         } else if is_alpha(c) == 1 || c == 95 {
             // Identifier start — gather to the end and decide whether
@@ -36035,29 +36105,29 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
             // because is_alpha rejects digits; identifiers can't
             // start with digit) and identifiers preceded by `.`
             // (struct field / method access).
-            let start: i64 = p;
+            let start: i64 = priv_pos_v886;
             let mut id_done: i64 = 0;
-            while p < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, p);
-                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+            while priv_pos_v886 < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, priv_pos_v886);
+                if is_alnum(ch) == 1 || ch == 95 { priv_pos_v886 = priv_pos_v886 + 1; }
                 else { id_done = 1; };
             };
             let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, p) == 1 {
+            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, priv_pos_v886) == 1 {
                 sb_append(sb, "__priv_");
                 sb_append(sb, file_id);
                 sb_append(sb, "__");
-                sb_append_range(sb, src, start, p);
+                sb_append_range(sb, src, start, priv_pos_v886);
             } else {
-                sb_append_range(sb, src, start, p);
+                sb_append_range(sb, src, start, priv_pos_v886);
             };
-            last_non_ws = str_char_at(src, p - 1);
+            last_non_ws = str_char_at(src, priv_pos_v886 - 1);
         } else {
-            sb_append_char_at(sb, src, p);
+            sb_append_char_at(sb, src, priv_pos_v886);
             // Track last non-whitespace so we can detect `.X` field
             // accesses through intervening whitespace too.
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
-            p = p + 1;
+            priv_pos_v886 = priv_pos_v886 + 1;
         };
     };
     return sb_to_str(sb);

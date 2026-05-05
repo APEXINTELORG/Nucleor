@@ -2725,6 +2725,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_add") { return "__nucleor_panic_add_i64"; };
     if str_eq(name, "panic_sub") { return "__nucleor_panic_sub_i64"; };
     if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
+    if str_eq(name, "panic_add_u64") { return "__nucleor_panic_add_u64"; };
+    if str_eq(name, "panic_sub_u64") { return "__nucleor_panic_sub_u64"; };
+    if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
     if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
@@ -4351,6 +4354,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_add_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_add_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_sub_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_mul_u64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
@@ -4579,6 +4585,18 @@ fn emit_externs() -> str {
         sb_append(sb, "declare { i16, i1 } @llvm.smul.with.overflow.i16(i16, i16)\n");
         sb_append(sb, "declare { i32, i1 } @llvm.smul.with.overflow.i32(i32, i32)\n");
         sb_append(sb, "declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.uadd.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.uadd.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.uadd.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.uadd.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.usub.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.usub.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.usub.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.usub.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.umul.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.umul.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.umul.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.umul.with.overflow.i64(i64, i64)\n");
     };
     sb_append(sb, "declare i64 @__nucleor_popcount(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_count_ones(i64)\n");

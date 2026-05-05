@@ -2718,11 +2718,14 @@ t_wrap_block_no_trap() {
 
 t_strict_intrin_narrow_widths() {
     # Track E: strict-intrinsic mode wins over legacy strict helper mode
-    # for +/-/*, and emits the concrete LLVM signed-overflow intrinsic
-    # matching the narrowed arithmetic width.
+    # for +/-/*, and emits the concrete LLVM overflow intrinsic matching
+    # the signed narrowed width or u64 unsigned ABI width.
     strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i8_add_overflow.nr" "_strict_intrin_i8_add" "llvm.sadd.with.overflow.i8" || return 1
     strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i16_sub_overflow.nr" "_strict_intrin_i16_sub" "llvm.ssub.with.overflow.i16" || return 1
     strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i32_mul_overflow.nr" "_strict_intrin_i32_mul" "llvm.smul.with.overflow.i32" || return 1
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_u64_add_overflow.nr" "_strict_intrin_u64_add" "llvm.uadd.with.overflow.i64" || return 1
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_u64_sub_overflow.nr" "_strict_intrin_u64_sub" "llvm.usub.with.overflow.i64" || return 1
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_u64_mul_overflow.nr" "_strict_intrin_u64_mul" "llvm.umul.with.overflow.i64" || return 1
     NUCLEOR_INT_STRICT_INTRIN=1 NUCLEOR_INT_STRICT_ARITH=1 "$BIN" build "tests/fixtures/strict_intrin_explicit_modes_precedence.nr" -o "_strict_intrin_modes_precedence" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "0" ] || return 1
@@ -5443,7 +5446,7 @@ step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, 
 step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
 step "RFC-0034 compile-time [] parameter parser first pass" t_rfc0034_compile_time_params_parser
 step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
-step "T3.strict intrinsic signed narrow overflow i8/i16/i32 + env precedence" t_strict_intrin_narrow_widths
+step "T3.strict intrinsic overflow i8/i16/i32/u64 + env precedence" t_strict_intrin_narrow_widths
 step "v0.4.239 regression — wrapping {} block must not trap under strict default" t_wrap_block_no_trap
 step "v0.4.245 RFC-0006 — #[require(EXPR)] runtime check fires (CONTRACT-001)" t_rfc0006_require_runtime
 step "v0.4.246 RFC-0006 — #[ensure(EXPR)] runtime check fires (CONTRACT-002)" t_rfc0006_ensure_runtime

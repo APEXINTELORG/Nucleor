@@ -10,7 +10,10 @@
 # focused probes. The helper binary is cached under tools/.nuc_rss_estop
 # because perf gates intentionally delete target/ between cold samples.
 
-$script:NucRssNativeDefault = ($env:OS -eq "Windows_NT" -and $env:NUC_RSS_DISABLE_NATIVE -ne "1")
+# Default to the PowerShell sampler. The native helper is faster, but
+# on this Windows host it has produced false compiler exits during perf
+# gates; keep it available only for explicit probes.
+$script:NucRssNativeDefault = ($env:OS -eq "Windows_NT" -and $env:NUC_RSS_ENABLE_NATIVE -eq "1" -and $env:NUC_RSS_DISABLE_NATIVE -ne "1")
 
 if ((-not $script:NucRssNativeDefault -or $env:NUC_RSS_USE_JOB -eq "1") -and -not ("NucRssJobApi" -as [type])) {
     Add-Type -TypeDefinition @"
