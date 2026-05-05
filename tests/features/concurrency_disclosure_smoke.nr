@@ -1,17 +1,21 @@
-// v0.8.310 R04-D5 Phase 1 — concurrency + thread rod disclosures.
+// v0.8.310/v0.8.311 R04-D5 Phase 1 — concurrency + thread + atomic
+// rod disclosures.
 //
-// Locks 6 invariants:
+// Locks 8 invariants (extended in v0.8.311):
 //   1. concurrency_limitations names "SEQUENTIAL FALLBACK"
 //   2. conc_map_is_parallel() = 0 (sequential per v0.8.270)
 //   3. thread_limitations names "REAL parallel"
 //   4. thread_pool_is_parallel() = 1
 //   5. concurrency_limitations names "STRUCTURED-CONCURRENCY"
 //   6. thread_limitations names "WORK-STEALING"
+//   7. atomic_limitations names "WIDTHS"
+//   8. atomic_limitations names "WAIT/NOTIFY"
 //
 // Expected: rc=0.
 
 import "stdlib/rods/concurrency.nr"
 import "stdlib/rods/thread.nr"
+import "stdlib/rods/atomic.nr"
 
 fn check_conc_limits() -> i64 {
     let s: str = concurrency_limitations();
@@ -39,11 +43,20 @@ fn check_thread_parallel_flag() -> i64 {
     return 0;
 }
 
+fn check_atomic_limits() -> i64 {
+    let s: str = atomic_limitations();
+    if str_len(s) == 0 { return 256; };
+    if str_index_of(s, "WIDTHS") < 0 { return 512; };
+    if str_index_of(s, "WAIT/NOTIFY") < 0 { return 1024; };
+    return 0;
+}
+
 fn main() -> i64 {
     let mut fails: i64 = 0;
     fails = fails + check_conc_limits();
     fails = fails + check_conc_parallel_flag();
     fails = fails + check_thread_limits();
     fails = fails + check_thread_parallel_flag();
+    fails = fails + check_atomic_limits();
     return fails;
 }
