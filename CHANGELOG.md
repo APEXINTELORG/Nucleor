@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.221] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pqueue + physics.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### pqueue rod (binary heap min/max + decrease-key)
+
+`tests/features/pqueue_smoke.nr` locks four invariants on the
+queue runtime shared with `queue.nr`:
+
+| Test | Path |
+|---|---|
+| Empty heap | size 0; pq_empty 1 |
+| **Min-heap pops smallest first** | (5,a)(1,b)(3,c) → b, c, a |
+| Max-heap pops largest first | same data → a, c, b |
+| Push tracks size, peek does not consume | 3 pushes → size=3; peek twice returns same |
+
+### physics rod (CODATA 2018 constants)
+
+`tests/features/physics_smoke.nr` locks four CODATA-2018
+invariants:
+
+| Test | Path |
+|---|---|
+| **Speed of light c exact** | 299792458 m/s (1983 SI redefinition, exact) |
+| Planck h ≈ 6.626e-34 J·s | exact since 2019 SI redefinition |
+| Boltzmann kb ≈ 1.381e-23 J/K | exact since 2019 SI redefinition |
+| π matches std math | 3.14159265358979… within 1e-15 |
+
+All pass. rc=0.
+
 ## [0.8.220] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — neuromorphic + numeric.**
