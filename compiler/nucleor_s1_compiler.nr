@@ -3056,6 +3056,18 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     };
     let name: i64 = pkv(tokens, pos); let p2: i64 = pos + 1;
     if pk(tokens, p2) == 46 {
+        // v0.8.120: Rust stdlib namespace path auto-strip in type-annotation
+        // position. `std::collections::HashMap<K,V>`, `core::option::Option<T>`,
+        // `std::string::String`, `std::vec::Vec<T>`, `alloc::vec::Vec<T>`, etc.
+        // Pre-v0.7.37: wrong-class NR020 at `::`. v0.7.37: halt + workaround.
+        // Now: walk past all `Ident ::` segments to the final type name and
+        // re-enter parse_type there, auto-stripping any namespace prefix depth.
+        // Falls back to the v0.7.37 halt if the next segment is not an ident.
+        let mut ns_pos: i64 = pos;
+        while pk(tokens, ns_pos + 1) == 46 && pk(tokens, ns_pos + 2) == 1 {
+            ns_pos = ns_pos + 2;
+        };
+        if ns_pos > pos { return parse_type(tokens, ns_pos); };
         let v0737_ns: str = name;
         print(str_concat("ERROR: Rust path type `", str_concat(v0737_ns, "::<rest>` in type-annotation position is not yet supported in Nucleor. Pre-v0.7.37, the type parser consumed only the first path segment and left `::...` unconsumed, causing the let-binding or fn-param parser to see `::` where `=` or `,` was expected — triggering wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 46`. Workaround: drop the namespace prefix and use the unqualified Nucleor type name directly — `std::collections::HashMap<K,V>` -> `HashMap<K,V>`, `std::string::String` -> `String` (or `str` for literals), `std::vec::Vec<T>` -> `Vec<T>`, `core::option::Option<T>` -> `Option<T>`, `core::result::Result<T,E>` -> `Result<T,E>`. Tracked for forward-roadmap (Rust-stdlib namespace shim / path-type resolver to auto-strip common stdlib prefixes).")));
         panic(str_concat("nucleor: path type `", str_concat(v0737_ns, "::<rest>` not supported in type position (see ERROR diagnostic above)")));

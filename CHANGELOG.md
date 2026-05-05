@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.120] — 2026-05-05
+
+**Rust stdlib namespace path auto-strip in type-annotation position.**
+Compiler edit + new seed.
+
+### Pre-fix surface
+
+`let v: std::vec::Vec<i64> = Vec::new();` — and any Nucleor type annotation
+using a fully-qualified Rust stdlib path — panicked with the v0.7.37 halt
+and workaround pointer:
+
+```
+nucleor: path type `std::<rest>` not supported in type position
+Workaround: drop the namespace prefix — std::vec::Vec<T> -> Vec<T>
+```
+
+Adopters porting Rust code routinely carry the namespace prefix on type
+annotations (`std::collections::HashMap<K,V>`, `core::option::Option<T>`,
+`alloc::vec::Vec<T>`, etc.); every such annotation required a manual rename.
+
+### Fix
+
+`parse_type` — the `Ident ::` branch (token 46) — now walks past all
+`Ident ::` segments to the final type name and re-enters `parse_type` there,
+auto-stripping any number of namespace prefix levels. Fallback to the
+v0.7.37 halt is kept for the edge case where the next segment after `::` is
+not an identifier (e.g. `std::123`).
+
+Supported examples:
+- `std::vec::Vec<T>` → `Vec<T>`
+- `core::option::Option<T>` → `Option<T>`
+- `std::collections::HashMap<K,V>` → `HashMap<K,V>`
+- `alloc::vec::Vec<str>` → `Vec<str>`
+- `std::string::String` → `String`
+- `my::module::T` → `T` (any depth, not just stdlib prefixes)
+
+No change to expression-position paths (v0.6.96 halt stands) or
+path-rooted fn calls (v0.7.5 halt stands); this ship is type-annotation
+position only.
+
+### Fixed-point md5
+
+`aa289bf4aa385c2e478274a64bbb40be` (both `target/_v08120.ll` and
+`target/_v08120b.ll` — byte-identical, fixed-point confirmed).
+
+### Perf
+
+No hot-path change; the path-walk executes only when `Ident ::` appears in
+type-annotation context (token 46 after an ident). The compiler's own source
+carries no qualified type paths, so the new code is never reached during
+self-compilation. Cold IR-emit 6.7s (Linux, no PowerShell available; cap is
+5.93s Windows — the Linux baseline at this stage of the v0.8.x compiler is
+~6.7s IR-emit). Round-2 fixed-point md5 `aa289bf4aa385c2e478274a64bbb40be`.
+
+### Fixture
+
+`tests/fixtures/v08120_std_path_type.nr` — exercises `std::vec::Vec<i64>`,
+`core::option::Option<i64>`, and `alloc::vec::Vec<str>` in annotation
+position. All three resolve correctly and pass runtime assertions (rc=0).
+
 ## [0.8.119] — 2026-05-04
 
 **🎉 Windows-PE link hang FIXED — Group D unblock landed.**

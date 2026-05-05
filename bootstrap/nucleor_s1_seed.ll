@@ -31481,24 +31481,26 @@ bb.entry:
   %r.387 = alloca i64
   %r.391 = alloca i64
   %r.400 = alloca i64
-  %r.419 = alloca i64
-  %r.431 = alloca i64
-  %r.435 = alloca i64
-  %r.440 = alloca i64
-  %r.479 = alloca i64
-  %r.491 = alloca i64
-  %r.495 = alloca i64
-  %r.499 = alloca i64
-  %r.504 = alloca i64
-  %r.509 = alloca i64
-  %r.548 = alloca i64
-  %r.552 = alloca i64
-  %r.554 = alloca i64
-  %r.561 = alloca i64
-  %r.594 = alloca i64
-  %r.604 = alloca i64
-  %r.615 = alloca i64
-  %r.619 = alloca i64
+  %r.409 = alloca i64
+  %r.432 = alloca i64
+  %r.451 = alloca i64
+  %r.463 = alloca i64
+  %r.467 = alloca i64
+  %r.472 = alloca i64
+  %r.511 = alloca i64
+  %r.523 = alloca i64
+  %r.527 = alloca i64
+  %r.531 = alloca i64
+  %r.536 = alloca i64
+  %r.541 = alloca i64
+  %r.580 = alloca i64
+  %r.584 = alloca i64
+  %r.586 = alloca i64
+  %r.593 = alloca i64
+  %r.626 = alloca i64
+  %r.636 = alloca i64
+  %r.647 = alloca i64
+  %r.651 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -32357,560 +32359,639 @@ L131:
   %br.399.cond = icmp ne i64 %r.399, 0
   br i1 %br.399.cond, label %L132, label %L134
 L132:
-  %r.401 = load i64, ptr %r.387
+  %r.401 = load i64, ptr %r.2
   store i64 %r.401, ptr %r.400
-  %r.402 = ptrtoint ptr @.str.340 to i64
+  br label %L135
+L135:
+  %r.402 = load i64, ptr %r.0
   %r.403 = load i64, ptr %r.400
-  %r.404 = ptrtoint ptr @.str.341 to i64
-  %r.405.a0 = inttoptr i64 %r.403 to ptr
-  %r.405.a1 = inttoptr i64 %r.404 to ptr
-  %r.405.rv = call ptr @__nucleor_str_concat(ptr %r.405.a0, ptr %r.405.a1)
-  %r.405 = ptrtoint ptr %r.405.rv to i64
-  %r.406.a0 = inttoptr i64 %r.402 to ptr
-  %r.406.a1 = inttoptr i64 %r.405 to ptr
-  %r.406.rv = call ptr @__nucleor_str_concat(ptr %r.406.a0, ptr %r.406.a1)
-  %r.406 = ptrtoint ptr %r.406.rv to i64
-  %r.407.a0 = inttoptr i64 %r.406 to ptr
-  call void @__nucleor_print_str(ptr %r.407.a0)
-  %r.407 = add i64 0, 0
-  %r.408 = ptrtoint ptr @.str.342 to i64
-  %r.409 = load i64, ptr %r.400
-  %r.410 = ptrtoint ptr @.str.343 to i64
-  %r.411.a0 = inttoptr i64 %r.409 to ptr
-  %r.411.a1 = inttoptr i64 %r.410 to ptr
-  %r.411.rv = call ptr @__nucleor_str_concat(ptr %r.411.a0, ptr %r.411.a1)
-  %r.411 = ptrtoint ptr %r.411.rv to i64
-  %r.412.a0 = inttoptr i64 %r.408 to ptr
-  %r.412.a1 = inttoptr i64 %r.411 to ptr
-  %r.412.rv = call ptr @__nucleor_str_concat(ptr %r.412.a0, ptr %r.412.a1)
-  %r.412 = ptrtoint ptr %r.412.rv to i64
-  %r.413.a0 = inttoptr i64 %r.412 to ptr
-  %r.413 = call i64 @__nucleor_panic(ptr %r.413.a0)
-  br label %L134
-L134:
-  %r.414 = load i64, ptr %r.387
-  %r.415 = ptrtoint ptr @.str.344 to i64
-  %r.416.a0 = inttoptr i64 %r.414 to ptr
-  %r.416.a1 = inttoptr i64 %r.415 to ptr
-  %r.416 = call i64 @__nucleor_str_eq(ptr %r.416.a0, ptr %r.416.a1)
+  %r.404 = add i64 1, 0
+  %r.405.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.403, i64 %r.404)
+  %r.405 = extractvalue { i64, i1 } %r.405.ov, 0
+  %r.405.of = extractvalue { i64, i1 } %r.405.ov, 1
+  br i1 %r.405.of, label %L138, label %L139
+L138:
+  %r.405.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L139:
+  %r.406 = call i64 @pk(i64 %r.402, i64 %r.405)
+  %r.407 = add i64 46, 0
+  %r.408.cmp = icmp eq i64 %r.406, %r.407
+  %r.408 = zext i1 %r.408.cmp to i64
+  %r.410 = add i64 0, 0
+  %r.411.cmp = icmp ne i64 %r.408, %r.410
+  %r.411 = zext i1 %r.411.cmp to i64
+  %br.411.cond = icmp ne i64 %r.411, 0
+  br i1 %br.411.cond, label %L140, label %L141
+L140:
+  %r.412 = load i64, ptr %r.0
+  %r.413 = load i64, ptr %r.400
+  %r.414 = add i64 2, 0
+  %r.415.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.413, i64 %r.414)
+  %r.415 = extractvalue { i64, i1 } %r.415.ov, 0
+  %r.415.of = extractvalue { i64, i1 } %r.415.ov, 1
+  br i1 %r.415.of, label %L143, label %L144
+L143:
+  %r.415.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L144:
+  %r.416 = call i64 @pk(i64 %r.412, i64 %r.415)
   %r.417 = add i64 1, 0
   %r.418.cmp = icmp eq i64 %r.416, %r.417
   %r.418 = zext i1 %r.418.cmp to i64
-  %r.420 = add i64 0, 0
-  %r.421.cmp = icmp ne i64 %r.418, %r.420
-  %r.421 = zext i1 %r.421.cmp to i64
-  %br.421.cond = icmp ne i64 %r.421, 0
-  br i1 %br.421.cond, label %L135, label %L136
-L135:
-  %r.422 = load i64, ptr %r.0
-  %r.423 = load i64, ptr %r.391
-  %r.424 = call i64 @pk(i64 %r.422, i64 %r.423)
-  %r.425 = add i64 32, 0
-  %r.426.cmp = icmp eq i64 %r.424, %r.425
-  %r.426 = zext i1 %r.426.cmp to i64
-  %r.427 = add i64 0, 0
-  %r.428.cmp = icmp ne i64 %r.426, %r.427
-  %r.428 = zext i1 %r.428.cmp to i64
-  store i64 %r.428, ptr %r.419
-  br label %L137
-L136:
-  %r.429 = add i64 0, 0
-  store i64 %r.429, ptr %r.419
-  br label %L137
-L137:
-  %r.430 = load i64, ptr %r.419
-  %br.430.cond = icmp ne i64 %r.430, 0
-  br i1 %br.430.cond, label %L138, label %L140
-L138:
-  %r.432 = load i64, ptr %r.391
-  %r.433 = add i64 1, 0
-  %r.434.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.432, i64 %r.433)
-  %r.434 = extractvalue { i64, i1 } %r.434.ov, 0
-  %r.434.of = extractvalue { i64, i1 } %r.434.ov, 1
-  br i1 %r.434.of, label %L141, label %L142
+  %r.419 = add i64 0, 0
+  %r.420.cmp = icmp ne i64 %r.418, %r.419
+  %r.420 = zext i1 %r.420.cmp to i64
+  store i64 %r.420, ptr %r.409
+  br label %L142
 L141:
-  %r.434.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
+  %r.421 = add i64 0, 0
+  store i64 %r.421, ptr %r.409
+  br label %L142
 L142:
-  store i64 %r.434, ptr %r.431
-  %r.436 = add i64 1, 0
-  store i64 %r.433, ptr %r.435
-  br label %L143
-L143:
-  %r.437 = load i64, ptr %r.435
-  %r.438 = add i64 0, 0
-  %r.439.cmp = icmp sgt i64 %r.437, %r.438
-  %r.439 = zext i1 %r.439.cmp to i64
-  %r.441 = add i64 0, 0
-  %r.442.cmp = icmp ne i64 %r.439, %r.438
-  %r.442 = zext i1 %r.442.cmp to i64
-  %br.442.cond = icmp ne i64 %r.442, 0
-  br i1 %br.442.cond, label %L146, label %L147
-L146:
-  %r.443 = load i64, ptr %r.0
-  %r.444 = load i64, ptr %r.431
-  %r.445 = call i64 @pk(i64 %r.443, i64 %r.444)
-  %r.446 = add i64 0, 0
-  %r.447.cmp = icmp ne i64 %r.445, %r.446
-  %r.447 = zext i1 %r.447.cmp to i64
-  %r.448 = add i64 0, 0
-  %r.449.cmp = icmp ne i64 %r.447, %r.446
-  %r.449 = zext i1 %r.449.cmp to i64
-  store i64 %r.449, ptr %r.440
-  br label %L148
-L147:
-  %r.450 = add i64 0, 0
-  store i64 %r.450, ptr %r.440
-  br label %L148
-L148:
-  %r.451 = load i64, ptr %r.440
-  %br.451.cond = icmp ne i64 %r.451, 0
-  br i1 %br.451.cond, label %L144, label %L145
-L144:
-  %r.452 = load i64, ptr %r.0
-  %r.453 = load i64, ptr %r.431
-  %r.454 = call i64 @pk(i64 %r.452, i64 %r.453)
-  %r.455 = add i64 32, 0
-  %r.456.cmp = icmp eq i64 %r.454, %r.455
-  %r.456 = zext i1 %r.456.cmp to i64
-  %br.456.cond = icmp ne i64 %r.456, 0
-  br i1 %br.456.cond, label %L149, label %L150
-L149:
-  %r.457 = load i64, ptr %r.435
-  %r.458 = add i64 1, 0
-  %r.459.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.457, i64 %r.458)
-  %r.459 = extractvalue { i64, i1 } %r.459.ov, 0
-  %r.459.of = extractvalue { i64, i1 } %r.459.ov, 1
-  br i1 %r.459.of, label %L152, label %L153
-L152:
-  %r.459.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L153:
-  store i64 %r.459, ptr %r.435
-  br label %L151
-L150:
-  %r.460 = load i64, ptr %r.0
-  %r.461 = load i64, ptr %r.431
-  %r.462 = call i64 @pk(i64 %r.460, i64 %r.461)
-  %r.463 = add i64 33, 0
-  %r.464.cmp = icmp eq i64 %r.462, %r.463
-  %r.464 = zext i1 %r.464.cmp to i64
-  %br.464.cond = icmp ne i64 %r.464, 0
-  br i1 %br.464.cond, label %L154, label %L156
-L154:
-  %r.465 = load i64, ptr %r.435
-  %r.466 = add i64 1, 0
-  %r.467.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.465, i64 %r.466)
-  %r.467 = extractvalue { i64, i1 } %r.467.ov, 0
-  %r.467.of = extractvalue { i64, i1 } %r.467.ov, 1
-  br i1 %r.467.of, label %L157, label %L158
-L157:
-  %r.467.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L158:
-  store i64 %r.467, ptr %r.435
-  br label %L156
-L156:
-  br label %L151
-L151:
-  %r.468 = load i64, ptr %r.431
-  %r.469 = add i64 1, 0
-  %r.470.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.468, i64 %r.469)
-  %r.470 = extractvalue { i64, i1 } %r.470.ov, 0
-  %r.470.of = extractvalue { i64, i1 } %r.470.ov, 1
-  br i1 %r.470.of, label %L159, label %L160
-L159:
-  %r.470.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L160:
-  store i64 %r.470, ptr %r.431
-  br label %L143
+  %r.422 = load i64, ptr %r.409
+  %br.422.cond = icmp ne i64 %r.422, 0
+  br i1 %br.422.cond, label %L136, label %L137
+L136:
+  %r.423 = load i64, ptr %r.400
+  %r.424 = add i64 2, 0
+  %r.425.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.423, i64 %r.424)
+  %r.425 = extractvalue { i64, i1 } %r.425.ov, 0
+  %r.425.of = extractvalue { i64, i1 } %r.425.ov, 1
+  br i1 %r.425.of, label %L145, label %L146
 L145:
-  %r.471 = load i64, ptr %r.431
-  %r.472 = ptrtoint ptr @.str.101 to i64
-  %r.473 = call i64 @pr(i64 %r.471, i64 %r.472)
-  ret i64 %r.473
-L140:
-  %r.474 = load i64, ptr %r.387
-  %r.475 = ptrtoint ptr @.str.345 to i64
-  %r.476.a0 = inttoptr i64 %r.474 to ptr
-  %r.476.a1 = inttoptr i64 %r.475 to ptr
-  %r.476 = call i64 @__nucleor_str_eq(ptr %r.476.a0, ptr %r.476.a1)
-  %r.477 = add i64 1, 0
-  %r.478.cmp = icmp eq i64 %r.476, %r.477
-  %r.478 = zext i1 %r.478.cmp to i64
-  %r.480 = add i64 0, 0
-  %r.481.cmp = icmp ne i64 %r.478, %r.480
-  %r.481 = zext i1 %r.481.cmp to i64
-  %br.481.cond = icmp ne i64 %r.481, 0
-  br i1 %br.481.cond, label %L161, label %L162
+  %r.425.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L146:
+  store i64 %r.425, ptr %r.400
+  br label %L135
+L137:
+  %r.426 = load i64, ptr %r.400
+  %r.427 = load i64, ptr %r.2
+  %r.428.cmp = icmp sgt i64 %r.426, %r.427
+  %r.428 = zext i1 %r.428.cmp to i64
+  %br.428.cond = icmp ne i64 %r.428, 0
+  br i1 %br.428.cond, label %L147, label %L149
+L147:
+  %r.429 = load i64, ptr %r.0
+  %r.430 = load i64, ptr %r.400
+  %r.431 = call i64 @parse_type(i64 %r.429, i64 %r.430)
+  ret i64 %r.431
+L149:
+  %r.433 = load i64, ptr %r.387
+  store i64 %r.433, ptr %r.432
+  %r.434 = ptrtoint ptr @.str.340 to i64
+  %r.435 = load i64, ptr %r.432
+  %r.436 = ptrtoint ptr @.str.341 to i64
+  %r.437.a0 = inttoptr i64 %r.435 to ptr
+  %r.437.a1 = inttoptr i64 %r.436 to ptr
+  %r.437.rv = call ptr @__nucleor_str_concat(ptr %r.437.a0, ptr %r.437.a1)
+  %r.437 = ptrtoint ptr %r.437.rv to i64
+  %r.438.a0 = inttoptr i64 %r.434 to ptr
+  %r.438.a1 = inttoptr i64 %r.437 to ptr
+  %r.438.rv = call ptr @__nucleor_str_concat(ptr %r.438.a0, ptr %r.438.a1)
+  %r.438 = ptrtoint ptr %r.438.rv to i64
+  %r.439.a0 = inttoptr i64 %r.438 to ptr
+  call void @__nucleor_print_str(ptr %r.439.a0)
+  %r.439 = add i64 0, 0
+  %r.440 = ptrtoint ptr @.str.342 to i64
+  %r.441 = load i64, ptr %r.432
+  %r.442 = ptrtoint ptr @.str.343 to i64
+  %r.443.a0 = inttoptr i64 %r.441 to ptr
+  %r.443.a1 = inttoptr i64 %r.442 to ptr
+  %r.443.rv = call ptr @__nucleor_str_concat(ptr %r.443.a0, ptr %r.443.a1)
+  %r.443 = ptrtoint ptr %r.443.rv to i64
+  %r.444.a0 = inttoptr i64 %r.440 to ptr
+  %r.444.a1 = inttoptr i64 %r.443 to ptr
+  %r.444.rv = call ptr @__nucleor_str_concat(ptr %r.444.a0, ptr %r.444.a1)
+  %r.444 = ptrtoint ptr %r.444.rv to i64
+  %r.445.a0 = inttoptr i64 %r.444 to ptr
+  %r.445 = call i64 @__nucleor_panic(ptr %r.445.a0)
+  br label %L134
+L134:
+  %r.446 = load i64, ptr %r.387
+  %r.447 = ptrtoint ptr @.str.344 to i64
+  %r.448.a0 = inttoptr i64 %r.446 to ptr
+  %r.448.a1 = inttoptr i64 %r.447 to ptr
+  %r.448 = call i64 @__nucleor_str_eq(ptr %r.448.a0, ptr %r.448.a1)
+  %r.449 = add i64 1, 0
+  %r.450.cmp = icmp eq i64 %r.448, %r.449
+  %r.450 = zext i1 %r.450.cmp to i64
+  %r.452 = add i64 0, 0
+  %r.453.cmp = icmp ne i64 %r.450, %r.452
+  %r.453 = zext i1 %r.453.cmp to i64
+  %br.453.cond = icmp ne i64 %r.453, 0
+  br i1 %br.453.cond, label %L150, label %L151
+L150:
+  %r.454 = load i64, ptr %r.0
+  %r.455 = load i64, ptr %r.391
+  %r.456 = call i64 @pk(i64 %r.454, i64 %r.455)
+  %r.457 = add i64 32, 0
+  %r.458.cmp = icmp eq i64 %r.456, %r.457
+  %r.458 = zext i1 %r.458.cmp to i64
+  %r.459 = add i64 0, 0
+  %r.460.cmp = icmp ne i64 %r.458, %r.459
+  %r.460 = zext i1 %r.460.cmp to i64
+  store i64 %r.460, ptr %r.451
+  br label %L152
+L151:
+  %r.461 = add i64 0, 0
+  store i64 %r.461, ptr %r.451
+  br label %L152
+L152:
+  %r.462 = load i64, ptr %r.451
+  %br.462.cond = icmp ne i64 %r.462, 0
+  br i1 %br.462.cond, label %L153, label %L155
+L153:
+  %r.464 = load i64, ptr %r.391
+  %r.465 = add i64 1, 0
+  %r.466.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.464, i64 %r.465)
+  %r.466 = extractvalue { i64, i1 } %r.466.ov, 0
+  %r.466.of = extractvalue { i64, i1 } %r.466.ov, 1
+  br i1 %r.466.of, label %L156, label %L157
+L156:
+  %r.466.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L157:
+  store i64 %r.466, ptr %r.463
+  %r.468 = add i64 1, 0
+  store i64 %r.465, ptr %r.467
+  br label %L158
+L158:
+  %r.469 = load i64, ptr %r.467
+  %r.470 = add i64 0, 0
+  %r.471.cmp = icmp sgt i64 %r.469, %r.470
+  %r.471 = zext i1 %r.471.cmp to i64
+  %r.473 = add i64 0, 0
+  %r.474.cmp = icmp ne i64 %r.471, %r.470
+  %r.474 = zext i1 %r.474.cmp to i64
+  %br.474.cond = icmp ne i64 %r.474, 0
+  br i1 %br.474.cond, label %L161, label %L162
 L161:
-  %r.482 = load i64, ptr %r.0
-  %r.483 = load i64, ptr %r.391
-  %r.484 = call i64 @pk(i64 %r.482, i64 %r.483)
-  %r.485 = add i64 32, 0
-  %r.486.cmp = icmp eq i64 %r.484, %r.485
-  %r.486 = zext i1 %r.486.cmp to i64
-  %r.487 = add i64 0, 0
-  %r.488.cmp = icmp ne i64 %r.486, %r.487
-  %r.488 = zext i1 %r.488.cmp to i64
-  store i64 %r.488, ptr %r.479
+  %r.475 = load i64, ptr %r.0
+  %r.476 = load i64, ptr %r.463
+  %r.477 = call i64 @pk(i64 %r.475, i64 %r.476)
+  %r.478 = add i64 0, 0
+  %r.479.cmp = icmp ne i64 %r.477, %r.478
+  %r.479 = zext i1 %r.479.cmp to i64
+  %r.480 = add i64 0, 0
+  %r.481.cmp = icmp ne i64 %r.479, %r.478
+  %r.481 = zext i1 %r.481.cmp to i64
+  store i64 %r.481, ptr %r.472
   br label %L163
 L162:
-  %r.489 = add i64 0, 0
-  store i64 %r.489, ptr %r.479
+  %r.482 = add i64 0, 0
+  store i64 %r.482, ptr %r.472
   br label %L163
 L163:
-  %r.490 = load i64, ptr %r.479
-  %br.490.cond = icmp ne i64 %r.490, 0
-  br i1 %br.490.cond, label %L164, label %L166
+  %r.483 = load i64, ptr %r.472
+  %br.483.cond = icmp ne i64 %r.483, 0
+  br i1 %br.483.cond, label %L159, label %L160
+L159:
+  %r.484 = load i64, ptr %r.0
+  %r.485 = load i64, ptr %r.463
+  %r.486 = call i64 @pk(i64 %r.484, i64 %r.485)
+  %r.487 = add i64 32, 0
+  %r.488.cmp = icmp eq i64 %r.486, %r.487
+  %r.488 = zext i1 %r.488.cmp to i64
+  %br.488.cond = icmp ne i64 %r.488, 0
+  br i1 %br.488.cond, label %L164, label %L165
 L164:
-  %r.492 = load i64, ptr %r.391
-  %r.493 = add i64 1, 0
-  %r.494.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.492, i64 %r.493)
-  %r.494 = extractvalue { i64, i1 } %r.494.ov, 0
-  %r.494.of = extractvalue { i64, i1 } %r.494.ov, 1
-  br i1 %r.494.of, label %L167, label %L168
+  %r.489 = load i64, ptr %r.467
+  %r.490 = add i64 1, 0
+  %r.491.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.489, i64 %r.490)
+  %r.491 = extractvalue { i64, i1 } %r.491.ov, 0
+  %r.491.of = extractvalue { i64, i1 } %r.491.ov, 1
+  br i1 %r.491.of, label %L167, label %L168
 L167:
-  %r.494.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.491.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
 L168:
-  store i64 %r.494, ptr %r.491
-  %r.496 = load i64, ptr %r.0
-  %r.497 = load i64, ptr %r.491
-  %r.498 = call i64 @parse_type(i64 %r.496, i64 %r.497)
-  store i64 %r.498, ptr %r.495
-  %r.500 = load i64, ptr %r.495
-  %r.501 = call i64 @pr_val(i64 %r.500)
-  store i64 %r.501, ptr %r.499
-  %r.502 = load i64, ptr %r.495
-  %r.503 = call i64 @pr_pos(i64 %r.502)
-  store i64 %r.503, ptr %r.491
-  %r.505 = add i64 1, 0
-  store i64 %r.493, ptr %r.504
-  br label %L169
+  store i64 %r.491, ptr %r.467
+  br label %L166
+L165:
+  %r.492 = load i64, ptr %r.0
+  %r.493 = load i64, ptr %r.463
+  %r.494 = call i64 @pk(i64 %r.492, i64 %r.493)
+  %r.495 = add i64 33, 0
+  %r.496.cmp = icmp eq i64 %r.494, %r.495
+  %r.496 = zext i1 %r.496.cmp to i64
+  %br.496.cond = icmp ne i64 %r.496, 0
+  br i1 %br.496.cond, label %L169, label %L171
 L169:
-  %r.506 = load i64, ptr %r.504
-  %r.507 = add i64 0, 0
-  %r.508.cmp = icmp sgt i64 %r.506, %r.507
-  %r.508 = zext i1 %r.508.cmp to i64
-  %r.510 = add i64 0, 0
-  %r.511.cmp = icmp ne i64 %r.508, %r.507
-  %r.511 = zext i1 %r.511.cmp to i64
-  %br.511.cond = icmp ne i64 %r.511, 0
-  br i1 %br.511.cond, label %L172, label %L173
+  %r.497 = load i64, ptr %r.467
+  %r.498 = add i64 1, 0
+  %r.499.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.497, i64 %r.498)
+  %r.499 = extractvalue { i64, i1 } %r.499.ov, 0
+  %r.499.of = extractvalue { i64, i1 } %r.499.ov, 1
+  br i1 %r.499.of, label %L172, label %L173
 L172:
-  %r.512 = load i64, ptr %r.0
-  %r.513 = load i64, ptr %r.491
-  %r.514 = call i64 @pk(i64 %r.512, i64 %r.513)
-  %r.515 = add i64 0, 0
-  %r.516.cmp = icmp ne i64 %r.514, %r.515
-  %r.516 = zext i1 %r.516.cmp to i64
-  %r.517 = add i64 0, 0
-  %r.518.cmp = icmp ne i64 %r.516, %r.515
-  %r.518 = zext i1 %r.518.cmp to i64
-  store i64 %r.518, ptr %r.509
-  br label %L174
+  %r.499.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
 L173:
-  %r.519 = add i64 0, 0
-  store i64 %r.519, ptr %r.509
-  br label %L174
-L174:
-  %r.520 = load i64, ptr %r.509
-  %br.520.cond = icmp ne i64 %r.520, 0
-  br i1 %br.520.cond, label %L170, label %L171
-L170:
-  %r.521 = load i64, ptr %r.0
-  %r.522 = load i64, ptr %r.491
-  %r.523 = call i64 @pk(i64 %r.521, i64 %r.522)
-  %r.524 = add i64 32, 0
-  %r.525.cmp = icmp eq i64 %r.523, %r.524
-  %r.525 = zext i1 %r.525.cmp to i64
-  %br.525.cond = icmp ne i64 %r.525, 0
-  br i1 %br.525.cond, label %L175, label %L176
-L175:
-  %r.526 = load i64, ptr %r.504
-  %r.527 = add i64 1, 0
-  %r.528.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.526, i64 %r.527)
-  %r.528 = extractvalue { i64, i1 } %r.528.ov, 0
-  %r.528.of = extractvalue { i64, i1 } %r.528.ov, 1
-  br i1 %r.528.of, label %L178, label %L179
-L178:
-  %r.528.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L179:
-  store i64 %r.528, ptr %r.504
-  br label %L177
-L176:
-  %r.529 = load i64, ptr %r.0
-  %r.530 = load i64, ptr %r.491
-  %r.531 = call i64 @pk(i64 %r.529, i64 %r.530)
-  %r.532 = add i64 33, 0
-  %r.533.cmp = icmp eq i64 %r.531, %r.532
-  %r.533 = zext i1 %r.533.cmp to i64
-  %br.533.cond = icmp ne i64 %r.533, 0
-  br i1 %br.533.cond, label %L180, label %L182
-L180:
-  %r.534 = load i64, ptr %r.504
-  %r.535 = add i64 1, 0
-  %r.536.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.534, i64 %r.535)
-  %r.536 = extractvalue { i64, i1 } %r.536.ov, 0
-  %r.536.of = extractvalue { i64, i1 } %r.536.ov, 1
-  br i1 %r.536.of, label %L183, label %L184
-L183:
-  %r.536.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L184:
-  store i64 %r.536, ptr %r.504
-  br label %L182
-L182:
-  br label %L177
-L177:
-  %r.537 = load i64, ptr %r.491
-  %r.538 = add i64 1, 0
-  %r.539.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.537, i64 %r.538)
-  %r.539 = extractvalue { i64, i1 } %r.539.ov, 0
-  %r.539.of = extractvalue { i64, i1 } %r.539.ov, 1
-  br i1 %r.539.of, label %L185, label %L186
-L185:
-  %r.539.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L186:
-  store i64 %r.539, ptr %r.491
-  br label %L169
+  store i64 %r.499, ptr %r.467
+  br label %L171
 L171:
-  %r.540 = load i64, ptr %r.491
-  %r.541 = load i64, ptr %r.499
-  %r.542 = call i64 @pr(i64 %r.540, i64 %r.541)
-  ret i64 %r.542
+  br label %L166
 L166:
-  %r.543 = load i64, ptr %r.0
-  %r.544 = load i64, ptr %r.391
-  %r.545 = call i64 @pk(i64 %r.543, i64 %r.544)
-  %r.546 = add i64 32, 0
-  %r.547.cmp = icmp eq i64 %r.545, %r.546
-  %r.547 = zext i1 %r.547.cmp to i64
-  %br.547.cond = icmp ne i64 %r.547, 0
-  br i1 %br.547.cond, label %L187, label %L189
-L187:
-  %r.549 = load i64, ptr %r.391
-  %r.550 = add i64 1, 0
-  %r.551.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.549, i64 %r.550)
-  %r.551 = extractvalue { i64, i1 } %r.551.ov, 0
-  %r.551.of = extractvalue { i64, i1 } %r.551.ov, 1
-  br i1 %r.551.of, label %L190, label %L191
-L190:
-  %r.551.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.500 = load i64, ptr %r.463
+  %r.501 = add i64 1, 0
+  %r.502.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.500, i64 %r.501)
+  %r.502 = extractvalue { i64, i1 } %r.502.ov, 0
+  %r.502.of = extractvalue { i64, i1 } %r.502.ov, 1
+  br i1 %r.502.of, label %L174, label %L175
+L174:
+  %r.502.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
-L191:
-  store i64 %r.551, ptr %r.548
-  %r.553.rv = call ptr @__nucleor_vec_new()
-  %r.553 = ptrtoint ptr %r.553.rv to i64
-  store i64 %r.553, ptr %r.552
-  %r.555 = add i64 1, 0
-  store i64 %r.550, ptr %r.554
+L175:
+  store i64 %r.502, ptr %r.463
+  br label %L158
+L160:
+  %r.503 = load i64, ptr %r.463
+  %r.504 = ptrtoint ptr @.str.101 to i64
+  %r.505 = call i64 @pr(i64 %r.503, i64 %r.504)
+  ret i64 %r.505
+L155:
+  %r.506 = load i64, ptr %r.387
+  %r.507 = ptrtoint ptr @.str.345 to i64
+  %r.508.a0 = inttoptr i64 %r.506 to ptr
+  %r.508.a1 = inttoptr i64 %r.507 to ptr
+  %r.508 = call i64 @__nucleor_str_eq(ptr %r.508.a0, ptr %r.508.a1)
+  %r.509 = add i64 1, 0
+  %r.510.cmp = icmp eq i64 %r.508, %r.509
+  %r.510 = zext i1 %r.510.cmp to i64
+  %r.512 = add i64 0, 0
+  %r.513.cmp = icmp ne i64 %r.510, %r.512
+  %r.513 = zext i1 %r.513.cmp to i64
+  %br.513.cond = icmp ne i64 %r.513, 0
+  br i1 %br.513.cond, label %L176, label %L177
+L176:
+  %r.514 = load i64, ptr %r.0
+  %r.515 = load i64, ptr %r.391
+  %r.516 = call i64 @pk(i64 %r.514, i64 %r.515)
+  %r.517 = add i64 32, 0
+  %r.518.cmp = icmp eq i64 %r.516, %r.517
+  %r.518 = zext i1 %r.518.cmp to i64
+  %r.519 = add i64 0, 0
+  %r.520.cmp = icmp ne i64 %r.518, %r.519
+  %r.520 = zext i1 %r.520.cmp to i64
+  store i64 %r.520, ptr %r.511
+  br label %L178
+L177:
+  %r.521 = add i64 0, 0
+  store i64 %r.521, ptr %r.511
+  br label %L178
+L178:
+  %r.522 = load i64, ptr %r.511
+  %br.522.cond = icmp ne i64 %r.522, 0
+  br i1 %br.522.cond, label %L179, label %L181
+L179:
+  %r.524 = load i64, ptr %r.391
+  %r.525 = add i64 1, 0
+  %r.526.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.524, i64 %r.525)
+  %r.526 = extractvalue { i64, i1 } %r.526.ov, 0
+  %r.526.of = extractvalue { i64, i1 } %r.526.ov, 1
+  br i1 %r.526.of, label %L182, label %L183
+L182:
+  %r.526.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L183:
+  store i64 %r.526, ptr %r.523
+  %r.528 = load i64, ptr %r.0
+  %r.529 = load i64, ptr %r.523
+  %r.530 = call i64 @parse_type(i64 %r.528, i64 %r.529)
+  store i64 %r.530, ptr %r.527
+  %r.532 = load i64, ptr %r.527
+  %r.533 = call i64 @pr_val(i64 %r.532)
+  store i64 %r.533, ptr %r.531
+  %r.534 = load i64, ptr %r.527
+  %r.535 = call i64 @pr_pos(i64 %r.534)
+  store i64 %r.535, ptr %r.523
+  %r.537 = add i64 1, 0
+  store i64 %r.525, ptr %r.536
+  br label %L184
+L184:
+  %r.538 = load i64, ptr %r.536
+  %r.539 = add i64 0, 0
+  %r.540.cmp = icmp sgt i64 %r.538, %r.539
+  %r.540 = zext i1 %r.540.cmp to i64
+  %r.542 = add i64 0, 0
+  %r.543.cmp = icmp ne i64 %r.540, %r.539
+  %r.543 = zext i1 %r.543.cmp to i64
+  %br.543.cond = icmp ne i64 %r.543, 0
+  br i1 %br.543.cond, label %L187, label %L188
+L187:
+  %r.544 = load i64, ptr %r.0
+  %r.545 = load i64, ptr %r.523
+  %r.546 = call i64 @pk(i64 %r.544, i64 %r.545)
+  %r.547 = add i64 0, 0
+  %r.548.cmp = icmp ne i64 %r.546, %r.547
+  %r.548 = zext i1 %r.548.cmp to i64
+  %r.549 = add i64 0, 0
+  %r.550.cmp = icmp ne i64 %r.548, %r.547
+  %r.550 = zext i1 %r.550.cmp to i64
+  store i64 %r.550, ptr %r.541
+  br label %L189
+L188:
+  %r.551 = add i64 0, 0
+  store i64 %r.551, ptr %r.541
+  br label %L189
+L189:
+  %r.552 = load i64, ptr %r.541
+  %br.552.cond = icmp ne i64 %r.552, 0
+  br i1 %br.552.cond, label %L185, label %L186
+L185:
+  %r.553 = load i64, ptr %r.0
+  %r.554 = load i64, ptr %r.523
+  %r.555 = call i64 @pk(i64 %r.553, i64 %r.554)
+  %r.556 = add i64 32, 0
+  %r.557.cmp = icmp eq i64 %r.555, %r.556
+  %r.557 = zext i1 %r.557.cmp to i64
+  %br.557.cond = icmp ne i64 %r.557, 0
+  br i1 %br.557.cond, label %L190, label %L191
+L190:
+  %r.558 = load i64, ptr %r.536
+  %r.559 = add i64 1, 0
+  %r.560.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.558, i64 %r.559)
+  %r.560 = extractvalue { i64, i1 } %r.560.ov, 0
+  %r.560.of = extractvalue { i64, i1 } %r.560.ov, 1
+  br i1 %r.560.of, label %L193, label %L194
+L193:
+  %r.560.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L194:
+  store i64 %r.560, ptr %r.536
   br label %L192
-L192:
-  %r.556 = load i64, ptr %r.0
-  %r.557 = load i64, ptr %r.548
-  %r.558 = call i64 @pk(i64 %r.556, i64 %r.557)
-  %r.559 = add i64 33, 0
-  %r.560.cmp = icmp ne i64 %r.558, %r.559
-  %r.560 = zext i1 %r.560.cmp to i64
-  %r.562 = add i64 0, 0
-  %r.563.cmp = icmp ne i64 %r.560, %r.562
-  %r.563 = zext i1 %r.563.cmp to i64
-  %br.563.cond = icmp ne i64 %r.563, 0
-  br i1 %br.563.cond, label %L195, label %L196
+L191:
+  %r.561 = load i64, ptr %r.0
+  %r.562 = load i64, ptr %r.523
+  %r.563 = call i64 @pk(i64 %r.561, i64 %r.562)
+  %r.564 = add i64 33, 0
+  %r.565.cmp = icmp eq i64 %r.563, %r.564
+  %r.565 = zext i1 %r.565.cmp to i64
+  %br.565.cond = icmp ne i64 %r.565, 0
+  br i1 %br.565.cond, label %L195, label %L197
 L195:
-  %r.564 = load i64, ptr %r.0
-  %r.565 = load i64, ptr %r.548
-  %r.566 = call i64 @pk(i64 %r.564, i64 %r.565)
-  %r.567 = add i64 0, 0
-  %r.568.cmp = icmp ne i64 %r.566, %r.567
-  %r.568 = zext i1 %r.568.cmp to i64
-  %r.569 = add i64 0, 0
-  %r.570.cmp = icmp ne i64 %r.568, %r.567
-  %r.570 = zext i1 %r.570.cmp to i64
-  store i64 %r.570, ptr %r.561
-  br label %L197
-L196:
-  %r.571 = add i64 0, 0
-  store i64 %r.571, ptr %r.561
+  %r.566 = load i64, ptr %r.536
+  %r.567 = add i64 1, 0
+  %r.568.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.566, i64 %r.567)
+  %r.568 = extractvalue { i64, i1 } %r.568.ov, 0
+  %r.568.of = extractvalue { i64, i1 } %r.568.ov, 1
+  br i1 %r.568.of, label %L198, label %L199
+L198:
+  %r.568.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L199:
+  store i64 %r.568, ptr %r.536
   br label %L197
 L197:
-  %r.572 = load i64, ptr %r.561
-  %br.572.cond = icmp ne i64 %r.572, 0
-  br i1 %br.572.cond, label %L193, label %L194
-L193:
-  %r.573 = load i64, ptr %r.554
-  %r.574 = add i64 0, 0
-  %r.575.cmp = icmp eq i64 %r.573, %r.574
-  %r.575 = zext i1 %r.575.cmp to i64
-  %br.575.cond = icmp ne i64 %r.575, 0
-  br i1 %br.575.cond, label %L198, label %L200
-L198:
-  %r.576 = load i64, ptr %r.0
-  %r.577 = load i64, ptr %r.548
-  %r.578 = add i64 44, 0
-  %r.579 = call i64 @expect_tok(i64 %r.576, i64 %r.577, i64 %r.578)
-  store i64 %r.579, ptr %r.548
-  %r.580 = load i64, ptr %r.0
-  %r.581 = load i64, ptr %r.548
-  %r.582 = call i64 @pk(i64 %r.580, i64 %r.581)
-  %r.583 = add i64 33, 0
-  %r.584.cmp = icmp eq i64 %r.582, %r.583
-  %r.584 = zext i1 %r.584.cmp to i64
-  %br.584.cond = icmp ne i64 %r.584, 0
-  br i1 %br.584.cond, label %L201, label %L203
-L201:
-  br label %L194
-L203:
-  br label %L200
-L200:
-  %r.585 = add i64 0, 0
-  store i64 %r.585, ptr %r.554
-  %r.586 = load i64, ptr %r.0
-  %r.587 = load i64, ptr %r.548
-  %r.588 = call i64 @pk(i64 %r.586, i64 %r.587)
-  %r.589 = add i64 98, 0
-  %r.590.cmp = icmp eq i64 %r.588, %r.589
-  %r.590 = zext i1 %r.590.cmp to i64
-  %br.590.cond = icmp ne i64 %r.590, 0
-  br i1 %br.590.cond, label %L204, label %L205
-L204:
-  %r.591 = load i64, ptr %r.548
-  %r.592 = add i64 1, 0
-  %r.593.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.591, i64 %r.592)
-  %r.593 = extractvalue { i64, i1 } %r.593.ov, 0
-  %r.593.of = extractvalue { i64, i1 } %r.593.ov, 1
-  br i1 %r.593.of, label %L207, label %L208
-L207:
-  %r.593.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L208:
-  store i64 %r.593, ptr %r.548
-  br label %L206
-L205:
-  %r.595 = load i64, ptr %r.0
-  %r.596 = load i64, ptr %r.548
-  %r.597 = call i64 @parse_type(i64 %r.595, i64 %r.596)
-  store i64 %r.597, ptr %r.594
-  %r.598 = load i64, ptr %r.594
-  %r.599 = call i64 @pr_pos(i64 %r.598)
-  store i64 %r.599, ptr %r.548
-  %r.600 = load i64, ptr %r.552
-  %r.601 = load i64, ptr %r.594
-  %r.602 = call i64 @pr_val(i64 %r.601)
-  %r.603.a0 = inttoptr i64 %r.600 to ptr
-  call void @__nucleor_vec_push(ptr %r.603.a0, i64 %r.602)
-  %r.603 = add i64 0, 0
-  br label %L206
-L206:
   br label %L192
-L194:
-  %r.605 = load i64, ptr %r.552
-  %r.606.a0 = inttoptr i64 %r.605 to ptr
-  %r.606 = call i64 @__nucleor_vec_len(ptr %r.606.a0)
-  store i64 %r.606, ptr %r.604
-  %r.607 = load i64, ptr %r.604
-  %r.608 = add i64 0, 0
-  %r.609.cmp = icmp eq i64 %r.607, %r.608
-  %r.609 = zext i1 %r.609.cmp to i64
-  %br.609.cond = icmp ne i64 %r.609, 0
-  br i1 %br.609.cond, label %L209, label %L211
-L209:
-  %r.610 = load i64, ptr %r.548
-  %r.611 = add i64 1, 0
-  %r.612.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.610, i64 %r.611)
-  %r.612 = extractvalue { i64, i1 } %r.612.ov, 0
-  %r.612.of = extractvalue { i64, i1 } %r.612.ov, 1
-  br i1 %r.612.of, label %L212, label %L213
-L212:
-  %r.612.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+L192:
+  %r.569 = load i64, ptr %r.523
+  %r.570 = add i64 1, 0
+  %r.571.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.569, i64 %r.570)
+  %r.571 = extractvalue { i64, i1 } %r.571.ov, 0
+  %r.571.of = extractvalue { i64, i1 } %r.571.ov, 1
+  br i1 %r.571.of, label %L200, label %L201
+L200:
+  %r.571.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
-L213:
-  %r.613 = load i64, ptr %r.387
-  %r.614 = call i64 @pr(i64 %r.612, i64 %r.613)
-  ret i64 %r.614
+L201:
+  store i64 %r.571, ptr %r.523
+  br label %L184
+L186:
+  %r.572 = load i64, ptr %r.523
+  %r.573 = load i64, ptr %r.531
+  %r.574 = call i64 @pr(i64 %r.572, i64 %r.573)
+  ret i64 %r.574
+L181:
+  %r.575 = load i64, ptr %r.0
+  %r.576 = load i64, ptr %r.391
+  %r.577 = call i64 @pk(i64 %r.575, i64 %r.576)
+  %r.578 = add i64 32, 0
+  %r.579.cmp = icmp eq i64 %r.577, %r.578
+  %r.579 = zext i1 %r.579.cmp to i64
+  %br.579.cond = icmp ne i64 %r.579, 0
+  br i1 %br.579.cond, label %L202, label %L204
+L202:
+  %r.581 = load i64, ptr %r.391
+  %r.582 = add i64 1, 0
+  %r.583.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.581, i64 %r.582)
+  %r.583 = extractvalue { i64, i1 } %r.583.ov, 0
+  %r.583.of = extractvalue { i64, i1 } %r.583.ov, 1
+  br i1 %r.583.of, label %L205, label %L206
+L205:
+  %r.583.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L206:
+  store i64 %r.583, ptr %r.580
+  %r.585.rv = call ptr @__nucleor_vec_new()
+  %r.585 = ptrtoint ptr %r.585.rv to i64
+  store i64 %r.585, ptr %r.584
+  %r.587 = add i64 1, 0
+  store i64 %r.582, ptr %r.586
+  br label %L207
+L207:
+  %r.588 = load i64, ptr %r.0
+  %r.589 = load i64, ptr %r.580
+  %r.590 = call i64 @pk(i64 %r.588, i64 %r.589)
+  %r.591 = add i64 33, 0
+  %r.592.cmp = icmp ne i64 %r.590, %r.591
+  %r.592 = zext i1 %r.592.cmp to i64
+  %r.594 = add i64 0, 0
+  %r.595.cmp = icmp ne i64 %r.592, %r.594
+  %r.595 = zext i1 %r.595.cmp to i64
+  %br.595.cond = icmp ne i64 %r.595, 0
+  br i1 %br.595.cond, label %L210, label %L211
+L210:
+  %r.596 = load i64, ptr %r.0
+  %r.597 = load i64, ptr %r.580
+  %r.598 = call i64 @pk(i64 %r.596, i64 %r.597)
+  %r.599 = add i64 0, 0
+  %r.600.cmp = icmp ne i64 %r.598, %r.599
+  %r.600 = zext i1 %r.600.cmp to i64
+  %r.601 = add i64 0, 0
+  %r.602.cmp = icmp ne i64 %r.600, %r.599
+  %r.602 = zext i1 %r.602.cmp to i64
+  store i64 %r.602, ptr %r.593
+  br label %L212
 L211:
-  %r.616 = load i64, ptr %r.552
-  %r.617 = add i64 0, 0
-  %r.618.a0 = inttoptr i64 %r.616 to ptr
-  %r.618 = call i64 @__nucleor_vec_get(ptr %r.618.a0, i64 %r.617)
-  store i64 %r.618, ptr %r.615
-  %r.620 = add i64 1, 0
-  store i64 %r.620, ptr %r.619
-  br label %L214
-L214:
-  %r.621 = load i64, ptr %r.619
-  %r.622 = load i64, ptr %r.604
-  %r.623.cmp = icmp slt i64 %r.621, %r.622
-  %r.623 = zext i1 %r.623.cmp to i64
-  %br.623.cond = icmp ne i64 %r.623, 0
-  br i1 %br.623.cond, label %L215, label %L216
-L215:
-  %r.624 = load i64, ptr %r.615
-  %r.625 = ptrtoint ptr @.str.327 to i64
-  %r.626 = load i64, ptr %r.552
-  %r.627 = load i64, ptr %r.619
-  %r.628.a0 = inttoptr i64 %r.626 to ptr
-  %r.628 = call i64 @__nucleor_vec_get(ptr %r.628.a0, i64 %r.627)
-  %r.629.a0 = inttoptr i64 %r.625 to ptr
-  %r.629.a1 = inttoptr i64 %r.628 to ptr
-  %r.629.rv = call ptr @__nucleor_str_concat(ptr %r.629.a0, ptr %r.629.a1)
-  %r.629 = ptrtoint ptr %r.629.rv to i64
-  %r.630.a0 = inttoptr i64 %r.624 to ptr
-  %r.630.a1 = inttoptr i64 %r.629 to ptr
-  %r.630.rv = call ptr @__nucleor_str_concat(ptr %r.630.a0, ptr %r.630.a1)
-  %r.630 = ptrtoint ptr %r.630.rv to i64
-  store i64 %r.630, ptr %r.615
-  %r.631 = load i64, ptr %r.619
-  %r.632 = add i64 1, 0
-  %r.633.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.631, i64 %r.632)
-  %r.633 = extractvalue { i64, i1 } %r.633.ov, 0
-  %r.633.of = extractvalue { i64, i1 } %r.633.ov, 1
-  br i1 %r.633.of, label %L217, label %L218
-L217:
-  %r.633.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L218:
-  store i64 %r.633, ptr %r.619
-  br label %L214
+  %r.603 = add i64 0, 0
+  store i64 %r.603, ptr %r.593
+  br label %L212
+L212:
+  %r.604 = load i64, ptr %r.593
+  %br.604.cond = icmp ne i64 %r.604, 0
+  br i1 %br.604.cond, label %L208, label %L209
+L208:
+  %r.605 = load i64, ptr %r.586
+  %r.606 = add i64 0, 0
+  %r.607.cmp = icmp eq i64 %r.605, %r.606
+  %r.607 = zext i1 %r.607.cmp to i64
+  %br.607.cond = icmp ne i64 %r.607, 0
+  br i1 %br.607.cond, label %L213, label %L215
+L213:
+  %r.608 = load i64, ptr %r.0
+  %r.609 = load i64, ptr %r.580
+  %r.610 = add i64 44, 0
+  %r.611 = call i64 @expect_tok(i64 %r.608, i64 %r.609, i64 %r.610)
+  store i64 %r.611, ptr %r.580
+  %r.612 = load i64, ptr %r.0
+  %r.613 = load i64, ptr %r.580
+  %r.614 = call i64 @pk(i64 %r.612, i64 %r.613)
+  %r.615 = add i64 33, 0
+  %r.616.cmp = icmp eq i64 %r.614, %r.615
+  %r.616 = zext i1 %r.616.cmp to i64
+  %br.616.cond = icmp ne i64 %r.616, 0
+  br i1 %br.616.cond, label %L216, label %L218
 L216:
-  %r.634 = load i64, ptr %r.548
-  %r.635 = add i64 1, 0
-  %r.636.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.634, i64 %r.635)
-  %r.636 = extractvalue { i64, i1 } %r.636.ov, 0
-  %r.636.of = extractvalue { i64, i1 } %r.636.ov, 1
-  br i1 %r.636.of, label %L219, label %L220
+  br label %L209
+L218:
+  br label %L215
+L215:
+  %r.617 = add i64 0, 0
+  store i64 %r.617, ptr %r.586
+  %r.618 = load i64, ptr %r.0
+  %r.619 = load i64, ptr %r.580
+  %r.620 = call i64 @pk(i64 %r.618, i64 %r.619)
+  %r.621 = add i64 98, 0
+  %r.622.cmp = icmp eq i64 %r.620, %r.621
+  %r.622 = zext i1 %r.622.cmp to i64
+  %br.622.cond = icmp ne i64 %r.622, 0
+  br i1 %br.622.cond, label %L219, label %L220
 L219:
-  %r.636.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  %r.623 = load i64, ptr %r.580
+  %r.624 = add i64 1, 0
+  %r.625.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.623, i64 %r.624)
+  %r.625 = extractvalue { i64, i1 } %r.625.ov, 0
+  %r.625.of = extractvalue { i64, i1 } %r.625.ov, 1
+  br i1 %r.625.of, label %L222, label %L223
+L222:
+  %r.625.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
+L223:
+  store i64 %r.625, ptr %r.580
+  br label %L221
 L220:
-  %r.637 = load i64, ptr %r.387
-  %r.638 = ptrtoint ptr @.str.346 to i64
-  %r.639 = load i64, ptr %r.615
-  %r.640 = ptrtoint ptr @.str.323 to i64
-  %r.641.a0 = inttoptr i64 %r.639 to ptr
-  %r.641.a1 = inttoptr i64 %r.640 to ptr
-  %r.641.rv = call ptr @__nucleor_str_concat(ptr %r.641.a0, ptr %r.641.a1)
-  %r.641 = ptrtoint ptr %r.641.rv to i64
-  %r.642.a0 = inttoptr i64 %r.638 to ptr
-  %r.642.a1 = inttoptr i64 %r.641 to ptr
-  %r.642.rv = call ptr @__nucleor_str_concat(ptr %r.642.a0, ptr %r.642.a1)
-  %r.642 = ptrtoint ptr %r.642.rv to i64
-  %r.643.a0 = inttoptr i64 %r.637 to ptr
-  %r.643.a1 = inttoptr i64 %r.642 to ptr
-  %r.643.rv = call ptr @__nucleor_str_concat(ptr %r.643.a0, ptr %r.643.a1)
-  %r.643 = ptrtoint ptr %r.643.rv to i64
-  %r.644 = call i64 @pr(i64 %r.636, i64 %r.643)
-  ret i64 %r.644
-L189:
-  %r.645 = load i64, ptr %r.391
-  %r.646 = load i64, ptr %r.387
-  %r.647 = call i64 @pr(i64 %r.645, i64 %r.646)
-  ret i64 %r.647
+  %r.627 = load i64, ptr %r.0
+  %r.628 = load i64, ptr %r.580
+  %r.629 = call i64 @parse_type(i64 %r.627, i64 %r.628)
+  store i64 %r.629, ptr %r.626
+  %r.630 = load i64, ptr %r.626
+  %r.631 = call i64 @pr_pos(i64 %r.630)
+  store i64 %r.631, ptr %r.580
+  %r.632 = load i64, ptr %r.584
+  %r.633 = load i64, ptr %r.626
+  %r.634 = call i64 @pr_val(i64 %r.633)
+  %r.635.a0 = inttoptr i64 %r.632 to ptr
+  call void @__nucleor_vec_push(ptr %r.635.a0, i64 %r.634)
+  %r.635 = add i64 0, 0
+  br label %L221
+L221:
+  br label %L207
+L209:
+  %r.637 = load i64, ptr %r.584
+  %r.638.a0 = inttoptr i64 %r.637 to ptr
+  %r.638 = call i64 @__nucleor_vec_len(ptr %r.638.a0)
+  store i64 %r.638, ptr %r.636
+  %r.639 = load i64, ptr %r.636
+  %r.640 = add i64 0, 0
+  %r.641.cmp = icmp eq i64 %r.639, %r.640
+  %r.641 = zext i1 %r.641.cmp to i64
+  %br.641.cond = icmp ne i64 %r.641, 0
+  br i1 %br.641.cond, label %L224, label %L226
+L224:
+  %r.642 = load i64, ptr %r.580
+  %r.643 = add i64 1, 0
+  %r.644.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.642, i64 %r.643)
+  %r.644 = extractvalue { i64, i1 } %r.644.ov, 0
+  %r.644.of = extractvalue { i64, i1 } %r.644.ov, 1
+  br i1 %r.644.of, label %L227, label %L228
+L227:
+  %r.644.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L228:
+  %r.645 = load i64, ptr %r.387
+  %r.646 = call i64 @pr(i64 %r.644, i64 %r.645)
+  ret i64 %r.646
+L226:
+  %r.648 = load i64, ptr %r.584
+  %r.649 = add i64 0, 0
+  %r.650.a0 = inttoptr i64 %r.648 to ptr
+  %r.650 = call i64 @__nucleor_vec_get(ptr %r.650.a0, i64 %r.649)
+  store i64 %r.650, ptr %r.647
+  %r.652 = add i64 1, 0
+  store i64 %r.652, ptr %r.651
+  br label %L229
+L229:
+  %r.653 = load i64, ptr %r.651
+  %r.654 = load i64, ptr %r.636
+  %r.655.cmp = icmp slt i64 %r.653, %r.654
+  %r.655 = zext i1 %r.655.cmp to i64
+  %br.655.cond = icmp ne i64 %r.655, 0
+  br i1 %br.655.cond, label %L230, label %L231
+L230:
+  %r.656 = load i64, ptr %r.647
+  %r.657 = ptrtoint ptr @.str.327 to i64
+  %r.658 = load i64, ptr %r.584
+  %r.659 = load i64, ptr %r.651
+  %r.660.a0 = inttoptr i64 %r.658 to ptr
+  %r.660 = call i64 @__nucleor_vec_get(ptr %r.660.a0, i64 %r.659)
+  %r.661.a0 = inttoptr i64 %r.657 to ptr
+  %r.661.a1 = inttoptr i64 %r.660 to ptr
+  %r.661.rv = call ptr @__nucleor_str_concat(ptr %r.661.a0, ptr %r.661.a1)
+  %r.661 = ptrtoint ptr %r.661.rv to i64
+  %r.662.a0 = inttoptr i64 %r.656 to ptr
+  %r.662.a1 = inttoptr i64 %r.661 to ptr
+  %r.662.rv = call ptr @__nucleor_str_concat(ptr %r.662.a0, ptr %r.662.a1)
+  %r.662 = ptrtoint ptr %r.662.rv to i64
+  store i64 %r.662, ptr %r.647
+  %r.663 = load i64, ptr %r.651
+  %r.664 = add i64 1, 0
+  %r.665.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.663, i64 %r.664)
+  %r.665 = extractvalue { i64, i1 } %r.665.ov, 0
+  %r.665.of = extractvalue { i64, i1 } %r.665.ov, 1
+  br i1 %r.665.of, label %L232, label %L233
+L232:
+  %r.665.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L233:
+  store i64 %r.665, ptr %r.651
+  br label %L229
+L231:
+  %r.666 = load i64, ptr %r.580
+  %r.667 = add i64 1, 0
+  %r.668.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.666, i64 %r.667)
+  %r.668 = extractvalue { i64, i1 } %r.668.ov, 0
+  %r.668.of = extractvalue { i64, i1 } %r.668.ov, 1
+  br i1 %r.668.of, label %L234, label %L235
+L234:
+  %r.668.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L235:
+  %r.669 = load i64, ptr %r.387
+  %r.670 = ptrtoint ptr @.str.346 to i64
+  %r.671 = load i64, ptr %r.647
+  %r.672 = ptrtoint ptr @.str.323 to i64
+  %r.673.a0 = inttoptr i64 %r.671 to ptr
+  %r.673.a1 = inttoptr i64 %r.672 to ptr
+  %r.673.rv = call ptr @__nucleor_str_concat(ptr %r.673.a0, ptr %r.673.a1)
+  %r.673 = ptrtoint ptr %r.673.rv to i64
+  %r.674.a0 = inttoptr i64 %r.670 to ptr
+  %r.674.a1 = inttoptr i64 %r.673 to ptr
+  %r.674.rv = call ptr @__nucleor_str_concat(ptr %r.674.a0, ptr %r.674.a1)
+  %r.674 = ptrtoint ptr %r.674.rv to i64
+  %r.675.a0 = inttoptr i64 %r.669 to ptr
+  %r.675.a1 = inttoptr i64 %r.674 to ptr
+  %r.675.rv = call ptr @__nucleor_str_concat(ptr %r.675.a0, ptr %r.675.a1)
+  %r.675 = ptrtoint ptr %r.675.rv to i64
+  %r.676 = call i64 @pr(i64 %r.668, i64 %r.675)
+  ret i64 %r.676
+L204:
+  %r.677 = load i64, ptr %r.391
+  %r.678 = load i64, ptr %r.387
+  %r.679 = call i64 @pr(i64 %r.677, i64 %r.678)
+  ret i64 %r.679
 }
 
 define i64 @parse_generic_params(i64 %p.0, i64 %p.1) {
