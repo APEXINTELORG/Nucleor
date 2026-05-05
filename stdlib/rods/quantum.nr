@@ -458,3 +458,34 @@ fn qsim_reset(sv: i64) {
         i = i + 1;
     };
 }
+
+// === R11-D1 Phase 1 (v0.8.304) — qsim state surface disclosure ===
+//
+// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D1 (HIGH):
+// the rod's header documents missing statevec access (full
+// amplitude vector readout); state accounting is capped at a hard
+// qubit count internally. Adopters reading the rod can't query
+// EITHER the cap NOR whether their qubit count is supported
+// without trying it.
+//
+// Phase 1: ship `qsim_max_qubits()`, `qsim_supports_n_qubits(n)`,
+// and `qsim_limitations()` text.
+
+// Returns the maximum qubit count supported by qsim_init's
+// underlying state-vector representation. As of v0.8.304 the safe
+// limit is 24 (16M amplitudes × 16 bytes complex = 256 MB).
+fn qsim_max_qubits() -> i64 {
+    return 24;
+}
+
+// Returns 1 if `n` qubits is supported by qsim_init(n), 0 if it
+// would exceed the cap. Adopters call BEFORE qsim_init.
+fn qsim_supports_n_qubits(n: i64) -> i64 {
+    if n < 1 { return 0; };
+    if n > qsim_max_qubits() { return 0; };
+    return 1;
+}
+
+fn qsim_limitations() -> str {
+    return "qsim (statevec) rod limitations (QM-1, audit R11-D1 v0.8.304): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n>24) fails or OOMs; query qsim_supports_n_qubits(n) BEFORE invoking. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect — no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+}
