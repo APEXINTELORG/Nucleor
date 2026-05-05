@@ -6,6 +6,13 @@
 //   source -> lex -> parse -> lower -> emit LLVM IR -> clang -> native exe
 // Usage: nucleor_s1 <source.nr> <output_name>
 // =====================================================
+// v0.8.302: file-wide PERF-3 suppression. The compiler builds
+// AST nodes per-iteration in lex / parse / lower paths — each
+// `Vec::new()` inside a `while`/`loop` is intentional (bounded
+// per-token / per-stmt allocation, not a per-iteration leak).
+// 56 PERF-3 sites suppressed wholesale; per-fn `#[allow_fn]` would
+// be cleaner but is high-noise vs return.
+#[allow(PERF-3)]
 
 // T1.1 Phase 3c (v0.2.310): widened internal arithmetic to i64 so
 // large register IDs and IR constant values (up to i64 max) are
