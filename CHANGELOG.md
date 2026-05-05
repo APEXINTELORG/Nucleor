@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.215] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — hnsw + multigrid.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### hnsw rod (HNSW vector index — approximate NN)
+
+`tests/features/hnsw_smoke.nr` builds a 2-D index with M=4,
+ef_construct=16; inserts 4 unit-square corners with IDs
+100/101/102/103. Sister to `kdtree_smoke.nr` (exact NN over
+k-d trees). Locks four invariants:
+
+| Test | Path |
+|---|---|
+| Empty index | hnsw_size == 0 right after construction |
+| Insert tracks size | 4 inserts → size 4 |
+| **Self-match search** | querying inserted vector returns its own ID |
+| k=1 search returns 1 result | vec_len(result) matches requested k |
+
+### multigrid rod (2-D multigrid Poisson solver)
+
+`tests/features/multigrid_smoke.nr` exercises the V-cycle on
+N=8 grid with all-zero rhs (exact solution u=0). Locks four
+invariants:
+
+| Test | Path |
+|---|---|
+| Residual of zero u + zero f == 0 | sanity gate |
+| Solver completes | mg_solve_2d returns without crashing |
+| **Solve preserves zero state** | f=0, u_init=0 → u stays all-zero |
+| Post-solve residual is small | ≤ tol on the trivial problem |
+
+Gauss-Seidel red-black smoother + full-weighting restriction +
+bilinear prolongation are all exercised through the V-cycle
+even on the trivial problem.
+
+All pass. rc=0.
+
 ## [0.8.214] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — moe + mps.**
