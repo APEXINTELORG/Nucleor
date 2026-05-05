@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.244] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — rrt + ukf.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### rrt rod (Rapidly-exploring Random Tree planner)
+
+`tests/features/rrt_smoke.nr`. plan / connect_plan / star /
+informed all need fn-pointer collision callbacks; deferred:
+
+| Test | Path |
+|---|---|
+| rrt_new returns valid handle | non-zero |
+| path_len before plan is 0 | no plan → no path |
+| node_count before plan is 0 | empty tree |
+| **set_bounds + free do not crash** | scalar bounds-setter on every dim |
+
+### ukf rod (unscented Kalman filter)
+
+`tests/features/ukf_smoke.nr`. Sister to ekf_smoke v0.8.238.
+predict / update need fn-pointer dynamics + measurement
+callbacks; deferred:
+
+| Test | Path |
+|---|---|
+| ukf_new with reasonable dims | non-zero handle |
+| n_u=0 still works | autonomous system |
+| Multiple distinct UKFs | two constructions → distinct handles |
+| ukf_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.243] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — fsp + thread.**
