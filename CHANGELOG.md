@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.239] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — prm + reach.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods take
+fn-pointer collision-check / FK callbacks; these fixtures lock
+the lifecycle path around those surfaces.
+
+### prm rod (Probabilistic Roadmap motion planner)
+
+`tests/features/prm_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| prm_new returns valid handle | non-zero |
+| Empty roadmap | node_count = edge_count = 0 |
+| path_len before query is 0 | no query → no path |
+| **set_bounds + free do not crash** | exercises the scalar bounds-setter on every dim |
+
+### reach rod (Monte Carlo reachability mapper)
+
+`tests/features/reach_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| reach_new returns valid handle | non-zero |
+| count == 0 before compute | empty sampler |
+| **set_joint_limit on each dim** | per-joint bounds setter exercised |
+| reach_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.238] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — astar + ekf.**
