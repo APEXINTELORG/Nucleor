@@ -27930,6 +27930,26 @@ fn cache_v2_strict_intrin_flag() -> str {
     return "1";
 }
 
+// R10-D4 Phase 1 (v0.8.296, audit
+// `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D4 HIGH):
+// `NUCLEOR_INT_STRICT_ARITH=1` flips integer +/-/* lowering between
+// the legacy native path and the panic-on-overflow path (verified
+// at lines 23322 + 23471). Pre-v0.8.296 the cache key did NOT
+// include this env flag — flipping it between builds gave stale
+// IR with the previous semantics. This is a real correctness bug:
+// adopters who set NUCLEOR_INT_STRICT_ARITH=1 on a previously-
+// cached build got the non-strict IR back from cache.
+//
+// Fix: parallel `cache_v2_strict_arith_flag()` + entry in
+// `cache_v2_canonical_flags()`. Cache key now changes when the
+// env flips → cache miss → fresh build with correct semantics.
+#[manual_drop]
+fn cache_v2_strict_arith_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
+    if str_eq(raw, "1") == 1 { return "1"; };
+    return "0";
+}
+
 #[manual_drop]
 fn cache_v2_dbc_flag() -> str {
     let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
@@ -27944,6 +27964,10 @@ fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     sb_append(sb, cache_v2_dbc_flag());
     sb_append(sb, ";strict-intrin=");
     sb_append(sb, cache_v2_strict_intrin_flag());
+    // R10-D4 Phase 1 (v0.8.296): include strict-arith env so cache
+    // invalidates when NUCLEOR_INT_STRICT_ARITH flips.
+    sb_append(sb, ";strict-arith=");
+    sb_append(sb, cache_v2_strict_arith_flag());
     sb_append(sb, ";strict-mode=");
     sb_append(sb, build_mode_name(strict_mode));
     return sb_to_str(sb);
