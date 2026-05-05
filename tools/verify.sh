@@ -4925,6 +4925,27 @@ t18_self_host_compiler_fixed_point() {
     bash "$ROOT/tools/check_self_host_md5.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+posix_perf_regression_monitor() {
+    local check="$ROOT/tools/check_perf_regression.sh"
+    local out
+    local rc
+    [ -f "$check" ] || return 1
+    out=$(bash "$check" \
+        --baseline "$ROOT/tools/perf_baseline.json" \
+        --cold-samples "${NUC_VERIFY_POSIX_PERF_COLD_SAMPLES:-3}" \
+        --hot-samples "${NUC_VERIFY_POSIX_PERF_HOT_SAMPLES:-3}" \
+        --budget-mb "${NUC_VERIFY_POSIX_PERF_BUDGET_MB:-1000}" \
+        --warning-mb "${NUC_VERIFY_POSIX_PERF_WARNING_MB:-800}" \
+        --timeout-sec "${NUC_VERIFY_POSIX_PERF_TIMEOUT_SEC:-180}" \
+        --sample-ms "${NUC_VERIFY_POSIX_PERF_SAMPLE_MS:-100}" 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/       /'
+    if [ "$rc" -eq 96 ]; then
+        return 2
+    fi
+    return "$rc"
+}
+
 # Shared body for the per-source memory-budget steps.
 _memory_budget_for() {
     local src="$1"
@@ -5400,6 +5421,7 @@ fi
 step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 770 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)" self_host_memory_budget
 step "tools-suite memory budget (<= 580 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)" tools_suite_memory_budget
+step "T1.8 POSIX perf + memory regression monitor" posix_perf_regression_monitor
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization

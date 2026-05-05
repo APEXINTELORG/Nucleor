@@ -95,6 +95,45 @@ longer an acceptable green path for these memory-budget gate steps. If neither
 the PowerShell sampler nor the Linux `/proc` wrapper is available, the step
 must fail unsupported rather than silently passing a soft allocation proxy.
 
+## R10-D3 POSIX cold/hot perf gate prep
+
+`tools/check_perf_regression.sh` is the POSIX/Linux counterpart shape for
+the Windows cold/hot self-build perf gate. It requires a native Linux host,
+Linux `/proc`, `setsid`, `clang`, a native `bin/nucleor`, and
+`tools/run_capped.sh`. It intentionally refuses WSL evidence so a Windows
+`.exe` launched through interop cannot be mistaken for real POSIX process-tree
+RSS.
+
+Native Linux validation flow:
+
+```bash
+bash tools/bootstrap_linux.sh
+file bin/nucleor
+bash tools/check_self_host_md5.sh
+bash tools/check_perf_regression.sh \
+  --baseline tools/perf_baseline.json \
+  --cold-samples 3 \
+  --hot-samples 3
+```
+
+The script clears `target/` and `.nuc_cache/` before each cold sample and
+requires `cache: miss`; it runs the hot samples without cleanup and requires
+`cache: hit`. Timing is reported as the median sample wall time. Memory is
+enforced as Linux process-tree RSS from `tools/run_capped.sh` against
+`cold_max_allowed_memory_mb` and `hot_max_allowed_memory_mb`.
+
+Compiler-only RSS remains a distinct Windows-only split in this prep branch.
+The POSIX prep gate prints `cold_compiler=n/a` and `hot_compiler=n/a` rather
+than pretending Linux `/proc` process-tree RSS is the same measurement. R10-D3
+should not be marked closed until a native Linux runner transcript exists and
+the team decides whether POSIX compiler-only RSS parity is required or
+process-tree RSS is the accepted POSIX contract.
+
+`tools/verify.sh` includes this as `T1.8 POSIX perf + memory regression
+monitor`. On unsupported hosts the standalone script exits `96`; `verify.sh`
+maps that to an explicit `SKIP` so Windows and shell-check-only hosts do not
+claim POSIX perf evidence.
+
 ## v0.8.317 — cold/hot memory split for the perf gate
 
 `tools/check_perf_regression.ps1` now reads the split RSS fields and enforces
