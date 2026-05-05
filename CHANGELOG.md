@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.248] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — bezier + apf.**
+Pure fixtures, no compiler/runtime/stdlib edits. Both rods
+exercise the bad-input null-check guards (algorithmic paths
+need raw double[] arrays; deferred until str/vec → raw-ptr
+bridge lands).
+
+### bezier rod (Bezier curve evaluation, de Casteljau)
+
+`tests/features/bezier_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| Null ctrl_ptr returns 0 (2-D) | both null-check guards |
+| Null out_ptr returns 0 (2-D) |  |
+| **n_ctrl < 2 returns 0** | degenerate curve |
+| 3-D variant returns 0 on null inputs | parallel guard shape |
+
+### apf rod (artificial potential field 2-D)
+
+`tests/features/apf_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| Null F_out returns -1 | bad-output sentinel |
+| Null obs with n_obs > 0 returns -1 | bad-input |
+| **n_obs=0 still requires non-null F_out** | F_out mandatory regardless |
+| apf_step_2d null x/y_out returns negative | parallel guard on integration variant |
+
+All pass. rc=0.
+
 ## [0.8.247] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — dtw.**
