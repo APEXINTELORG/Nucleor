@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.194] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — regex + result.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### regex rod (digit/alpha predicates + literal + find_first)
+
+`tests/features/regex_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| Digit predicate | `'5'` matches; `'a'` doesn't; bounds `'0'`/`'9'` |
+| Alpha predicate | `'a'`/`'Z'` match; `'5'`/`'.'` don't |
+| Literal match | `match_literal("hello", 1, "ello")` → 1 |
+| **find_first `\d`** | `"abc123"` → 3 (first digit position) |
+| **find_first literal** | `"abcabc"` × `"bca"` → 1; absent → -1 |
+
+### result rod (Ok/Err tag-union)
+
+`tests/features/result_smoke.nr` locks five invariants:
+
+| Test | Path |
+|---|---|
+| **Ok** | `is_ok=1`, `is_err=0`, payload round-trip |
+| **Err** | `is_ok=0`, `is_err=1`, payload round-trip |
+| `unwrap_or` default | Ok → payload; Err → default |
+| `unwrap` on Ok | returns payload |
+| **to_option** | Ok(42) → Some(42); Err(_) → None |
+
+All pass. rc=0.
+
 ## [0.8.193] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — graph + diffusion.**
