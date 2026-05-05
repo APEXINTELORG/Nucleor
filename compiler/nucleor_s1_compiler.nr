@@ -16499,7 +16499,7 @@ fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
 //   enforce_heap_in_loop    (PERF-3)          — v0.8.298
 //   enforce_unawaited_spawn (RACE-002)        — v0.8.299
 //   enforce_deadline_with_await (RACE-007)    — v0.8.300
-//   enforce_pure_fn_purity  (EFF-001)         — v0.8.307
+//   enforce_pure_fn_purity  (EFF-001/002)     — v0.8.307/v0.8.320
 //
 // User-measured cold compile time blew up: baseline 4.64s ->
 // ~12s (2.6×). Each emitter does an O(F·S) per-fn body extraction
@@ -16582,6 +16582,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                 let attrs_have_const_fn: i64 = if str_index_of(prev_attrs, "@const_fn") >= 0 { 1 } else { 0 };
                 let attrs_have_hot: i64 = if str_index_of(prev_attrs, "@hot") >= 0 { 1 } else { 0 };
                 let line_has_pure_fn: i64 = if str_index_of(line, "pure fn ") >= 0 { 1 } else { 0 };
+                let line_has_requires_effect: i64 = if str_index_of(line, str_concat("requires", " [")) >= 0 { 1 } else { if str_index_of(line, str_concat("requires", "[")) >= 0 { 1 } else { 0 } };
                 let is_dl_inner: i64 = if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 { 1 } else { 0 };
 
                 // === NUM-009 (R09-D4): @const_fn must be pure ===
@@ -16604,6 +16605,11 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
 
                 // === EFF-001 (R05-D1): pure fn must be pure ===
                 if line_has_pure_fn == 1 {
+                    if line_has_requires_effect == 1 {
+                        let msg_eff2: str = str_concat("`pure fn ", str_concat(fn_name, "` declares a `requires [...]` effect row; pure functions cannot require effects (audit R05-D2 v0.8.320)"));
+                        let lc_eff2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "error", "effect", "EFF-002", msg_eff2, fn_name, vec_get(lc_eff2, 0), vec_get(lc_eff2, 1), "");
+                    };
                     let mut pcode: i64 = 0;
                     if has_print == 1 { pcode = 1; };
                     if pcode == 0 && has_alloc == 1 { pcode = 2; };
