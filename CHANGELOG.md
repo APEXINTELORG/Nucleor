@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.251] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — diff_drive.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### diff_drive rod (2-wheel kinematics + odometry)
+
+`tests/features/diff_drive_smoke.nr`:
+
+| Test | Path |
+|---|---|
+| Null v_out / w_out returns 0 | velocities bad output |
+| L ≤ 0 returns 0 | degenerate track width (forward kinematics) |
+| Null vl_out / vr_out returns 0 | inverse kinematics bad output |
+| **L ≤ 0 in step / step_arc returns 0** | degenerate odometry integration |
+
+Cherry-picked helper perf commits (5aabd9dd / 336a9186) are
+live: cold 3.58s, hot 0.32s, peak 301MB. Helper's 30→28 verify
+fail count delta confirms no regression.
+
+All pass. rc=0.
+
 ## [0.8.250] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — canny.**
