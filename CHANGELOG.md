@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.125] — 2026-05-04
+
+**stdlib/rods/btreemap.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+`BTreeMap<str, i64>` (RFC-0017 phase 3) — sister to v0.8.118's
+`collections.nr` HashMap coverage, but BTreeMap guarantees
+sorted iteration order which HashMap does not.
+
+`tests/features/btreemap_smoke.nr` locks seven invariants:
+
+| Test | Path |
+|---|---|
+| empty | `len=0`, `is_empty=1`, `contains` returns 0 on missing |
+| insert + get + contains | values retrievable; `contains` 1/0 correct |
+| insert update same key | `len` stays 1 across re-inserts; latest value wins |
+| remove | removed key reports `contains=0`; `len` decrements |
+| clear | `len` resets to 0 |
+| get_or | default fallback on missing |
+| **sorted iteration** | inserted "zebra"/"apple"/"monkey" out of order → val_at(0/1/2) returns 1/2/3 (apple/monkey/zebra in alphabetical order) |
+
+All seven pass. rc=0. Cold 0.58s.
+
+The sorted-iteration invariant is the load-bearing distinction
+from HashMap. A regression here silently breaks reproducible-
+build / replay-debugging adopters.
+
+`btm_key_at` returns an i64 handle to the str key rather than
+str directly — rod surface signature limitation (the runtime
+returns the str-handle but the rod wrapper declares i64).
+Sorted-key verification via `val_at` suffices since values
+were assigned 1/2/3 in alphabetical order. A follow-up could
+add `btm_key_at_str` if str-direct access matters.
+
 ## [0.8.124] — 2026-05-04
 
 **stdlib/rods/csv_table.nr first test coverage.** Pure fixture,
