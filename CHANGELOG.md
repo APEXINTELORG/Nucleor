@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.201] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — rl + qtraj.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### rl rod (RL primitives — replay buffer + discounted returns)
+
+`tests/features/rl_smoke.nr` locks four lifecycle invariants:
+
+| Test | Path |
+|---|---|
+| Empty replay | `replay_size(rb) == 0` after construction |
+| Replay add tracks size | 5 adds → size == 5 |
+| **Discount returns last == last reward** | with rewards `[r0, r1, r2]` and any γ, last G_T = r_T (no future to discount) |
+| All-zero rewards | discount returns of zeros == zeros |
+
+PPO/DQN/GAE need actual policy/value tensors — deferred.
+
+### qtraj rod (minimum-snap polynomial trajectory)
+
+`tests/features/qtraj_smoke.nr` locks four invariants on a
+2-segment trajectory (3 waypoints):
+
+| Test | Path |
+|---|---|
+| Construction | `qtraj_new(2)` returns handle, `n_segments == 2` |
+| Total time | sum of segment times = 1+1 = 2.0 |
+| Solve success | `qtraj_solve` returns 1 on valid input |
+| **Boundary at t=0** | `evaluate_total(deriv=0, t=0)` == first waypoint |
+
+All pass. rc=0.
+
 ## [0.8.200] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — rod_helpers + scan.**
