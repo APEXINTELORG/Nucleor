@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.309] — 2026-05-05
+
+**R05-D4 Phase 1 — fix `err_pure_ambient_random.nr` to expect EFF-001 (closes R05-D4).**
+
+### Bug
+
+`tests/err/err_pure_ambient_random.nr` documented its expected
+failure mode as `// EXPECT: link error (false-positive negative
+test)` — relying on `__nucleor_ambient_random` being an undefined
+symbol at clang link rather than the intended compile-time
+diagnostic. Audit-classified MEDIUM (R05-D4).
+
+### Fix
+
+Now that v0.8.307 wired `pure fn` purity into the s1 build path
+(EFF-001) and v0.8.308 consolidated it into the single-walk pass,
+the same fixture fires `error[EFF-001]: 'pure fn bad' uses
+ambient capability (ambient_*) — non-deterministic input is not
+pure ...` at compile time. Updated the fixture's EXPECT header
++ comment block to document the new behavior.
+
+### Acceptance
+
+`./bin/nucleor.exe build tests/err/err_pure_ambient_random.nr`
+emits `error[EFF-001]` before the linker is invoked. The fixture
+is no longer dependent on a missing runtime symbol.
+
+### Self-host fixed-point
+
+`7ff8d0955e09083f2bb338ac326d5bb1` (preserved — fixture-comment-only).
+
 ## [0.8.308] — 2026-05-05
 
 **Perf — consolidate 6 body-diagnostic emitters into one single-walk pass (12s → ~3.7s cold).**
