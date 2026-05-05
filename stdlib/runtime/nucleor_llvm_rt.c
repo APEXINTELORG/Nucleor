@@ -4419,6 +4419,36 @@ long long __nucleor_panic_mul_i64(long long a, long long b) {
     }
     return r;
 }
+long long __nucleor_panic_add_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a;
+    unsigned long long ub = (unsigned long long)b;
+    unsigned long long r = ua + ub;
+    if (r < ua) {
+        fprintf(stderr, "PANIC: u64 add overflow: %llu + %llu\n", ua, ub);
+        fflush(stderr); exit(1);
+    }
+    return (long long)r;
+}
+long long __nucleor_panic_sub_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a;
+    unsigned long long ub = (unsigned long long)b;
+    if (ub > ua) {
+        fprintf(stderr, "PANIC: u64 sub overflow: %llu - %llu\n", ua, ub);
+        fflush(stderr); exit(1);
+    }
+    return (long long)(ua - ub);
+}
+long long __nucleor_panic_mul_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a;
+    unsigned long long ub = (unsigned long long)b;
+    if (ua == 0 || ub == 0) return 0;
+    unsigned long long r = ua * ub;
+    if (r / ua != ub) {
+        fprintf(stderr, "PANIC: u64 mul overflow: %llu * %llu\n", ua, ub);
+        fflush(stderr); exit(1);
+    }
+    return (long long)r;
+}
 long long __nucleor_panic_div_i64(long long a, long long b) {
     if (b == 0) {
         fprintf(stderr, "PANIC: i64 division by zero: %lld / 0\n", a);
