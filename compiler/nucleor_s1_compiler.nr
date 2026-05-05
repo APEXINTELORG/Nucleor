@@ -31143,6 +31143,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // RACE-002 (R04-D3 unawaited spawn), RACE-007 (R04-D3 deadline+
     // await). Replaces 6 prior O(F·S) per-emitter walks with a single
     // O(S + ΣB) pass — ~2.6× cold compile regression resolved.
+    // Measured cost (v0.8.314 --time-passes probe): 0 ms on the
+    // self-host source. Not a perf concern.
     diags = enforce_body_diagnostics_unified(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the

@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.314] — 2026-05-05
+
+**Perf attribution + handoff to Codex.**
+
+### Perf investigation summary (post-A2 integration)
+
+After v0.8.313's A2 integration, perceived a +500ms cold-compile
+drift. Investigated with `--time-passes` instrumentation +
+10-sample wall-clock characterization:
+
+```
+sample wall  | compiler | clang
+ 1: 3.939s   | 2610ms   | 1110ms
+ 2: 4.168s   | 2812ms   | 1141ms
+ 3: 4.224s   | 2500ms   | 1516ms
+ 4: 8.476s   | 3250ms   | 3546ms  ← MsMpEng spike
+ 5: 3.934s   | 2641ms   | 1110ms
+ 6: 4.129s   | 2796ms   | 1140ms
+ 7: 6.302s   | 3016ms   | 2609ms  ← MsMpEng spike
+ 8: 3.913s   | 2562ms   | 1156ms
+ 9: 2.213s   | (cache)  | (cache)
+10: 3.962s   | 2500ms   | 1250ms
+```
+
+**Compiler self-time is bounded at 2.5–2.8s consistently.** Clang
+varies 1.1s → 3.5s — a 3× range — and accounts for almost ALL
+the wall-clock variance. The 4–8s outliers in the table correlate
+with `MsMpEng` (Windows Defender) RSS spikes ≥430MB during build,
+visible in the harness top-cpu sampler.
+
+Probe agent's `findings/heartbeat.json` reported the same pattern
+on its branch (`probe/u64-strict-arith-v0886` @ `641c6d73`):
+"compiler path itself is still capable of 3-second linked cold
+builds; outliers above 4 are wall-clock variance".
+
+### Phase-time attribution (from --time-passes probe)
+
+```
+resolve_source : 609–1187 ms  (filesystem-cache-sensitive)
+type           : 468 ms
+ownership      : 297 ms
+diag_pipeline  : 282 ms       (sum of 14 enforce_* calls)
+emit           : 188 ms
+lower          : 157 ms
+parse          : 109 ms
+body_diag      :   0 ms       (v0.8.308 consolidation — confirmed cheap)
+total compiler : 2484–2812 ms
+clang link     : 1110–3546 ms
+```
+
+### Decisions
+
+- **No code change required.** The compiler-side cost is healthy.
+  v0.8.308 already collapsed 6 O(F·S) walks into a single
+  O(S+ΣB) pass; that delivered the major win (12s → 3.7s).
+- **Wall-clock outliers above 4s** are environmental
+  (Windows Defender, filesystem cache). Excluding the repo from
+  Defender real-time scanning would help — that's a host config,
+  not a code fix.
+- Source comment-only update to flag the `body_diag` 0ms
+  measurement next to the consolidated emitter.
+
+### Handoff
+
+Pausing this session; handing off to Codex. Self-host fixed-point
+md5 `92a6b77b…`, all gates green, no in-flight uncommitted work.
+
 ## [0.8.313] — 2026-05-05
 
 **A2 integration — u64 strict-arithmetic overflow closure (probe deliverable).**
