@@ -1,14 +1,15 @@
 {
-  "instructions_read": "v0.8.314-main-and-helper-refresh",
-  "current_task": "main: R09-D1 fixed<I,F> semantic type tracking complete; helper: R12-D2 registry remotes isolated lane",
+  "instructions_read": "v0.8.314-helper-final-buildout",
+  "current_task": "helper: R12-D2 registry remotes Phase 1 rebased and revalidated on current origin/main",
   "roadmap_phase": "v1_launch_blocker_final_buildout",
-  "current_punchlist_item": "main:R09-D1 helper:R12-D2",
-  "edits_in_main_tree": true,
-  "rebased_on_origin_main": "main at 75740d33 before v0.8.315 R09-D1 slice",
-  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
-  "branch": "main",
-  "head": "ce977bc1 v0.8.315",
-  "status": "shipped_v0.8.315",
+  "current_punchlist_item": "R12-D2",
+  "edits_in_main_tree": false,
+  "rebased_on_origin_main": "8ccdc3794d93f74cc7b537eef5f5c44c4a044a7f",
+  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper_r12_registry",
+  "branch": "probe/r12-registry-remotes-v0814",
+  "head": "final rebased branch HEAD recorded by git rev-parse HEAD",
+  "merge_base_origin_main": "8ccdc3794d93f74cc7b537eef5f5c44c4a044a7f",
+  "status": "ready-for-integration",
   "paths": {
     "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
     "helper_worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper_r12_registry",
@@ -20,7 +21,6 @@
   },
   "helper_assignment": {
     "primary": "R12-D2 registry remotes Phase 1",
-    "recommended_branch": "probe/r12-registry-remotes-v0814",
     "write_scope": [
       "compiler/nucleor_tools_suite.nr",
       "focused CLI tests",
@@ -34,38 +34,76 @@
       "CHANGELOG.md",
       "RELEASES.md"
     ],
-    "status": "issued"
+    "status": "ready-for-integration"
   },
-  "main_lane": {
-    "candidate": "R09-D1 full fixed<I,F> type tracking",
-    "build_plan": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans\\BUILD_PLAN_R09_numeric_correctness.md",
-    "implementation": [
-      "preserve fixed<I,F> and ufixed<I,F> semantic type strings in parse_type",
-      "reject mismatched fixed widths in binding compatibility and fixed/fixed binops",
-      "allow raw integer storage to initialize fixed<I,F> values",
-      "add targeted own_get_mutable backing-vector fallback for stale warm-hash misses"
+  "changed_files": [
+    "compiler/nucleor_tools_suite.nr",
+    "docs/rfcs/RFC-0019-package-manager.md",
+    "docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md",
+    "findings/heartbeat.json",
+    "tools/verify.ps1",
+    "tools/verify.sh",
+    "tools/verify_fast.sh"
+  ],
+  "implementation": {
+    "storage": ".nucleor/registry-remotes.txt",
+    "commands": [
+      "nuc registry remote add <name> <url>",
+      "nuc registry remote list",
+      "nuc registry remote remove <name>"
     ],
-    "status": "validated_ready"
+    "phase_scope": "configuration only; no network fetcher or dependency resolution changes"
   },
   "validation": {
-    "self_host_md5": "c1c6d4397f943c203e6561059fbf7db0",
-    "own008_stress": "8 repeated no-link compiler self-builds passed",
-    "focused_tests": [
-      "bin/nucleor.exe build tests/features/fixed_type_width_smoke.nr -o _r09_fixed_width_smoke_bin --no-cache + run: PASS",
-      "bin/nucleor.exe build tests/features/fixed_audit_smoke.nr -o _r09_fixed_audit_existing_bin --no-cache + run: PASS",
-      "bin/nucleor.exe build tests/err/err_fixed_width_mismatch.nr -o _r09_fixed_width_err_bin --no-cache: expected failure with TYP-008"
-    ],
-    "compiler_drift": "PASS",
-    "perf": "PASS cold=3.95s hot=0.42s peak_mem=311MB"
+    "tools_suite_rebuild": {
+      "command": ".\\bin\\nucleor.exe build compiler\\nucleor_tools_suite.nr -o target\\nucleor_tools.exe",
+      "result": "PASS"
+    },
+    "verify_scripts_parse": {
+      "commands": [
+        "bash -n tools/verify.sh",
+        "bash -n tools/verify_fast.sh",
+        "PowerShell Parser.ParseFile(tools\\verify.ps1)"
+      ],
+      "result": "PASS"
+    },
+    "focused_verify": {
+      "command": "bash tools/verify.sh --only \"R12-D2 registry remote add/list/remove\"",
+      "result": "PASS: R12-D2 step OK in 0.29s; PASS 1, SKIP 275"
+    },
+    "compiler_drift": {
+      "command": "bash tools/check_compiler_drift.sh",
+      "result": "PASS: tools-suite ABI tables match; helper_manifest, rod_manifest, and RELEASES are up to date"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  },
+  "perf": {
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/check_perf_regression.ps1",
+    "final_result": "PASS",
+    "cold_seconds": 3.98,
+    "hot_seconds": 0.42,
+    "peak_memory_mb": 311,
+    "max_cold_seconds": 5.93,
+    "max_hot_seconds": 1.74,
+    "max_memory_mb": 747,
+    "soft_target_cold_seconds": 4.0,
+    "notes": [
+      "First post-rebase perf sample passed the hard gate but sampled cold=5.03s.",
+      "Repeat sample passed under the soft target with cold=3.98s; branch still does not touch compiler/nucleor_s1_compiler.nr."
+    ]
   },
   "perf_context": {
     "soft_target_cold_seconds": 4.0,
-    "latest_cold_seconds": 3.95,
-    "latest_hot_seconds": 0.42,
-    "latest_peak_memory_mb": 311,
-    "note": "Sub-4 target recovered after narrowing the ownership fallback; do not absorb future drift into baseline."
+    "latest_main_cold_seconds": 3.95,
+    "latest_main_hot_seconds": 0.42,
+    "latest_main_peak_memory_mb": 311,
+    "note": "Keep cold compile sub-4s where possible; do not absorb future drift into baseline."
   },
   "caveats": {
+    "network_fetch": "Remote registry fetch/install remains a follow-on TLS-backed phase; this branch only manages configured remote URLs.",
     "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and superseded by v0.8.314 instructions.",
     "probe_branch_disposition": "origin/probe/u64-strict-arith-v0886 remains backup-only; do not merge."
   }

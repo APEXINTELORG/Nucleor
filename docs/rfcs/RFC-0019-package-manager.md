@@ -292,17 +292,21 @@ versions and 4 source files.
 
 ### 5.4 Consumer side — `nuc registry remote add/list/remove`
 
-Configuration of remote registry URLs (writes to a per-user
-config file). Resolution of `<package>@<version>` against a
-remote follows: GET `<remote>/index.json` → confirm package
-exists, GET `<remote>/<package>/index.json` → resolve version,
-GET `<remote>/<package>/<version>/Nucleor.toml` + every file
-listed in `checksum.json`, verify hashes match, drop into
-`.nucleor/registry/<package>/<version>/`.
+Phase 1 ships local configuration only: `nuc registry remote
+add <name> <url>`, `nuc registry remote list`, and `nuc registry
+remote remove <name>` persist deterministic rows in
+`.nucleor/registry-remotes.txt`. No network access is required.
 
-**Status:** consumer side ships in T1.4b once the TLS rod
-lands (RFC-0019 §5.5). GitHub Pages enforces HTTPS so a
-plaintext-only HTTP rod is not enough.
+Resolution of `<package>@<version>` against a remote is still a
+follow-on phase gated on TLS support: GET `<remote>/index.json`
+→ confirm package exists, GET `<remote>/<package>/index.json` →
+resolve version, GET `<remote>/<package>/<version>/Nucleor.toml`
+and every file listed in `checksum.json`, verify hashes match,
+drop into `.nucleor/registry/<package>/<version>/`.
+
+**Status:** remote configuration is implemented; remote fetch
+ships in T1.4b once the TLS rod lands (RFC-0019 §5.5). GitHub
+Pages enforces HTTPS so a plaintext-only HTTP rod is not enough.
 
 ### 5.5 TLS rod (gating consumer fetch)
 

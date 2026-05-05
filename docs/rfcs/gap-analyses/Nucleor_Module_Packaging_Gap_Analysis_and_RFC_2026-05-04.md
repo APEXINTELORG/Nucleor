@@ -31,8 +31,8 @@ Module system + package manager + signed releases + dependency graph constitute 
 ## PKG-3 — Semver constraint resolution is exact-match or `latest` only — **CRITICAL**
 `registry_resolve_version_native` handles `""` → latest and `selector == version` exact match only. **No `^`, `~`, `>=X <Y`, or caret-range semantics.** RFC-0019 §3.2 promises caret (default) and range syntax. A lockfile with `foo = "1.2"` (caret shorthand) will not resolve. **Documented dependency syntax other than exact strings produces "no matching version" errors.**
 
-## PKG-4 — `nuc registry remote add/list/remove` unimplemented — **HIGH**
-Consumer-side remote registry commands documented in RFC-0019 §5.4 and printed in `export-static` help, but `run_registry_command` has no `remote` branch. **Single blocker on community consumption of published packages.**
+## PKG-4 — remote configuration implemented; remote fetch still deferred — **HIGH**
+Consumer-side remote registry configuration now has a real Phase 1 CLI surface: `nuc registry remote add <name> <url>`, `nuc registry remote list`, and `nuc registry remote remove <name>` persist local rows in `.nucleor/registry-remotes.txt`. Remote fetch/installation is still deferred until the TLS-backed consumer path lands.
 
 ## PKG-5 — `@cfg(feature = "X")` conditional compilation not implemented — **HIGH**
 `[features]` sections parsed and stored but no compiler path consumes them. No grep match for `cfg.*feature` or `feature_enabled`. `--features hardware` to `nuc build` does not gate any code.
@@ -83,7 +83,7 @@ RFC-0019 §3.6 lists these. None in dispatch. Users expecting `nuc add serde` (C
 **Phase 2 (short-term):**
 - PKG-1 P2: `tools/native_release.sh` — POSIX equivalent using `openssl` or `ssh-keygen -Y sign/verify`. Same JSON output schema, same DSSE attestation format, identical semantics on both platforms.
 - PKG-3 P2: implement caret semver (`^1.2.3` matches `>=1.2.3 <2.0.0`) and tilde semver (`~1.2.3` matches `>=1.2.3 <1.3.0`) in `registry_resolve_version_native`. Use simple version-vector comparison; no full PubGrub yet.
-- PKG-4: implement `nuc registry remote add/list/remove`. Store remote registry URLs in `~/.nucleor/registries/<name>.toml`. `nuc install` first checks local registry, then walks remote registries in declared order.
+- PKG-4 P2: wire configured remotes into install/update once the TLS-backed consumer fetch path lands. `nuc install` should first check the local registry, then walk configured remotes in declared order.
 - PKG-7: enforce `pub fn` cross-module visibility at import time. Resolver checks visibility flag when an import references a non-`pub` symbol from another module. Emit MOD-003.
 
 **Phase 3 (medium-term):**

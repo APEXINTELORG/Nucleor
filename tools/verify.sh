@@ -5017,6 +5017,38 @@ tools_rebuild() {
     return 1
 }
 
+registry_remote_cli_smoke() {
+    local tools_bin="$ROOT/target/nucleor_tools"
+    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/target/nucleor_tools.exe"; fi
+    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools"; fi
+    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools.exe"; fi
+    if [ ! -x "$tools_bin" ]; then tools_bin="$BIN"; fi
+    local tmp
+    tmp="$(verify_tmp_dir "_r12_registry_remote")" || return 1
+    (
+        cd "$tmp" || exit 1
+        "$tools_bin" registry remote list >list0.txt 2>&1 || exit 1
+        grep -q "remotes: 0" list0.txt || exit 1
+        "$tools_bin" registry remote add origin https://example.invalid/nucleor >add.txt 2>&1 || exit 1
+        grep -q "added registry remote: origin" add.txt || exit 1
+        [ -f ".nucleor/registry-remotes.txt" ] || exit 1
+        grep -Eq "origin[[:space:]]+https://example[.]invalid/nucleor" ".nucleor/registry-remotes.txt" || exit 1
+        "$tools_bin" registry remote list >list1.txt 2>&1 || exit 1
+        grep -Eq "origin[[:space:]]+https://example[.]invalid/nucleor" list1.txt || exit 1
+        if "$tools_bin" registry remote add origin https://example.invalid/again >dup.txt 2>&1; then exit 1; fi
+        grep -q "already exists" dup.txt || exit 1
+        if "$tools_bin" registry remote remove missing >missing.txt 2>&1; then exit 1; fi
+        grep -q "not found" missing.txt || exit 1
+        "$tools_bin" registry remote remove origin >remove.txt 2>&1 || exit 1
+        grep -q "removed registry remote: origin" remove.txt || exit 1
+        "$tools_bin" registry remote list >list2.txt 2>&1 || exit 1
+        grep -q "remotes: 0" list2.txt || exit 1
+    )
+    local rc=$?
+    rm -rf "$tmp"
+    return $rc
+}
+
 compiler_tables_synced() {
     bash "$ROOT/tools/check_compiler_drift.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
@@ -5232,6 +5264,7 @@ rfc0042_auto_drop_ir_smoke() {
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
+step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke
 step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_audit_zero
 step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
