@@ -1,0 +1,14 @@
+# Helix language config for Nucleor.
+# Append to ~/.config/helix/languages.toml.
+
+[[language]]
+name = "nucleor"
+scope = "source.nucleor"
+file-types = ["nr"]
+comment-token = "//"
+indent = { tab-width = 4, unit = "    " }
+language-servers = ["nucleor-lsp"]
+roots = ["Nucleor.toml"]
+
+[language-server.nucleor-lsp]
+command = "nucleor-lsp.exe"
