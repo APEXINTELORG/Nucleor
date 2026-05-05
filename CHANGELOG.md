@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.161] — 2026-05-04
+
+**Two more zero-coverage rod fixtures shipped — cspline + conv.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### cspline rod (natural cubic spline interpolation)
+
+`tests/features/cspline_smoke.nr` locks four textbook spline
+invariants:
+
+| Test | Path |
+|---|---|
+| **Interpolation** | spline passes through every supplied waypoint exactly (4-waypoint test, all ≈ within 1e-9) |
+| Linear data → linear spline | 4 collinear points (y=2x) → derivative ≈ 2 anywhere |
+| **Natural BC** | y''(x_0) ≈ 0 (the "natural" boundary condition) |
+| Strict-monotonic-x guard | `solve` returns 0 when x is not strictly increasing |
+
+### conv rod (CNN building blocks — pooling)
+
+`tests/features/conv_smoke.nr` locks the closed-form pooling
+operations on a 1-channel 4×4 reference input:
+
+```
+Input:        max_pool(2, s=2):       avg_pool(2, s=2):
+1  2  3  4    6   8                   3.5   5.5
+5  6  7  8    14  16                  11.5  13.5
+9  10 11 12
+13 14 15 16
+```
+
+Both pooling outputs match expected values bit-exact.
+
+All pass. rc=0.
+
 ## [0.8.160] — 2026-05-04
 
 **stdlib/rods/bvh.nr first test coverage.** Pure fixture, no
