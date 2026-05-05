@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.247] — 2026-05-05
+
+**One more zero-coverage rod fixture shipped — dtw.**
+Pure fixture, no compiler/runtime/stdlib edits.
+
+### dtw rod (Dynamic Time Warping for time-series alignment)
+
+`tests/features/dtw_smoke.nr` exercises the bad-input guards.
+The algorithmic path needs raw double[] sequences; deferred
+until str/vec → raw-ptr bridge:
+
+| Test | Path |
+|---|---|
+| Null pointers return 0 | both A and B null |
+| **M=0 returns 0** | bad first sequence length |
+| N=0 returns 0 | bad second sequence length |
+| dim=0 returns 0 | bad point dimension |
+
+Sister to dubins_smoke v0.8.246 (passing 0 to skip ptr arg);
+this surface-then-fix pattern unlocks coverage on rods that
+null-check their out-ptrs.
+
+All pass. rc=0.
+
 ## [0.8.246] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — dubins.**
