@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.283] — 2026-05-05
+
+**R12-D6 Phase 1 — package checksum now covers `Nucleor.lock` + registry metadata.**
+
+### Bug
+
+`compiler/nucleor_tools_suite.nr:lock_should_skip_file:15810-15819`
+excluded `Nucleor.lock` AND `Nucleor.publish.json` (registry
+metadata) from the package digest computation. Adopters could
+mutate the lock or registry metadata file without the digest
+detecting the change — provenance incomplete. Audit-classified
+MEDIUM (R12-D6).
+
+### Fix (Phase 1, surgical tools-suite edit)
+
+`lock_should_skip_file` now skips ONLY the checksum file itself
+(`Nucleor.package.sha256` — including the digest in itself is
+circular) and build-output directories (`target/`, `.git/`,
+`.nucleor/`, `.nuc_cache/` — those are per-build, not per-package).
+
+```diff
+-    if str_eq(name, "Nucleor.lock") == 1
+-       || str_eq(name, package_checksum_file_name()) == 1
+-       || str_eq(name, registry_metadata_file_name()) == 1 { return 1; };
++    if str_eq(name, package_checksum_file_name()) == 1 { return 1; };
+```
+
+After the fix, mutating `Nucleor.lock` (e.g. dependency-version
+bump) or `Nucleor.publish.json` (e.g. registry-target change)
+changes the package digest. Lock + metadata are now part of the
+provenance contract.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Metadata/lock mutation changes package digest** | ✅ both files now hashed into the digest |
+| Cold compile ≤ 4s | ✅ unchanged (tools-suite-only) |
+
+### Tools-suite-only → s1 fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`.
+`bin/nucleor_tools.exe` rebuilt + promoted; self-host re-verified.
+
+### Migration note
+
+Adopters who computed a package digest with v0.8.282 or earlier
+will get a different digest with v0.8.283 (because lock + metadata
+are now hashed in). This is intentional — pre-v0.8.283 digests
+were under-scoped and shouldn't be relied on for provenance.
+Recompute on upgrade.
+
+### Rollback
+
+Restore the pre-v0.8.283 skip list (`Nucleor.lock`, registry
+metadata, checksum file). Provenance returns to under-scoped.
+
+### R12 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.282 | R12-D4 — git install returns 2 | ✅ |
+| v0.8.283 | R12-D6 — checksum covers lock + metadata | ✅ |
+| next | R12-D7 — import cycle MOD-005 | ⏳ HIGH (compiler edit, multi-iteration) |
+| next | R12-D1/D2/D3/D5 | ⏳ deeper compiler/POSIX work |
+
+2 of 7 R12 deficiencies have Phase 1 closure.
+
 ## [0.8.282] — 2026-05-05
 
 **R12-D4 Phase 1 — `nuc install --git` returns nonzero on stub.**

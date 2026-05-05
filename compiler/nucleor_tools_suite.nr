@@ -15811,7 +15811,16 @@ fn lock_should_skip_file(package_dir: str, file_path: str) -> i64 {
     let rel: str = path_relative_or_abs(package_dir, file_path);
     let norm: str = str_concat("/", str_concat(path_normalize_slashes(rel), "/"));
     let name: str = basename(file_path);
-    if str_eq(name, "Nucleor.lock") == 1 || str_eq(name, package_checksum_file_name()) == 1 || str_eq(name, registry_metadata_file_name()) == 1 { return 1; };
+    // R12-D6 Phase 1 (v0.8.283, audit 2026-05-05): Nucleor.lock and
+    // Nucleor.publish.json (registry metadata) are now INCLUDED in
+    // the package checksum. Pre-v0.8.283 they were skipped, leaving
+    // provenance incomplete — adopters could mutate the lock or
+    // metadata without the package digest detecting the change.
+    // The checksum file itself (Nucleor.package.sha256) is still
+    // skipped because including the digest in itself is circular.
+    // Build-output dirs (target/, .git/, .nucleor/, .nuc_cache/)
+    // are still skipped — they're per-build, not per-package.
+    if str_eq(name, package_checksum_file_name()) == 1 { return 1; };
     if text_contains(norm, "/target/") == 1 || text_contains(norm, "/.git/") == 1 || text_contains(norm, "/.nucleor/") == 1 || text_contains(norm, "/.nuc_cache/") == 1 {
         return 1;
     };
