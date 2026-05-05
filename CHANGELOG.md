@@ -5,6 +5,89 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.285] — 2026-05-05
+
+**R11-D5 Phase 1 — `logical_qubit_limitations()` query helper.**
+
+### Bug
+
+`stdlib/rods/logical_qubit.nr` shipped Pulse / Schedule /
+CalibrationData scaffolding (RFC-0054 Phase A v0.8.213) but presents
+**convention-level** support for advanced quantum surfaces that
+aren't actually implemented:
+
+- Surface-code distance d=3+ QEC circuit synthesis / stabilizer-cycle insertion
+- OpenQASM import/export (no `qasm.parse` / `qasm.emit`)
+- QIR export
+- Mid-circuit feedback (no measurement-conditioned-gate primitive)
+
+Adopters could see the rod and assume these worked. Audit-classified
+MEDIUM (R11-D5).
+
+### Fix (Phase 1, audit's "rollback" path: mark unsupported)
+
+`stdlib/rods/logical_qubit.nr` adds:
+
+```nucleor
+fn logical_qubit_limitations() -> str {
+    return "Logical-qubit / advanced quantum-subsystem limitations
+    (QM-13/14/15/17, audit R11-D5 v0.8.285): (1) SURFACE-CODE QEC: …
+    no end-to-end d=3+ surface-code circuit synthesis…
+    (2) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit; round-trip not supported.
+    (3) QIR EXPORT: not implemented.
+    (4) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive.
+    Phase 2 ships these surfaces…";
+}
+```
+
+Same pattern as v0.8.270 R07-D4 (AHRS/CHOMP/TOPP limitations) and
+v0.8.262 R14-D1 (LAW-CAPTURE info diagnostic) — Phase 1 surfaces
+the limitation as queryable; Phase 2 implements.
+
+### Coverage
+
+`tests/features/logical_qubit_limitations_smoke.nr` locks 4
+invariants:
+
+| Test | Path |
+|---|---|
+| **Non-empty** | helper returns a string with content |
+| **Names SURFACE-CODE** | `"SURFACE-CODE"` substring present |
+| **Names OPENQASM** | `"OPENQASM"` substring present |
+| **Names MID-CIRCUIT** | `"MID-CIRCUIT"` substring present |
+
+All pass. rc=0. Existing `logical_qubit_smoke.nr` (RFC-0054
+Phase A) regression-clean.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Each new surface has deterministic small fixture** | ⏳ Phase 2 — surfaces aren't implemented yet; Phase 1 ships the queryable limitation diagnostic |
+| **Mark advanced surfaces unsupported** (audit rollback path = Phase 1 work) | ✅ |
+| Cold compile ≤ 4s | ✅ unchanged (rod-only) |
+
+### No compiler edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### Audit launch-blocker progress
+
+| # | Pillar | Phase 1 |
+|---|---|---|
+| 1 | R14 algebraic laws | ✅ COMPLETE (5/5) |
+| 2 | R07 Pose<Frame> | ✅ COMPLETE (4/4) |
+| 5 | R06 FFI | ✅ COMPLETE (4/4) |
+| 4 | R04 concurrency | 🟡 1/5 (D1) |
+| 6 | R12 Module/Packaging | 🟡 2/7 (D4, D6) |
+| 7 | R10 perf envelope | 🟡 partial |
+| 8 | R09 numeric residuals | 🟡 3/5 |
+| 9 | R13 bootstrap | 🟡 2/6 |
+| 10 | R11 quantum | 🟡 1/5 (D5) |
+| 3 | R05 effects | ⏳ deferred |
+| | R03 RT/determinism | ⏳ |
+| | R08 ML deeper | ⏳ |
+
 ## [0.8.284] — 2026-05-05
 
 **R04-D1 Phase 1 — `conc_map` silent-zero corruption removed.**

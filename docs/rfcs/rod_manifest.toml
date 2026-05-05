@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2795
-# Total LOC: 11889
+# Total fn definitions: 2796
+# Total LOC: 11892
 
 [[rod]]
 name           = "activation2"
@@ -1086,9 +1086,9 @@ imports        = ["log"]
 name           = "logical_qubit"
 path           = "stdlib/rods/logical_qubit.nr"
 description    = "RFC-0054 Phase A: logical-qubit +"
-function_count = 40
+function_count = 41
 cfile_count    = 1
-loc            = 173
+loc            = 176
 imports        = ["logical_qubit"]
 
 [[rod]]
