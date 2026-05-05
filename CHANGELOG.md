@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.225] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — pq_crypto + grasp.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### pq_crypto rod (RFC-0058 Phase A post-quantum surface)
+
+`tests/features/pq_crypto_smoke.nr` locks four invariants
+Phase B compiler enforcement of `@crypto_agile` and phantom-
+typed `PublicKey<Algo>` / `Signature<Algo>` (~400 LOC compiler
++ ~2000 LOC stdlib + reference impls, deferred) must NOT
+regress. **Runtime is a STUB** — primitives return deterministic
+test vectors, not secure crypto:
+
+| Test | Path |
+|---|---|
+| Stable algorithm IDs + kind | ML-KEM=1 (kem), ML-DSA=2 (sig), SLH-DSA=3 (sig) |
+| Security levels map to bits | L1=128, L3=192, L5=256 (NIST AES-equiv) |
+| **mldsa sign + verify round-trip** | sign(digest) then verify same → 1 |
+| crypto-agile defaults | pick_kem=ML-KEM, pick_sig=ML-DSA, backup=SLH-DSA |
+
+### grasp rod (2-finger parallel-jaw quality metrics)
+
+`tests/features/grasp_smoke.nr` locks four textbook geometric
+invariants — antipodal score, force-closure under Coulomb
+friction, approach alignment:
+
+| Test | Path |
+|---|---|
+| Perfect antipodal grasp | contacts at ±x with outward x normals → score=+1 |
+| Tangential normals score 0 | normals orthogonal to grip line |
+| **Force closure with μ=1** | perfect antipodal pair → 1 |
+| Approach head-on | surface n=(0,0,1), approach=(0,0,-1) → +1 |
+
+All pass. rc=0.
+
 ## [0.8.224] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — qsim_graph + os.**
