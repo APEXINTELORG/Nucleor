@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.238] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — astar + ekf.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+**Surface-then-fix:** astar_path_at on empty path returns -1
+(runtime sentinel), not 0. Re-locked at the runtime's actual
+contract.
+
+### astar rod (A* shortest-path graph search)
+
+`tests/features/astar_smoke.nr` lifecycle (search needs fn-
+pointer callbacks; deferred):
+
+| Test | Path |
+|---|---|
+| astar_new returns valid handle | non-zero |
+| path_len before search is 0 | no search → no path |
+| **path_at on empty path returns -1** | runtime sentinel for "no such step" |
+| astar_free does not crash | clean close |
+
+### ekf rod (extended Kalman filter)
+
+`tests/features/ekf_smoke.nr` lifecycle:
+
+| Test | Path |
+|---|---|
+| ekf_new with reasonable dims | non-zero handle |
+| n_u=0 still works | autonomous system (no control input) |
+| **Multiple distinct EKFs** | two constructions → distinct handles |
+| ekf_free does not crash | clean close |
+
+All pass. rc=0.
+
 ## [0.8.237] — 2026-05-05
 
 **One more zero-coverage rod fixture shipped — pq.**
