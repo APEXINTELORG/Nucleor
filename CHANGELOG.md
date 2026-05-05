@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.228] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — io + diff_sim.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### io rod (file + stdin/stdout I/O)
+
+`tests/features/io_smoke.nr` locks four file-IO invariants
+(read_line / run_capture / print intentionally NOT exercised):
+
+| Test | Path |
+|---|---|
+| **Write + read round-trip** | io_write_file then io_read_file returns same bytes |
+| Append extends content | write "A" + append "B" → "AB" |
+| Empty content round-trip | "" writes and reads as empty |
+| Reading missing file returns empty | non-crash on absent path |
+
+### diff_sim rod (differentiable quantum simulation)
+
+`tests/features/diff_sim_smoke.nr` locks four lifecycle
+invariants (extract / backward / gate_importance need ML-suite
+wiring; deferred):
+
+| Test | Path |
+|---|---|
+| Init returns valid handle | non-zero |
+| n_gates == 0 right after init | no gates yet |
+| **n_gates tracks gate calls** | 3 diff_gate → n_gates 3 |
+| diff_reset clears gate counter | post-reset → n_gates 0 |
+
+All pass. rc=0.
+
 ## [0.8.227] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — speculative + ssm.**
