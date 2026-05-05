@@ -11305,6 +11305,8 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NUM-007") { return "Float→int cast saturates to type bounds"; };
     if str_eq(code, "NUM-008") { return "Shift amount equals or exceeds operand width (UB-prone)"; };
     if str_eq(code, "NUM-009") { return "@const_fn body contains an effectful operation"; };
+    if str_eq(code, "PERF-1") { return "Invalid --tier value (router-level)"; };
+    if str_eq(code, "PERF-2") { return "@hot function contains a perf-violation (alloc / I/O)"; };
     if str_eq(code, "NUM-009") { return "Division or remainder by literal zero"; };
     if str_eq(code, "NUM-010") { return "Implicit narrowing of f64 literal to f32 may lose precision"; };
     if str_eq(code, "NUM-011") { return "Overflow attribute conflicts with operation kind"; };
@@ -11547,6 +11549,8 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NUM-007") { return "Float→int cast saturates to the target's max/min when the value is out of range (matches Rust). Use `.try_as_i32()` if you want a Result-typed conversion that surfaces overflow."; };
     if str_eq(code, "NUM-008") { return "Shift amount must be < operand width. `let x: u8 = 1; let y = x << 8;` is UB in C, returns 0 in some Rust modes, traps in others. Nucleor matches Rust 'wrapping shift' semantics in release; debug builds trap."; };
     if str_eq(code, "NUM-009") { return "A function annotated `@const_fn` contains an effectful operation (I/O, allocation, panic-capable expression, or ambient capability). const-fns must be pure so they can be evaluated at compile time. Either remove the @const_fn annotation, or move the effectful work to a separate normal fn. Audit R09-D4 (NUM-G9) v0.8.293 — pre-v0.8.293 @const_fn was silently ignored; post-v0.8.293 it's enforced fail-closed."; };
+    if str_eq(code, "PERF-1") { return "Router-level: --tier <X> got a value other than 0/1/2. Phase 2 wires --tier through to clang -O level + cache key + artifact metadata."; };
+    if str_eq(code, "PERF-2") { return "A function annotated `@hot` contains a perf-violation: heap allocation (Vec::new / Box::new) or I/O (print / println / panic). Hot paths should be alloc-free and I/O-free; either suppress with #[allow_fn(PERF-2)] when intentional, or move the work out of the @hot body. Audit R10-D2 v0.8.297 — pre-v0.8.297 @hot was discovery-only; post-v0.8.297 violations emit a warning."; };
     if str_eq(code, "NUM-009") { return "Constant-folded division by zero. Either change the divisor or guard the call site with `if divisor != 0 { ... }`."; };
     if str_eq(code, "NUM-010") { return "An f64 literal assigned to an f32 binding is narrowed via `__nucleor_as_f32` at the bind site (Phase 5). For most literals this is exact; for values requiring more than 24 bits of mantissa precision (e.g. 0.1), the rounded f32 differs from the f64."; };
     if str_eq(code, "NUM-011") { return "`#[overflow(trap)]` on a function whose body uses `wrapping_add` is contradictory — wrapping_add is opt-in and won't trap regardless of the attribute. Pick one mode."; };
@@ -11770,6 +11774,8 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NUM-007") { return "Float→int cast in Rust semantics saturates (3e9 as i32 = i32::MAX, NaN as i32 = 0). Catches the silent-truncation bug class C inherits from its float→int rules."; };
     if str_eq(code, "NUM-008") { return "Shifting by >= the operand width is UB in C and panics in Rust debug mode. Nucleor matches Rust's release-mode wrapping shift; debug-mode trap will land with #[overflow(trap)] phase 7.2."; };
     if str_eq(code, "NUM-009") { return "C/C++ has no compile-time-evaluation contract; Rust's `const fn` enforces purity at the type-checker level. Nucleor's @const_fn now matches Rust: if the body could run effects at runtime, it can't be evaluated at compile time, so it's rejected. Phase 2 will actually evaluate and fold pure const_fn bodies."; };
+    if str_eq(code, "PERF-1") { return "Tier validation lives at the router (powershell wrapper) so the compiler is never invoked with a malformed --tier; Phase 2 wires the value through. This matches Rust's split between `cargo` and `rustc` flag validation."; };
+    if str_eq(code, "PERF-2") { return "C++ has no `@hot` annotation; profile-guided optimization is the closest analogue. Rust's `#[inline(always)]` is a hint, not a contract. Nucleor's @hot is checker-enforced (Phase 1 warning, Phase 2 will promote some violations to error)."; };
     if str_eq(code, "NUM-009") { return "Constant-folded division by zero is detectable at compile time and almost always a bug. The runtime trap costs cycles in hot loops; surface it earlier."; };
     if str_eq(code, "NUM-010") { return "f64 → f32 narrowing rounds to nearest representable f32, which is exact for many literals (1.0, 0.5, 2.5) but loses precision on others (0.1, 1/3). The warning is informational."; };
     if str_eq(code, "NUM-011") { return "#[overflow(trap)] + wrapping_add inside the same fn produces inconsistent semantics — wrapping always wraps regardless of attribute. Refactor to use the matching primitive."; };

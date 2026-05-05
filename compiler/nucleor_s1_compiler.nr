@@ -11060,7 +11060,8 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NUM-007") == 1 { return 1; };
     if str_eq(code, "NUM-008") == 1 { return 1; };
     if str_eq(code, "NUM-009") == 1 { return 1; };
-    if str_eq(code, "NUM-009") == 1 { return 1; };
+    if str_eq(code, "PERF-1") == 1 { return 1; };
+    if str_eq(code, "PERF-2") == 1 { return 1; };
     if str_eq(code, "NUM-010") == 1 { return 1; };
     if str_eq(code, "NUM-011") == 1 { return 1; };
     if str_eq(code, "NUM-012") == 1 { return 1; };
@@ -16352,6 +16353,96 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     let units: i64 = stmt_count * multiplier;
     if units > stmt_cap { return stmt_cap; };
     return units;
+}
+
+// === R10-D2 Phase 1 (v0.8.297): @hot HotViolation enforcement ===
+//
+// Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2 (HIGH):
+// docs name HotViolation / HeapInLoop diagnostics but `nuc perf`
+// emits only generic compile metrics. The `@hot` attribute is
+// discovered (audit count at line ~29487) but not enforced. A
+// `@hot fn` containing `Vec::new()` or `print()` shipped silently
+// despite the perf-critical annotation.
+//
+// Phase 1: analogous to NUM-009 (R09-D4 v0.8.293) — scan each
+// `@hot` body for known-expensive patterns and emit warning[PERF-2].
+// Severity = warning (not error) because `@hot` is a hint not a
+// hard contract. Adopters use `#[allow_fn(PERF-2)]` to suppress
+// when the cost is intentional. HeapInLoop (PERF-3) is Phase 2
+// (needs nested-block tracking).
+//
+// Returns 0 (clean) or non-zero code naming first violation:
+//   1 = allocation (Vec::new / Box::new)
+//   2 = I/O (print / println / panic)
+//   3 = Math-heavy stdlib helper (math_sqrt / math_pow)
+#[manual_drop]
+fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut found_at: i64 = 0 - 1;
+    while p + nlen <= slen && found_at < 0 {
+        if str_eq_at_len(source, p, needle, nlen) == 1 { found_at = p; }
+        else { p = p + 1; };
+    };
+    if found_at < 0 { return 0; };
+    let mut q: i64 = found_at + nlen;
+    while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+    if q >= slen { return 0; };
+    let body_start: i64 = q + 1;
+    q = body_start;
+    let mut depth: i64 = 1;
+    let mut body_end: i64 = slen;
+    while q < slen && depth > 0 {
+        let c: i64 = str_char_at(source, q);
+        if c == 123 { depth = depth + 1; };
+        if c == 125 {
+            depth = depth - 1;
+            if depth == 0 { body_end = q; };
+        };
+        q = q + 1;
+    };
+    let body: str = str_substring(source, body_start, body_end);
+    if str_index_of(body, "Vec::new") >= 0 { return 1; };
+    if str_index_of(body, "Box::new") >= 0 { return 1; };
+    if str_index_of(body, "print(") >= 0 { return 2; };
+    if str_index_of(body, "println(") >= 0 { return 2; };
+    if str_index_of(body, "panic(") >= 0 { return 2; };
+    return 0;
+}
+
+#[manual_drop]
+fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let needle: str = str_concat("@h", "ot");
+    let names: str = attribute_audit_fn_names(source, needle);
+    let nlen: i64 = str_len(names);
+    if nlen == 0 { return diags; };
+    let mut start: i64 = 0;
+    let mut q: i64 = 0;
+    while q <= nlen {
+        let at_end: i64 = if q == nlen { 1 } else { 0 };
+        let is_sep: i64 = if at_end == 0 && str_char_at(names, q) == 59 { 1 } else { 0 };
+        if at_end == 1 || is_sep == 1 {
+            let raw: str = str_substring(names, start, q);
+            let fn_name: str = str_trim(raw);
+            if str_len(fn_name) > 0 {
+                let code: i64 = hot_fn_body_violation_code(source, fn_name);
+                if code > 0 {
+                    let kind: str = if code == 1 { "allocates (Vec::new / Box::new) — heap allocation in a perf-critical path" }
+                        else { "performs I/O (print / println / panic) — blocking syscall in a perf-critical path" };
+                    let msg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path (audit R10-D2 v0.8.297)"))));
+                    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                    diag_add_ex(diags, "warning", "perf", "PERF-2", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                };
+            };
+            start = q + 2;
+            q = q + 2;
+        } else {
+            q = q + 1;
+        };
+    };
+    return diags;
 }
 
 // === R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement ===
@@ -30381,6 +30472,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Pre-v0.8.293 @const_fn was silently ignored (NUM-G9). Now an
     // effectful @const_fn body fails build with error[NUM-009].
     diags = enforce_const_fn_purity(diags, max_depth_source);
+    // R10-D2 Phase 1 (v0.8.297): @hot HotViolation enforcement.
+    // Pre-v0.8.297 @hot was discovery-only. Now alloc / I/O in
+    // an @hot body emits warning[PERF-2].
+    diags = enforce_hot_fn_purity(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
