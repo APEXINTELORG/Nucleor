@@ -258,7 +258,11 @@ typedef struct {
 // s-curve has Ta = Td and Tj1 = Tj2. We solve for the (Tj, Ta, Tv)
 // triplet that satisfies the constraints using the standard
 // closed-form (Biagiotti & Melchiorri, sec 3.4.3).
-long long nuc_scurve_new(
+//
+// Pre-v0.8.261 named `nuc_scurve_new` — collided with
+// `scurve_rt.c::nuc_scurve_new` (4-arg, simpler API). Renamed to
+// `nuc_traj_scurve_new` per the trajectory rod's namespace.
+long long nuc_traj_scurve_new(
     long long q0_bits, long long qT_bits,
     long long vmax_bits, long long amax_bits, long long jmax_bits)
 {
@@ -322,17 +326,17 @@ long long nuc_scurve_new(
     return (long long)(size_t)p;
 }
 
-long long nuc_scurve_duration(long long h) {
+long long nuc_traj_scurve_duration(long long h) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     return p ? _f2i(p->T) : 0;
 }
 
-long long nuc_scurve_peak_v(long long h) {
+long long nuc_traj_scurve_peak_v(long long h) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     return p ? _f2i(p->v_peak * p->dir) : 0;
 }
 
-long long nuc_scurve_peak_a(long long h) {
+long long nuc_traj_scurve_peak_a(long long h) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     return p ? _f2i(p->a_peak * p->dir) : 0;
 }
@@ -340,7 +344,7 @@ long long nuc_scurve_peak_a(long long h) {
 // Sample position at time t, using the seven-phase formula.
 // Each phase is a polynomial up to degree 3 in t; we evaluate
 // piecewise.
-long long nuc_scurve_pos_at(long long h, long long t_bits) {
+long long nuc_traj_scurve_pos_at(long long h, long long t_bits) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     if (!p) return 0;
     double t = _i2f(t_bits);
@@ -388,7 +392,7 @@ long long nuc_scurve_pos_at(long long h, long long t_bits) {
     return _f2i(p->q0 + p->dir * s);
 }
 
-void nuc_scurve_free(long long h) {
+void nuc_traj_scurve_free(long long h) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     if (p) free(p);
 }

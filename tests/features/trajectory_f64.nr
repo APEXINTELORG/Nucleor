@@ -59,22 +59,24 @@ fn main() -> i32 {
     trapezoid_free(tp);
 
     // === S-curve: q 0→1, vmax=2, amax=4, jmax=20 ===
-    let sc: i64 = scurve_new_f64(0.0, 1.0, 2.0, 4.0, 20.0);
-    if sc == 0 { print("FAIL scurve_new_f64"); return 1; };
+    // v0.8.261: trajectory rod's scurve_*_f64 renamed to
+    // traj_scurve_*_f64 to break collision with scurve.nr.
+    let sc: i64 = traj_scurve_new_f64(0.0, 1.0, 2.0, 4.0, 20.0);
+    if sc == 0 { print("FAIL traj_scurve_new_f64"); return 1; };
 
-    let sdur: f64 = scurve_duration_f64(sc);
-    if !(sdur > 0.0) { print("FAIL scurve_duration_f64"); return 1; };
+    let sdur: f64 = traj_scurve_duration_f64(sc);
+    if !(sdur > 0.0) { print("FAIL traj_scurve_duration_f64"); return 1; };
 
-    let spv: f64 = scurve_peak_v_f64(sc);
-    if !(spv > 0.0) { print("FAIL scurve_peak_v_f64"); return 1; };
+    let spv: f64 = traj_scurve_peak_v_f64(sc);
+    if !(spv > 0.0) { print("FAIL traj_scurve_peak_v_f64"); return 1; };
 
-    let spa: f64 = scurve_peak_a_f64(sc);
-    if !(spa > 0.0) { print("FAIL scurve_peak_a_f64"); return 1; };
+    let spa: f64 = traj_scurve_peak_a_f64(sc);
+    if !(spa > 0.0) { print("FAIL traj_scurve_peak_a_f64"); return 1; };
 
-    let sp0: f64 = scurve_pos_at_f64(sc, 0.0);
-    if (sp0 as i32) != 0 { print("FAIL scurve_pos_at_f64(0)"); return 1; };
+    let sp0: f64 = traj_scurve_pos_at_f64(sc, 0.0);
+    if (sp0 as i32) != 0 { print("FAIL traj_scurve_pos_at_f64(0)"); return 1; };
 
-    scurve_free(sc);
+    traj_scurve_free(sc);
 
     print("OK trajectory_f64");
     0
