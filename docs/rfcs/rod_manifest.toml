@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
 # Total fn definitions: 2795
-# Total LOC: 11905
+# Total LOC: 11889
 
 [[rod]]
 name           = "activation2"
@@ -395,7 +395,7 @@ path           = "stdlib/rods/concurrency.nr"
 description    = "concurrency.nr — Structured concurrency with safety guardrails"
 function_count = 17
 cfile_count    = 0
-loc            = 70
+loc            = 54
 imports        = []
 
 [[rod]]
