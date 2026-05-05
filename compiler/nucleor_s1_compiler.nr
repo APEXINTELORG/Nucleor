@@ -3097,15 +3097,33 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print(str_concat("ERROR: Rust path type `", str_concat(v0737_ns, "::<rest>` in type-annotation position is not yet supported in Nucleor. Pre-v0.7.37, the type parser consumed only the first path segment and left `::...` unconsumed, causing the let-binding or fn-param parser to see `::` where `=` or `,` was expected — triggering wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 46`. Workaround: drop the namespace prefix and use the unqualified Nucleor type name directly — `std::collections::HashMap<K,V>` -> `HashMap<K,V>`, `std::string::String` -> `String` (or `str` for literals), `std::vec::Vec<T>` -> `Vec<T>`, `core::option::Option<T>` -> `Option<T>`, `core::result::Result<T,E>` -> `Result<T,E>`. Tracked for forward-roadmap (Rust-stdlib namespace shim / path-type resolver to auto-strip common stdlib prefixes).")));
         panic(str_concat("nucleor: path type `", str_concat(v0737_ns, "::<rest>` not supported in type position (see ERROR diagnostic above)")));
     };
-    if str_eq(name, "fixed") == 1 && pk(tokens, p2) == 32 {
+    let mut fixed_type_name_v091: i64 = 0;
+    if str_eq(name, "fixed") == 1 { fixed_type_name_v091 = 1; };
+    if str_eq(name, "ufixed") == 1 { fixed_type_name_v091 = 1; };
+    if fixed_type_name_v091 == 1 && pk(tokens, p2) == 32 {
         let mut cp: i64 = p2 + 1;
         let mut depth: i64 = 1;
+        let mut inner_fixed_v091: str = "";
         while depth > 0 && pk(tokens, cp) != 0 {
-            if pk(tokens, cp) == 32 { depth = depth + 1; }
-            else if pk(tokens, cp) == 33 { depth = depth - 1; };
+            let tt_fixed_v091: i64 = pk(tokens, cp);
+            if tt_fixed_v091 == 32 {
+                depth = depth + 1;
+                if depth > 1 { inner_fixed_v091 = str_concat(inner_fixed_v091, "<"); };
+            }
+            else if tt_fixed_v091 == 33 {
+                depth = depth - 1;
+                if depth > 0 { inner_fixed_v091 = str_concat(inner_fixed_v091, ">"); };
+            }
+            else if tt_fixed_v091 == 44 {
+                inner_fixed_v091 = str_concat(inner_fixed_v091, ", ");
+            } else {
+                let mut part_fixed_v091: str = pkv(tokens, cp);
+                if tt_fixed_v091 == 2 { part_fixed_v091 = str_from_int(pkv(tokens, cp)); };
+                inner_fixed_v091 = str_concat(inner_fixed_v091, part_fixed_v091);
+            };
             cp = cp + 1;
         };
-        return pr(cp, "i64");
+        return pr(cp, str_concat(name, str_concat("<", str_concat(inner_fixed_v091, ">"))));
     };
     if str_eq(name, "unit") == 1 && pk(tokens, p2) == 32 {
         let mut cp: i64 = p2 + 1;
@@ -9982,6 +10000,40 @@ fn type_base_name(t: str) -> str {
         i = i + 1;
     };
     return base;
+}
+
+#[manual_drop]
+fn type_is_fixed_semantic(t: str) -> i64 {
+    let tlen: i64 = str_len(t);
+    if tlen == 0 { return 0; };
+    let c0: i64 = str_char_at(t, 0);
+    if c0 == 38 {
+        if str_starts_with(t, "&mut ") == 1 { return type_is_fixed_semantic(str_substring(t, 5, tlen)); };
+        return type_is_fixed_semantic(str_substring(t, 1, tlen));
+    };
+    if c0 == 102 && str_starts_with(t, "fixed<") == 1 { return 1; };
+    if c0 == 117 && str_starts_with(t, "ufixed<") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn fixed_type_canonical(t: str) -> str {
+    let tlen: i64 = str_len(t);
+    if tlen == 0 { return ""; };
+    if str_char_at(t, 0) == 38 {
+        if str_starts_with(t, "&mut ") == 1 { return strip_spaces(str_substring(t, 5, tlen)); };
+        return strip_spaces(str_substring(t, 1, tlen));
+    };
+    return strip_spaces(t);
+}
+
+#[manual_drop]
+fn fixed_accepts_integer_storage(actual: str) -> i64 {
+    if type_is_fixed_semantic(actual) == 1 { return 0; };
+    let b: str = type_base_name(actual);
+    if str_eq(b, "i8") == 1 || str_eq(b, "i16") == 1 || str_eq(b, "i32") == 1 || str_eq(b, "i64") == 1 || str_eq(b, "isize") == 1 { return 1; };
+    if str_eq(b, "u8") == 1 || str_eq(b, "u16") == 1 || str_eq(b, "u32") == 1 || str_eq(b, "u64") == 1 || str_eq(b, "usize") == 1 { return 1; };
+    return 0;
 }
 
 // v0.4.44 — RFC-0024 Phase 2 building block. Extract the FIRST generic
@@ -17740,7 +17792,19 @@ fn own_set_cur_scope(o: Vec<i32>, depth: i64) -> i64 {
 #[manual_drop]
 fn own_set_mutable(o: Vec<i32>, name: str, is_mut: i64) -> i64 { return own_set_i_raw(o, str_concat("__oi_mutable_", name), is_mut); }
 #[manual_drop]
-fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_mutable_", name)); }
+fn own_get_mutable(o: Vec<i32>, name: str) -> i64 {
+    let key: str = str_concat("__oi_mutable_", name);
+    let v: i64 = sym_get(o, key);
+    if v >= 0 { return v; };
+    // Correctness fallback for the only raw ownership metadata whose
+    // stale warm-hash miss can become a false hard error: `let mut`.
+    let mut i: i64 = vec_len(o) - 2;
+    while i >= 0 {
+        if str_eq(vec_get(o, i), key) == 1 { return vec_get(o, i + 1); };
+        i = i - 2;
+    };
+    return 0;
+}
 #[manual_drop]
 fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
     let keys: Vec<i32> = if str_eq(list_key, "__shared_keys") == 1 { own_shared_keys_vec(o) } else { if str_eq(list_key, "__mut_keys") == 1 { own_mut_keys_vec(o) } else { if str_eq(list_key, "__scope_keys") == 1 { own_scope_keys_vec(o) } else { own_get_type(o, list_key) } } };
@@ -18881,6 +18945,20 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         if str_eq(expected, "i8") == 1 || str_eq(expected, "i16") == 1 || str_eq(expected, "i32") == 1 || str_eq(expected, "i64") == 1 { return 1; };
         if str_eq(expected, "u8") == 1 || str_eq(expected, "u16") == 1 || str_eq(expected, "u32") == 1 || str_eq(expected, "u64") == 1 { return 1; };
         if str_eq(expected, "usize") == 1 || str_eq(expected, "isize") == 1 { return 1; };
+    };
+    // R09-D1 / RFC-0043: fixed<I,F> and ufixed<I,F> still lower to
+    // i64 storage, but the type checker must preserve Q-format
+    // identity. Permit raw integer storage to initialize a fixed value,
+    // but do not let fixed widths collapse into each other or into i64.
+    let exp_fixed_v091: i64 = type_is_fixed_semantic(expected);
+    let act_fixed_v091: i64 = type_is_fixed_semantic(actual);
+    if exp_fixed_v091 == 1 || act_fixed_v091 == 1 {
+        if exp_fixed_v091 == 1 && act_fixed_v091 == 1 {
+            if str_eq(fixed_type_canonical(expected), fixed_type_canonical(actual)) == 1 { return 1; };
+            return 0;
+        };
+        if exp_fixed_v091 == 1 && fixed_accepts_integer_storage(actual) == 1 { return 1; };
+        return 0;
     };
     // v0.6.75 RFC V1.2 (probe finding 2026-05-01-box-new-literal-doesnt-
     // propagate-T): canonical Rust `let b: Box<i64> = Box::new(5);`
@@ -20255,6 +20333,27 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let void_side: str = if lt_is_void == 1 { "left" } else { "right" };
             let v20msg: str = str_concat("`void`-typed expression on the ", str_concat(void_side, " side of binop. Pre-v0.4.132 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got wrong arithmetic with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement."));
             type_diag(diags, source, fn_name, fn_name, "TYP-020", v20msg);
+        };
+        // R09-D1 / RFC-0043: fixed<I,F> values use i64 storage but
+        // their Q-format is part of the semantic type. Arithmetic must
+        // not silently combine different fixed widths, and fixed/int
+        // arithmetic requires an explicit raw-storage conversion.
+        let lt_fixed_v091: i64 = type_is_fixed_semantic(lt);
+        let rt_fixed_v091: i64 = type_is_fixed_semantic(rt);
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (lt_fixed_v091 == 1 || rt_fixed_v091 == 1) {
+            let op_fixed_v091: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            if lt_fixed_v091 == 1 && rt_fixed_v091 == 1 {
+                if str_eq(fixed_type_canonical(lt), fixed_type_canonical(rt)) == 0 {
+                    type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in `", str_concat(op_fixed_v091, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Convert explicitly through the fixed-point rod helpers or use matching fixed<I,F> parameters."))))));
+                };
+            } else {
+                type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("mixed fixed-point and non-fixed arithmetic in `", str_concat(op_fixed_v091, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Fixed<I,F> uses raw i64 storage, but arithmetic must make the Q-format explicit."))))));
+            };
+        };
+        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35) && lt_fixed_v091 == 1 && rt_fixed_v091 == 1 {
+            if str_eq(fixed_type_canonical(lt), fixed_type_canonical(rt)) == 0 {
+                type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in comparison: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`.")))));
+            };
         };
         // v0.4.137: NUM-022 — integer vs float cross in comparison binop.
         // Pre-fix `5 == 5.0` (i64 vs f64) silently compared the i64 bit

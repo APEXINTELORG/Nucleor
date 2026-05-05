@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.315] — 2026-05-05
+
+**R09-D1 fixed<I,F> semantic type tracking + ownership metadata flake fix.**
+
+### Added
+
+- Parser/type-checker now preserves `fixed<I,F>` and `ufixed<I,F>` as
+  semantic types instead of erasing them to `i64` at type-annotation time.
+- Same-format fixed-point arithmetic remains valid, while mismatched
+  fixed widths now halt with `TYP-008` instead of silently collapsing
+  through raw `i64` storage.
+- Added focused coverage:
+  - `tests/features/fixed_type_width_smoke.nr`
+  - `tests/err/err_fixed_width_mismatch.nr`
+
+### Fixed
+
+- Closed a flaky ownership metadata miss where warm-hash lookup could
+  report a `let mut` binding as immutable, surfacing as false
+  `OWN-008` on repeated compiler self-builds. `own_get_mutable` now
+  confirms misses against the backing ownership vector before emitting
+  a hard error.
+
+### Validation
+
+- Self-host fixed point holds:
+  `c1c6d4397f943c203e6561059fbf7db0`.
+- Repeated no-link self-build stress: 8/8 clean after reproducing the
+  prior false `OWN-008` on sample 3.
+- Focused tests:
+  - `fixed_type_width_smoke.nr` builds and runs.
+  - `fixed_audit_smoke.nr` still builds and runs.
+  - `err_fixed_width_mismatch.nr` fails with `TYP-008`.
+- `bash tools/check_compiler_drift.sh` passes.
+- `tools/check_perf_regression.ps1` passes:
+  cold `3.95s`, hot `0.42s`, peak memory `311MB`.
+
 ## [0.8.314] — 2026-05-05
 
 **Perf attribution + handoff to Codex.**
@@ -76968,4 +77005,3 @@ Initial open-source release of Nucleor under the Apache License 2.0.
 - Source: https://github.com/APEXINTELORG/Nucleor
 - Issues: https://github.com/APEXINTELORG/Nucleor/issues
 - Author: Joseph Wescott
-
