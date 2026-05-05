@@ -14,3 +14,47 @@ fn mps_extract(h: i64) -> i64 { return nuc_mps_extract(h); }
 fn mps_free(h: i64) { nuc_mps_free(h); }
 fn mps_max_bond(h: i64) -> i64 { return nuc_mps_max_bond(h); }
 fn mps_expect_z(h: i64, q: i64) -> i64 { return nuc_mps_expect_z(h, q); }
+
+// === R11-D2 Phase 1 (v0.8.305) — named gate wrappers ===
+//
+// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D2 (HIGH):
+// pre-v0.8.305 adopters had to call `mps_gate(h, 0, q, 0, 0)` with
+// raw gate-type integers (0=H, 1=CNOT, 2=X, 3=Z, 4=RZ, 5=RX) —
+// error-prone and undocumented. Phase 1 ships named wrappers
+// preserving the raw escape hatch. Phase 2 lifts the gate-type
+// to a typed enum.
+
+// === MPS gate type constants (matches mps_rt.c dispatch) ===
+fn mps_gate_h() -> i64    { return 0; }
+fn mps_gate_cnot() -> i64 { return 1; }
+fn mps_gate_x() -> i64    { return 2; }
+fn mps_gate_z() -> i64    { return 3; }
+fn mps_gate_rz() -> i64   { return 4; }
+fn mps_gate_rx() -> i64   { return 5; }
+
+// Returns 1 if `code` is a known/shipped gate-type integer.
+// Phase 2 will add Y, S, T, RY, CZ, SWAP — querying this surface
+// before invoking lets adopters fail fast on an unsupported code.
+fn mps_gate_type_supported(code: i64) -> i64 {
+    if code == 0 { return 1; };
+    if code == 1 { return 1; };
+    if code == 2 { return 1; };
+    if code == 3 { return 1; };
+    if code == 4 { return 1; };
+    if code == 5 { return 1; };
+    return 0;
+}
+
+// === Named 1q gate wrappers ===
+fn mps_h(h: i64, q: i64)  { nuc_mps_gate(h, 0, q, 0, 0); }
+fn mps_x(h: i64, q: i64)  { nuc_mps_gate(h, 2, q, 0, 0); }
+fn mps_z(h: i64, q: i64)  { nuc_mps_gate(h, 3, q, 0, 0); }
+fn mps_rz(h: i64, q: i64, angle_bits: i64) { nuc_mps_gate(h, 4, q, 0, angle_bits); }
+fn mps_rx(h: i64, q: i64, angle_bits: i64) { nuc_mps_gate(h, 5, q, 0, angle_bits); }
+
+// === Named 2q gate wrappers ===
+fn mps_cnot(h: i64, ctrl: i64, tgt: i64) { nuc_mps_gate(h, 1, ctrl, tgt, 0); }
+
+fn mps_limitations() -> str {
+    return "MPS rod limitations (QM-2/QM-3, audit R11-D2/D3 v0.8.305): (1) GATE COVERAGE: only H, X, Z, RZ, RX, CNOT shipped. Y, S, T, RY, CZ, SWAP, Toffoli, controlled-rotation are NOT in mps_rt.c's dispatch — adopter must fall back to qsim or compose from existing primitives. Query mps_gate_type_supported(code) for per-code truth. (2) NO TYPED ENUM yet — gate_type is a raw i64; v0.8.305 ships named wrappers (mps_h, mps_x, mps_cnot, etc.) preserving the raw escape hatch. (3) NO BOND-DIMENSION DIAGNOSTIC: mps_max_bond returns the cap but adopters can't query the CURRENT bond dim mid-circuit; truncation error is silent (Phase 2 ships mps_current_bond + mps_truncation_error). (4) NON-ADJACENT CNOT uses SWAP decomposition (visible in mps_rt.c:386-419) which inflates bond dim — caveat for noise-sensitive applications. Phase 2 wires the missing gates + typed enum + bond-dim diagnostics per audit ship plan.";
+}
