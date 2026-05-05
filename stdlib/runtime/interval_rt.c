@@ -79,8 +79,16 @@ void nuc_interval_pool_reset(long long checkpoint) {
 
 static long long iv_alloc(double lo, double hi) {
     ensure_pool();
+    // R09-D2 Phase 1 (v0.8.277): fail closed on pool exhaustion.
+    // Pre-v0.8.277 wrapped to slot 1, silently aliasing all
+    // earlier handles still in caller scope — interval-containment
+    // guarantees broke without diagnostic. Now returns 0 (the
+    // canonical "invalid handle" — rejected by `iv_get`'s bounds
+    // check). Adopters check `handle == 0` after iv_alloc and bail
+    // safely. Phase 2 may add pool growth or freelist; Phase 1
+    // prefers fail-closed over silent corruption.
     if (interval_next >= INTERVAL_POOL_SIZE) {
-        interval_next = 1;  // wrap (emergency fallback)
+        return 0;
     }
     int idx = interval_next++;
     interval_pool[idx].lo = lo;
@@ -331,8 +339,21 @@ long long nuc_interval_sin(long long handle) {
         if (x >= a && x <= b) { lo = -1.0; break; }
     }
 
-    // Widen slightly for rounding safety (1 ULP)
-    return iv_alloc(lo - DBL_EPSILON, hi + DBL_EPSILON);
+    // R09-D2 Phase 1 (v0.8.277): rigorous outward rounding via
+    // `nextafter`. Pre-v0.8.277 used `lo - DBL_EPSILON, hi + DBL_EPSILON`,
+    // but DBL_EPSILON is the spacing at 1.0 — actual ULP near `lo`
+    // grows with |lo| (at lo=1e10 the gap is ~2e-6, much wider than
+    // DBL_EPSILON=2.22e-16). For |lo| >= ~1.0 the old widening was
+    // narrower than 1 ULP, breaking the containment guarantee.
+    // `nextafter(x, ±INF)` widens by EXACTLY 1 ULP at x's
+    // magnitude — the canonical interval-arithmetic outward
+    // rounding. Clamp output range to [-1, 1] since sin can't
+    // exceed those.
+    double widened_lo = nextafter(lo, -INFINITY);
+    double widened_hi = nextafter(hi, INFINITY);
+    if (widened_lo < -1.0) widened_lo = -1.0;
+    if (widened_hi > 1.0)  widened_hi = 1.0;
+    return iv_alloc(widened_lo, widened_hi);
 }
 
 // Cosine: cos([a,b]) = sin([a + pi/2, b + pi/2])
