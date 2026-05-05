@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.176] — 2026-05-04
+
+**stdlib/rods/toml.nr first test coverage.** Pure fixture, no
+compiler/runtime/stdlib edit.
+
+Minimal TOML parser (RFC-0019 phase 1) — string / int / bool
+values, nested `[a.b.c]` section headers, `#` line comments.
+
+`tests/features/toml_smoke.nr` locks five invariants on a
+sample manifest:
+
+| Test | Path |
+|---|---|
+| Section dotted-key contains | `package.name` exists in parsed table |
+| **Int parse** | `package.workers == 4` |
+| **Bool true → 1** | `package.debug == 1` |
+| **Nested section** | `profile.release.opt_level == 3` |
+| Default-value accessor | `int_or(missing, 99) == 99`; `int_or(present, 99) == actual` |
+
+**Surfaced contract:** `toml_string` declares `-> i64` but the
+cell holds a str pointer. The fixture documents this; locking
+the str-equality assertion needs a properly-typed accessor,
+deferred to a future ship.
+
+All pass. rc=0.
+
 ## [0.8.175] — 2026-05-04
 
 **stdlib/rods/symbolic.nr first test coverage.** Pure fixture,
