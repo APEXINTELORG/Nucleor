@@ -14,16 +14,26 @@ Nucleor is **self-hosted**. The compiler is written in Nucleor
 source (`compiler/nucleor_s1_compiler.nr`, ~10K lines). It builds
 itself.
 
-There is exactly one bootstrap binary committed to the repo:
+There is exactly one **bootstrap-load-bearing** binary committed to
+the repo:
 
 ```
 bin/nucleor.exe
 ```
 
-Identifies as `Nucleor Compiler 0.2.0-v2`. It is **stage 1**
-(self-hosted). There is no stage 0 (an external-language compiler
-that produced the first stage 1) committed to this distribution —
-that lineage exists upstream.
+Identifies as `nucleor 0.4.180 (self-hosted, llvm backend)` (build-
+internal version; pre-v0.8.280 docs claimed `0.2.0-v2` — that
+identity is stale per audit R13-D1, v0.8.280). The current canonical
+release is the latest git tag on `main`. `bin/nucleor.exe` is
+**stage 1** (self-hosted). There is no stage 0 (an external-language
+compiler that produced the first stage 1) committed to this
+distribution — that lineage exists upstream.
+
+R13-D1 Phase 1 update (v0.8.280): the `bin/` directory contains
+four other support artifacts (`nucleor_tools.exe`, `nucleor-lsp.exe`,
+`nucleor_O2.exe`, `nucleor_s1_backup.exe`) — see `bin/README.md`
+for per-artifact role and class. None of those are bootstrap-load-
+bearing; only `bin/nucleor.exe` is the bootstrap chain's anchor.
 
 The `nuc bootstrap` command reports the live state:
 

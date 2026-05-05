@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.280] — 2026-05-05
+
+**R13-D1 Phase 1 — bootstrap docs reconciled with live `bin/` reality.**
+
+### Bug
+
+`NUCLEOR_BOOTSTRAP_CONTRACT.md:17-26` and `bin/README.md:7-20`
+claimed two things that haven't been true since the v0.2.x era:
+
+1. **"Exactly one file is committed in `bin/`"** — actual live
+   `bin/` contains 5 binaries (`nucleor.exe`, `nucleor_tools.exe`,
+   `nucleor-lsp.exe`, `nucleor_O2.exe`, `nucleor_s1_backup.exe`).
+2. **"Identifies as `Nucleor Compiler 0.2.0-v2`"** — actual binary
+   reports `nucleor 0.4.180 (self-hosted, llvm backend)` (build-
+   internal version; canonical release is the latest git tag).
+
+Audit-classified HIGH (R13-D1) — adopters reading the docs got a
+wrong picture of what's in `bin/` and what version they have.
+
+### Fix (Phase 1, doc-only)
+
+`bin/README.md`:
+
+1. Replaced "Exactly one file" claim with a 5-row table classifying
+   every committed binary by role + class (committed-version-locked
+   vs committed-snapshot vs committed-backup).
+2. Replaced version identity claim with the current
+   `nucleor 0.4.180` build-internal version + note that the
+   canonical release tag is what users should reference.
+3. Documented "one-binary policy is no longer the design" —
+   replaced with "one load-bearing primary + intentional support
+   binaries with documented roles."
+
+`NUCLEOR_BOOTSTRAP_CONTRACT.md`:
+
+4. Re-framed "exactly one bootstrap binary" as **bootstrap-load-bearing**
+   (only `bin/nucleor.exe` is the bootstrap chain's anchor).
+5. Updated identity string to `nucleor 0.4.180 (self-hosted, llvm backend)`.
+6. Added cross-reference to `bin/README.md` for support-artifact roles.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Docs match `bin` listing** | ✅ 5-row table in bin/README.md matches |
+| **Docs match `nucleor --version` output** | ✅ both files now reference `nucleor 0.4.180` |
+| Cold compile ≤ 4s | ✅ unchanged (doc-only) |
+
+### Phase 2 (per build plan §1 R13-D1)
+
+Add `bin/manifest.toml` listing each binary's provenance, build
+commit, and SHA256 for adopters who need stronger artifact
+verification.
+
+### Doc-only edit → fixed-point unchanged
+
+md5 stays at `12777d1c1bdb18cde6bbfcb22479eefc`. Drift gates clean.
+
+### R13 Phase 1 progress
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.280 | R13-D1 — bootstrap docs ↔ bin reality | ✅ |
+| next | R13-D6 — cache/gate docs + Windows recovery | ⏳ MEDIUM (per audit's order: D1 → D6 next) |
+| next | R13-D2 / D3 / D5 | ⏳ POSIX-environment dependent |
+| next | R13-D4 — POSIX pipe functions | ⏳ MEDIUM |
+
 ## [0.8.279] — 2026-05-05
 
 **R10-D5 Phase 1 — `hot_max_allowed_memory_mb` ceiling added.**
