@@ -18,6 +18,31 @@ const char *rods_io_read_line(void) {
     return "";
 }
 
+// v0.8.152 V1.16 Phase A1 dependency — raw N-byte stdin read.
+//
+// LSP base protocol frames JSON-RPC payloads with a Content-
+// Length header followed by exactly N body bytes. fgets/read_line
+// strip newlines and break on LF, so they can't faithfully read
+// the JSON body (which embeds newlines inside string values).
+//
+// rods_io_read_n_bytes reads exactly `n` bytes from stdin into a
+// freshly malloc'd null-terminated buffer. Stops short on EOF
+// (returned string is shorter than `n`). Caller frees via the
+// usual nucleor str-handle path. Returns "" on n <= 0.
+const char *rods_io_read_n_bytes(long long n) {
+    if (n <= 0) return "";
+    char *buf = (char *)malloc((size_t)n + 1);
+    if (!buf) return "";
+    long long got = 0;
+    while (got < n) {
+        size_t r = fread(buf + got, 1, (size_t)(n - got), stdin);
+        if (r == 0) break;
+        got += (long long)r;
+    }
+    buf[got] = '\0';
+    return buf;
+}
+
 void rods_io_print_no_newline(const char *s) {
     if (s) {
         printf("%s", s);
