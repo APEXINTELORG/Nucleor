@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.312] — 2026-05-05
+
+**QM-7 — clifford rod disclosure (`clifford_limitations()`).**
+
+### Bug
+
+Per s1 compiler audit comment ~line 29432 (QM-7 / Tier-C
+correctness audit-pass): `stdlib/rods/clifford.nr` ships a usable
+stabilizer-formalism surface but has ZERO TEST COVERAGE in the
+OSS verify gate. Adopters can call the API but absence of golden
+tests means subtle stabilizer-update bugs would ship silently.
+
+### Fix
+
+`stdlib/rods/clifford.nr` adds `clifford_limitations() -> str`
+naming 4 gaps: zero test coverage, no round-trip property test,
+no error-model coverage doc, no QASM interop. Phase 2 lands
+property-test fixtures per audit ship plan.
+
+### Tests
+
+`tests/features/clifford_disclosure_smoke.nr` — 3 invariants
+(non-empty, names "ZERO TEST COVERAGE", names "QASM").
+
+### Self-host fixed-point
+
+`7ff8d0955e09083f2bb338ac326d5bb1` (preserved — stdlib-rod-only).
+
 ## [0.8.311] — 2026-05-05
 
 **R04-D5 Phase 1.5 — atomic rod limitation disclosure (extends v0.8.310).**
