@@ -4636,6 +4636,16 @@ long long __nucleor_saturating_sub_##W(long long a, long long b) {          \
     return r;                                                               \
 }                                                                            \
 long long __nucleor_saturating_mul_##W(long long a, long long b) {          \
+    /* R09-D5 Phase 1 (v0.8.275) — clamp inputs to the type's range  \
+       BEFORE multiplying. Otherwise a caller passing an out-of-range \
+       long long could overflow even the i64 product (e.g. INT32_MAX  \
+       * 4 fits in i64 but INT64_MAX * 2 does not), invalidating the  \
+       post-multiply range checks. For W in {i8, i16, i32}, MAX_V * MAX_V \
+       fits in i64 once both operands are pre-clamped. */            \
+    if (a > (long long)MAX_V) a = (long long)MAX_V;                         \
+    if (a < (long long)MIN_V) a = (long long)MIN_V;                         \
+    if (b > (long long)MAX_V) b = (long long)MAX_V;                         \
+    if (b < (long long)MIN_V) b = (long long)MIN_V;                         \
     long long r = a * b;                                                    \
     if (r > (long long)MAX_V) return (long long)MAX_V;                      \
     if (r < (long long)MIN_V) return (long long)MIN_V;                      \
