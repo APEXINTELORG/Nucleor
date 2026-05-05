@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.226] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — nn + twin_core.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### nn rod (neural-network training surface)
+
+`tests/features/nn_smoke.nr` locks four invariants on the
+activation + vec utility surface (sister to activation2.nr
+transformer-flavored set):
+
+| Test | Path |
+|---|---|
+| **ReLU clamps negatives to 0** | relu([-3, 5, -1]) → [0, 5, 0] |
+| Sigmoid(0) == 0.5 | 1/(1+e⁰) = 1/2 |
+| vec_concat preserves length and order | [1,2]+[3,4,5] → len 5, [1,2,3,4,5] |
+| vec_slice extracts subrange | slice([10..50], 1, 3) → [20,30,40] |
+
+Heavier surfaces (dense + Adam + attention) deferred to
+training fixtures.
+
+### twin_core rod (dual-core differentiable noise model)
+
+`tests/features/twin_core_smoke.nr` locks four lifecycle
+invariants (sister to multi_core.nr's N-core generalization):
+
+| Test | Path |
+|---|---|
+| tc_nq round-trip | tc_init(2, p1, p2) → tc_nq == 2 |
+| Noise rates round-trip | tc_p1q / tc_p2q match init values |
+| Both statevectors valid | tc_sv_a != 0, tc_sv_b != 0 |
+| **Distinct statevectors** | tc_sv_a != tc_sv_b (parallel, not aliased) |
+
+All pass. rc=0.
+
 ## [0.8.225] — 2026-05-05
 
 **Two more zero-coverage rod fixtures shipped — pq_crypto + grasp.**
