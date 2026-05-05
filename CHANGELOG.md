@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.160] — 2026-05-04
+
+**stdlib/rods/bvh.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+Bounding Volume Hierarchy for broad-phase collision. Stores
+AABBs in a tree, supports overlap and self-pair queries.
+Foundation for collision-aware motion planning at scale.
+
+`tests/features/bvh_smoke.nr` locks three textbook BVH
+invariants on 3D AABB inputs (all coords as f64-bits):
+
+| Test | Path |
+|---|---|
+| **Overlap query** | 3 disjoint cubes at origin / x=10 / y=10; query box overlapping only y=10 cube returns exactly 1 hit, index 2 |
+| Disjoint self-pairs | 3 spatially-separated cubes → 0 self-pairs |
+| **Overlapping self-pairs** | 2 overlapping cubes → exactly 1 self-pair, indices (0, 1) |
+
+All pass. rc=0.
+
 ## [0.8.159] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — base64 and
