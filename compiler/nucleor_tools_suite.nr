@@ -17680,22 +17680,35 @@ fn run_query_command(src_path: str) -> i64 {
     return 0;
 }
 
+// R06-D3 Phase 1 (v0.8.274) — ABI type fail-closed.
+//
+// Pre-v0.8.274 unknown ABI types silently mapped to `int64_t` /
+// `i64`. Generated C/Rust headers compiled with the wrong layout
+// — adopters got "successful build" with an undetectable type bug.
+// Phase 1 prefixes the fallback with `/* UNKNOWN: <T> */` so the
+// generated header makes the unknown visible at code-review time
+// AND emits a per-call info diagnostic. Phase 2 promotes to a
+// hard error.
 fn abi_c_type_name(t: str) -> str {
     if str_eq(t, "void") { return "void"; };
     if str_eq(t, "i32") { return "int32_t"; };
+    if str_eq(t, "i64") { return "int64_t"; };
     if str_eq(t, "f64") { return "double"; };
     if str_eq(t, "str") { return "const char*"; };
     if str_eq(t, "ptr") { return "void*"; };
-    return "int64_t";
+    print(str_concat("info[FFI-G18-PHASE1]: ABI C type fallback for unrecognized Nucleor type '", str_concat(t, "' — falling back to int64_t. Phase 2 will reject. See docs/spec/Nucleor_Error_Codes.md#FFI-G18.")));
+    return str_concat("/* UNKNOWN: ", str_concat(t, " */ int64_t"));
 }
 
 fn abi_rust_type_name(t: str) -> str {
     if str_eq(t, "void") { return "()"; };
     if str_eq(t, "i32") { return "i32"; };
+    if str_eq(t, "i64") { return "i64"; };
     if str_eq(t, "f64") { return "f64"; };
     if str_eq(t, "str") { return "*const ::std::os::raw::c_char"; };
     if str_eq(t, "ptr") { return "*mut ::std::ffi::c_void"; };
-    return "i64";
+    print(str_concat("info[FFI-G18-PHASE1]: ABI Rust type fallback for unrecognized Nucleor type '", str_concat(t, "' — falling back to i64. Phase 2 will reject. See docs/spec/Nucleor_Error_Codes.md#FFI-G18.")));
+    return str_concat("/* UNKNOWN: ", str_concat(t, " */ i64"));
 }
 
 fn abi_type_is_export_safe(t: str) -> i64 {

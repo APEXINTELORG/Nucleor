@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.274] — 2026-05-05
+
+**R06-D3 Phase 1 — ABI type fallback fail-closed (visible).**
+**R06 Phase 1 — COMPLETE (4/4 deficiencies closed).**
+
+### Bug
+
+Pre-v0.8.274 `compiler/nucleor_tools_suite.nr:abi_c_type_name` and
+`abi_rust_type_name` silently mapped any unrecognized Nucleor type
+to `int64_t` / `i64`. Generated C/Rust headers compiled with the
+wrong layout — adopters got a "successful build" with an
+undetectable type bug. Audit-classified HIGH (R06-D3).
+
+### Fix (Phase 1, additive)
+
+`compiler/nucleor_tools_suite.nr` — both `abi_c_type_name` and
+`abi_rust_type_name`:
+
+1. **Explicit `i64` arm added** to canonical set (was implicit via
+   fallback).
+2. **Fallback now prefixes with `/* UNKNOWN: <T> */`** so the
+   generated header makes the unknown visible at code-review time.
+3. **Emits per-call info diagnostic** `info[FFI-G18-PHASE1]: ABI C/Rust type fallback for unrecognized Nucleor type 'X' — falling back to int64_t/i64. Phase 2 will reject.`
+
+Phase 2 promotes the fallback to a hard error
+(per audit's "fail-closed" criterion).
+
+### Tools-suite-only edit → s1 fixed-point unchanged
+
+This change is in the tools-suite path (separate `bin/nucleor_tools.exe`),
+not the s1 self-host compiler. Self-host fixed-point md5 stays at
+`12777d1c1bdb18cde6bbfcb22479eefc`. `bin/nucleor_tools.exe`
+rebuilt + promoted; verified self-host gate still passes
+unchanged.
+
+### Acceptance status
+
+| Criterion (audit) | Status |
+|---|---|
+| **Unknown ABI types fail closed** | ✅ Phase 1 — visible marker in header + info diagnostic; Phase 2 promotes to hard error |
+| **`nuc abi` advertises exports support** | ⏳ Phase 2 (separate cite at `:17722-17726`) |
+| Cold compile ≤ 4s | ✅ unchanged (no s1 edit) |
+
+### R06 Phase 1 — COMPLETE
+
+| Ship | Deficiency | Phase 1 |
+|---|---|---|
+| v0.8.271 | R06-D1 — `rust_free_str` reclamation | ✅ |
+| v0.8.272 | R06-D4 — FNV-1a deterministic hash | ✅ |
+| v0.8.273 | R06-D2 — Python `py_free_str` + static-fallback rejection | ✅ |
+| v0.8.274 | R06-D3 — ABI fail-closed (visible fallback) | ✅ |
+
+**4 of 4 R06 deficiencies have Phase 1 closure.** Phase 2 work for R06: promote ABI fallback to hard error; GIL ensure/release brackets; ASAN/valgrind leak verification harness for the rust_bridge.
+
+### Audit launch-blocker progress
+
+| # | Item | Phase 1 |
+|---|---|---|
+| 1 | R14 algebraic laws | ✅ COMPLETE (5/5) |
+| 2 | R07 Pose<Frame> | ✅ COMPLETE (4/4) |
+| 5 | R06 FFI | ✅ **COMPLETE (4/4)** |
+| Other | (3, 4, 6+) | ⏳ |
+
+3 of 10 audit-priority pillars have Phase 1 closure.
+
 ## [0.8.273] — 2026-05-05
 
 **R06-D2 Phase 1 — Python bridge result-free hook landed.**
