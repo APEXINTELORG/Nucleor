@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.181] — 2026-05-05
+
+**Audit-pass perf gating — back under 4s cold compile.**
+Compiler edit; stage1↔stage2 IR md5 fixed-point validated.
+
+### Why
+
+User flagged perf creep: cold time had drifted from helper's
+3.68s baseline (v0.8.172) to ~4.0–4.2s across the 6 audit-pass
+ships (v0.8.143/145/146/147/173). Each audit-family added 2–6
+unconditional full-source `simple_attribute_audit_count` scans
+on every compile — accumulating to ~24 full-source byte walks
+per build.
+
+### What
+
+Wrapped each audit family in a single cheap `str_index_of`
+presence-probe gate. If the canonical token (e.g. `"fixed<"`,
+`"Pose<"`, `"unit<"`, `"target."`, `"MemSpace_"`, `"Model<"`)
+is absent from the source, **skip the per-needle scans
+entirely**. Most non-fixture builds contain none of these
+tokens, so they now do at most one cheap scan per family
+instead of 4–6.
+
+| Audit family | Gate token(s) | Scans skipped when gate misses |
+|---|---|---|
+| RFC-0043 fixed<I,F> | `fixed<` | 4 |
+| RFC-0044 OverflowMode | `wrapping `, `saturating `, `#wrap`, `#sat`, `#trap` | 6 |
+| RFC-0046 Pose<F> + Frame_* | `Pose<` or `Frame_` | 3 |
+| RFC-0047 unit<T,...> | `unit<`, `Mass<`, `Length<`, `Force<`, `Acceleration<` | 6 |
+| RFC-0048 target.has/os | `target.` | 2 |
+| RFC-0049 MemSpace_* | `MemSpace_` | 2 |
+| RFC-0051 Model<...> | `Model<` | 2 |
+
+### Locks
+
+- Stage1 IR md5 = stage2 IR md5 = `B40FA7BA00DF73FBD01BAB753971AD10`.
+- Fixtures still trigger correctly: `fixed_audit_smoke` audit emits 8 occurrences; `pose_frame_audit_smoke` emits 8 Frame_* uses.
+- 3 perf runs: 3.70s / 4.19s (background spike) / 3.72s. **Median 3.72s — under 4s ceiling.**
+- Hot 0.4s, peak 316MB unchanged.
+
+### Roadmap context
+
+Kind-12 closure-capture correctness fix from Desktop/Rev
+review remains deferred — surfaced an underlying OWN-008 in
+`priv_mangle_private_fns` self-host source that's its own ship.
+
 ## [0.8.180] — 2026-05-04
 
 **Two more zero-coverage rod fixtures shipped — tensor_nd +
