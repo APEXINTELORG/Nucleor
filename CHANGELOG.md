@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.198] — 2026-05-05
+
+**Two more zero-coverage rod fixtures shipped — ridge + python.**
+Pure fixtures, no compiler/runtime/stdlib edits.
+
+### ridge rod (gradient-descent ridge regression)
+
+`tests/features/ridge_smoke.nr` locks three lifecycle invariants
+on a perfectly linear y=2x dataset:
+
+| Test | Path |
+|---|---|
+| Matrix accessors | `mat_set + mat_get` round-trip f64-bits exactly |
+| Train returns model | `ridge_train` on 4-sample dataset returns non-zero handle |
+| Predict finite output | `predict_one` produces a finite value (no NaN/inf) — exact convergence depends on lambda/lr/epochs and is out of scope for a smoke |
+
+### python rod (embedded Python interop via dynamic loading)
+
+`tests/features/python_smoke.nr` locks two lifecycle invariants
+that don't require Python actually be installed:
+
+| Test | Path |
+|---|---|
+| `py_available` predicate | returns 0 or 1 (host-state query) |
+| `py_init` no-crash | call completes whether Python is found or not |
+
+All pass. rc=0.
+
 ## [0.8.197] — 2026-05-05
 
 **stdlib/rods/replay.nr first test coverage.** Pure fixture, no
