@@ -16763,9 +16763,9 @@ fn own_set_cur_scope(o: Vec<i32>, depth: i64) -> i64 {
     return own_set_i(o, "cur_scope", depth);
 }
 #[manual_drop]
-fn own_set_mutable(o: Vec<i32>, name: str, is_mut: i64) -> i64 { return own_set_i(o, str_concat("mutable_", name), is_mut); }
+fn own_set_mutable(o: Vec<i32>, name: str, is_mut: i64) -> i64 { return own_set_i_raw(o, str_concat("__oi_mutable_", name), is_mut); }
 #[manual_drop]
-fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("mutable_", name)); }
+fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_mutable_", name)); }
 #[manual_drop]
 fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
     let keys: Vec<i32> = if str_eq(list_key, "__shared_keys") == 1 { own_shared_keys_vec(o) } else { if str_eq(list_key, "__mut_keys") == 1 { own_mut_keys_vec(o) } else { if str_eq(list_key, "__scope_keys") == 1 { own_scope_keys_vec(o) } else { own_get_type(o, list_key) } } };
@@ -16780,41 +16780,41 @@ fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
 #[manual_drop]
 fn own_set_scope(o: Vec<i32>, name: str, depth: i64) -> i64 {
     own_track_key(o, "__scope_keys", name);
-    return own_set_i(o, str_concat("scope_", name), depth);
+    return own_set_i_raw(o, str_concat("__oi_scope_", name), depth);
 }
 #[manual_drop]
-fn own_get_scope(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("scope_", name)); }
+fn own_get_scope(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_scope_", name)); }
 #[manual_drop]
-fn own_set_param(o: Vec<i32>, name: str, is_param: i64) -> i64 { return own_set_i(o, str_concat("param_", name), is_param); }
+fn own_set_param(o: Vec<i32>, name: str, is_param: i64) -> i64 { return own_set_i_raw(o, str_concat("__oi_param_", name), is_param); }
 #[manual_drop]
-fn own_get_param(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("param_", name)); }
+fn own_get_param(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_param_", name)); }
 #[manual_drop]
-fn own_set_ref_target(o: Vec<i32>, name: str, target: str) -> i64 { return own_set_s(o, str_concat("ref_target_", name), target); }
+fn own_set_ref_target(o: Vec<i32>, name: str, target: str) -> i64 { return own_set_s_raw(o, str_concat("__os2_ref_target_", name), target); }
 #[manual_drop]
-fn own_get_ref_target(o: Vec<i32>, name: str) -> str { return own_get_s(o, str_concat("ref_target_", name)); }
+fn own_get_ref_target(o: Vec<i32>, name: str) -> str { return own_get_s_raw(o, str_concat("__os2_ref_target_", name)); }
 #[manual_drop]
-fn own_set_ref_kind(o: Vec<i32>, name: str, kind: i64) -> i64 { return own_set_i(o, str_concat("ref_kind_", name), kind); }
+fn own_set_ref_kind(o: Vec<i32>, name: str, kind: i64) -> i64 { return own_set_i_raw(o, str_concat("__oi_ref_kind_", name), kind); }
 #[manual_drop]
-fn own_get_ref_kind(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("ref_kind_", name)); }
+fn own_get_ref_kind(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_ref_kind_", name)); }
 #[manual_drop]
-fn own_shared_borrows(o: Vec<i32>, key: str) -> i64 { return own_get_i(o, str_concat("shared_", key)); }
+fn own_shared_borrows(o: Vec<i32>, key: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_shared_", key)); }
 #[manual_drop]
-fn own_mut_borrowed(o: Vec<i32>, key: str) -> i64 { return own_get_i(o, str_concat("mut_", key)); }
+fn own_mut_borrowed(o: Vec<i32>, key: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_mut_", key)); }
 #[manual_drop]
 fn own_inc_shared(o: Vec<i32>, key: str) -> i64 {
     own_track_key(o, "__shared_keys", key);
-    return own_set_i(o, str_concat("shared_", key), own_shared_borrows(o, key) + 1);
+    return own_set_i_raw(o, str_concat("__oi_shared_", key), own_shared_borrows(o, key) + 1);
 }
 #[manual_drop]
 fn own_dec_shared(o: Vec<i32>, key: str) -> i64 {
     let cur: i64 = own_shared_borrows(o, key);
-    if cur > 0 { own_set_i(o, str_concat("shared_", key), cur - 1); };
+    if cur > 0 { own_set_i_raw(o, str_concat("__oi_shared_", key), cur - 1); };
     return 0;
 }
 #[manual_drop]
 fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
     own_track_key(o, "__mut_keys", key);
-    return own_set_i(o, str_concat("mut_", key), on);
+    return own_set_i_raw(o, str_concat("__oi_mut_", key), on);
 }
 #[manual_drop]
 fn str_starts_with(s: str, prefix: str) -> i64 {
