@@ -137,7 +137,19 @@ This single-translation-unit approach is intentional — it gives the optimizer 
 
 ## Caching
 
-A successful build writes per-function LLVM IR to `.nuc_cache/<fn_hash>.ll`. Subsequent builds that don't change a function reuse its cached IR rather than re-emitting it. Pass `--no-cache` to disable.
+A successful build writes per-build cache artifacts to `.nuc_cache/`
+in the project root. The cache holds three artifact families:
+
+- **Module-graph manifests** — `modgraph_<hash>.{manifest, resolved, max_depth}` per built source. Records the transitive-import graph + per-source content hashes that determined the build's output.
+- **Native-link logs** — `clang_link.<artifact>.log` capturing clang's exit code + stderr for the link step. Adopters debugging a link failure read these.
+- **(Phase 2)** — per-function LLVM IR sub-cache (originally documented as `.nuc_cache/<fn_hash>.ll`) was the v0.2.x design; today per-function IR is bundled into the per-source `.ll` emit at `target/`. The function-level sub-directory is reserved for a future ship.
+
+Subsequent builds that don't change a source reuse the cache rather
+than re-emitting. Pass `--no-cache` to disable.
+
+R13-D6 Phase 1 (v0.8.281, audit 2026-05-05): pre-v0.8.281 this
+section described the v0.2.x `<fn_hash>.ll` layout; live layout is
+module-graph + link-log focused.
 
 ## What the runtime is not
 
