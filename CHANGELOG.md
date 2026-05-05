@@ -5,6 +5,96 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.262] — 2026-05-05
+
+**R14-D1 Phase 1 — `@law(...)` lex-time capture LANDED.**
+Closes the first deficiency from `BUILD_PLAN_R14_algebraic_laws.md`:
+the audit's #1 priority pillar. Per principal directive 2026-05-05
+(option A: build the feature, no demarketing), this is the first
+step in a multi-ship arc that will eventually deliver real algebraic-
+law optimization (Phase 2 metadata-only optimizer pass; Phase 2b
+full law extraction + property tests; Phase 3 deny-by-default;
+Phase 4 v1.0 hard error on dropped laws + Z3 integration).
+
+### Bug
+
+Pre-v0.8.262 `compiler/nucleor_s1_compiler.nr:255-289` (the lex
+`@`-attribute skip path) silently consumed `@law(...)` annotations
+along with all other `@attr(...)` attributes — no AST node, no IR
+annotation, no observation. Adopters writing `@law(commutative,
+associative)` got zero compile-time visibility that the law was
+seen, let alone any optimization benefit.
+
+### Fix (Phase 1, additive)
+
+`compiler/nucleor_s1_compiler.nr` lex path: detect `@law(` as a
+prefix via `str_eq_at`, capture the body span (`law_body_start` =
+position after `(`; body end = position before matching `)` after
+the existing depth-counter walk), and emit
+`info[LAW-CAPTURE]: @law at position N, body length M` to stdout
+for each occurrence. The skip itself is unchanged — body still gets
+consumed by the existing generic `@attr(...)` skip — but the
+position and body length are now observable in compiler output.
+
+The pre-existing v0.8.58 audit-pass diagnostic `info[LAW-G123]`
+(string-search for `@law(` AFTER tokenization) is **kept as
+fallback** per the audit's build plan rollback path.
+
+### Coverage
+
+`tests/features/law_metadata_smoke.nr` defines two annotated
+functions (`@law(commutative, associative)`,
+`@law(identity = 1, absorbing = 0)`) and verifies:
+
+- Functions still execute correctly at runtime (annotations remain
+  inert at runtime in Phase 1; observation is purely compile-time).
+- Two `@law` annotations → two LAW-CAPTURE info records emitted
+  during `nuc build` (visible to anyone running the compile).
+- Associative reassociation still produces equal results
+  (a Phase 4+ optimizer-pass-driven invariant; in Phase 1 the math
+  is associative anyway).
+
+`tests/attrs/laws.nr` (the pre-existing test fixture using
+`@law(commutative, associative, identity=0)` etc.) also passes
+cleanly with the new compiler — runtime behavior unchanged.
+
+### Self-host fixed-point md5 ROTATED
+
+| | Before | After |
+|---|---|---|
+| Stage1/2/seed md5 | `7b4966b9b69526674ef5ce3208a8274e` | `45802a11e9c6e5b1af3bf6e948f5f56f` |
+
+`bootstrap/nucleor_s1_seed.ll` refreshed to match new stage2 IR.
+`bin/nucleor.exe` promoted to new stage2 binary.
+
+### Gates
+
+- Self-host fixed-point: ✅ holds at new md5
+- Bootstrap seed match: ✅
+- Perf cold: 3.51s (max 5.93s soft 4s target) ✅
+- Perf hot: 0.79s ✅
+- Perf peak mem: 301MB (max 747MB) ✅
+- Drift: ✅ all clean
+
+### Rollback path (per build plan §1 R14-D1)
+
+If Phase 1 destabilizes the lex pipeline: revert the addition of
+`law_at` / `is_law` / `law_body_start` locals + the LAW-CAPTURE
+print at the bottom of the `c == 64` branch in
+`compiler/nucleor_s1_compiler.nr` lex code; the existing v0.8.58
+`info[LAW-G123]` audit-pass diagnostic continues to provide
+fallback observability via the post-tokenization string scan.
+
+### Next R14 ships (per spine §15.2)
+
+| # | Phase | Scope |
+|---|---|---|
+| 2 | R14-D3 Phase 1 | wire `--check-laws` to actually drive a check pass |
+| 3 | R14-D5 | reconcile law name schema across RFC-0031 + language-reference + tests/attrs/laws |
+| 4 | R14-D2 Phase 1 | metadata-only optimizer pass (observe-only) |
+| 5 | R14-D4 Phase 1 | Property + Arbitrary + cert proof scaffolding |
+| 6+ | Phase 2/3/4 | actual rewrites, hard errors, Z3 integration |
+
 ## [0.8.261] — 2026-05-05
 
 **scurve rod ↔ trajectory rod `nuc_scurve_*` symbol collisions FIXED + coverage.
