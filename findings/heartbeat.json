@@ -1,17 +1,24 @@
 {
   "instructions_read": "v0.8.314-main-and-helper-refresh",
-  "current_task": "main: helper handoff written; main lane preparing R09-D1 fixed<I,F> type tracking",
+  "current_task": "main: R09-D1 fixed<I,F> semantic type tracking complete; helper: R12-D2 registry remotes isolated lane",
   "roadmap_phase": "v1_launch_blocker_final_buildout",
   "current_punchlist_item": "main:R09-D1 helper:R12-D2",
   "edits_in_main_tree": true,
-  "rebased_on_origin_main": "current-origin-main-after-fetch",
+  "rebased_on_origin_main": "main at 75740d33 before v0.8.315 R09-D1 slice",
   "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
   "branch": "main",
-  "head": "handoff branch; run git log --oneline -1 after fetch",
-  "status": "coordination_refresh",
+  "head": "pending v0.8.315 commit after validation",
+  "status": "ready_for_commit",
+  "paths": {
+    "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
+    "helper_worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_helper_r12_registry",
+    "helper_branch": "probe/r12-registry-remotes-v0814",
+    "helper_instructions": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md",
+    "helper_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0814_2026-05-05.md",
+    "canonical_spine": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\BUILD_PATH_v0.4_to_v1.3.md",
+    "build_plans": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans"
+  },
   "helper_assignment": {
-    "instructions_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\PARALLEL_AGENT_INSTRUCTIONS_v0.8.314.md",
-    "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_parallel_agent_assignment_v0814_2026-05-05.md",
     "primary": "R12-D2 registry remotes Phase 1",
     "recommended_branch": "probe/r12-registry-remotes-v0814",
     "write_scope": [
@@ -32,23 +39,34 @@
   "main_lane": {
     "candidate": "R09-D1 full fixed<I,F> type tracking",
     "build_plan": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans\\BUILD_PLAN_R09_numeric_correctness.md",
-    "perf_rule": "hold sub-4s cold compile soft target; do not absorb drift into baseline"
+    "implementation": [
+      "preserve fixed<I,F> and ufixed<I,F> semantic type strings in parse_type",
+      "reject mismatched fixed widths in binding compatibility and fixed/fixed binops",
+      "allow raw integer storage to initialize fixed<I,F> values",
+      "add targeted own_get_mutable backing-vector fallback for stale warm-hash misses"
+    ],
+    "status": "validated_ready"
   },
   "validation": {
-    "repo_state_before_refresh": {
-      "status": "clean",
-      "head": "fa445e60 compiler baseline before handoff docs",
-      "origin_main": "fetch live before helper branch creation"
-    }
+    "self_host_md5": "c1c6d4397f943c203e6561059fbf7db0",
+    "own008_stress": "8 repeated no-link compiler self-builds passed",
+    "focused_tests": [
+      "bin/nucleor.exe build tests/features/fixed_type_width_smoke.nr -o _r09_fixed_width_smoke_bin --no-cache + run: PASS",
+      "bin/nucleor.exe build tests/features/fixed_audit_smoke.nr -o _r09_fixed_audit_existing_bin --no-cache + run: PASS",
+      "bin/nucleor.exe build tests/err/err_fixed_width_mismatch.nr -o _r09_fixed_width_err_bin --no-cache: expected failure with TYP-008"
+    ],
+    "compiler_drift": "PASS",
+    "perf": "PASS cold=3.95s hot=0.42s peak_mem=311MB"
   },
   "perf_context": {
-    "v0.8.314_note": "compiler self-time about 2.5-2.8s; linked wall variance above 4s attributed to clang/Defender spikes, not acceptable as a reason to ignore future compiler drift",
     "soft_target_cold_seconds": 4.0,
-    "hard_target_cold_seconds": 5.93,
-    "peak_memory_recent_mb": "305-312"
+    "latest_cold_seconds": 3.95,
+    "latest_hot_seconds": 0.42,
+    "latest_peak_memory_mb": 311,
+    "note": "Sub-4 target recovered after narrowing the ownership fallback; do not absorb future drift into baseline."
   },
   "caveats": {
-    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and now point to v0.8.314 instructions.",
+    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and superseded by v0.8.314 instructions.",
     "probe_branch_disposition": "origin/probe/u64-strict-arith-v0886 remains backup-only; do not merge."
   }
 }
