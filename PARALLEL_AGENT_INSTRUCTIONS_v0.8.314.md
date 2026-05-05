@@ -11,7 +11,7 @@
 
 - Canonical repo: `C:\Users\JoeWe\Desktop\Nucleor_OSS`
 - Branch: `main`
-- Current `origin/main`: `ecec0728` (`docs: refresh helper final-buildout handoff`)
+- Current `origin/main`: fetch it live before creating the helper branch
 - Compiler baseline underneath this handoff: `fa445e60` / `v0.8.314`
 - Self-host fixed-point md5: `92a6b77baec09726f3c04b3224280ce5`
 - Handoff from previous main agent:
@@ -65,7 +65,7 @@ git log --oneline -1
 git merge-base HEAD origin/main
 ```
 
-The merge-base must be current `origin/main` (`ecec0728`) before the
+The merge-base must match fetched `origin/main` before the
 work is meaningful.
 
 ## Assigned helper lane
@@ -150,7 +150,7 @@ Set or update the following fields in your branch's
   "roadmap_phase": "v1_launch_blocker_final_buildout",
   "current_punchlist_item": "R12-D2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "ecec0728",
+  "rebased_on_origin_main": "current-origin-main-after-fetch",
   "branch": "probe/r12-registry-remotes-v0814",
   "status": "in_progress",
   "validation": {},
@@ -185,7 +185,7 @@ Avoid conflicts with:
 
 Stop and report rather than push if:
 
-- your branch is not based on `ecec0728` or newer `origin/main`
+- your branch is not based on fetched `origin/main`
 - the change requires compiler fixed-point rotation
 - cold compile regresses and you cannot explain it
 - a command needs Linux/POSIX proof that cannot be honestly run on this
