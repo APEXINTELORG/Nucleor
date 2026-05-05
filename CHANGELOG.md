@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.151] — 2026-05-04
+
+**RFC-0061 Tier 3 Phase A acceptance lock — qsim entanglement
+tracker + gate-influence DAG smoke fixture (V1.18).** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+The `qsim_graph` rod (entanglement union-find + gate-DAG
+surface) shipped the runtime + rod surface at v0.7.94 — this
+ship lands the missing RFC-0061 §Tier 3 acceptance criterion:
+*"`qsim_entanglement_*` queries work end-to-end on a 4-qubit
+Bell-state simulator."*
+
+`tests/features/qsim_entanglement_smoke.nr` locks four
+textbook entanglement-tracker invariants:
+
+| Test | Path |
+|---|---|
+| Empty tracker count | `qsim_entanglement_count() == 0` after clear |
+| **GHZ chain (4-qubit)** | `CNOT(0,1) + CNOT(1,2) + CNOT(2,3)` → 1 component, size 4, `same(0, 3) == 1` (transitively connected via union-find) |
+| Disjoint Bell pairs | `(0,1) + (2,3)` → 2 components, `same(0, 2) == 0`, each size 2 |
+| **Gate-influence DAG** | H q0 then CNOT q0 q1 → `dag_size == 2`, CNOT depends on H via shared q0 |
+
+All pass. rc=0.
+
+### Where this sits in the roadmap
+
+- V1.18 / RFC-0061 Tier 3 acceptance lock — Phase A **CLOSED.**
+- Combined graph-remediation arc status:
+  - V1.17a Tier 1 (wrappers + matrix view + smoke fixtures) → ✅ v0.7.78–81 + v0.8.148
+  - V1.17b Tier 2 (`nuc deps graph` 4 renderers) → ✅ v0.8.149
+  - V1.17c Tier 5 (graph-capabilities.md) → ✅ v0.8.4
+  - V1.18 Tier 3 acceptance fixture → ✅ v0.8.151 (this ship)
+  - V1.19 Tier 4 graph-aware optimization → DEFERRED (needs
+    Sonnet confirm-pass against V2 source per RFC §Tier 4 Q1).
+- Phase B for Tier 3 (RFC's `qsim_entanglement_components ->
+  Vec<Vec<i64>>` and `qsim_gate_influence_dag(sim) -> Graph`
+  bridge into the graph rod) remain as nested-Vec / handle-bridge
+  ships; current API exposes count + size + same + DAG-depends
+  which covers the textbook-property surface.
+
 ## [0.8.150] — 2026-05-04
 
 **V1.16 LSP server Phase A0 — `--lsp-mode` flag wiring +
