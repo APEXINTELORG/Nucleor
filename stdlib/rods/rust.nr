@@ -21,6 +21,10 @@ extern fn rust_regex_find(pattern: str, text: str) -> str;
 extern fn rust_regex_count(pattern: str, text: str) -> i64;
 extern fn rust_regex_replace_all(pattern: str, text: str, replacement: str) -> str;
 extern fn rust_hash_string(s: str) -> i64;
+// R06-D4 Phase 1 (v0.8.272) — deterministic FNV-1a 64-bit string
+// hash. Use for reproducible artifacts; rust_hash_string is per-
+// process randomized (HashDoS defense, NOT reproducible).
+extern fn rust_hash_string_fnv1a(s: str) -> i64;
 extern fn rust_sort_ints(csv: str) -> str;
 extern fn rust_sort_strings(csv: str) -> str;
 extern fn rust_to_uppercase(s: str) -> str;
