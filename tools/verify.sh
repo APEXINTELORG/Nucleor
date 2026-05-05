@@ -1357,8 +1357,9 @@ self_host_rebuild() {
 # v0.2.161 — guard against memory regressions in the self-host compile.
 # On Windows this measures peak process-tree RSS and kills the build if
 # it crosses the budget. That tracks the real crash risk from compiler
-# and clang overlap. On POSIX hosts without the PowerShell sampler, it
-# falls back to the older NUC_TRACE_ALLOC cumulative-allocation check.
+# and clang overlap. On Linux hosts without the PowerShell sampler, it
+# uses tools/run_capped.sh for a /proc process-tree RSS e-stop. Other
+# POSIX hosts fail unsupported instead of passing a soft allocation proxy.
 #
 # Budget history:
 # - v0.2.161: 400 MB cap, 185 MB baseline (2.2x headroom).
@@ -4931,21 +4932,25 @@ _memory_budget_for() {
     local label="$3"
     local out_name="$4"
     local out
+    local rc
+    local force_posix_rss="${NUC_VERIFY_FORCE_POSIX_RSS:-0}"
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
     # Windows agents may run this bash script from Git Bash, MSYS, or
     # WSL. Prefer the PowerShell process-tree sampler whenever a
-    # PowerShell host is visible; the NUC_TRACE_ALLOC fallback does not
-    # enforce the real RSS e-stop and can fail to parse newer builds.
+    # PowerShell host is visible unless validation explicitly forces the
+    # Linux /proc path.
     local psbin=""
     # Prefer PowerShell 7 when available. Windows PowerShell's 100ms
     # process-tree sampling loop can inflate wall time by multiple seconds
     # on this gate even when the compiler itself stays in the 3s regime.
-    if command -v pwsh >/dev/null 2>&1; then
-        psbin="pwsh"
-    elif command -v pwsh.exe >/dev/null 2>&1; then
-        psbin="pwsh.exe"
-    elif command -v powershell.exe >/dev/null 2>&1; then
-        psbin="powershell.exe"
+    if [ "$force_posix_rss" != "1" ]; then
+        if command -v pwsh >/dev/null 2>&1; then
+            psbin="pwsh"
+        elif command -v pwsh.exe >/dev/null 2>&1; then
+            psbin="pwsh.exe"
+        elif command -v powershell.exe >/dev/null 2>&1; then
+            psbin="powershell.exe"
+        fi
     fi
     if [ -n "$psbin" ]; then
         local ps1="$ROOT/tools/measure_peak_build.ps1"
@@ -4960,41 +4965,39 @@ _memory_budget_for() {
         else
             out=$("$psbin" -NoProfile -File "$ps1_arg" -Source "$src" -OutName "$out_name" -BudgetMb "$budget_mb" 2>&1)
         fi
-        local rc=$?
+        rc=$?
         echo "$out" | sed 's/^/       /'
         return $rc
     fi
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            if command -v powershell.exe >/dev/null 2>&1; then
+            if [ "$force_posix_rss" != "1" ] && command -v powershell.exe >/dev/null 2>&1; then
                 local ps1="$ROOT/tools/measure_peak_build.ps1"
                 local ps1_arg="$ps1"
                 if command -v cygpath >/dev/null 2>&1; then
                     ps1_arg="$(cygpath -w "$ps1")"
                 fi
                 out=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ps1_arg" -Source "$src" -OutName "$out_name" -BudgetMb "$budget_mb" 2>&1)
-                local rc=$?
+                rc=$?
                 echo "$out" | sed 's/^/       /'
                 return $rc
             fi
             ;;
     esac
 
-    out=$(NUC_TRACE_ALLOC=1 "$BIN" build "$src" -o "$out_name" 2>&1)
-    local mb
-    mb=$(echo "$out" | awk '/TOTAL TRACKED/ { for (i=1; i<=NF; i++) if ($i ~ /MB\)$/) { gsub(/[(]|MB\)/, "", $(i-1)); print $(i-1); exit } }')
-    if [ -z "$mb" ]; then
-        echo "       ERROR: could not parse TOTAL TRACKED from NUC_TRACE_ALLOC output" | sed 's/^/       /'
-        return 1
+    local capped="$ROOT/tools/run_capped.sh"
+    if [ -f "$capped" ]; then
+        out=$(bash "$capped" --budget-mb "$budget_mb" --warning-mb "$((budget_mb * 9 / 10))" --sample-ms "${NUC_VERIFY_RSS_SAMPLE_MS:-100}" --label "$label" -- "$BIN" build "$src" -o "$out_name" 2>&1)
+        rc=$?
+        echo "$out" | sed 's/^/       /'
+        if [ "$rc" -eq 96 ]; then
+            echo "       ERROR: no supported real process-tree RSS e-stop is available for ${label}; refusing soft-green NUC_TRACE_ALLOC fallback." | sed 's/^/       /'
+        fi
+        return $rc
     fi
-    if [ "$mb" -gt "$budget_mb" ]; then
-        echo "       FAIL: ${label} compile used ${mb} MB; budget ${budget_mb} MB" | sed 's/^/       /'
-        echo "       Recent changes may have re-introduced an allocate-then-discard pattern." | sed 's/^/       /'
-        echo "       Run NUC_TRACE_ALLOC=1 bin/nucleor.exe build ${src} --no-cache" | sed 's/^/       /'
-        echo "       to see per-category breakdown." | sed 's/^/       /'
-        return 1
-    fi
-    echo "       (${label}: ${mb} MB / ${budget_mb} MB budget)" | sed 's/^/       /'
+
+    echo "       ERROR: tools/run_capped.sh missing and no PowerShell RSS sampler is available for ${label}; refusing soft-green NUC_TRACE_ALLOC fallback." | sed 's/^/       /'
+    return 1
 }
 
 tools_rebuild() {

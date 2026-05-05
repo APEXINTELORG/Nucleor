@@ -123,6 +123,10 @@ launch. After memory safety completes, these are next-priority.
 
 ### Performance Envelope (beyond PERF-11)
 - Source: `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`
+- **R13-D5 POSIX real RSS e-stop parity:** READY on branch
+  `probe/r13-d5-posix-rss-estop-v0818` — adds Linux `/proc`
+  process-tree cap wrapper and removes the soft `NUC_TRACE_ALLOC`
+  green fallback from memory-budget gates.
 - General perf-budget gates; CI integration.
 
 ## Tier C items (stdlib coherence)

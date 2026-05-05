@@ -57,6 +57,44 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - The watchdog writes stdout/stderr logs under `target/` plus the normal
   `NUC_VERIFY_CSV` timing rows, so the killed step remains diagnosable.
 
+## POSIX RSS e-stop discipline
+
+On Linux hosts, `tools/verify.sh` and `tools/verify_fast.sh` can enforce the
+same memory-budget contract with `tools/run_capped.sh`. The wrapper starts the
+compile in a new process group with `setsid`, samples the Linux `/proc`
+process tree, and kills the group if total RSS crosses the budget.
+
+Direct smoke examples:
+
+```bash
+bash tools/run_capped.sh --budget-mb 512 --label success-smoke -- sleep 0.2
+bash tools/run_capped.sh --budget-mb 1 --label estop-smoke -- sleep 2
+```
+
+The second command should exit `99` after killing the process group. If the
+host is not Linux `/proc`, or if `setsid` is unavailable, the wrapper exits
+`96` and reports `UNSUPPORTED`.
+
+WSL interop is not valid POSIX RSS evidence for `bin/nucleor.exe`: Linux
+`/proc` sees the Windows bridge process, not the real Windows compiler and
+`clang` process tree. In that case the wrapper exits `96`. Use the PowerShell
+sampler for Windows `.exe` builds, or run the POSIX wrapper against a native
+Linux compiler binary.
+
+The verify memory-budget steps still prefer the PowerShell process-tree
+sampler when it is visible, which preserves the Windows safety path. To prove
+the Linux `/proc` path specifically, force it:
+
+```bash
+NUC_VERIFY_FORCE_POSIX_RSS=1 bash tools/verify.sh --only "self-host memory budget (<= 770 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)"
+NUC_VERIFY_FORCE_POSIX_RSS=1 bash tools/verify.sh --only "tools-suite memory budget (<= 580 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)"
+```
+
+`NUC_TRACE_ALLOC=1` remains useful for allocation forensics, but it is no
+longer an acceptable green path for these memory-budget gate steps. If neither
+the PowerShell sampler nor the Linux `/proc` wrapper is available, the step
+must fail unsupported rather than silently passing a soft allocation proxy.
+
 ## v0.8.317 — cold/hot memory split for the perf gate
 
 `tools/check_perf_regression.ps1` now reads the split RSS fields and enforces
@@ -285,7 +323,7 @@ gets a `( N.NNs)` suffix so you can spot slowdowns as they happen.
 |---|---|---|---|
 | `nuc explain — full spec code set wired` | 27.5s | spawns ~130 subprocesses (one per error code) | batch into one `nuc explain --all` invocation |
 | `no UTF-8 mojibake in source/docs` | 16.8s | full repo file scan, possibly per-file iter | single byte-pattern grep |
-| `self-host memory budget (<= 100 MB)` | 5.7s | full self-host with NUC_TRACE_ALLOC=1 | reuse the IR from `self-host rebuild closes` |
+| `self-host memory budget (<= 100 MB)` | 5.7s | historical v0.4.22 full self-host with old NUC_TRACE_ALLOC=1 path | reuse the IR from `self-host rebuild closes` |
 | `self-host rebuild closes` | 5.5s | full self-host build | (foundational; can't speed) |
 | `T1.7 bootstrap seed matches current compiler` | 5.0s | another full self-host build | cache the IR from the prior step |
 
