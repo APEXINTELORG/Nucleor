@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 249
-# Total fn definitions: 2843
-# Total LOC: 12078
+# Total rods: 250
+# Total fn definitions: 2893
+# Total LOC: 12258
 
 [[rod]]
 name           = "activation2"
@@ -510,9 +510,9 @@ imports        = ["diff_drive"]
 name           = "diff_sim"
 path           = "stdlib/rods/diff_sim.nr"
 description    = "Differentiable quantum simulation"
-function_count = 26
+function_count = 46
 cfile_count    = 1
-loc            = 68
+loc            = 118
 imports        = []
 
 [[rod]]
@@ -1095,9 +1095,9 @@ imports        = ["log"]
 name           = "logical_qubit"
 path           = "stdlib/rods/logical_qubit.nr"
 description    = "RFC-0054 Phase A: logical-qubit +"
-function_count = 41
+function_count = 55
 cfile_count    = 1
-loc            = 176
+loc            = 268
 imports        = ["logical_qubit"]
 
 [[rod]]
@@ -1248,9 +1248,9 @@ imports        = ["mppi"]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
 description    = "Matrix Product States (efficient quantum simulation)"
-function_count = 20
+function_count = 21
 cfile_count    = 1
-loc            = 37
+loc            = 40
 imports        = []
 
 [[rod]]
@@ -1599,10 +1599,19 @@ imports        = []
 name           = "quantum"
 path           = "stdlib/rods/quantum.nr"
 description    = "Quantum circuit simulator"
-function_count = 41
+function_count = 47
 cfile_count    = 1
-loc            = 359
+loc            = 377
 imports        = ["quantum"]
+
+[[rod]]
+name           = "quantum_gates"
+path           = "stdlib/rods/quantum_gates.nr"
+description    = "shared quantum gate type constants."
+function_count = 9
+cfile_count    = 0
+loc            = 17
+imports        = []
 
 [[rod]]
 name           = "quat"
