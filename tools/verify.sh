@@ -5077,6 +5077,10 @@ compiler_tables_synced() {
     bash "$ROOT/tools/check_compiler_drift.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+rod_void_abi_clean() {
+    bash "$ROOT/tools/check_rod_void_abi.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+
 num024_audit_zero() {
     # v0.4.232 — regression gate for v0.4.230's str_from_int signature
     # fix. The NUM-024 cross-width call-site audit (opt-in via
@@ -5363,6 +5367,7 @@ rfc0042_auto_drop_ir_smoke() {
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
+step "rod extern void-return ABI parity" rod_void_abi_clean
 step "tools-suite rebuild" tools_rebuild
 step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke
 step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_audit_zero

@@ -202,7 +202,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + 1 (queue smoke) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 121 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke, +1 Track L cache v2
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 122 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke, +1 Track L cache v2, +1 rod void ABI parity
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -230,6 +230,23 @@ Step "compiler ABI tables synced" {
     }
     $script = Join-Path $root "tools\check_compiler_drift.sh"
     & $bash $script *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+Step "rod extern void-return ABI parity" {
+    # Mirrors verify.sh rod_void_abi_clean. Source-text-only so it
+    # catches rod/C ABI drift without compiler hot-path work or Python.
+    $bash = $env:NUCLEOR_BASH_PATH
+    if (-not $bash -or -not (Test-Path $bash)) {
+        if (Test-Path "C:\Program Files\Git\bin\bash.exe") {
+            $bash = "C:\Program Files\Git\bin\bash.exe"
+        } elseif (Test-Path "C:\msys64\usr\bin\bash.exe") {
+            $bash = "C:\msys64\usr\bin\bash.exe"
+        } else {
+            return $true
+        }
+    }
+    & $bash (Join-Path $root "tools\check_rod_void_abi.sh") *> $null
     return $LASTEXITCODE -eq 0
 }
 
