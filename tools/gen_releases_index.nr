@@ -271,10 +271,6 @@ fn main() -> i64 {
 
         idx_p = idx_p - 1;
     };
-    if str_len(current_group) > 0 {
-        out = str_concat(out, "\n");
-    };
-
     file_write_string(out_path, out);
 
     let mut no_summary: i64 = 0;

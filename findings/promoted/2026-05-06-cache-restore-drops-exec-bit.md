@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-06
 **Surfaced by:** RFC-0063 Phase 1.4 (commit `d298ee8`) — repeated `nuc build` of a Nucleor program ended up producing a non-executable artifact on cache hit.
-**Status:** OPEN — worked around with `chmod +x` in `tools/check_compiler_drift.sh`; needs proper fix in the cache restore path.
+**Status:** **CLOSED in v0.8.323** — root-caused to `__nucleor_fs_copy_file` not preserving source mode. Fixed by adding POSIX `stat`/`chmod` after the byte copy. Cache-hit `nuc build` now produces `-rwxr-xr-x` matching the fresh-build behavior. `chmod +x` workaround removed from `tools/check_compiler_drift.sh` in the same ship.
 
 ## Symptom
 
