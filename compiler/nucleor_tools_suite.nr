@@ -6561,6 +6561,7 @@ fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -
     if str_len(tstr) == 0 { return 1; };
     if type_is_mut_ref(tstr) == 1 { return 0; };
     if type_is_shared_ref(tstr) == 1 { return 1; };
+    if str_starts_with(tstr, "Box<") == 1 { return 0; };
     let base: str = type_base_name(tstr);
     if str_eq(base, "i64") { return 1; }; if str_eq(base, "i32") { return 1; };
     if str_eq(base, "str") { return 1; }; if str_eq(base, "bool") { return 1; };
