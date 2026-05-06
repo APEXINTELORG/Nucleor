@@ -4,7 +4,8 @@
 
 - Worktree: `C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828`
 - Branch: `fix/helper2-pkg1-release-dryrun-preflight-v0831`
-- Commit: `COMMIT_SHA_PENDING`
+- Implementation/report commit: `c30eadae`
+- Branch head: reported in the final handoff after the report SHA-record commit
 - Base ref: `origin/fix/main-qm7-surface-code-v0827`
 - Merge-base with base ref: `7c8c0b0ca64256d73cdddeaa1327992a0c59f3a4`
 - `origin/main` at setup: `5ec86d7e4d965359348d33826553659157d16016`
