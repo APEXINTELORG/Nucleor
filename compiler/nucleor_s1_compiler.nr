@@ -20344,6 +20344,20 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let tw: i64 = type_width(target_type);
         let ss: i64 = type_signedness(source_t);
         let ts: i64 = type_signedness(target_type);
+        if str_eq(target_type, "char") == 1 {
+            let ch_const_v084: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
+            if const_i64_overflow(ch_const_v084) == 0 && vec_get(ch_const_v084, 0) == 1 {
+                let ch_cp_v084: i64 = vec_get(ch_const_v084, 1);
+                let mut ch_bad_v084: i64 = 0;
+                if ch_cp_v084 < 0 { ch_bad_v084 = 1; };
+                if ch_cp_v084 > 1114111 { ch_bad_v084 = 1; };
+                if ch_cp_v084 >= 55296 && ch_cp_v084 <= 57343 { ch_bad_v084 = 1; };
+                if ch_bad_v084 == 1 {
+                    let ch_msg_v084: str = str_concat("`as char` codepoint ", str_concat(str_from_int(ch_cp_v084), " is not a valid Unicode scalar value. Valid range is 0..0x10FFFF excluding surrogate range 0xD800..0xDFFF. Pre-fix, this cast silently accepted invalid codepoints and could produce invalid UTF-8 at char_to_str use sites."));
+                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_msg_v084, fn_name, "");
+                };
+            };
+        };
         if sw > 0 && tw > 0 && ss == ts && tw < sw {
             // v0.5 ship 7: span-aware caret. Use the cast nid's span
             // (set in parse_unary at the `as` token) when available;
@@ -30848,7 +30862,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0846_count: i64 = simple_attribute_audit_count(after_async, str_concat(" as ", "char"));
         if v0846_count > 0 {
             print(str_concat("info[T-3-CAST]: `as char` casts in source: ", str_from_int(v0846_count)));
-            print("  Per RFC sister gap T-3 (Type System): `<int> as char` accepts any value, including out-of-range codepoints (>0x10FFFF) and the surrogate range (0xD800-0xDFFF). char_to_str on these produces invalid UTF-8 with no compile-time signal. Phase 2b adds codepoint validation at the cast; Phase 4 promotes to hard error. Adopter discipline today: validate codepoint range before casting (`if u >= 0x110000 || (u >= 0xD800 && u < 0xE000) { panic(...); }`). Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
+            print("  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` now emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF). Non-constant casts and the i64-everywhere char ABI remain open until broader char distinctness lands. Adopter discipline today: validate dynamic codepoint range before casting (`if u >= 0x110000 || (u >= 0xD800 && u < 0xE000) { panic(...); }`). Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
         };
     };
     // v0.8.66 NUM-G1 audit RETIRED per probe finding 2026-05-04
