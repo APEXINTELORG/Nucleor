@@ -88,8 +88,9 @@ long long nuc_tf_layer_norm(long long xh, long long gamma_h, long long beta_h) {
 //  All stored as flat Vec<f64>
 // ================================================================
 
-long long nuc_tf_attention_split(long long Q_h, long long K_h, long long V_h,
-                                   long long seq_q, long long seq_k, long long d_k, long long d_v) {
+static long long tf_attention_split_impl(long long Q_h, long long K_h, long long V_h,
+                                         long long seq_q, long long seq_k,
+                                         long long d_k, long long d_v, int causal) {
     TRVec *Q = (TRVec *)(void *)Q_h;
     TRVec *K = (TRVec *)(void *)K_h;
     TRVec *V = (TRVec *)(void *)V_h;
@@ -104,6 +105,10 @@ long long nuc_tf_attention_split(long long Q_h, long long K_h, long long V_h,
         double *scores = (double *)malloc(sk * sizeof(double));
         double max_s = -1e30;
         for (int j = 0; j < sk; j++) {
+            if (causal && j > i) {
+                scores[j] = -1e30;
+                continue;
+            }
             double dot = 0;
             for (int k = 0; k < dk; k++)
                 dot += _tr_i2f(Q->data[i * dk + k]) * _tr_i2f(K->data[j * dk + k]);
@@ -129,6 +134,22 @@ long long nuc_tf_attention_split(long long Q_h, long long K_h, long long V_h,
         free(scores);
     }
     return (long long)out;
+}
+
+long long nuc_tf_attention_split(long long Q_h, long long K_h, long long V_h,
+                                   long long seq_q, long long seq_k, long long d_k, long long d_v) {
+    return tf_attention_split_impl(Q_h, K_h, V_h, seq_q, seq_k, d_k, d_v, 0);
+}
+
+long long nuc_tf_attention_split_masked(long long Q_h, long long K_h, long long V_h,
+                                          long long seq_q, long long seq_k, long long d_k, long long d_v,
+                                          long long causal) {
+    return tf_attention_split_impl(Q_h, K_h, V_h, seq_q, seq_k, d_k, d_v, causal != 0);
+}
+
+long long nuc_tf_attention_causal(long long Q_h, long long K_h, long long V_h,
+                                    long long seq_len, long long d_k) {
+    return tf_attention_split_impl(Q_h, K_h, V_h, seq_len, seq_len, d_k, d_k, 1);
 }
 
 // ================================================================
@@ -171,6 +192,52 @@ long long nuc_tf_multihead_split(long long Q_h, long long K_h, long long V_h,
                 out->data[i * dm + h * dk + j] = ah->data[i * dk + j];
     }
     return (long long)out;
+}
+
+long long nuc_tf_multihead_split_masked(long long Q_h, long long K_h, long long V_h,
+                                          long long seq_q, long long seq_k, long long d_model,
+                                          long long n_heads, long long causal) {
+    TRVec *Q = (TRVec *)(void *)Q_h;
+    TRVec *K = (TRVec *)(void *)K_h;
+    TRVec *V = (TRVec *)(void *)V_h;
+    int sq = (int)seq_q, sk = (int)seq_k, dm = (int)d_model, nh = (int)n_heads;
+    int dk = dm / nh;
+
+    TRVec *out = trvec_new(sq * dm);
+
+    for (int h = 0; h < nh; h++) {
+        TRVec *Qh = trvec_new(sq * dk);
+        TRVec *Kh = trvec_new(sk * dk);
+        TRVec *Vh = trvec_new(sk * dk);
+
+        for (int i = 0; i < sq; i++)
+            for (int j = 0; j < dk; j++)
+                Qh->data[i * dk + j] = Q->data[i * dm + h * dk + j];
+        for (int i = 0; i < sk; i++)
+            for (int j = 0; j < dk; j++) {
+                Kh->data[i * dk + j] = K->data[i * dm + h * dk + j];
+                Vh->data[i * dk + j] = V->data[i * dm + h * dk + j];
+            }
+
+        long long attn = nuc_tf_attention_split_masked((long long)Qh, (long long)Kh, (long long)Vh,
+                                                         sq, sk, dk, dk, causal);
+        TRVec *ah = (TRVec *)(void *)attn;
+
+        for (int i = 0; i < sq; i++)
+            for (int j = 0; j < dk; j++)
+                out->data[i * dm + h * dk + j] = ah->data[i * dk + j];
+    }
+    return (long long)out;
+}
+
+long long nuc_tf_encoder_decoder_block(long long tgt_Q_h, long long tgt_K_h, long long tgt_V_h,
+                                         long long mem_K_h, long long mem_V_h,
+                                         long long seq_tgt, long long seq_src,
+                                         long long d_model, long long n_heads) {
+    long long self_h = nuc_tf_multihead_split_masked(
+        tgt_Q_h, tgt_K_h, tgt_V_h, seq_tgt, seq_tgt, d_model, n_heads, 1);
+    return nuc_tf_multihead_split(
+        self_h, mem_K_h, mem_V_h, seq_tgt, seq_src, d_model, n_heads);
 }
 
 // 5-arg / 6-arg shims — match the rod's declared arity. Pre-2026-05-05
