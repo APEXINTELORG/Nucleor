@@ -26,6 +26,12 @@ extern fn nuc_nn_sigmoid_backward(output: i64, grad: i64) -> i64;
 extern fn nuc_nn_softmax(vec: i64) -> i64;
 extern fn nuc_nn_softmax_backward(softmax: i64, grad: i64) -> i64;
 
+// Training-capable normalization layers (ML-9)
+extern fn nuc_nn_layer_norm(input: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64;
+extern fn nuc_nn_layer_norm_backward(input: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64;
+extern fn nuc_nn_batch_norm(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64;
+extern fn nuc_nn_batch_norm_backward(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64;
+
 // Adam optimizer
 extern fn nuc_nn_adam_new(n_params: i64, lr: i64, beta1: i64, beta2: i64) -> i64;
 extern fn nuc_nn_adam_step_dense(opt: i64, layer: i64);
@@ -57,6 +63,22 @@ extern fn nuc_nn_vec_from_scalar(val: i64) -> i64;
 extern fn nuc_nn_vec_concat(a: i64, b: i64) -> i64;
 extern fn nuc_nn_vec_slice(vec: i64, start: i64, len: i64) -> i64;
 extern fn nuc_nn_weighted_sum(input: i64, weights: i64, dim: i64) -> i64;
+
+fn nn_layer_norm(input: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64 {
+    return nuc_nn_layer_norm(input, gamma, beta, eps_bits);
+}
+
+fn nn_layer_norm_backward(input: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64 {
+    return nuc_nn_layer_norm_backward(input, gamma, grad, eps_bits);
+}
+
+fn nn_batch_norm(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64 {
+    return nuc_nn_batch_norm(input, n_samples, feat_dim, gamma, beta, eps_bits);
+}
+
+fn nn_batch_norm_backward(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64 {
+    return nuc_nn_batch_norm_backward(input, n_samples, feat_dim, gamma, grad, eps_bits);
+}
 
 // =====================================================
 // FlexPredictor: 3-layer MLP matching Python TC V2
