@@ -2016,3 +2016,166 @@ Cloud Linux agent ownership is:
 - run Scope AV R06 native POSIX rust_bridge proof;
 - push `fix/helper2-native-linux-pkg-r06-closure-v0837` or a blocker report
   with exact commands and outputs.
+
+---
+
+## Queue 11 Addendum - RFC-0063 Parser/Tools-Suite Wave 1
+
+Append-only update, 2026-05-06. Queue 10 execution is reassigned to cloud
+Codex because local helper2 is on Windows. Local helper2 should continue on the
+highest-leverage Windows-capable lane: RFC-0063 parser/tools-suite
+unification. This is separate from cloud Codex's Linux proof branch.
+
+Start fresh:
+
+```powershell
+git fetch origin --prune
+git checkout -B fix/helper2-rfc0063-tools-suite-wave1-v0838 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Expected assignment-time base:
+
+```text
+origin/main: 9448f335178cb7ecac9b3b7700e132c9c80507e8
+```
+
+If `origin/main` has advanced, use current `origin/main` and record the actual
+base.
+
+### Scope AX: duplicate inventory refresh and Wave 1 plan
+
+Goal: produce a current duplicate-function inventory and select a compile-proven
+Wave 1 batch. Do not start by deleting hundreds of functions.
+
+Primary files:
+
+```text
+compiler/nucleor_tools_suite.nr
+compiler/nucleor_s1_compiler.nr
+tools/audit_dup_fns.nr
+tools/audit_dup_fns_report.csv
+docs/rfcs/RFC-0063-production-readiness-roadmap.md
+docs/rfcs/v1_PUNCHLIST.md
+findings/inbox/helper2_rfc0063_wave1_plan_v0838_2026-05-06.md
+```
+
+Required work:
+
+- Run the native duplicate audit from current `origin/main`.
+- Reconfirm counts for:
+  - identical duplicates;
+  - signature-match/body-diff duplicates;
+  - signature-diff duplicates.
+- Pick a Wave 1 batch of low-risk `IDENTICAL` functions from
+  `compiler/nucleor_tools_suite.nr`.
+- Exclude parser functions, CLI dispatch, tools-only diagnostics, and any
+  function involved in known `parse_*` drift warnings unless the import path is
+  already proven.
+- Write the exact candidate list before editing.
+
+### Scope AY: Wave 1 tools-suite duplicate deletion/import
+
+Goal: remove a meaningful but bounded `IDENTICAL` duplicate batch from
+`compiler/nucleor_tools_suite.nr` by relying on the s1 import path. This should
+be large enough to matter but small enough to bisect if a parser/tool command
+breaks.
+
+Rules:
+
+- Prefer helpers that are byte-identical and not part of tool-only CLI dispatch.
+- If duplicate-name collisions block import, use the already documented
+  `_tools_legacy` strategy only for the minimum required compatibility shim.
+- Do not rewrite both compilers wholesale.
+- Do not touch `bin/` or `bootstrap/` unless the branch explicitly promotes a
+  compiler artifact after discussion.
+- Keep changes easy to review; if Wave 1 is too large, split into compile-proven
+  commits on the same branch.
+
+Required focused proofs:
+
+```powershell
+.\bin\nucleor.exe check examples\01_hello.nr --no-cache
+.\bin\nucleor.exe build-strict examples\01_hello.nr -o target\_rfc0063_build_strict --no-cache
+.\bin\nucleor.exe abi inspect examples\01_hello.nr
+```
+
+Use equivalent current CLI forms if the exact command spelling differs; record
+the actual command and output.
+
+### Scope AZ: drift, audit, and performance evidence
+
+After changes:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Run:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+because this lane can affect compiler/toolchain cold compile. Record cold/hot
+time and memory. The perf target remains sub-4 seconds on Windows; if the first
+sample is noisy, rerun once before calling a regression.
+
+If any compiler binary or bootstrap seed is changed, also run:
+
+```bash
+bash tools/check_self_host_md5.sh
+bash tools/check_compiler_drift.sh
+```
+
+### Scope BA: RFC-0063 status ledger
+
+Create:
+
+```text
+findings/inbox/helper2_rfc0063_tools_suite_wave1_v0838_2026-05-06.md
+```
+
+Include:
+
+- starting duplicate counts;
+- selected Wave 1 candidate list;
+- functions removed/imported;
+- commands that proved tools-suite paths still work;
+- updated duplicate counts;
+- perf result;
+- remaining duplicate categories and recommended Wave 2.
+
+Update `docs/rfcs/v1_PUNCHLIST.md` and
+`docs/rfcs/RFC-0063-production-readiness-roadmap.md` only to reflect proven
+work.
+
+## Helper2 Deliverable For Queue 11
+
+Push:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave1-v0838
+```
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Perf result:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify by default. Use focused tools-suite commands, drift,
+void ABI, diff check, and perf.
