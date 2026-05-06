@@ -30,6 +30,8 @@ Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-
 ## ROBO-2 — DMP has no multi-DOF batch wrapper — **LOW**
 "Multi-DOF: instantiate one DMP per joint." No `dmp_multi_new`/`dmp_multi_step` for whole joint-vector. Forces repetitive per-joint calls; prevents learning cross-DOF coupling.
 
+**2026-05-06 update:** Phase 1 multi-DOF batch wrapper now exists. `dmp_multi_new`, `dmp_multi_learn`, `dmp_multi_reset`, and `dmp_multi_step` own one scalar DMP per joint while accepting sample-major joint-vector buffers; `tests/features/dmp_multi_smoke.nr` proves 2-DOF train/reset/step output through public f64 scratch buffers. Remaining ROBO-2 work: true coupled-basis learning across DOFs rather than independent per-joint DMPs.
+
 ## ROBO-3 — IK has no analytical IK path — **MEDIUM**
 `ik_dls.nr` purely numerical (finite-difference Jacobian). Standard 6-DOF manipulators (Puma/UR/Kuka) have closed-form solutions: 8 branches, 100× faster, singularity-exact. Not present.
 
@@ -104,7 +106,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 
 **Phase 3 (medium-term):**
 - ROBO-1: TOPP-RA (convex per-step torque/dynamics constraints).
-- ROBO-2: DMP multi-DOF batch wrapper.
+- ROBO-2: DONE for Phase 1 multi-DOF batch wrapper. Remaining: true coupled-basis learning across DOFs.
 - ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
 - ROBO-8: full covariant CHOMP pre-conditioning.
 - ROBO-9: Cartesian-space CHOMP variant.
