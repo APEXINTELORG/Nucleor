@@ -89,6 +89,8 @@ Update 2026-05-06 helper1 v0868: `tests/features/gnn_node_convergence_smoke.nr` 
 
 Update 2026-05-06 helper1 v0869: `tests/features/ssm_sequence_convergence_smoke.nr` now covers SSM sequence-prediction convergence for the selective-scan path. It trains scalar `B[t]` parameters using `ssm_selective_scan_backward` and asserts the learned sequence matches `[0.5, 1.0, 1.5, 2.0]` within tolerance. Transformer small-LM convergence remains open ML-13 P2 work.
 
+Update 2026-05-06 helper1 v0870: `tf_cross_entropy_grad(...)` now exposes the standard logits gradient (`softmax(logits) - onehot(target)`), and `tests/features/transformer_lm_convergence_smoke.nr` trains two next-token logit rows for the alternating sequence `0 -> 1`, `1 -> 0` using transformer cross-entropy/gradient plus Adam logit updates. This closes the small-LM-head convergence fixture; full attention-block training remains a deeper future oracle.
+
 ## ML-14 — Autodiff not composable with rod kernels — **HIGH**
 `autodiff.nr` uses flat global tape with handle-based nodes. `nn_rt.c` implements own internal gradient accumulation. **Two systems entirely separate** — no bridge that registers `nuc_nn_dense_forward` as differentiable op on the autodiff tape. User cannot build `loss = cross_entropy(nn_forward(x), target); ad_grad(loss, x)` because dense layer is not a tape node.
 
@@ -132,7 +134,7 @@ Update 2026-05-06 helper1 v0866: `tensor_nd` now has explicit int and bool 2D/ND
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`. **Shipped helper1 v0862 with focused forward/backward fixture coverage.**
 - ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block. **Shipped helper1 v0863 with causal attention and encoder-memory cross-attention fixture coverage.**
-- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training). **GNN P2a shipped helper1 v0868 with a trainable two-node GATv2 node-classification fixture; SSM P2b shipped helper1 v0869 with a selective-scan sequence-prediction convergence fixture; transformer remains open.**
+- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training). **GNN P2a shipped helper1 v0868 with a trainable two-node GATv2 node-classification fixture; SSM P2b shipped helper1 v0869 with a selective-scan sequence-prediction convergence fixture; transformer LM-head P2c shipped helper1 v0870.**
 
 **Phase 3 (medium-term, integration):**
 - ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape. **P1 shipped helper1 v0869 for Mamba-style selective-scan backward returning gradients for x/delta/A/B/C; SSD/RWKV/xLSTM backward and autodiff-tape integration remain open.**
