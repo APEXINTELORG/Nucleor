@@ -305,6 +305,16 @@ fn print_first_values(label: str, values: Vec<str>, limit: i64) -> i64 {
     return shown;
 }
 
+fn print_value_lines(label: str, values: Vec<str>) -> i64 {
+    let n: i64 = vec_len(values);
+    let mut i: i64 = 0;
+    while i < n {
+        print(str_concat(label, str_concat(": ", vec_get(values, i))));
+        i = i + 1;
+    };
+    return n;
+}
+
 // ---------- main ----------
 
 fn main() -> i64 {
@@ -376,6 +386,7 @@ fn main() -> i64 {
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
+    print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
     return 0;
 }

@@ -97,8 +97,9 @@ It proves native Nucleor can:
 
 HERM-B is not closed. Remaining native-port work:
 
-1. Emit a sorted key list fixture or JSON-like text artifact for exact
-   comparison against Python, without changing `helper_manifest.toml`.
+1. Closed by the v0837 follow-up branch: emit a full sorted
+   `candidate_symbol: ...` stream for exact comparison against Python-generated
+   TOML symbols, without changing `helper_manifest.toml`.
 2. Add native body-slice helpers for `is_void_ret`, `is_ptr_ret`, and future
    return/argument classification if the final TOML needs those fields.
 3. Port classification tables only after source inventory parity is locked.
