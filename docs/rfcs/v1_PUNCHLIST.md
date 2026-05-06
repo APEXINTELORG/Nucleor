@@ -245,6 +245,13 @@ launch. After memory safety completes, these are next-priority.
   semantic places their trace hooks declare entanglement. `qsim_swap`
   inherits this through its existing CNOT decomposition. Remaining
   gaps: raw gate-DAG auto-recording and pthread/async thread-safety.
+- **R11-D4 qsim gate-DAG auto-record:** DONE for Phase 2b on
+  2026-05-06 — the same high-level qsim entangling wrappers now call
+  `qsim_gate_record_checked` after the wrapped operation. `qsim_swap`
+  inherits three CNOT records through its decomposition. `qsim_ccx`
+  records two control-target relationships because the public checked
+  record surface is two-qubit. Remaining gap: process-local graph
+  state is not thread-safe across pthread/async boundaries.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
