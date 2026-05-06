@@ -39,6 +39,46 @@ long long nuc_fk_chain_link_quat_z(long long ch, long long i);
 
 static double _f_from_handle(long long bits) { double d; memcpy(&d, &bits, sizeof(double)); return d; }
 
+// === Analytical planar 2-link IK (ROBO-3 Phase 1) ========================
+//
+// Closed-form inverse kinematics for a planar two-revolute-link arm:
+//
+//   x = l1*cos(q1) + l2*cos(q1 + q2)
+//   y = l1*sin(q1) + l2*sin(q1 + q2)
+//
+// `elbow_sign` selects the branch: >= 0 uses positive sin(q2),
+// < 0 uses negative sin(q2). Writes q1/q2 to `q_out_ptr` as
+// double[2]. Returns 1 on success, 0 for unreachable targets or
+// bad input.
+long long nuc_ik_analytic_planar_2link(
+    long long tx_b, long long ty_b,
+    long long l1_b, long long l2_b,
+    long long elbow_sign,
+    long long q_out_ptr)
+{
+    double tx = _i2f(tx_b);
+    double ty = _i2f(ty_b);
+    double l1 = _i2f(l1_b);
+    double l2 = _i2f(l2_b);
+    double *out = (double *)(void *)(size_t)q_out_ptr;
+    if (!out || l1 <= 0 || l2 <= 0) return 0;
+
+    double r2 = tx * tx + ty * ty;
+    double c2 = (r2 - l1 * l1 - l2 * l2) / (2.0 * l1 * l2);
+    if (c2 < -1.0 - 1e-12 || c2 > 1.0 + 1e-12) return 0;
+    if (c2 < -1.0) c2 = -1.0;
+    if (c2 > 1.0) c2 = 1.0;
+
+    double s2 = sqrt(fmax(0.0, 1.0 - c2 * c2));
+    if (elbow_sign < 0) s2 = -s2;
+    double q2 = atan2(s2, c2);
+    double q1 = atan2(ty, tx) - atan2(l2 * s2, l1 + l2 * c2);
+
+    out[0] = q1;
+    out[1] = q2;
+    return 1;
+}
+
 // === Manipulability metric (Yoshikawa 1985) — v0.2.208 ==================
 //
 // Computes √det(J·Jᵀ) where J is the position-only geometric

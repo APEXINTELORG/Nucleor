@@ -37,6 +37,8 @@ Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-
 ## ROBO-3 — IK has no analytical IK path — **MEDIUM**
 `ik_dls.nr` purely numerical (finite-difference Jacobian). Standard 6-DOF manipulators (Puma/UR/Kuka) have closed-form solutions: 8 branches, 100× faster, singularity-exact. Not present.
 
+**2026-05-06 update:** Phase 1 analytical IK path now exists for planar 2-link arms. `ik_analytic_planar_2link` solves the two-revolute-link closed form with elbow branch selection and unreachable-target refusal; `tests/features/ik_analytic_planar_2link_smoke.nr` locks the exact `(1, 1)` target solution plus an unreachable case. Remaining ROBO-3 work: 6-DOF canonical manipulator analytical solvers (Puma/UR/Kuka), branch enumeration, singularity classification, and FK-backed solution validation.
+
 ## ROBO-4 — IK nullspace solver uses position-only Jacobian — **HIGH**
 `nuc_ik_dls_solve_nullspace` uses 3-DOF position Jacobian. For n≥7 DOF arms needing orientation + posture simultaneously, you need 6×n Jacobian in nullspace path. 6-DOF path doesn't expose nullspace variant.
 
@@ -124,7 +126,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 **Phase 3 (medium-term):**
 - ROBO-1: DONE for Phase 1 diagonal inertia/tau_max acceleration tightening. Remaining: full coupled TOPP-RA with path-dependent torque/dynamics constraints.
 - ROBO-2: DONE for Phase 1 multi-DOF batch wrapper. Remaining: true coupled-basis learning across DOFs.
-- ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
+- ROBO-3: DONE for Phase 1 planar 2-link analytical IK. Remaining: 6-DOF canonical manipulators (Puma/UR/Kuka), branch enumeration, singularity classification.
 - ROBO-8: DONE for Phase 1 covariant pre-conditioning. Remaining: high-DOF / obstacle-gradient evidence, exact SDF gradients, and tuning guidance.
 - ROBO-9: Cartesian-space CHOMP variant.
 - ROBO-13: DONE for Phase 1 static OBB-OBB + fixed-orientation translational CCD. Remaining: angular CCD and convex mesh-vs-mesh sweep.
