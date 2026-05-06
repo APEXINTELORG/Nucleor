@@ -266,6 +266,13 @@ launch. After memory safety completes, these are next-priority.
   the documented two-control-target CCX representation. Remaining gap:
   process-local graph state is not thread-safe across pthread/async
   boundaries.
+- **R11-D4 qsim graph query contract:** DONE for Phase 2e on
+  2026-05-06 — `qsim_graph_query_contract_smoke.nr` now locks public
+  `qsim_gate_dag_parent_count`, `qsim_gate_dag_parent_at`, and
+  transitive `qsim_gate_dag_depends_on` behavior after mixed checked
+  records plus high-level CNOT/CZ/CRK/SWAP auto-recording. Remaining
+  gap: process-local graph state is not thread-safe across pthread/async
+  boundaries.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`

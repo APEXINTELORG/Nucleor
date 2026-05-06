@@ -7,7 +7,7 @@
 //   4. qubit_in_range(1023) = 1
 //   5. qubit_in_range(1024) = 0 (over cap)
 //   6. status_explain with out-of-range q returns "out_of_range"
-//   7. limitations names "HARD CAPS" + "AUTO-ENTANGLE"
+//   7. limitations names "HARD CAPS" + "AUTO-GRAPH" + "QUERY CONTRACT"
 //
 // Expected: rc=0.
 
@@ -39,7 +39,8 @@ fn check_limitations() -> i64 {
     let s: str = qsim_graph_limitations();
     if str_len(s) == 0 { return 256; };
     if str_index_of(s, "HARD CAPS") < 0 { return 512; };
-    if str_index_of(s, "AUTO-ENTANGLE") < 0 { return 1024; };
+    if str_index_of(s, "AUTO-GRAPH") < 0 { return 1024; };
+    if str_index_of(s, "QUERY CONTRACT") < 0 { return 2048; };
     return 0;
 }
 
