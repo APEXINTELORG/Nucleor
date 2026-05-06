@@ -642,18 +642,19 @@ runtime changes affect hot paths.
 
 **Current state:**
 
-- `gen_releases_index.py`, `gen_rod_manifest.py`, and
-  `gen_benchmark_summary.py` have native paths or replacements in progress.
+- `gen_releases_index.py`, `gen_rod_manifest.py`,
+  `gen_benchmark_summary.py`, and `gen_helper_manifest.py` have native paths.
 - `verify-reproducible` no longer requires Python for Windows byte compare.
 - Python interop is classified as intentional.
+- `tools/check_compiler_drift.sh` no longer invokes a Python generator for any
+  active generated-artifact freshness check.
 
 Still open:
 
 - Port `gen_numerics_matrix.py` to native Nucleor or remove it from required
   product/toolchain paths.
-- Port `gen_helper_manifest.py` to native Nucleor or remove it from required
-  product/toolchain paths.
-- Drop Python from `tools/check_compiler_drift.sh` requirements.
+- Refresh or retire `gen_numerics_matrix.py` before any native port: its current
+  output rewrites 10 committed matrix fixtures back to older syntax.
 - Keep maintenance-only Python references clearly optional.
 
 **Primary files:**
@@ -669,11 +670,13 @@ Still open:
 
 **Cloud slices:**
 
-- HERM-A: native numerics matrix generator or evidence that it is not required
-  by product/toolchain paths.
-- HERM-B: native helper manifest generator or scoped replacement plan.
-- HERM-C: remove Python requirement from drift gate after native outputs are
-  stable.
+- HERM-A: native numerics matrix generator only after the Python oracle is
+  refreshed, or evidence that the generator stays optional/offline.
+- HERM-B: native helper manifest generator path is present; keep the Python
+  source only as a temporary comparison oracle.
+- HERM-C: active drift-gated generator checks are Python-free; keep future
+  `.py` fallback checks out of release-critical paths unless explicitly
+  re-justified.
 
 **Required gates:**
 
