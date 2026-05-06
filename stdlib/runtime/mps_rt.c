@@ -594,3 +594,64 @@ long long nuc_mps_prob0(long long handle, long long q_val) {
     memcpy(&r, &p0, sizeof(double));
     return r;
 }
+
+// Return the joint probability for one computational-basis state.
+// `basis_bits` uses the same little-endian qubit convention as qsim:
+// bit q is the requested measured value for qubit q.
+long long nuc_mps_prob_basis(long long handle, long long basis_bits) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > 64) return _mf2i(0.0);
+
+    int n = mps->nq;
+    unsigned long long bits = (unsigned long long)basis_bits;
+    if (n < 64 && (bits >> n) != 0ULL) return _mf2i(0.0);
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return _mf2i(0.0);
+    }
+
+    vec_re[0] = 1.0;
+
+    for (int i = 0; i < n; i++) {
+        int bl = mps->bond[i];
+        int br = mps->bond[i + 1];
+        if (bl < 1 || br < 1 || bl > MPS_MAX_BOND || br > MPS_MAX_BOND) {
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return _mf2i(0.0);
+        }
+
+        memset(next_re, 0, br * sizeof(double));
+        memset(next_im, 0, br * sizeof(double));
+
+        int s = (int)((bits >> i) & 1ULL);
+        for (int l = 0; l < bl; l++) {
+            double v_re = vec_re[l];
+            double v_im = vec_im[l];
+            if (v_re == 0.0 && v_im == 0.0) continue;
+
+            for (int r = 0; r < br; r++) {
+                int ai = l * 2 * br + s * br + r;
+                double a_re = mps->A[i][ai];
+                double a_im = mps->A_im[i][ai];
+                next_re[r] += v_re * a_re - v_im * a_im;
+                next_im[r] += v_re * a_im + v_im * a_re;
+            }
+        }
+
+        double *sw;
+        sw = vec_re; vec_re = next_re; next_re = sw;
+        sw = vec_im; vec_im = next_im; next_im = sw;
+    }
+
+    double prob = vec_re[0] * vec_re[0] + vec_im[0] * vec_im[0];
+    if (prob < 1e-15) prob = 0.0;
+    if (prob > 1.0 && prob < 1.0 + 1e-9) prob = 1.0;
+
+    free(vec_re); free(vec_im); free(next_re); free(next_im);
+    return _mf2i(prob);
+}
