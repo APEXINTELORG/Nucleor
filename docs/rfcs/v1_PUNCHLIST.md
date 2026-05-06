@@ -203,9 +203,14 @@ launch. After memory safety completes, these are next-priority.
   stabilizer/logical set from Tomita/Svore Table II, 9 physical qubits,
   8 generators, distance 3, 27/27 single-qubit detectable errors, and
   non-detectability of the logical `X2 X4 X6` / `Z0 Z4 Z8` operators.
-- **Still open for Phase 2 closure:** published weight-enumerator parity.
-  Current public Clifford APIs expose distance and detectability, not a
-  stabilizer/logical weight-enumerator surface.
+- **Phase 2c bounded weight-enumerator surface:** DONE 2026-05-06 —
+  `qm7_clifford_weight_enumerator_smoke.nr` locks
+  `cliff_stabilizer_weight_count` and `cliff_logical_weight_count` on the
+  same Surface-17 stabilizer set. The fixture verifies internal exhaustive
+  counts by weight; external published weight-enumerator value citations remain
+  an advisory documentation gap, not a missing runtime surface.
+- **Still open for Phase 2 closure:** QASM/OpenQASM2 interop and a citation-backed
+  external published weight-enumerator parity row if the launch docs require one.
 
 ### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard DONE
 
@@ -483,11 +488,13 @@ proper analysis → Phase 4 hard error):
   stabilizer Vec wrappers, a [[5,1,3]] distance/detectable-error smoke
   fixture, and reset/rebuild round-trip coverage. The compiler Tier-C
   disclosure was updated so imports no longer claim zero Clifford
-  coverage. Rotated surface-code and published weight-enumerator parity
-  remain open.
+  coverage. Rotated surface-code was still open at this checkpoint.
 - **2026-05-06**: QM-7 Phase 2b adds rotated Surface-17 d=3 fixture
-  coverage from Tomita/Svore Table II. Remaining open item is published
-  weight-enumerator parity, blocked on a new Clifford rod enumerator API.
+  coverage from Tomita/Svore Table II.
+- **2026-05-06**: QM-7 Phase 2c adds bounded Clifford stabilizer/logical
+  weight-enumerator helpers and locks Surface-17 internal exhaustive counts.
+  Remaining open items are QASM/OpenQASM2 interop and optional external
+  citation-backed published enumerator parity.
 - **2026-05-05**: Effect/capability Phase 1 advanced again.
   Block-form `restricts [...] { ... }` now emits `EFF-003` during
   `nuc build` instead of accepting or misparsing an unenforced
