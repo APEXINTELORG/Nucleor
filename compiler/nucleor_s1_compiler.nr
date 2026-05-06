@@ -6300,6 +6300,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
     if str_eq(name, "file_read_string_or_panic") { return "__nucleor_file_read_string_or_panic"; };
     if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
+    if str_eq(name, "file_bytes_equal") { return "__nucleor_file_bytes_equal"; };
     if str_eq(name, "system") { return "__nucleor_system"; };
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
@@ -7479,6 +7480,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "file_read_string") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_read_string_or_panic") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_write_string") { return 1; };
+    if str_eq(name, "file_bytes_equal") { return 1; };
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_append_char") { return 0; };
@@ -8115,6 +8117,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_file_read_string(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_file_read_string_or_panic(ptr)\n");
     sb_append(sb, "declare void @__nucleor_file_write_string(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_file_bytes_equal(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
@@ -37979,23 +37982,14 @@ fn main() -> i64 {
         // start with a non-NUL signature, so a non-zero len means "exists
         // and has content" -- enough for the presence check.
         if exe_a_present == 1 && exe_b_present == 1 {
-            if host_is_windows() == 1 {
-                // Use Python's filecmp.cmp for byte-equality. Python is
-                // already a build dependency (manifest generators use it)
-                // and filecmp.cmp does a true byte-compare without the
-                // path-quoting / shell-version pitfalls of fc.exe / cmd.exe
-                // / Get-FileHash (which needs PS >= 4.0; some pwsh-nested
-                // distros don't expose it). Exits 0 if equal, 1 if differ.
-                let cmp_cmd: str = str_concat("python -c \"import filecmp,sys; sys.exit(0 if filecmp.cmp(r'", str_concat(exe_a, str_concat("', r'", str_concat(exe_b, "', shallow=False) else 1)\""))));
-                let cmp_rc: i64 = system(cmp_cmd);
-                exe_check_ran = 1;
-                if cmp_rc == 0 { exe_match = 1; };
-            } else {
-                let cmp_cmd: str = str_concat("cmp -s \"", str_concat(exe_a, str_concat("\" \"", str_concat(exe_b, "\""))));
-                let cmp_rc: i64 = system(cmp_cmd);
-                exe_check_ran = 1;
-                if cmp_rc == 0 { exe_match = 1; };
-            };
+            // v0.8.323: native runtime helper (TOOLCHAIN-PY-1 closed).
+            // Replaces the prior Windows `python -c filecmp.cmp` shell-out
+            // (the only remaining Python dependency in the compiler product)
+            // and the POSIX `cmp -s` shell-out with a unified C-level
+            // byte-equality check. Block-by-block memcmp; handles NULs
+            // correctly; no path-quoting / shell-version pitfalls.
+            exe_check_ran = 1;
+            if file_bytes_equal(exe_a, exe_b) == 1 { exe_match = 1; };
         };
         print(str_concat("verify-reproducible: source = ", src_path));
         print(str_concat("  IR  build A: ", str_concat(ll_a, str_concat(" (", str_concat(str_from_int(ll_len_a), str_concat(" bytes, hash=", str_concat(ll_hash_a, ")")))))));

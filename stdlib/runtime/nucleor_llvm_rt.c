@@ -3484,6 +3484,50 @@ void __nucleor_file_append_string(const char *path, const char *data) {
     }
 }
 
+// === File byte-equality ===
+// v0.8.323 — true byte-level file comparison. Replaces the
+// verify-reproducible Python filecmp.cmp shell-out (the last Python
+// dependency in the compiler product, TOOLCHAIN-PY-1) and the POSIX
+// `cmp -s` system() shell-out. Returns 1 if both files exist and have
+// byte-identical contents; 0 otherwise (including missing/unreadable
+// files). NULs in content are handled correctly — fread doesn't
+// truncate the way file_read_string's strlen-based caller would.
+long long __nucleor_file_bytes_equal(const char *a, const char *b) {
+    if (!a || !b) return 0;
+    FILE *fa = fopen(a, "rb");
+    if (!fa) return 0;
+    FILE *fb = fopen(b, "rb");
+    if (!fb) { fclose(fa); return 0; }
+    /* Size compare first — different sizes can't be equal. */
+    if (fseek(fa, 0, SEEK_END) != 0 || fseek(fb, 0, SEEK_END) != 0) {
+        fclose(fa); fclose(fb); return 0;
+    }
+    long sa = ftell(fa);
+    long sb = ftell(fb);
+    if (sa < 0 || sb < 0 || sa != sb) {
+        fclose(fa); fclose(fb); return 0;
+    }
+    if (fseek(fa, 0, SEEK_SET) != 0 || fseek(fb, 0, SEEK_SET) != 0) {
+        fclose(fa); fclose(fb); return 0;
+    }
+    /* Block-by-block compare. 64KB block balances syscall overhead
+     * against memory footprint for the 2 MB compiler binaries this
+     * helper was originally added for. */
+    unsigned char ba[65536], bb[65536];
+    long long equal = 1;
+    while (sa > 0) {
+        size_t want = sa > (long)sizeof(ba) ? sizeof(ba) : (size_t)sa;
+        size_t na = fread(ba, 1, want, fa);
+        size_t nb = fread(bb, 1, want, fb);
+        if (na != want || nb != want) { equal = 0; break; }
+        if (memcmp(ba, bb, want) != 0) { equal = 0; break; }
+        sa -= (long)want;
+    }
+    fclose(fa);
+    fclose(fb);
+    return equal;
+}
+
 // === Named Pipe (Windows review surface transport) ===
 #ifdef _WIN32
 long long __nucleor_pipe_create(const char *name) {
