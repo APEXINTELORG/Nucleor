@@ -426,6 +426,14 @@ launch. After memory safety completes, these are next-priority.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+- **ROBO-14 end-to-end robotics smoke:** DONE for Phase 1 on
+  2026-05-06. `stdlib/rods/f64_buffer.nr` and
+  `stdlib/runtime/f64_buffer_rt.c` close the raw `double[]` fixture
+  plumbing gap; `tests/features/robo14_end_to_end_smoke.nr` now runs
+  IK -> RRT free-space plan -> CHOMP smooth -> TOPP time profile -> FK
+  endpoint verification on a deterministic planar arm. Remaining gap:
+  upgrade this to a production-grade 6-DOF pose/orientation fixture
+  with nonzero collision/obstacle callbacks and dynamics-aware timing.
 
 ## Sequencing — proposed waves
 
