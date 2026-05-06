@@ -18,6 +18,7 @@ Options:
   --warning-mb N        RSS warning threshold passed to run_capped.sh (default: 800)
   --timeout-sec N       Per-sample timeout passed to run_capped.sh (default: 180)
   --sample-ms N         RSS sample interval passed to run_capped.sh (default: 100)
+  --doctor              Print native POSIX perf readiness checks, then exit
   --quiet               Print only failures and final summary
   --verbose             Print one line per sample plus final summary
   -h, --help            Show this help
@@ -59,6 +60,7 @@ warning_mb=800
 timeout_sec=180
 sample_ms=100
 quiet=1
+doctor=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -107,6 +109,10 @@ while [ "$#" -gt 0 ]; do
             sample_ms="$2"
             shift 2
             ;;
+        --doctor)
+            doctor=1
+            shift
+            ;;
         --quiet)
             quiet=1
             shift
@@ -142,15 +148,134 @@ require_uint "--timeout-sec" "$timeout_sec"
 require_uint "--sample-ms" "$sample_ms"
 
 [ "$warning_mb" -lt "$budget_mb" ] || warning_mb=$((budget_mb - 1))
+
+is_wsl() {
+    grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease /proc/version 2>/dev/null
+}
+
+run_capped="$root/tools/run_capped.sh"
+
+doctor_fail=0
+
+doctor_ok() {
+    echo "doctor $1: OK - $2"
+}
+
+doctor_bad() {
+    echo "doctor $1: FAIL - $2"
+    doctor_fail=1
+}
+
+doctor_skip() {
+    echo "doctor $1: SKIP - $2"
+}
+
+run_doctor() {
+    local uname_s
+    local osrelease
+    local missing
+    local tool
+    local baseline_src_missing
+    local bin_kind
+
+    uname_s="$(uname -s 2>/dev/null || echo unknown)"
+    osrelease="$(cat /proc/sys/kernel/osrelease 2>/dev/null || true)"
+
+    if [ "$uname_s" = "Linux" ] && ! is_wsl; then
+        doctor_ok "native-linux" "kernel=$uname_s${osrelease:+ osrelease=$osrelease}"
+    elif [ "$uname_s" = "Linux" ] && is_wsl; then
+        doctor_bad "native-linux" "WSL kernel is shell-check only for this gate${osrelease:+ osrelease=$osrelease}"
+    else
+        doctor_bad "native-linux" "requires Linux, saw $uname_s"
+    fi
+
+    if [ -d /proc ]; then
+        doctor_ok "linux-proc" "/proc is present"
+    else
+        doctor_bad "linux-proc" "/proc is missing"
+    fi
+
+    missing=""
+    for tool in awk grep sed sort date mktemp rm tail bash setsid; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            missing="${missing}${missing:+, }$tool"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        doctor_ok "required-shell-tools" "awk grep sed sort date mktemp rm tail bash setsid"
+    else
+        doctor_bad "required-shell-tools" "missing: $missing"
+    fi
+
+    if command -v clang >/dev/null 2>&1; then
+        doctor_ok "clang" "$(command -v clang)"
+    else
+        doctor_bad "clang" "missing from PATH"
+    fi
+
+    if [ -f "$run_capped" ]; then
+        doctor_ok "run-capped" "$run_capped"
+    else
+        doctor_bad "run-capped" "missing: $run_capped"
+    fi
+
+    baseline_src_missing=""
+    [ -f "$baseline" ] || baseline_src_missing="${baseline_src_missing}${baseline_src_missing:+, }baseline missing: $baseline"
+    [ -f "$src" ] || baseline_src_missing="${baseline_src_missing}${baseline_src_missing:+, }source missing: $src"
+    if [ -z "$baseline_src_missing" ]; then
+        doctor_ok "baseline-and-source" "baseline=$baseline source=$src"
+    else
+        doctor_bad "baseline-and-source" "$baseline_src_missing"
+    fi
+
+    case "$bin" in
+        *.exe|*.EXE)
+            doctor_bad "native-executable" "Windows .exe is not POSIX evidence: $bin"
+            ;;
+        *)
+            if [ -x "$bin" ]; then
+                doctor_ok "native-executable" "$bin"
+            elif [ -f "$root/bin/nucleor.exe" ]; then
+                doctor_bad "native-executable" "native $bin is missing or not executable; bin/nucleor.exe is Windows-only"
+            else
+                doctor_bad "native-executable" "missing or not executable: $bin"
+            fi
+            ;;
+    esac
+
+    if command -v file >/dev/null 2>&1; then
+        if [ -f "$bin" ]; then
+            bin_kind="$(file "$bin" 2>/dev/null || true)"
+            case "$bin_kind" in
+                *ELF*) doctor_ok "elf-proof" "$bin_kind" ;;
+                *PE32*|*MS-DOS*) doctor_bad "elf-proof" "not native Linux ELF: $bin_kind" ;;
+                *) doctor_bad "elf-proof" "cannot prove native Linux ELF: ${bin_kind:-<no output>}" ;;
+            esac
+        else
+            doctor_bad "elf-proof" "cannot inspect missing binary: $bin"
+        fi
+    else
+        doctor_skip "elf-proof" "file command is unavailable"
+    fi
+
+    if [ "$doctor_fail" -eq 0 ]; then
+        echo "doctor result: ready for native POSIX perf evidence"
+        exit 0
+    fi
+
+    echo "doctor result: unsupported for native POSIX perf evidence"
+    exit 96
+}
+
+if [ "$doctor" -eq 1 ]; then
+    run_doctor
+fi
+
 [ -f "$baseline" ] || die "baseline missing: $baseline"
 [ -f "$src" ] || die "source missing: $src"
 
 [ -d /proc ] || unsupported "Linux /proc is required for valid POSIX RSS evidence"
 [ "$(uname -s 2>/dev/null)" = "Linux" ] || unsupported "requires a native Linux host, not $(uname -s 2>/dev/null || echo unknown)"
-
-is_wsl() {
-    grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease /proc/version 2>/dev/null
-}
 
 if is_wsl; then
     unsupported "WSL is shell-check only for this gate; use a native Linux runner for R10-D3 perf/RSS evidence"
@@ -160,7 +285,6 @@ for tool in awk grep sed sort date mktemp rm tail bash setsid clang; do
     command -v "$tool" >/dev/null 2>&1 || unsupported "missing required tool: $tool"
 done
 
-run_capped="$root/tools/run_capped.sh"
 [ -f "$run_capped" ] || die "missing tools/run_capped.sh"
 
 case "$bin" in

@@ -107,6 +107,7 @@ RSS.
 Native Linux validation flow:
 
 ```bash
+bash tools/check_perf_regression.sh --doctor
 bash tools/bootstrap_linux.sh
 file bin/nucleor
 bash tools/check_self_host_md5.sh
@@ -115,6 +116,11 @@ bash tools/check_perf_regression.sh \
   --cold-samples 3 \
   --hot-samples 3
 ```
+
+The doctor mode is a preflight only. It prints one readiness line for the
+native Linux kernel, `/proc`, shell tools, `clang`, `tools/run_capped.sh`,
+baseline/source files, native `bin/nucleor`, and ELF proof when `file` is
+available. Unsupported hosts and missing native prerequisites exit `96`.
 
 The script clears `target/` and `.nuc_cache/` before each cold sample and
 requires `cache: miss`; it runs the hot samples without cleanup and requires
