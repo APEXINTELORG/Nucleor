@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 # check_compiler_drift.sh — drift detector. Originally only checked the
-# s1-compiler ↔ tools-suite ABI tables; grown to enforce **five things**
+# s1-compiler ↔ tools-suite ABI tables; grown to enforce **six things**
 # as of v0.2.83:
 #
 #   1. s1 ↔ tools-suite ABI table parity (the original check; without
 #      it the tools binary's compile_file_mode produces unprefixed
 #      @<name> calls + missing IR `declare` statements that fail to
 #      link).
-#   2. helper_manifest.toml freshness vs gen_helper_manifest.py output
+#   2. s1 ↔ tools-suite compiler identity parity, plus checked-in
+#      binary identity parity (prevents stale `nucleor --version`
+#      hardcodes).
+#   3. helper_manifest.toml freshness vs gen_helper_manifest.py output
 #      (since v0.2.42 — Helpers.md going-forward constraint;
 #      manifest mech v0.2.41, gate enforcement v0.2.42).
-#   3. rod_manifest.toml freshness vs gen_rod_manifest.py output
+#   4. rod_manifest.toml freshness vs gen_rod_manifest.py output
 #      (since v0.2.47).
-#   4. RELEASES.md freshness vs gen_releases_index.py output
+#   5. RELEASES.md freshness vs gen_releases_index.py output
 #      (since v0.2.57).
-#   5. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
+#   6. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
 #      have a `## [version]` heading in CHANGELOG.md (since v0.2.83).
 #
 # (Mojibake clean is its own gate step in verify.sh, not part of this
@@ -25,7 +28,7 @@
 # (351), is_ptr_ret (11), is_ptr_arg (40), and IR `declare` (347).
 # Manifest + RELEASES + tag/CHANGELOG checks added v0.2.41–v0.2.83.
 #
-# Exit 0 = all five checks passed. Exit 1 = some drift detected; the
+# Exit 0 = all six checks passed. Exit 1 = some drift detected; the
 # script names the failing check and the fix command (typically
 # re-run a generator and commit the result).
 #
@@ -158,6 +161,54 @@ if [ "$drift_count" -gt 0 ]; then
 fi
 
 echo "OK: tools-suite ABI tables match nucleor_s1_compiler.nr"
+
+# v0.8.323: compiler identity drift guard. The CLI version string is
+# embedded in compiler source, tools-suite source, the promoted binary,
+# and bootstrap seed. Catch stale hardcodes before they reach GitHub.
+extract_compiler_version_label() {
+    grep -A12 -m1 '^fn compiler_version_label' "$1" \
+        | sed -n 's/.*return "\([^"]*\)".*/\1/p' \
+        | head -1
+}
+
+s1_version="$(extract_compiler_version_label "$S1")"
+tools_version="$(extract_compiler_version_label "$TOOLS")"
+
+if [ -z "$s1_version" ] || [ -z "$tools_version" ]; then
+    echo "FAIL: could not extract compiler_version_label from compiler sources"
+    exit 1
+fi
+
+if [ "$s1_version" != "$tools_version" ]; then
+    echo "FAIL: compiler_version_label drift:"
+    echo "  s1:          $s1_version"
+    echo "  tools-suite: $tools_version"
+    exit 1
+fi
+
+BIN="$ROOT/bin/nucleor"
+if [ -x "$ROOT/bin/nucleor.exe" ]; then
+    BIN="$ROOT/bin/nucleor.exe"
+fi
+
+if [ ! -x "$BIN" ]; then
+    echo "FAIL: promoted compiler binary missing: expected bin/nucleor.exe or bin/nucleor"
+    exit 1
+fi
+
+bin_version_out="$("$BIN" --version 2>/dev/null | head -1 || true)"
+case "$bin_version_out" in
+    "nucleor $s1_version "*)
+        echo "OK: promoted compiler version matches source ($s1_version)"
+        ;;
+    *)
+        echo "FAIL: promoted compiler binary version is stale:"
+        echo "  expected: nucleor $s1_version ..."
+        echo "  actual:   $bin_version_out"
+        echo "Rebuild/promote bin/nucleor.exe and refresh bootstrap/nucleor_s1_seed.ll."
+        exit 1
+        ;;
+esac
 
 # --- Manifest freshness checks ---
 # v0.2.42 added helper_manifest.toml enforcement.
