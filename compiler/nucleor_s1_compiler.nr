@@ -2274,11 +2274,19 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool, tok_pos_at(tokens, pos)); return r; };
+    // v0.8.321 R05-D3: block-form `restricts [...] { ... }` is a
+    // trust-gap surface until full effect-row enforcement lands. Halt
+    // on the syntactic block form instead of accepting, misparsing, or
+    // implying that s1 enforces the compile-time guarantee.
+    if tt == 1 && str_eq(pkv(tokens, pos), "restricts") == 1 && pk(tokens, pos + 1) == 54 {
+        print("error[EFF-003]: block-form `restricts [...] { ... }` is not yet enforced by s1 and must not be relied on as a compile-time guarantee. Remove the block or rewrite the code without depending on `restricts` until full effect-row enforcement lands.");
+        panic("nucleor: block-form `restricts [...]` not yet enforced by s1 (see error[EFF-003] above)");
+    };
     // v0.3.140: removed dead `tt == 76` branch (restricts) — see
-    // classify_kw notes. The `restricts [...] { ... }` form had zero
-    // usage so this branch was unreachable for legitimate code; in
-    // practice it only fired on user fns named `restricts` and
-    // mangled the call site into a phantom block expression.
+    // classify_kw notes. The old token-kind branch had zero usage for
+    // legitimate code; in practice it only fired on user fns named
+    // `restricts` and mangled the call site into a phantom block
+    // expression.
     // v0.3.149: `unsafe` contextual block — only when followed by `{`.
     // Otherwise let the identifier path handle it (so `unsafe(x)` as
     // a user fn call works). Uses && short-circuit (now correct since
@@ -30607,9 +30615,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
     // no-signal class with EFF-001 for print/alloc/ambient capability use.
     // The remaining trust gap is the effect-row surface:
-    // `requires [...]`, block-form `restricts [...]`, transitive effect
-    // inference, and cross-module propagation are not fully enforced by
-    // s1. Phase 2b moves effect-row enforcement into the main build path.
+    // `requires [...]`, real block-form `restricts [...]` enforcement,
+    // transitive effect inference, and cross-module propagation are not
+    // fully enforced by s1. Block-form `restricts [...] { ... }` now
+    // fails closed with EFF-003 until that enforcement lands.
+    // Phase 2b moves effect-row enforcement into the main build path.
     // Shared gate: skip if none of the three keywords are textually
     // present (most adopter code doesn't use these keywords).
     let v0848_has_pure: i64 = if str_index_of(after_async, str_concat("pure ", "fn ")) >= 0 { 1 } else { 0 };
@@ -30626,7 +30636,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. The remaining open surface is effect-row completeness: `requires [...]`, block-form `restricts [...]`, transitive user-call inference, and cross-module propagation are not yet fully enforced by s1. Treat those rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness: standalone `requires [...]`, real restricts-block enforcement, transitive user-call inference, and cross-module propagation. Treat those rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts

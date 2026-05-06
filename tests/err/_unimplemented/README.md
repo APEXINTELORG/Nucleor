@@ -1,6 +1,6 @@
 # Unimplemented-feature negative tests
 
-These 18 negative tests come from the V1 archive
+These 17 negative tests come from the V1 archive
 (`Archive/Nucleor_Copy/examples/`) and exercise compiler errors for language
 features that **were planned but never landed in the self-hosted OSS
 compiler**:
@@ -8,7 +8,7 @@ compiler**:
 | Feature | Tests |
 |---|---|
 | `pure fn` keyword (`compute` cannot call `read_data`) | `err_pure_*` (4 remaining; `err_pure_requires.nr` promoted in v0.8.320) |
-| `requires [effect]` clauses on functions | `err_effect_*` (4), `err_restricts_*` (3) |
+| `requires [effect]` clauses on functions | `err_effect_*` (4), `err_restricts_*` (2 remaining; `err_restricts_builtin_io.nr` promoted in v0.8.321) |
 | `unit<T, dim>` dimensional units (`m + s` rejected) | `err_unit_*` (3) |
 | `Box<T>` heap allocation | `err_box_use_after_move` |
 | Governance attributes (`@authored`, `no_unsafe`) | `err_policy_*` (2) |
