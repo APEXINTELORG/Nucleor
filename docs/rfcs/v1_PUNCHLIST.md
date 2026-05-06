@@ -477,3 +477,8 @@ proper analysis → Phase 4 hard error):
   `tools/verify.sh` now includes a routine RFC-NRT-003
   `verify-reproducible` step requiring byte-identical IR and EXE
   outputs for `tests/fixtures/t477_provenance_section.nr`.
+- **2026-05-06**: Cloud-agent dispatch pack added at
+  `docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md`.
+  It expands the remaining ten-lane punchlist with completion estimates,
+  source RFCs, cloud-agent split, write scopes, non-scope, and validation
+  gates for external dispatch.
