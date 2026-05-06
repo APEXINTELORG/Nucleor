@@ -92,6 +92,21 @@ fn logical_qubit_handle(lq: LogicalQubit) -> i64 { return lq.handle; }
 fn logical_qubit_count() -> i64 { return nuc_lq_count(); }
 fn logical_qubit_clear() -> i64 { return nuc_lq_clear(); }
 
+fn logical_qubit_max_registry() -> i64 { return 256; }
+fn logical_qubit_registry_slots_remaining() -> i64 {
+    return logical_qubit_max_registry() - logical_qubit_count();
+}
+fn logical_qubit_can_allocate() -> i64 {
+    if logical_qubit_registry_slots_remaining() > 0 { return 1; };
+    return 0;
+}
+fn logical_qubit_status_ok() -> i64 { return 0; }
+fn logical_qubit_status_registry_full() -> i64 { return 1; }
+fn logical_qubit_registry_preflight() -> i64 {
+    if logical_qubit_can_allocate() == 1 { return logical_qubit_status_ok(); };
+    return logical_qubit_status_registry_full();
+}
+
 fn physical_qubit(handle: i64) -> PhysicalQubit {
     return PhysicalQubit { handle: handle };
 }
@@ -193,6 +208,42 @@ fn schedule_pulse_at(sched: Schedule, idx: i64) -> Pulse {
 fn schedule_qubit_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.qubits, idx); }
 fn schedule_start_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.starts_ns, idx); }
 
+fn schedule_status_ok() -> i64 { return 0; }
+fn schedule_status_overlap() -> i64 { return 1; }
+fn schedule_status_invalid() -> i64 { return 2; }
+
+fn schedule_validate_no_same_qubit_overlap(sched: Schedule) -> i64 {
+    let n: i64 = vec_len(sched.durations);
+    if vec_len(sched.starts_ns) != n { return schedule_status_invalid(); };
+    if vec_len(sched.qubits) != n { return schedule_status_invalid(); };
+
+    let mut i: i64 = 0;
+    while i < n {
+        let si: i64 = vec_get(sched.starts_ns, i);
+        let di: i64 = vec_get(sched.durations, i);
+        if si < 0 { return schedule_status_invalid(); };
+        if di <= 0 { return schedule_status_invalid(); };
+        let ei: i64 = si + di;
+
+        let mut j: i64 = i + 1;
+        while j < n {
+            if vec_get(sched.qubits, i) == vec_get(sched.qubits, j) {
+                let sj: i64 = vec_get(sched.starts_ns, j);
+                let dj: i64 = vec_get(sched.durations, j);
+                if sj < 0 { return schedule_status_invalid(); };
+                if dj <= 0 { return schedule_status_invalid(); };
+                let ej: i64 = sj + dj;
+                if si < ej {
+                    if sj < ei { return schedule_status_overlap(); };
+                };
+            };
+            j = j + 1;
+        };
+        i = i + 1;
+    };
+    return schedule_status_ok();
+}
+
 // =====================================================
 // CalibrationData — backend gate fidelities + T1 / T2
 // coherence times. Q1.16 micrcoseconds for coherence
@@ -265,5 +316,5 @@ fn calibration_t2_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
 // implements the primitives per the audit ship plan
 // (surface-code → export/import → mid-circuit feedback).
 fn logical_qubit_limitations() -> str {
-    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (3) QIR EXPORT: not implemented. (4) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan. Adopter discipline today: do NOT rely on these surfaces — use the existing qsim_statevec / mps / clifford rods for the primitives that ARE shipped.";
+    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285/v0830): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) SCHEDULE SAFETY: schedule_validate_no_same_qubit_overlap(sched) now detects same-qubit pulse overlaps and malformed schedules, but schedule_push still serializes globally and does not model backend parallelism. (3) LOGICAL-QUBIT REGISTRY: process-local registry cap is 256; query logical_qubit_registry_preflight() / logical_qubit_registry_slots_remaining() before allocation. There is still no partial release; logical_qubit_clear() wipes all entries. (4) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (5) QIR EXPORT: not implemented. (6) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan.";
 }

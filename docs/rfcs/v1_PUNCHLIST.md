@@ -265,6 +265,12 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
+- **QM-2 qsim statevector capacity preflight:** DONE for Phase 1 on
+  2026-05-06 — `qsim_init_preflight(n)` now returns stable status
+  codes (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and
+  `qsim_state_capacity_status_smoke.nr` locks in-range, invalid, and
+  over-cap behavior. Remaining gap: raw `qsim_init(n)` still relies on
+  caller discipline rather than runtime fail-closed enforcement.
 - **QM-8/QM-9 qsim_graph gate-DAG status preflight:** DONE for
   Phase 1 on 2026-05-05 — `qsim_gate_record_preflight(q1, q2)`
   returns stable status codes (`0=ok`, `1=out_of_range`,
@@ -306,6 +312,27 @@ launch. After memory safety completes, these are next-priority.
   records plus high-level CNOT/CZ/CRK/SWAP auto-recording. Remaining
   gap: process-local graph state is not thread-safe across pthread/async
   boundaries.
+- **QM-11 diff_sim capacity preflight:** DONE for Phase 1 on
+  2026-05-06 — `diff_sim_init_preflight(nq, n_cores)` now exposes
+  stable status codes for invalid/over-cap qubits and cores, and
+  `diff_sim_capacity_status_smoke.nr` locks the public 12-qubit,
+  16-core, 200-gate cap surface. Remaining gap: native runtime still
+  clamps over-cap inputs instead of returning a hard error.
+- **QM-12 diff_sim named gate constants:** PARTIAL on 2026-05-06 —
+  `diff_gate_h/cnot/x/z/rz` and `diff_gate_type_supported` remove
+  magic integers from diff_sim call sites. Remaining gap: MPS and
+  diff_sim still do not share one cross-rod constant module.
+- **QM-13 schedule overlap preflight:** DONE for Phase 1 on
+  2026-05-06 — `schedule_validate_no_same_qubit_overlap(sched)` now
+  detects same-qubit pulse overlap and malformed schedules. Remaining
+  gap: `schedule_push` still serializes globally and does not model
+  backend parallel scheduling.
+- **QM-14 logical-qubit registry cap disclosure:** DONE for Phase 1
+  on 2026-05-06 — `logical_qubit_max_registry`,
+  `logical_qubit_registry_preflight`, and slots-remaining helpers are
+  fixture-backed by `logical_qubit_registry_capacity_smoke.nr`.
+  Remaining gap: no partial release API; only `logical_qubit_clear()`
+  wipes the process-local registry.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`

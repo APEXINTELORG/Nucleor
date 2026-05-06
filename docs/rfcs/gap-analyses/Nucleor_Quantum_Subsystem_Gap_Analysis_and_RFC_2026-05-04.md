@@ -28,6 +28,12 @@ Quantum is positioned as a domain stdlib (not a hardware-targeting compiler). Fo
 ## QM-2 — Statevector MAX_QUBITS 32 silently miscounts at >32 qubits — **MEDIUM**
 Static array in entanglement tracker. Tracker silently stops counting for q >= 32; simulator operates on more qubits — silent miscount in trace events for circuits with 33+ qubits.
 
+**2026-05-06 update:** Phase 1 caller-facing preflight is now shipped:
+`qsim_init_preflight(n)` returns `0=ok`, `1=invalid_qubit_count`, and
+`2=over_capacity`, with `qsim_state_capacity_status_smoke.nr` covering
+in-range, invalid, and over-cap cases. Remaining gap: raw `qsim_init(n)`
+still depends on caller discipline rather than native fail-closed enforcement.
+
 ## QM-3 — MPS rod exposes only raw integer gate_type enum — **MEDIUM**
 No named gate functions (`mps_h`, `mps_x`, `mps_cnot`). Enum values 0–7 documented only in C source comment. Ergonomic gap.
 
@@ -55,14 +61,38 @@ No Ry/Rz/T/S/CCX/CZ/SWAP. Insufficient for VQE/QAOA. CPU fallback documented in 
 ## QM-11 — diff_sim capped at 12 qubits, hard-coded constant — **MEDIUM**
 ADAPT-VQE and QEC RL experiments used up to 13 qubits. **13+ qubits cannot use diff_sim.** Compile-time constant in C, not runtime check with clear error.
 
+**2026-05-06 update:** Phase 1 caller-facing preflight is now shipped:
+`diff_sim_init_preflight(nq, n_cores)` exposes stable invalid/over-cap
+status codes, and `diff_sim_capacity_status_smoke.nr` locks the public
+12-qubit, 16-core, 200-gate cap surface. Remaining gap: native runtime still
+clamps over-cap inputs instead of returning an error.
+
 ## QM-12 — diff_sim and MPS share gate type enum but neither exposes constants — **LOW**
 Both start H=0/CNOT=1/X=2 but enum not in shared header or Nucleor constant. Magic integers at callsites. Adding new gate to one without other silently diverges.
+
+**2026-05-06 update:** diff_sim now exposes named gate constants
+`diff_gate_h/cnot/x/z/rz` plus `diff_gate_type_supported`. Remaining gap:
+MPS and diff_sim still need one shared cross-rod constant surface.
 
 ## QM-13 — Pulse-level schedule has no qubit-parallel constraint enforcement — **MEDIUM**
 `Schedule` doesn't enforce qubit-parallel constraints: two pulses on same qubit at overlapping times can be pushed without error. `schedule_push` places pulses sequentially on global timeline, ignoring qubit_id.
 
+**2026-05-06 update:** Phase 1 validator is now shipped:
+`schedule_validate_no_same_qubit_overlap(sched)` detects same-qubit overlap
+and malformed schedule rows, with
+`logical_qubit_schedule_overlap_preflight_smoke.nr` covering serialized,
+parallel different-qubit, overlapping, and invalid-duration cases. Remaining
+gap: `schedule_push` still serializes globally and does not model backend
+parallel scheduling.
+
 ## QM-14 — Logical qubit registry no partial release — **LOW**
 Process-global static array `_nuc_lqs[256]`. No free/remove operation, only `nuc_lq_clear` wipes everything. `nuc_lq_register` returns -1 on overflow with no Nucleor-level check in `logical_qubit_new`.
+
+**2026-05-06 update:** Phase 1 registry disclosure/preflight is now shipped:
+`logical_qubit_max_registry`, `logical_qubit_registry_preflight`, and
+slots-remaining helpers are covered by
+`logical_qubit_registry_capacity_smoke.nr`. Remaining gap: no partial release
+API; only `logical_qubit_clear()` wipes the process-local registry.
 
 ## QM-15 — QIR and OpenQASM completely absent — **HIGH** (deferred per RFC-0054 Phase B)
 No emit, no ingest, no stub. Users wanting to port from Qiskit/Cirq or run on IBM Q have no path from Nucleor.
@@ -95,16 +125,22 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 - QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, and rotated Surface-17 d=3 stabilizer/logical behavior. Remaining Phase 2 closure is published weight-enumerator parity, blocked on a new Clifford enumerator API. **No Clifford code ships without these tests.**
 - QM-6: extend `mps_smoke.nr` to actually apply gates, extract statevector, verify Bell-state probabilities to 1e-10 tolerance.
 - QM-1: remove unimplemented function names from `quantum.nr` header comment.
-- QM-2: emit warning at runtime when statevector exceeds tracker capacity (32 qubits). Document as known limit.
+- QM-2: Phase 1 preflight/disclosure is shipped; remaining work is native
+  fail-closed behavior when callers bypass `qsim_init_preflight`.
 
 **Phase 2 (short-term):**
 - QM-3: add named gate wrappers in `mps.nr` (`mps_h`, `mps_x`, `mps_cnot`, etc.). Hide raw integer enum.
 - QM-8: wire `qsim_cnot` to call BOTH `rods_trace_entangle` AND `nuc_qsim_entangle_register`. Single source of truth for entanglement state.
 - QM-9: emit runtime panic when gate DAG exceeds 4096 gates instead of silent -1.
-- QM-11: make `DS_MAX_QUBITS` runtime-configurable or at least raise to 16. Surface clear error to Nucleor layer on overflow.
-- QM-12: define gate type enum in `quantum.nr` as Nucleor constants. Both diff_sim and MPS reference the same constants.
-- QM-13: enforce qubit-parallel constraints in `schedule_push`. Reject overlapping pulses on same qubit unless explicitly allowed.
-- QM-14: add `nuc_lq_release(handle)` for partial release. Return error code on overflow.
+- QM-11: Phase 1 preflight/disclosure is shipped; remaining work is native
+  no-clamp error behavior or a configurable cap.
+- QM-12: diff_sim named constants are shipped; remaining work is a shared
+  cross-rod gate constant surface used by both diff_sim and MPS.
+- QM-13: schedule overlap validator is shipped; remaining work is backend-aware
+  parallel scheduling semantics in `schedule_push` or a `schedule_push_at`
+  API.
+- QM-14: registry cap preflight is shipped; remaining work is
+  `nuc_lq_release(handle)` / partial release.
 
 **Phase 3 (medium-term):**
 - QM-4: track SWAP overhead in MPS routing. Surface to Nucleor and to trace.

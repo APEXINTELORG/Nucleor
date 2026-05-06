@@ -497,6 +497,23 @@ fn qsim_supports_n_qubits(n: i64) -> i64 {
     return 1;
 }
 
+fn qsim_status_ok() -> i64 { return 0; }
+fn qsim_status_invalid_qubit_count() -> i64 { return 1; }
+fn qsim_status_over_capacity() -> i64 { return 2; }
+
+fn qsim_init_preflight(n: i64) -> i64 {
+    if n < 1 { return qsim_status_invalid_qubit_count(); };
+    if n > qsim_max_qubits() { return qsim_status_over_capacity(); };
+    return qsim_status_ok();
+}
+
+fn qsim_status_explain(status: i64) -> str {
+    if status == qsim_status_ok() { return "ok"; };
+    if status == qsim_status_invalid_qubit_count() { return "invalid_qubit_count"; };
+    if status == qsim_status_over_capacity() { return "over_capacity"; };
+    return "unknown";
+}
+
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1, audit R11-D1 v0.8.304): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n>24) fails or OOMs; query qsim_supports_n_qubits(n) BEFORE invoking. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect — no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0830): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n>24) fails or OOMs; call qsim_init_preflight(n) or qsim_supports_n_qubits(n) BEFORE invoking. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
 }
