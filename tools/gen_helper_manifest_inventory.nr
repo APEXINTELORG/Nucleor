@@ -400,6 +400,93 @@ fn classify_helper_name(name0: str) -> str {
     return "Unclassified";
 }
 
+fn is_intentional_placeholder(symbol: str) -> i64 {
+    if str_eq(symbol, "__nucleor_arena_alloc") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_arena_destroy") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_arena_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_arena_reset") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_region_alloc") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_region_free") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_region_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_region_reset") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_capture_get") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_capture_set") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_ambient_scheduler") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_cancel_token_cancel") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_cancel_token_is_cancelled") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_cancel_token_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_par_fold") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_par_map") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_par_reduce") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rwlock_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rwlock_read") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rwlock_unlock") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rwlock_write") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_iter") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_map") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_filter") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_fold") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_all") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_any") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_count") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_chain") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_skip") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_take") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vec_sum") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_ambient_random") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_device_alloc") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_device_free") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_device_transfer") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_append") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_compact") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_evict") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_free") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvcache_read_prefix") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_kvprefix_free") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_center") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_clip") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_entropy") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_greedy") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_l1") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_l2") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_len") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_mad") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_median") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_minmax") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_normalize_l2") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_percentile") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_sample_eps") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_sample_gumbel") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_sample_nucleus_temp") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_sample_rank") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_sample_topk_temp") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_top2_gap") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_view") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_tensor_zscore") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_simd_add") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_simd_fma") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_simd_mul") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_add") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_broadcast") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_fma") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_mul") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_new") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_vector_reduce_sum") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_profile_end") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_profile_start") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_py_eval") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rods_f64_add") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rods_f64_div") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rods_f64_encode") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_rods_f64_sub") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_sat_i32") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_wrap_i32") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_sha256") == 1 { return 1; };
+    if str_eq(symbol, "__nucleor_putchar") == 1 { return 1; };
+    return 0;
+}
+
 // ---------- compiler-source inventory ----------
 
 fn collect_get_rt_pairs(src: str, names: Vec<str>, symbols: Vec<str>) -> i64 {
@@ -716,7 +803,35 @@ fn main() -> i64 {
         m = m + 1;
     };
 
-    print("helper_manifest_inventory_v4");
+    let manifest_stability: Vec<str> = vec_new();
+    let mut stable_count: i64 = 0;
+    let mut unstable_count: i64 = 0;
+    let mut experimental_count: i64 = 0;
+    let mut review_required_count: i64 = 0;
+    m = 0;
+    while m < vec_len(manifest_symbols) {
+        let sym: str = vec_get(manifest_symbols, m);
+        let cls: str = vec_get(manifest_classes, m);
+        let stability: str = if contains_str(runtime_symbols, sym) == 1 {
+            "stable"
+        }
+        else if is_intentional_placeholder(sym) == 1 {
+            "unstable"
+        }
+        else {
+            "experimental"
+        };
+        if str_eq(stability, "stable") == 1 { stable_count = stable_count + 1; };
+        if str_eq(stability, "unstable") == 1 { unstable_count = unstable_count + 1; };
+        if str_eq(stability, "experimental") == 1 { experimental_count = experimental_count + 1; };
+        if str_eq(stability, "experimental") == 1 || str_eq(cls, "Unclassified") == 1 {
+            review_required_count = review_required_count + 1;
+        };
+        vec_push(manifest_stability, stability);
+        m = m + 1;
+    };
+
+    print("helper_manifest_inventory_v5");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -732,6 +847,11 @@ fn main() -> i64 {
     print(str_concat("runtime_unique_symbols: ", int_to_str(vec_len(runtime_symbols))));
     print(str_concat("manifest_candidate_symbols: ", int_to_str(vec_len(union_symbols))));
     print(str_concat("manifest_named_symbols: ", int_to_str(vec_len(manifest_symbols))));
+    print(str_concat("stability_rows: ", int_to_str(vec_len(manifest_stability))));
+    print(str_concat("stable_symbols: ", int_to_str(stable_count)));
+    print(str_concat("unstable_symbols: ", int_to_str(unstable_count)));
+    print(str_concat("experimental_symbols: ", int_to_str(experimental_count)));
+    print(str_concat("review_required_symbols: ", int_to_str(review_required_count)));
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
@@ -740,6 +860,7 @@ fn main() -> i64 {
     print_value_lines("ptr_arg_name", ptr_arg_names);
     print_pair_lines("ir_abi", ir_symbols, ir_abis);
     print_triple_lines("class_row", manifest_symbols, manifest_names, manifest_classes);
+    print_pair_lines("stability_row", manifest_symbols, manifest_stability);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
     return 0;
