@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 252
-# Total fn definitions: 3024
-# Total LOC: 12775
+# Total rods: 253
+# Total fn definitions: 3051
+# Total LOC: 12868
 
 [[rod]]
 name           = "activation2"
@@ -1302,10 +1302,19 @@ imports        = ["neuromorphic"]
 name           = "nn"
 path           = "stdlib/rods/nn.nr"
 description    = "Neural Network Training"
-function_count = 16
+function_count = 26
 cfile_count    = 1
-loc            = 291
+loc            = 323
 imports        = ["complex", "nn"]
+
+[[rod]]
+name           = "nn_autodiff"
+path           = "stdlib/rods/nn_autodiff.nr"
+description    = "NN / autodiff bridge"
+function_count = 3
+cfile_count    = 0
+loc            = 29
+imports        = ["autodiff", "differentiable", "nn", "nn_autodiff"]
 
 [[rod]]
 name           = "numeric"
@@ -2040,9 +2049,9 @@ imports        = ["tensor_decomp"]
 name           = "tensor_nd"
 path           = "stdlib/rods/tensor_nd.nr"
 description    = "N-Dimensional Tensors"
-function_count = 26
+function_count = 40
 cfile_count    = 1
-loc            = 77
+loc            = 109
 imports        = ["tensor_nd"]
 
 [[rod]]
