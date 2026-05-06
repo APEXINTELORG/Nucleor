@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 249
 # Total fn definitions: 2843
-# Total LOC: 12067
+# Total LOC: 12073
 
 [[rod]]
 name           = "activation2"
@@ -1601,7 +1601,7 @@ path           = "stdlib/rods/quantum.nr"
 description    = "Quantum circuit simulator"
 function_count = 41
 cfile_count    = 1
-loc            = 348
+loc            = 354
 imports        = ["quantum"]
 
 [[rod]]
