@@ -193,9 +193,11 @@ gives transitive `depends_on` queries in O(N_gates) BFS time. Prefer
 `qsim_gate_record_checked` for adopter code so out-of-range and
 DAG-full failures are visible at the Nucleor layer.
 
-Current limits: `qsim_graph` state is process-local and is not
-thread-safe across pthread/async boundaries. Call `qsim_graph_clear()`
-between independent circuits.
+Current limits: `qsim_graph` state is process-local and serialized by one
+runtime-owned atomic spinlock. This is thread-safe for shared process-local
+state, with `qsim_graph_thread_guard_smoke.nr` covering four concurrent
+workers. It is not yet scalable per independent graph; call
+`qsim_graph_clear()` between independent circuits.
 
 ---
 

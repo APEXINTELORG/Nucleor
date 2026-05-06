@@ -412,36 +412,39 @@ launch. After memory safety completes, these are next-priority.
   auto-register with `qsim_graph`'s entanglement tracker in the same
   semantic places their trace hooks declare entanglement. `qsim_swap`
   inherits this through its existing CNOT decomposition. Remaining
-  gaps: raw gate-DAG auto-recording and pthread/async thread-safety.
+  gap: raw gate-DAG auto-recording.
 - **R11-D4 qsim gate-DAG auto-record:** DONE for Phase 2b on
   2026-05-06 — the same high-level qsim entangling wrappers now call
   `qsim_gate_record_checked` after the wrapped operation. `qsim_swap`
   inherits three CNOT records through its decomposition. `qsim_ccx`
   records two control-target relationships because the public checked
   record surface is two-qubit. Remaining gap: process-local graph
-  state is not thread-safe across pthread/async boundaries.
+  state is serialized by a global lock rather than per-graph handles.
 - **R11-D4 qsim graph lifecycle auto-record closure:** DONE for
   Phase 2d on 2026-05-06 — focused coverage now locks
   `qsim_graph_clear()` resetting both entanglement and gate-DAG state,
   fresh post-clear qsim runs starting with zero graph counts, exact
   one-record behavior for CNOT/CZ/CRK, inherited three-record SWAP, and
   the documented two-control-target CCX representation. Remaining gap:
-  process-local graph state is not thread-safe across pthread/async
-  boundaries.
+  process-local graph state is serialized by a global lock rather than
+  per-graph handles.
 - **R11-D4 qsim graph query contract:** DONE for Phase 2e on
   2026-05-06 — `qsim_graph_query_contract_smoke.nr` now locks public
   `qsim_gate_dag_parent_count`, `qsim_gate_dag_parent_at`, and
   transitive `qsim_gate_dag_depends_on` behavior after mixed checked
   records plus high-level CNOT/CZ/CRK/SWAP auto-recording. Remaining
-  gap: process-local graph state is not thread-safe across pthread/async
-  boundaries.
-- **R11-D4 qsim graph thread-safety disclosure:** DONE for Phase 2f on
-  2026-05-06 — `qsim_graph_is_thread_safe()` returns `0`,
-  `qsim_graph_requires_external_lock()` returns `1`, and
-  `qsim_graph_thread_safety_required_primitive()` names the required
-  runtime-owned qsim_graph mutex or per-graph handle-state refactor.
-  `qsim_graph_thread_safety_disclosure_smoke.nr` locks this contract.
-  Remaining gap: actual synchronized runtime state is still open.
+  gap: process-local graph state is serialized by a global lock rather
+  than per-graph handles.
+- **R11-D4 qsim graph thread-safety guard:** DONE for Phase 2f+ on
+  2026-05-06 — `qsim_graph_is_thread_safe()` returns `1`,
+  `qsim_graph_requires_external_lock()` returns `0`, and the C runtime
+  serializes all public qsim_graph entry points with a small C11 atomic
+  spinlock over the process-local union-find and gate-DAG arrays.
+  `qsim_graph_thread_safety_disclosure_smoke.nr` locks this contract, and
+  `qsim_graph_thread_guard_smoke.nr` runs four concurrent worker threads
+  against disjoint graph updates and verifies exact final counts.
+  Remaining gap: per-graph handle state for scalable independent graph
+  ownership.
 - **QM-11 diff_sim checked init:** DONE for Phase 1+2b on 2026-05-06
   — `diff_sim_init_preflight(nq, n_cores)` exposes stable status
   codes for invalid/over-cap qubits and cores, and
