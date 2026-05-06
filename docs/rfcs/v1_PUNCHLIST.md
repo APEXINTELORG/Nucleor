@@ -188,6 +188,14 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
+- **QM-8/QM-9 qsim_graph gate-DAG status preflight:** DONE for
+  Phase 1 on 2026-05-05 — `qsim_gate_record_preflight(q1, q2)`
+  returns stable status codes (`0=ok`, `1=out_of_range`,
+  `2=dag_full`) before adopters call the raw `qsim_gate_record`
+  escape hatch. Focused fixture covers valid one-qubit/two-qubit
+  args, out-of-range args, and a filled 4096-slot DAG. Remaining
+  gap: raw C runtime still returns `-1`; no auto-entangle or
+  thread-safety semantics are implied.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`

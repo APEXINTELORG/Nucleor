@@ -124,18 +124,29 @@ fn qsim_graph_gate_slots_remaining() -> i64 {
     return qsim_graph_max_gates() - qsim_gate_dag_size();
 }
 
+fn qsim_graph_status_ok() -> i64 { return 0; }
+fn qsim_graph_status_out_of_range() -> i64 { return 1; }
+fn qsim_graph_status_dag_full() -> i64 { return 2; }
+
+fn qsim_gate_record_preflight(q1: i64, q2: i64) -> i64 {
+    let m: i64 = qsim_graph_max_qubits();
+    if q1 < 0 { return qsim_graph_status_out_of_range(); };
+    if q1 >= m { return qsim_graph_status_out_of_range(); };
+    if q2 < 0 - 1 { return qsim_graph_status_out_of_range(); };
+    if q2 >= m { return qsim_graph_status_out_of_range(); };
+    if qsim_graph_gate_slots_remaining() <= 0 { return qsim_graph_status_dag_full(); };
+    return qsim_graph_status_ok();
+}
+
 // Decode a -1 return: "out_of_range" / "dag_full" / "ok"
 // (ok = the -1 was for a different reason; check call args).
 fn qsim_graph_status_explain(q1: i64, q2: i64) -> str {
-    let m: i64 = qsim_graph_max_qubits();
-    let q1_bad: i64 = if q1 < 0 - 1 { 1 } else { if q1 >= m { 1 } else { 0 } };
-    let q2_bad: i64 = if q2 < 0 - 1 { 1 } else { if q2 >= m { 1 } else { 0 } };
-    if q1_bad == 1 { return "out_of_range"; };
-    if q2_bad == 1 { return "out_of_range"; };
-    if qsim_graph_gate_slots_remaining() <= 0 { return "dag_full"; };
+    let status: i64 = qsim_gate_record_preflight(q1, q2);
+    if status == qsim_graph_status_out_of_range() { return "out_of_range"; };
+    if status == qsim_graph_status_dag_full() { return "dag_full"; };
     return "ok";
 }
 
 fn qsim_graph_limitations() -> str {
-    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / qsim_gate_record return -1 silently. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining BEFORE invoking. (2) NO STRUCTURED ERROR YET: -1 conflates 'out-of-range qubit' with 'DAG full' with other internal failures; use qsim_graph_status_explain(q1, q2) to disambiguate. Phase 2 replaces -1 with explicit error codes per audit ship plan. (3) NO AUTO-ENTANGLE-FROM-GATE: qsim CNOT in stdlib/rods/quantum.nr emits rods_trace_entangle but does NOT auto-call qsim_entangle_register; adopters must call qsim_entangle_register manually after CNOT. (4) PROCESS-LOCAL state: not thread-safe across pthread/async boundaries.";
+    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306/v0.8.324): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / qsim_gate_record return -1 silently. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining, or call qsim_gate_record_preflight(q1, q2) for status code 0=ok, 1=out_of_range, 2=dag_full BEFORE invoking qsim_gate_record. (2) RAW ESCAPE HATCH REMAINS: qsim_gate_record still returns raw gate ids or -1; the preflight/status surface helps adopters avoid known -1 causes but does not rewrite the C runtime ABI. (3) NO AUTO-ENTANGLE-FROM-GATE: qsim CNOT in stdlib/rods/quantum.nr emits rods_trace_entangle but does NOT auto-call qsim_entangle_register; adopters must call qsim_entangle_register manually after CNOT. (4) PROCESS-LOCAL state: not thread-safe across pthread/async boundaries.";
 }
