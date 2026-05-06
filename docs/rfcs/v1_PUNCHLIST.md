@@ -491,6 +491,13 @@ launch. After memory safety completes, these are next-priority.
   zig-zag collapses while endpoints stay fixed. Remaining gap:
   high-DOF / obstacle-gradient production evidence, exact SDF
   gradients, and tuning guidance for `metric_reg` / `max_step`.
+- **ROBO-10 HWBC strict priority evidence:** DONE for Phase 1 on
+  2026-05-06. `tests/features/hwbc_strict_priority_smoke.nr` proves
+  the existing Siciliano-Slotine null-space `hwbc` rod preserves a
+  higher-priority joint command against a conflicting lower-priority
+  task while satisfying an independent lower-priority null-space task.
+  Remaining gap: box-constrained hierarchy and torque-level /
+  dynamics-coupled control.
 
 ## Sequencing — proposed waves
 
