@@ -150,6 +150,136 @@ long long nuc_coll_sphere_obb(
     return (ddx*ddx + ddy*ddy + ddz*ddz <= r*r) ? 1 : 0;
 }
 
+static double _dot3(const double a[3], const double b[3]) {
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+static void _cross3(const double a[3], const double b[3], double out[3]) {
+    out[0] = a[1]*b[2] - a[2]*b[1];
+    out[1] = a[2]*b[0] - a[0]*b[2];
+    out[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+static void _quat_axes(double qw, double qx, double qy, double qz, double axes[3][3]) {
+    double n2 = qw*qw + qx*qx + qy*qy + qz*qz;
+    if (n2 <= 1e-24) {
+        axes[0][0] = 1.0; axes[0][1] = 0.0; axes[0][2] = 0.0;
+        axes[1][0] = 0.0; axes[1][1] = 1.0; axes[1][2] = 0.0;
+        axes[2][0] = 0.0; axes[2][1] = 0.0; axes[2][2] = 1.0;
+        return;
+    }
+    double inv = 1.0 / sqrt(n2);
+    qw *= inv; qx *= inv; qy *= inv; qz *= inv;
+
+    double m00 = 1.0 - 2.0*(qy*qy + qz*qz);
+    double m01 = 2.0*(qx*qy - qw*qz);
+    double m02 = 2.0*(qx*qz + qw*qy);
+    double m10 = 2.0*(qx*qy + qw*qz);
+    double m11 = 1.0 - 2.0*(qx*qx + qz*qz);
+    double m12 = 2.0*(qy*qz - qw*qx);
+    double m20 = 2.0*(qx*qz - qw*qy);
+    double m21 = 2.0*(qy*qz + qw*qx);
+    double m22 = 1.0 - 2.0*(qx*qx + qy*qy);
+
+    axes[0][0] = m00; axes[0][1] = m10; axes[0][2] = m20;
+    axes[1][0] = m01; axes[1][1] = m11; axes[1][2] = m21;
+    axes[2][0] = m02; axes[2][1] = m12; axes[2][2] = m22;
+}
+
+static int _obb_axis_interval(
+    const double L[3], const double c0[3], const double v[3],
+    const double ea[3], double Au[3][3], const double eb[3], double Bu[3][3],
+    double *enter, double *exit)
+{
+    double l2 = _dot3(L, L);
+    if (l2 <= 1e-18) return 1;
+    double r = 0.0;
+    for (int i = 0; i < 3; i++) r += ea[i] * fabs(_dot3(Au[i], L));
+    for (int i = 0; i < 3; i++) r += eb[i] * fabs(_dot3(Bu[i], L));
+    double c = _dot3(c0, L);
+    double vd = _dot3(v, L);
+    if (fabs(vd) <= 1e-18) {
+        return (fabs(c) <= r) ? 1 : 0;
+    }
+    double t0 = (-r - c) / vd;
+    double t1 = ( r - c) / vd;
+    if (t0 > t1) {
+        double tmp = t0; t0 = t1; t1 = tmp;
+    }
+    if (t0 > *enter) *enter = t0;
+    if (t1 < *exit) *exit = t1;
+    return *enter <= *exit;
+}
+
+static double _obb_sweep_toi(
+    const double a0[3], const double a1[3], const double ea[3], double Au[3][3],
+    const double b0[3], const double b1[3], const double eb[3], double Bu[3][3])
+{
+    double c0[3] = { b0[0] - a0[0], b0[1] - a0[1], b0[2] - a0[2] };
+    double v[3] = {
+        (b1[0] - b0[0]) - (a1[0] - a0[0]),
+        (b1[1] - b0[1]) - (a1[1] - a0[1]),
+        (b1[2] - b0[2]) - (a1[2] - a0[2])
+    };
+    double enter = 0.0, exit = 1.0;
+    for (int i = 0; i < 3; i++) {
+        if (!_obb_axis_interval(Au[i], c0, v, ea, Au, eb, Bu, &enter, &exit)) return -1.0;
+        if (!_obb_axis_interval(Bu[i], c0, v, ea, Au, eb, Bu, &enter, &exit)) return -1.0;
+    }
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            double L[3];
+            _cross3(Au[i], Bu[j], L);
+            if (!_obb_axis_interval(L, c0, v, ea, Au, eb, Bu, &enter, &exit)) return -1.0;
+        }
+    }
+    if (exit < 0.0 || enter > 1.0) return -1.0;
+    if (enter < 0.0) enter = 0.0;
+    return enter;
+}
+
+long long nuc_coll_obb_obb(
+    long long acx, long long acy, long long acz,
+    long long ahx, long long ahy, long long ahz,
+    long long aqw, long long aqx, long long aqy, long long aqz,
+    long long bcx, long long bcy, long long bcz,
+    long long bhx, long long bhy, long long bhz,
+    long long bqw, long long bqx, long long bqy, long long bqz)
+{
+    double a[3] = { _i2f(acx), _i2f(acy), _i2f(acz) };
+    double b[3] = { _i2f(bcx), _i2f(bcy), _i2f(bcz) };
+    double ea[3] = { fabs(_i2f(ahx)), fabs(_i2f(ahy)), fabs(_i2f(ahz)) };
+    double eb[3] = { fabs(_i2f(bhx)), fabs(_i2f(bhy)), fabs(_i2f(bhz)) };
+    double Au[3][3], Bu[3][3];
+    _quat_axes(_i2f(aqw), _i2f(aqx), _i2f(aqy), _i2f(aqz), Au);
+    _quat_axes(_i2f(bqw), _i2f(bqx), _i2f(bqy), _i2f(bqz), Bu);
+    return (_obb_sweep_toi(a, a, ea, Au, b, b, eb, Bu) >= 0.0) ? 1 : 0;
+}
+
+// CCD: translational OBB-OBB with fixed orientations. The centers
+// linearly sweep over [0, 1]; quaternions are held constant.
+long long nuc_coll_ccd_obb_obb(
+    long long a0x, long long a0y, long long a0z,
+    long long a1x, long long a1y, long long a1z,
+    long long ahx, long long ahy, long long ahz,
+    long long aqw, long long aqx, long long aqy, long long aqz,
+    long long b0x, long long b0y, long long b0z,
+    long long b1x, long long b1y, long long b1z,
+    long long bhx, long long bhy, long long bhz,
+    long long bqw, long long bqx, long long bqy, long long bqz)
+{
+    double a0[3] = { _i2f(a0x), _i2f(a0y), _i2f(a0z) };
+    double a1[3] = { _i2f(a1x), _i2f(a1y), _i2f(a1z) };
+    double b0[3] = { _i2f(b0x), _i2f(b0y), _i2f(b0z) };
+    double b1[3] = { _i2f(b1x), _i2f(b1y), _i2f(b1z) };
+    double ea[3] = { fabs(_i2f(ahx)), fabs(_i2f(ahy)), fabs(_i2f(ahz)) };
+    double eb[3] = { fabs(_i2f(bhx)), fabs(_i2f(bhy)), fabs(_i2f(bhz)) };
+    double Au[3][3], Bu[3][3];
+    _quat_axes(_i2f(aqw), _i2f(aqx), _i2f(aqy), _i2f(aqz), Au);
+    _quat_axes(_i2f(bqw), _i2f(bqx), _i2f(bqy), _i2f(bqz), Bu);
+    return _f2i(_obb_sweep_toi(a0, a1, ea, Au, b0, b1, eb, Bu));
+}
+
 // ---- CCD: swept sphere-sphere (v0.2.196) ----
 //
 // A moving sphere from (a0, ar) to (a1, ar) sweeps a capsule.

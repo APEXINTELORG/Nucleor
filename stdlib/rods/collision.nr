@@ -80,6 +80,16 @@ extern fn nuc_coll_sphere_obb(
     hx: i64, hy: i64, hz: i64,
     qw: i64, qx: i64, qy: i64, qz: i64) -> i64;
 
+// OBB-OBB SAT overlap. Each OBB is center, half-extents, and
+// orientation quaternion.
+extern fn nuc_coll_obb_obb(
+    acx: i64, acy: i64, acz: i64,
+    ahx: i64, ahy: i64, ahz: i64,
+    aqw: i64, aqx: i64, aqy: i64, aqz: i64,
+    bcx: i64, bcy: i64, bcz: i64,
+    bhx: i64, bhy: i64, bhz: i64,
+    bqw: i64, bqx: i64, bqy: i64, bqz: i64) -> i64;
+
 // CCD: continuous sphere-sphere (v0.2.196). Two moving spheres
 // from (a0, ar) → (a1, ar) and (b0, br) → (b1, br) over a unit
 // time interval. Returns the earliest collision time t ∈ [0, 1]
@@ -125,6 +135,18 @@ extern fn nuc_coll_ccd_capsule_aabb(
     b1x: i64, b1y: i64, b1z: i64, cr: i64,
     minx: i64, miny: i64, minz: i64,
     maxx: i64, maxy: i64, maxz: i64) -> i64;
+
+// CCD: translational OBB-OBB with fixed orientations. Centers sweep
+// linearly from c0 to c1 over [0, 1]; quaternions are held constant.
+extern fn nuc_coll_ccd_obb_obb(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64,
+    ahx: i64, ahy: i64, ahz: i64,
+    aqw: i64, aqx: i64, aqy: i64, aqz: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64,
+    bhx: i64, bhy: i64, bhz: i64,
+    bqw: i64, bqx: i64, bqy: i64, bqz: i64) -> i64;
 
 // Sphere-AABB cross-pair (v0.2.195).
 extern fn nuc_coll_sphere_aabb(
@@ -206,6 +228,17 @@ fn coll_sphere_obb(
     return nuc_coll_sphere_obb(sx, sy, sz, sr, cx, cy, cz, hx, hy, hz, qw, qx, qy, qz);
 }
 
+fn coll_obb_obb(
+    acx: i64, acy: i64, acz: i64,
+    ahx: i64, ahy: i64, ahz: i64,
+    aqw: i64, aqx: i64, aqy: i64, aqz: i64,
+    bcx: i64, bcy: i64, bcz: i64,
+    bhx: i64, bhy: i64, bhz: i64,
+    bqw: i64, bqx: i64, bqy: i64, bqz: i64) -> i64 {
+    return nuc_coll_obb_obb(acx, acy, acz, ahx, ahy, ahz, aqw, aqx, aqy, aqz,
+                            bcx, bcy, bcz, bhx, bhy, bhz, bqw, bqx, bqy, bqz);
+}
+
 fn coll_ccd_sphere_sphere(
     a0x: i64, a0y: i64, a0z: i64,
     a1x: i64, a1y: i64, a1z: i64, ar: i64,
@@ -251,6 +284,22 @@ fn coll_ccd_capsule_aabb(
     return nuc_coll_ccd_capsule_aabb(a0x, a0y, a0z, a1x, a1y, a1z,
         b0x, b0y, b0z, b1x, b1y, b1z, cr,
         minx, miny, minz, maxx, maxy, maxz);
+}
+
+fn coll_ccd_obb_obb(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64,
+    ahx: i64, ahy: i64, ahz: i64,
+    aqw: i64, aqx: i64, aqy: i64, aqz: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64,
+    bhx: i64, bhy: i64, bhz: i64,
+    bqw: i64, bqx: i64, bqy: i64, bqz: i64) -> i64
+{
+    return nuc_coll_ccd_obb_obb(a0x, a0y, a0z, a1x, a1y, a1z,
+        ahx, ahy, ahz, aqw, aqx, aqy, aqz,
+        b0x, b0y, b0z, b1x, b1y, b1z,
+        bhx, bhy, bhz, bqw, bqx, bqy, bqz);
 }
 
 fn coll_sphere_aabb(
