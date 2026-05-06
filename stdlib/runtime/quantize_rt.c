@@ -14,6 +14,17 @@ static long long _qz_f2i(double f) { long long i; memcpy(&i, &f, 8); return i; }
 
 typedef struct { long long *data; int len; int cap; } QZVec;
 
+static QZVec *_qz_vec_new(int len) {
+    if (len < 0) return NULL;
+    QZVec *v = (QZVec *)malloc(sizeof(QZVec));
+    if (!v) return NULL;
+    v->len = len;
+    v->cap = len;
+    v->data = (long long *)calloc((size_t)len, sizeof(long long));
+    if (len > 0 && !v->data) { free(v); return NULL; }
+    return v;
+}
+
 // ================================================================
 //  Block Q4_0: 32 weights per block, absmax scale, 4-bit unsigned
 //  Layout: [f16 scale][16 bytes of packed 4-bit quants]
@@ -156,6 +167,27 @@ long long nuc_quant_int8_gemv(long long qw_handle, long long x_h) {
     return (long long)y;
 }
 
+long long nuc_quant_int8_decode(long long qw_handle) {
+    long long *h = (long long *)(void *)qw_handle;
+    if (!h) return 0;
+    signed char *quants = (signed char *)(void *)h[0];
+    float *scales = (float *)(void *)h[1];
+    int r = (int)h[2], c = (int)h[3];
+    int n = r * c;
+    if (!quants || !scales || r < 0 || c < 0) return 0;
+
+    QZVec *out = _qz_vec_new(n);
+    if (!out) return 0;
+    for (int i = 0; i < r; i++) {
+        float s = scales[i];
+        for (int j = 0; j < c; j++) {
+            int idx = i * c + j;
+            out->data[idx] = _qz_f2i((double)quants[idx] * (double)s);
+        }
+    }
+    return (long long)out;
+}
+
 // ================================================================
 //  Ternary Quantization (BitNet b1.58: {-1, 0, +1})
 // ================================================================
@@ -183,11 +215,33 @@ long long nuc_quant_ternary_encode(long long weights_h, long long n) {
         packed[word] |= ((unsigned int)q << bit);
     }
 
-    long long *result = (long long *)malloc(3 * sizeof(long long));
+    long long *result = (long long *)malloc(4 * sizeof(long long));
     result[0] = (long long)packed;
     result[1] = (long long)n_packed;
     result[2] = _qz_f2i(absmean);
+    result[3] = (long long)N;
     return (long long)result;
+}
+
+long long nuc_quant_ternary_decode(long long tw_handle) {
+    long long *h = (long long *)(void *)tw_handle;
+    if (!h) return 0;
+    unsigned int *packed = (unsigned int *)(void *)h[0];
+    double absmean = _qz_i2f(h[2]);
+    int N = (int)h[3];
+    if (!packed || N < 0) return 0;
+
+    QZVec *out = _qz_vec_new(N);
+    if (!out) return 0;
+    for (int i = 0; i < N; i++) {
+        int word = i / 16, bit = (i % 16) * 2;
+        int q = (packed[word] >> bit) & 3;
+        double v = 0.0;
+        if (q == 1) v = absmean;
+        else if (q == 2) v = -absmean;
+        out->data[i] = _qz_f2i(v);
+    }
+    return (long long)out;
 }
 
 // Ternary GEMV: y = W_ternary * x (additions only, no multiplies)
@@ -237,6 +291,7 @@ long long nuc_quant_ternary_gemv(long long tw_handle, long long x_h, long long r
 long long nuc_quant_fp8_encode(long long weights_h, long long n, long long block_size) {
     QZVec *w = (QZVec *)(void *)weights_h;
     int N = (int)n, bs = (int)block_size;
+    if (!w || N < 0 || bs <= 0) return 0;
     int n_blocks = (N + bs - 1) / bs;
     float *scales = (float *)malloc(n_blocks * sizeof(float));
     unsigned char *fp8 = (unsigned char *)malloc(N);
@@ -259,12 +314,170 @@ long long nuc_quant_fp8_encode(long long weights_h, long long n, long long block
         }
     }
 
-    long long *result = (long long *)malloc(4 * sizeof(long long));
+    long long *result = (long long *)malloc(5 * sizeof(long long));
     result[0] = (long long)fp8;
     result[1] = (long long)scales;
     result[2] = (long long)n_blocks;
     result[3] = (long long)bs;
+    result[4] = (long long)N;
     return (long long)result;
+}
+
+static double _qz_fp8_value(unsigned char *fp8, float *scales, int bs, int idx) {
+    int b = idx / bs;
+    int q = ((int)fp8[idx] - 128) * 4;
+    return (double)q * (double)scales[b];
+}
+
+long long nuc_quant_fp8_decode(long long fp8_handle) {
+    long long *h = (long long *)(void *)fp8_handle;
+    if (!h) return 0;
+    unsigned char *fp8 = (unsigned char *)(void *)h[0];
+    float *scales = (float *)(void *)h[1];
+    int bs = (int)h[3];
+    int N = (int)h[4];
+    if (!fp8 || !scales || bs <= 0 || N < 0) return 0;
+
+    QZVec *out = _qz_vec_new(N);
+    if (!out) return 0;
+    for (int i = 0; i < N; i++) out->data[i] = _qz_f2i(_qz_fp8_value(fp8, scales, bs, i));
+    return (long long)out;
+}
+
+long long nuc_quant_fp8_gemv(long long fp8_handle, long long x_h, long long rows, long long cols) {
+    long long *h = (long long *)(void *)fp8_handle;
+    QZVec *x = (QZVec *)(void *)x_h;
+    if (!h || !x) return 0;
+    unsigned char *fp8 = (unsigned char *)(void *)h[0];
+    float *scales = (float *)(void *)h[1];
+    int bs = (int)h[3];
+    int N = (int)h[4];
+    int r = (int)rows, c = (int)cols;
+    if (!fp8 || !scales || bs <= 0 || r < 0 || c < 0 || x->len < c) return 0;
+
+    QZVec *y = _qz_vec_new(r);
+    if (!y) return 0;
+    for (int i = 0; i < r; i++) {
+        double sum = 0.0;
+        for (int j = 0; j < c; j++) {
+            int idx = i * c + j;
+            if (idx < N) sum += _qz_fp8_value(fp8, scales, bs, idx) * _qz_i2f(x->data[j]);
+        }
+        y->data[i] = _qz_f2i(sum);
+    }
+    return (long long)y;
+}
+
+long long nuc_quant_fp8_dot(long long a_handle, long long b_handle) {
+    long long *ah = (long long *)(void *)a_handle;
+    long long *bh = (long long *)(void *)b_handle;
+    if (!ah || !bh) return _qz_f2i(0.0);
+    unsigned char *a = (unsigned char *)(void *)ah[0];
+    unsigned char *b = (unsigned char *)(void *)bh[0];
+    float *as = (float *)(void *)ah[1];
+    float *bs = (float *)(void *)bh[1];
+    int abs = (int)ah[3], bbs = (int)bh[3];
+    int an = (int)ah[4], bn = (int)bh[4];
+    int n = an < bn ? an : bn;
+    double sum = 0.0;
+    if (!a || !b || !as || !bs || abs <= 0 || bbs <= 0) return _qz_f2i(0.0);
+    for (int i = 0; i < n; i++) sum += _qz_fp8_value(a, as, abs, i) * _qz_fp8_value(b, bs, bbs, i);
+    return _qz_f2i(sum);
+}
+
+// ================================================================
+//  Grouped signed-Q4 quantization with per-group scales
+// ================================================================
+
+long long nuc_quant_grouped_encode(long long weights_h, long long n, long long group_size) {
+    QZVec *w = (QZVec *)(void *)weights_h;
+    int N = (int)n, gs = (int)group_size;
+    if (!w || N < 0 || gs <= 0) return 0;
+    int n_groups = (N + gs - 1) / gs;
+    int n_packed = (N + 1) / 2;
+    unsigned char *packed = (unsigned char *)calloc((size_t)n_packed, 1);
+    float *scales = (float *)calloc((size_t)n_groups, sizeof(float));
+    if ((n_packed > 0 && !packed) || (n_groups > 0 && !scales)) {
+        free(packed);
+        free(scales);
+        return 0;
+    }
+
+    for (int g = 0; g < n_groups; g++) {
+        int base = g * gs;
+        int end = base + gs;
+        if (end > N) end = N;
+        float amax = 0.0f;
+        for (int i = base; i < end; i++) {
+            float v = (float)fabs(_qz_i2f(w->data[i]));
+            if (v > amax) amax = v;
+        }
+        float scale = amax / 7.0f;
+        scales[g] = scale;
+        float inv = (scale > 1e-10f) ? 1.0f / scale : 0.0f;
+        for (int i = base; i < end; i++) {
+            float v = (float)_qz_i2f(w->data[i]);
+            int q = (int)roundf(v * inv);
+            if (q < -8) q = -8;
+            if (q > 7) q = 7;
+            unsigned char nibble = (unsigned char)((q + 8) & 0xF);
+            if ((i & 1) == 0) packed[i / 2] = (packed[i / 2] & 0xF0) | nibble;
+            else packed[i / 2] = (packed[i / 2] & 0x0F) | (unsigned char)(nibble << 4);
+        }
+    }
+
+    long long *result = (long long *)malloc(6 * sizeof(long long));
+    result[0] = (long long)packed;
+    result[1] = (long long)scales;
+    result[2] = (long long)N;
+    result[3] = (long long)gs;
+    result[4] = (long long)n_groups;
+    result[5] = (long long)n_packed;
+    return (long long)result;
+}
+
+static double _qz_grouped_value(unsigned char *packed, float *scales, int gs, int idx) {
+    unsigned char byte = packed[idx / 2];
+    int q = ((idx & 1) == 0) ? (byte & 0xF) : ((byte >> 4) & 0xF);
+    int signed_q = q - 8;
+    return (double)signed_q * (double)scales[idx / gs];
+}
+
+long long nuc_quant_grouped_decode(long long grouped_handle) {
+    long long *h = (long long *)(void *)grouped_handle;
+    if (!h) return 0;
+    unsigned char *packed = (unsigned char *)(void *)h[0];
+    float *scales = (float *)(void *)h[1];
+    int N = (int)h[2], gs = (int)h[3];
+    if (!packed || !scales || N < 0 || gs <= 0) return 0;
+
+    QZVec *out = _qz_vec_new(N);
+    if (!out) return 0;
+    for (int i = 0; i < N; i++) out->data[i] = _qz_f2i(_qz_grouped_value(packed, scales, gs, i));
+    return (long long)out;
+}
+
+long long nuc_quant_grouped_gemv(long long grouped_handle, long long x_h, long long rows, long long cols) {
+    long long *h = (long long *)(void *)grouped_handle;
+    QZVec *x = (QZVec *)(void *)x_h;
+    if (!h || !x) return 0;
+    unsigned char *packed = (unsigned char *)(void *)h[0];
+    float *scales = (float *)(void *)h[1];
+    int N = (int)h[2], gs = (int)h[3];
+    int r = (int)rows, c = (int)cols;
+    if (!packed || !scales || gs <= 0 || r < 0 || c < 0 || x->len < c) return 0;
+
+    QZVec *y = _qz_vec_new(r);
+    if (!y) return 0;
+    for (int i = 0; i < r; i++) {
+        double sum = 0.0;
+        for (int j = 0; j < c; j++) {
+            int idx = i * c + j;
+            if (idx < N) sum += _qz_grouped_value(packed, scales, gs, idx) * _qz_i2f(x->data[j]);
+        }
+        y->data[i] = _qz_f2i(sum);
+    }
+    return (long long)y;
 }
 
 // ================================================================
