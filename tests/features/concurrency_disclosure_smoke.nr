@@ -1,7 +1,7 @@
 // v0.8.310/v0.8.311 R04-D5 Phase 1 — concurrency + thread + atomic
 // rod disclosures.
 //
-// Locks 12 invariants (extended in v0.8.311/v0836):
+// Locks 13 invariants (extended in v0.8.311/v0836):
 //   1. concurrency_limitations names "SEQUENTIAL FALLBACK"
 //   2. conc_map_is_parallel() = 0 (sequential per v0.8.270)
 //   3. thread_limitations names "REAL parallel"
@@ -14,6 +14,7 @@
 //   10. concurrency_limitations points callers to "thread_barrier"
 //   11. concurrency_limitations names "MUTEX LIFECYCLE"
 //   12. concurrency_limitations names "CHANNEL CLOSE"
+//   13. atomic_limitations names "C-17"
 //
 // Expected: rc=0.
 
@@ -56,6 +57,7 @@ fn check_atomic_limits() -> i64 {
     if str_len(s) == 0 { return 256; };
     if str_index_of(s, "WIDTHS") < 0 { return 512; };
     if str_index_of(s, "WAIT/NOTIFY") < 0 { return 1024; };
+    if str_index_of(s, "C-17") < 0 { return 32768; };
     return 0;
 }
 

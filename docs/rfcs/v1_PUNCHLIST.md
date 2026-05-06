@@ -71,6 +71,11 @@ launch. After memory safety completes, these are next-priority.
   values readable, ignores sends after close, and makes recv on a closed
   empty channel return `0` instead of blocking forever.
   `concurrency_channel_close_smoke.nr` locks the contract.
+- **C-17 typed atomic width wrappers:** DONE for Phase 2 on 2026-05-06 —
+  `AtomicU64`, `AtomicI32`, and `AtomicU32` now expose typed
+  ordered load/store/fetch/swap/CAS wrappers over the existing i64
+  atomic storage cell, closing the raw-handle escape hatch.
+  `rfc0007_atomic_width_wrappers.nr` locks representative operations.
 - **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
 ### E-1, E-2, E-3 — Effect / Capability trust gap

@@ -82,8 +82,8 @@ RFC examples use this syntax; compiler comments (v0.3.138) note it was removed b
 ### C-16 — Channel close semantics — **DONE 2026-05-06**
 `conc_channel_close` now marks a channel closed on Win32 and POSIX. Buffered values remain readable, sends after close are ignored, and `recv` on a closed empty channel returns `0` instead of blocking forever. `conc_channel_is_closed` exposes the closed bit for callers that need an explicit status check. Validation: `tests/features/concurrency_channel_close_smoke.nr`.
 
-### C-17 — AtomicU64/I32/U32/AtomicBool have no typed ordered ops — **LOW**
-Only `AtomicI64` and `AtomicBool` have full ordered API. Other widths have `new`/`drop` only; users must drop to the raw `a.handle` field for ordered ops, defeating type safety.
+### C-17 — AtomicU64/I32/U32 typed ordered wrappers — **DONE 2026-05-06**
+`AtomicU64`, `AtomicI32`, and `AtomicU32` now expose typed load/store/fetch/swap/CAS wrappers, matching the existing `AtomicI64` and `AtomicBool` public pattern. These wrappers intentionally reuse the existing i64 atomic storage cell and LLVM i64 atomic lowering; this closes the raw-handle escape hatch but does not introduce a native narrow-width allocation ABI. Validation: `tests/features/rfc0007_atomic_width_wrappers.nr`.
 
 ## 2.3. Cross-cutting risks
 
@@ -170,12 +170,14 @@ Implement `__nucleor_ambient_scheduler` returning a process-global capability to
 ### C-14 (effect system for concurrency unshipped) — Phase 3
 Cross-references the effects RFC. Once the effect system is real, concurrency-effect rules (no-spawn-in-pure, no-channel-in-deadline) become enforceable.
 
-### C-15, C-17 — Phase 2-3 polish
+### C-15 — Phase 2-3 polish
 - C-15: configurable async registry size; structured Result-Err on overflow
-- C-17: full ordered API for AtomicU64/I32/U32
 
 ### C-16 (channel close semantics) — Phase 2 DONE 2026-05-06
 Shipped `conc_channel_close` / `conc_channel_is_closed` wrappers plus Win32/POSIX runtime close semantics. Closed channels preserve already-buffered values; sends after close no-op; recv on closed-empty returns `0`. Validation: `tests/features/concurrency_channel_close_smoke.nr`.
+
+### C-17 (typed atomic width wrappers) — Phase 2 DONE 2026-05-06
+Shipped typed ordered wrappers for `AtomicU64`, `AtomicI32`, and `AtomicU32` over the current i64-backed atomic storage cell. Validation: `tests/features/rfc0007_atomic_width_wrappers.nr`.
 
 ## 3.3. Phasing summary
 
