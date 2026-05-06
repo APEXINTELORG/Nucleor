@@ -3787,6 +3787,7 @@ void __nucleor_mutex_free_value(long long handle) {
 // Channel: thread-safe bounded queue
 typedef struct {
     long long *buf; int cap; int head; int tail; int count;
+    int closed;
     CRITICAL_SECTION lock; HANDLE not_empty; HANDLE not_full;
 } NChannel;
 long long __nucleor_channel_new(long long capacity) {
@@ -3794,6 +3795,7 @@ long long __nucleor_channel_new(long long capacity) {
     ch->cap = (int)capacity; if (ch->cap < 1) ch->cap = 16;
     ch->buf = (long long*)malloc(ch->cap * sizeof(long long));
     ch->head = 0; ch->tail = 0; ch->count = 0;
+    ch->closed = 0;
     InitializeCriticalSection(&ch->lock);
     ch->not_empty = CreateEvent(NULL, FALSE, FALSE, NULL);
     ch->not_full = CreateEvent(NULL, FALSE, TRUE, NULL);
@@ -3804,6 +3806,10 @@ void __nucleor_channel_send(long long handle, long long val) {
     if (!ch) return;
     while (1) {
         EnterCriticalSection(&ch->lock);
+        if (ch->closed) {
+            LeaveCriticalSection(&ch->lock);
+            return;
+        }
         if (ch->count < ch->cap) {
             ch->buf[ch->tail] = val;
             ch->tail = (ch->tail + 1) % ch->cap;
@@ -3829,9 +3835,30 @@ long long __nucleor_channel_recv(long long handle) {
             LeaveCriticalSection(&ch->lock);
             return val;
         }
+        if (ch->closed) {
+            LeaveCriticalSection(&ch->lock);
+            return 0;
+        }
         LeaveCriticalSection(&ch->lock);
         WaitForSingleObject(ch->not_empty, 100);
     }
+}
+void __nucleor_channel_close(long long handle) {
+    NChannel *ch = (NChannel*)(void*)handle;
+    if (!ch) return;
+    EnterCriticalSection(&ch->lock);
+    ch->closed = 1;
+    SetEvent(ch->not_empty);
+    SetEvent(ch->not_full);
+    LeaveCriticalSection(&ch->lock);
+}
+long long __nucleor_channel_is_closed(long long handle) {
+    NChannel *ch = (NChannel*)(void*)handle;
+    if (!ch) return 1;
+    EnterCriticalSection(&ch->lock);
+    long long closed = ch->closed ? 1 : 0;
+    LeaveCriticalSection(&ch->lock);
+    return closed;
 }
 long long __nucleor_channel_len(long long handle) {
     NChannel *ch = (NChannel*)(void*)handle;
@@ -3997,6 +4024,7 @@ long long __nucleor_rng_seed(long long seed, long long reserved) { (void)reserve
 // when full; recv blocks when empty.
 typedef struct {
     long long *buf; int cap; int head; int tail; int count;
+    int closed;
     pthread_mutex_t lock;
     pthread_cond_t not_empty;
     pthread_cond_t not_full;
@@ -4017,8 +4045,12 @@ void __nucleor_channel_send(long long h, long long v) {
     NChannel_posix *ch = (NChannel_posix*)(void*)h;
     if (!ch) return;
     pthread_mutex_lock(&ch->lock);
-    while (ch->count == ch->cap) {
+    while (ch->count == ch->cap && !ch->closed) {
         pthread_cond_wait(&ch->not_full, &ch->lock);
+    }
+    if (ch->closed) {
+        pthread_mutex_unlock(&ch->lock);
+        return;
     }
     ch->buf[ch->tail] = v;
     ch->tail = (ch->tail + 1) % ch->cap;
@@ -4030,8 +4062,12 @@ long long __nucleor_channel_recv(long long h) {
     NChannel_posix *ch = (NChannel_posix*)(void*)h;
     if (!ch) return 0;
     pthread_mutex_lock(&ch->lock);
-    while (ch->count == 0) {
+    while (ch->count == 0 && !ch->closed) {
         pthread_cond_wait(&ch->not_empty, &ch->lock);
+    }
+    if (ch->count == 0 && ch->closed) {
+        pthread_mutex_unlock(&ch->lock);
+        return 0;
     }
     long long v = ch->buf[ch->head];
     ch->head = (ch->head + 1) % ch->cap;
@@ -4039,6 +4075,23 @@ long long __nucleor_channel_recv(long long h) {
     pthread_cond_signal(&ch->not_full);
     pthread_mutex_unlock(&ch->lock);
     return v;
+}
+void __nucleor_channel_close(long long h) {
+    NChannel_posix *ch = (NChannel_posix*)(void*)h;
+    if (!ch) return;
+    pthread_mutex_lock(&ch->lock);
+    ch->closed = 1;
+    pthread_cond_broadcast(&ch->not_empty);
+    pthread_cond_broadcast(&ch->not_full);
+    pthread_mutex_unlock(&ch->lock);
+}
+long long __nucleor_channel_is_closed(long long h) {
+    NChannel_posix *ch = (NChannel_posix*)(void*)h;
+    if (!ch) return 1;
+    pthread_mutex_lock(&ch->lock);
+    long long closed = ch->closed ? 1 : 0;
+    pthread_mutex_unlock(&ch->lock);
+    return closed;
 }
 long long __nucleor_channel_len(long long h) {
     NChannel_posix *ch = (NChannel_posix*)(void*)h;

@@ -3,6 +3,8 @@
 // All spawned work is scoped — parent always waits for children
 
 extern fn __nucleor_mutex_free(handle: i64);
+extern fn __nucleor_channel_close(handle: i64);
+extern fn __nucleor_channel_is_closed(handle: i64) -> i64;
 
 // Spawn a function as a background thread (IDLE priority)
 // fn_ptr: function pointer (from closure or |x| expr), arg: argument
@@ -50,6 +52,9 @@ fn conc_recv(ch: i64) -> i64 {
 fn conc_channel_len(ch: i64) -> i64 {
     return channel_len(ch);
 }
+
+fn conc_channel_close(ch: i64) { __nucleor_channel_close(ch); }
+fn conc_channel_is_closed(ch: i64) -> i64 { return __nucleor_channel_is_closed(ch); }
 
 // Mutex for protecting shared state
 fn conc_mutex() -> i64 { return mutex_new(); }
@@ -100,7 +105,7 @@ fn conc_map(items: Vec<i32>, fn_ptr: i64) -> Vec<i32> {
 // document which primitives are sequential fallbacks vs real
 // parallel/concurrent dispatch.
 fn concurrency_limitations() -> str {
-    return "Concurrency rod limitations (CONC-1/C-10/C-11, audit R04-D5 v0.8.310/v0836): (1) conc_map IS A SEQUENTIAL FALLBACK as of v0.8.270 (R04-D2 closure of silent-zero placeholder bug). It correctly maps fn_ptr over every item, but does NOT spawn threads - the loop runs in the caller's thread. Phase 2 wires real parallel dispatch via thread_pool when nuc_threadpool_map proves stable across platforms. (2) BARRIER: use thread_barrier_new/thread_barrier_wait/thread_barrier_free from thread.nr for fixed-party rendezvous; concurrency.nr does not re-export it to avoid duplicate thread_rt linkage when both rods are imported. (3) MUTEX LIFECYCLE: conc_mutex_destroy / conc_mutex_free release the native CRITICAL_SECTION or pthread_mutex_t handle; callers must not use a mutex after freeing it. (4) NO STRUCTURED-CONCURRENCY scope: there is no scoped `nursery`-style spawner that joins on scope exit. Phase 2 adds RFC-0027 phase 2's structured-concurrency surface. (5) NO CHANNEL-CLOSE diagnostic: when a channel is dropped while a writer is mid-send, the failure mode is silent (no panic, no Result::Err). Phase 2 ships channel_close_status per audit ship plan.";
+    return "Concurrency rod limitations (CONC-1/C-10/C-11/C-16, audit R04-D5 v0.8.310/v0836): (1) conc_map IS A SEQUENTIAL FALLBACK as of v0.8.270 (R04-D2 closure of silent-zero placeholder bug). It correctly maps fn_ptr over every item, but does NOT spawn threads - the loop runs in the caller's thread. Phase 2 wires real parallel dispatch via thread_pool when nuc_threadpool_map proves stable across platforms. (2) BARRIER: use thread_barrier_new/thread_barrier_wait/thread_barrier_free from thread.nr for fixed-party rendezvous; concurrency.nr does not re-export it to avoid duplicate thread_rt linkage when both rods are imported. (3) MUTEX LIFECYCLE: conc_mutex_destroy / conc_mutex_free release the native CRITICAL_SECTION or pthread_mutex_t handle; callers must not use a mutex after freeing it. (4) CHANNEL CLOSE: conc_channel_close marks a channel closed; pending buffered values remain readable, sends after close are ignored, and recv on a closed empty channel returns 0 instead of blocking forever. (5) NO STRUCTURED-CONCURRENCY scope: there is no scoped `nursery`-style spawner that joins on scope exit. Phase 2 adds RFC-0027 phase 2's structured-concurrency surface.";
 }
 
 fn conc_map_is_parallel() -> i64 { return 0; }
