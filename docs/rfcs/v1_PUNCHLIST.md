@@ -484,6 +484,13 @@ launch. After memory safety completes, these are next-priority.
   locks branch detection/refusal and topology-ordered serial FK export.
   Remaining gap: true branched-tree FK/runtime surface, xacro subset
   expansion, and richer link/visual/collision/inertial model handling.
+- **ROBO-8 CHOMP covariant preconditioning:** DONE for Phase 1 on
+  2026-05-06. `chomp_optimize_covariant` applies the inverse
+  clamped-endpoint smoothness metric (`A^-1 grad`) before stepping;
+  `chomp_covariant_preconditioner_smoke.nr` proves a smoothness-only
+  zig-zag collapses while endpoints stay fixed. Remaining gap:
+  high-DOF / obstacle-gradient production evidence, exact SDF
+  gradients, and tuning guidance for `metric_reg` / `max_step`.
 
 ## Sequencing — proposed waves
 

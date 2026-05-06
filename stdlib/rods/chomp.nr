@@ -19,10 +19,11 @@
 // integrated along the trajectory. Endpoints are clamped (start
 // and goal never move); only interior waypoints are optimized.
 //
-// **Limitations** (full covariant pre-conditioning A⁻¹∇F lands
-// in v0.6 if needed; here we approximate by clamping per-step
-// move magnitude — much simpler, similar empirical behavior on
-// typical paths):
+// The default `chomp_optimize` surface is the legacy clamped-gradient
+// optimizer. Use `chomp_optimize_covariant` when the path needs the
+// full inverse smoothness-metric preconditioner used by CHOMP-proper.
+//
+// **Limitations**:
 // - Joint-space optimization only (Cartesian-space variant
 //   would need an FK + Jacobian wrapper).
 // - Obstacle gradient via numerical finite differences (slower
@@ -36,6 +37,13 @@ extern fn nuc_chomp_optimize(
     max_iters: i64,
     alpha_b: i64, w_smooth_b: i64, w_obs_b: i64,
     obs_cost_fp: i64) -> i64;
+
+extern fn nuc_chomp_optimize_covariant(
+    path_ptr: i64, N: i64, n_dim: i64,
+    max_iters: i64,
+    alpha_b: i64, w_smooth_b: i64, w_obs_b: i64,
+    obs_cost_fp: i64,
+    metric_reg_b: i64, max_step_b: i64) -> i64;
 
 extern fn nuc_chomp_cost(
     path_ptr: i64, N: i64, n_dim: i64,
@@ -58,6 +66,21 @@ fn chomp_optimize(path_ptr: i64, N: i64, n_dim: i64,
         alpha_b, w_smooth_b, w_obs_b, obs_cost_fp);
 }
 
+// Optimize a path in place using the CHOMP covariant update:
+// `A^-1 grad` over the interior waypoints, where A is the clamped
+// endpoint smoothness metric. `metric_reg_b` adds diagonal damping to
+// A; `max_step_b` may be <= 0.0 to disable coordinate step clamping.
+fn chomp_optimize_covariant(path_ptr: i64, N: i64, n_dim: i64,
+    max_iters: i64,
+    alpha_b: i64, w_smooth_b: i64, w_obs_b: i64,
+    obs_cost_fp: i64,
+    metric_reg_b: i64, max_step_b: i64) -> i64
+{
+    return nuc_chomp_optimize_covariant(path_ptr, N, n_dim, max_iters,
+        alpha_b, w_smooth_b, w_obs_b, obs_cost_fp,
+        metric_reg_b, max_step_b);
+}
+
 // Diagnostic: total trajectory cost (smoothness + obstacle).
 // Useful for verifying that CHOMP actually decreased the cost.
 fn chomp_cost(path_ptr: i64, N: i64, n_dim: i64,
@@ -71,5 +94,5 @@ fn chomp_cost(path_ptr: i64, N: i64, n_dim: i64,
 // Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
 // surfaces CHOMP's documented approximations as a queryable string.
 fn chomp_limitations() -> str {
-    return "CHOMP limitations (ROBO-12): (1) joint-space only, no Cartesian variant; (2) obstacle gradient via finite differences (slower than exact SDF gradients); (3) per-step move magnitude clamped instead of full covariant A^-1 grad-F preconditioning (simpler, similar empirical behavior on typical paths); (4) endpoints clamped — start and goal never move. Phase 2 may add Cartesian variant + exact gradients.";
+    return "CHOMP limitations (ROBO-8): (1) joint-space only, no Cartesian variant; (2) obstacle gradient via finite differences (slower than exact SDF gradients); (3) legacy chomp_optimize remains clamped-gradient for compatibility; chomp_optimize_covariant provides A^-1 grad-F preconditioning; (4) endpoints clamped — start and goal never move. Phase 2 may add Cartesian variant + exact gradients.";
 }
