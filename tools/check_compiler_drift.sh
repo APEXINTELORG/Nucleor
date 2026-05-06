@@ -50,10 +50,15 @@ extract_get_rt_name() {
 
 extract_fn_block_names() {
     # $1 = file, $2 = function name (e.g. is_ptr_ret)
+    # POSIX awk: 2-arg match() + RSTART/RLENGTH + substr (the 3-arg
+    # match(str, /re/, array) form is gawk-only and silently fails on
+    # mawk, which used to make this gate falsely report "OK" on Ubuntu
+    # CI runners where both extracts produced empty output.
+    # Match shape: str_eq(name, "NAME")  -> 14-char prefix + NAME + 2-char ")
     awk -v fn="$2" '
-        $0 ~ "^fn " fn "\\b" { in_block = 1 }
-        in_block && /str_eq\(name, "[^"]+"\)/ {
-            if (match($0, /str_eq\(name, "([^"]+)"\)/, m)) print m[1]
+        $0 ~ "^fn " fn "\\(" { in_block = 1 }
+        in_block && match($0, /str_eq\(name, "[^"]+"\)/) {
+            print substr($0, RSTART + 14, RLENGTH - 16)
         }
         in_block && /^\}/ { exit }
     ' "$1" | sort -u
@@ -111,12 +116,16 @@ report_drift "IR declare"   "$TMP/s1_dec.txt" "$TMP/tools_dec.txt"
 # we want when the parser shape changes.
 extract_fn_token_witnesses() {
     # $1 = file, $2 = function name
+    # POSIX awk: see extract_fn_block_names note about the 3-arg match()
+    # gawk-ism. Same fix here.
     awk -v fn="$2" '
-        $0 ~ "^fn " fn "\\b" { in_block = 1 }
+        $0 ~ "^fn " fn "\\(" { in_block = 1 }
         in_block && /pk\(tokens,[^)]*\) == [0-9]+/ {
             n = split($0, parts, /pk\(tokens,[^)]*\) == /)
             for (i = 2; i <= n; i++) {
-                if (match(parts[i], /[0-9]+/, m)) print m[0]
+                if (match(parts[i], /[0-9]+/)) {
+                    print substr(parts[i], RSTART, RLENGTH)
+                }
             }
         }
         in_block && /^\}/ { exit }
