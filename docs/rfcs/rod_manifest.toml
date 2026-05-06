@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 250
-# Total fn definitions: 2893
-# Total LOC: 12258
+# Total fn definitions: 2896
+# Total LOC: 12267
 
 [[rod]]
 name           = "activation2"
@@ -512,7 +512,7 @@ path           = "stdlib/rods/diff_sim.nr"
 description    = "Differentiable quantum simulation"
 function_count = 46
 cfile_count    = 1
-loc            = 118
+loc            = 119
 imports        = []
 
 [[rod]]
@@ -1248,9 +1248,9 @@ imports        = ["mppi"]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
 description    = "Matrix Product States (efficient quantum simulation)"
-function_count = 21
+function_count = 24
 cfile_count    = 1
-loc            = 40
+loc            = 46
 imports        = []
 
 [[rod]]
@@ -1601,7 +1601,7 @@ path           = "stdlib/rods/quantum.nr"
 description    = "Quantum circuit simulator"
 function_count = 47
 cfile_count    = 1
-loc            = 377
+loc            = 379
 imports        = ["quantum"]
 
 [[rod]]
