@@ -95,7 +95,11 @@ launch. After memory safety completes, these are next-priority.
   no-silent-trust-gap behavior — `nuc build` emits `EFF-003`
   saying the block form is not yet enforced by s1 and must not be
   relied on as a compile-time guarantee; active fixture
-  `err_restricts_builtin_io.nr` locks this.
+  `err_restricts_builtin_io.nr` locks this, with archived
+  restricts/effect fixtures promoted as fail-closed companions:
+  `err_restricts_violation.nr`, `err_restricts_channel_effect.nr`,
+  `err_effect_inference.nr`, `err_effect_transitive.nr`, and
+  `err_effect_deep_chain.nr`.
 - **Still open:** full standalone `requires [...]` row enforcement
   beyond bounded same-file/direct-wrapper calls, real block-form
   `restricts [...]` enforcement, deeper transitive `requires [...]` row
@@ -474,6 +478,11 @@ proper analysis → Phase 4 hard error):
 - **2026-05-06**: Effect/capability Phase 2b fixture lock expanded.
   `err_pure_channel_effect.nr` now keeps the existing `channel(...)`
   pure-function effect check in the active negative suite.
+- **2026-05-06**: Effect/capability archive cleanup promoted the
+  remaining archived restricts/effect negative fixtures into the active
+  suite as explicit `EFF-003` fail-closed coverage. This does not claim
+  real block-form restricts enforcement; it closes the no-silent-accept
+  coverage gap while deeper effect-row enforcement remains queued.
 - **2026-05-06**: Effect/capability Phase 2b fixture promotion advanced.
   Archived pure negatives for builtin print-family I/O, direct
   `requires [...]` callee calls, and immediate wrapper inference now live

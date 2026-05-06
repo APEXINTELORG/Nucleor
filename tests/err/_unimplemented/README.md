@@ -1,6 +1,6 @@
 # Unimplemented-feature negative tests
 
-These 11 negative tests come from the V1 archive
+These 6 negative tests come from the V1 archive
 (`Archive/Nucleor_Copy/examples/`) and exercise compiler errors for language
 features that **were planned but never landed in the self-hosted OSS
 compiler**:
@@ -8,7 +8,7 @@ compiler**:
 | Feature | Tests |
 |---|---|
 | `pure fn` keyword (`compute` cannot call `read_data`) | DONE for the archived same-file surfaces: `err_pure_requires.nr`, direct side-effect helper, builtin print-family I/O, same-file `requires [...]` call, same-file wrapper inference, extern-default, and structured scheduling are all promoted under `tests/err/`. |
-| `requires [effect]` clauses on functions | `err_effect_*` (3), `err_restricts_*` (2 remaining; `err_restricts_builtin_io.nr` promoted in v0.8.321) |
+| `requires [effect]` clauses on functions | DONE for archive coverage: `err_effect_*` and `err_restricts_*` fixtures are active under `tests/err/` as fail-closed `EFF-003` coverage for block-form `restricts [...] { ... }`. Real restricts-block enforcement remains open in the main punchlist. |
 | `unit<T, dim>` dimensional units (`m + s` rejected) | `err_unit_*` (3) |
 | `Box<T>` heap allocation | `err_box_use_after_move` |
 | Governance attributes (`@authored`, `no_unsafe`) | `err_policy_*` (2) |
