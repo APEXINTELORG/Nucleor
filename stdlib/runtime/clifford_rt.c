@@ -54,6 +54,7 @@ static int nvec_len(NVec *v) {
 
 // ---- Constants ----
 #define CLIFF_MAX_QUBITS 20
+#define CLIFF_WEIGHT_ENUM_MAX_QUBITS 12
 
 // ---- Stabilizer Tableau ----
 typedef struct {
@@ -601,6 +602,126 @@ static int commutes_with_all_stabilizers(CliffordTableau *t, int *ex, int *ez) {
         if (inner) return 0; // anticommutes
     }
     return 1;
+}
+
+// The exhaustive weight-enumerator helpers are intentionally bounded. They are
+// for small-code validation fixtures and release evidence, not large-code search.
+long long nuc_cliff_weight_enumerator_max_qubits(void) {
+    return (long long)CLIFF_WEIGHT_ENUM_MAX_QUBITS;
+}
+
+static int collect_stabilizer_rows(CliffordTableau *t,
+                                   unsigned char gen[CLIFF_MAX_QUBITS][2 * CLIFF_MAX_QUBITS]) {
+    int n = t->nq;
+    int num_gen = 0;
+    memset(gen, 0, CLIFF_MAX_QUBITS * 2 * CLIFF_MAX_QUBITS);
+
+    for (int s = n; s < 2 * n; s++) {
+        int nonzero = 0;
+        for (int q = 0; q < n; q++) {
+            unsigned char x = TAB_X(t, s, q);
+            unsigned char z = TAB_Z(t, s, q);
+            if (x || z) nonzero = 1;
+            gen[num_gen][2 * q] = x;
+            gen[num_gen][2 * q + 1] = z;
+        }
+        if (nonzero) {
+            num_gen++;
+            if (num_gen >= CLIFF_MAX_QUBITS) break;
+        }
+    }
+
+    return num_gen;
+}
+
+long long nuc_cliff_stabilizer_weight_count(long long handle, long long weight_) {
+    CliffordTableau *t = (CliffordTableau *)(size_t)handle;
+    if (!t) return 0;
+    int n = t->nq;
+    int target_weight = (int)weight_;
+    if (target_weight < 0 || target_weight > n) return 0;
+    if (n > CLIFF_WEIGHT_ENUM_MAX_QUBITS) return -1;
+
+    unsigned char gen[CLIFF_MAX_QUBITS][2 * CLIFF_MAX_QUBITS];
+    int num_gen = collect_stabilizer_rows(t, gen);
+    if (num_gen >= 62) return -1;
+
+    long long count = 0;
+    long long total = 1LL << num_gen;
+    int ex[CLIFF_MAX_QUBITS], ez[CLIFF_MAX_QUBITS];
+
+    for (long long mask = 0; mask < total; mask++) {
+        memset(ex, 0, n * sizeof(int));
+        memset(ez, 0, n * sizeof(int));
+
+        for (int g = 0; g < num_gen; g++) {
+            if (((mask >> g) & 1LL) == 0) continue;
+            for (int q = 0; q < n; q++) {
+                ex[q] ^= gen[g][2 * q];
+                ez[q] ^= gen[g][2 * q + 1];
+            }
+        }
+
+        if (pauli_weight(n, ex, ez) == target_weight) count++;
+    }
+
+    return count;
+}
+
+long long nuc_cliff_logical_weight_count(long long handle, long long n_logical_, long long weight_) {
+    CliffordTableau *t = (CliffordTableau *)(size_t)handle;
+    if (!t) return 0;
+    int n = t->nq;
+    int n_logical = (int)n_logical_;
+    int target_weight = (int)weight_;
+    if (n_logical <= 0) return 0;
+    if (target_weight < 0 || target_weight > n) return 0;
+    if (n > CLIFF_WEIGHT_ENUM_MAX_QUBITS) return -1;
+
+    int ex[CLIFF_MAX_QUBITS], ez[CLIFF_MAX_QUBITS];
+    long long count = 0;
+
+    if (target_weight == 0) return 0;
+
+    int positions[CLIFF_MAX_QUBITS];
+    for (int i = 0; i < target_weight; i++) positions[i] = i;
+
+    while (1) {
+        int assignments = 1;
+        for (int i = 0; i < target_weight; i++) assignments *= 3;
+
+        for (int mask = 0; mask < assignments; mask++) {
+            memset(ex, 0, n * sizeof(int));
+            memset(ez, 0, n * sizeof(int));
+            int tmp = mask;
+            for (int i = 0; i < target_weight; i++) {
+                int pauli_type = (tmp % 3) + 1;
+                tmp /= 3;
+                int q = positions[i];
+                if (pauli_type == 1) {
+                    ex[q] = 1;
+                } else if (pauli_type == 2) {
+                    ez[q] = 1;
+                } else {
+                    ex[q] = 1;
+                    ez[q] = 1;
+                }
+            }
+
+            if (commutes_with_all_stabilizers(t, ex, ez) &&
+                !pauli_in_stabilizer_group(t, ex, ez)) {
+                count++;
+            }
+        }
+
+        int i = target_weight - 1;
+        while (i >= 0 && positions[i] == n - target_weight + i) i--;
+        if (i < 0) break;
+        positions[i]++;
+        for (int j = i + 1; j < target_weight; j++) positions[j] = positions[j - 1] + 1;
+    }
+
+    return count;
 }
 
 // Compute code distance: minimum weight of a non-trivial logical operator.
