@@ -62,6 +62,15 @@ not a whole-project completion number.
 | 9. Quantum residuals | 80% | Most QM Phase 1/2 surfaces closed; targeted residuals open |
 | 10. Hermetic/native tooling | 55% | Several ports landed; remaining generator ports and Python-free drift open |
 
+**2026-05-06 update:** R10-D3 POSIX perf native evidence is no longer an
+open native-Linux blocker. It is closed by
+`findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`
+and `tools/perf_baseline_linux.json` with cold 9.05s, hot 0.47s, cold
+process-tree RSS 286MB, and hot process-tree RSS 17MB. Remaining
+native-Linux-only evidence should focus on PKG-1 signed publish proof and
+R06 rust_bridge native ownership/artifact proof unless a lane explicitly
+targets RFC-0063 Phase 4 Linux perf optimization.
+
 ## Recommended Cloud-Agent Split
 
 The highest leverage split is:
@@ -70,7 +79,7 @@ The highest leverage split is:
 |---|---|---|
 | Cloud A | RFC-0063 parser/tools-suite duplicate deletion, Wave 1 | Biggest correctness and maintenance payoff; possible cold-path savings |
 | Cloud B | Effect/capability plus T-3/T-4 strictness | Compiler trust-gap closure |
-| Cloud C | PKG-1/R06/R10 native POSIX evidence | External environment evidence and release proof |
+| Cloud C | PKG-1/R06 native POSIX evidence | External environment evidence and release proof; R10-D3 perf baseline is already closed |
 | Cloud D | Quantum residual closure | Mostly stdlib/test work with clear residuals |
 | Cloud E | Hermetic/native tooling ports | Removes Python/toolchain requirements without touching semantics |
 

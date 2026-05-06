@@ -268,12 +268,15 @@ launch. After memory safety completes, these are next-priority.
   2026-05-05 (`fb8b7c0b`) — adds Linux `/proc` process-tree cap
   wrapper and removes the soft `NUC_TRACE_ALLOC` green fallback from
   memory-budget gates.
-- **R10-D3 POSIX cold/hot perf gate prep:** INTEGRATED on main
-  2026-05-05 (`1a962893`) — adds `tools/check_perf_regression.sh`,
-  wires the POSIX perf monitor into `tools/verify.sh`, refuses WSL /
-  Windows `.exe` interop as RSS evidence, and documents native Linux
-  validation. Native Linux transcript still required before R10-D3
-  can be marked closed.
+- **R10-D3 POSIX cold/hot perf gate prep:** CLOSED 2026-05-06 —
+  integrated on main 2026-05-05 (`1a962893`), then closed by the
+  native Linux transcript in
+  `findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`
+  and the locked Linux baseline in `tools/perf_baseline_linux.json`.
+  The POSIX gate remains wired through `tools/verify.sh`, refuses WSL /
+  Windows `.exe` interop as RSS evidence, and uses the Linux baseline
+  via `tools/check_perf_regression.sh --baseline tools/perf_baseline_linux.json`
+  until platform-aware default selection lands.
 - **PERF-5 reproducibility routine gate:** DONE 2026-05-06 —
   `tools/verify.sh` now runs `nuc verify-reproducible` against the
   provenance fixture and requires both byte-identical IR and linked
@@ -437,8 +440,11 @@ proper analysis → Phase 4 hard error):
   `697bea7d73dc8d72ceeba86e9b886f79`; perf gate: cold 3.60s / 307MB
   process-tree RSS.
 - **2026-05-05**: POSIX cold/hot perf gate prep integrated on main
-  (`1a962893`). The gate is wired but intentionally refuses WSL/interop;
-  native Linux evidence is still required for R10-D3 closure.
+  (`1a962893`). The gate is wired but intentionally refuses WSL/interop.
+- **2026-05-06**: R10-D3 native Linux perf evidence closed by
+  `findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`
+  and `tools/perf_baseline_linux.json`: cold 9.05s, hot 0.47s,
+  cold process-tree RSS 286MB, hot process-tree RSS 17MB.
 - **2026-05-05**: QM-7 Phase 2a advanced with typed Clifford
   stabilizer Vec wrappers, a [[5,1,3]] distance/detectable-error smoke
   fixture, and reset/rebuild round-trip coverage. The compiler Tier-C

@@ -44,7 +44,9 @@ This is a **multi-ship architectural roadmap**, not a single punchlist. It super
 - Production binary (`bin/nucleor`) shipped with PGO + LTO. Baseline a 5–15% improvement on cold compile of `nucleor_s1_compiler.nr` (the canonical workload).
 - Hot-path helpers identified from real flame graphs and either inlined (`#[inline]` source attribute → LLVM `alwaysinline`) or specialized per-arch (AVX2 / AVX-512 / NEON SIMD variants for memcpy, memcmp, str/vec batch ops, FP reductions).
 - Compile-time perf and runtime perf both regression-tracked via `tools/check_perf_regression.{sh,ps1}` against `tools/perf_baseline.json`.
-- Native Linux perf transcript captured (R10-D3 closure, currently pending).
+- Native Linux perf transcript captured (R10-D3 closed 2026-05-06 via
+  `findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`
+  and `tools/perf_baseline_linux.json`).
 
 ### G5. Test + drift coverage at production tier
 - Every RFC-tagged surface has at least one positive smoke + one negative err fixture.
@@ -68,7 +70,7 @@ This is a **multi-ship architectural roadmap**, not a single punchlist. It super
 - 9/14 critical Tier-A trust-gap items at Phase 1 enforcement
 - Self-host fixed-point integrity gate (v0.8.319)
 - POSIX RSS e-stop parity (R13-D5, 2026-05-05)
-- POSIX perf gate prep (R10-D3 integration, 2026-05-05)
+- POSIX perf gate prep and native Linux baseline (R10-D3 closed, 2026-05-06)
 - ~170 rod smoke fixtures shipped (v0.8.100 → v0.8.322)
 - All 72 Unclassified helpers reclassified into a 17-class taxonomy (v0.8.323)
 - TOOLCHAIN-PY-1 closed: `verify-reproducible` is now Python-free (v0.8.323)
@@ -129,7 +131,8 @@ Lowers to one runtime helper template, instantiated per `T` at IR emission. The 
 - Run `tools/check_perf_regression.sh` on every commit on a native Linux runner.
 - Baseline locked in `tools/perf_baseline.json` (already exists). Tighten to: cold p50 < 4.5s, hot p50 < 1.3s, peak RSS < 700 MB on the canonical workload (`nucleor_s1_compiler.nr` self-build).
 - Any commit moving the p95 by > 5% blocks until investigated.
-- Native Linux transcript captured (currently the R10-D3 evidence gap).
+- Native Linux transcript captured; R10-D3 is closed against
+  `tools/perf_baseline_linux.json`.
 
 #### B2. Hot-path identification + inlining
 - Capture flame graph of the canonical workload via `perf record` + `flamegraph.pl` (Linux) and Windows ETW or vtune equivalent.
@@ -220,7 +223,7 @@ Order is by dependency, not value. Each row is one ship cut unless noted.
 |---|---|---|
 | 1.1 | C1: retire `g1_default_flip_safety_audit.py` | Trivial; demonstrates the retirement pattern |
 | 1.2 | ~~Close 18-entry parser-fn drift~~ → **made the drift gate honest, deferred real fix to Phase 2.0** | Investigation revealed the drift is structural (90% delta on parse_stmt), not 18 entries. Surgical fix would be patchwork. Phase 2.0 parser unification is the architectural answer. |
-| 1.3 | Capture native Linux perf baseline transcript (R10-D3 closure) | Unblocks Track B; required for hot-path data |
+| 1.3 | **Done 2026-05-06:** captured native Linux perf baseline transcript (R10-D3 closure) | Unblocks Track B; baseline locked in `tools/perf_baseline_linux.json` |
 | 1.4 | C2: port `gen_releases_index.py` → `nuc gen-releases-index` | Smallest port; proves the native-tooling pattern |
 | 1.5 | Effect-row enforcement Phase 2b (E-2 / E-3 cross-module) | Unblocked by Track 1's classification; cleanest soundness win |
 
