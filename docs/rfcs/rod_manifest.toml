@@ -2145,6 +2145,15 @@ loc            = 317
 imports        = []
 
 [[rod]]
+name           = "quantum_twin"
+path           = "stdlib/rods/quantum_twin.nr"
+description    = "Honest alias for the dual-core quantum noise model; not a robotics digital twin."
+function_count = 0
+cfile_count    = 0
+loc            = 7
+imports        = ["twin_core"]
+
+[[rod]]
 name           = "ukf"
 path           = "stdlib/rods/ukf.nr"
 description    = "Unscented Kalman Filter for nonlinear state estimation."

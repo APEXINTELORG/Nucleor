@@ -59,6 +59,8 @@ Cartesian-space CHOMP (FK + Jacobian to optimize end-effector trajectory in task
 ## ROBO-11 — `twin_core` is quantum noise twin, not robot digital twin — **LOW** (naming only)
 Rod named `twin_core.nr` is quantum simulator dual-core differentiable noise model. **No robotics digital twin rod:** no sim-to-real bridge, no physics-based state mirror. Naming misleading.
 
+**2026-05-06 update:** Phase 1 naming mitigation exists without breaking compatibility. `stdlib/rods/quantum_twin.nr` is now the honest import alias for the existing quantum noise twin-core model, `twin_core.nr` documents that it is not a robotics digital-twin surface, and `tests/features/quantum_twin_alias_smoke.nr` locks the alias. Remaining ROBO-11 work: real robotics digital twin rod for sim-to-real / physics-based state mirroring.
+
 ## ROBO-12 — AHRS lacks magnetometer — yaw unobservable — **HIGH**
 "Yaw is unobservable from accel... add magnetometer correction for absolute heading." Mahony filter with magnetometer and Madgwick variant absent. Drones, ground vehicles needing absolute heading cannot fuse compass.
 
@@ -95,7 +97,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 **Phase 1 (emergency):**
 - ROBO-7 P1: emit warning when `kinematics_frame` marker is declared but not enforced. "Frame-type check is Phase A — markers are advisory only. Phase B (compiler enforcement) tracked in RFC-0046."
 - ROBO-14 P1: DONE for deterministic smoke coverage. `robo14_end_to_end_smoke.nr` now proves the raw-buffer plumbing and stage composition: IK solves a reachable target, RRT plans in joint space, CHOMP smooths the path, TOPP time-parameterizes it, and FK verifies the final endpoint within tolerance. Follow-up: promote to 6-DOF pose/orientation plus nonzero obstacle callbacks.
-- ROBO-11: rename `twin_core.nr` to `quantum_twin.nr` to remove naming confusion. Or document the misnomer prominently.
+- ROBO-11: DONE for Phase 1 naming mitigation. `quantum_twin.nr` is the honest alias and `twin_core.nr` remains backward compatible. Remaining: real robotics digital twin rod.
 - Documentation pass: explicit `#[no_alloc]+#[deadline]` protocol for robotics rods. Even "you can't use these rods in hard-RT today" is honest.
 
 **Phase 2 (short-term):**
