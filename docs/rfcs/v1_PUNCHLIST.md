@@ -275,14 +275,12 @@ launch. After memory safety completes, these are next-priority.
   reference expectations. The statevector path fails closed above
   `mps_statevector_max_qubits()` to avoid 2^n memory blowups. Remaining
   gap: no high-qubit streaming/external-sink extraction API.
-- **QM-2 qsim statevector checked init:** DONE for Phase 1+2a on
+- **QM-2 qsim statevector checked init:** DONE for Phase 1+2b on
   2026-05-06 — `qsim_init_preflight(n)` returns stable status codes
   (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and
-  `qsim_init_checked(n)` returns `0` before dangerous invalid/over-cap
+  `qsim_init(n)` / `qsim_init_checked(n)` return `0` before dangerous invalid/over-cap
   allocation. `qsim_state_capacity_status_smoke.nr` locks in-range,
-  invalid, over-cap, and checked-init behavior. Remaining gap: raw
-  `qsim_init(n)` remains an escape hatch for callers that bypass the
-  checked wrapper.
+  invalid, over-cap, checked-init, and raw-init fail-closed behavior.
 - **QM-8/QM-9 qsim_graph gate-DAG status preflight:** DONE for
   Phase 1 on 2026-05-05 — `qsim_gate_record_preflight(q1, q2)`
   returns stable status codes (`0=ok`, `1=out_of_range`,
@@ -324,14 +322,14 @@ launch. After memory safety completes, these are next-priority.
   records plus high-level CNOT/CZ/CRK/SWAP auto-recording. Remaining
   gap: process-local graph state is not thread-safe across pthread/async
   boundaries.
-- **QM-11 diff_sim checked init:** DONE for Phase 1+2a on 2026-05-06
+- **QM-11 diff_sim checked init:** DONE for Phase 1+2b on 2026-05-06
   — `diff_sim_init_preflight(nq, n_cores)` exposes stable status
   codes for invalid/over-cap qubits and cores, and
-  `diff_sim_init_checked(nq, n_cores, mode_bits, seed)` returns `0`
-  before native clamp behavior. `diff_sim_capacity_status_smoke.nr`
-  locks the public 12-qubit, 16-core, 200-gate cap surface. Remaining
-  gap: raw `diff_sim_init(...)` remains an escape hatch for callers
-  that bypass the checked wrapper.
+  `diff_sim_init(nq, n_cores, mode_bits, seed)` /
+  `diff_sim_init_checked(...)` return `0` before native allocation
+  for invalid/over-cap inputs. `diff_sim_capacity_status_smoke.nr`
+  locks the public 12-qubit, 16-core, 200-gate cap surface and raw-init
+  fail-closed behavior.
 - **QM-12 shared gate constants:** DONE for the common gate subset on
   2026-05-06 — `quantum_gates.nr` now provides shared H/CNOT/X/Z IDs
   consumed by both MPS and diff_sim, with `quantum_gate_constants_smoke.nr`

@@ -1,4 +1,4 @@
-// v0830 QM-11/QM-12 - diff_sim capacity/status smoke.
+// v0833 QM-11/QM-12 - diff_sim capacity/status smoke.
 //
 // Locks the stdlib preflight surface around the runtime's native caps and
 // exposes named diff_sim gate constants used by capacity-safe call sites.
@@ -57,12 +57,21 @@ fn check_checked_init() -> i64 {
     return 0;
 }
 
+fn check_raw_init_fail_closed() -> i64 {
+    if diff_sim_init(0, 2, 0, 42) != 0 { return 536870912; };
+    if diff_sim_init(13, 2, 0, 42) != 0 { return 1073741824; };
+    if diff_sim_init(2, 1, 0, 42) != 0 { return 2147483648; };
+    if diff_sim_init(2, 17, 0, 42) != 0 { return 4294967296; };
+    return 0;
+}
+
 fn check_limitations() -> i64 {
     let s: str = diff_sim_limitations();
     if str_index_of(s, "QM-11") < 0 { return 33554432; };
     if str_index_of(s, "diff_sim_init_checked") < 0 { return 67108864; };
     if str_index_of(s, "diff_sim_init_preflight") < 0 { return 134217728; };
     if str_index_of(s, "over_qubit_cap") < 0 { return 268435456; };
+    if str_index_of(s, "instead of relying on native clamp") < 0 { return 8589934592; };
     return 0;
 }
 
@@ -73,6 +82,7 @@ fn main() -> i64 {
     fails = fails + check_gate_constants();
     fails = fails + check_small_init_still_works();
     fails = fails + check_checked_init();
+    fails = fails + check_raw_init_fail_closed();
     fails = fails + check_limitations();
     return fails;
 }

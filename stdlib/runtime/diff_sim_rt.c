@@ -140,9 +140,8 @@ static double ds_compute_mean_entropy(double *sv, int nq, int na) {
 long long nuc_diff_sim_init(long long nq, long long n_cores, long long mode_bits, long long seed) {
     int nq_i = (int)nq;
     int nc = (int)n_cores;
-    if (nc > DS_MAX_CORES) nc = DS_MAX_CORES;
-    if (nc < 2) nc = 2;  // minimum: 1 clean + 1 noisy
-    if (nq_i > DS_MAX_QUBITS) nq_i = DS_MAX_QUBITS;
+    if (nq_i < 1 || nq_i > DS_MAX_QUBITS) return 0;
+    if (nc < 2 || nc > DS_MAX_CORES) return 0;  // minimum: 1 clean + 1 noisy
 
     int na = 1 << nq_i;
     int n_noisy = nc - 1;  // number of noisy cores

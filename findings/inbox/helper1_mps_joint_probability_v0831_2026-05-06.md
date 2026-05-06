@@ -94,3 +94,33 @@ bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/quantum_sm
 
 Direct build/run passed. All four focused canonical gates returned `PASS: 1`,
 `SKIP: 1148`.
+
+## Follow-on slice - v0833 raw quantum init fail-closed
+
+This branch now also removes the raw init escape hatches called out in the
+remaining blocker matrix:
+
+- `qsim_init(n)` returns `0` for invalid or over-cap counts before allocating.
+- `diff_sim_init(nq, n_cores, mode_bits, seed)` returns `0` for invalid or
+  over-cap qubit/core counts.
+- `nuc_diff_sim_init(...)` now also fails closed instead of clamping native
+  arguments.
+- Existing diff_sim smoke fixtures now use the documented minimum of 2 cores
+  instead of relying on raw native clamp behavior.
+- Capacity fixtures now assert raw-init fail-closed behavior directly.
+
+Validation for v0833:
+
+```powershell
+.\bin\nucleor.exe build tests\features\qsim_state_capacity_status_smoke.nr -o target\_qm2_qsim_raw_failclosed --no-cache
+.\target\_qm2_qsim_raw_failclosed.exe
+.\bin\nucleor.exe build tests\features\diff_sim_capacity_status_smoke.nr -o target\_qm11_diff_raw_failclosed --no-cache
+.\target\_qm11_diff_raw_failclosed.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/qsim_state_capacity_status_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_f64" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Both direct build/run checks passed. All four focused canonical gates returned
+`PASS: 1`, `SKIP: 1148`.

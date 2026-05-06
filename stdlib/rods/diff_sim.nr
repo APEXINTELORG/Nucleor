@@ -42,6 +42,7 @@ extern fn nuc_diff_get_probs(handle: i64, core: i64) -> i64;
 extern fn nuc_diff_free(handle: i64);
 
 fn diff_sim_init(nq: i64, n_cores: i64, mode_bits: i64, seed: i64) -> i64 {
+    if diff_sim_init_preflight(nq, n_cores) != diff_sim_status_ok() { return 0; };
     return nuc_diff_sim_init(nq, n_cores, mode_bits, seed);
 }
 fn diff_sim_init_from_prior(nq: i64, n_cores: i64, prior_vec: i64, seed: i64) -> i64 {
@@ -136,7 +137,7 @@ fn diff_sim_status_explain(status: i64) -> str {
 }
 
 fn diff_sim_limitations() -> str {
-    return "diff_sim rod limitations (QM-11/QM-12, v0830): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. Prefer diff_sim_init_checked(nq, n_cores, mode_bits, seed), which returns 0 for invalid/over-cap inputs before the native runtime can clamp. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. diff_sim RZ remains rod-specific at 6 while MPS RZ is 4, so rotation IDs must not be treated as cross-rod until native dispatch tables unify. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
+    return "diff_sim rod limitations (QM-11/QM-12, v0833): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. diff_sim_init(nq, n_cores, mode_bits, seed) and diff_sim_init_checked(...) both return 0 for invalid/over-cap inputs instead of relying on native clamp behavior. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. diff_sim RZ remains rod-specific at 6 while MPS RZ is 4, so rotation IDs must not be treated as cross-rod until native dispatch tables unify. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
 }
 
 // === Ergonomic f64 wrappers (v0.4.267) ===

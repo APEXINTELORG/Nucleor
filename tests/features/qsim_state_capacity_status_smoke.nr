@@ -1,4 +1,4 @@
-// v0830 QM-2 - qsim statevector capacity/status smoke.
+// v0833 QM-2 - qsim statevector capacity/status smoke.
 //
 // Locks the stdlib preflight surface around qsim_init's statevector cap.
 // Expected: rc=0.
@@ -45,12 +45,19 @@ fn check_checked_init() -> i64 {
     return 0;
 }
 
+fn check_raw_init_fail_closed() -> i64 {
+    if qsim_init(0) != 0 { return 4194304; };
+    if qsim_init(25) != 0 { return 8388608; };
+    return 0;
+}
+
 fn check_limitations() -> i64 {
     let s: str = qsim_limitations();
     if str_index_of(s, "QM-2") < 0 { return 262144; };
     if str_index_of(s, "qsim_init_checked") < 0 { return 524288; };
     if str_index_of(s, "qsim_init_preflight") < 0 { return 1048576; };
     if str_index_of(s, "over_capacity") < 0 { return 2097152; };
+    if str_index_of(s, "qsim_init(n)") < 0 { return 16777216; };
     return 0;
 }
 
@@ -61,6 +68,7 @@ fn main() -> i64 {
     fails = fails + check_status_explain();
     fails = fails + check_small_init_still_works();
     fails = fails + check_checked_init();
+    fails = fails + check_raw_init_fail_closed();
     fails = fails + check_limitations();
     return fails;
 }

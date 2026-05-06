@@ -15,8 +15,8 @@
 import "stdlib/rods/diff_sim.nr"
 
 fn main() -> i32 {
-    // 2 qubits, 1 core, clean mode (mode_bits = 0), seed 42.
-    let h: i64 = diff_sim_init(2, 1, 0, 42);
+    // 2 qubits, 2 cores, clean mode (mode_bits = 0), seed 42.
+    let h: i64 = diff_sim_init(2, 2, 0, 42);
     if h == 0 { print("FAIL diff_sim_init"); return 1; };
 
     // Initially zero gates.

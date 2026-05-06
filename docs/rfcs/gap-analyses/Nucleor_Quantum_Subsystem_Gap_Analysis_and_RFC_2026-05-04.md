@@ -30,11 +30,10 @@ Static array in entanglement tracker. Tracker silently stops counting for q >= 3
 
 **2026-05-06 update:** caller-facing preflight and checked init are now
 shipped. `qsim_init_preflight(n)` returns `0=ok`, `1=invalid_qubit_count`, and
-`2=over_capacity`; `qsim_init_checked(n)` returns `0` before dangerous
-invalid/over-cap allocation. `qsim_state_capacity_status_smoke.nr` covers
-in-range, invalid, over-cap, and checked-init behavior. Remaining gap: raw
-`qsim_init(n)` remains an escape hatch for callers that bypass the checked
-wrapper.
+`2=over_capacity`; `qsim_init(n)` and `qsim_init_checked(n)` both return `0`
+before dangerous invalid/over-cap allocation.
+`qsim_state_capacity_status_smoke.nr` covers in-range, invalid, over-cap,
+checked-init, and raw-init fail-closed behavior.
 
 ## QM-3 — MPS rod exposes only raw integer gate_type enum — **MEDIUM**
 No named gate functions (`mps_h`, `mps_x`, `mps_cnot`). Enum values 0–7 documented only in C source comment. Ergonomic gap.
@@ -79,11 +78,10 @@ ADAPT-VQE and QEC RL experiments used up to 13 qubits. **13+ qubits cannot use d
 **2026-05-06 update:** caller-facing preflight and checked init are now
 shipped. `diff_sim_init_preflight(nq, n_cores)` exposes stable
 invalid/over-cap status codes, and
-`diff_sim_init_checked(nq, n_cores, mode_bits, seed)` returns `0` before the
-native runtime can clamp invalid inputs. `diff_sim_capacity_status_smoke.nr`
-locks the public 12-qubit, 16-core, 200-gate cap surface. Remaining gap: raw
-`diff_sim_init(...)` remains an escape hatch for callers that bypass the
-checked wrapper.
+`diff_sim_init(nq, n_cores, mode_bits, seed)` /
+`diff_sim_init_checked(...)` return `0` before the native runtime allocates on
+invalid inputs. `diff_sim_capacity_status_smoke.nr` locks the public
+12-qubit, 16-core, 200-gate cap surface plus raw-init fail-closed behavior.
 
 ## QM-12 — diff_sim and MPS share gate type enum but neither exposes constants — **LOW**
 Both start H=0/CNOT=1/X=2 but enum not in shared header or Nucleor constant. Magic integers at callsites. Adding new gate to one without other silently diverges.
@@ -154,8 +152,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
   statevector extraction are shipped; remaining work is high-qubit
   streaming/external-sink extraction if needed.
 - QM-1: remove unimplemented function names from `quantum.nr` header comment.
-- QM-2: preflight/disclosure and `qsim_init_checked` are shipped; remaining
-  work is native fail-closed behavior if raw `qsim_init` remains public.
+- QM-2: preflight/disclosure, `qsim_init_checked`, and raw `qsim_init`
+  fail-closed behavior are shipped.
 
 **Phase 2 (short-term):**
 - QM-3: add named gate wrappers in `mps.nr` (`mps_h`, `mps_x`, `mps_cnot`, etc.). Hide raw integer enum.
