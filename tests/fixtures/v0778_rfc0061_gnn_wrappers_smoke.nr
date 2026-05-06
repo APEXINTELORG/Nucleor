@@ -14,10 +14,10 @@ fn ref_all() -> i64 {
     if 0 == 1 { sink = sink + gnn_circuit_to_graph(0, 0); };
     if 0 == 1 { sink = sink + gnn_graph_n_nodes(0); };
     if 0 == 1 { sink = sink + gnn_graph_new(0, 0, 0, 0, 0, 0); };
-    if 0 == 1 { sink = sink + gnn_graph_free(0); };
+    if 0 == 1 { gnn_graph_free(0); };
     if 0 == 1 { sink = sink + gnn_gatv2_new(0, 0); };
     if 0 == 1 { sink = sink + gnn_gatv2_forward(0, 0); };
-    if 0 == 1 { sink = sink + gnn_gatv2_zero_grad(0); };
+    if 0 == 1 { gnn_gatv2_zero_grad(0); };
     if 0 == 1 { sink = sink + gnn_gatv2_param_count(0); };
     if 0 == 1 { sink = sink + gnn_global_attn_new(0); };
     if 0 == 1 { sink = sink + gnn_global_mean_pool(0, 0, 0); };

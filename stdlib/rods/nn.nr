@@ -14,8 +14,8 @@ import "stdlib/rods/complex.nr"
 extern fn nuc_nn_dense_new(in_dim: i64, out_dim: i64) -> i64;
 extern fn nuc_nn_dense_forward(layer: i64, input: i64) -> i64;
 extern fn nuc_nn_dense_backward(layer: i64, grad_out: i64) -> i64;
-extern fn nuc_nn_dense_zero_grad(layer: i64) -> i64;
-extern fn nuc_nn_dense_set_cache(layer: i64, input: i64) -> i64;
+extern fn nuc_nn_dense_zero_grad(layer: i64);
+extern fn nuc_nn_dense_set_cache(layer: i64, input: i64);
 extern fn nuc_nn_dense_param_count(layer: i64) -> i64;
 
 // Activations
@@ -28,11 +28,11 @@ extern fn nuc_nn_softmax_backward(softmax: i64, grad: i64) -> i64;
 
 // Adam optimizer
 extern fn nuc_nn_adam_new(n_params: i64, lr: i64, beta1: i64, beta2: i64) -> i64;
-extern fn nuc_nn_adam_step_dense(opt: i64, layer: i64) -> i64;
-extern fn nuc_nn_adam_step_logits(opt: i64, logits: i64, grads: i64, offset: i64) -> i64;
-extern fn nuc_nn_adam_tick(opt: i64) -> i64;
+extern fn nuc_nn_adam_step_dense(opt: i64, layer: i64);
+extern fn nuc_nn_adam_step_logits(opt: i64, logits: i64, grads: i64, offset: i64);
+extern fn nuc_nn_adam_tick(opt: i64);
 extern fn nuc_nn_adam_step_at_no_tick(opt: i64, layer: i64, offset: i64) -> i64;
-extern fn nuc_nn_adam_step_logits_no_tick(opt: i64, logits: i64, grads: i64, offset: i64) -> i64;
+extern fn nuc_nn_adam_step_logits_no_tick(opt: i64, logits: i64, grads: i64, offset: i64);
 
 // Noise model helpers
 extern fn nuc_nn_noise_rate(logit: i64, max_p: i64) -> i64;
@@ -47,10 +47,10 @@ extern fn nuc_nn_pearson(x: i64, y: i64) -> i64;
 
 // L-BFGS optimizer (toggleable alternative to Adam)
 extern fn nuc_nn_lbfgs_new(n_params: i64, lr: i64) -> i64;
-extern fn nuc_nn_lbfgs_step_dense(opt: i64, layer: i64) -> i64;
+extern fn nuc_nn_lbfgs_step_dense(opt: i64, layer: i64);
 
 // RNG reset (for reproducibility)
-extern fn nuc_nn_reset_rng() -> i64;
+extern fn nuc_nn_reset_rng();
 
 // Vector utilities
 extern fn nuc_nn_vec_from_scalar(val: i64) -> i64;
