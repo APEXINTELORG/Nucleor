@@ -304,4 +304,29 @@ if tag_list=$(collect_git_tags); then
     echo "OK: CHANGELOG.md covers every git tag"
 fi
 
+# compiler_version_label() ↔ CHANGELOG.md latest heading parity. Catches
+# the drift class where bin/nucleor self-reports a stale version because
+# the literal in compiler_version_label() wasn't bumped during a ship.
+# Latest CHANGELOG version is the first `## [X.Y.Z]` heading in the
+# file (CHANGELOG ordering convention: newest at top).
+ch_latest=$(grep -m1 -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//')
+src_label=$(sed -n '/^fn compiler_version_label/,/^\}/p' "$S1" \
+    | grep -oE 'return "[0-9.]+"' \
+    | head -1 \
+    | sed 's/return "//; s/"//')
+if [ -z "$ch_latest" ]; then
+    echo "WARN: could not extract latest version from CHANGELOG.md"
+elif [ -z "$src_label" ]; then
+    echo "WARN: could not extract compiler_version_label() from $S1"
+elif [ "$ch_latest" != "$src_label" ]; then
+    echo "FAIL: compiler_version_label() returns '$src_label' but CHANGELOG.md latest is '$ch_latest'"
+    echo "  Bump the return literal in compiler/nucleor_s1_compiler.nr fn compiler_version_label()"
+    echo "  to match the latest ## [X.Y.Z] heading in CHANGELOG.md, then regenerate the"
+    echo "  bootstrap seed: ./bin/nucleor build compiler/nucleor_s1_compiler.nr -o target/_seed --emit llvm --no-link"
+    echo "  cp target/_seed.ll bootstrap/nucleor_s1_seed.ll && bash tools/bootstrap_linux.sh"
+    exit 1
+else
+    echo "OK: compiler_version_label() matches CHANGELOG.md ($ch_latest)"
+fi
+
 exit 0

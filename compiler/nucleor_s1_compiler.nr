@@ -36566,8 +36566,10 @@ fn compiler_version_label() -> str {
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
     // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
-    // (v0.4.179 was the probe-agent TYP-011 ext merge.)
-    return "0.4.180";
+    // v0.8.322: caught up from stale 0.4.180 (~140 ships behind).
+    // tools/check_compiler_drift.sh enforces parity with the latest
+    // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
+    return "0.8.322";
 }
 
 #[manual_drop]
