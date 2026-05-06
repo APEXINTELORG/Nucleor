@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 874
+# Total helpers: 875
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -2430,6 +2430,20 @@ class            = "IO"
 symbol           = "__nucleor_file_append_string"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, ptr) -> void"
+effects          = ["io"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "file_bytes_equal"
+class            = "IO"
+symbol           = "__nucleor_file_bytes_equal"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
 effects          = ["io"]
 taint            = "passthrough"
 units            = "passthrough"
