@@ -1088,3 +1088,171 @@ Whether main needs drift/self-host/perf/full verify:
 Do not touch compiler, tool gates, `bin/`, or `bootstrap/` unless the branch is
 explicitly redirected. Full verify/perf is not required for stdlib/test/doc-only
 work; run focused build/run and focused `verify.sh --only` for each fixture.
+
+---
+
+## Queue 8 Addendum - RT Determinism and Algebraic Laws Closure Batch
+
+Append-only update, 2026-05-06. Quantum/robotics Queue 7 is no longer active
+for helper1 unless main explicitly reopens it. Continue with this Windows-safe
+compiler trust batch. Do not work PKG-1 or R06 native Linux evidence; cloud
+Codex owns those on `fix/helper2-native-linux-pkg-r06-closure-v0837`.
+
+Start fresh:
+
+```powershell
+git fetch origin --prune
+git checkout -B fix/helper1-rt-laws-closure-v0838 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Expected assignment-time base:
+
+```text
+origin/main: 9448f335178cb7ecac9b3b7700e132c9c80507e8
+```
+
+If `origin/main` has advanced, use current `origin/main` and record the actual
+base.
+
+### Scope AG: RT transitive same-file enforcement
+
+Goal: advance RT determinism beyond direct same-file helper calls without
+waiting on parser/tools-suite unification.
+
+Primary target:
+
+```text
+compiler/nucleor_s1_compiler.nr
+tests/err/err_no_alloc*.nr
+tests/err/err_no_panic*.nr
+docs/rfcs/Nucleor_Error_Codes.md
+docs/rfcs/v1_PUNCHLIST.md
+findings/inbox/helper1_rt_transitive_closure_v0838_2026-05-06.md
+```
+
+Required work:
+
+- Inspect current `#[no_alloc]` and `#[no_panic]` checks and document the exact
+  traversal boundary already implemented.
+- Add a bounded same-file transitive check for one additional call depth if it
+  can be done without a broad whole-program traversal.
+- Add focused negative fixtures:
+  - `#[no_alloc]` caller -> helper -> allocator;
+  - `#[no_panic]` caller -> helper -> panic/known panic helper.
+- Add a positive fixture proving clean helper chains still compile.
+- If recursion, function pointers, closures, or cross-module calls make the
+  traversal unsafe, fail closed or write an exact blocker; do not overclaim.
+
+Validation:
+
+```bash
+bash tools/verify.sh --only "<focused no_alloc/no_panic step>"
+bash tools/check_compiler_drift.sh
+git diff --check
+```
+
+Run the perf gate if you add a traversal over many functions or compiler
+hot-path state.
+
+### Scope AH: RT deadline/WCET fail-closed audit
+
+Goal: convert `#[deadline]` from ambiguous trust surface into an explicit
+current-state contract.
+
+Required work:
+
+- Inspect `#[deadline]` parsing and diagnostics.
+- If there is no numeric/WCET enforcement, add or improve fail-closed
+  diagnostic coverage so adopters cannot treat `#[deadline]` as proven.
+- Add one focused fixture for the current contract.
+- Update `docs/rfcs/v1_PUNCHLIST.md` and error-code docs only if diagnostics
+  change.
+
+If true WCET backing would require a larger pass or cost model, write the
+blocker with exact source paths and do not attempt a speculative implementation.
+
+### Scope AI: Algebraic laws Phase 3b bounded-property expansion
+
+Goal: advance laws without touching parser/tools-suite. Prefer one coherent,
+testable expansion over a broad rewrite engine.
+
+Primary target:
+
+```text
+compiler/nucleor_s1_compiler.nr
+tests/features/law_*_smoke.nr
+tests/err/err_law*.nr
+docs/rfcs/RFC-0031-algebraic-laws.md
+docs/rfcs/v1_PUNCHLIST.md
+findings/inbox/helper1_law_phase3b_v0838_2026-05-06.md
+```
+
+Required work:
+
+- Inspect existing `nuc test --check-laws` forms.
+- Add one non-float bounded property expansion if the schema already supports
+  it cleanly, for example `inverse`, `distributive_over`, or another low-risk
+  declared law shape.
+- Add fail-closed diagnostics for unsupported or float-sensitive law forms
+  instead of silently accepting them.
+- Do not enable optimizer rewrites from laws unless the verification metadata
+  gate is already proven in the same branch.
+
+Validation:
+
+```bash
+bash tools/verify.sh --only "CLI: nuc test --check-laws validates laws and schema"
+bash tools/check_compiler_drift.sh
+git diff --check
+```
+
+Run perf gate if compiler traversal or optimizer behavior changes materially.
+
+### Scope AJ: RT/laws residual ledger
+
+Create:
+
+```text
+findings/inbox/helper1_rt_laws_residual_ledger_v0838_2026-05-06.md
+```
+
+Rows:
+
+- RT transitive same-file checks;
+- RT cross-module checks;
+- RT fn-pointer/closure dispatch;
+- deadline/WCET backing;
+- law bounded integer generation;
+- law float approximate semantics;
+- law optimizer rewrite gating.
+
+For each row include status, files changed, validation, remaining blocker, and
+recommended owner.
+
+## Helper1 Deliverable For Queue 8
+
+Push:
+
+```text
+fix/helper1-rt-laws-closure-v0838
+```
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify by default. Use focused gates plus perf only when the
+compiler hot path is materially changed.
