@@ -333,6 +333,15 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
+- **QM-3 MPS named gate wrappers:** DONE for Phase 1 on 2026-05-06
+  — `mps_h`, `mps_x`, `mps_z`, `mps_rz`, `mps_rx`, `mps_cnot`,
+  `mps_gate_*` constants, `mps_gate_type_supported`, and
+  `mps_gate_kind` let adopters use named/logical surfaces instead of
+  raw magic integers for shipped MPS gates. `mps_named_gate_wrappers_smoke.nr`
+  and `quantum_gate_constants_smoke.nr` lock the surface. Remaining
+  gap: the raw `mps_gate(...)` integer escape hatch remains for
+  compatibility, and missing MPS runtime gates (Y/S/T/RY/CZ/SWAP/Toffoli)
+  still need future dispatch.
 - **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2c on
   2026-05-06 — `mps_prob0(h, q)` exposes single-qubit probability
   readout from the MPS contraction, `mps_prob_basis(h, basis_bits)`

@@ -38,6 +38,16 @@ checked-init, and raw-init fail-closed behavior.
 ## QM-3 — MPS rod exposes only raw integer gate_type enum — **MEDIUM**
 No named gate functions (`mps_h`, `mps_x`, `mps_cnot`). Enum values 0–7 documented only in C source comment. Ergonomic gap.
 
+**2026-05-06 update:** Phase 1 named MPS gate wrappers and shared-kind
+mapping are now shipped. `mps_h`, `mps_x`, `mps_z`, `mps_rz`, `mps_rx`,
+`mps_cnot`, `mps_gate_*` constants, `mps_gate_type_supported`, and
+`mps_gate_kind` remove the need for adopter code to use raw magic integers
+for shipped MPS gates; `mps_named_gate_wrappers_smoke.nr` and
+`quantum_gate_constants_smoke.nr` lock the public surface. Remaining gap:
+the raw integer `mps_gate(...)` escape hatch remains for compatibility, and
+unsupported gates (Y/S/T/RY/CZ/SWAP/Toffoli/controlled rotations) still need
+future runtime dispatch.
+
 ## QM-4 — MPS non-adjacent CNOT routing introduces untracked SWAP overhead — **MEDIUM**
 SWAP count not reported back to Nucleor or trace. `qtrace_set_original` would double-count SWAP overhead as "transpiler overhead."
 
@@ -142,7 +152,7 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 ## 3.1. Goals
 1. Finish the remaining QM-7 validation gap: keep the landed deterministic Clifford smokes, keep the rotated Surface-17 d=3 fixture, bounded weight-enumerator fixture, and bounded property micro-suite, then add external citation-backed published enumerator parity only if launch docs require it.
 2. Wire the two entanglement trackers together (QM-8).
-3. Add named gate APIs and centralized capacity constants.
+3. Keep named gate APIs and centralized capacity constants aligned across rods.
 4. Document the Clifford and MPS limits prominently.
 
 ## 3.2. Closure plan
@@ -158,7 +168,9 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
   fail-closed behavior are shipped.
 
 **Phase 2 (short-term):**
-- QM-3: add named gate wrappers in `mps.nr` (`mps_h`, `mps_x`, `mps_cnot`, etc.). Hide raw integer enum.
+- QM-3: named MPS wrappers, supported-code queries, and logical gate-kind
+  mapping are shipped. Remaining work is adding missing MPS runtime gates and
+  eventually retiring or fencing the raw integer escape hatch.
 - QM-8: wire `qsim_cnot` to call BOTH `rods_trace_entangle` AND `nuc_qsim_entangle_register`. Single source of truth for entanglement state.
 - QM-9: emit runtime panic when gate DAG exceeds 4096 gates instead of silent -1.
 - QM-11: preflight/disclosure and `diff_sim_init_checked` are shipped;
