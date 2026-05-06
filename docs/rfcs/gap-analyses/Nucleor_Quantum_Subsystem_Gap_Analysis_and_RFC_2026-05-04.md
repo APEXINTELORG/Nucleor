@@ -53,10 +53,13 @@ through MPS existed.
 **2026-05-06 update:** MPS correctness coverage is now fixture-backed.
 `mps_prob0(h, q)` exposes single-qubit probability readout from the existing
 MPS contraction, `mps_prob_basis(h, basis_bits)` exposes full
-computational-basis joint probability, and `mps_bell_probabilities_smoke.nr`
-compares Bell-circuit MPS marginals plus |00>/|11> joint probabilities against
-the qsim statevector reference expectations. Remaining gap: no bulk
-statevector extraction API.
+computational-basis joint probability, `mps_statevector(h)` exposes capped
+qsim-compatible `Vec<complex>` extraction, and
+`mps_bell_probabilities_smoke.nr` compares Bell-circuit MPS marginals plus
+|00>/|11> joint probabilities against the qsim statevector reference
+expectations. The bulk extraction path fails closed above
+`mps_statevector_max_qubits()` to avoid 2^n memory blowups. Remaining gap: no
+high-qubit streaming/external-sink extraction API.
 
 ## QM-7 — Clifford rod coverage partially closed — **CRITICAL REMAINING**
 41 KB runtime with stabilizer formalism, distance, error detection. The original zero-test gap is now partially closed by deterministic Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/detectable-error, and rotated Surface-17 d=3 stabilizer/logical smokes. Remaining launch risk is validation breadth: published weight-enumerator parity is still open, and the suite is not a randomized stabilizer property test.
@@ -146,9 +149,10 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 
 **Phase 1 (emergency, test coverage):**
 - QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, and rotated Surface-17 d=3 stabilizer/logical behavior. Remaining Phase 2 closure is published weight-enumerator parity, blocked on a new Clifford enumerator API. **No Clifford code ships without these tests.**
-- QM-6: MPS gate correctness, Bell marginal probabilities, and
-  computational-basis joint probability are shipped; remaining work is bulk
-  statevector extraction.
+- QM-6: MPS gate correctness, Bell marginal probabilities,
+  computational-basis joint probability, and capped qsim-compatible
+  statevector extraction are shipped; remaining work is high-qubit
+  streaming/external-sink extraction if needed.
 - QM-1: remove unimplemented function names from `quantum.nr` header comment.
 - QM-2: preflight/disclosure and `qsim_init_checked` are shipped; remaining
   work is native fail-closed behavior if raw `qsim_init` remains public.
