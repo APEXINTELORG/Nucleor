@@ -1,6 +1,8 @@
-// Error test: effect inference through 4-level deep call chain
-// leaf requires [net.connect], each wrapper calls the previous
-// level4 has NO declared effects but the compiler infers net.connect
+// EXPECT: error[EFF-003]
+// R05-D4 Phase 2b fail-closed coverage: this archived deep-chain
+// restricts case must not compile silently while real restricts-block
+// enforcement remains open.
+
 fn leaf() -> i32 requires [net.connect] { 1 }
 fn level2() -> i32 { leaf() + 1 }
 fn level3() -> i32 { level2() + 1 }
