@@ -374,6 +374,50 @@ fn qsim_prob(sv: i64, q: i64, outcome: i64) -> i64 {
     return f64_from_int(0);
 }
 
+fn qsim_feedback_gate_none() -> i64 { return 0; }
+fn qsim_feedback_gate_h() -> i64 { return 1; }
+fn qsim_feedback_gate_x() -> i64 { return 2; }
+fn qsim_feedback_gate_y() -> i64 { return 3; }
+fn qsim_feedback_gate_z() -> i64 { return 4; }
+fn qsim_feedback_gate_s() -> i64 { return 5; }
+fn qsim_feedback_gate_t() -> i64 { return 6; }
+fn qsim_feedback_gate_rx() -> i64 { return 7; }
+fn qsim_feedback_gate_ry() -> i64 { return 8; }
+fn qsim_feedback_gate_rz() -> i64 { return 9; }
+
+fn qsim_feedback_apply_gate(sv: i64, gate: i64, q: i64, angle: i64) -> i64 {
+    if gate == qsim_feedback_gate_none() { return 1; };
+    if gate == qsim_feedback_gate_h() { qsim_h(sv, q); return 1; };
+    if gate == qsim_feedback_gate_x() { qsim_x(sv, q); return 1; };
+    if gate == qsim_feedback_gate_y() { qsim_y(sv, q); return 1; };
+    if gate == qsim_feedback_gate_z() { qsim_z(sv, q); return 1; };
+    if gate == qsim_feedback_gate_s() { qsim_s(sv, q); return 1; };
+    if gate == qsim_feedback_gate_t() { qsim_t(sv, q); return 1; };
+    if gate == qsim_feedback_gate_rx() { qsim_rx(sv, q, angle); return 1; };
+    if gate == qsim_feedback_gate_ry() { qsim_ry(sv, q, angle); return 1; };
+    if gate == qsim_feedback_gate_rz() { qsim_rz(sv, q, angle); return 1; };
+    return 0;
+}
+
+// Measure `measure_q`, then immediately apply one of two 1q feedback gates.
+// Returns the measured outcome (0 or 1), -1 for invalid expected outcome,
+// or -2 when the selected feedback gate code is unsupported.
+fn qsim_if_measure(sv: i64, measure_q: i64, expected: i64, then_gate: i64, then_q: i64, else_gate: i64, else_q: i64, angle: i64) -> i64 {
+    if expected != 0 {
+        if expected != 1 { return 0 - 1; };
+    };
+
+    let outcome: i64 = qsim_measure(sv, measure_q);
+    let mut ok: i64 = 0;
+    if outcome == expected {
+        ok = qsim_feedback_apply_gate(sv, then_gate, then_q, angle);
+    } else {
+        ok = qsim_feedback_apply_gate(sv, else_gate, else_q, angle);
+    };
+    if ok != 1 { return 0 - 2; };
+    return outcome;
+}
+
 // Measure qubit q, collapse state, return outcome (0 or 1)
 fn qsim_measure(sv: i64, q: i64) -> i64 {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); };
@@ -553,5 +597,5 @@ fn qsim_status_explain(status: i64) -> str {
 }
 
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations (QM-1/QM-2/QM-17, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains Phase B. (4) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (5) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
 }

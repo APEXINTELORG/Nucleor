@@ -457,6 +457,14 @@ launch. After memory safety completes, these are next-priority.
   Released slots are reused and `logical_qubit_clear()` still wipes the
   process-local registry. Remaining gap: registry remains process-local
   and not thread-safe.
+- **QM-17 qsim mid-circuit feedback primitive:** DONE for Phase 1 on
+  2026-05-06 — `qsim_if_measure(sv, measure_q, expected, then_gate,
+  then_q, else_gate, else_q, angle)` measures one qubit and immediately
+  applies a supported one-qubit feedback gate on the then/else branch.
+  `qsim_if_measure_feedback_smoke.nr` locks deterministic then/else
+  behavior plus invalid expected-outcome and invalid feedback-gate
+  statuses. Remaining gap: hardware timing and target-lowering
+  semantics remain RFC-0054 Phase B.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`

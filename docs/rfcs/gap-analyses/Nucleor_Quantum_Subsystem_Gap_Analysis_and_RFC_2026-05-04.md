@@ -165,6 +165,15 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 ## QM-17 — Quantum-classical mid-circuit feedback by convention only — **LOW**
 `qsim_measure` returns i64; caller branches. No `qsim_if_measure` primitive. This distinction matters for hardware-targeting tools (RFC-0054 Phase B).
 
+**2026-05-06 update:** Phase 1 statevector feedback semantics are now
+shipped. `qsim_if_measure(sv, measure_q, expected, then_gate, then_q,
+else_gate, else_q, angle)` measures one qubit and immediately applies a
+supported one-qubit feedback gate (`none/H/X/Y/Z/S/T/RX/RY/RZ`) on the
+then/else branch. `qsim_if_measure_feedback_smoke.nr` locks deterministic
+then and else branches, invalid expected-outcome status, invalid
+feedback-gate status, and limitations text. Remaining gap: hardware timing
+and target-lowering semantics remain RFC-0054 Phase B.
+
 ## Cross-cutting risks
 - **Correctness validation thin.** Only executed correctness test for statevector is Bell entanglement (QM-6). No assertion that |H|0⟩|² = 0.5 within tolerance, no GHZ, no phase-sensitive (T/S/Rz angles). Clifford now has deterministic smoke coverage for Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/error-detection behavior, rotated Surface-17 d=3 stabilizer/logical behavior, internal exhaustive Surface-17 stabilizer/logical weight counts, and a bounded property micro-suite, but no broad randomized stabilizer property suite and no in-tree external citation for published enumerator values.
 - **Static-capacity constants scattered across four runtimes** (32, 20, 64, 12, 1024, 4096) not centralized, not surfaced to Nucleor as named constants, some overflow silently.
@@ -220,7 +229,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
   policy for nonconvergence-sensitive callers.
 - QM-10: add Ry/Rz/T/S/CCX/CZ/SWAP CUDA kernels. Implement CPU fallback. Wrap in `gpu_quantum.nr` rod.
 - QM-16: add Kraus-operator noise channel. User can specify per-gate noise model independent of learnable diff_sim parameters.
-- QM-17: add `qsim_if_measure(cond, then_gate, else_gate)` primitive for fast-feedback semantics.
+- QM-17: statevector `qsim_if_measure(...)` feedback primitive is shipped;
+  remaining work is hardware timing and target lowering.
 
 **Phase 4 (v1.0+, deferred per RFC-0054 Phase B):**
 - QM-15: QIR emit and OpenQASM emit/ingest. Major work; gates Phase B target date.
