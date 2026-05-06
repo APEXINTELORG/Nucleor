@@ -1254,3 +1254,35 @@ branch, commit, merge-base, files changed, and whether main needs to run drift,
 self-host, perf, or full verify before integration. If you change
 `tools/check_compiler_drift.sh`, a normal verify script, or promoted compiler
 artifacts, call that out explicitly.
+
+---
+
+## Queue 7.1 Update - C4 benchmark generator already landed
+
+Append-only update: 2026-05-06.
+
+After Queue 7 was written, the cloud-agent C4 work was integrated into
+`origin/fix/main-qm7-surface-code-v0827`:
+
+- `tools/gen_benchmark_summary.nr`
+- `docs/BENCHMARK.md`
+
+Do not reimplement Scope AG. Instead:
+
+- fetch the latest `origin/fix/main-qm7-surface-code-v0827`;
+- branch from that head;
+- validate the native benchmark generator if your work touches adjacent
+  hermetic tooling;
+- prioritize Scopes AF, AH, AI, and AJ unless the branch has already moved
+  those forward.
+
+Suggested quick validation:
+
+```powershell
+git fetch origin
+git switch -C fix/helper2-hermetic-release-closure-v0832 origin/fix/main-qm7-surface-code-v0827
+.\bin\nucleor.exe build tools\gen_benchmark_summary.nr -o gen_benchmark_summary
+.\target\gen_benchmark_summary.exe
+git diff -- docs\BENCHMARK.md
+git diff --check
+```
