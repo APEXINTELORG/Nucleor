@@ -317,7 +317,7 @@ s1-specific safety enforcements it currently lacks.
 | 5.2 | C4: port `gen_benchmark_summary.py` → native |
 | 5.3 | C5: retire stale optional `gen_numerics_matrix.py`; matrix remains as curated committed fixtures with shell/PowerShell runners |
 | 5.4 | C6: port `gen_helper_manifest.py` to native (done v0.8.323; Python oracle retired) |
-| 5.5 | Drop drift-gated `python` requirements from `tools/check_compiler_drift.sh`; generic `.py` fallback may remain for non-gated future checks |
+| 5.5 | Drop drift-gated `python` requirements from `tools/check_compiler_drift.sh`; native `.nr` generators are now the only accepted drift-gate inputs |
 
 ### Phase 6 — Hard-error promotion (v1.0 cut, ~3 ships)
 
