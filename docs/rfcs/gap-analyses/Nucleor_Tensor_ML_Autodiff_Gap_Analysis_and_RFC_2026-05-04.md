@@ -68,6 +68,8 @@ Update 2026-05-06 helper1 v0862: `nn_layer_norm` / `nn_layer_norm_backward` and 
 ## ML-10 — Transformer: no causal mask / no encoder-decoder — **HIGH**
 `tf_attention` computes full bidirectional only. Building GPT-style decoder requires manual masking outside kernel, not composable with attention2.
 
+Update 2026-05-06 helper1 v0863: `transformer.nr` now exposes causal attention (`tf_attention_causal`), explicit masked split attention / multihead wrappers, and `tf_encoder_decoder_block(...)` that composes causal decoder self-attention with cross-attention over encoder memory. Fixture-backed by `tests/features/transformer_causal_encoder_decoder_smoke.nr`.
+
 ## ML-11 — IR `attention()` → `flash_attention` rewrite confirmed absent — **MEDIUM**
 V2/Copy claim not ported to OSS. `source_call_graph` exists for analysis only. **No pass walks call graph looking for `nuc_tf_attention` and substitutes `attn_flash`.** Cross-references graph remediation Tier 4 decision.
 
@@ -115,7 +117,7 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 - ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV). **Shipped helper1 v0859 for FP8 decode/GEMV/dot and grouped signed-Q4 encode/decode/GEMV; true E4M3 bit encoding and documented error bounds remain future work.**
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`. **Shipped helper1 v0862 with focused forward/backward fixture coverage.**
-- ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block.
+- ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block. **Shipped helper1 v0863 with causal attention and encoder-memory cross-attention fixture coverage.**
 - ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training).
 
 **Phase 3 (medium-term, integration):**
