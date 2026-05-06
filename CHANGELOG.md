@@ -5,6 +5,95 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.322] — 2026-05-05
+
+**Effect/capability Phase 1 — fail closed on unenforced restricts blocks.**
+
+### Fixed
+
+- `nuc build` now emits `EFF-003` for block-form
+  `restricts [...] { ... }` instead of accepting or misparsing an
+  unenforced compile-time guarantee.
+- Promoted `tests/err/err_restricts_builtin_io.nr` into the active
+  negative suite and moved the corresponding unimplemented fixture out
+  of the dormant bucket.
+- Updated the effect/capability punchlist and compiler disclosure text
+  so it distinguishes fail-closed restricts-block syntax from the still
+  open real effect-row enforcement work.
+
+### Validation
+
+- Rebuilt/promoted `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll`.
+- Focused negative coverage for `err_restricts_builtin_io.nr` passed.
+
+## [0.8.321] — 2026-05-05
+
+**QM-7 Phase 2a — Clifford stabilizer-distance coverage.**
+
+### Added
+
+- Added `tests/features/qm7_clifford_distance_5qubit_smoke.nr`, which
+  locks typed `Vec<i64>` stabilizer insertion against the known
+  `[[5,1,3]]` perfect-code stabilizer set.
+- The fixture verifies distance `3` and `15/15` detectable single-qubit
+  Pauli errors for the known code.
+
+### Changed
+
+- Updated `stdlib/rods/clifford.nr` FFI wrappers for typed
+  `Vec<i64>` stabilizer and error-vector arguments.
+- Updated the compiler Tier-C disclosure so Clifford imports no longer
+  claim zero OSS verify coverage, while still calling out rotated
+  surface-code d=3 and published weight-enumerator parity as open.
+- Updated the v1 punchlist to mark QM-7 Phase 2a distance coverage done.
+
+### Validation
+
+- Rebuilt/promoted `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll`.
+- Focused Clifford distance smoke passed.
+
+## [0.8.320] — 2026-05-05
+
+**Effect/capability Phase 1 — reject pure requires rows.**
+
+### Fixed
+
+- `pure fn ... requires [...]` now emits `EFF-002` during `nuc build`;
+  pure functions cannot declare required effects.
+- Promoted `tests/err/err_pure_requires.nr` from `_unimplemented/` into
+  the active negative suite.
+- Added missing EXPECT headers to active import-cycle helper fixtures.
+
+### Validation
+
+- Rebuilt/promoted `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll`.
+- Self-host fixed point held with md5
+  `697bea7d73dc8d72ceeba86e9b886f79`.
+- Perf gate passed: cold `3.60s`, process-tree RSS `307MB`.
+
+## [0.8.319] — 2026-05-05
+
+**Compiler-edit ship path revalidated and effect disclosure corrected.**
+
+### Changed
+
+- Corrected the effect/capability disclosure so it no longer says all
+  `pure fn` / `requires` / `restricts` syntax is silently discarded.
+  Direct `pure fn` side effects already fail with `EFF-001`; the
+  remaining trust gap is effect-row completeness.
+- Updated the gap-analysis index and v1 punchlist to reflect the current
+  effect/capability status.
+- Rebuilt/promoted `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll`
+  from a compiler source edit, proving the compiler-edit ship path was
+  no longer blocked by the earlier Windows-PE link-hang concern.
+
+### Validation
+
+- Self-host fixed point held with md5
+  `fc9c22e7b2e36a43eb6705071bd3db16`.
+- Focused EFF user fixtures passed.
+- Perf gate passed: cold `3.57s`, process-tree RSS `309MB`.
+
 ## [0.8.318] — 2026-05-05
 
 **R10-D4 Phase 2 — executable strict-arith cache-key acceptance gate.**

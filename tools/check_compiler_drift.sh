@@ -226,12 +226,66 @@ check_manifest "RELEASES.md" \
 # CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
 # class — a tag that was pushed without a per-version CHANGELOG
 # entry. Skips silently if not in a git repo (e.g. tarball release).
-if [ -d "$ROOT/.git" ] && command -v git >/dev/null 2>&1; then
-    pushd "$ROOT" >/dev/null
-    tag_set=$(git tag -l 'v*' | sed 's/^v//' | sort -u)
+resolve_gitdir_path() {
+    local p="$1"
+    p="${p//$'\r'/}"
+    p="${p//\\//}"
+    if [[ "$p" =~ ^([A-Za-z]):/(.*)$ ]]; then
+        local drive="${BASH_REMATCH[1],,}"
+        echo "/mnt/$drive/${BASH_REMATCH[2]}"
+    elif [[ "$p" = /* ]]; then
+        echo "$p"
+    else
+        echo "$ROOT/$p"
+    fi
+}
+
+collect_git_tags() {
+    if command -v git >/dev/null 2>&1; then
+        if git -C "$ROOT" tag -l 'v*' 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    local git_dir=""
+    if [ -d "$ROOT/.git" ]; then
+        git_dir="$ROOT/.git"
+    elif [ -f "$ROOT/.git" ]; then
+        local raw_gitdir
+        raw_gitdir=$(sed -n 's/^gitdir: //p' "$ROOT/.git")
+        [ -n "$raw_gitdir" ] || return 1
+        git_dir=$(resolve_gitdir_path "$raw_gitdir")
+    else
+        return 1
+    fi
+    [ -d "$git_dir" ] || return 1
+
+    local common_dir="$git_dir"
+    if [ -f "$git_dir/commondir" ]; then
+        local common_rel
+        common_rel=$(tr -d '\r' < "$git_dir/commondir")
+        if [[ "$common_rel" = /* || "$common_rel" =~ ^[A-Za-z]:/ ]]; then
+            common_dir=$(resolve_gitdir_path "$common_rel")
+        else
+            common_dir=$(cd "$git_dir/$common_rel" 2>/dev/null && pwd -P) || return 1
+        fi
+    fi
+    [ -d "$common_dir" ] || return 1
+
+    {
+        if [ -d "$common_dir/refs/tags" ]; then
+            (cd "$common_dir/refs/tags" && find . -type f | sed 's#^\./##')
+        fi
+        if [ -f "$common_dir/packed-refs" ]; then
+            sed -n 's#^[0-9a-f][0-9a-f]* refs/tags/##p' "$common_dir/packed-refs" | sed 's/\^{}$//'
+        fi
+    } | grep '^v' | sort -u
+}
+
+if tag_list=$(collect_git_tags); then
+    tag_set=$(echo "$tag_list" | sed 's/^v//' | sort -u)
     ch_set=$(grep -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//' | sort -u)
     missing_in_ch=$(comm -23 <(echo "$tag_set") <(echo "$ch_set"))
-    popd >/dev/null
     if [ -n "$missing_in_ch" ]; then
         echo "FAIL: git tags exist with no CHANGELOG entry:"
         echo "$missing_in_ch" | sed 's/^/  - v/'
