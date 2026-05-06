@@ -272,9 +272,14 @@ stage2=target/verify_compiler_2; test -x "$stage2" || stage2=target/verify_compi
 cmp -s "$stage1" "$stage2"
 bash tools/check_perf_regression.sh --doctor
 bash tools/check_perf_regression.sh --json
+command -v pwsh
+command -v ssh-keygen
+export NUCLEOR_POLICY_ROOT="$TMPDIR/nucleor-keys"
+mkdir -p "$NUCLEOR_POLICY_ROOT"
+pwsh -NoProfile -File tools/native_release.ps1 -Root . keygen throwaway-ci --json
 nuc publish <fixture-or-release-manifest> --registry "$TMPDIR/nucleor-registry" --dry-run --sign --key-id throwaway-ci
 nuc publish <fixture-or-release-manifest> --registry "$TMPDIR/nucleor-registry" --sign --key-id throwaway-ci
-pwsh -NoProfile -File tools/native_release.ps1 -Root . package-sign-preflight "$TMPDIR/nucleor-registry/<pkg>/<version>" --json
+pwsh -NoProfile -File tools/native_release.ps1 -Root . package-sign-preflight "$TMPDIR/nucleor-registry/<pkg>/<version>" throwaway-ci --json
 pwsh -NoProfile -File tools/native_release.ps1 -Root . package-verify "$TMPDIR/nucleor-registry/<pkg>/<version>" --json
 ```
 
