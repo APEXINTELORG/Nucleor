@@ -673,6 +673,118 @@ Run perf gate if compiler/toolchain hot paths change.
 
 ---
 
+## External Product Integration Visibility - ML Suite and Translate
+
+This section is deliberately outside the ten core compiler/runtime lanes above.
+It is included so cloud agents have full visibility into adjacent work products
+without accidentally importing external product repos into `Nucleor_OSS`.
+
+### ML Expansion / ML Suite
+
+**Status:** spine-wired, code remains external.
+**Core rule:** no ML Suite implementation code is imported into `Nucleor_OSS`.
+Only compiler/runtime/CLI/package substrate needed by Nucleor itself belongs in
+this repository.
+
+**Canonical spine references:**
+
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Build_Spine\BUILD_PATH_v0.4_to_v1.3.md`
+  - `§1.6` ML Expansion Set Crosswalk
+  - `§8.7.1` closure note for ML Expansion live milestone enrichment
+  - `§12.1` ML Expansion Spine Integration Brief anchor
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Expansion_Spine_Integration_Brief_2026-05-01.md`
+
+**Observed local sibling repos / workspaces on this machine:**
+
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite`
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent`
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent_Mainline`
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\MLV_Kernel`
+
+Older spine and brief text may cite equivalent Desktop-root paths such as
+`C:\Users\JoeWe\Desktop\Nucleor_ML_Suite_ParallelAgent_Mainline`. On this
+machine, the currently observed copies are under `Nucleor_OSS_Files`.
+
+**ML Expansion lanes already wired in the spine:**
+
+| Lane | Theme | Nucleor-facing substrate |
+|---|---|---|
+| A | Strategic review response | Evidence-bound performance claims and backend dispatch before speed claims |
+| B | Build brief | HF / ONNX / vLLM / Arrow / boosting frontend surfaces as Nucleor substrate, not ML Suite code import |
+| C | Implementation plan | Kernel backend, shape phase, `nuc serve`, package contracts |
+| D | Numeric model | Public dtype claim rule: storage + convert + kernel + parity + docs |
+| E | Hugging Face frontend | Local model package metadata for `nuc serve` / `.ncap` |
+| F | ONNX / GGUF interchange | GGUF / safetensors loader first, then ONNX |
+| G | vLLM serving contract | KV cache, prefill/decode, batching, paged-attention smoke evidence |
+| H | Tabular engine substrate | Arrow / DLPack / zero-copy interop; ML Suite owns dataframe library |
+| I | Boosting runtime | Fitted-tree scoring + model import substrate |
+| J | Kernel backend | Backend manifest and accounting for BLAS / oneDNN / cuBLAS / GGML-class targets |
+| K | Ecosystem blueprints | Package manifest, lockfile, signed NCAP, conformance dashboard |
+
+**Dispatchable cloud work:**
+
+- ML-EXT-A: audit the observed ML Suite repos and produce a current status
+  report: repo path, branch, HEAD, verification command, pass/fail, and which
+  spine lanes A-K they substantiate.
+- ML-EXT-B: produce an integration-gap matrix from the current ML Suite docs to
+  Nucleor core lanes: what belongs in `Nucleor_OSS`, what remains external, and
+  what requires only docs/CLI contract.
+- ML-EXT-C: verify whether `Nucleor_ML_Suite_ParallelAgent_Mainline` is still
+  the canonical ML Suite reference or whether another sibling repo supersedes
+  it. Do not modify `Nucleor_OSS` for this; write a finding only.
+
+**Non-scope:**
+
+- Do not import ML Suite library source into `Nucleor_OSS`.
+- Do not claim HF/ONNX/vLLM/DuckDB/Polars/XGBoost/LightGBM/CatBoost
+  replacement without native execution evidence.
+- Do not turn ML Suite library work into compiler work unless the task is a
+  core compiler/runtime/CLI substrate required by Nucleor itself.
+
+### Nucleor Translate
+
+**Status:** external, not fully validated for pull-in.
+**Core rule:** Translate stays a standalone workspace. `Nucleor_OSS` should only
+gain a `nuc port` CLI shim/invocation contract after Translate reaches its own
+completion and is revalidated against the then-current Nucleor compiler.
+
+**Canonical spine references:**
+
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Build_Spine\BUILD_PATH_v0.4_to_v1.3.md`
+  - `§12.2` `Nucleor_Translate` forward commitment
+  - `§12.3` Translate completion watch
+
+**Observed local workspace:**
+
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate`
+
+**Spine-recorded state to verify before action:**
+
+- Polished MVP, not complete.
+- 6 of 20 languages recorded as done: Python, Rust, C, Go, TypeScript,
+  JavaScript.
+- 368 tests recorded as passing in the spine.
+- Compiler pin recorded as Nucleor 0.4.5, so revalidation against current
+  Nucleor is mandatory before any `nuc port` integration claim.
+
+**Dispatchable cloud work:**
+
+- TRANS-A: current-state verification only: branch, HEAD, test command,
+  pass/fail count, language matrix, and compiler version pin.
+- TRANS-B: adopter-readiness gap report for control-flow IR, float parsing,
+  C structs, and any remaining language blockers.
+- TRANS-C: once Translate is declared complete, draft the `nuc port` CLI shim
+  contract for `Nucleor_OSS` without copying Translate implementation source.
+
+**Non-scope:**
+
+- Do not pull Translate into `Nucleor_OSS` early.
+- Do not duplicate Translate source in `Nucleor_OSS`.
+- Do not wire `nuc port` until Translate reaches completion and passes
+  revalidation against the current compiler.
+
+---
+
 ## Dispatch Priority Order
 
 1. RFC-0063 parser/tools-suite duplicate deletion Wave 1.
@@ -684,6 +796,9 @@ Run perf gate if compiler/toolchain hot paths change.
 6. Quantum residuals.
 7. Hermetic native tooling ports that are not already blocking parser
    unification or release proof.
+8. External ML Suite / Translate visibility audits. These are useful in
+   parallel, but they must stay read-only against `Nucleor_OSS` unless a
+   separate integration task is explicitly opened.
 
 ## Minimum Report Format for Cloud Agents
 

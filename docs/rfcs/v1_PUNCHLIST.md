@@ -482,3 +482,8 @@ proper analysis → Phase 4 hard error):
   It expands the remaining ten-lane punchlist with completion estimates,
   source RFCs, cloud-agent split, write scopes, non-scope, and validation
   gates for external dispatch.
+- **2026-05-06**: Cloud-agent dispatch pack expanded with first-class
+  visibility for the external ML Suite / ML Expansion spine lane and
+  `Nucleor_Translate` forward-commitment. These stay outside the ten core
+  compiler/runtime lanes: ML Suite code remains external, and Translate is
+  pull-in-gated on completion plus revalidation before any `nuc port` shim.
