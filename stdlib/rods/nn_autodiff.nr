@@ -23,6 +23,10 @@ fn nn_autodiff_register_batch_norm() -> i64 {
     return differentiable_register("nuc_nn_batch_norm");
 }
 
+fn nn_autodiff_register_conv1d() -> i64 {
+    return differentiable_register("nuc_nn_conv1d");
+}
+
 fn nn_dense_forward_ad(layer: i64, input_ad: i64) -> i64 {
     nn_autodiff_register_dense();
 
@@ -140,6 +144,51 @@ fn nn_batch_norm_ad(input_ad: i64, n_samples: i64, feat_dim: i64, gamma_bits: i6
     return out;
 }
 
+fn nn_conv1d_ad(input_ad: i64, kernel_bits: i64, c_in: i64, c_out: i64, length: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    nn_autodiff_register_conv1d();
+
+    let out: i64 = vec_new();
+    if c_in <= 0 { return out; };
+    if c_out <= 0 { return out; };
+    if length <= 0 { return out; };
+    if k_width <= 0 { return out; };
+    if stride <= 0 { return out; };
+
+    let out_l: i64 = (length + (2 * pad) - k_width) / stride + 1;
+    if out_l <= 0 { return out; };
+
+    let mut oc: i64 = 0;
+    while oc < c_out {
+        let mut ox: i64 = 0;
+        while ox < out_l {
+            let mut acc: i64 = ad_const(f64_from_int(0));
+            let mut ic: i64 = 0;
+            while ic < c_in {
+                let mut fx: i64 = 0;
+                while fx < k_width {
+                    let ix: i64 = ox * stride - pad + fx;
+                    if ix >= 0 {
+                        if ix < length {
+                            let in_idx: i64 = ic * length + ix;
+                            let k_idx: i64 = oc * c_in * k_width + ic * k_width + fx;
+                            let x: i64 = vec_get(input_ad, in_idx);
+                            let k: i64 = ad_const(vec_get(kernel_bits, k_idx));
+                            acc = ad_add(acc, ad_mul(x, k));
+                        };
+                    };
+                    fx = fx + 1;
+                };
+                ic = ic + 1;
+            };
+            vec_push(out, acc);
+            ox = ox + 1;
+        };
+        oc = oc + 1;
+    };
+
+    return out;
+}
+
 fn nn_autodiff_limitations() -> str {
-    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872): nn_dense_forward_ad, nn_layer_norm_ad, and nn_batch_norm_ad lower Dense, LayerNorm, and BatchNorm/batch-norm forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover convolution/attention, and does not provide compiler-side @differentiable lowering.";
+    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872/v0873): nn_dense_forward_ad, nn_layer_norm_ad, nn_batch_norm_ad, and nn_conv1d_ad lower Dense, LayerNorm, BatchNorm/batch-norm, and Conv1D forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover Conv2D/depthwise/attention, and does not provide compiler-side @differentiable lowering.";
 }
