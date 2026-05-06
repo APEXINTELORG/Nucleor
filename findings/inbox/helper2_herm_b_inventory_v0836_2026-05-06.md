@@ -5,7 +5,7 @@ Owner: helper2
 Worktree: `C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828`
 Branch: `fix/helper2-herm-b-inventory-v0836`
 Base ref: `origin/fix/main-qm7-surface-code-v0827`
-Base/merge-base: `e0a5c33e5e917512b4cbd871752fe2471c05f765`
+Base/merge-base: `4fa77dbd24a18e4e914afdabf5d7031fcb18187e`
 
 ## Result
 

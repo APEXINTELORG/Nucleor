@@ -92,6 +92,54 @@ fn skip_ws(s: str, p0: i64) -> i64 {
     return p;
 }
 
+fn match_delim_aware(s: str, open_pos: i64, open_char: i64, close_char: i64) -> i64 {
+    let n: i64 = str_len(s);
+    if open_pos >= n || str_char_at(s, open_pos) != open_char { return -1; };
+    let mut depth: i64 = 1;
+    let mut p: i64 = open_pos + 1;
+    while p < n {
+        let c: i64 = str_char_at(s, p);
+        if c == 47 && p + 1 < n && str_char_at(s, p + 1) == 47 {
+            while p < n && str_char_at(s, p) != 10 { p = p + 1; };
+        }
+        else if c == 34 {
+            p = p + 1;
+            while p < n && str_char_at(s, p) != 34 {
+                if str_char_at(s, p) == 92 && p + 1 < n { p = p + 1; };
+                p = p + 1;
+            };
+        }
+        else if c == 39 {
+            p = p + 1;
+            while p < n && str_char_at(s, p) != 39 {
+                if str_char_at(s, p) == 92 && p + 1 < n { p = p + 1; };
+                p = p + 1;
+            };
+        }
+        else if c == open_char {
+            depth = depth + 1;
+        }
+        else if c == close_char {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return -1;
+}
+
+fn match_brace(s: str, open_brace: i64) -> i64 {
+    return match_delim_aware(s, open_brace, 123, 125);
+}
+
+fn line_end_from(s: str, p0: i64, limit: i64) -> i64 {
+    let n: i64 = str_len(s);
+    let mut p: i64 = p0;
+    let lim: i64 = if limit < n { limit } else { n };
+    while p < lim && str_char_at(s, p) != 10 { p = p + 1; };
+    return p;
+}
+
 fn read_quoted_after(s: str, start: i64) -> str {
     let n: i64 = str_len(s);
     if start < 0 || start >= n { return ""; };
@@ -146,8 +194,8 @@ fn collect_str_eq_return_ones_in_fn(src: str, fn_name: str, out: Vec<str>) -> i6
     if fn_pos < 0 { return 0; };
     let body_start: i64 = find_from(src, "{", fn_pos);
     if body_start < 0 { return 0; };
-    let mut body_end: i64 = find_from(src, "\nfn ", body_start + 1);
-    if body_end < 0 { body_end = str_len(src); };
+    let body_end: i64 = match_brace(src, body_start);
+    if body_end < 0 { return 0; };
 
     let needle: str = "if str_eq(name, \"";
     let mut p: i64 = body_start;
@@ -158,8 +206,10 @@ fn collect_str_eq_return_ones_in_fn(src: str, fn_name: str, out: Vec<str>) -> i6
         let name_start: i64 = hit + str_len(needle);
         let name_close: i64 = find_from(src, "\"", name_start);
         if name_close < 0 || name_close >= body_end { break; };
-        let ret_hit: i64 = find_from(src, "{ return 1;", name_close);
-        if ret_hit >= 0 && ret_hit < body_end {
+        let row_end: i64 = line_end_from(src, name_close, body_end);
+        let row: str = str_substring(src, hit, row_end);
+        let ret_hit: i64 = str_index_of(row, "return 1;");
+        if ret_hit >= 0 {
             let name: str = str_substring(src, name_start, name_close);
             push_unique(out, name);
             count = count + 1;
@@ -368,7 +418,7 @@ fn main() -> i64 {
     };
     sort_strs(union_symbols);
 
-    print("helper_manifest_inventory_v1");
+    print("helper_manifest_inventory_v2");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -386,6 +436,9 @@ fn main() -> i64 {
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
+    print_value_lines("void_ret_name", void_names);
+    print_value_lines("ptr_ret_name", ptr_ret_names);
+    print_value_lines("ptr_arg_name", ptr_arg_names);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
     return 0;
