@@ -11523,13 +11523,13 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "DEPTH-004") { return "Invalid #[max_depth] attribute placement or value"; };
     if str_eq(code, "DEPTH-005") { return "Total stack budget exceeded"; };
     // RFC-0031 laws (R14 audit reservations)
-    if str_eq(code, "LAW-001") { return "Property test fails (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-001") { return "Generated law check failed or declared law has unsupported arity"; };
     if str_eq(code, "LAW-002") { return "SMT disproves law (RESERVED — Phase 3 not shipped)"; };
     if str_eq(code, "LAW-003") { return "Law cited but optimizer cannot use it (RESERVED — Phase 2 not shipped)"; };
     if str_eq(code, "LAW-004") { return "Float operation claimed exact associative (RESERVED — Phase 2 not shipped)"; };
-    if str_eq(code, "LAW-006") { return "Deprecated alias `zero = Z`; use `absorbing = Z` (RESERVED — Phase 2 not shipped)"; };
-    if str_eq(code, "LAW-007") { return "Deprecated alias bare `distributive`; use `distributive_over = g` (RESERVED — Phase 2 not shipped)"; };
-    if str_eq(code, "LAW-008") { return "Unrecognized law name (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-006") { return "Deprecated alias `zero = Z`; use `absorbing = Z`"; };
+    if str_eq(code, "LAW-007") { return "Deprecated alias bare `distributive`; use `distributive_over = g`"; };
+    if str_eq(code, "LAW-008") { return "Unrecognized law name"; };
     // RFC-0032 effects
     if str_eq(code, "EFF-001") { return "Function uses effect not in declared row"; };
     if str_eq(code, "EFF-002") { return "pure fn calls effectful fn"; };
@@ -11755,13 +11755,13 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
     if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
     if str_eq(code, "DEPTH-005") { return "Sum of (max_depth_i * estimated_frame_size_i) along a recursion chain exceeds the project's stack budget."; };
-    if str_eq(code, "LAW-001") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will generate a property test (~1000 random inputs) per @law and emit LAW-001 on counterexample. Phase 1 (v0.8.262/265) only captures @law at lex and provides an optimizer scaffold; no property tests run today. If you want to assert a law, write your own #[test] that exercises the property until Phase 2 ships."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and the check failed, or the declared law has unsupported arity for the annotated function. The shipped checker covers commutative, associative, identity, absorbing, idempotent, and involution forms. Arbitrary-driven broad property tests, distributive/inverse/fusion generation, float tolerance handling, and SMT proof obligations remain future RFC-0031 phases."; };
     if str_eq(code, "LAW-002") { return "RESERVED diagnostic. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. Phase 1 (v0.8.265) does not run any solver; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will pattern-match @law citations during optimizer pass; today the law-rewrite pass is a metadata-only no-op (v0.8.265). LAW-003 is reserved for the rewrite pass once it has real semantics."; };
     if str_eq(code, "LAW-004") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. Today the diagnostic is not enforced; the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md) lists eps as a modifier for floats."; };
-    if str_eq(code, "LAW-006") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject the deprecated alias `zero = Z`; use the canonical `absorbing = Z`. The schema migration table is at docs/spec/Nucleor_Algebraic_Laws_Schema.md §3."; };
-    if str_eq(code, "LAW-007") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject the deprecated bare `distributive`; use the canonical `distributive_over = g` (the partner operator is required). See docs/spec/Nucleor_Algebraic_Laws_Schema.md §3."; };
-    if str_eq(code, "LAW-008") { return "RESERVED diagnostic. Phase 2 of R14-D5 will reject any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). Suggest a canonical spelling. See docs/spec/Nucleor_Algebraic_Laws_Schema.md §1."; };
+    if str_eq(code, "LAW-006") { return "`nuc test --check-laws` rejects the deprecated alias `zero = Z`; use the canonical `absorbing = Z`. The schema migration table is at docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3."; };
+    if str_eq(code, "LAW-007") { return "`nuc test --check-laws` rejects the deprecated bare `distributive`; use the canonical `distributive_over = g` because the partner operator is required. See docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3."; };
+    if str_eq(code, "LAW-008") { return "`nuc test --check-laws` rejects any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). Suggest a canonical spelling. See docs/spec/Nucleor_Algebraic_Laws_Schema.md section 1."; };
     if str_eq(code, "EFF-001") { return "RFC-0032 effect rows are checked at type-check. The function body uses an effect (io.read, alloc, etc.) not declared in its signature's `+ effect_row`."; };
     if str_eq(code, "EFF-002") { return "pure fn cannot perform side effects. Either remove the call, mark the callee pure, or remove the pure annotation from the caller."; };
     if str_eq(code, "EFF-003") { return "restricts [...] forbids the listed effects in the callee. The callee uses an effect on the restrict list."; };
@@ -11981,13 +11981,13 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
     if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };
     if str_eq(code, "DEPTH-005") { return "RFC-0014 stack-budget check multiplies declared depth by estimated frame size. Reduce locals/frame size, reduce N, or convert recursion to iteration."; };
-    if str_eq(code, "LAW-001") { return "RESERVED. Phase 2 of RFC-0031 (R14 audit-driven build arc) will generate a property test (~1000 random inputs) per @law and emit LAW-001 on counterexample. As of v0.8.265 (Phase 1) the compiler captures @law at lex (R14-D1) and ships an optimizer-pass scaffold (R14-D2) that does NOT run any property tests. Adopters who need a real property test today must hand-write a #[test] until Phase 2 lands."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and found a counterexample, or the declaration is arity-incompatible with the annotated function. The checker currently covers commutative, associative, identity, absorbing, idempotent, and involution forms; broader random Arbitrary generation, distributive/inverse/fusion generation, float tolerance handling, and cert-profile SMT proofs remain queued."; };
     if str_eq(code, "LAW-002") { return "RESERVED. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. As of v0.8.265 (Phase 1) no solver runs; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED. Phase 2 of RFC-0031 will pattern-match @law citations during the optimizer's law-rewrite pass. As of v0.8.265 the law-rewrite pass (`opt_law_rewrite_block`) is a metadata-only no-op; LAW-003 is reserved for emission once the rewrite path has real semantics."; };
     if str_eq(code, "LAW-004") { return "RESERVED. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. The canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md §2) lists `eps = T` as the modifier for floats. As of v0.8.265 the diagnostic is not emitted."; };
-    if str_eq(code, "LAW-006") { return "RESERVED. Phase 2 of R14-D5 will reject the deprecated alias `zero = Z`; rename to `absorbing = Z` per the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md §3). As of v0.8.265 (Phase 1, locked schema) the alias is still accepted at lex but documented deprecated."; };
-    if str_eq(code, "LAW-007") { return "RESERVED. Phase 2 of R14-D5 will reject bare `distributive` (the partner operator is required); rename to `distributive_over = g` per the canonical schema. As of v0.8.265 the alias is documented deprecated."; };
-    if str_eq(code, "LAW-008") { return "RESERVED. Phase 2 of R14-D5 will reject any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). As of v0.8.265 (Phase 1) unknown names are still consumed by the generic @attr skip path; the canonical set is locked at docs/spec/Nucleor_Algebraic_Laws_Schema.md §1."; };
+    if str_eq(code, "LAW-006") { return "`nuc test --check-laws` rejects the deprecated alias `zero = Z`; rename to `absorbing = Z` per the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3)."; };
+    if str_eq(code, "LAW-007") { return "`nuc test --check-laws` rejects bare `distributive` because the partner operator is required; rename to `distributive_over = g` per the canonical schema."; };
+    if str_eq(code, "LAW-008") { return "`nuc test --check-laws` rejects any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). The canonical set is locked at docs/spec/Nucleor_Algebraic_Laws_Schema.md section 1."; };
     if str_eq(code, "EFF-001") { return "RFC-0032 §3.1 — every function carries an effect row. Use a function with effects requires the caller to permit those effects. Either declare the effects in the caller's row or remove the call."; };
     if str_eq(code, "EFF-002") { return "RFC-0032 §3.2 — pure fn means no side effects (io, alloc, random, time, panic). The compiler can prove the call violates this."; };
     if str_eq(code, "EFF-003") { return "RFC-0032 §3.4 — restricts [...] is a contract on callbacks. Pass a different callback or remove the restrict."; };
@@ -12598,6 +12598,303 @@ fn collect_test_names_from_source(source: str) -> Vec<i32> {
         p = eol + 1;
     };
     return tests;
+}
+
+fn law_extract_attr_body_compact(compact: str) -> str {
+    let start: i64 = str_index_of(compact, "@law(");
+    if start < 0 { return ""; };
+    let body_start: i64 = start + 5;
+    let mut body_end: i64 = body_start;
+    let clen: i64 = str_len(compact);
+    while body_end < clen && str_char_at(compact, body_end) != 41 { body_end = body_end + 1; };
+    if body_end <= body_start { return ""; };
+    return str_substring(compact, body_start, body_end);
+}
+
+fn law_fn_param_count_from_line(line: str) -> i64 {
+    let fn_pos: i64 = str_index_of(line, "fn ");
+    if fn_pos < 0 { return 0 - 1; };
+    let llen: i64 = str_len(line);
+    let mut lp: i64 = fn_pos;
+    while lp < llen && str_char_at(line, lp) != 40 { lp = lp + 1; };
+    if lp >= llen { return 0 - 1; };
+    let mut rp: i64 = lp + 1;
+    while rp < llen && str_char_at(line, rp) != 41 { rp = rp + 1; };
+    if rp >= llen { return 0 - 1; };
+    let params: str = strip_spaces(str_substring(line, lp + 1, rp));
+    if str_len(params) == 0 { return 0; };
+    let mut n: i64 = 1;
+    let mut i: i64 = 0;
+    while i < str_len(params) {
+        if str_char_at(params, i) == 44 { n = n + 1; };
+        i = i + 1;
+    };
+    return n;
+}
+
+fn law_item_value(item: str) -> str {
+    let eq: i64 = str_index_of(item, "=");
+    if eq < 0 { return ""; };
+    return str_substring(item, eq + 1, str_len(item));
+}
+
+fn law_append_panic(sb: i64, code: str, law_name: str, fn_name: str) {
+    sb_append(sb, "        print(\"error[");
+    sb_append(sb, code);
+    sb_append(sb, "]: ");
+    sb_append(sb, law_name);
+    sb_append(sb, " counterexample for ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "\");\n");
+    sb_append(sb, "        panic(\"");
+    sb_append(sb, code);
+    sb_append(sb, "\");\n");
+}
+
+fn law_append_commutative_checks(sb: i64, fn_name: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, 7) != ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7, 2) {\n");
+    law_append_panic(sb, "LAW-001", "commutative", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(0 - 2, 3) != ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(3, 0 - 2) {\n");
+    law_append_panic(sb, "LAW-001", "commutative", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_append_associative_checks(sb: i64, fn_name: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(1, 2), 3) != ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(1, ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, 3)) {\n");
+    law_append_panic(sb, "LAW-001", "associative", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(0 - 2, 5), 4) != ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(0 - 2, ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(5, 4)) {\n");
+    law_append_panic(sb, "LAW-001", "associative", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_append_identity_checks(sb: i64, fn_name: str, ident: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7, ");
+    sb_append(sb, ident);
+    sb_append(sb, ") != 7 {\n");
+    law_append_panic(sb, "LAW-001", "identity", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, ident);
+    sb_append(sb, ", 7) != 7 {\n");
+    law_append_panic(sb, "LAW-001", "identity", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(0 - 2, ");
+    sb_append(sb, ident);
+    sb_append(sb, ") != 0 - 2 {\n");
+    law_append_panic(sb, "LAW-001", "identity", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_append_absorbing_checks(sb: i64, fn_name: str, absorb: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7, ");
+    sb_append(sb, absorb);
+    sb_append(sb, ") != ");
+    sb_append(sb, absorb);
+    sb_append(sb, " {\n");
+    law_append_panic(sb, "LAW-001", "absorbing", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, absorb);
+    sb_append(sb, ", 7) != ");
+    sb_append(sb, absorb);
+    sb_append(sb, " {\n");
+    law_append_panic(sb, "LAW-001", "absorbing", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_append_idempotent_checks(sb: i64, fn_name: str, arity: i64) {
+    if arity == 2 {
+        sb_append(sb, "    if ");
+        sb_append(sb, fn_name);
+        sb_append(sb, "(7, 7) != 7 {\n");
+        law_append_panic(sb, "LAW-001", "idempotent", fn_name);
+        sb_append(sb, "    };\n");
+        return;
+    };
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7)) != ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7) {\n");
+    law_append_panic(sb, "LAW-001", "idempotent", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_append_involution_checks(sb: i64, fn_name: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(7)) != 7 {\n");
+    law_append_panic(sb, "LAW-001", "involution", fn_name);
+    sb_append(sb, "    };\n");
+}
+
+fn law_generate_check_fn(fn_name: str, law_body: str, arity: i64, check_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "\nfn ");
+    sb_append(sb, check_name);
+    sb_append(sb, "() {\n");
+    let blen: i64 = str_len(law_body);
+    let mut start: i64 = 0;
+    let mut i: i64 = 0;
+    while i <= blen {
+        if i == blen || str_char_at(law_body, i) == 44 {
+            let item: str = str_substring(law_body, start, i);
+            if str_len(item) > 0 {
+                if str_eq(item, "commutative") == 1 {
+                    if arity != 2 {
+                        print(str_concat("error[LAW-001]: commutative law requires a binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_commutative_checks(sb, fn_name);
+                } else if str_eq(item, "associative") == 1 {
+                    if arity != 2 {
+                        print(str_concat("error[LAW-001]: associative law requires a binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_associative_checks(sb, fn_name);
+                } else if str_starts_with(item, "identity=") == 1 {
+                    if arity != 2 {
+                        print(str_concat("error[LAW-001]: identity law requires a binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_identity_checks(sb, fn_name, law_item_value(item));
+                } else if str_starts_with(item, "absorbing=") == 1 {
+                    if arity != 2 {
+                        print(str_concat("error[LAW-001]: absorbing law requires a binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_absorbing_checks(sb, fn_name, law_item_value(item));
+                } else if str_eq(item, "idempotent") == 1 {
+                    if arity != 1 && arity != 2 {
+                        print(str_concat("error[LAW-001]: idempotent law requires a unary or binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_idempotent_checks(sb, fn_name, arity);
+                } else if str_eq(item, "involution") == 1 {
+                    if arity != 1 {
+                        print(str_concat("error[LAW-001]: involution law requires a unary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_involution_checks(sb, fn_name);
+                } else if str_starts_with(item, "zero=") == 1 {
+                    print("error[LAW-006]: deprecated alias `zero = Z`; use `absorbing = Z`");
+                    out.push(1); out.push("");
+                    return out;
+                } else if str_eq(item, "distributive") == 1 {
+                    print("error[LAW-007]: deprecated alias bare `distributive`; use `distributive_over = g`");
+                    out.push(1); out.push("");
+                    return out;
+                } else if str_starts_with(item, "distributive_over=") == 1
+                    || str_starts_with(item, "inverse=") == 1
+                    || str_eq(item, "fusion") == 1
+                    || str_starts_with(item, "eps=") == 1
+                    || str_starts_with(item, "seed=") == 1
+                    || str_starts_with(item, "cases=") == 1
+                    || str_eq(item, "approximate") == 1 {
+                    // Canonical but not generated in this low-risk integer slice.
+                } else {
+                    print(str_concat("error[LAW-008]: unrecognized law name: ", item));
+                    out.push(1); out.push("");
+                    return out;
+                };
+            };
+            start = i + 1;
+        };
+        i = i + 1;
+    };
+    sb_append(sb, "}\n");
+    out.push(0);
+    out.push(sb_to_str(sb));
+    return out;
+}
+
+fn build_law_check_source(raw_source: str, tests: Vec<i32>) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(raw_source);
+    let mut p: i64 = 0;
+    let mut pending_law: str = "";
+    let mut law_index: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(raw_source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(raw_source, p, eol);
+        let compact: str = strip_spaces(line);
+        let body: str = law_extract_attr_body_compact(compact);
+        if str_len(body) > 0 {
+            if str_len(pending_law) > 0 {
+                pending_law = str_concat(pending_law, str_concat(",", body));
+            } else {
+                pending_law = body;
+            };
+        } else {
+            let fn_name: str = extract_fn_name_from_line(line);
+            if str_len(fn_name) > 0 && str_len(pending_law) > 0 {
+                let arity: i64 = law_fn_param_count_from_line(line);
+                let check_name: str = str_concat("__nucleor_law_check_", str_from_int(law_index));
+                let gen: Vec<i32> = law_generate_check_fn(fn_name, pending_law, arity, check_name);
+                if vec_get(gen, 0) != 0 {
+                    out.push(1); out.push("");
+                    return out;
+                };
+                sb_append(sb, vec_get(gen, 1));
+                tests.push(check_name);
+                pending_law = "";
+                law_index = law_index + 1;
+            };
+        };
+        p = eol + 1;
+    };
+    out.push(0);
+    out.push(sb_to_str(sb));
+    return out;
 }
 
 // T1.3 (v0.2.338): collect #cfile directives from every imported
@@ -13625,13 +13922,24 @@ fn run_fix_command(src_path: str, subcmd: str) -> i64 {
     return 0;
 }
 
-fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, list_only: i64, isolation_process: i64) -> i64 {
+fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, list_only: i64, isolation_process: i64, check_laws: i64) -> i64 {
     let raw_source: str = file_read_string(src_path);
     if str_len(raw_source) == 0 {
         print(str_concat("ERROR: cannot read ", src_path));
         return 1;
     };
     let tests: Vec<i32> = collect_test_names_from_source(raw_source);
+    let mut law_source: str = "";
+    if check_laws == 1 {
+        let law_result: Vec<i32> = build_law_check_source(raw_source, tests);
+        if vec_get(law_result, 0) != 0 { return 1; };
+        law_source = vec_get(law_result, 1);
+        if str_len(law_source) > 0 {
+            print("info[CHECK-LAWS]: generated bounded integer law checks");
+        } else {
+            print("info[CHECK-LAWS]: no @law annotations found");
+        };
+    };
     if vec_len(tests) == 0 {
         print(str_concat("  no tests found in ", src_path));
         return 1;
@@ -13650,7 +13958,7 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
         return 1;
     };
     let imported: Vec<i32> = vec_get(bundle, 1);
-    let harness_source: str = build_test_harness_source_with_imports(resolved_source, tests, imported);
+    let harness_source: str = build_test_harness_source_with_imports(str_concat(resolved_source, law_source), tests, imported);
     // v0.2.69 fix: ensure target/ exists before writing the harness file.
     // Without this, `nuc test foo.nr` from a fresh directory fails with
     // "ERROR: cannot read target/foo__test_harness.nr" because
@@ -19754,6 +20062,7 @@ fn print_help() -> i64 {
     print("Developer commands:");
     print("  test [file]            Build and run @test / test_* functions");
     print("    --list               List discovered tests without running them");
+    print("    --check-laws         Generate bounded checks for low-risk integer @law annotations");
     print("    --isolation=process  Spawn a fresh child process per test (RFC-0021)");
     print("  bench [file]           Build once and benchmark repeated runs");
     print("    --iterations <n>     Number of measured runs (default 10)");
@@ -19995,6 +20304,7 @@ fn main() -> i64 {
     let mut bench_warmup: i64 = 1;
     let mut test_list_only: i64 = 0;
     let mut test_isolation_process: i64 = 0;
+    let mut test_check_laws: i64 = 0;
     let mut saw_output_name: i64 = 0;
     let mut argi_build: i64 = arg_start;
     while argi_build < argc {
@@ -20003,6 +20313,7 @@ fn main() -> i64 {
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
         else if str_eq(flag, "--cache-stats") { env_set("NUCLEOR_CACHE_STATS", "1"); }
         else if str_eq(cmd, "test") && str_eq(flag, "--list") { test_list_only = 1; }
+        else if str_eq(cmd, "test") && str_eq(flag, "--check-laws") { test_check_laws = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--isolation=process") { test_isolation_process = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--isolation=thread") { test_isolation_process = 0; }
         else if str_eq(cmd, "bench") && str_eq(flag, "--iterations") {
@@ -20182,7 +20493,7 @@ fn main() -> i64 {
     } else if str_eq(cmd, "emit") {
         return compile_file_mode(src_path, out_name, 1, use_cache, time_passes, 0);
     } else if str_eq(cmd, "test") {
-        return run_test_command(src_path, out_name, use_cache, time_passes, test_list_only, test_isolation_process);
+        return run_test_command(src_path, out_name, use_cache, time_passes, test_list_only, test_isolation_process, test_check_laws);
     } else if str_eq(cmd, "bench") {
         return run_bench_command(src_path, out_name, use_cache, time_passes, bench_iterations, bench_warmup);
     } else if str_eq(cmd, "check") {

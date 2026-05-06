@@ -808,6 +808,31 @@ fn main() -> i64 { return 0; }
     }
 }
 
+Step "CLI: nuc test --check-laws validates laws and schema" {
+    $out = & $bin test "tests/features/law_check_true_smoke.nr" --check-laws --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host (Dim ("       " + ($out.Trim() -split "`n" | Select-Object -Last 1))); return $false }
+    if ($out -notmatch "info\[CHECK-LAWS\]") { return $false }
+    if ($out -notmatch "__nucleor_law_check_") { return $false }
+    if ($out -notmatch "test result: PASS") { return $false }
+
+    $out = & $bin test "tests/features/law_check_false_smoke.nr" --check-laws --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "error\[LAW-001\]") { return $false }
+
+    $out = & $bin test "tests/features/law_schema_alias_zero_smoke.nr" --check-laws --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "error\[LAW-006\]") { return $false }
+
+    $out = & $bin test "tests/features/law_schema_alias_distributive_smoke.nr" --check-laws --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "error\[LAW-007\]") { return $false }
+
+    $out = & $bin test "tests/features/law_schema_unknown_smoke.nr" --check-laws --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "error\[LAW-008\]") { return $false }
+    return $true
+}
+
 foreach ($ex in $examples) {
     Step "example $ex" {
         $src = "examples/$ex.nr"

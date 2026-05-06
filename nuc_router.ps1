@@ -675,15 +675,11 @@ function Invoke-SelfCompat {
                 continue
             }
             '^--check-laws$' {
-                # R14-D3 Phase 1 (v0.8.263): no longer silently ignored.
-                # The compiler's lex path already emits info[LAW-CAPTURE]
-                # for every @law(...) annotation (R14-D1, v0.8.262); this
-                # branch acknowledges --check-laws was passed and surfaces
-                # the LAW-CAPTURE summary post-build. Phase 2 will
-                # generate bounded property tests + return nonzero on
-                # counterexamples per BUILD_PLAN_R14_algebraic_laws.md
-                # §1 R14-D3 acceptance.
-                Write-Host "info[CHECK-LAWS]: --check-laws acknowledged (R14-D3 Phase 1). Compiler emits info[LAW-CAPTURE] per @law annotation; Phase 2 will add property-test generation + counterexample-driven exit code." -ForegroundColor Cyan
+                if ($cmd -eq "test") {
+                    $translated.Add($arg)
+                } else {
+                    Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law capture/audit metadata only." -ForegroundColor Cyan
+                }
                 continue
             }
             '^--(tier|backend|features|opt-level|registry|evidence)$' {
@@ -877,18 +873,18 @@ if ($routeExt) {
     exit $LASTEXITCODE
 }
 
-# R14-D3 Phase 1 (v0.8.263): if `--check-laws` was passed, surface a
-# visible acknowledgment so the flag is no longer silently ignored.
-# The compiler's lex path already emits info[LAW-CAPTURE] per @law
-# annotation (R14-D1, v0.8.262); this acknowledgment proves the
-# router sees the flag and sets the stage for Phase 2 property-test
-# generation per BUILD_PLAN_R14_algebraic_laws.md §1 R14-D3.
+# R14 law checks: pass `--check-laws` through to the tools-suite test
+# driver. Non-test commands still only have @law capture/audit metadata.
 $checkLawsRequested = $false
 foreach ($_chkArg in $selfHostedArgs) {
     if ($_chkArg -ieq "--check-laws") { $checkLawsRequested = $true }
 }
 if ($checkLawsRequested) {
-    Write-Host "info[CHECK-LAWS]: --check-laws acknowledged (R14-D3 Phase 1). Compiler emits info[LAW-CAPTURE] per @law annotation; Phase 2 will add property-test generation + counterexample-driven exit code."
+    if ($cmd -eq "test") {
+        Write-Host "info[CHECK-LAWS]: forwarding to bounded integer law-check driver."
+    } else {
+        Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law capture/audit metadata only."
+    }
 }
 
 # R10-D1 Phase 1 (v0.8.278): validate --tier values. Pre-v0.8.278

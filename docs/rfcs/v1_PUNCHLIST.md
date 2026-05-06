@@ -165,7 +165,7 @@ launch. After memory safety completes, these are next-priority.
 - **Status:** IN FLIGHT — do not remove or demote. Current compiler
   captures `@law(...)` at lex time, has a metadata-only optimizer pass
   scaffold, reserves LAW diagnostics, and has smoke fixtures for
-  capture / `--check-laws` acknowledgment / optimizer identity
+  capture, bounded `--check-laws` validation, and optimizer identity
   eligibility.
 - **Phase 1 honesty pass:** DONE in docs on 2026-05-05 — public docs now
   say the current shipped contract is capture + audit metadata, not
@@ -173,9 +173,14 @@ launch. After memory safety completes, these are next-priority.
 - **Phase 2:** wire captured law metadata into verified low-risk
   rewrites (`identity`, `absorbing`, `idempotent`, `involution`) behind
   a proof/check gate.
-- **Phase 3:** add generated property tests for `nuc test --check-laws`
-  and canonical-law validation (`LAW-001`, `LAW-006`, `LAW-007`,
-  `LAW-008`).
+- **Phase 3a:** DONE on 2026-05-06 — `nuc test --check-laws`
+  generates bounded integer checks for low-risk forms (`commutative`,
+  `associative`, `identity`, `absorbing`, `idempotent`, `involution`)
+  and hard-errors deprecated aliases / unknown names (`LAW-001`,
+  `LAW-006`, `LAW-007`, `LAW-008`). Remaining Phase 3 work:
+  Arbitrary-driven broad property tests, `distributive_over` /
+  `inverse` / `fusion` generation, float `eps` / `approximate`
+  semantics, and optimizer rewrite gating.
 - **Phase 4:** add cert-profile SMT/proof obligations and float-law
   safeguards (`LAW-002`, `LAW-004`).
 
