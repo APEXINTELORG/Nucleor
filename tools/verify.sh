@@ -1033,6 +1033,14 @@ cli_check_laws_smoke() {
     echo "$out" | grep -q "__nucleor_law_check_" || return 1
     echo "$out" | grep -q "test result: PASS" || return 1
 
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_check_distributive_true_smoke.nr")" --check-laws --no-cache 2>&1) || {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "info\\[CHECK-LAWS\\]" || return 1
+    echo "$out" | grep -q "__nucleor_law_check_" || return 1
+    echo "$out" | grep -q "test result: PASS" || return 1
+
     out=$("$BIN" test "$(verify_bin_path "tests/features/law_check_false_smoke.nr")" --check-laws --no-cache 2>&1) && {
         printf '%s\n' "$out" | tail -20
         return 1
@@ -1056,6 +1064,24 @@ cli_check_laws_smoke() {
         return 1
     }
     echo "$out" | grep -q "error\\[LAW-008\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_inverse_unsupported_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-001\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_approximate_unsupported_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-004\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_f64_unsupported_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-004\\]" || return 1
     return 0
 }
 
@@ -1620,6 +1646,22 @@ t333_effects_with_no_panic() {
     "$BIN" build "tests/err/err_effects_with_no_panic.nr" -o "_t333_effects_no_panic" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE "error\[RT-002\]" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "bad_op" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+rt_transitive_same_file_closure() {
+    "$BIN" build "tests/err/err_no_alloc_transitive_two_hop.nr" -o "_rt_no_alloc_two_hop" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[RT-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "format_wrapper" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/err/err_no_panic_transitive_same_file.nr" -o "_rt_no_panic_transitive" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[RT-002\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "guard_wrapper" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/features/rt_transitive_clean_helper_chain_smoke.nr" -o "_rt_transitive_clean_helper_chain" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_rt_transitive_clean_helper_chain"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
 }
 
 t333_effects_with_no_dyn() {
@@ -5556,6 +5598,7 @@ step "T2.5 lifetime parameters parse cleanly (advisory metadata)" t25_lifetime_p
 step "T2.7 nuc doc --html emits styled standalone HTML" t27_doc_html
 step "T2.8 async (threads-only): async fn / async_spawn / .await" t28_async_threads
 step "T3.2 #[no_panic] passes when body has no panic-prone calls" t32_no_panic_clean
+step "T3.2b RT transitive same-file closure catches helper chains" rt_transitive_same_file_closure
 step "T3.3 static WCET v1 estimator emits warning[RT-004]" t33_wcet_estimator
 step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" t35_rt007_unguarded_deadline
 step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls

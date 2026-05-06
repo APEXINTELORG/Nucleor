@@ -46,10 +46,11 @@ Current implementation status: Phase 1 capture/scaffold work is in tree
 and must remain part of the build path. The tools-suite test driver now
 ships a bounded integer `nuc test --check-laws` slice for low-risk forms
 (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`,
-`involution`) plus schema hard errors for deprecated aliases and unknown
-law names. Optimizer rewrites, Arbitrary-driven broad property tests,
-float-law tolerance, and SMT proof obligations remain implementation
-work, not a deletion of the feature.
+`involution`, `distributive_over`) plus schema hard errors for deprecated
+aliases, unsupported canonical forms, float/approximate modifiers, and
+unknown law names. Optimizer rewrites, Arbitrary-driven broad property
+tests, float-law tolerance, and SMT proof obligations remain
+implementation work, not a deletion of the feature.
 
 ---
 
@@ -108,6 +109,7 @@ primitive law forms without requiring the future `Arbitrary` trait:
 - `absorbing = Z`
 - `idempotent`
 - `involution`
+- `distributive_over = g`
 
 The full target remains: for each law, the compiler synthesizes a test that:
 - Generates ~1000 random inputs (driven by user-supplied or
@@ -217,7 +219,7 @@ fn add(a: f64, b: f64) -> f64
 | Z3 / CVC5 integration (cert profile) | Subprocess + SMT-LIB encoding | ~800 |
 | `nuc test --check-laws` flag | CLI | shipped for bounded integer subset |
 | Doc generator extension | Laws in doc HTML | ~150 |
-| Diagnostics | LAW-001, LAW-006, LAW-007, LAW-008 shipped for `--check-laws`; LAW-002/003/004 future | ~200 |
+| Diagnostics | LAW-001, LAW-004, LAW-006, LAW-007, LAW-008 shipped for `--check-laws`; LAW-002/003 future | ~200 |
 | **Total** | | **~2230** |
 
 ---
@@ -239,7 +241,7 @@ fn add(a: f64, b: f64) -> f64
 ## 7. Definition of done
 
 - [x] Low-risk integer forms generate bounded checks under `nuc test --check-laws`
-- [x] Deprecated aliases and unknown law names fail under `nuc test --check-laws`
+- [x] Deprecated aliases, unsupported canonical forms, float modifiers, and unknown law names fail under `nuc test --check-laws`
 - [ ] All law forms generate Arbitrary-driven property tests
 - [ ] `Arbitrary` trait shipped for primitives, Vec, Option, Result,
       tuples

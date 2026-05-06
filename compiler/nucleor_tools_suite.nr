@@ -11613,10 +11613,10 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "DEPTH-004") { return "Invalid #[max_depth] attribute placement or value"; };
     if str_eq(code, "DEPTH-005") { return "Total stack budget exceeded"; };
     // RFC-0031 laws (R14 audit reservations)
-    if str_eq(code, "LAW-001") { return "Generated law check failed or declared law has unsupported arity"; };
+    if str_eq(code, "LAW-001") { return "Generated law check failed, declared law has unsupported arity, or canonical form lacks a shipped bounded checker"; };
     if str_eq(code, "LAW-002") { return "SMT disproves law (RESERVED — Phase 3 not shipped)"; };
     if str_eq(code, "LAW-003") { return "Law cited but optimizer cannot use it (RESERVED — Phase 2 not shipped)"; };
-    if str_eq(code, "LAW-004") { return "Float operation claimed exact associative (RESERVED — Phase 2 not shipped)"; };
+    if str_eq(code, "LAW-004") { return "Float or approximate law form lacks shipped tolerance semantics"; };
     if str_eq(code, "LAW-006") { return "Deprecated alias `zero = Z`; use `absorbing = Z`"; };
     if str_eq(code, "LAW-007") { return "Deprecated alias bare `distributive`; use `distributive_over = g`"; };
     if str_eq(code, "LAW-008") { return "Unrecognized law name"; };
@@ -11845,10 +11845,10 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
     if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
     if str_eq(code, "DEPTH-005") { return "Sum of (max_depth_i * estimated_frame_size_i) along a recursion chain exceeds the project's stack budget."; };
-    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and the check failed, or the declared law has unsupported arity for the annotated function. The shipped checker covers commutative, associative, identity, absorbing, idempotent, and involution forms. Arbitrary-driven broad property tests, distributive/inverse/fusion generation, float tolerance handling, and SMT proof obligations remain future RFC-0031 phases."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and the check failed, or the declared law has unsupported arity for the annotated function. The shipped checker covers commutative, associative, identity, absorbing, idempotent, involution, and distributive_over forms. Inverse/fusion generation, Arbitrary-driven broad property tests, float tolerance handling, and SMT proof obligations remain future RFC-0031 phases and fail closed instead of being silently accepted."; };
     if str_eq(code, "LAW-002") { return "RESERVED diagnostic. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. Phase 1 (v0.8.265) does not run any solver; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will pattern-match @law citations during optimizer pass; today the law-rewrite pass is a metadata-only no-op (v0.8.265). LAW-003 is reserved for the rewrite pass once it has real semantics."; };
-    if str_eq(code, "LAW-004") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. Today the diagnostic is not enforced; the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md) lists eps as a modifier for floats."; };
+    if str_eq(code, "LAW-004") { return "`nuc test --check-laws` rejects float/approximate law modifiers until the language has explicit tolerance semantics. The canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md) lists eps as a future modifier for floats; this bounded integer checker fails closed."; };
     if str_eq(code, "LAW-006") { return "`nuc test --check-laws` rejects the deprecated alias `zero = Z`; use the canonical `absorbing = Z`. The schema migration table is at docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3."; };
     if str_eq(code, "LAW-007") { return "`nuc test --check-laws` rejects the deprecated bare `distributive`; use the canonical `distributive_over = g` because the partner operator is required. See docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3."; };
     if str_eq(code, "LAW-008") { return "`nuc test --check-laws` rejects any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). Suggest a canonical spelling. See docs/spec/Nucleor_Algebraic_Laws_Schema.md section 1."; };
@@ -12071,10 +12071,10 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
     if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };
     if str_eq(code, "DEPTH-005") { return "RFC-0014 stack-budget check multiplies declared depth by estimated frame size. Reduce locals/frame size, reduce N, or convert recursion to iteration."; };
-    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and found a counterexample, or the declaration is arity-incompatible with the annotated function. The checker currently covers commutative, associative, identity, absorbing, idempotent, and involution forms; broader random Arbitrary generation, distributive/inverse/fusion generation, float tolerance handling, and cert-profile SMT proofs remain queued."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and found a counterexample, or the declaration is arity-incompatible with the annotated function. The checker currently covers commutative, associative, identity, absorbing, idempotent, involution, and distributive_over forms; broader random Arbitrary generation, inverse/fusion generation, float tolerance handling, and cert-profile SMT proofs remain queued."; };
     if str_eq(code, "LAW-002") { return "RESERVED. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. As of v0.8.265 (Phase 1) no solver runs; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED. Phase 2 of RFC-0031 will pattern-match @law citations during the optimizer's law-rewrite pass. As of v0.8.265 the law-rewrite pass (`opt_law_rewrite_block`) is a metadata-only no-op; LAW-003 is reserved for emission once the rewrite path has real semantics."; };
-    if str_eq(code, "LAW-004") { return "RESERVED. Phase 2 of RFC-0031 will reject claims of exact float associativity in --profile=cert without an explicit eps. The canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md §2) lists `eps = T` as the modifier for floats. As of v0.8.265 the diagnostic is not emitted."; };
+    if str_eq(code, "LAW-004") { return "`nuc test --check-laws` now emits this when a law uses `eps` or `approximate` before the float tolerance contract ships. Add an integer-only bounded law, or wait for the RFC-0031 float tolerance phase."; };
     if str_eq(code, "LAW-006") { return "`nuc test --check-laws` rejects the deprecated alias `zero = Z`; rename to `absorbing = Z` per the canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md section 3)."; };
     if str_eq(code, "LAW-007") { return "`nuc test --check-laws` rejects bare `distributive` because the partner operator is required; rename to `distributive_over = g` per the canonical schema."; };
     if str_eq(code, "LAW-008") { return "`nuc test --check-laws` rejects any law name not in the canonical set (commutative, associative, identity, idempotent, involution, absorbing, distributive_over, inverse, fusion). The canonical set is locked at docs/spec/Nucleor_Algebraic_Laws_Schema.md section 1."; };
@@ -12858,6 +12858,35 @@ fn law_append_involution_checks(sb: i64, fn_name: str) {
     sb_append(sb, "    };\n");
 }
 
+fn law_append_distributive_over_checks(sb: i64, fn_name: str, over_fn: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, ");
+    sb_append(sb, over_fn);
+    sb_append(sb, "(3, 5)) != ");
+    sb_append(sb, over_fn);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, 3), ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, 5)) {\n");
+    law_append_panic(sb, "LAW-001", "distributive_over", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, over_fn);
+    sb_append(sb, "(2, 3), 5) != ");
+    sb_append(sb, over_fn);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(2, 5), ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(3, 5)) {\n");
+    law_append_panic(sb, "LAW-001", "distributive_over", fn_name);
+    sb_append(sb, "    };\n");
+}
+
 fn law_generate_check_fn(fn_name: str, law_body: str, arity: i64, check_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let mut sb: i64 = sb_new();
@@ -12921,14 +12950,25 @@ fn law_generate_check_fn(fn_name: str, law_body: str, arity: i64, check_name: st
                     print("error[LAW-007]: deprecated alias bare `distributive`; use `distributive_over = g`");
                     out.push(1); out.push("");
                     return out;
-                } else if str_starts_with(item, "distributive_over=") == 1
-                    || str_starts_with(item, "inverse=") == 1
+                } else if str_starts_with(item, "distributive_over=") == 1 {
+                    if arity != 2 {
+                        print(str_concat("error[LAW-001]: distributive_over law requires a binary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_distributive_over_checks(sb, fn_name, law_item_value(item));
+                } else if str_starts_with(item, "inverse=") == 1
                     || str_eq(item, "fusion") == 1
-                    || str_starts_with(item, "eps=") == 1
                     || str_starts_with(item, "seed=") == 1
-                    || str_starts_with(item, "cases=") == 1
+                    || str_starts_with(item, "cases=") == 1 {
+                    print(str_concat("error[LAW-001]: canonical law form is not generated by this bounded integer checker: ", item));
+                    out.push(1); out.push("");
+                    return out;
+                } else if str_starts_with(item, "eps=") == 1
                     || str_eq(item, "approximate") == 1 {
-                    // Canonical but not generated in this low-risk integer slice.
+                    print(str_concat("error[LAW-004]: float/approximate law form requires explicit future tolerance semantics: ", item));
+                    out.push(1); out.push("");
+                    return out;
                 } else {
                     print(str_concat("error[LAW-008]: unrecognized law name: ", item));
                     out.push(1); out.push("");
@@ -12967,6 +13007,11 @@ fn build_law_check_source(raw_source: str, tests: Vec<i32>) -> Vec<i32> {
         } else {
             let fn_name: str = extract_fn_name_from_line(line);
             if str_len(fn_name) > 0 && str_len(pending_law) > 0 {
+                if str_contains(line, "f64") == 1 {
+                    print(str_concat("error[LAW-004]: float law checking requires future tolerance semantics: ", fn_name));
+                    out.push(1); out.push("");
+                    return out;
+                };
                 let arity: i64 = law_fn_param_count_from_line(line);
                 let check_name: str = str_concat("__nucleor_law_check_", str_from_int(law_index));
                 let gen: Vec<i32> = law_generate_check_fn(fn_name, pending_law, arity, check_name);
