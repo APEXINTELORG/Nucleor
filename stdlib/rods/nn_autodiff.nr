@@ -31,6 +31,10 @@ fn nn_autodiff_register_conv2d() -> i64 {
     return differentiable_register("nuc_nn_conv2d");
 }
 
+fn nn_autodiff_register_depthwise_conv2d() -> i64 {
+    return differentiable_register("nuc_nn_depthwise_conv2d");
+}
+
 fn nn_dense_forward_ad(layer: i64, input_ad: i64) -> i64 {
     nn_autodiff_register_dense();
 
@@ -255,6 +259,63 @@ fn nn_conv2d_ad(input_ad: i64, kernel_bits: i64, c_in: i64, c_out: i64, height: 
     return out;
 }
 
+fn nn_depthwise_conv2d_ad(input_ad: i64, kernel_bits: i64, channels: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    nn_autodiff_register_depthwise_conv2d();
+
+    let out: i64 = vec_new();
+    if channels <= 0 { return out; };
+    if height <= 0 { return out; };
+    if width <= 0 { return out; };
+    if k_height <= 0 { return out; };
+    if k_width <= 0 { return out; };
+    if stride <= 0 { return out; };
+
+    let out_h: i64 = (height + (2 * pad) - k_height) / stride + 1;
+    let out_w: i64 = (width + (2 * pad) - k_width) / stride + 1;
+    if out_h <= 0 { return out; };
+    if out_w <= 0 { return out; };
+
+    let mut c: i64 = 0;
+    while c < channels {
+        let mut oh: i64 = 0;
+        while oh < out_h {
+            let mut ow: i64 = 0;
+            while ow < out_w {
+                let mut acc: i64 = ad_const(f64_from_int(0));
+                let mut fh: i64 = 0;
+                while fh < k_height {
+                    let mut fw: i64 = 0;
+                    while fw < k_width {
+                        let ih: i64 = oh * stride - pad + fh;
+                        let iw: i64 = ow * stride - pad + fw;
+                        if ih >= 0 {
+                            if ih < height {
+                                if iw >= 0 {
+                                    if iw < width {
+                                        let in_idx: i64 = c * height * width + ih * width + iw;
+                                        let k_idx: i64 = c * k_height * k_width + fh * k_width + fw;
+                                        let x: i64 = vec_get(input_ad, in_idx);
+                                        let k: i64 = ad_const(vec_get(kernel_bits, k_idx));
+                                        acc = ad_add(acc, ad_mul(x, k));
+                                    };
+                                };
+                            };
+                        };
+                        fw = fw + 1;
+                    };
+                    fh = fh + 1;
+                };
+                vec_push(out, acc);
+                ow = ow + 1;
+            };
+            oh = oh + 1;
+        };
+        c = c + 1;
+    };
+
+    return out;
+}
+
 fn nn_autodiff_limitations() -> str {
-    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872/v0873/v0874): nn_dense_forward_ad, nn_layer_norm_ad, nn_batch_norm_ad, nn_conv1d_ad, and nn_conv2d_ad lower Dense, LayerNorm, BatchNorm/batch-norm, Conv1D, and Conv2D forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover broader convolution surfaces such as depthwise variants or attention, and does not provide compiler-side @differentiable lowering.";
+    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872/v0873/v0874/v0875): nn_dense_forward_ad, nn_layer_norm_ad, nn_batch_norm_ad, nn_conv1d_ad, nn_conv2d_ad, and nn_depthwise_conv2d_ad lower Dense, LayerNorm, BatchNorm/batch-norm, Conv1D, Conv2D, and depthwise Conv2D forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover broader convolution surfaces beyond these bridges or attention, and does not provide compiler-side @differentiable lowering.";
 }
