@@ -198,6 +198,11 @@ extern fn nuc_dmp_learn(h: i64, traj_ptr: i64, n_samples: i64, tau_b: i64) -> i6
 extern fn nuc_dmp_reset(h: i64, y0_b: i64, g_b: i64, tau_b: i64) -> i64;
 extern fn nuc_dmp_step(h: i64, dt_b: i64) -> i64;
 extern fn nuc_dmp_free(h: i64);
+extern fn nuc_dmp_multi_new(n_dof: i64, n_basis: i64, alpha_z_b: i64, alpha_s_b: i64) -> i64;
+extern fn nuc_dmp_multi_learn(h: i64, traj_ptr: i64, n_samples: i64, tau_b: i64) -> i64;
+extern fn nuc_dmp_multi_reset(h: i64, y0_ptr: i64, g_ptr: i64, tau_b: i64) -> i64;
+extern fn nuc_dmp_multi_step(h: i64, dt_b: i64, y_out_ptr: i64) -> i64;
+extern fn nuc_dmp_multi_free(h: i64);
 
 fn dmp_new(n_basis: i64, alpha_z_b: i64, alpha_s_b: i64) -> i64 {
     return nuc_dmp_new(n_basis, alpha_z_b, alpha_s_b);
@@ -210,6 +215,19 @@ fn dmp_reset(h: i64, y0_b: i64, g_b: i64, tau_b: i64) -> i64 {
 }
 fn dmp_step(h: i64, dt_b: i64) -> i64 { return nuc_dmp_step(h, dt_b); }
 fn dmp_free(h: i64) { nuc_dmp_free(h); }
+fn dmp_multi_new(n_dof: i64, n_basis: i64, alpha_z_b: i64, alpha_s_b: i64) -> i64 {
+    return nuc_dmp_multi_new(n_dof, n_basis, alpha_z_b, alpha_s_b);
+}
+fn dmp_multi_learn(h: i64, traj_ptr: i64, n_samples: i64, tau_b: i64) -> i64 {
+    return nuc_dmp_multi_learn(h, traj_ptr, n_samples, tau_b);
+}
+fn dmp_multi_reset(h: i64, y0_ptr: i64, g_ptr: i64, tau_b: i64) -> i64 {
+    return nuc_dmp_multi_reset(h, y0_ptr, g_ptr, tau_b);
+}
+fn dmp_multi_step(h: i64, dt_b: i64, y_out_ptr: i64) -> i64 {
+    return nuc_dmp_multi_step(h, dt_b, y_out_ptr);
+}
+fn dmp_multi_free(h: i64) { nuc_dmp_multi_free(h); }
 
 // === TOPP — time-optimal path parameterization (v0.2.203) ===
 //
@@ -364,6 +382,19 @@ fn dmp_reset_f64(h: i64, y0: f64, g: f64, tau: f64) -> i64 {
 fn dmp_step_f64(h: i64, dt: f64) -> f64 {
     return f64_from_bits(nuc_dmp_step(h, f64_to_bits(dt)));
 }
+fn dmp_multi_new_f64(n_dof: i64, n_basis: i64, alpha_z: f64, alpha_s: f64) -> i64 {
+    return nuc_dmp_multi_new(n_dof, n_basis, f64_to_bits(alpha_z), f64_to_bits(alpha_s));
+}
+fn dmp_multi_learn_f64(h: i64, traj_ptr: i64, n_samples: i64, tau: f64) -> i64 {
+    return nuc_dmp_multi_learn(h, traj_ptr, n_samples, f64_to_bits(tau));
+}
+fn dmp_multi_reset_f64(h: i64, y0_ptr: i64, g_ptr: i64, tau: f64) -> i64 {
+    return nuc_dmp_multi_reset(h, y0_ptr, g_ptr, f64_to_bits(tau));
+}
+fn dmp_multi_step_f64(h: i64, dt: f64, y_out_ptr: i64) -> i64 {
+    return nuc_dmp_multi_step(h, f64_to_bits(dt), y_out_ptr);
+}
+fn dmp_multi_free_f64(h: i64) { nuc_dmp_multi_free(h); }
 
 // --- TOPP (time-optimal path parameterization) ---
 fn topp_set_vmax_f64(h: i64, j: i64, vmax: f64) {

@@ -457,11 +457,15 @@ long long nuc_dmp_new(long long n_basis_l, long long alpha_z_b, long long alpha_
         d->centers[i] = exp(-d->alpha_s * t_frac);
     }
     // Widths: 1 / (Δc)² with overlap factor.
-    for (int i = 0; i < n - 1; i++) {
-        double dc = d->centers[i + 1] - d->centers[i];
-        d->widths[i] = 1.0 / (dc * dc);
+    if (n == 1) {
+        d->widths[0] = 1.0;
+    } else {
+        for (int i = 0; i < n - 1; i++) {
+            double dc = d->centers[i + 1] - d->centers[i];
+            d->widths[i] = 1.0 / (dc * dc);
+        }
+        d->widths[n - 1] = d->widths[n - 2];
     }
-    d->widths[n - 1] = d->widths[n - 2];
     return (long long)(size_t)d;
 }
 
@@ -580,6 +584,108 @@ void nuc_dmp_free(long long h) {
     if (d->widths) free(d->widths);
     if (d->weights) free(d->weights);
     free(d);
+}
+
+// === Multi-DOF DMP batch wrapper ========================================
+//
+// Owns one scalar DMP per joint and presents sample-major multi-DOF
+// train/reset/step calls. This keeps the scalar DMP implementation
+// canonical while removing repetitive per-joint ceremony from robotics
+// callers.
+
+typedef struct {
+    int n_dof;
+    NDMP **joint;
+} NDMPMulti;
+
+long long nuc_dmp_multi_new(long long n_dof_l, long long n_basis_l,
+                            long long alpha_z_b, long long alpha_s_b) {
+    int n_dof = (int)n_dof_l;
+    if (n_dof <= 0) return 0;
+    NDMPMulti *m = (NDMPMulti *)calloc(1, sizeof(NDMPMulti));
+    if (!m) return 0;
+    m->n_dof = n_dof;
+    m->joint = (NDMP **)calloc(n_dof, sizeof(NDMP *));
+    if (!m->joint) {
+        free(m);
+        return 0;
+    }
+    for (int j = 0; j < n_dof; j++) {
+        long long h = nuc_dmp_new(n_basis_l, alpha_z_b, alpha_s_b);
+        if (!h) {
+            for (int k = 0; k < j; k++) {
+                nuc_dmp_free((long long)(size_t)m->joint[k]);
+            }
+            free(m->joint);
+            free(m);
+            return 0;
+        }
+        m->joint[j] = (NDMP *)(void *)(size_t)h;
+    }
+    return (long long)(size_t)m;
+}
+
+// `traj_ptr` is sample-major double[n_samples * n_dof]:
+// sample0_joint0, sample0_joint1, ..., sample1_joint0, ...
+long long nuc_dmp_multi_learn(long long h, long long traj_ptr,
+                              long long n_samples_l, long long tau_b) {
+    NDMPMulti *m = (NDMPMulti *)(void *)(size_t)h;
+    if (!m || !traj_ptr) return -1;
+    int N = (int)n_samples_l;
+    if (N < 3) return -1;
+    double *src = (double *)(void *)(size_t)traj_ptr;
+    double *one = (double *)malloc((size_t)N * sizeof(double));
+    if (!one) return -1;
+    for (int j = 0; j < m->n_dof; j++) {
+        for (int i = 0; i < N; i++) {
+            one[i] = src[i * m->n_dof + j];
+        }
+        long long rc = nuc_dmp_learn((long long)(size_t)m->joint[j],
+                                     (long long)(size_t)one,
+                                     n_samples_l, tau_b);
+        if (rc != 0) {
+            free(one);
+            return rc;
+        }
+    }
+    free(one);
+    return 0;
+}
+
+long long nuc_dmp_multi_reset(long long h, long long y0_ptr,
+                              long long g_ptr, long long tau_b) {
+    NDMPMulti *m = (NDMPMulti *)(void *)(size_t)h;
+    if (!m || !y0_ptr || !g_ptr) return -1;
+    double *y0 = (double *)(void *)(size_t)y0_ptr;
+    double *g = (double *)(void *)(size_t)g_ptr;
+    for (int j = 0; j < m->n_dof; j++) {
+        long long rc = nuc_dmp_reset((long long)(size_t)m->joint[j],
+                                     _f2i(y0[j]), _f2i(g[j]), tau_b);
+        if (rc != 0) return rc;
+    }
+    return 0;
+}
+
+long long nuc_dmp_multi_step(long long h, long long dt_b, long long y_out_ptr) {
+    NDMPMulti *m = (NDMPMulti *)(void *)(size_t)h;
+    if (!m || !y_out_ptr) return -1;
+    double *out = (double *)(void *)(size_t)y_out_ptr;
+    for (int j = 0; j < m->n_dof; j++) {
+        out[j] = _i2f(nuc_dmp_step((long long)(size_t)m->joint[j], dt_b));
+    }
+    return 0;
+}
+
+void nuc_dmp_multi_free(long long h) {
+    NDMPMulti *m = (NDMPMulti *)(void *)(size_t)h;
+    if (!m) return;
+    if (m->joint) {
+        for (int j = 0; j < m->n_dof; j++) {
+            nuc_dmp_free((long long)(size_t)m->joint[j]);
+        }
+        free(m->joint);
+    }
+    free(m);
 }
 
 // === TOPP — time-optimal path parameterization (v0.2.203) ================

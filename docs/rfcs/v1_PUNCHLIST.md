@@ -426,6 +426,13 @@ launch. After memory safety completes, these are next-priority.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+- **ROBO-2 DMP multi-DOF batch wrapper:** DONE for Phase 1 on
+  2026-05-06. `dmp_multi_new`, `dmp_multi_learn`,
+  `dmp_multi_reset`, and `dmp_multi_step` expose a whole-joint-vector
+  DMP surface backed by one scalar DMP per joint; `dmp_multi_smoke.nr`
+  proves sample-major 2-DOF train/reset/step through public f64
+  buffers. Remaining gap: true coupled-basis learning across DOFs
+  rather than independent per-joint primitives.
 - **ROBO-12 AHRS magnetometer yaw correction:** DONE for Phase 1 on
   2026-05-06. `ahrs_update_mag` adds a 9-DOF Mahony update path using
   calibrated body-frame magnetometer input against a world +X magnetic
