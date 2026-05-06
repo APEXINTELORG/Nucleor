@@ -30828,10 +30828,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     };
     // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
     // pass info. Detects adopter use of the Clifford-stabilizer
-    // rod (zero test coverage today; QM-7) and frame-typed
+    // rod (coverage still bounded; QM-7) and frame-typed
     // robotics rod (frame-type safety opt-in only, Phase B not
     // shipped; ROBO-7 Mars-Climate-Orbiter failure mode live).
-    // Phase 2b adds property tests + frame-type check passes.
+    // Phase 2b adds weight-enumerator/property tests + frame-type check passes.
     let v0859_has_clifford: i64 = if str_index_of(after_async, str_concat("clifford", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_kinematics: i64 = if str_index_of(after_async, str_concat("kinematics", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_frame: i64 = if str_index_of(after_async, str_concat("frame_", "tag")) >= 0 { 1 } else { 0 };
@@ -30842,7 +30842,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0859_total: i64 = v0859_clifford + v0859_kinematics + v0859_frame;
         if v0859_total > 0 {
             print(str_concat("info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: ", str_from_int(v0859_total)));
-            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, and a [[5,1,3]] stabilizer-distance smoke, but rotated surface-code d=3 and published weight-enumerator validation remain open. The kinematics rod still uses plain i64 handles — frame-type safety markers (RFC-0046) are opt-in only, and the Phase B compiler-side TYP-008 frame-mismatch check is NOT yet shipped — mixing camera-frame and base-frame poses is a silent runtime error today (Mars Climate Orbiter failure mode live). Phase 2b adds broader Clifford normal-form invariants + frame-type check pass; Phase 4 promotes adopter use to v1.0 hard-error. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; treat frame markers as documentation, not enforcement. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
+            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. The kinematics rod still uses plain i64 handles — frame-type safety markers (RFC-0046) are opt-in only, and the Phase B compiler-side TYP-008 frame-mismatch check is NOT yet shipped — mixing camera-frame and base-frame poses is a silent runtime error today (Mars Climate Orbiter failure mode live). Phase 2b adds broader Clifford weight-enumerator/property invariants + frame-type check pass; Phase 4 promotes adopter use to v1.0 hard-error. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; treat frame markers as documentation, not enforcement. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
         };
     };
     // v0.8.58 LAW-1/2/3 Phase 1, refreshed after R14
