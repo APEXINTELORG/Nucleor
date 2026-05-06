@@ -65,6 +65,8 @@ RFC-0046 Phase A ships zero-size marker structs and numeric IDs. **Phase B (comp
 ## ROBO-9 — CHOMP joint-space only — no Cartesian variant — **MEDIUM**
 Cartesian-space CHOMP (FK + Jacobian to optimize end-effector trajectory in task space) absent. Variant commonly used for manipulator reach-around tasks.
 
+**2026-05-06 update:** Phase 1 Cartesian CHOMP now exists for planar 2-link manipulators. `chomp_optimize_cartesian_planar_2link` optimizes a joint trajectory against a desired Cartesian end-effector path using analytical planar FK/Jacobian gradients plus the clamped-endpoint smoothness metric, and `tests/features/chomp_cartesian_planar_2link_smoke.nr` proves task-space cost drops while endpoints remain fixed. Remaining ROBO-9 work: generic high-DOF robot-model callback/wrapper support, obstacle/SDF-aware Cartesian gradients, and production manipulator reach-around fixtures.
+
 ## ROBO-10 — WBC velocity-level only, no strict-priority, no torque box — **HIGH**
 "Strict-priority hierarchy / box constraints / torque-level control land in v0.6." Velocity-level sufficient for kinematically-redundant arms but **not for torque-controlled legged robots.** Siciliano-Slotine null-space projection deferred.
 
@@ -128,7 +130,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-2: DONE for Phase 1 multi-DOF batch wrapper. Remaining: true coupled-basis learning across DOFs.
 - ROBO-3: DONE for Phase 1 planar 2-link analytical IK. Remaining: 6-DOF canonical manipulators (Puma/UR/Kuka), branch enumeration, singularity classification.
 - ROBO-8: DONE for Phase 1 covariant pre-conditioning. Remaining: high-DOF / obstacle-gradient evidence, exact SDF gradients, and tuning guidance.
-- ROBO-9: Cartesian-space CHOMP variant.
+- ROBO-9: DONE for Phase 1 planar 2-link Cartesian CHOMP. Remaining: generic high-DOF FK/Jacobian model support, obstacle/SDF-aware Cartesian gradients, and production manipulator reach-around fixtures.
 - ROBO-13: DONE for Phase 1 static OBB-OBB + fixed-orientation translational CCD. Remaining: angular CCD and convex mesh-vs-mesh sweep.
 - Annotate robotics rods with `#[no_alloc]` where possible. Document which functions are RT-safe.
 
