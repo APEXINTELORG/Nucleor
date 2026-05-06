@@ -55,8 +55,12 @@ Operates on raw source text. Only fires for `i32` in additive context. Misses i8
 ## NUM-G11 — No user-facing directed-rounding API — **MEDIUM**
 `fesetround` used internally by `interval_rt.c` and `taylor_rt.c`. **No Nucleor-level rod or builtin exposing `round_down(f64)` / `round_up(f64)` / `get_rounding_mode()` for general user code.**
 
+Update 2026-05-06 helper1 v0858: `numeric.nr` now exposes stable rounding-mode IDs, `n_get_rounding_mode`, `n_set_rounding_mode`, and `n_f64_next_up` / `n_f64_next_down`, covered by `tests/features/numeric_rounding_fma_smoke.nr`.
+
 ## NUM-G12 — No FMA on f64 path — **LOW**
 `simd_fma` and `vector_fma` exist for SIMD/vector. Scalar `f64_*` surface has no `f64_mul_add(a, b, c)` emitting LLVM `llvm.fma.f64`. Without FMA, `a*b + c` goes through two separately-rounded ops, losing single-rounding FMA result.
+
+Update 2026-05-06 helper1 v0858: `numeric.nr` now exposes scalar `n_f64_mul_add` and `n_f32_mul_add` backed by C `fma` / `fmaf`, covered by `tests/features/numeric_rounding_fma_smoke.nr`.
 
 ## NUM-G13 — `saturating_mul_i32/i16/i8` macro uses unchecked `a * b` in C — **MEDIUM**
 Macro computes `long long r = a * b` with no overflow check before clamping. For values close to LLONG_MAX, multiplication overflows `long long` (C UB). Safe for in-range inputs but caller passing out-of-range value triggers UB.
@@ -90,8 +94,8 @@ Macro computes `long long r = a * b` with no overflow check before clamping. For
 - NUM-G5: `interval_rt.c` pool exhaustion fires runtime panic instead of silently wrapping. User must increase pool or reset checkpoints.
 - NUM-G7: `rods_complex_abs` uses `hypot(a, b)`. `rods_complex_div` uses range-aware formula (Smith's algorithm). Document NaN/Inf propagation contract.
 - NUM-G8 P2: replace global flag with thread-local storage. `checked_*` returns become re-entrant.
-- NUM-G11: implement `round_down`/`round_up`/`round_to_nearest`/`get_rounding_mode` in `numeric.nr` rod. Direct wrappers around `fesetround`.
-- NUM-G12: implement `f64_mul_add` and `f32_mul_add` mapping to `llvm.fma.f64`/`f32`. Documented IEEE single-rounding semantics.
+- NUM-G11: implement `round_down`/`round_up`/`round_to_nearest`/`get_rounding_mode` in `numeric.nr` rod. Direct wrappers around `fesetround`. **Mode get/set + next-up/down shipped helper1 v0858.**
+- NUM-G12: implement `f64_mul_add` and `f32_mul_add` mapping to `llvm.fma.f64`/`f32`. Documented IEEE single-rounding semantics. **C `fma`/`fmaf` wrappers shipped helper1 v0858; compiler intrinsic lowering remains future work.**
 - NUM-G13: rewrite `saturating_mul` macro to do checked multiply (use `__builtin_mul_overflow` on GCC/Clang, equivalent on MSVC).
 
 **Phase 3 (medium-term):**
