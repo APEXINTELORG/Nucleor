@@ -1741,3 +1741,29 @@ Whether main needs drift/self-host/perf/full verify:
 
 Do not run full verify for report-only audits. Run `git diff --check` always,
 and run focused generator/parity checks only for changed generator outputs.
+
+---
+
+## Mainline Update 2026-05-06 - HERM-A/C5 Retired
+
+Mainline retired `tools/gen_numerics_matrix.py` instead of porting it. It was
+optional/offline, not on product/verify/bootstrap/release/drift paths, and stale
+versus the committed `tests/lang/numerics_matrix/` fixture tree.
+
+Do not run old instructions that call:
+
+```text
+python tools\gen_numerics_matrix.py
+```
+
+Do not create a native `tools/gen_numerics_matrix.nr` unless a future assignment
+explicitly reopens the lane with a fresh, current fixture-generation contract.
+The active operator path is now the curated committed matrix plus:
+
+```powershell
+pwsh tools/run_numerics_matrix.ps1
+```
+
+```bash
+bash tools/run_numerics_matrix.sh
+```
