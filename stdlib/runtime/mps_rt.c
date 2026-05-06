@@ -25,6 +25,8 @@ typedef struct {
     double *A_im[MPS_MAX_QUBITS]; // imaginary part
     int max_bond;
     int step;
+    long long last_swap_overhead;
+    long long total_swap_overhead;
 } MPS;
 
 typedef struct {
@@ -68,6 +70,8 @@ long long nuc_mps_init(long long nq, long long max_bond) {
     mps->max_bond = (int)max_bond;
     if (mps->max_bond > MPS_MAX_BOND) mps->max_bond = MPS_MAX_BOND;
     mps->step = 0;
+    mps->last_swap_overhead = 0;
+    mps->total_swap_overhead = 0;
 
     // Initialize to |00...0> state
     // Each tensor A[i] has bond[i]=1, bond[i+1]=1, shape [1,2,1]
@@ -397,6 +401,9 @@ void nuc_mps_gate(long long handle, long long gate_type, long long q0, long long
     MPS *mps = (MPS *)(void *)handle;
     int gt = (int)gate_type;
     double angle = _mi2f(angle_bits);
+    long long swap_overhead = 0;
+    if (!mps) return;
+    mps->last_swap_overhead = 0;
 
     if (gt == 0) { // H
         double g[8] = {0.7071067811865476, 0, 0.7071067811865476, 0,
@@ -438,11 +445,15 @@ void nuc_mps_gate(long long handle, long long gate_type, long long q0, long long
 
             // SWAP chain: move cur toward target_pos
             if (cur > target_pos) {
-                for (int i = cur; i > target_pos; i--)
+                for (int i = cur; i > target_pos; i--) {
                     nuc_mps_gate_2q(handle, i - 1, swap_re, swap_im);
+                    swap_overhead++;
+                }
             } else {
-                for (int i = cur; i < target_pos; i++)
+                for (int i = cur; i < target_pos; i++) {
                     nuc_mps_gate_2q(handle, i, swap_re, swap_im);
+                    swap_overhead++;
+                }
             }
 
             // Now qb is at target_pos (adjacent to qa). Apply CNOT.
@@ -451,13 +462,19 @@ void nuc_mps_gate(long long handle, long long gate_type, long long q0, long long
 
             // SWAP back
             if (cur > target_pos) {
-                for (int i = target_pos; i < cur; i++)
+                for (int i = target_pos; i < cur; i++) {
                     nuc_mps_gate_2q(handle, i, swap_re, swap_im);
+                    swap_overhead++;
+                }
             } else {
-                for (int i = target_pos; i > cur; i--)
+                for (int i = target_pos; i > cur; i--) {
                     nuc_mps_gate_2q(handle, i - 1, swap_re, swap_im);
+                    swap_overhead++;
+                }
             }
         }
+        mps->last_swap_overhead = swap_overhead;
+        mps->total_swap_overhead += swap_overhead;
     } else if (gt == 6) { // XX+YY rotation: e^{-i*angle*(XX+YY)/2}
         // 4x4 matrix in computational basis {|00>, |01>, |10>, |11>}:
         // |00> → |00>,  |11> → |11>  (unchanged)
@@ -482,6 +499,25 @@ void nuc_mps_gate(long long handle, long long gate_type, long long q0, long long
             nuc_mps_gate_2q(handle, qa, zz_re, zz_im);
     }
     mps->step++;
+}
+
+long long nuc_mps_last_swap_overhead(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->last_swap_overhead;
+}
+
+long long nuc_mps_total_swap_overhead(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->total_swap_overhead;
+}
+
+long long nuc_mps_cnot_swap_overhead(long long nq, long long q0, long long q1) {
+    if (nq <= 0 || q0 < 0 || q1 < 0 || q0 >= nq || q1 >= nq || q0 == q1) return -1;
+    long long d = q0 > q1 ? q0 - q1 : q1 - q0;
+    if (d <= 1) return 0;
+    return 2 * (d - 1);
 }
 
 // Extract features: max bond dimension, mean entropy

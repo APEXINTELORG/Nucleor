@@ -12,6 +12,9 @@ extern fn nuc_mps_prob0(h: i64, q: i64) -> i64;
 extern fn nuc_mps_prob_basis(h: i64, basis_bits: i64) -> i64;
 extern fn nuc_mps_statevector_max_qubits() -> i64;
 extern fn nuc_mps_statevector(h: i64) -> i64;
+extern fn nuc_mps_last_swap_overhead(h: i64) -> i64;
+extern fn nuc_mps_total_swap_overhead(h: i64) -> i64;
+extern fn nuc_mps_cnot_swap_overhead(nq: i64, q0: i64, q1: i64) -> i64;
 
 fn mps_init(nq: i64, max_bond: i64) -> i64 { return nuc_mps_init(nq, max_bond); }
 fn mps_gate(h: i64, gate_type: i64, q0: i64, q1: i64, angle: i64) { nuc_mps_gate(h, gate_type, q0, q1, angle); }
@@ -23,6 +26,9 @@ fn mps_prob0(h: i64, q: i64) -> i64 { return nuc_mps_prob0(h, q); }
 fn mps_prob_basis(h: i64, basis_bits: i64) -> i64 { return nuc_mps_prob_basis(h, basis_bits); }
 fn mps_statevector_max_qubits() -> i64 { return nuc_mps_statevector_max_qubits(); }
 fn mps_statevector(h: i64) -> i64 { return nuc_mps_statevector(h); }
+fn mps_last_swap_overhead(h: i64) -> i64 { return nuc_mps_last_swap_overhead(h); }
+fn mps_total_swap_overhead(h: i64) -> i64 { return nuc_mps_total_swap_overhead(h); }
+fn mps_cnot_swap_overhead(nq: i64, q0: i64, q1: i64) -> i64 { return nuc_mps_cnot_swap_overhead(nq, q0, q1); }
 
 // === R11-D2 Phase 1 (v0.8.305) — named gate wrappers ===
 //
@@ -73,5 +79,5 @@ fn mps_gate_kind(h: i64, kind: i64, q0: i64, q1: i64, angle_bits: i64) -> i64 {
 fn mps_cnot(h: i64, ctrl: i64, tgt: i64) { nuc_mps_gate(h, qgate_cnot(), ctrl, tgt, 0); }
 
 fn mps_limitations() -> str {
-    return "MPS rod limitations (QM-2/QM-3/QM-6/QM-12, audit R11-D2/D3 v0.8.305/v0834): (1) GATE COVERAGE: only H, X, Z, RZ, RX, CNOT shipped. H/CNOT/X/Z now consume shared quantum_gates constants. Cross-rod callers can use qgate_kind_* plus mps_gate_from_kind/mps_gate_kind_supported/mps_gate_kind so RZ/RX route through the MPS native mapping instead of raw magic integers. Y, S, T, RY, CZ, SWAP, Toffoli, controlled-rotation are NOT in mps_rt.c's dispatch — adopter must fall back to qsim or compose from existing primitives. Query mps_gate_type_supported(code) for raw-native code truth and mps_gate_kind_supported(kind) for logical-kind truth. (2) PROBABILITY/STATE READOUT: mps_prob0(h, q) exposes single-qubit P(q=0), mps_prob_basis(h, basis_bits) exposes computational-basis joint-probability by contracting selected MPS tensor slices, and mps_statevector(h) materializes a qsim-compatible Vec<complex> only up to mps_statevector_max_qubits() to avoid 2^n memory blowups. (3) RAW NATIVE ESCAPE HATCH remains for compatibility — gate_type is still accepted as i64. (4) NO BOND-DIMENSION DIAGNOSTIC: mps_max_bond returns the cap but adopters can't query the CURRENT bond dim mid-circuit; truncation error is silent (Phase 2 ships mps_current_bond + mps_truncation_error). (5) NON-ADJACENT CNOT uses SWAP decomposition (visible in mps_rt.c:386-419) which inflates bond dim — caveat for noise-sensitive applications. Phase 2 wires missing gates + bond-dim diagnostics per audit ship plan.";
+    return "MPS rod limitations (QM-2/QM-3/QM-4/QM-6/QM-12, audit R11-D2/D3 v0.8.305/v0834): (1) GATE COVERAGE: only H, X, Z, RZ, RX, CNOT shipped. H/CNOT/X/Z now consume shared quantum_gates constants. Cross-rod callers can use qgate_kind_* plus mps_gate_from_kind/mps_gate_kind_supported/mps_gate_kind so RZ/RX route through the MPS native mapping instead of raw magic integers. Y, S, T, RY, CZ, SWAP, Toffoli, controlled-rotation are NOT in mps_rt.c's dispatch - adopter must fall back to qsim or compose from existing primitives. Query mps_gate_type_supported(code) for raw-native code truth and mps_gate_kind_supported(kind) for logical-kind truth. (2) PROBABILITY/STATE READOUT: mps_prob0(h, q) exposes single-qubit P(q=0), mps_prob_basis(h, basis_bits) exposes computational-basis joint-probability by contracting selected MPS tensor slices, and mps_statevector(h) materializes a qsim-compatible Vec<complex> only up to mps_statevector_max_qubits() to avoid 2^n memory blowups. (3) RAW NATIVE ESCAPE HATCH remains for compatibility - gate_type is still accepted as i64. (4) NO BOND-DIMENSION DIAGNOSTIC: mps_max_bond returns the cap but adopters can't query the CURRENT bond dim mid-circuit; truncation error is silent (Phase 2 ships mps_current_bond + mps_truncation_error). (5) NON-ADJACENT CNOT uses SWAP decomposition; adopters can preflight with mps_cnot_swap_overhead(nq, ctrl, tgt) and read observed mps_last_swap_overhead(h) / mps_total_swap_overhead(h). Bond inflation remains a caveat for noise-sensitive applications. Phase 2 wires missing gates + bond-dim diagnostics per audit ship plan.";
 }
