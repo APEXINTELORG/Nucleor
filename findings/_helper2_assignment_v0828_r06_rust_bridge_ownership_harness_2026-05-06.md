@@ -1818,11 +1818,14 @@ git status --short --branch
 bash tools/bootstrap_linux.sh
 test -x ./bin/nucleor
 ./bin/nucleor --version
+command -v pwsh
+command -v ssh-keygen
 
 tmp="$(mktemp -d)"
 registry="$tmp/nucleor-registry"
 keydir="$tmp/nucleor-keys"
 mkdir -p "$registry" "$keydir"
+export NUCLEOR_POLICY_ROOT="$keydir"
 
 ./bin/nucleor publish tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml \
   --registry "$registry" \
@@ -1832,12 +1835,11 @@ mkdir -p "$registry" "$keydir"
 
 test ! -e "$registry/foo/0.1.0/Nucleor.publish.signature.json"
 
-./bin/nucleor release keygen --out "$keydir/throwaway-ci" --key-id throwaway-ci
+pwsh -NoProfile -File tools/native_release.ps1 -Root . keygen throwaway-ci --json
 
 ./bin/nucleor publish tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml \
   --registry "$registry" \
   --sign \
-  --key "$keydir/throwaway-ci.private" \
   --key-id throwaway-ci
 
 test -f "$registry/foo/0.1.0/Nucleor.toml"
@@ -1847,7 +1849,7 @@ test -f "$registry/foo/0.1.0/Nucleor.publish.signature.json"
 
 pwsh -NoProfile -File tools/native_release.ps1 -Root . package-sign-preflight \
   "$registry/foo/0.1.0" \
-  --key-id throwaway-ci \
+  throwaway-ci \
   --json
 
 pwsh -NoProfile -File tools/native_release.ps1 -Root . package-verify \
@@ -1855,10 +1857,15 @@ pwsh -NoProfile -File tools/native_release.ps1 -Root . package-verify \
   --json
 ```
 
-If `release keygen`, signed publish, or package verification is not implemented
-or fails on native Linux, do not paper over it. Capture the exact command,
-stdout/stderr, exit code, and minimal source path likely responsible. Stop with
-a blocker report instead of making speculative compiler edits.
+Do not use `./bin/nucleor release keygen`, `nuc publish --key <path>`, or
+`package-sign-preflight --key-id <id>` for this proof. Current tools-suite
+dispatch exposes `publish`, while `tools/native_release.ps1` exposes
+`keygen <key-id>` and `package-sign-preflight <dir> [key-id]`.
+
+If `native_release.ps1 keygen`, signed publish, or package verification is not
+implemented or fails on native Linux, do not paper over it. Capture the exact
+command, stdout/stderr, exit code, and minimal source path likely responsible.
+Stop with a blocker report instead of making speculative compiler edits.
 
 Allowed changes for Scope AU:
 
