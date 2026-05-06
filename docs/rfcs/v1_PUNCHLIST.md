@@ -67,6 +67,12 @@ launch. After memory safety completes, these are next-priority.
   when it calls a same-file user helper whose body directly performs
   print/alloc/ambient side effects; active fixture
   `err_pure_transitive_user_effect.nr` locks this.
+- **E-10/E-11 pure effect-surface expansion:** DONE for another
+  Phase 2b partial on 2026-05-06 — `pure fn` now emits `EFF-001`
+  for undeclared extern calls, structured scheduling blocks
+  (`scope { ... }` / `spawn { ... }`), and `channel(...)`; active
+  fixtures `err_pure_extern_default_effect.nr` and
+  `err_pure_scope_schedule.nr` lock the first two surfaces.
 - **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
   Phase 1 — `nuc build` emits `EFF-002`; active fixture
   `err_pure_requires.nr` locks this.
@@ -85,7 +91,8 @@ launch. After memory safety completes, these are next-priority.
 - **Still open:** full standalone `requires [...]` row enforcement
   beyond direct same-file calls, real block-form `restricts [...]`
   enforcement, transitive `requires [...]` row propagation, cross-module
-  propagation, and broader RFC-0033 effect-row subtyping.
+  propagation, method/closure/higher-order effects, and broader RFC-0033
+  effect-row subtyping.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
@@ -368,6 +375,11 @@ proper analysis → Phase 4 hard error):
   case. Full `requires [...]` transitive row propagation, real
   restricts-block enforcement, cross-module propagation, and
   RFC-0033 row subtyping remain open.
+- **2026-05-06**: Effect/capability Phase 2b partial advanced again.
+  `pure fn` now rejects undeclared extern calls and structured scheduling
+  in the build path with `EFF-001`; fixtures
+  `err_pure_extern_default_effect.nr` and `err_pure_scope_schedule.nr`
+  moved out of `_unimplemented/`.
 - **2026-05-06**: TOOLCHAIN-PY-1 closed. `nuc verify-reproducible`
   no longer requires Python for its Windows byte-compare path; it
   now uses `fc /B` for linked binary comparison and retains `cmp -s`

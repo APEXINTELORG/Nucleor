@@ -16773,6 +16773,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
     let mut p: i64 = 0;
     let has_pure_source: i64 = source_has_real_pure_fn_decl(source);
     let transitive_effectful: Vec<i32> = if has_pure_source == 1 { collect_transitive_effectful_fns(source) } else { Vec::new() };
+    let unsafe_externs: Vec<i32> = if has_pure_source == 1 { collect_extern_fn_names(source) } else { Vec::new() };
     // Tracks attribute lines accumulated since the last non-attr
     // non-comment non-blank line. Cleared on encountering a fn decl
     // (consumed by the fn) or a non-attr code line (cleared).
@@ -16863,22 +16864,29 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                         let lc_eff2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-002", msg_eff2, fn_name, vec_get(lc_eff2, 0), vec_get(lc_eff2, 1), "");
                     };
+                    let pure_body: str = strip_strings_and_line_comments(body);
                     let mut pcode: i64 = 0;
                     if has_print == 1 { pcode = 1; };
                     if pcode == 0 && has_alloc == 1 { pcode = 2; };
                     if pcode == 0 && has_ambient == 1 { pcode = 3; };
+                    if pcode == 0 && str_index_of(pure_body, "scope {") >= 0 { pcode = 4; };
+                    if pcode == 0 && str_index_of(pure_body, "spawn {") >= 0 { pcode = 4; };
+                    if pcode == 0 && str_index_of(pure_body, "channel(") >= 0 { pcode = 5; };
                     if pcode > 0 {
                         let kind2: str = if pcode == 1 { "calls print() / println() — I/O is not pure" }
                             else if pcode == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
-                            else { "uses ambient capability (ambient_*) — non-deterministic input is not pure" };
+                            else if pcode == 3 { "uses ambient capability (ambient_*) — non-deterministic input is not pure" }
+                            else if pcode == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
+                            else { "uses channel construction — sync.channel effects are not pure" };
                         let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
                         let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
                     } else {
-                        let pure_body: str = strip_strings_and_line_comments(body);
-                        let pure_callee: str = first_effectful_user_call(pure_body, transitive_effectful, fn_name);
+                        let pure_extern: str = first_effectful_user_call(pure_body, unsafe_externs, fn_name);
+                        let pure_callee: str = if str_len(pure_extern) > 0 { pure_extern } else { first_effectful_user_call(pure_body, transitive_effectful, fn_name) };
                         if str_len(pure_callee) > 0 {
-                            let msg_trans2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(pure_callee, "()` which has transitive side effects; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0829)"))));
+                            let callee_kind: str = if str_len(pure_extern) > 0 { "which is an extern/default-unsafe effect surface" } else { "which has transitive side effects" };
+                            let msg_trans2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(pure_callee, str_concat("()` ", str_concat(callee_kind, "; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0830)"))))));
                             let lc_trans2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                             diag_add_ex(diags, "error", "effect", "EFF-001", msg_trans2, fn_name, vec_get(lc_trans2, 0), vec_get(lc_trans2, 1), "");
                         };
@@ -17219,6 +17227,9 @@ fn pure_fn_body_effect_code(source: str, fn_name: str) -> i64 {
     if str_index_of(body, "Vec::new") >= 0 { return 2; };
     if str_index_of(body, "Box::new") >= 0 { return 2; };
     if str_index_of(body, "ambient_random") >= 0 { return 3; };
+    if str_index_of(body, "scope {") >= 0 { return 4; };
+    if str_index_of(body, "spawn {") >= 0 { return 4; };
+    if str_index_of(body, "channel(") >= 0 { return 5; };
     return 0;
 }
 
@@ -17351,7 +17362,9 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                 if code > 0 {
                     let kind: str = if code == 1 { "calls print() / println() — I/O is not pure" }
                         else if code == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
-                        else { "uses ambient capability (ambient_*) — non-deterministic input is not pure" };
+                        else if code == 3 { "uses ambient capability (ambient_*) — non-deterministic input is not pure" }
+                        else if code == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
+                        else { "uses channel construction — sync.channel effects are not pure" };
                     let msg: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
@@ -31061,7 +31074,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive requires-row propagation, cross-module propagation, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects now fail with EFF-001, pure calls to undeclared extern/default-unsafe surfaces and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts

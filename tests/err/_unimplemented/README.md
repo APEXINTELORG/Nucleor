@@ -1,13 +1,13 @@
 # Unimplemented-feature negative tests
 
-These 17 negative tests come from the V1 archive
+These 15 negative tests come from the V1 archive
 (`Archive/Nucleor_Copy/examples/`) and exercise compiler errors for language
 features that **were planned but never landed in the self-hosted OSS
 compiler**:
 
 | Feature | Tests |
 |---|---|
-| `pure fn` keyword (`compute` cannot call `read_data`) | `err_pure_*` (4 remaining; `err_pure_requires.nr` promoted in v0.8.320; same-file transitive helper side effect locked by `tests/err/err_pure_transitive_user_effect.nr` in v0829) |
+| `pure fn` keyword (`compute` cannot call `read_data`) | `err_pure_*` (2 remaining; `err_pure_requires.nr` promoted in v0.8.320; same-file transitive helper side effect locked by `tests/err/err_pure_transitive_user_effect.nr` in v0829; extern-default and structured-scheduling effects promoted in v0830) |
 | `requires [effect]` clauses on functions | `err_effect_*` (4), `err_restricts_*` (2 remaining; `err_restricts_builtin_io.nr` promoted in v0.8.321) |
 | `unit<T, dim>` dimensional units (`m + s` rejected) | `err_unit_*` (3) |
 | `Box<T>` heap allocation | `err_box_use_after_move` |
