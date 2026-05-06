@@ -10619,7 +10619,7 @@ fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message:
     let mut sug_app: str = "Unspecified";
     if str_eq(code, "OWN-001") { sug_msg = "Consider cloning the value before passing it, or restructure to avoid the second use"; sug_app = "MaybeIncorrect"; };
     if str_eq(code, "TNT-001") { sug_msg = "Sanitize the tainted data before passing to the sensitive function: sanitize(value)"; sug_app = "HasPlaceholders"; };
-    if str_eq(code, "EFF-001") { sug_msg = "Remove the 'pure' annotation, or remove the side-effecting call"; sug_app = "MaybeIncorrect"; };
+    if str_eq(code, "EFF-001") { sug_msg = "Declare the required effect in the caller row, or remove the side-effecting call"; sug_app = "MaybeIncorrect"; };
     d.push(sug_msg); // index 8
     d.push(sug_app); // index 9
     // Child note (for ownership: "moved here")
@@ -11435,6 +11435,203 @@ fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
         p = p + 1;
     };
     return 0;
+}
+
+#[manual_drop]
+fn source_has_requires_row_code(source: str) -> i64 {
+    let slen: i64 = str_len(source);
+    let rkw: str = "requires";
+    let rlen: i64 = str_len(rkw);
+    let mut p: i64 = 0;
+    while p + rlen <= slen {
+        let c: i64 = str_char_at(source, p);
+        if c == 47 && p + 1 < slen && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if c == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if c == 39 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 39 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_eq_at_len(source, p, rkw, rlen) == 1 {
+            let before_ok: i64 = if p == 0 { 1 } else {
+                let b: i64 = str_char_at(source, p - 1);
+                if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
+            };
+            let mut q: i64 = p + rlen;
+            while q < slen && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+            if before_ok == 1 && q < slen && str_char_at(source, q) == 91 { return 1; };
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn effect_row_from_header(header: str) -> str {
+    if str_contains(header, "requires") == 0 { return ""; };
+    let compact: str = strip_spaces(header);
+    let key: str = str_concat("requires", "[");
+    let klen: i64 = str_len(key);
+    let clen: i64 = str_len(compact);
+    let mut p: i64 = 0;
+    while p + klen <= clen {
+        if str_eq_at_len(compact, p, key, klen) == 1 {
+            let start: i64 = p + klen;
+            let mut end: i64 = start;
+            while end < clen && str_char_at(compact, end) != 93 { end = end + 1; };
+            if end < clen { return str_substring(compact, start, end); };
+            return "";
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn effect_row_allows_effect(row: str, eff: str) -> i64 {
+    let rlen: i64 = str_len(row);
+    let elen: i64 = str_len(eff);
+    if elen == 0 { return 1; };
+    if rlen == 0 { return 0; };
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    while p <= rlen {
+        let at_end: i64 = if p == rlen { 1 } else { 0 };
+        let at_comma: i64 = if at_end == 0 && str_char_at(row, p) == 44 { 1 } else { 0 };
+        if at_end == 1 || at_comma == 1 {
+            let tok: str = str_substring(row, start, p);
+            let tlen: i64 = str_len(tok);
+            if tlen > 0 {
+                if str_eq(tok, eff) == 1 { return 1; };
+                if elen > tlen && str_starts_with(eff, str_concat(tok, ".")) == 1 { return 1; };
+            };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn effect_row_first_missing(caller_row: str, callee_row: str) -> str {
+    let clen: i64 = str_len(callee_row);
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    while p <= clen {
+        let at_end: i64 = if p == clen { 1 } else { 0 };
+        let at_comma: i64 = if at_end == 0 && str_char_at(callee_row, p) == 44 { 1 } else { 0 };
+        if at_end == 1 || at_comma == 1 {
+            let eff: str = str_substring(callee_row, start, p);
+            if str_len(eff) > 0 && effect_row_allows_effect(caller_row, eff) == 0 { return eff; };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn collect_requires_effect_rows(source: str) -> Vec<i32> {
+    let mut rows: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            let compact_line: str = strip_spaces(line);
+            let is_pure_decl: i64 = if str_starts_with(compact_line, "purefn") == 1 { 1 } else { if str_starts_with(compact_line, "pubpurefn") == 1 { 1 } else { 0 } };
+            let mut h: i64 = p;
+            while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+            let header: str = str_substring(source, p, h);
+            let effects: str = effect_row_from_header(header);
+            if str_len(effects) > 0 && is_pure_decl == 0 {
+                rows.push(fn_name);
+                rows.push(effects);
+            };
+            if h > eol { p = h; }
+            else { p = eol + 1; };
+        } else {
+            p = eol + 1;
+        };
+    };
+    return rows;
+}
+
+#[manual_drop]
+fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
+    if source_has_requires_row_code(source) == 0 { return diags; };
+    let rows: Vec<i32> = collect_requires_effect_rows(source);
+    if vec_len(rows) == 0 { return diags; };
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            let mut h: i64 = p;
+            while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+            let header: str = str_substring(source, p, h);
+            let caller_row: str = effect_row_from_header(header);
+            if h < slen && str_char_at(source, h) == 123 {
+                let body_start: i64 = h + 1;
+                let mut q: i64 = h + 1;
+                let mut depth: i64 = 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body_raw: str = str_substring(source, body_start, q - 1);
+                let body: str = strip_strings_and_line_comments(body_raw);
+                let mut ri: i64 = 0;
+                while ri + 1 < vec_len(rows) {
+                    let callee: str = vec_get(rows, ri);
+                    if str_eq(callee, fn_name) == 0 {
+                        let pat: str = str_concat(callee, "(");
+                        if str_contains(body, pat) == 1 {
+                            let missing: str = effect_row_first_missing(caller_row, vec_get(rows, ri + 1));
+                            if str_len(missing) > 0 {
+                                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(missing, str_concat("` but `", str_concat(fn_name, "` does not declare that effect in `requires [...]` (audit R05-D3 v0.8.323)"))))));
+                                let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                                diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                            };
+                        };
+                    };
+                    ri = ri + 2;
+                };
+                p = q;
+            } else {
+                p = eol + 1;
+            };
+        } else {
+            p = eol + 1;
+        };
+    };
+    return diags;
 }
 
 #[manual_drop]
@@ -30636,7 +30833,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness: standalone `requires [...]`, real restricts-block enforcement, transitive user-call inference, and cross-module propagation. Treat those rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive user-call inference, and cross-module propagation. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
@@ -31266,6 +31463,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Measured cost (v0.8.314 --time-passes probe): 0 ms on the
     // self-host source. Not a perf concern.
     diags = enforce_body_diagnostics_unified(diags, max_depth_source);
+    // R05-D3 Phase 1: direct same-file calls to a fn declared with
+    // `requires [...]` must be reflected in the caller row. This is
+    // intentionally one-hop only; transitive propagation and
+    // cross-module rows stay queued for Phase 2b.
+    diags = enforce_requires_direct_calls(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.

@@ -65,6 +65,10 @@ launch. After memory safety completes, these are next-priority.
 - **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
   Phase 1 — `nuc build` emits `EFF-002`; active fixture
   `err_pure_requires.nr` locks this.
+- **Standalone `requires [...]` direct calls:** DONE for Phase 1 —
+  `nuc build` emits `EFF-001` when a same-file caller invokes a fn
+  with a `requires [...]` row but does not declare the required
+  effect; active fixture `err_effect_requires_direct.nr` locks this.
 - **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
@@ -73,9 +77,10 @@ launch. After memory safety completes, these are next-priority.
   saying the block form is not yet enforced by s1 and must not be
   relied on as a compile-time guarantee; active fixture
   `err_restricts_builtin_io.nr` locks this.
-- **Still open:** standalone `requires [...]` row enforcement,
-  real block-form `restricts [...]` enforcement, transitive user-call
-  effect inference, and cross-module propagation.
+- **Still open:** full standalone `requires [...]` row enforcement
+  beyond direct same-file calls, real block-form `restricts [...]`
+  enforcement, transitive user-call effect inference, and
+  cross-module propagation.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
