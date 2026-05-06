@@ -79,6 +79,10 @@ Entanglement (union-find over qubits, max 1024):
 
 Gate-influence DAG (max 4096 gates):
 - `qsim_gate_record(name, q1, q2)` — q2 = -1 for 1-qubit
+- `qsim_gate_record_preflight(q1, q2)` — status
+  `0=ok`, `1=out_of_range`, `2=dag_full`
+- `qsim_gate_record_checked(name, q1, q2)` — returns real gate id
+  on success, or negative status (`-1`, `-2`, `-3`) on failure
 - `qsim_gate_dag_size / _depends_on (transitive BFS) / _parent_count /
   _parent_at / _clear`
 
@@ -167,21 +171,31 @@ in section 4 references.
 ## 4. Trace stream + entanglement events
 
 `stdlib/rods/quantum.nr` emits trace events through
-`rods_trace_entangle(gate, q1, q2)` on every CNOT / CZ / CRK / CCX. The
-trace stream is consumed by:
+`rods_trace_entangle(gate, q1, q2)` on every CNOT / CZ / CRK / CCX.
+The same high-level qsim wrappers now also update the queryable
+`qsim_graph` process-local graph:
 
-1. The future RFC-0061 Tier 3 wiring (full ship — connects the trace
-   hook directly to the `qsim_graph` rod's union-find tracker).
-2. The v0.8.3 Phase A surface — adopters can call
-   `qsim_entangle_register` directly without going through the trace
-   path.
-3. External `nuc audit` / governance pipelines (RFC-0060) that record
-   per-step entanglement deltas as audit artifacts.
+1. CNOT / CZ / CRK call `qsim_entangle_register(ctrl, tgt)` and then
+   `qsim_gate_record_checked(name, ctrl, tgt)`.
+2. CCX calls `qsim_entangle_register(c1, tgt)` and
+   `qsim_entangle_register(c2, tgt)`, then records those two
+   control-target DAG relationships. This is an edge representation,
+   not a single three-qubit DAG node, because the public checked-record
+   API is two-qubit.
+3. SWAP inherits both entanglement and DAG records through its existing
+   three-CNOT decomposition.
+4. External `nuc audit` / governance pipelines (RFC-0060) can still use
+   the trace stream as audit provenance.
 
-The gate-influence DAG (`qsim_gate_record`) is the same pattern but
-records explicit (gate, q1, q2) tuples; parent linking via the
-last-gate-on-qubit table gives transitive `depends_on` queries in
-O(N_gates) BFS time.
+The raw gate-influence DAG (`qsim_gate_record`) records explicit
+(gate, q1, q2) tuples; parent linking via the last-gate-on-qubit table
+gives transitive `depends_on` queries in O(N_gates) BFS time. Prefer
+`qsim_gate_record_checked` for adopter code so out-of-range and
+DAG-full failures are visible at the Nucleor layer.
+
+Current limits: `qsim_graph` state is process-local and is not
+thread-safe across pthread/async boundaries. Call `qsim_graph_clear()`
+between independent circuits.
 
 ---
 
@@ -196,7 +210,9 @@ O(N_gates) BFS time.
   `tests/fixtures/v0780_rfc0061_negative_cycle_smoke.nr`,
   `tests/fixtures/v0781_rfc0061_adjacency_matrix_smoke.nr`,
   `tests/fixtures/v0794_rfc0061_graph_render_smoke.nr`,
-  `tests/fixtures/v0803_rfc0061_tier3_qsim_graph_smoke.nr`.
+  `tests/fixtures/v0803_rfc0061_tier3_qsim_graph_smoke.nr`,
+  `tests/features/qsim_graph_auto_entangle_smoke.nr`,
+  `tests/features/qsim_graph_auto_record_smoke.nr`.
 
 ---
 

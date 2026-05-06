@@ -293,6 +293,7 @@ fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
     let zero: i64 = cx_zero();
     let one: i64 = cx_one();
     qsim_cgate1(sv, ctrl, tgt, zero, one, one, zero);
+    qsim_gate_record_checked("CNOT", ctrl, tgt);
 }
 
 // CZ: controlled-Z
@@ -303,6 +304,7 @@ fn qsim_cz(sv: i64, ctrl: i64, tgt: i64) {
     let mone: i64 = cx_neg(one);
     let zero: i64 = cx_zero();
     qsim_cgate1(sv, ctrl, tgt, one, zero, zero, mone);
+    qsim_gate_record_checked("CZ", ctrl, tgt);
 }
 
 // Controlled-Rk (controlled rotation by 2*pi/2^k) — used in QFT
@@ -315,6 +317,7 @@ fn qsim_crk(sv: i64, ctrl: i64, tgt: i64, k: i64) {
     qsim_entangle_register(ctrl, tgt);
     let phase: i64 = cx_new(f64_cos(theta), f64_sin(theta));
     qsim_cgate1(sv, ctrl, tgt, one, zero, zero, phase);
+    qsim_gate_record_checked("CRK", ctrl, tgt);
 }
 
 // SWAP: swap two qubits
@@ -336,6 +339,8 @@ fn qsim_ccx(sv: i64, c1: i64, c2: i64, tgt: i64) {
     let zero: i64 = cx_zero();
     let one: i64 = cx_one();
     qsim_ccgate1(sv, c1, c2, tgt, zero, one, one, zero);
+    qsim_gate_record_checked("CCX", c1, tgt);
+    qsim_gate_record_checked("CCX", c2, tgt);
 }
 
 // =====================================================
