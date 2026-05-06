@@ -61,6 +61,11 @@ launch. After memory safety completes, these are next-priority.
   pthread condition variables. `thread_barrier_smoke.nr` runs four OS
   threads through two rendezvous rounds and verifies no worker passes
   the first barrier before all peers arrive.
+- **C-11 mutex destroy:** DONE for Phase 1 on 2026-05-06 —
+  `conc_mutex_destroy` / `conc_mutex_free` release the native
+  `CRITICAL_SECTION` or `pthread_mutex_t` allocated by `conc_mutex()`.
+  `concurrency_mutex_destroy_smoke.nr` locks single and repeated
+  lock/unlock/free cycles.
 - **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
 ### E-1, E-2, E-3 — Effect / Capability trust gap

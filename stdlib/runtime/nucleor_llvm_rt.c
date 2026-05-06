@@ -3718,6 +3718,12 @@ void __nucleor_mutex_unlock(long long handle) {
     if (!handle) return;
     LeaveCriticalSection((CRITICAL_SECTION*)(void*)handle);
 }
+void __nucleor_mutex_free(long long handle) {
+    if (!handle) return;
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION*)(void*)handle;
+    DeleteCriticalSection(cs);
+    free(cs);
+}
 // _value-suffixed forwarders — compiler emits these as of V2 (lines 1757-1759
 // of nucleor_s1_compiler.nr). The value-passing variants forward to the
 // underlying CRITICAL_SECTION-based implementation. Extra i64 args on _new
@@ -3774,6 +3780,9 @@ long long __nucleor_mutex_lock_value(long long handle) {
 }
 void __nucleor_mutex_unlock_value(long long handle) {
     __nucleor_mutex_unlock(handle);
+}
+void __nucleor_mutex_free_value(long long handle) {
+    __nucleor_mutex_free(handle);
 }
 // Channel: thread-safe bounded queue
 typedef struct {
@@ -3963,9 +3972,16 @@ long long __nucleor_mutex_new(void) {
 }
 void __nucleor_mutex_lock(long long handle) { pthread_mutex_lock((pthread_mutex_t*)(void*)handle); }
 void __nucleor_mutex_unlock(long long handle) { pthread_mutex_unlock((pthread_mutex_t*)(void*)handle); }
+void __nucleor_mutex_free(long long handle) {
+    if (!handle) return;
+    pthread_mutex_t *m = (pthread_mutex_t*)(void*)handle;
+    pthread_mutex_destroy(m);
+    free(m);
+}
 long long __nucleor_mutex_new_value(long long a, long long b) { (void)a; (void)b; return __nucleor_mutex_new(); }
 long long __nucleor_mutex_lock_value(long long handle) { __nucleor_mutex_lock(handle); return 0; }
 void __nucleor_mutex_unlock_value(long long handle) { __nucleor_mutex_unlock(handle); }
+void __nucleor_mutex_free_value(long long handle) { __nucleor_mutex_free(handle); }
 extern void nuc_rng_seed(long long seed);
 long long __nucleor_rng_seed(long long seed, long long reserved) { (void)reserved; nuc_rng_seed(seed); return 0; }
 // v0.8.85 RFC C-2 Phase 1 — real POSIX bounded-FIFO channel.

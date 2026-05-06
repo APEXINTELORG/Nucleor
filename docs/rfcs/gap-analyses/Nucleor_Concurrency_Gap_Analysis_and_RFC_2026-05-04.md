@@ -64,8 +64,8 @@ RFC examples use this syntax; compiler comments (v0.3.138) note it was removed b
 ### C-10 — Thread pool barrier — **DONE 2026-05-06**
 `thread_barrier_new`, `thread_barrier_wait`, and `thread_barrier_free` now expose a reusable fixed-party runtime barrier. `concurrency.nr` points callers to this surface but does not re-export it, avoiding duplicate `thread_rt.c` linkage when both rods are imported. The runtime implementation uses Win32 condition variables on Windows and pthread condition variables on POSIX. `thread_barrier_smoke.nr` runs four OS threads through two rendezvous rounds and verifies no worker passes the first barrier before all peers arrive.
 
-### C-11 — Mutex resource leak — no destroy path — **MEDIUM**
-`conc_mutex()` allocates `CRITICAL_SECTION`/`pthread_mutex_t`; **no `conc_mutex_destroy`/`mutex_free`**. Long-running programs leak both OS handle and heap allocation. No RAII drop integration. (Cross-references G-1 in memory safety.)
+### C-11 — Mutex resource leak — **DONE 2026-05-06**
+`conc_mutex_destroy` and `conc_mutex_free` now release the native `CRITICAL_SECTION` or `pthread_mutex_t` allocated by `conc_mutex()`. Both wrappers route to `__nucleor_mutex_free`, which destroys the OS mutex and frees the runtime handle. `concurrency_mutex_destroy_smoke.nr` validates single and repeated lock/unlock/free cycles. RAII Drop integration remains a future memory-safety follow-up.
 
 ### C-12 — Closure capture table is not thread-safe — **HIGH**
 `g_capture_table[8192][32]` is a global static accessed without synchronization. Two threads simultaneously invoking different closures with the same `clo_id` race on the same slot. **Source comment acknowledges this** ("Calling the same closure from multiple threads with different capture values is undefined") but no compiler diagnostic fires. Practical race bypass for any concurrency code that uses closures — which is most.
@@ -154,8 +154,8 @@ Shipped as `nuc_barrier_new(n)` / `nuc_barrier_wait(b)` /
 `concurrency.nr` documents the thread-barrier path rather than re-exporting it.
 Validation: `tests/features/thread_barrier_smoke.nr`.
 
-### C-11 (mutex resource leak) — Phase 1
-Add `conc_mutex_destroy` / `mutex_free`. **Cross-references memory-safety G-1** (auto-drop) — eventually the Mutex type implements Drop and cleanup is automatic.
+### C-11 (mutex resource leak) — Phase 1 DONE 2026-05-06
+Shipped `conc_mutex_destroy` / `conc_mutex_free` wrappers plus `__nucleor_mutex_free` runtime cleanup for Win32 and POSIX mutex handles. Validation: `tests/features/concurrency_mutex_destroy_smoke.nr`. **Cross-references memory-safety G-1** (auto-drop) — eventually the Mutex type implements Drop and cleanup is automatic.
 
 ### C-12 (closure capture table not thread-safe) — Phase 1 (CRITICAL despite MEDIUM-rated dimension)
 Two options:
