@@ -12,6 +12,19 @@
 // N bits.
 // =====================================================
 
+#cfile "numeric_rt.c"
+
+extern fn nuc_numeric_rounding_nearest() -> i64;
+extern fn nuc_numeric_rounding_downward() -> i64;
+extern fn nuc_numeric_rounding_upward() -> i64;
+extern fn nuc_numeric_rounding_toward_zero() -> i64;
+extern fn nuc_numeric_get_rounding_mode() -> i64;
+extern fn nuc_numeric_set_rounding_mode(mode: i64) -> i64;
+extern fn nuc_numeric_f64_next_up(x: i64) -> i64;
+extern fn nuc_numeric_f64_next_down(x: i64) -> i64;
+extern fn nuc_numeric_f64_mul_add(a: i64, b: i64, c: i64) -> i64;
+extern fn nuc_numeric_f32_mul_add(a: i64, b: i64, c: i64) -> i64;
+
 // ---- Overflow-mode integer arithmetic ----
 fn n_wrapping_add(a: i64, b: i64) -> i64 { return wrapping_add(a, b); }
 fn n_wrapping_sub(a: i64, b: i64) -> i64 { return wrapping_sub(a, b); }
@@ -23,6 +36,18 @@ fn n_checked_add(a: i64, b: i64) -> i64 { return checked_add(a, b); }
 fn n_checked_sub(a: i64, b: i64) -> i64 { return checked_sub(a, b); }
 fn n_checked_mul(a: i64, b: i64) -> i64 { return checked_mul(a, b); }
 fn n_overflow_flag() -> i64 { return checked_overflow_flag(); }
+
+// ---- IEEE-754 rounding / fused arithmetic helpers ----
+fn n_rounding_nearest() -> i64 { return nuc_numeric_rounding_nearest(); }
+fn n_rounding_downward() -> i64 { return nuc_numeric_rounding_downward(); }
+fn n_rounding_upward() -> i64 { return nuc_numeric_rounding_upward(); }
+fn n_rounding_toward_zero() -> i64 { return nuc_numeric_rounding_toward_zero(); }
+fn n_get_rounding_mode() -> i64 { return nuc_numeric_get_rounding_mode(); }
+fn n_set_rounding_mode(mode: i64) -> i64 { return nuc_numeric_set_rounding_mode(mode); }
+fn n_f64_next_up(x: i64) -> i64 { return nuc_numeric_f64_next_up(x); }
+fn n_f64_next_down(x: i64) -> i64 { return nuc_numeric_f64_next_down(x); }
+fn n_f64_mul_add(a: i64, b: i64, c: i64) -> i64 { return nuc_numeric_f64_mul_add(a, b, c); }
+fn n_f32_mul_add(a: i64, b: i64, c: i64) -> i64 { return nuc_numeric_f32_mul_add(a, b, c); }
 
 // ---- Narrow integer truncation casts ----
 fn n_as_i8(v: i64) -> i64 { return as_i8(v); }
