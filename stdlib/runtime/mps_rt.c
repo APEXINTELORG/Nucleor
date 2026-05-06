@@ -819,6 +819,68 @@ long long nuc_mps_statevector_max_qubits(void) {
     return 16;
 }
 
+long long nuc_mps_statevector_range_max_count(void) {
+    return 4096;
+}
+
+// Materialize a bounded basis-state range without constructing the full 2^n
+// statevector. This keeps high-qubit MPS readout usable for focused probes
+// while preserving the full-state extraction cap above.
+long long nuc_mps_statevector_range(long long handle, long long start_basis_, long long count_) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > 62) return 0;
+    if (start_basis_ < 0 || count_ < 0) return 0;
+    if (count_ > nuc_mps_statevector_range_max_count()) return 0;
+
+    unsigned long long start_basis = (unsigned long long)start_basis_;
+    unsigned long long count = (unsigned long long)count_;
+    unsigned long long total = 1ULL << mps->nq;
+    if (start_basis > total) return 0;
+    if (count > total - start_basis) return 0;
+
+    MPSVec *out = mps_vec_with_len((long long)count);
+    if (!out) return 0;
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        if (out->data && out->data != out->inline_data) free(out->data);
+        free(out);
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return 0;
+    }
+
+    for (unsigned long long i = 0; i < count; i++) {
+        double amp_re = 0.0;
+        double amp_im = 0.0;
+        int ok = mps_basis_amplitude(mps, start_basis + i,
+                                     vec_re, vec_im, next_re, next_im,
+                                     &amp_re, &amp_im);
+        if (!ok) {
+            for (unsigned long long j = 0; j < i; j++) free((void *)(size_t)out->data[j]);
+            if (out->data && out->data != out->inline_data) free(out->data);
+            free(out);
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return 0;
+        }
+        if (amp_re > -1e-15 && amp_re < 1e-15) amp_re = 0.0;
+        if (amp_im > -1e-15 && amp_im < 1e-15) amp_im = 0.0;
+        out->data[i] = mps_complex_new(amp_re, amp_im);
+        if (out->data[i] == 0) {
+            for (unsigned long long j = 0; j < i; j++) free((void *)(size_t)out->data[j]);
+            if (out->data && out->data != out->inline_data) free(out->data);
+            free(out);
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return 0;
+        }
+    }
+
+    free(vec_re); free(vec_im); free(next_re); free(next_im);
+    return (long long)out;
+}
+
 // Materialize a qsim-compatible Vec<complex> statevector for small MPS states.
 // This is intentionally capped: MPS is useful because it avoids 2^n storage,
 // so large-state extraction must fail closed instead of becoming a memory footgun.

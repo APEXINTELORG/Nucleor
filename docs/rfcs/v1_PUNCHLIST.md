@@ -380,8 +380,14 @@ launch. After memory safety completes, these are next-priority.
   `mps_bell_probabilities_smoke.nr` compares Bell-circuit MPS
   marginals plus |00>/|11> joint probabilities against the qsim
   reference expectations. The statevector path fails closed above
-  `mps_statevector_max_qubits()` to avoid 2^n memory blowups. Remaining
-  gap: no high-qubit streaming/external-sink extraction API.
+  `mps_statevector_max_qubits()` to avoid 2^n memory blowups.
+- **QM-6 high-qubit bounded range extraction:** DONE for Phase 2a on
+  2026-05-06 — `mps_statevector_range(h, start_basis, count)` and
+  `mps_statevector_range_max_count()` let callers materialize a bounded
+  basis-amplitude window without raising the full-state cap; active fixture
+  `mps_statevector_range_smoke.nr` locks high-qubit product-state range
+  extraction, Bell-window extraction, and fail-closed invalid/cap behavior.
+  Remaining gap: true external-sink/callback streaming is not yet exposed.
 - **QM-2 qsim statevector checked init:** DONE for Phase 1+2b on
   2026-05-06 — `qsim_init_preflight(n)` returns stable status codes
   (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and
