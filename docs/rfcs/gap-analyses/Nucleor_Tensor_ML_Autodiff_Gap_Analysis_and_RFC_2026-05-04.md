@@ -46,8 +46,12 @@ Even when ML-1 ABI is fixed, rod surface has no way for callers to specify recta
 ## ML-6 — Quantize: no FP8 gemv / no grouped quantization — **HIGH**
 `nuc_quant_fp8_encode` exists but no `nuc_quant_fp8_gemv` or `_dot`. **FP8 path is encode-only; no inference possible with FP8 weights.** No grouped (per-group-of-N) quantization surface — standard format for GPTQ-style 4-bit inference (which the MLV project uses).
 
+Update 2026-05-06 helper1 v0859: FP8 decode/GEMV/dot and grouped signed-Q4 encode/decode/GEMV are now shipped over the existing quantize runtime representation and covered by `tests/features/quantize_decode_grouped_fp8_smoke.nr`. Remaining caveat: FP8 is still the runtime's simplified signed-byte scaled representation, not true IEEE-style E4M3 bit encoding; per-scheme error-bound docs remain open.
+
 ## ML-7 — Quantize: no dequant for int8 and ternary — **MEDIUM**
 `nuc_quant_int8_encode` and `nuc_quant_ternary_encode` have no decode. Only inference path is `_gemv`. No way to inspect quantized weights or re-dequantize for mixed-precision.
+
+Update 2026-05-06 helper1 v0859: `quant_int8_decode` and `quant_ternary_decode` are now shipped and fixture-backed by `tests/features/quantize_decode_grouped_fp8_smoke.nr`.
 
 ## ML-8 — `nn.nr` no convolutional layers — **MEDIUM**
 Dense layers only. No Conv1d/Conv2d/depthwise-separable. Separate `conv.nr` is image-processing convolution, not learnable layer with weight gradients.
@@ -102,8 +106,8 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 - ML-2: add `tensor_matmul(A, B) -> C` for 2D case. **Shipped helper1 v0856 for rank-2 tensors.**
 - ML-3: add `tensor_transpose(A) -> A^T` and `tensor_permute(A, axes)`. **2D transpose shipped helper1 v0856; general permute shipped helper1 v0857.**
 - ML-4: add seq_q/seq_k separate parameters to `attention2.nr` for cross-attention.
-- ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV).
-- ML-7: add decode for int8 and ternary.
+- ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV). **Shipped helper1 v0859 for FP8 decode/GEMV/dot and grouped signed-Q4 encode/decode/GEMV; true E4M3 bit encoding and documented error bounds remain future work.**
+- ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`.
 - ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block.
 - ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training).
