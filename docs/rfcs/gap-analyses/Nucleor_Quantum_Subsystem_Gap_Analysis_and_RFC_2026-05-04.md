@@ -57,6 +57,15 @@ future runtime dispatch.
 ## QM-4 — MPS non-adjacent CNOT routing introduces untracked SWAP overhead — **MEDIUM**
 SWAP count not reported back to Nucleor or trace. `qtrace_set_original` would double-count SWAP overhead as "transpiler overhead."
 
+**2026-05-06 update:** Phase 1 MPS SWAP-overhead accounting is now
+shipped for the Nucleor-facing surface. `mps_cnot_swap_overhead(nq, ctrl,
+tgt)` exposes a preflight estimate for non-adjacent CNOT routing,
+`mps_last_swap_overhead(h)` reports the most recent high-level MPS gate's
+inserted SWAP count, and `mps_total_swap_overhead(h)` accumulates observed
+overhead for the handle. `mps_swap_overhead_smoke.nr` locks adjacent,
+non-adjacent, reverse-direction, invalid, and non-CNOT reset behavior.
+Remaining gap: the overhead is not yet wired into S12b trace records.
+
 ## QM-5 — MPS SVD: 100-iter Jacobi with silent clamp on negative eigenvalues — **HIGH**
 Correct for small bond dimensions but no documented convergence guarantee beyond 1e-28 off-norm. Near max bond (64), SVD may not converge; singular values silently clamped to zero via `max(eigenvalue, 0)` — **potential silent truncation error with no warning.**
 
@@ -193,7 +202,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
   work is thread-safety / backend ownership semantics.
 
 **Phase 3 (medium-term):**
-- QM-4: track SWAP overhead in MPS routing. Surface to Nucleor and to trace.
+- QM-4: Nucleor-facing MPS SWAP-overhead accounting is shipped; remaining
+  work is wiring that overhead into S12b trace records.
 - QM-5: add convergence diagnostic to MPS SVD. Warn when 100 iterations don't converge to 1e-28. Document as accuracy boundary.
 - QM-10: add Ry/Rz/T/S/CCX/CZ/SWAP CUDA kernels. Implement CPU fallback. Wrap in `gpu_quantum.nr` rod.
 - QM-16: add Kraus-operator noise channel. User can specify per-gate noise model independent of learnable diff_sim parameters.

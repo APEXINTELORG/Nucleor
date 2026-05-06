@@ -348,6 +348,15 @@ launch. After memory safety completes, these are next-priority.
   gap: the raw `mps_gate(...)` integer escape hatch remains for
   compatibility, and missing MPS runtime gates (Y/S/T/RY/CZ/SWAP/Toffoli)
   still need future dispatch.
+- **QM-4 MPS non-adjacent CNOT SWAP-overhead accounting:** DONE for
+  Phase 1 on 2026-05-06 — `mps_cnot_swap_overhead(nq, ctrl, tgt)`
+  exposes a preflight estimate, `mps_last_swap_overhead(h)` reports
+  the most recent high-level MPS gate's inserted SWAP count, and
+  `mps_total_swap_overhead(h)` accumulates observed overhead on the
+  handle. `mps_swap_overhead_smoke.nr` locks adjacent,
+  non-adjacent, reverse-direction, invalid, and non-CNOT reset
+  behavior. Remaining gap: the overhead is not yet emitted into S12b
+  trace records.
 - **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2c on
   2026-05-06 — `mps_prob0(h, q)` exposes single-qubit probability
   readout from the MPS contraction, `mps_prob_basis(h, basis_bits)`
