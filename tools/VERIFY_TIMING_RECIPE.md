@@ -140,6 +140,25 @@ monitor`. On unsupported hosts the standalone script exits `96`; `verify.sh`
 maps that to an explicit `SKIP` so Windows and shell-check-only hosts do not
 claim POSIX perf evidence.
 
+## R06 rust_bridge ownership harness
+
+`tools/check_rust_bridge_ownership.ps1` is an opt-in harness for the Rust
+bridge string ownership path. It is not wired into `verify.sh` or
+`verify.ps1`. Use it when changing `stdlib/rods/rust_bridge`,
+`stdlib/rods/rust.nr`, or the `rust_free_str` ownership convention:
+
+```powershell
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Iterations 100
+```
+
+The normal run builds `stdlib/rods/rust_bridge` with `cargo build --release`
+when the release artifact is missing, builds
+`tests/features/rust_bridge_string_free_smoke.nr`, then runs the resulting
+fixture repeatedly. Each fixture execution performs 100 alloc/free cycles
+through the Rust bridge. Missing `cargo`, missing crate files, missing compiler
+binary, fixture build failure, or any nonzero fixture run is a hard failure.
+
 ## v0.8.317 — cold/hot memory split for the perf gate
 
 `tools/check_perf_regression.ps1` now reads the split RSS fields and enforces
