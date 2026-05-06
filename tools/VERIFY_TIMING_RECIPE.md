@@ -272,6 +272,8 @@ stage2=target/verify_compiler_2; test -x "$stage2" || stage2=target/verify_compi
 cmp -s "$stage1" "$stage2"
 bash tools/check_perf_regression.sh --doctor
 bash tools/check_perf_regression.sh --json
+./bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache
+test -x ./target/nucleor_tools
 command -v pwsh
 command -v ssh-keygen
 export NUCLEOR_POLICY_ROOT="$TMPDIR/nucleor-keys"
