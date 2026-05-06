@@ -29,6 +29,7 @@ extern fn nuc_t3_sum_axis(h: i64, axis: i64) -> i64;
 extern fn nuc_t3_bmm(a: i64, b: i64) -> i64;
 extern fn nuc_t3_matmul(a: i64, b: i64) -> i64;
 extern fn nuc_t3_transpose(h: i64) -> i64;
+extern fn nuc_t3_permute(h: i64, axes: Vec<i64>) -> i64;
 extern fn nuc_t3_free(h: i64);
 
 fn tensor_new_3d(d1: i64, d2: i64, d3: i64) -> i64 { return nuc_t3_new(d1, d2, d3); }
@@ -51,6 +52,7 @@ fn tensor_sum_axis(h: i64, axis: i64) -> i64 { return nuc_t3_sum_axis(h, axis); 
 fn tensor_bmm(a: i64, b: i64) -> i64 { return nuc_t3_bmm(a, b); }
 fn tensor_matmul(a: i64, b: i64) -> i64 { return nuc_t3_matmul(a, b); }
 fn tensor_transpose(h: i64) -> i64 { return nuc_t3_transpose(h); }
+fn tensor_permute(h: i64, axes: Vec<i64>) -> i64 { return nuc_t3_permute(h, axes); }
 fn tensor_free(h: i64) { nuc_t3_free(h); }
 
 // === R08-D1 Phase 1 (v0.8.288) — tensor shape/dtype metadata ===
@@ -103,5 +105,5 @@ fn tensor_shape_eq(a: i64, b: i64) -> i64 {
 }
 
 fn tensor_limitations() -> str {
-    return "Tensor rod limitations (ML-1/ML-2/ML-3, audit R08-D1 v0.8.288 + helper1 v0856): (1) DTYPE: only i64 elements are shipped; tensor_dtype() always returns 'i64'. No f32/f64/i32 surfaces yet - adopters needing float tensors must encode bits into i64 manually or use the f64-bits helpers in numerics rod. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) 2D OPS: tensor_new_2d, tensor_matmul, and tensor_transpose are shipped for rank-2 tensors. General tensor_permute / multi-axis transpose remain future work. Phase 2 wires compiler-visible TensorShape<N,M,...> types per RFC + multiple dtypes.";
+    return "Tensor rod limitations (ML-1/ML-2/ML-3, audit R08-D1 v0.8.288 + helper1 v0856/v0857): (1) DTYPE: only i64 elements are shipped; tensor_dtype() always returns 'i64'. No f32/f64/i32 surfaces yet - adopters needing float tensors must encode bits into i64 manually or use the f64-bits helpers in numerics rod. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; tensor_permute returns 0 for invalid axes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) OPS: tensor_new_2d, tensor_matmul, tensor_transpose, and tensor_permute are shipped. Phase 2 wires compiler-visible TensorShape<N,M,...> types per RFC + multiple dtypes.";
 }
