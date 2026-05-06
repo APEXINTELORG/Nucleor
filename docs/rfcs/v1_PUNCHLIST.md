@@ -142,8 +142,14 @@ launch. After memory safety completes, these are next-priority.
   fixture `err_t3_invalid_char_cast.nr` locks this. Runtime/IR
   char distinctness and non-constant proof remain queued.
 - **T-4 empty-type compat Phase 1:** DONE v0.8.79 canary fixture (well-typed path locked; inversion protocol encoded for when Phase 2b strict mode lands).
-- **Phase 2b still open:** T-4 strict empty-type compatibility,
-  broader T-3 char distinctness, and non-constant char-cast proof.
+- **T-4 Phase 2b partial:** DONE 2026-05-06 for core helper return
+  typing. Strict inference now knows `str_len`, `str_char_at`,
+  `str_substring`, trim variants, `args_get`, and `file_read_string`
+  in both compiler copies; `t4_strict_core_helper_rtypes.nr` locks the
+  positive strict-mode assignment path.
+- **Phase 2b still open:** T-4 strict empty-type compatibility beyond
+  core helper returns, broader T-3 char distinctness, and non-constant
+  char-cast proof.
   The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
   as a current blocker after v0.8.319 rebuilt/promoted
@@ -530,3 +536,7 @@ proper analysis → Phase 4 hard error):
   `Nucleor_Translate` forward-commitment. These stay outside the ten core
   compiler/runtime lanes: ML Suite code remains external, and Translate is
   pull-in-gated on completion plus revalidation before any `nuc port` shim.
+- **2026-05-06**: T-4 strict inference Phase 2b partial advanced.
+  Core runtime helper return types are now known in both compiler copies,
+  and `tests/features/t4_strict_core_helper_rtypes.nr` locks the positive
+  strict-mode assignment path.

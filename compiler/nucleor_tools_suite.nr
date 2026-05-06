@@ -7748,6 +7748,9 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     return 0;
 }
 fn builtin_rtype(name: str) -> str {
+    if str_eq(name, "str_len") == 1 || str_eq(name, "str_char_at") == 1 || str_eq(name, "str_char_at_strict") == 1 { return "i64"; };
+    if str_eq(name, "str_substring") == 1 || str_eq(name, "str_substring_strict") == 1 || str_eq(name, "str_trim") == 1 || str_eq(name, "str_trim_start") == 1 || str_eq(name, "str_trim_end") == 1 { return "str"; };
+    if str_eq(name, "args_get") == 1 || str_eq(name, "file_read_string") == 1 || str_eq(name, "file_read_string_or_panic") == 1 { return "str"; };
     if str_eq(name, "ambient_scheduler") == 1 { return "SchedulerCap"; };
     if str_eq(name, "ambient_random") == 1 { return "RandomCap"; };
     if str_eq(name, "random_uniform") == 1 { return "f64"; };
