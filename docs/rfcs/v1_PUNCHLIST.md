@@ -75,7 +75,8 @@ launch. After memory safety completes, these are next-priority.
   for undeclared extern calls, structured scheduling blocks
   (`scope { ... }` / `spawn { ... }`), and `channel(...)`; active
   fixtures `err_pure_extern_default_effect.nr` and
-  `err_pure_scope_schedule.nr` lock the first two surfaces.
+  `err_pure_scope_schedule.nr` lock the first two surfaces, and
+  `err_pure_channel_effect.nr` locks the channel/synchronization surface.
 - **E-12 pure builtin print-family I/O:** DONE for Phase 2b partial on
   2026-05-06 — pure/const/hot body scans now treat `print_*` and
   `eprint*` helper calls as I/O; active fixture
@@ -470,6 +471,9 @@ proper analysis → Phase 4 hard error):
   in the build path with `EFF-001`; fixtures
   `err_pure_extern_default_effect.nr` and `err_pure_scope_schedule.nr`
   moved out of `_unimplemented/`.
+- **2026-05-06**: Effect/capability Phase 2b fixture lock expanded.
+  `err_pure_channel_effect.nr` now keeps the existing `channel(...)`
+  pure-function effect check in the active negative suite.
 - **2026-05-06**: Effect/capability Phase 2b fixture promotion advanced.
   Archived pure negatives for builtin print-family I/O, direct
   `requires [...]` callee calls, and immediate wrapper inference now live
