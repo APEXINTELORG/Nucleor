@@ -44,6 +44,25 @@ static long long _f2i(double d) { long long x; memcpy(&x, &d, sizeof(double)); r
 
 typedef long long (*obs_cost_fn_t)(long long config_ptr);
 
+static void _fk_planar2(double q1, double q2, double l1, double l2,
+                        double *x, double *y)
+{
+    double q12 = q1 + q2;
+    *x = l1 * cos(q1) + l2 * cos(q12);
+    *y = l1 * sin(q1) + l2 * sin(q12);
+}
+
+static void _jac_planar2(double q1, double q2, double l1, double l2,
+                         double *j00, double *j01,
+                         double *j10, double *j11)
+{
+    double q12 = q1 + q2;
+    *j00 = -l1 * sin(q1) - l2 * sin(q12);
+    *j01 = -l2 * sin(q12);
+    *j10 =  l1 * cos(q1) + l2 * cos(q12);
+    *j11 =  l2 * cos(q12);
+}
+
 // Compute the obstacle cost at a single waypoint (caller-supplied
 // function pointer). Returns the cost as a regular `double`. If the
 // callback is null, returns 0 (no obstacle term).
@@ -265,6 +284,147 @@ long long nuc_chomp_optimize_covariant(
 
     free(grad); free(obs_grad); free(rhs); free(precond); free(cprime); free(dprime);
     return iter;
+}
+
+// Cartesian CHOMP Phase 1 for a planar 2-link manipulator. `path_ptr`
+// is double[N * 2] joint waypoints (q1, q2). `target_xy_ptr` is
+// double[N * 2] desired end-effector positions. Interior joint
+// waypoints are optimized against joint smoothness plus Cartesian
+// tracking error:
+//
+//   grad_q = w_smooth * grad_smooth + w_cart * J(q)^T * 2(FK(q) - x*)
+//
+// The analytical planar FK/Jacobian keeps this surface deterministic
+// and avoids callback ABI ambiguity while still providing a real
+// task-space CHOMP variant.
+long long nuc_chomp_optimize_cartesian_planar_2link(
+    long long path_ptr, long long N,
+    long long target_xy_ptr,
+    long long max_iters,
+    long long alpha_b, long long w_smooth_b, long long w_cart_b,
+    long long l1_b, long long l2_b,
+    long long metric_reg_b, long long max_step_b)
+{
+    if (N < 3) return -1;
+    double *path = (double *)(void *)(size_t)path_ptr;
+    double *target = (double *)(void *)(size_t)target_xy_ptr;
+    if (!path || !target) return -1;
+
+    int Ni = (int)N;
+    int m = Ni - 2;
+    double alpha = _i2f(alpha_b);
+    double w_smooth = _i2f(w_smooth_b);
+    double w_cart = _i2f(w_cart_b);
+    double l1 = _i2f(l1_b);
+    double l2 = _i2f(l2_b);
+    double metric_reg = _i2f(metric_reg_b);
+    double max_step = _i2f(max_step_b);
+    if (l1 <= 0 || l2 <= 0) return -1;
+
+    double *grad = (double *)malloc(m * 2 * sizeof(double));
+    double *rhs = (double *)malloc(m * sizeof(double));
+    double *precond = (double *)malloc(m * sizeof(double));
+    double *cprime = (double *)malloc(m * sizeof(double));
+    double *dprime = (double *)malloc(m * sizeof(double));
+    if (!grad || !rhs || !precond || !cprime || !dprime) {
+        free(grad); free(rhs); free(precond); free(cprime); free(dprime);
+        return -1;
+    }
+
+    long long iter;
+    for (iter = 0; iter < max_iters; iter++) {
+        for (int i = 1; i < Ni - 1; i++) {
+            double *qi = path + i * 2;
+            double *qm = path + (i - 1) * 2;
+            double *qp = path + (i + 1) * 2;
+            double *gi = grad + (i - 1) * 2;
+
+            for (int j = 0; j < 2; j++) {
+                gi[j] = 2.0 * (2.0 * qi[j] - qm[j] - qp[j]) * w_smooth;
+            }
+
+            if (w_cart > 0) {
+                double x, y, j00, j01, j10, j11;
+                _fk_planar2(qi[0], qi[1], l1, l2, &x, &y);
+                _jac_planar2(qi[0], qi[1], l1, l2, &j00, &j01, &j10, &j11);
+                double ex = x - target[i * 2];
+                double ey = y - target[i * 2 + 1];
+                gi[0] += w_cart * 2.0 * (j00 * ex + j10 * ey);
+                gi[1] += w_cart * 2.0 * (j01 * ex + j11 * ey);
+            }
+        }
+
+        for (int j = 0; j < 2; j++) {
+            for (int i = 0; i < m; i++) rhs[i] = grad[i * 2 + j];
+            if (!_solve_smoothness_metric(m, metric_reg, rhs, precond, cprime, dprime)) {
+                free(grad); free(rhs); free(precond); free(cprime); free(dprime);
+                return -1;
+            }
+            for (int i = 0; i < m; i++) grad[i * 2 + j] = precond[i];
+        }
+
+        double max_move = 0;
+        for (int i = 1; i < Ni - 1; i++) {
+            double *qi = path + i * 2;
+            double *gi = grad + (i - 1) * 2;
+            double m2 = 0;
+            for (int j = 0; j < 2; j++) {
+                double dq = -alpha * gi[j];
+                if (max_step > 0 && fabs(dq) > max_step) {
+                    dq = (dq > 0 ? max_step : -max_step);
+                }
+                qi[j] += dq;
+                m2 += dq * dq;
+            }
+            if (m2 > max_move) max_move = m2;
+        }
+        if (max_move < 1e-12) { iter++; break; }
+    }
+
+    free(grad); free(rhs); free(precond); free(cprime); free(dprime);
+    return iter;
+}
+
+long long nuc_chomp_cartesian_planar_2link_cost(
+    long long path_ptr, long long N,
+    long long target_xy_ptr,
+    long long w_smooth_b, long long w_cart_b,
+    long long l1_b, long long l2_b)
+{
+    if (N < 3) return _f2i(0.0);
+    double *path = (double *)(void *)(size_t)path_ptr;
+    double *target = (double *)(void *)(size_t)target_xy_ptr;
+    if (!path || !target) return _f2i(0.0);
+
+    int Ni = (int)N;
+    double w_smooth = _i2f(w_smooth_b);
+    double w_cart = _i2f(w_cart_b);
+    double l1 = _i2f(l1_b);
+    double l2 = _i2f(l2_b);
+    if (l1 <= 0 || l2 <= 0) return _f2i(0.0);
+
+    double smooth = 0;
+    for (int i = 1; i < Ni - 1; i++) {
+        double *qi = path + i * 2;
+        double *qm = path + (i - 1) * 2;
+        double *qp = path + (i + 1) * 2;
+        for (int j = 0; j < 2; j++) {
+            double accel = 2.0 * qi[j] - qm[j] - qp[j];
+            smooth += accel * accel;
+        }
+    }
+
+    double cart = 0;
+    for (int i = 0; i < Ni; i++) {
+        double x, y;
+        double *qi = path + i * 2;
+        _fk_planar2(qi[0], qi[1], l1, l2, &x, &y);
+        double ex = x - target[i * 2];
+        double ey = y - target[i * 2 + 1];
+        cart += ex * ex + ey * ey;
+    }
+
+    return _f2i(w_smooth * smooth + w_cart * cart);
 }
 
 // Diagnostic helper: integrated trajectory cost (smoothness + obstacle).

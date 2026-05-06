@@ -507,6 +507,14 @@ launch. After memory safety completes, these are next-priority.
   zig-zag collapses while endpoints stay fixed. Remaining gap:
   high-DOF / obstacle-gradient production evidence, exact SDF
   gradients, and tuning guidance for `metric_reg` / `max_step`.
+- **ROBO-9 Cartesian CHOMP:** DONE for Phase 1 on 2026-05-06.
+  `chomp_optimize_cartesian_planar_2link` optimizes a planar 2-link
+  joint path against a Cartesian end-effector target path with
+  analytical FK/Jacobian gradients; `chomp_cartesian_planar_2link_smoke.nr`
+  proves task-space cost drops while endpoints stay clamped. Remaining
+  gap: generic high-DOF robot-model FK/Jacobian support,
+  obstacle/SDF-aware Cartesian gradients, and production manipulator
+  reach-around fixtures.
 - **ROBO-10 HWBC strict priority evidence:** DONE for Phase 1 on
   2026-05-06. `tests/features/hwbc_strict_priority_smoke.nr` proves
   the existing Siciliano-Slotine null-space `hwbc` rod preserves a
