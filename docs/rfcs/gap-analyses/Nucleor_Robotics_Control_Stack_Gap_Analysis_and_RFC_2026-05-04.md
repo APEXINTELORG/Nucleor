@@ -41,6 +41,8 @@ Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-
 ## ROBO-5 — TF tree: integer IDs, no timestamps, no forest — **HIGH**
 Limitations: integer-only IDs (caller maintains name→id map), single tree only, no time-stamped buffer or interpolation. Real sensor-fusion produces transforms at different frequencies (camera 30 Hz, lidar 10 Hz); without time-indexed buffer, `tf_set_pose` races with async sources.
 
+**2026-05-06 update:** Phase 1 timestamped lookup now exists. `tf_add_frame_at`, `tf_set_pose_at`, and `tf_lookup_at` keep the latest two stamped samples per frame and interpolate translation plus normalized quaternion orientation for in-window lookups; `tests/features/tf_timestamped_lookup_smoke.nr` proves midpoint interpolation, out-of-window rejection, and legacy latest-pose lookup compatibility. Remaining ROBO-5 work: string-keyed frame names, disconnected forest support, deeper history buffers, cache/lazy lookup strategy, and hard-RT allocation protocol.
+
 ## ROBO-6 — URDF parser flattens branching topologies — **HIGH**
 "Branching trees (humanoids) flattened to source-order." Parent/child relationships ignored. Humanoid, quadruped, parallel-chain robots cannot be correctly described. xacro macro expansion absent.
 
@@ -98,12 +100,13 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-7 P1: emit warning when `kinematics_frame` marker is declared but not enforced. "Frame-type check is Phase A — markers are advisory only. Phase B (compiler enforcement) tracked in RFC-0046."
 - ROBO-14 P1: DONE for deterministic smoke coverage. `robo14_end_to_end_smoke.nr` now proves the raw-buffer plumbing and stage composition: IK solves a reachable target, RRT plans in joint space, CHOMP smooths the path, TOPP time-parameterizes it, and FK verifies the final endpoint within tolerance. Follow-up: promote to 6-DOF pose/orientation plus nonzero obstacle callbacks.
 - ROBO-11: DONE for Phase 1 naming mitigation. `quantum_twin.nr` is the honest alias and `twin_core.nr` remains backward compatible. Remaining: real robotics digital twin rod.
+- ROBO-5: DONE for Phase 1 timestamped interpolation. `tf_lookup_at` provides latest-two-sample interpolation for transform streams while preserving legacy integer-ID/latest-pose APIs. Remaining: name-keyed lookup, forest support, deeper history buffers, cache/lazy lookup strategy, and RT allocation protocol.
 - Documentation pass: explicit `#[no_alloc]+#[deadline]` protocol for robotics rods. Even "you can't use these rods in hard-RT today" is honest.
 
 **Phase 2 (short-term):**
 - ROBO-7 P2: implement RFC-0046 Phase B. Compiler-side TYP-008 check that `transform(p, tf)` call-site frames match. **Closes Mars Climate Orbiter failure mode.**
 - ROBO-4: 6-DOF Jacobian in nullspace solver.
-- ROBO-5: TF tree with name-keyed lookup + time-stamped buffer + interpolation. Multi-tree (forest) support.
+- ROBO-5: DONE for Phase 1 latest-two-sample timestamped interpolation. Remaining: name-keyed lookup, multi-tree forest support, deeper time buffers, cache/lazy lookup strategy, and hard-RT allocation protocol.
 - ROBO-6: URDF branching topology support. xacro expansion.
 - ROBO-10: WBC strict-priority stack + torque-box constraints.
 - ROBO-12: DONE for Mahony 9-DOF magnetometer yaw correction. Remaining: calibration/declination helpers, high-dynamics rejection policy, and Madgwick variant.
