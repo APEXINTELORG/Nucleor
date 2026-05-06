@@ -11,14 +11,23 @@
 
 extern fn nuc_t3_new(d1: i64, d2: i64, d3: i64) -> i64;
 extern fn nuc_t3_new_2d(rows: i64, cols: i64) -> i64;
+extern fn nuc_t3_new_int_2d(rows: i64, cols: i64) -> i64;
+extern fn nuc_t3_new_bool_2d(rows: i64, cols: i64) -> i64;
 extern fn nuc_t3_new_nd(shape: i64) -> i64;
+extern fn nuc_t3_new_int_nd(shape: i64) -> i64;
+extern fn nuc_t3_new_bool_nd(shape: i64) -> i64;
 extern fn nuc_t3_ndim(h: i64) -> i64;
 extern fn nuc_t3_shape(h: i64, dim: i64) -> i64;
 extern fn nuc_t3_total(h: i64) -> i64;
+extern fn nuc_t3_dtype_code(h: i64) -> i64;
 extern fn nuc_t3_get(h: i64, i: i64, j: i64, k: i64) -> i64;
 extern fn nuc_t3_set(h: i64, i: i64, j: i64, k: i64, val: i64);
 extern fn nuc_t3_get_flat(h: i64, idx: i64) -> i64;
 extern fn nuc_t3_set_flat(h: i64, idx: i64, val: i64);
+extern fn nuc_t3_get_int_flat(h: i64, idx: i64) -> i64;
+extern fn nuc_t3_set_int_flat(h: i64, idx: i64, val: i64);
+extern fn nuc_t3_get_bool_flat(h: i64, idx: i64) -> i64;
+extern fn nuc_t3_set_bool_flat(h: i64, idx: i64, val: i64);
 extern fn nuc_t3_fill(h: i64, val: i64);
 extern fn nuc_t3_reshape(h: i64, shape: i64) -> i64;
 extern fn nuc_t3_slice(h: i64, dim: i64, index: i64) -> i64;
@@ -34,7 +43,11 @@ extern fn nuc_t3_free(h: i64);
 
 fn tensor_new_3d(d1: i64, d2: i64, d3: i64) -> i64 { return nuc_t3_new(d1, d2, d3); }
 fn tensor_new_2d(rows: i64, cols: i64) -> i64 { return nuc_t3_new_2d(rows, cols); }
+fn tensor_new_int_2d(rows: i64, cols: i64) -> i64 { return nuc_t3_new_int_2d(rows, cols); }
+fn tensor_new_bool_2d(rows: i64, cols: i64) -> i64 { return nuc_t3_new_bool_2d(rows, cols); }
 fn tensor_new_nd(shape: i64) -> i64 { return nuc_t3_new_nd(shape); }
+fn tensor_new_int_nd(shape: i64) -> i64 { return nuc_t3_new_int_nd(shape); }
+fn tensor_new_bool_nd(shape: i64) -> i64 { return nuc_t3_new_bool_nd(shape); }
 fn tensor_ndim(h: i64) -> i64 { return nuc_t3_ndim(h); }
 fn tensor_shape(h: i64, dim: i64) -> i64 { return nuc_t3_shape(h, dim); }
 fn tensor_total(h: i64) -> i64 { return nuc_t3_total(h); }
@@ -42,6 +55,10 @@ fn tensor_get_3d(h: i64, i: i64, j: i64, k: i64) -> i64 { return nuc_t3_get(h, i
 fn tensor_set_3d(h: i64, i: i64, j: i64, k: i64, v: i64) { nuc_t3_set(h, i, j, k, v); }
 fn tensor_get_flat(h: i64, idx: i64) -> i64 { return nuc_t3_get_flat(h, idx); }
 fn tensor_set_flat(h: i64, idx: i64, v: i64) { nuc_t3_set_flat(h, idx, v); }
+fn tensor_get_int_flat(h: i64, idx: i64) -> i64 { return nuc_t3_get_int_flat(h, idx); }
+fn tensor_set_int_flat(h: i64, idx: i64, v: i64) { nuc_t3_set_int_flat(h, idx, v); }
+fn tensor_get_bool_flat(h: i64, idx: i64) -> i64 { return nuc_t3_get_bool_flat(h, idx); }
+fn tensor_set_bool_flat(h: i64, idx: i64, v: i64) { nuc_t3_set_bool_flat(h, idx, v); }
 fn tensor_fill(h: i64, v: i64) { nuc_t3_fill(h, v); }
 fn tensor_reshape(h: i64, shape: i64) -> i64 { return nuc_t3_reshape(h, shape); }
 fn tensor_slice(h: i64, dim: i64, index: i64) -> i64 { return nuc_t3_slice(h, dim, index); }
@@ -65,11 +82,27 @@ fn tensor_free(h: i64) { nuc_t3_free(h); }
 // diagnostics into matmul / transpose call paths and adds
 // compiler-visible TensorShape types.
 
-// All currently-shipped tensors are i64-element. Phase 2 wires
-// f32/f64/i32 dtypes; today this is a single-value enum.
+fn tensor_dtype_code(h: i64) -> i64 { return nuc_t3_dtype_code(h); }
+fn tensor_dtype_legacy_i64() -> i64 { return 1; }
+fn tensor_dtype_int() -> i64 { return 2; }
+fn tensor_dtype_bool() -> i64 { return 3; }
+
 fn tensor_dtype(h: i64) -> str {
     if h == 0 { return "invalid"; };
+    let code: i64 = nuc_t3_dtype_code(h);
+    if code == 2 { return "int"; };
+    if code == 3 { return "bool"; };
     return "i64";
+}
+
+fn tensor_is_int(h: i64) -> i64 {
+    if nuc_t3_dtype_code(h) == 2 { return 1; };
+    return 0;
+}
+
+fn tensor_is_bool(h: i64) -> i64 {
+    if nuc_t3_dtype_code(h) == 3 { return 1; };
+    return 0;
 }
 
 // Shape-compat predicate: can A @ B run as a 2D matmul?
@@ -105,5 +138,5 @@ fn tensor_shape_eq(a: i64, b: i64) -> i64 {
 }
 
 fn tensor_limitations() -> str {
-    return "Tensor rod limitations (ML-1/ML-2/ML-3, audit R08-D1 v0.8.288 + helper1 v0856/v0857): (1) DTYPE: only i64 elements are shipped; tensor_dtype() always returns 'i64'. No f32/f64/i32 surfaces yet - adopters needing float tensors must encode bits into i64 manually or use the f64-bits helpers in numerics rod. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; tensor_permute returns 0 for invalid axes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) OPS: tensor_new_2d, tensor_matmul, tensor_transpose, and tensor_permute are shipped. Phase 2 wires compiler-visible TensorShape<N,M,...> types per RFC + multiple dtypes.";
+    return "Tensor rod limitations (ML-1/ML-2/ML-3/ML-15, audit R08-D1 v0.8.288 + helper1 v0856/v0857/v0866): (1) DTYPE: legacy tensors still expose i64/f64-bit payloads for compatibility, but explicit int and bool tensor constructors are shipped with tensor_new_int_2d / tensor_new_bool_2d and typed flat accessors. No f32/f64 named dtype surface yet. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; tensor_permute returns 0 for invalid axes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) OPS: tensor_new_2d, tensor_matmul, tensor_transpose, tensor_permute, typed int tensors, and bool mask tensors are shipped. Phase 2 still needs compiler-visible TensorShape<N,M,...> types and broader mixed-precision kernel dispatch.";
 }

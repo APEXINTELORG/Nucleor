@@ -89,6 +89,8 @@ Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` no
 ## ML-15 — `tensor_nd` no dtype: all values are f64 bitcast i64 — **MEDIUM**
 `static double _i2f(long long x)` everywhere. No int tensor, bool mask tensor, mixed-precision path. Token ID tensors for embedding lookup are f64-cast i64, not native i32/i64.
 
+Update 2026-05-06 helper1 v0866: `tensor_nd` now has explicit int and bool 2D/ND constructors, runtime dtype tags, typed flat accessors, and rod predicates (`tensor_dtype_code`, `tensor_is_int`, `tensor_is_bool`). Fixture-backed by `tests/features/tensor_int_bool_dtype_smoke.nr`. Residual: backing storage remains double-based for ABI compatibility, and f32/f64 named dtype plus compiler-visible shape/dtype types remain future work.
+
 ## Cross-cutting risks
 - **Correctness vs shape-checking.** Every ML rod test is build-smoke or null-handle check. Functional correctness assumed rather than verified across `gnn`/`ssm`/`moe`/`attention2`/`kv_cache`/`quantize`/`diffusion`/`rl`. RFC-0061 fixture wraps calls in `if 0 == 1` — bodies are dead code.
 - **ABI mismatch as silent miscompute.** ML-1 will not produce linker error because all params are `long long`. Test passes all current CI.
@@ -112,7 +114,7 @@ Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` no
 **Phase 1 (emergency, ABI + audit):**
 - ML-1: fix `attention2.nr` extern declaration to match C signature (7 params with seq_q/seq_k split). Add fixture test that actually CALLS the function with known input and asserts output. Audit every other extern in the rod stack for arity mismatches. **Shipped and fixture-backed by helper1 v0861 for flash/GQA rectangular paths.**
 - ML-13 P1: add convergence test for `nn.nr`: 2-layer MLP on XOR, Adam updates, assert predictions separate XOR classes. **Shipped helper1 v0864.**
-- ML-15 P1: document the f64-bitcast-i64 limitation in `tensor_nd` doc header.
+- ML-15 P1: document the f64-bitcast-i64 limitation in `tensor_nd` doc header. **Shipped before this helper branch; helper1 v0866 adds P2a explicit int/bool tensor dtype surfaces.**
 
 **Phase 2 (short-term, missing kernels):**
 - ML-2: add `tensor_matmul(A, B) -> C` for 2D case. **Shipped helper1 v0856 for rank-2 tensors.**
@@ -128,7 +130,7 @@ Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` no
 - ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape.
 - ML-8: add Conv1d and Conv2d learnable layers in `nn.nr`. **Shipped helper1 v0865 as functional Conv1D/Conv2D/depthwise Conv2D forward+backward kernels; optimizer-owned stateful layer objects remain future work.**
 - ML-14: implement bridge between `autodiff` tape and `nn` rod. Each NN layer becomes a registered op on the autodiff graph. `loss = cross_entropy(nn_forward(x), y); ad_grad(loss, x)` works.
-- ML-15 P2: add int tensor and bool mask tensor types to `tensor_nd`. Mixed-precision path.
+- ML-15 P2: add int tensor and bool mask tensor types to `tensor_nd`. Mixed-precision path. **P2a shipped helper1 v0866 for explicit int/bool tensor constructors, dtype codes, typed flat accessors, and bool mask storage; f32/f64 named dtype and compiler-visible TensorShape/typed tensor checking remain open.**
 
 **Phase 4 (v1.0 gate):**
 - ML-11: graph-aware optimizer pass for `attention()` → `flash_attention` rewrite. Cross-references graph remediation Tier 4.

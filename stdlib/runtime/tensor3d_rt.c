@@ -17,6 +17,11 @@ static long long _t3_f2i(double f) { long long i; memcpy(&i, &f, 8); return i; }
 // ================================================================
 
 #define T3_MAX_DIMS 8
+#define T3_DTYPE_LEGACY_I64 1
+#define T3_DTYPE_INT 2
+#define T3_DTYPE_BOOL 3
+
+static int _t3_lenient(void);
 
 typedef struct {
     int ndim;
@@ -24,6 +29,7 @@ typedef struct {
     int strides[T3_MAX_DIMS]; // in element counts
     double *data;
     int total;
+    int dtype;
 } Tensor3D;
 
 static void t3_compute_strides(Tensor3D *t) {
@@ -31,6 +37,33 @@ static void t3_compute_strides(Tensor3D *t) {
     for (int i = t->ndim - 2; i >= 0; i--)
         t->strides[i] = t->strides[i + 1] * t->shape[i + 1];
     t->total = t->strides[0] * t->shape[0];
+}
+
+static int t3_normalize_dtype(long long dtype) {
+    if (dtype == T3_DTYPE_INT) return T3_DTYPE_INT;
+    if (dtype == T3_DTYPE_BOOL) return T3_DTYPE_BOOL;
+    return T3_DTYPE_LEGACY_I64;
+}
+
+static void t3_require_dtype(Tensor3D *t, int expected, const char *op) {
+    if (!t) return;
+    if (t->dtype != expected) {
+        fprintf(stderr, "PANIC: %s: dtype mismatch (got %d, expected %d)\n", op, t->dtype, expected);
+        fflush(stderr);
+        exit(1);
+    }
+}
+
+static int t3_flat_index_or_panic(Tensor3D *t, long long idx, const char *op) {
+    if (!t) return -1;
+    if (idx < 0 || idx >= t->total) {
+        if (_t3_lenient()) return -1;
+        fprintf(stderr, "PANIC: %s OOB: index %lld, total %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                op, idx, (long long)t->total);
+        fflush(stderr);
+        exit(1);
+    }
+    return (int)idx;
 }
 
 // v0.3.225: same overflow PANIC class as v0.3.223's tensor_zeros.
@@ -73,10 +106,30 @@ long long nuc_t3_new_2d(long long rows, long long cols) {
     _check_t3_dims2(rows, cols);
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = 2;
+    t->dtype = T3_DTYPE_LEGACY_I64;
     t->shape[0] = (int)rows; t->shape[1] = (int)cols;
     t3_compute_strides(t);
     t->data = (double *)calloc((size_t)t->total, sizeof(double));
     return (long long)t;
+}
+
+long long nuc_t3_new_typed_2d(long long rows, long long cols, long long dtype) {
+    _check_t3_dims2(rows, cols);
+    Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
+    t->ndim = 2;
+    t->dtype = t3_normalize_dtype(dtype);
+    t->shape[0] = (int)rows; t->shape[1] = (int)cols;
+    t3_compute_strides(t);
+    t->data = (double *)calloc((size_t)t->total, sizeof(double));
+    return (long long)t;
+}
+
+long long nuc_t3_new_int_2d(long long rows, long long cols) {
+    return nuc_t3_new_typed_2d(rows, cols, T3_DTYPE_INT);
+}
+
+long long nuc_t3_new_bool_2d(long long rows, long long cols) {
+    return nuc_t3_new_typed_2d(rows, cols, T3_DTYPE_BOOL);
 }
 
 // Create 3D tensor
@@ -84,6 +137,7 @@ long long nuc_t3_new(long long d1, long long d2, long long d3) {
     _check_t3_dims(d1, d2, d3);
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = 3;
+    t->dtype = T3_DTYPE_LEGACY_I64;
     t->shape[0] = (int)d1; t->shape[1] = (int)d2; t->shape[2] = (int)d3;
     t3_compute_strides(t);
     t->data = (double *)calloc((size_t)t->total, sizeof(double));
@@ -94,7 +148,7 @@ long long nuc_t3_new(long long d1, long long d2, long long d3) {
 // v0.3.228: nuc_t3_new_nd safety -- NULL shape handle, dim
 // validation, total overflow check. Same hazard class as
 // v0.3.225's nuc_t3_new fix.
-long long nuc_t3_new_nd(long long shape_h) {
+static long long nuc_t3_new_nd_typed(long long shape_h, int dtype) {
     typedef struct { long long *data; int len; int cap; } NVec;
     NVec *sh = (NVec *)(void *)shape_h;
     if (!sh) {
@@ -107,6 +161,7 @@ long long nuc_t3_new_nd(long long shape_h) {
     }
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = sh->len;
+    t->dtype = dtype;
     if (t->ndim > T3_MAX_DIMS) t->ndim = T3_MAX_DIMS;
     long long total_check = 1;
     for (int i = 0; i < t->ndim; i++) {
@@ -127,9 +182,28 @@ long long nuc_t3_new_nd(long long shape_h) {
     return (long long)t;
 }
 
+long long nuc_t3_new_nd(long long shape_h) {
+    return nuc_t3_new_nd_typed(shape_h, T3_DTYPE_LEGACY_I64);
+}
+
+long long nuc_t3_new_int_nd(long long shape_h) {
+    return nuc_t3_new_nd_typed(shape_h, T3_DTYPE_INT);
+}
+
+long long nuc_t3_new_bool_nd(long long shape_h) {
+    return nuc_t3_new_nd_typed(shape_h, T3_DTYPE_BOOL);
+}
+
 long long nuc_t3_ndim(long long h) { return ((Tensor3D *)(void *)h)->ndim; }
 long long nuc_t3_shape(long long h, long long dim) { return ((Tensor3D *)(void *)h)->shape[(int)dim]; }
 long long nuc_t3_total(long long h) { return ((Tensor3D *)(void *)h)->total; }
+long long nuc_t3_dtype_code(long long h) {
+    Tensor3D *t = (Tensor3D *)(void *)h;
+    if (!t) return 0;
+    if (t->dtype == T3_DTYPE_INT) return T3_DTYPE_INT;
+    if (t->dtype == T3_DTYPE_BOOL) return T3_DTYPE_BOOL;
+    return T3_DTYPE_LEGACY_I64;
+}
 
 // ================================================================
 //  Get / Set (flat index or multi-index)
@@ -180,28 +254,48 @@ void nuc_t3_set(long long h, long long i, long long j, long long k, long long va
 
 long long nuc_t3_get_flat(long long h, long long idx) {
     Tensor3D *t = (Tensor3D *)(void *)h;
-    if (!t) return 0;
-    if (idx < 0 || idx >= t->total) {
-        if (_t3_lenient()) return 0;
-        fprintf(stderr, "PANIC: nuc_t3_get_flat OOB: index %lld, total %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-                idx, (long long)t->total);
-        fflush(stderr);
-        exit(1);
-    }
-    return _t3_f2i(t->data[(int)idx]);
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_get_flat");
+    if (ii < 0) return 0;
+    return _t3_f2i(t->data[ii]);
 }
 
 void nuc_t3_set_flat(long long h, long long idx, long long val_bits) {
     Tensor3D *t = (Tensor3D *)(void *)h;
-    if (!t) return;
-    if (idx < 0 || idx >= t->total) {
-        if (_t3_lenient()) return;
-        fprintf(stderr, "PANIC: nuc_t3_set_flat OOB: index %lld, total %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-                idx, (long long)t->total);
-        fflush(stderr);
-        exit(1);
-    }
-    t->data[(int)idx] = _t3_i2f(val_bits);
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_set_flat");
+    if (ii < 0) return;
+    t->data[ii] = _t3_i2f(val_bits);
+}
+
+long long nuc_t3_get_int_flat(long long h, long long idx) {
+    Tensor3D *t = (Tensor3D *)(void *)h;
+    t3_require_dtype(t, T3_DTYPE_INT, "nuc_t3_get_int_flat");
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_get_int_flat");
+    if (ii < 0) return 0;
+    return (long long)t->data[ii];
+}
+
+void nuc_t3_set_int_flat(long long h, long long idx, long long val) {
+    Tensor3D *t = (Tensor3D *)(void *)h;
+    t3_require_dtype(t, T3_DTYPE_INT, "nuc_t3_set_int_flat");
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_set_int_flat");
+    if (ii < 0) return;
+    t->data[ii] = (double)val;
+}
+
+long long nuc_t3_get_bool_flat(long long h, long long idx) {
+    Tensor3D *t = (Tensor3D *)(void *)h;
+    t3_require_dtype(t, T3_DTYPE_BOOL, "nuc_t3_get_bool_flat");
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_get_bool_flat");
+    if (ii < 0) return 0;
+    return t->data[ii] != 0.0 ? 1 : 0;
+}
+
+void nuc_t3_set_bool_flat(long long h, long long idx, long long val) {
+    Tensor3D *t = (Tensor3D *)(void *)h;
+    t3_require_dtype(t, T3_DTYPE_BOOL, "nuc_t3_set_bool_flat");
+    int ii = t3_flat_index_or_panic(t, idx, "nuc_t3_set_bool_flat");
+    if (ii < 0) return;
+    t->data[ii] = val != 0 ? 1.0 : 0.0;
 }
 
 // ================================================================
@@ -225,6 +319,7 @@ long long nuc_t3_reshape(long long h, long long shape_h) {
 
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = sh->len;
+    t->dtype = src->dtype;
     if (t->ndim > T3_MAX_DIMS) t->ndim = T3_MAX_DIMS;
     for (int i = 0; i < t->ndim; i++) t->shape[i] = (int)sh->data[i];
     t3_compute_strides(t);
@@ -245,6 +340,7 @@ long long nuc_t3_slice(long long h, long long dim, long long index) {
 
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = src->ndim - 1;
+    t->dtype = src->dtype;
     int j = 0;
     for (int i = 0; i < src->ndim; i++) {
         if (i != d) t->shape[j++] = src->shape[i];
@@ -311,6 +407,7 @@ long long nuc_t3_sum_axis(long long h, long long axis) {
 
     Tensor3D *dst = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     dst->ndim = src->ndim - 1;
+    dst->dtype = src->dtype;
     int j = 0;
     for (int i = 0; i < src->ndim; i++) if (i != ax) dst->shape[j++] = src->shape[i];
     t3_compute_strides(dst);
@@ -341,6 +438,7 @@ long long nuc_t3_bmm(long long ah, long long bh) {
 
     Tensor3D *c = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     c->ndim = 3; c->shape[0] = B; c->shape[1] = M; c->shape[2] = N;
+    c->dtype = a->dtype;
     t3_compute_strides(c);
     c->data = (double *)calloc(c->total, sizeof(double));
 
@@ -365,6 +463,7 @@ long long nuc_t3_matmul(long long ah, long long bh) {
 
     Tensor3D *c = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     c->ndim = 2; c->shape[0] = M; c->shape[1] = N;
+    c->dtype = a->dtype;
     t3_compute_strides(c);
     c->data = (double *)calloc((size_t)c->total, sizeof(double));
 
@@ -386,6 +485,7 @@ long long nuc_t3_transpose(long long h) {
 
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = 2; t->shape[0] = cols; t->shape[1] = rows;
+    t->dtype = a->dtype;
     t3_compute_strides(t);
     t->data = (double *)malloc((size_t)t->total * sizeof(double));
 
@@ -416,6 +516,7 @@ long long nuc_t3_permute(long long h, long long axes_h) {
 
     Tensor3D *dst = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     dst->ndim = src->ndim;
+    dst->dtype = src->dtype;
     for (int i = 0; i < dst->ndim; i++) dst->shape[i] = src->shape[axis_map[i]];
     t3_compute_strides(dst);
     dst->data = (double *)malloc((size_t)dst->total * sizeof(double));
