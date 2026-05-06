@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 253
-# Total fn definitions: 3059
-# Total LOC: 13003
+# Total fn definitions: 3061
+# Total LOC: 13063
 
 [[rod]]
 name           = "activation2"
@@ -1311,9 +1311,9 @@ imports        = ["complex", "nn"]
 name           = "nn_autodiff"
 path           = "stdlib/rods/nn_autodiff.nr"
 description    = "NN / autodiff bridge"
-function_count = 9
+function_count = 11
 cfile_count    = 0
-loc            = 156
+loc            = 216
 imports        = ["autodiff", "differentiable", "nn", "nn_autodiff"]
 
 [[rod]]
