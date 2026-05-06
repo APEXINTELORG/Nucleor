@@ -184,6 +184,220 @@ fn atomic_u32_drop(a: AtomicU32) -> i64 {
     return atomic_i64_free(a.handle);
 }
 
+// === C-17 typed ordered ops for AtomicU64 / AtomicI32 / AtomicU32 ===
+//
+// These wrappers close the raw-handle escape hatch for the non-i64 widths.
+// Storage remains the existing i64 atomic cell, so this is a typed stdlib
+// surface over the current LLVM i64 atomic lowering, not a native narrow-width
+// allocation ABI.
+
+fn atomic_load_u64(a: &AtomicU64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_load_relaxed(a.handle) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_load_acquire(a.handle) as u64; };
+    return atomic_i64_load_seqcst(a.handle) as u64;
+}
+
+fn atomic_store_u64(a: &AtomicU64, value: u64, order: MemOrder) -> i64 {
+    if order == MemOrder::Relaxed { return atomic_i64_store_relaxed(a.handle, value as i64); };
+    if order == MemOrder::Release { return atomic_i64_store_release(a.handle, value as i64); };
+    return atomic_i64_store_seqcst(a.handle, value as i64);
+}
+
+fn atomic_fetch_add_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_add_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_add_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_fetch_add_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_add_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_fetch_add_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_fetch_sub_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_sub_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_sub_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_fetch_sub_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_sub_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_fetch_sub_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_fetch_and_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_and_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_and_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_fetch_and_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_and_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_fetch_and_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_fetch_or_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_or_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_or_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_fetch_or_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_or_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_fetch_or_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_fetch_xor_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_xor_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_xor_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_fetch_xor_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_xor_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_fetch_xor_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_swap_u64(a: &AtomicU64, value: u64, order: MemOrder) -> u64 {
+    if order == MemOrder::Relaxed { return atomic_i64_swap_relaxed(a.handle, value as i64) as u64; };
+    if order == MemOrder::Acquire { return atomic_i64_swap_acquire(a.handle, value as i64) as u64; };
+    if order == MemOrder::Release { return atomic_i64_swap_release(a.handle, value as i64) as u64; };
+    if order == MemOrder::AcqRel { return atomic_i64_swap_acqrel(a.handle, value as i64) as u64; };
+    return atomic_i64_swap_seqcst(a.handle, value as i64) as u64;
+}
+
+fn atomic_compare_exchange_u64(a: &AtomicU64, expected: u64, desired: u64, success_order: MemOrder, failure_order: MemOrder) -> Result<u64, u64> {
+    let i64_self: AtomicI64 = AtomicI64 { handle: a.handle };
+    let r: Result<i64, i64> = atomic_compare_exchange(&i64_self, expected as i64, desired as i64, success_order, failure_order);
+    match r {
+        Ok(v) => return Ok(v as u64),
+        Err(v) => return Err(v as u64),
+    }
+}
+
+fn atomic_load_i32(a: &AtomicI32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_load_relaxed(a.handle) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_load_acquire(a.handle) as i32; };
+    return atomic_i64_load_seqcst(a.handle) as i32;
+}
+
+fn atomic_store_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i64 {
+    if order == MemOrder::Relaxed { return atomic_i64_store_relaxed(a.handle, value as i64); };
+    if order == MemOrder::Release { return atomic_i64_store_release(a.handle, value as i64); };
+    return atomic_i64_store_seqcst(a.handle, value as i64);
+}
+
+fn atomic_fetch_add_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_add_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_add_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_add_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_add_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_fetch_add_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_fetch_sub_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_sub_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_sub_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_sub_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_sub_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_fetch_sub_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_fetch_and_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_and_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_and_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_and_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_and_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_fetch_and_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_fetch_or_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_or_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_or_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_or_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_or_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_fetch_or_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_fetch_xor_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_xor_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_xor_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_xor_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_xor_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_fetch_xor_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_swap_i32(a: &AtomicI32, value: i32, order: MemOrder) -> i32 {
+    if order == MemOrder::Relaxed { return atomic_i64_swap_relaxed(a.handle, value as i64) as i32; };
+    if order == MemOrder::Acquire { return atomic_i64_swap_acquire(a.handle, value as i64) as i32; };
+    if order == MemOrder::Release { return atomic_i64_swap_release(a.handle, value as i64) as i32; };
+    if order == MemOrder::AcqRel { return atomic_i64_swap_acqrel(a.handle, value as i64) as i32; };
+    return atomic_i64_swap_seqcst(a.handle, value as i64) as i32;
+}
+
+fn atomic_compare_exchange_i32(a: &AtomicI32, expected: i32, desired: i32, success_order: MemOrder, failure_order: MemOrder) -> Result<i32, i32> {
+    let i64_self: AtomicI64 = AtomicI64 { handle: a.handle };
+    let r: Result<i64, i64> = atomic_compare_exchange(&i64_self, expected as i64, desired as i64, success_order, failure_order);
+    match r {
+        Ok(v) => return Ok(v as i32),
+        Err(v) => return Err(v as i32),
+    }
+}
+
+fn atomic_load_u32(a: &AtomicU32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_load_relaxed(a.handle) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_load_acquire(a.handle) as u32; };
+    return atomic_i64_load_seqcst(a.handle) as u32;
+}
+
+fn atomic_store_u32(a: &AtomicU32, value: u32, order: MemOrder) -> i64 {
+    if order == MemOrder::Relaxed { return atomic_i64_store_relaxed(a.handle, value as i64); };
+    if order == MemOrder::Release { return atomic_i64_store_release(a.handle, value as i64); };
+    return atomic_i64_store_seqcst(a.handle, value as i64);
+}
+
+fn atomic_fetch_add_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_add_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_add_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_add_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_add_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_fetch_add_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_fetch_sub_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_sub_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_sub_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_sub_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_sub_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_fetch_sub_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_fetch_and_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_and_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_and_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_and_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_and_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_fetch_and_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_fetch_or_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_or_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_or_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_or_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_or_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_fetch_or_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_fetch_xor_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_fetch_xor_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_fetch_xor_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_fetch_xor_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_fetch_xor_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_fetch_xor_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_swap_u32(a: &AtomicU32, value: u32, order: MemOrder) -> u32 {
+    if order == MemOrder::Relaxed { return atomic_i64_swap_relaxed(a.handle, value as i64) as u32; };
+    if order == MemOrder::Acquire { return atomic_i64_swap_acquire(a.handle, value as i64) as u32; };
+    if order == MemOrder::Release { return atomic_i64_swap_release(a.handle, value as i64) as u32; };
+    if order == MemOrder::AcqRel { return atomic_i64_swap_acqrel(a.handle, value as i64) as u32; };
+    return atomic_i64_swap_seqcst(a.handle, value as i64) as u32;
+}
+
+fn atomic_compare_exchange_u32(a: &AtomicU32, expected: u32, desired: u32, success_order: MemOrder, failure_order: MemOrder) -> Result<u32, u32> {
+    let i64_self: AtomicI64 = AtomicI64 { handle: a.handle };
+    let r: Result<i64, i64> = atomic_compare_exchange(&i64_self, expected as i64, desired as i64, success_order, failure_order);
+    match r {
+        Ok(v) => return Ok(v as u32),
+        Err(v) => return Err(v as u32),
+    }
+}
+
 fn atomic_bool(initial: bool) -> AtomicBool {
     if initial { return AtomicBool { handle: atomic_i64_new(1) }; };
     return AtomicBool { handle: atomic_i64_new(0) };
@@ -246,5 +460,5 @@ fn atomic_compare_exchange_bool(a: &AtomicBool, expected: bool, desired: bool,
 
 // === R04-D5 Phase 1.5 (v0.8.311) — atomic rod limitations ===
 fn atomic_limitations() -> str {
-    return "Atomic rod limitations (CONC-3, audit R04-D5 v0.8.311): (1) WIDTHS: AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool shipped. NO AtomicI16 / AtomicU16 / AtomicI8 / AtomicU8 / AtomicUsize / AtomicPtr — adopters needing narrower atomics must pack/unpack manually into i64. (2) NO ATOMIC FLOATS: no AtomicF32 / AtomicF64 (Rust core lacks these too — workaround is bits-in-AtomicU64 via to_bits/from_bits). (3) MEMORY ORDERS: Relaxed/Acquire/Release/AcqRel/SeqCst all lower correctly to LLVM intrinsics; Consume is NOT a separate variant (LLVM treats Consume as Acquire — matches C++20 std::memory_order). (4) NO FETCH-MIN/MAX yet — adopter must compose via compare_exchange loop. (5) WAIT/NOTIFY (`atomic_wait` / `atomic_notify_one` / `atomic_notify_all` futex-style) NOT shipped. Phase 2 wires platform futex / WaitOnAddress per audit ship plan.";
+    return "Atomic rod limitations (CONC-3/C-17, audit R04-D5 v0.8.311/v0836): (1) WIDTHS: AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool shipped. AtomicU64/AtomicI32/AtomicU32 now expose typed load/store/fetch/swap/CAS wrappers over the existing i64 atomic storage cell; NO native narrow-width allocation ABI, AtomicI16 / AtomicU16 / AtomicI8 / AtomicU8 / AtomicUsize / AtomicPtr. (2) NO ATOMIC FLOATS: no AtomicF32 / AtomicF64 (Rust core lacks these too — workaround is bits-in-AtomicU64 via to_bits/from_bits). (3) MEMORY ORDERS: Relaxed/Acquire/Release/AcqRel/SeqCst all lower correctly to LLVM intrinsics; Consume is NOT a separate variant (LLVM treats Consume as Acquire — matches C++20 std::memory_order). (4) NO FETCH-MIN/MAX yet — adopter must compose via compare_exchange loop. (5) WAIT/NOTIFY (`atomic_wait` / `atomic_notify_one` / `atomic_notify_all` futex-style) NOT shipped. Phase 2 wires platform futex / WaitOnAddress per audit ship plan.";
 }
