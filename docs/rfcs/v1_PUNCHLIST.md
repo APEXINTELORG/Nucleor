@@ -483,6 +483,10 @@ proper analysis → Phase 4 hard error):
   suite as explicit `EFF-003` fail-closed coverage. This does not claim
   real block-form restricts enforcement; it closes the no-silent-accept
   coverage gap while deeper effect-row enforcement remains queued.
+- **2026-05-06**: RFC-0062 ownership fixture closure promoted the V1
+  archive `Box<T>` use-after-move test. `is_copy_type` now classifies
+  `Box<...>` as non-Copy before `type_base_name` unwraps the inner type;
+  `err_box_use_after_move.nr` locks the `OWN-001` diagnostic.
 - **2026-05-06**: Effect/capability Phase 2b fixture promotion advanced.
   Archived pure negatives for builtin print-family I/O, direct
   `requires [...]` callee calls, and immediate wrapper inference now live

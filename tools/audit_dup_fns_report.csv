@@ -260,7 +260,7 @@ own_snapshot,1,1,6,6,1,0,SIG_MATCH_BODY_DIFFERS
 own_restore,2,2,24,11,1,0,SIG_MATCH_BODY_DIFFERS
 own_merge_moved,3,3,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 enum_find,3,3,8,8,1,1,IDENTICAL
-is_copy_type,4,4,23,23,1,1,IDENTICAL
+is_copy_type,4,4,24,24,1,1,IDENTICAL
 own_binding_move_type,4,4,6,6,1,1,IDENTICAL
 check_expr,6,6,384,188,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmt,6,6,364,250,1,0,SIG_MATCH_BODY_DIFFERS
