@@ -178,6 +178,228 @@ fn basename_no_ext(name: str) -> str {
     return name;
 }
 
+fn bare_helper_name(name: str) -> str {
+    let prefix: str = "__nucleor_";
+    if str_starts_with(name, prefix) == 1 {
+        return str_substring(name, str_len(prefix), str_len(name));
+    };
+    return name;
+}
+
+fn push_symbol_name_if_missing(symbols: Vec<str>, names: Vec<str>, symbol: str, name: str) -> i64 {
+    if str_len(symbol) == 0 { return 0; };
+    if contains_str(symbols, symbol) == 0 {
+        vec_push(symbols, symbol);
+        vec_push(names, name);
+        return 1;
+    };
+    return 0;
+}
+
+fn is_digit_char(c: i64) -> i64 {
+    if c >= 48 && c <= 57 { return 1; };
+    return 0;
+}
+
+fn str_eq_any2(s: str, a: str, b: str) -> i64 {
+    if str_eq(s, a) == 1 { return 1; };
+    if str_eq(s, b) == 1 { return 1; };
+    return 0;
+}
+
+fn str_eq_any3(s: str, a: str, b: str, c: str) -> i64 {
+    if str_eq(s, a) == 1 { return 1; };
+    if str_eq(s, b) == 1 { return 1; };
+    if str_eq(s, c) == 1 { return 1; };
+    return 0;
+}
+
+fn str_eq_any4(s: str, a: str, b: str, c: str, d: str) -> i64 {
+    if str_eq(s, a) == 1 { return 1; };
+    if str_eq(s, b) == 1 { return 1; };
+    if str_eq(s, c) == 1 { return 1; };
+    if str_eq(s, d) == 1 { return 1; };
+    return 0;
+}
+
+fn classify_helper_name(name0: str) -> str {
+    let name: str = bare_helper_name(name0);
+
+    if str_starts_with(name, "vec_") == 1 { return "VectorOps"; };
+    if str_starts_with(name, "f32x4_") == 1 { return "VectorOps"; };
+    if str_starts_with(name, "i32x4_") == 1 { return "VectorOps"; };
+    if str_starts_with(name, "simd_") == 1 { return "VectorOps"; };
+    if str_starts_with(name, "vector_") == 1 { return "VectorOps"; };
+
+    if str_starts_with(name, "hashmap_") == 1 { return "Collection"; };
+    if str_starts_with(name, "hashset_") == 1 { return "Collection"; };
+    if str_starts_with(name, "btreemap_") == 1 { return "Collection"; };
+    if str_starts_with(name, "btreeset_") == 1 { return "Collection"; };
+    if str_starts_with(name, "heapmap_") == 1 { return "Collection"; };
+    if str_starts_with(name, "vecdeque_") == 1 { return "Collection"; };
+
+    if str_starts_with(name, "str_") == 1 { return "StringFormat"; };
+    if str_starts_with(name, "string_") == 1 { return "StringFormat"; };
+    if str_starts_with(name, "sb_") == 1 { return "StringFormat"; };
+    if str_starts_with(name, "format_") == 1 { return "StringFormat"; };
+    if str_starts_with(name, "format") == 1 && str_len(name) > 6 && is_digit_char(str_char_at(name, 6)) == 1 { return "StringFormat"; };
+    if str_eq(name, "chr") == 1 { return "StringFormat"; };
+    if str_starts_with(name, "char_") == 1 { return "StringFormat"; };
+    if str_eq_any4(name, "int_to_str", "int_to_hex", "int_to_bin", "int_to_oct") == 1 { return "StringFormat"; };
+    if str_eq_any3(name, "int_to_hex_upper", "int_to_str_force_sign", "f64_to_str") == 1 { return "StringFormat"; };
+    if str_eq(name, "bool_to_str") == 1 { return "StringFormat"; };
+    if str_eq_any3(name, "str_to_i64", "str_to_f64", "str_to_bool") == 1 { return "StringFormat"; };
+    if str_eq_any3(name, "str_to_i64_radix", "parse_hex", "parse_bin") == 1 { return "StringFormat"; };
+
+    if str_starts_with(name, "fs_") == 1 { return "IO"; };
+    if str_starts_with(name, "path_") == 1 { return "IO"; };
+    if str_starts_with(name, "file_") == 1 { return "IO"; };
+    if str_starts_with(name, "env_") == 1 { return "IO"; };
+    if str_eq_any2(name, "getenv", "getcwd") == 1 { return "IO"; };
+    if str_eq(name, "process_id") == 1 { return "IO"; };
+    if str_starts_with(name, "os_") == 1 { return "IO"; };
+    if str_eq_any4(name, "read_line", "read_int", "read_i64", "read_byte") == 1 { return "IO"; };
+    if str_starts_with(name, "stdin_") == 1 { return "IO"; };
+    if str_starts_with(name, "stdout_") == 1 { return "IO"; };
+    if str_starts_with(name, "stderr_") == 1 { return "IO"; };
+    if str_starts_with(name, "isatty_") == 1 { return "IO"; };
+    if str_starts_with(name, "print") == 1 { return "IO"; };
+    if str_starts_with(name, "eprint") == 1 { return "IO"; };
+    if str_starts_with(name, "pipe_") == 1 { return "IO"; };
+    if str_starts_with(name, "proc_") == 1 { return "IO"; };
+    if str_eq(name, "system") == 1 { return "IO"; };
+    if str_starts_with(name, "socket_") == 1 { return "IO"; };
+    if str_starts_with(name, "http_") == 1 { return "IO"; };
+    if str_starts_with(name, "tcp_") == 1 { return "IO"; };
+    if str_starts_with(name, "udp_") == 1 { return "IO"; };
+    if str_eq(name, "putchar") == 1 { return "IO"; };
+    if str_starts_with(name, "args_") == 1 { return "IO"; };
+    if str_eq(name, "init_args") == 1 { return "IO"; };
+    if str_starts_with(name, "dbg_") == 1 { return "IO"; };
+
+    if str_starts_with(name, "mutex_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "channel_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "chan_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "thread_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "rwlock_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "cancel_token_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "once_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "atomic_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "cas_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "par_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "scheduler_") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "ambient_scheduler") == 1 { return "Concurrency"; };
+    if str_starts_with(name, "async_") == 1 { return "Concurrency"; };
+    if str_eq(name, "cpu_count") == 1 { return "Concurrency"; };
+
+    if str_starts_with(name, "rng_") == 1 { return "Random"; };
+    if str_starts_with(name, "random_") == 1 { return "Random"; };
+    if str_eq(name, "ambient_random") == 1 { return "Random"; };
+
+    if str_starts_with(name, "time_") == 1 { return "Time"; };
+    if str_starts_with(name, "sleep_") == 1 { return "Time"; };
+    if str_starts_with(name, "now_") == 1 { return "Time"; };
+
+    if str_eq_any3(name, "contract_require", "contract_ensure", "contract_invariant") == 1 { return "ControlFlow"; };
+    if str_eq_any3(name, "deadline_check", "max_depth_enter", "max_depth_exit") == 1 { return "ControlFlow"; };
+
+    if str_starts_with(name, "checked_") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "saturating_") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "wrapping_") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "overflow") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "panic") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "trap_") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "bounds_check") == 1 { return "PanickingArith"; };
+    if str_starts_with(name, "stack_probe") == 1 { return "PanickingArith"; };
+    if str_eq_any3(name, "assert", "sat_i32", "wrap_i32") == 1 { return "PanickingArith"; };
+
+    if str_starts_with(name, "sizeof_") == 1 { return "Introspection"; };
+
+    if str_starts_with(name, "option_") == 1 { return "ADT"; };
+    if str_starts_with(name, "result_") == 1 { return "ADT"; };
+
+    if str_eq_any4(name, "popcount", "leading_zeros", "trailing_zeros", "byte_swap") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "rotate_left", "rotate_right", "count_ones", "count_zeros") == 1 { return "PureMath"; };
+    if str_starts_with(name, "i64_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "f64_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "f32_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "i32_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "f16_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "f8e4m3_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "f8e5m2_") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "abs", "min", "max", "clamp") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "sqrt", "sin", "cos", "tan") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "pow", "exp", "log", "floor") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "ceil", "round", "fabs", "fmod") == 1 { return "PureMath"; };
+    if str_eq_any4(name, "sigmoid", "tanh", "relu", "gelu") == 1 { return "PureMath"; };
+    if str_starts_with(name, "as_") == 1 { return "PureMath"; };
+    if str_starts_with(name, "buf_read_u") == 1 { return "PureMath"; };
+    if str_starts_with(name, "buf_write_u") == 1 { return "PureMath"; };
+
+    if str_starts_with(name, "toml_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "json_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "csv_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "ini_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "base64_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "msgpack_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "uuid_") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "sha256") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "fnv1a") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "murmur3") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "crc32") == 1 { return "DataCodec"; };
+    if str_starts_with(name, "bit_") == 1 { return "DataCodec"; };
+
+    if str_starts_with(name, "region_") == 1 { return "Allocation"; };
+    if str_starts_with(name, "arena_") == 1 { return "Allocation"; };
+    if str_starts_with(name, "alloc_") == 1 { return "Allocation"; };
+    if str_eq(name, "free") == 1 { return "Allocation"; };
+    if str_eq(name, "realloc") == 1 { return "Allocation"; };
+    if str_starts_with(name, "drop_") == 1 { return "Allocation"; };
+    if str_eq(name, "malloc") == 1 { return "Allocation"; };
+    if str_eq(name, "memcpy") == 1 { return "Allocation"; };
+    if str_eq(name, "calloc") == 1 { return "Allocation"; };
+    if str_starts_with(name, "capture_") == 1 { return "Allocation"; };
+    if str_starts_with(name, "dyn_box_") == 1 { return "Allocation"; };
+
+    if str_starts_with(name, "tensor_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "matmul") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "conv2d") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "attention") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "cuda_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "gpu_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "device_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "layout_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "dlpack_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "kvcache_") == 1 { return "TensorOps"; };
+    if str_starts_with(name, "kvprefix_") == 1 { return "TensorOps"; };
+
+    if str_starts_with(name, "plot_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "profile_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "certify_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "evidence_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "impact_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "audit_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "policy_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "doc_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "manifest_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "stage_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "bench_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "cli_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "test_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "summary_") == 1 { return "ToolingMeta"; };
+    if str_eq(name, "py_eval") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "compile_src_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "str_cache_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "sym_aux_") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "infer_") == 1 && str_ends_with(name, "_cached") == 1 { return "ToolingMeta"; };
+    if str_starts_with(name, "rods_f64_") == 1 { return "ToolingMeta"; };
+    if str_eq_any3(name, "assert_eq", "assert_ne", "dbg") == 1 { return "ToolingMeta"; };
+
+    if str_starts_with(name, "bf16_") == 1 { return "PureMath"; };
+
+    return "Unclassified";
+}
+
 // ---------- compiler-source inventory ----------
 
 fn collect_get_rt_pairs(src: str, names: Vec<str>, symbols: Vec<str>) -> i64 {
@@ -405,6 +627,19 @@ fn print_pair_lines(label: str, keys: Vec<str>, values: Vec<str>) -> i64 {
     return n;
 }
 
+fn print_triple_lines(label: str, a: Vec<str>, b: Vec<str>, c: Vec<str>) -> i64 {
+    let n: i64 = vec_len(a);
+    let mut i: i64 = 0;
+    while i < n {
+        let left: str = str_concat(vec_get(a, i), "|");
+        let middle: str = str_concat(vec_get(b, i), "|");
+        let line: str = str_concat(str_concat(left, middle), vec_get(c, i));
+        print(str_concat(label, str_concat(": ", line)));
+        i = i + 1;
+    };
+    return n;
+}
+
 // ---------- main ----------
 
 fn main() -> i64 {
@@ -459,7 +694,29 @@ fn main() -> i64 {
     };
     sort_strs(union_symbols);
 
-    print("helper_manifest_inventory_v3");
+    let manifest_symbols: Vec<str> = vec_new();
+    let manifest_names: Vec<str> = vec_new();
+    let mut m: i64 = 0;
+    while m < vec_len(rt_symbols) {
+        push_symbol_name_if_missing(manifest_symbols, manifest_names, vec_get(rt_symbols, m), vec_get(rt_names, m));
+        m = m + 1;
+    };
+    m = 0;
+    while m < vec_len(ir_symbols) {
+        let sym: str = vec_get(ir_symbols, m);
+        push_symbol_name_if_missing(manifest_symbols, manifest_names, sym, bare_helper_name(sym));
+        m = m + 1;
+    };
+    sort_parallel_by_key(manifest_symbols, manifest_names);
+
+    let manifest_classes: Vec<str> = vec_new();
+    m = 0;
+    while m < vec_len(manifest_names) {
+        vec_push(manifest_classes, classify_helper_name(vec_get(manifest_names, m)));
+        m = m + 1;
+    };
+
+    print("helper_manifest_inventory_v4");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -474,6 +731,7 @@ fn main() -> i64 {
     print(str_concat("runtime_macro_expanded_symbols: ", int_to_str(runtime_macro_defs)));
     print(str_concat("runtime_unique_symbols: ", int_to_str(vec_len(runtime_symbols))));
     print(str_concat("manifest_candidate_symbols: ", int_to_str(vec_len(union_symbols))));
+    print(str_concat("manifest_named_symbols: ", int_to_str(vec_len(manifest_symbols))));
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
@@ -481,6 +739,7 @@ fn main() -> i64 {
     print_value_lines("ptr_ret_name", ptr_ret_names);
     print_value_lines("ptr_arg_name", ptr_arg_names);
     print_pair_lines("ir_abi", ir_symbols, ir_abis);
+    print_triple_lines("class_row", manifest_symbols, manifest_names, manifest_classes);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
     return 0;
