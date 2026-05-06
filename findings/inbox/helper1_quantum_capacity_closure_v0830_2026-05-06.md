@@ -242,6 +242,59 @@ bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_c
 Both direct build/run checks passed. Both focused canonical gate checks returned
 `PASS: 1`, `SKIP: 1129`.
 
+## Follow-on slice - QM-14 partial logical-qubit release
+
+This branch also closes the partial-release gap with a tiny runtime ABI addition:
+
+- Added `nuc_lq_release(handle)` in `stdlib/runtime/logical_qubit_rt.c`.
+- Changed logical-qubit registry allocation from high-water-only to first-free
+  slot reuse.
+- Made `nuc_lq_count()` return active entries, and made code/distance lookup
+  return `0` for released handles.
+- Added `logical_qubit_release(lq)` and
+  `logical_qubit_release_handle(handle)` wrappers.
+
+Updated fixture:
+
+- `tests/features/logical_qubit_registry_capacity_smoke.nr`
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\logical_qubit_registry_capacity_smoke.nr -o target\_qm14_logical_registry --no-cache
+.\target\_qm14_logical_registry.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_registry_capacity_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_push_at_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Direct build/run passed. All three focused canonical gate checks returned
+`PASS: 1`, `SKIP: 1129`.
+
+## Follow-on slice - QM-6 MPS Bell probability readout
+
+This branch also closes the MPS Bell marginal-probability gap with a small
+runtime readout API:
+
+- Added `nuc_mps_prob0(handle, q)` in `stdlib/runtime/mps_rt.c`.
+- Added `mps_prob0(h, q)` in `stdlib/rods/mps.nr`.
+- Added `tests/features/mps_bell_probabilities_smoke.nr`, comparing MPS
+  Bell-circuit marginals against the qsim reference.
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\mps_bell_probabilities_smoke.nr -o target\_qm6_mps_bell_probs --no-cache
+.\target\_qm6_mps_bell_probs.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_bell_probabilities_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_named_gate_wrappers_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/quantum_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Direct build/run passed. All four focused canonical gate checks returned
+`PASS: 1`, `SKIP: 1130`.
+
 ## Remaining blocker matrix
 
 | Blocker | Current status | Exact surface needed | Owner suggestion | Focused validation after implementation |
@@ -250,5 +303,5 @@ Both direct build/run checks passed. Both focused canonical gate checks returned
 | QM-11 native diff_sim no-clamp status | `diff_sim_init_preflight` and `diff_sim_init_checked` shipped; raw native init still clamps when called directly | Native no-clamp error behavior if the raw escape hatch stays public | main if ABI change; helper if wrapper-only | `bash tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke"` plus raw native no-clamp fixture if ABI changes |
 | QM-12 shared gate constants | common H/CNOT/X/Z shared rod shipped and consumed by MPS + diff_sim; rotations remain rod-specific | Typed/cross-rod rotation enum after native dispatch tables unify | main/helper depending on native dispatch scope | `bash tools/verify.sh --sequential-fixtures --only "test features/quantum_gate_constants_smoke"` plus rotation enum fixture |
 | QM-13 backend-aware schedule insertion | `schedule_validate_no_same_qubit_overlap` and `schedule_push_at` shipped; legacy `schedule_push` remains serialized append | Backend calibration/resource scheduler and hardware target lowering | main/helper depending on backend scope | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_push_at_smoke"` plus backend-specific scheduler fixture |
-| QM-14 partial logical-qubit release | registry cap preflight shipped; only clear-all release exists | `nuc_lq_release(handle)` plus Nucleor wrapper/status | main/helper depending on runtime-edit allowance | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_registry_capacity_smoke"` plus partial-release fixture |
-| QM-6 MPS Bell probabilities | MPS smoke already applies gates and checks Z expectations on current main; no probability/statevector extraction API | MPS probability or statevector readout API for direct Bell probability parity | main/helper depending on runtime ABI | `bash tools/verify.sh --sequential-fixtures --only "test features/mps_bell_probabilities_smoke"` |
+| QM-14 partial logical-qubit release | `nuc_lq_release`, Nucleor wrappers, active count, and slot reuse shipped | Thread-safety / backend ownership semantics if registry becomes concurrent | main/helper depending on runtime scope | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_registry_capacity_smoke"` plus concurrent registry fixture when threading semantics exist |
+| QM-6 MPS Bell probabilities | `mps_prob0` and Bell marginal fixture shipped; no joint probability/statevector extraction | Full joint-probability or statevector extraction API | main/helper depending on runtime ABI | `bash tools/verify.sh --sequential-fixtures --only "test features/mps_bell_probabilities_smoke"` plus joint-probability fixture |

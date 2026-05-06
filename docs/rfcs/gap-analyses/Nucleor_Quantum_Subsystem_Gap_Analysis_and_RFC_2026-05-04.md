@@ -46,7 +46,15 @@ SWAP count not reported back to Nucleor or trace. `qtrace_set_original` would do
 Correct for small bond dimensions but no documented convergence guarantee beyond 1e-28 off-norm. Near max bond (64), SVD may not converge; singular values silently clamped to zero via `max(eigenvalue, 0)` — **potential silent truncation error with no warning.**
 
 ## QM-6 — MPS smoke test is allocation-only — **HIGH**
-`mps_smoke.nr` tests only `mps_init` + free. **No gate applied, no statevector extracted, no correctness verified.** Bell-state test through MPS path does not exist.
+Original finding: `mps_smoke.nr` tested only `mps_init` + free; no gate was
+applied, no statevector/probability was extracted, and no Bell-state test
+through MPS existed.
+
+**2026-05-06 update:** MPS correctness coverage is now fixture-backed.
+`mps_prob0(h, q)` exposes single-qubit probability readout from the existing
+MPS contraction, and `mps_bell_probabilities_smoke.nr` compares Bell-circuit
+MPS marginals against the qsim statevector reference. Remaining gap: no full
+joint-probability or statevector extraction API.
 
 ## QM-7 — Clifford rod coverage partially closed — **CRITICAL REMAINING**
 41 KB runtime with stabilizer formalism, distance, error detection. The original zero-test gap is now partially closed by deterministic Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/detectable-error, and rotated Surface-17 d=3 stabilizer/logical smokes. Remaining launch risk is validation breadth: published weight-enumerator parity is still open, and the suite is not a randomized stabilizer property test.
@@ -99,11 +107,13 @@ calibration/resource scheduler or hardware target lowering.
 ## QM-14 — Logical qubit registry no partial release — **LOW**
 Process-global static array `_nuc_lqs[256]`. No free/remove operation, only `nuc_lq_clear` wipes everything. `nuc_lq_register` returns -1 on overflow with no Nucleor-level check in `logical_qubit_new`.
 
-**2026-05-06 update:** Phase 1 registry disclosure/preflight is now shipped:
-`logical_qubit_max_registry`, `logical_qubit_registry_preflight`, and
-slots-remaining helpers are covered by
-`logical_qubit_registry_capacity_smoke.nr`. Remaining gap: no partial release
-API; only `logical_qubit_clear()` wipes the process-local registry.
+**2026-05-06 update:** registry disclosure/preflight and partial release are
+now shipped. `logical_qubit_max_registry`, `logical_qubit_registry_preflight`,
+slots-remaining helpers, `logical_qubit_release(lq)`, and
+`logical_qubit_release_handle(handle)` are covered by
+`logical_qubit_registry_capacity_smoke.nr`. Released slots are reused and
+`logical_qubit_clear()` still wipes all entries. Remaining gap: registry state
+is process-local and not thread-safe.
 
 ## QM-15 — QIR and OpenQASM completely absent — **HIGH** (deferred per RFC-0054 Phase B)
 No emit, no ingest, no stub. Users wanting to port from Qiskit/Cirq or run on IBM Q have no path from Nucleor.
@@ -134,7 +144,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 
 **Phase 1 (emergency, test coverage):**
 - QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, and rotated Surface-17 d=3 stabilizer/logical behavior. Remaining Phase 2 closure is published weight-enumerator parity, blocked on a new Clifford enumerator API. **No Clifford code ships without these tests.**
-- QM-6: extend `mps_smoke.nr` to actually apply gates, extract statevector, verify Bell-state probabilities to 1e-10 tolerance.
+- QM-6: MPS gate correctness and Bell marginal probabilities are shipped;
+  remaining work is full joint-probability or statevector extraction.
 - QM-1: remove unimplemented function names from `quantum.nr` header comment.
 - QM-2: preflight/disclosure and `qsim_init_checked` are shipped; remaining
   work is native fail-closed behavior if raw `qsim_init` remains public.
@@ -152,8 +163,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 - QM-13: schedule overlap validator and `schedule_push_at` checked insertion
   are shipped; remaining work is backend calibration/resource scheduling and
   hardware target lowering.
-- QM-14: registry cap preflight is shipped; remaining work is
-  `nuc_lq_release(handle)` / partial release.
+- QM-14: registry cap preflight and partial release are shipped; remaining
+  work is thread-safety / backend ownership semantics.
 
 **Phase 3 (medium-term):**
 - QM-4: track SWAP overhead in MPS routing. Surface to Nucleor and to trace.

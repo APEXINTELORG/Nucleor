@@ -265,6 +265,12 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
+- **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2a on
+  2026-05-06 — `mps_prob0(h, q)` exposes single-qubit probability
+  readout from the MPS contraction, and
+  `mps_bell_probabilities_smoke.nr` compares Bell-circuit MPS
+  marginals against the qsim reference. Remaining gap: no full
+  joint-probability or statevector extraction API.
 - **QM-2 qsim statevector checked init:** DONE for Phase 1+2a on
   2026-05-06 — `qsim_init_preflight(n)` returns stable status codes
   (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and
@@ -335,12 +341,14 @@ launch. After memory safety completes, these are next-priority.
   backend-parallel insertion with same-qubit overlap rejection. Legacy
   `schedule_push` remains serialized append. Remaining gap: no backend
   calibration/resource scheduler or hardware target lowering.
-- **QM-14 logical-qubit registry cap disclosure:** DONE for Phase 1
-  on 2026-05-06 — `logical_qubit_max_registry`,
-  `logical_qubit_registry_preflight`, and slots-remaining helpers are
-  fixture-backed by `logical_qubit_registry_capacity_smoke.nr`.
-  Remaining gap: no partial release API; only `logical_qubit_clear()`
-  wipes the process-local registry.
+- **QM-14 logical-qubit registry cap + partial release:** DONE for
+  Phase 1+2a on 2026-05-06 — `logical_qubit_max_registry`,
+  `logical_qubit_registry_preflight`, slots-remaining helpers,
+  `logical_qubit_release(lq)`, and `logical_qubit_release_handle(handle)`
+  are fixture-backed by `logical_qubit_registry_capacity_smoke.nr`.
+  Released slots are reused and `logical_qubit_clear()` still wipes the
+  process-local registry. Remaining gap: registry remains process-local
+  and not thread-safe.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`

@@ -35,6 +35,7 @@ extern fn nuc_lq_register(code_id: i64, distance: i64) -> i64;
 extern fn nuc_lq_count() -> i64;
 extern fn nuc_lq_code(handle: i64) -> i64;
 extern fn nuc_lq_distance(handle: i64) -> i64;
+extern fn nuc_lq_release(handle: i64) -> i64;
 extern fn nuc_lq_clear() -> i64;
 
 // =====================================================
@@ -102,9 +103,19 @@ fn logical_qubit_can_allocate() -> i64 {
 }
 fn logical_qubit_status_ok() -> i64 { return 0; }
 fn logical_qubit_status_registry_full() -> i64 { return 1; }
+fn logical_qubit_status_invalid_handle() -> i64 { return 2; }
 fn logical_qubit_registry_preflight() -> i64 {
     if logical_qubit_can_allocate() == 1 { return logical_qubit_status_ok(); };
     return logical_qubit_status_registry_full();
+}
+
+fn logical_qubit_release_handle(handle: i64) -> i64 {
+    if nuc_lq_release(handle) == 1 { return logical_qubit_status_ok(); };
+    return logical_qubit_status_invalid_handle();
+}
+
+fn logical_qubit_release(lq: LogicalQubit) -> i64 {
+    return logical_qubit_release_handle(lq.handle);
 }
 
 fn physical_qubit(handle: i64) -> PhysicalQubit {
@@ -357,5 +368,5 @@ fn calibration_t2_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
 // implements the primitives per the audit ship plan
 // (surface-code → export/import → mid-circuit feedback).
 fn logical_qubit_limitations() -> str {
-    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285/v0830): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) SCHEDULE SAFETY: schedule_push_at(&mut sched, pulse, qubit, start_ns) inserts backend-parallel pulses only when same-qubit intervals do not overlap; schedule_validate_no_same_qubit_overlap(sched) audits existing schedules and malformed rows. Legacy schedule_push remains serialized append. (3) LOGICAL-QUBIT REGISTRY: process-local registry cap is 256; query logical_qubit_registry_preflight() / logical_qubit_registry_slots_remaining() before allocation. There is still no partial release; logical_qubit_clear() wipes all entries. (4) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (5) QIR EXPORT: not implemented. (6) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan.";
+    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285/v0830): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) SCHEDULE SAFETY: schedule_push_at(&mut sched, pulse, qubit, start_ns) inserts backend-parallel pulses only when same-qubit intervals do not overlap; schedule_validate_no_same_qubit_overlap(sched) audits existing schedules and malformed rows. Legacy schedule_push remains serialized append. (3) LOGICAL-QUBIT REGISTRY: process-local registry cap is 256; query logical_qubit_registry_preflight() / logical_qubit_registry_slots_remaining() before allocation. logical_qubit_release(lq) and logical_qubit_release_handle(handle) release individual registry slots for reuse; logical_qubit_clear() still wipes all entries. (4) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (5) QIR EXPORT: not implemented. (6) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan.";
 }
