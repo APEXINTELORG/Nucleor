@@ -214,6 +214,11 @@ launch. After memory safety completes, these are next-priority.
   args, out-of-range args, and a filled 4096-slot DAG. Remaining
   gap: raw C runtime still returns `-1`; no auto-entangle or
   thread-safety semantics are implied.
+- **QM-9 checked qsim gate-record wrapper:** DONE for Phase 1 on
+  2026-05-05 — `qsim_gate_record_checked(name, q1, q2)` returns
+  real gate IDs on success and structured negative status
+  (`-1=out_of_range`, `-2=dag_full`, `-3=unknown raw failure`).
+  The raw C runtime ABI remains unchanged.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
