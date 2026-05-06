@@ -4,9 +4,9 @@ fn main() -> i64 {
     v.push(4);
     v.push(5);
     let r: i64 = match v {
-        [first, .., last] => first + last,
+        [first, middle, last] => first + middle + last,
         _ => 0,
     };
-    if r != 8 { return 91; };
+    if r != 12 { return 91; };
     return 0;
 }

@@ -349,25 +349,9 @@ fn lex(src: str) -> Vec<i32> {
                     panic("nucleor: cold attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
-            // v0.7.79 (defensive halt — Rust `#[test]` attribute on
-            // a fn). Pre-fix the attribute was silently dropped at
-            // lex and the fn parsed as a regular fn. Adopters
-            // writing `#[test] fn test_foo() { assert!(...) }`
-            // expect the fn to be discovered + run by the test
-            // harness (the Rust `cargo test` workflow). Nucleor has
-            // no test runner — DCE elides un-called test fns and
-            // adopters silently lose their entire test suite.
-            // Halt cleanly at lex with a workaround pointer
-            // (call test fns explicitly from `main` or use the
-            // existing `verify.ps1` / fixtures path). Sister to
-            // v0.7.18 inline/cold attribute halts.
-            if p + 6 < slen && str_eq_at(src, p + 2, "test") == 1 {
-                let after_test_v779: i64 = str_char_at(src, p + 6);
-                if after_test_v779 == 93 {
-                    print("ERROR: `#[test]` attribute on fn is not yet supported in Nucleor. Pre-v0.7.79 the attribute was silently dropped at lex time and the fn parsed as a regular fn — DCE then elided un-called test fns and adopters silently lost their entire test suite without diagnostic. Workaround: drop the `#[test]` attribute and either call test fns explicitly from `main` (`fn main() -> i64 { test_foo(); test_bar(); return 0; }`), or move test fns into `tests/fixtures/*.nr` and run them via the `verify.ps1` harness. Tracked for forward-roadmap (`#[test]` discovery + standalone test runner is a v1.x ship; sister to the existing fixture-based test workflow).");
-                    panic("nucleor: `#[test]` attribute not yet supported (see ERROR diagnostic above)");
-                };
-            };
+            // RFC-0021: `#[test]` is supported by `nuc test`.
+            // Discovery happens in tools-suite; normal build/check paths
+            // lexically consume this metadata below.
             // v0.6.26 (probe finding 2026-05-01-derive-attribute-partial-honor):
             // `#[derive(A, B, C)]` is silently dropped except for `Debug`
             // which is honored. Adopters writing `#[derive(PartialEq)]`
@@ -27494,7 +27478,9 @@ fn auto_drop_init_owns_value(pool: Vec<i32>, init: i64) -> i64 {
     if k == 8 { return 0; };
     if k == 9 { return 0; };
     if k == 10 { return 0; };
-    if k == 12 { return 0; };
+    // Constructor calls such as `Vec::new()` create owned values. The
+    // registration path still gates by declared/inferred type cleanup helper.
+    if k == 12 { return 1; };
     return 1;
 }
 
@@ -27666,6 +27652,45 @@ fn auto_drop_handoff_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
 }
 
 #[manual_drop]
+fn auto_drop_mark_constructor_handoffs(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> i64 {
+    if expr_nid < 0 { return 0; };
+    if node_kind(pool, expr_nid) == 34 {
+        let init_list: i64 = node_field(pool, expr_nid, 2);
+        let n34: i64 = list_len(pool, init_list);
+        let mut i34: i64 = 0;
+        while i34 < n34 {
+            let init_nid: i64 = list_get(pool, init_list, i34);
+            let val_nid: i64 = node_field(pool, init_nid, 2);
+            if node_kind(pool, val_nid) == 3 {
+                let vname34: str = node_field(pool, val_nid, 1);
+                let idx34: i64 = sym_get(sym, auto_drop_index_key(vname34));
+                if idx34 >= 0 { auto_drop_mark_freed(sym, vname34); };
+            } else {
+                auto_drop_mark_constructor_handoffs(pool, val_nid, sym);
+            };
+            i34 = i34 + 1;
+        };
+        return 0;
+    };
+    if node_kind(pool, expr_nid) != 12 { return 0; };
+    let args_list: i64 = node_field(pool, expr_nid, 3);
+    let n: i64 = list_len(pool, args_list);
+    let mut i: i64 = 0;
+    while i < n {
+        let arg: i64 = list_get(pool, args_list, i);
+        if node_kind(pool, arg) == 3 {
+            let vname: str = node_field(pool, arg, 1);
+            let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+            if idx >= 0 { auto_drop_mark_freed(sym, vname); };
+        } else if node_kind(pool, arg) == 12 {
+            auto_drop_mark_constructor_handoffs(pool, arg, sym);
+        };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
 fn auto_drop_return_skip_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     if expr_nid < 0 { return ""; };
     if node_kind(pool, expr_nid) == 3 {
@@ -27772,6 +27797,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let src_kind: i64 = node_kind(pool, init);
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             cur = lx_blk(vp);
+            auto_drop_mark_constructor_handoffs(pool, init, sym);
             let vr: i64 = lx_reg(vp);
             let nvr: i64 = narrow_via_as(cur, regs, vr, sbase, src_kind);
             if aw20 == 0 {
@@ -28046,6 +28072,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_call_ex(invx_cr, "contract_invariant", invx_args));
             };
             let skip_ret_name: str = auto_drop_return_skip_name(pool, vn, sym);
+            auto_drop_mark_constructor_handoffs(pool, vn, sym);
             cur = auto_drop_emit_live(cur, regs, sym, skip_ret_name);
             ir_block_add(cur, ir_ret(vr));
         } else {
@@ -28918,6 +28945,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                 ir_block_add(fb, ir_call_ex(invx_cr, "contract_invariant", invx_args));
             };
             let skip_tail_name: str = auto_drop_return_skip_name(pool, expr_nid, sym);
+            auto_drop_mark_constructor_handoffs(pool, expr_nid, sym);
             fb = auto_drop_emit_live(fb, regs, sym, skip_tail_name);
             ir_block_add(fb, ir_ret(rv));
         };
@@ -30951,6 +30979,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v0834_has_dotdot_mid: i64 = if str_index_of(after_async, str_concat(", ..", ",")) >= 0 { 1 } else { 0 };
     let v0834_has_dotdot_close: i64 = if str_index_of(after_async, str_concat(", ..", "]")) >= 0 { 1 } else { 0 };
     let v0834_has_bracket_dotdot: i64 = if str_index_of(after_async, str_concat("[..", ",")) >= 0 { 1 } else { 0 };
+    if v0834_has_dotdot_mid == 1 && v0834_has_dotdot_close == 1 {
+        print("error[MATCH-009]: slice pattern contains more than one dot-dot rest marker");
+        panic("nucleor: MATCH-009 slice pattern overlap");
+    };
     if v0834_has_dotdot_mid == 1 || v0834_has_dotdot_close == 1 || v0834_has_bracket_dotdot == 1 {
         // Diagnostic message intentionally uses extra-spaced
         // form `[a , .. , b]` to avoid self-matching the
@@ -36650,9 +36682,14 @@ fn run_external_tool(argc: i64) -> i64 {
         i = i + 1;
     };
     let mut selected: str = tool_path;
-    if str_len(file_read_string(repo_tool_path)) > 0 { selected = repo_tool_path; }
-    else if str_len(file_read_string(repo_bin_tool_path)) > 0 { selected = repo_bin_tool_path; }
-    else if str_len(file_read_string(local_tool_path)) > 0 { selected = local_tool_path; };
+    if fs_exists(repo_tool_path) == 1 { selected = repo_tool_path; }
+    else if fs_exists(repo_bin_tool_path) == 1 { selected = repo_bin_tool_path; }
+    else if fs_exists(local_tool_path) == 1 { selected = local_tool_path; };
+    if fs_exists(selected) == 0 {
+        print(str_concat("ERROR: cannot find required tools-suite binary: ", tool_name));
+        print("       rebuild with: nuc build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache");
+        return 1;
+    };
     let selected_cmd: str = core_shell_quote(selected);
     let cmd: str = if host_is_windows() == 1 {
         let cwd_shell: str = host_shell_path(posix_drive_to_windows(getcwd()));

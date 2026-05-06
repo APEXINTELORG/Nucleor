@@ -159,12 +159,21 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | RT-006 | RT attribute on async fn | [RFC-0001](../rfcs/RFC-0001-rt-attributes.md), [RFC-0030](../rfcs/RFC-0030-async-decision.md) |
 | RT-007 | Deadline annotation without no_alloc or no_panic | [RFC-0001](../rfcs/RFC-0001-rt-attributes.md) |
 | RT-008 | Recursive call in #[deadline] function | [RFC-0014](../rfcs/RFC-0014-max-depth.md) |
+| RT-009 | Integer division or modulo in #[no_panic] function | [RFC-0001 §3.2.2](../rfcs/RFC-0001-rt-attributes.md) |
 
 ## ASYNC series — async fn handling
 
 | Code | Title | Source | Notes |
 |---|---|---|---|
 | ASYNC-001 | `async` keyword on fn is silently stripped (use `async_spawn` + `async_await` for threading) | resolver async-strip pass, v0.5.19 | warning |
+
+## PERF series — router and hot-path diagnostics
+
+| Code | Title | Source |
+|---|---|---|
+| PERF-1 | Invalid router `--tier` value | router / performance tier validation |
+| PERF-2 | `@hot` function contains heap allocation or I/O | hot-path audit |
+| PERF-3 | Heap allocation inside a while/loop block | heap-in-loop audit |
 
 ## ALLOC series — RFC-0002 allocator types
 
@@ -463,6 +472,9 @@ migration plus the within-series enumerated DIAG-001 check.
 | LAW-002 | SMT disproves law (cert profile) | [RFC-0031 §3.4](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-003 | Law cited but optimizer cannot use it | [RFC-0031](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-004 | Float operation claimed exact associative (warn) | [RFC-0031 §3.3](../rfcs/RFC-0031-algebraic-laws.md) |
+| LAW-006 | Deprecated alias `zero = Z`; use `absorbing = Z` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
+| LAW-007 | Deprecated bare `distributive`; use `distributive_over = g` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
+| LAW-008 | Unrecognized law name | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
 
 ## GOV series — governance policies
 

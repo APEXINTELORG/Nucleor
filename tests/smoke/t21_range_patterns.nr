@@ -59,3 +59,11 @@ fn test_range_falls_through_to_wildcard() {
     assert_eq(classify_inclusive(1000), 3);
     assert_eq(classify_exclusive(0 - 1), 4);
 }
+
+fn main() -> i32 {
+    test_range_inclusive_boundaries();
+    test_range_exclusive_normalizes();
+    test_range_falls_through_to_wildcard();
+    print("OK t21_range_patterns");
+    return 0;
+}

@@ -500,7 +500,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         "NR001", "NR005", "NR010", "NR020", "NR030", "NR031", "NR032", "NR033",
         "NR034", "NR035", "NR036", "NR040", "NR050", "NR051", "NR070", "NR090",
         # RFC-0001 RT
-        "RT-001", "RT-002", "RT-003", "RT-004", "RT-005", "RT-006", "RT-007", "RT-008",
+        "RT-001", "RT-002", "RT-003", "RT-004", "RT-005", "RT-006", "RT-007", "RT-008", "RT-009",
         "ASYNC-001",
         # RFC-0002 allocators
         "ALLOC-001", "ALLOC-002", "ALLOC-003",
@@ -563,6 +563,8 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
         # RFC-0015 phase 3c.1 surfacing of i64-into-iN-param sites.
         "NUM-022", "NUM-023", "NUM-024",
+        # Router / hot-path performance diagnostics
+        "PERF-1", "PERF-2", "PERF-3",
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001", "MATCH-002", "MATCH-003", "MATCH-004", "MATCH-005", "MATCH-006",
         "MATCH-007", "MATCH-008", "MATCH-009", "MATCH-010",
@@ -578,7 +580,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # RFC-0022 cross-platform (v0.2)
         "TGT-001", "TGT-002", "TGT-003", "TGT-004",
         # RFC-0031 algebraic laws
-        "LAW-001", "LAW-002", "LAW-003", "LAW-004",
+        "LAW-001", "LAW-002", "LAW-003", "LAW-004", "LAW-006", "LAW-007", "LAW-008",
         # RFC-0032 effects
         "EFF-001", "EFF-002", "EFF-003", "EFF-004", "EFF-005",
         # RFC-0020 DIAG (minted v0.3.36 -- first DIAG-NNN code)
@@ -968,9 +970,9 @@ Step "T3.3 static WCET v1 estimator emits warning[RT-004]" {
     # verify gate step 349. New estimator counts stmts + while
     # keywords with a coarse multiplier ladder + 1e6 stmt cap.
     $out = & $bin build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache 2>&1 | Out-String
-    if ($out -notmatch "warning\[RT-004\]: static WCET estimate \d+ us") { return $false }
+    if ($out -notmatch "warning\[RT-004\]: heuristic deadline estimate \d+ us") { return $false }
     if ($out -notmatch "exceeds #\[deadline = 1 us\]") { return $false }
-    if ($out -notmatch "v1 estimator") { return $false }
+    if ($out -notmatch "default loop multiplier 100x") { return $false }
     return $true
 }
 
@@ -1783,10 +1785,12 @@ Step "T3.58 trait default-method support (impls inherit defaults; Self substitut
 }
 
 Step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault -> clean diagnostic)" {
-    # v0.3.81 (T3.57): negative regression -- must NOT segfault.
+    # v0.3.81 (T3.57): negative regression -- typed tuple-let
+    # patterns must fail cleanly, not segfault.
     $out = & $bin build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache 2>&1 | Out-String
     if ($LASTEXITCODE -eq -1073741819) { return $false }
-    if ($out -notmatch "tuple destructuring in ``let`` is not yet supported") { return $false }
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "error\[NR020\]") { return $false }
     return $true
 }
 

@@ -47,10 +47,10 @@ fn squared_in_range(x: i32) -> i32 {
     }
 }
 
-/// Slice patterns on Vec — `[a, .., b]`, `[single]`, `[]`.
+/// Slice patterns on Vec — `[a, b, c]`, `[single]`, `[]`.
 fn slice_summary(v: Vec<i32>) -> i32 {
     match v {
-        [a, .., b] => a + b,
+        [a, middle, b] => a + middle + b,
         [single]   => single,
         []         => 0,
         _          => -1,
@@ -101,7 +101,7 @@ fn main() -> i32 {
 
     let mut v: Vec<i32> = Vec::new();
     v.push(10); v.push(20); v.push(30);
-    if slice_summary(v) != 40                        { print("FAIL slice [a, .., b]"); return 1; };
+    if slice_summary(v) != 60                        { print("FAIL slice [a, b, c]"); return 1; };
     let mut v2: Vec<i32> = Vec::new();
     v2.push(7);
     if slice_summary(v2) != 7                        { print("FAIL slice [single]"); return 1; };

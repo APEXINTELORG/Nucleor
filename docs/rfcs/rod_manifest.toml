@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 249
 # Total fn definitions: 2843
-# Total LOC: 12060
+# Total LOC: 12067
 
 [[rod]]
 name           = "activation2"
@@ -998,7 +998,7 @@ path           = "stdlib/rods/json.nr"
 description    = "JSON parser and serializer"
 function_count = 35
 cfile_count    = 0
-loc            = 397
+loc            = 404
 imports        = ["complex", "fmt", "json", "strings"]
 
 [[rod]]

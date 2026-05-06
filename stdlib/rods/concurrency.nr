@@ -59,7 +59,7 @@ fn conc_atomic(initial: i64) -> i64 { return atomic_new(initial); }
 fn conc_atomic_inc(a: i64) -> i64 { return atomic_add(a, 1); }
 fn conc_atomic_dec(a: i64) -> i64 { return atomic_add(a, 0 - 1); }
 fn conc_atomic_add(a: i64, delta: i64) -> i64 { return atomic_add(a, delta); }
-fn conc_atomic_get(a: i64) -> i64 { return atomic_load(a); }
+fn conc_atomic_get(a: i64) -> i64 { return atomic_load_v(a); }
 
 // Query system resources
 fn conc_cpu_count() -> i64 { return cpu_count(); }
