@@ -185,11 +185,29 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 
 ## FRAME series — RFC-0003 typed coordinate frames
 
-| Code | Title | RFC section |
-|---|---|---|
-| FRAME-001 | Cannot add values in different coordinate frames | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) |
-| FRAME-002 | Transform composition mismatch | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) |
-| FRAME-003 | Cannot apply transform to value in incompatible frame | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) |
+| Code | Title | RFC section | Status |
+|---|---|---|---|
+| FRAME-001 | Cannot combine values in different coordinate frames | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md), [RFC-0046](../rfcs/RFC-0046-coordinate-frame-types.md) | LIVE — fires at let-binding sites for `Pose<Frame_X>`-style phantom-tag mismatches (ROBO-7 Phase B step-2, v0838) |
+| FRAME-002 | Transform composition mismatch | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) | RESERVED — fires once `Transform<From, To>` parses/type-checks |
+| FRAME-003 | Cannot apply transform to value in incompatible frame | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) | RESERVED — fires once `transform()` call sites are wired |
+
+**FRAME-001 firing surface (v0838, ROBO-7 Phase B step-2):**
+The let-binding type-check pass detects two types whose first
+generic arguments carry distinct `Frame_*` phantom tags on
+matching base names (e.g. `Pose<Frame_Camera>` vs
+`Pose<Frame_Base>`) and emits `error[FRAME-001]` with the
+canonical Mars-Climate-Orbiter framing and a `kinematics_transform`
+fix pointer. `Frame_Unknown` is the documented migration sentinel
+(RFC-0046 §migration) and matches any frame; untagged types
+(no `<...>` parameter) are unaffected. Positive coverage:
+`tests/features/robo7_frame_positive_smoke.nr` (5 invariants).
+Negative coverage: `tests/err/err_robo7_frame_mismatch.nr`.
+Phase B step-3 will broaden the firing surface from let-binding
+sites to struct-init field types, function-call argument
+positions, and binop operand types; the underlying
+`frame_mismatch_visible` helper is already wired into
+`types_compatible` so the rejection is global — only the
+diagnostic-emission upgrade remains per site.
 
 ## ASSUME series — RFC-0004 assume!
 

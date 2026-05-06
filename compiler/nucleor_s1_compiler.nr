@@ -10076,6 +10076,55 @@ fn type_first_arg(t: str) -> str {
     return str_substring(t, s, e);
 }
 
+// RFC-0046 Phase B (ROBO-7) — coordinate-frame phantom-tag extraction.
+//
+// Returns the `Frame_*` tag from the FIRST generic argument of `t`, or
+// "" when the type carries no recognizable frame tag. Adopters tag
+// spatial values with the canonical zero-cost markers from
+// `stdlib/rods/kinematics_frame.nr` (`Frame_World`, `Frame_Base`,
+// `Frame_Camera`, `Frame_Lidar`, `Frame_IMU`, `Frame_Gripper`,
+// `Frame_Map`, `Frame_Odom`, `Frame_Unknown`) — anything else with a
+// `Frame_` prefix is also recognized so adopter-defined frames
+// (`Frame_ToolTip`, `Frame_PalletA`, …) work the same way.
+//
+// Hot-path note: skipped instantly when the type has no `<` (the
+// dominant case in type-check); the inner work runs only on
+// generic-shaped types.
+fn type_frame_tag(t: str) -> str {
+    let arg: str = type_first_arg(t);
+    if str_len(arg) == 0 { return ""; };
+    let s: str = strip_spaces(arg);
+    if str_starts_with(s, "Frame_") == 1 { return s; };
+    return "";
+}
+
+// RFC-0046 Phase B (ROBO-7) — frame-mismatch decision for the type
+// checker. Returns 1 when the two types both carry distinct
+// `Frame_*` phantom tags on matching base names, and neither side
+// is `Frame_Unknown` (the documented migration sentinel that
+// matches any frame, RFC-0046 §migration). Returns 0 in every
+// other case so the existing type-check paths stay untouched for
+// non-frame code.
+//
+// The match is intentionally conservative: it requires the base
+// names to match (so `Pose<Frame_Camera>` vs `Vec3<Frame_Base>` is
+// caught by the regular base-name path, not this one) and at least
+// one explicit `Frame_*` tag on each side. This is the smallest
+// possible compiler-visible enforcement — Mars-Climate-Orbiter
+// frame-confusion class only — without disturbing any other
+// generic compatibility rule.
+fn frame_mismatch_visible(expected: str, actual: str) -> i64 {
+    let etag: str = type_frame_tag(expected);
+    if str_len(etag) == 0 { return 0; };
+    let atag: str = type_frame_tag(actual);
+    if str_len(atag) == 0 { return 0; };
+    if str_eq(etag, "Frame_Unknown") == 1 { return 0; };
+    if str_eq(atag, "Frame_Unknown") == 1 { return 0; };
+    if str_eq(etag, atag) == 1 { return 0; };
+    if str_eq(type_base_name(expected), type_base_name(actual)) == 0 { return 0; };
+    return 1;
+}
+
 // v0.5.13: gparam-binding extraction + substitution for generic-fn
 // return-type inference. Closes probe-agent finding
 // 2026-05-01-generic-T-propagation-spsc-option-str.
@@ -19550,6 +19599,14 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(expected, "_") == 1 { return 1; };
     if str_eq(actual, "_") == 1 { return 1; };
     if str_eq(expected, actual) == 1 { return 1; };
+    // RFC-0046 Phase B (ROBO-7) — coordinate-frame phantom-tag check.
+    // Two types with matching base names and distinct `Frame_*` phantom
+    // arguments are NOT compatible (Mars-Climate-Orbiter failure mode).
+    // Frame_Unknown is the documented migration sentinel and matches
+    // anything; untagged types skip this check entirely. Placed before
+    // the base-name catch-all below so `Pose<Frame_Camera>` and
+    // `Pose<Frame_Base>` no longer collapse to the same shape.
+    if frame_mismatch_visible(expected, actual) == 1 { return 0; };
     // v0.6.66 (probe finding 2026-05-01-rust-syntax-translation-
     // fidelity-audit, char-literal row): canonical Rust `let c: char
     // = 'a';` pre-fix failed TYP-008 because the char literal lexes
@@ -22635,7 +22692,22 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     let compat_ok: i64 = types_compatible_context(pool, prog, tstr, init_t);
                     tprof_mark(tprof, 7, 8, compat_start);
                     if compat_ok == 0 {
-                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
+                    // RFC-0046 Phase B (ROBO-7): if the mismatch is
+                    // specifically a coordinate-frame phantom-tag
+                    // mismatch, fire FRAME-001 with the canonical
+                    // Mars-Climate-Orbiter framing instead of the
+                    // generic TYP-008 binding-mismatch diag. Adopters
+                    // run `nuc explain FRAME-001` for fix guidance.
+                    if frame_mismatch_visible(tstr, init_t) == 1 {
+                        let etag_v838: str = type_frame_tag(tstr);
+                        let atag_v838: str = type_frame_tag(init_t);
+                        let f1_p1: str = str_concat("cannot initialize binding '", str_concat(vname, "': declared frame `"));
+                        let f1_p2: str = str_concat(etag_v838, str_concat("` does not match value frame `", str_concat(atag_v838, "` (declared type `")));
+                        let f1_p3: str = str_concat(tstr, str_concat("` vs value type `", str_concat(init_t, "`). Mixing coordinate frames at runtime is the Mars-Climate-Orbiter failure mode — apply the explicit transform (e.g. `kinematics_transform` from stdlib/rods/kinematics.nr) or annotate the binding with the source frame, and re-check.")));
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "FRAME-001", str_concat(f1_p1, str_concat(f1_p2, f1_p3)));
+                    } else {
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
+                    };
                     } else {
                         let box_dyn_trait_v117: str = box_dyn_trait_name(tstr);
                         if str_len(box_dyn_trait_v117) > 0 {
@@ -31075,12 +31147,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // — `Pose<F>` + `Frame_*` marker audit. The `kinematics_frame`
     // rod already ships zero-cost marker structs (`Frame_World`,
     // `Frame_Base`, `Frame_Camera`, `Frame_Lidar`, `Frame_IMU`).
-    // Adopters using these as phantom frame tags get no build-
-    // time signal that they're using them. Phase B step-2 (true
-    // phantom-type checking — `types_compatible(Pose<Camera>,
-    // Pose<Base>) == 0`) is the ~200 LOC compiler ship.
-    // This Phase B step-1 surfaces the surface, matching the
-    // RFC-0043 fixed<I,F> pattern.
+    // Adopters using these as phantom frame tags get a build-time
+    // discovery counter from this audit pass. Phase B step-2 —
+    // true phantom-type checking, `types_compatible(Pose<Camera>,
+    // Pose<Base>) == 0` with a FRAME-001 diagnostic at let-binding
+    // site — shipped v0838 (ROBO-7); see `frame_mismatch_visible`
+    // and the FRAME-001 emit at the let-binding TYP-008 site.
+    // Architectural pattern matches RFC-0043 fixed<I,F>.
     if str_index_of(after_async, "Pose<") >= 0 || str_index_of(after_async, "Frame_") >= 0 {
         let v0145_pose_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Po", "se<"));
         let v0145_pose_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Po", "se<"));
@@ -31340,9 +31413,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
     // pass info. Detects adopter use of the Clifford-stabilizer
     // rod (coverage still bounded; QM-7) and frame-typed
-    // robotics rod (frame-type safety opt-in only, Phase B not
-    // shipped; ROBO-7 Mars-Climate-Orbiter failure mode live).
-    // Phase 2b adds weight-enumerator/property tests + frame-type check passes.
+    // robotics rod. v0838 (ROBO-7 Phase B): the compiler-side
+    // FRAME-001 frame-mismatch check at let-binding sites is now
+    // live for `Pose<Frame_*>`-style phantom-tag annotations;
+    // Frame_Unknown remains the documented migration sentinel.
+    // Untagged kinematics surface (plain i64 handles, untagged
+    // Pose) still bypasses the check by construction — adopter
+    // opt-in via the typed annotation is the trigger.
     let v0859_has_clifford: i64 = if str_index_of(after_async, str_concat("clifford", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_kinematics: i64 = if str_index_of(after_async, str_concat("kinematics", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_frame: i64 = if str_index_of(after_async, str_concat("frame_", "tag")) >= 0 { 1 } else { 0 };
@@ -31353,7 +31430,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0859_total: i64 = v0859_clifford + v0859_kinematics + v0859_frame;
         if v0859_total > 0 {
             print(str_concat("info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: ", str_from_int(v0859_total)));
-            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. The kinematics rod still uses plain i64 handles — frame-type safety markers (RFC-0046) are opt-in only, and the Phase B compiler-side TYP-008 frame-mismatch check is NOT yet shipped — mixing camera-frame and base-frame poses is a silent runtime error today (Mars Climate Orbiter failure mode live). Phase 2b adds broader Clifford weight-enumerator/property invariants + frame-type check pass; Phase 4 promotes adopter use to v1.0 hard-error. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; treat frame markers as documentation, not enforcement. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
+            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. ROBO-7 frame typing v0838: the compiler-side FRAME-001 phantom-tag mismatch check is live at let-binding sites for `Pose<Frame_*>`-style annotations (`Frame_Unknown` is the migration sentinel; untagged Pose handles still bypass the check by construction). Adopters who opt in get a Mars-Climate-Orbiter-style rejection at compile time instead of a silent runtime miscompute. Phase 2b expands the check across struct-init, function-call, and binop paths and adds broader Clifford weight-enumerator/property invariants; Phase 4 promotes the FRAME-001 surface to v1.0 hard-error across the kinematics / tf / se3 rods. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; for frame typing, prefer `Pose<Frame_X>`-tagged annotations over bare `Pose` to opt into the check. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
         };
     };
     // v0.8.58 LAW-1/2/3 Phase 1, refreshed after R14

@@ -263,12 +263,43 @@ launch. After memory safety completes, these are next-priority.
 ### ROBO-7 — Frame-typing safety
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** SAFETY (Mars Climate Orbiter failure mode is live)
-- **Status:** OPEN — needs new types + compiler edit. Compiler-edit
-  shipping is unblocked by v0.8.319 evidence; implementation remains
-  queued behind higher-priority trust-gap closure.
-- **Phase 1:** Add unit-of-measure tagging to frame types.
-- **Phase 2b:** Compile-time check that frame tags are consistent across operations.
+- **Severity:** SAFETY (Mars Climate Orbiter failure mode — was live pre-v0838)
+- **Status:** PARTIAL — Phase B step-2 let-binding slice shipped v0838
+  (FRAME-001 fires for `Pose<Frame_X>` mismatches at let-binding sites);
+  struct-init / function-call / binop expansion still queued.
+- **Phase 1:** DONE — `stdlib/rods/kinematics_frame.nr` ships zero-cost
+  `Frame_*` marker structs + numeric ID surface + runtime check helpers
+  (`kinematics_frame_compatible_strict`, `_assert`, `_require`,
+  `_check_pair`); audit-discovery counter live in the compiler since
+  v0.8.145.
+- **Phase B step-1 (audit):** DONE v0.8.145 — compiler counts
+  `Pose<F>` and `Frame_*` annotations and emits an info line.
+- **Phase B step-2 (let-binding enforcement):** DONE v0838 — new
+  `frame_mismatch_visible` helper in `compiler/nucleor_s1_compiler.nr`
+  rejects two types whose first generic args carry distinct `Frame_*`
+  phantom tags on matching base names (`Frame_Unknown` is the
+  RFC-0046 §migration sentinel and matches anything; untagged types
+  are unaffected). `let p_camera: Pose<Frame_Camera> = p_base;` (where
+  `p_base: Pose<Frame_Base>`) now fires `error[FRAME-001]` with the
+  Mars-Climate-Orbiter framing and a `kinematics_transform` fix
+  pointer instead of a silent miscompute. Positive coverage:
+  `tests/features/robo7_frame_positive_smoke.nr` (5 invariants —
+  same-frame, Frame_Unknown left/right migration sentinel, untagged
+  → tagged opt-in flow, chain preservation). Negative coverage:
+  `tests/err/err_robo7_frame_mismatch.nr` (FRAME-001 fires).
+- **Phase B step-3 (broaden enforcement):** OPEN — extend the
+  rejection from let-binding sites to struct-init field types,
+  function-call argument positions, and binop operand types so a
+  mismatch fires even without an intermediate let. The
+  `frame_mismatch_visible` helper is already wired into the global
+  `types_compatible`, so most of these sites will reject
+  automatically once the diagnostics at each site are upgraded from
+  generic TYP-008 to FRAME-001 with the canonical framing.
+- **Phase 4 (v1.0 hard-error promotion):** OPEN — migrate
+  `stdlib/rods/kinematics.nr`, `tf.nr`, `se3.nr` signatures from
+  bare `Pose` to `Pose<Frame_Unknown>` with explicit transform
+  call sites; deprecate `Frame_Unknown` and require explicit
+  frames everywhere by v1.0.
 
 ### PERF-11 — bisect_mem threshold — DONE
 
