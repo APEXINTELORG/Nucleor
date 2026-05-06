@@ -1,82 +1,64 @@
 {
-  "instructions_read": "v0.8.318-r10-d4-cache-key-gate",
-  "current_task": "main: R10-D4 strict-arith cache-key gate hardening ready; helper1/helper2 next lanes assigned",
-  "roadmap_phase": "v1_launch_blocker_final_buildout",
-  "current_punchlist_item": "R10-D4 Phase 2 executable acceptance gate",
-  "edits_in_main_tree": true,
-  "rebased_on_origin_main": "local main fast-forwarded to origin/main 05a5839c before v0.8.318",
-  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
-  "branch": "main",
-  "head": "pending v0.8.318 commit; run git log --oneline -1 after pull",
-  "status": "r10_d4_phase2_ready",
-  "paths": {
-    "main_worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS",
-    "canonical_spine": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\BUILD_PATH_v0.4_to_v1.3.md",
-    "build_plans": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_Files\\Nucleor_Build_Spine\\11_AUDIT_2026-05-05\\build_plans",
-    "helper1_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper1_assignment_v0821_extern_arity_sweep_2026-05-05.md",
-    "helper2_assignment": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0821_posix_perf_repro_audit_2026-05-05.md",
-    "helper2_heartbeat": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\heartbeat_helper2.json"
-  },
-  "r10_d4_gate": {
-    "summary": "R10-D4 compiler cache-key fix already existed from v0.8.296, but the executable gate was source-level only. v0.8.318 makes the gate prove unset strict-arith miss, enabled strict-arith miss with different SHA, and unset rebuild hit on the original SHA.",
-    "changed_files": [
-      "tools/verify.sh",
-      "tools/verify_fast.sh",
-      "tools/verify.ps1"
-    ],
-    "wsl_bridge_fix": "When bash runs under WSL and BIN is bin/nucleor.exe, strict-arith env vars must be set through cmd.exe so the Windows process receives them. Plain VAR=1 ./bin/nucleor.exe only affects the WSL interop bridge."
-  },
+  "agent": "helper1",
+  "status": "ready_for_integration",
+  "updated_at": "2026-05-06T19:44:00-04:00",
+  "branch": "fix/helper1-rt-laws-closure-v0838",
+  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_qm7_surface_v0827",
+  "base_observed_at_start": "15bff516417e18be2dd028d5850ffdbe5c5fb114",
+  "rebased_on_origin_main": "e75bbf52ed87e858d0a4d68dd3c8a6a9d0b32f9f",
+  "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_qm7_surface_v0827\\findings\\_helper1_assignment_v0828_r11_qsim_auto_entangle_2026-05-06.md",
+  "current_task": "Queue 8: RT determinism transitive checks, deadline/WCET fail-closed audit, algebraic laws Phase 3b",
+  "completed_scopes": [
+    "RT-G1 bounded same-file no_alloc closure: caller -> helper -> allocator",
+    "RT-G3 bounded same-file no_panic closure: caller -> helper -> panic-prone helper",
+    "RT clean helper-chain positive fixture",
+    "Deadline/WCET contract fixture documenting heuristic RT-004, not certified WCET",
+    "R14 law distributive_over bounded integer generation",
+    "R14 law fail-closed unsupported canonical forms",
+    "R14 law fail-closed f64/approximate forms with LAW-004",
+    "Residual ledger written"
+  ],
+  "changed_files": [
+    "compiler/nucleor_s1_compiler.nr",
+    "compiler/nucleor_tools_suite.nr",
+    "docs/language-reference.md",
+    "docs/rfcs/RFC-0031-algebraic-laws.md",
+    "docs/rfcs/v1_PUNCHLIST.md",
+    "docs/spec/Nucleor_Algebraic_Laws_Schema.md",
+    "docs/spec/Nucleor_Error_Codes.md",
+    "tools/verify.sh",
+    "tests/err/err_no_alloc_transitive_two_hop.nr",
+    "tests/err/err_no_panic_transitive_same_file.nr",
+    "tests/features/rt_transitive_clean_helper_chain_smoke.nr",
+    "tests/fixtures/deadline_wcet_contract_disclosure.nr",
+    "tests/features/law_check_distributive_true_smoke.nr",
+    "tests/features/law_schema_inverse_unsupported_smoke.nr",
+    "tests/features/law_schema_approximate_unsupported_smoke.nr",
+    "tests/features/law_schema_f64_unsupported_smoke.nr",
+    "findings/inbox/helper1_rt_transitive_closure_v0838_2026-05-06.md",
+    "findings/inbox/helper1_rt_laws_residual_ledger_v0838_2026-05-06.md",
+    "findings/heartbeat.json"
+  ],
   "validation": {
-    "verify_scripts_parse": "PASS",
-    "focused_verify": "PASS: bash tools/verify.sh --only \"v0.5 Track L content-addressed cache v2 correctness\"",
-    "focused_verify_fast": "PASS: bash tools/verify_fast.sh --only \"v0.5 Track L content-addressed cache v2 correctness\"",
-    "compiler_drift": "PASS",
-    "self_host_md5": "unchanged; no compiler/bin/bootstrap edits in R10-D4 Phase 2",
-    "diff_check": "PASS",
-    "perf": {
-      "hard_gate": "PASS",
-      "cold_seconds": 3.7,
-      "cold_max_seconds": 4.0,
-      "hot_seconds": 0.27,
-      "hot_max_seconds": 1.0,
-      "cold_process_tree_memory_mb": 307,
-      "cold_process_tree_memory_max_mb": 400,
-      "cold_compiler_memory_mb": 293,
-      "cold_compiler_memory_max_mb": 350,
-      "hot_process_tree_memory_mb": 31,
-      "hot_process_tree_memory_max_mb": 128,
-      "hot_compiler_memory_mb": 17,
-      "hot_compiler_memory_max_mb": 64,
-      "command": "pwsh -NoProfile -File tools\\check_perf_regression.ps1"
-    }
+    "temp_s1_build": "PASS: .\\bin\\nucleor.exe build compiler\\nucleor_s1_compiler.nr -o _helper1_s1_rt_laws_v0838 --no-cache",
+    "temp_tools_build": "PASS: .\\bin\\nucleor.exe build compiler\\nucleor_tools_suite.nr -o _helper1_tools_laws_v0838 --no-cache",
+    "rt_transitive": "PASS: new RT-001/RT-002 negatives fail and clean helper-chain positive runs rc=0 via temp s1 compiler",
+    "deadline_wcet_contract": "PASS: fixture emits warning[RT-004] with NOT certified WCET via temp s1 compiler",
+    "laws": "PASS: distributive_over true fixture passes; inverse/f64/approximate fail closed with LAW-001/LAW-004 via temp tools-suite compiler",
+    "compiler_drift": "PASS: bash tools/check_compiler_drift.sh (existing parser-divergence warnings only)",
+    "verify_sh_parse": "PASS: bash -n tools/verify.sh",
+    "diff_check": "PASS: git diff --check",
+    "perf": "PASS: cold=3.49s hot=0.39s cold_tree=340MB cold_compiler=326MB"
   },
-  "perf_context": {
-    "target_cold_seconds": 4.0,
-    "latest_main_cold_seconds": 3.7,
-    "latest_main_hot_seconds": 0.27,
-    "latest_main_cold_process_tree_memory_mb": 307,
-    "latest_main_cold_compiler_memory_mb": 293,
-    "latest_main_hot_process_tree_memory_mb": 31,
-    "latest_main_hot_compiler_memory_mb": 17,
-    "note": "Do not use WSL /proc RSS numbers for Windows bin/nucleor.exe. Windows .exe memory/perf evidence must come from the PowerShell sampler; POSIX RSS evidence requires a native Linux Nucleor ELF process."
-  },
-  "helper_next": {
-    "helper1": {
-      "assignment": "cross-rod extern ABI arity sweep",
-      "branch": "probe/helper1-extern-arity-sweep-v0821",
-      "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper1_assignment_v0821_extern_arity_sweep_2026-05-05.md",
-      "scope": "findings-only; no compiler/runtime/bin/bootstrap edits"
-    },
-    "helper2": {
-      "assignment": "R10-D3 POSIX perf/repro parity audit",
-      "branch": "probe/helper2-r10-d3-posix-perf-repro-audit-v0821",
-      "assignment_path": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS\\findings\\_helper2_assignment_v0821_posix_perf_repro_audit_2026-05-05.md",
-      "scope": "findings-only; document WSL/native Linux evidence boundary"
-    }
-  },
-  "caveats": {
-    "wsl_rss": "WSL is OK for shell syntax checks and POSIX command prep, but not valid RSS evidence for Windows .exe runs.",
-    "native_linux": "POSIX process-tree RSS proof requires a native Linux compiler binary.",
-    "old_helper_files": "PARALLEL_AGENT_INSTRUCTIONS_v0.6.72.md and PARALLEL_AGENT_PUNCHLIST_v0.6.54.md are historical and superseded by v0.8.314 instructions."
-  }
+  "reports": [
+    "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_qm7_surface_v0827\\findings\\inbox\\helper1_rt_transitive_closure_v0838_2026-05-06.md",
+    "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_qm7_surface_v0827\\findings\\inbox\\helper1_rt_laws_residual_ledger_v0838_2026-05-06.md"
+  ],
+  "main_needs": [
+    "rebase/merge from current origin/main",
+    "compiler fixed-point / promoted bin + bootstrap refresh if main policy requires generated artifacts",
+    "focused verify after promotion: RT transitive same-file closure and CLI check-laws",
+    "perf check after promotion",
+    "full verify only at main release gate"
+  ]
 }

@@ -278,13 +278,13 @@ launch. After memory safety completes, these are next-priority.
 
 ### Real-Time / Determinism
 - Source: `gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md`
-- **RT-G1 Phase 1.5:** DONE on 2026-05-05 — `#[no_alloc]`
-  now rejects direct same-file calls into helpers whose own bodies
-  contain known allocation patterns. Remaining gap: deeper
-  transitive calls, cross-module callees, and fn-pointer dispatch
-  still require the AST/IR traversal pass.
-- **Still open:** `#[deadline]` numeric/WCET backing and broader RT
-  attribute enforcement audit.
+- **RT-G1/RT-G3 Phase 2b:** helper1 v0838 adds bounded same-file
+  closure for `#[no_alloc]` and `#[no_panic]`: caller -> helper ->
+  known allocating/panicking helper now fails. Remaining gap: deeper
+  transitive calls, cross-module callees, closures, and fn-pointer
+  dispatch still require the AST/IR traversal pass.
+- **Still open:** `#[deadline]` numeric/certified-WCET backing and
+  broader RT attribute enforcement audit.
 
 ### Algebraic Laws
 - Source: `gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md`
@@ -293,6 +293,9 @@ launch. After memory safety completes, these are next-priority.
   scaffold, reserves LAW diagnostics, and has smoke fixtures for
   capture, bounded `--check-laws` validation, and optimizer identity
   eligibility.
+- **Phase 3b:** helper1 v0838 adds bounded integer `distributive_over`
+  checks and makes unsupported canonical law forms / float modifiers
+  fail closed under `nuc test --check-laws`.
 - **Phase 1 honesty pass:** DONE in docs on 2026-05-05 — public docs now
   say the current shipped contract is capture + audit metadata, not
   finished user-law rewrites or generated property tests.

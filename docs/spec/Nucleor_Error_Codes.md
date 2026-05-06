@@ -154,7 +154,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | RT-001 | Allocation in #[no_alloc] function | [RFC-0001 §3.2.1](../rfcs/RFC-0001-rt-attributes.md) |
 | RT-002 | Possibly-panicking expression in #[no_panic] function | [RFC-0001 §3.2.2](../rfcs/RFC-0001-rt-attributes.md) |
 | RT-003 | Dynamic dispatch in #[no_dyn] function | [RFC-0001 §3.2.3](../rfcs/RFC-0001-rt-attributes.md) |
-| RT-004 | Static WCET exceeds declared #[deadline] | [RFC-0001 §3.2.4](../rfcs/RFC-0001-rt-attributes.md), [RFC-0009](../rfcs/RFC-0009-heptane-wcet.md) |
+| RT-004 | Heuristic deadline estimate exceeds declared #[deadline] (not certified WCET) | [RFC-0001 §3.2.4](../rfcs/RFC-0001-rt-attributes.md), [RFC-0009](../rfcs/RFC-0009-heptane-wcet.md) |
 | RT-005 | FFI call in RT function without #[ffi_no_*] annotation | [RFC-0001 §3.5](../rfcs/RFC-0001-rt-attributes.md) |
 | RT-006 | RT attribute on async fn | [RFC-0001](../rfcs/RFC-0001-rt-attributes.md), [RFC-0030](../rfcs/RFC-0030-async-decision.md) |
 | RT-007 | Deadline annotation without no_alloc or no_panic | [RFC-0001](../rfcs/RFC-0001-rt-attributes.md) |
@@ -468,10 +468,10 @@ migration plus the within-series enumerated DIAG-001 check.
 
 | Code | Title | RFC section |
 |---|---|---|
-| LAW-001 | Generated law check failed or declared law has incompatible arity | [RFC-0031 §3.2](../rfcs/RFC-0031-algebraic-laws.md) |
+| LAW-001 | Generated law check failed, declared law has incompatible arity, or canonical form lacks a shipped bounded checker | [RFC-0031 §3.2](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-002 | SMT disproves law (cert profile) | [RFC-0031 §3.4](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-003 | Law cited but optimizer cannot use it | [RFC-0031](../rfcs/RFC-0031-algebraic-laws.md) |
-| LAW-004 | Float operation claimed exact associative (warn) | [RFC-0031 §3.3](../rfcs/RFC-0031-algebraic-laws.md) |
+| LAW-004 | Float or approximate law form lacks shipped tolerance semantics | [RFC-0031 §3.3](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-006 | `--check-laws` rejected deprecated alias `zero = Z`; use `absorbing = Z` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
 | LAW-007 | `--check-laws` rejected deprecated bare `distributive`; use `distributive_over = g` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
 | LAW-008 | `--check-laws` rejected an unrecognized law name | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |

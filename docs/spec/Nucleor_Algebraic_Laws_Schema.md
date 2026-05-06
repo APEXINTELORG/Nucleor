@@ -1,9 +1,10 @@
 # Nucleor Algebraic Laws — Canonical `@law(...)` Schema
 
 **Version:** v0.8.264 (locked 2026-05-05 per audit R14-D5).
-**Status:** Phase 2a — canonical names locked across docs + tests;
+**Status:** Phase 3b — canonical names locked across docs + tests;
 `nuc test --check-laws` generates bounded integer checks for low-risk
-forms and rejects deprecated aliases / unknown names with LAW diagnostics.
+forms and rejects deprecated aliases, unsupported canonical forms,
+float/approximate modifiers, and unknown names with LAW diagnostics.
 **Sources of truth (must agree):**
 - `docs/spec/Nucleor_Algebraic_Laws_Schema.md` (this file — primary)
 - `docs/rfcs/RFC-0031-algebraic-laws.md` §3.1
@@ -64,25 +65,29 @@ fn add_saturating(a: i64, b: i64) -> i64 { ... }
 
 The shipped `--check-laws` slice generates bounded integer checks for
 `commutative`, `associative`, `identity`, `absorbing`, `idempotent`,
-and `involution`. Canonical but broader forms (`distributive_over`,
-`inverse`, `fusion`) and modifiers (`eps`, `seed`, `cases`,
-`approximate`) are schema-accepted but not yet generated. A law that
-fails any generated check fails the whole `@law(...)` block.
+`involution`, and `distributive_over`. Canonical but broader forms
+(`inverse`, `fusion`) and property-driver modifiers (`seed`, `cases`)
+fail closed with `LAW-001` until their checker ships. Float/approximate
+modifiers (`eps`, `approximate`) fail closed with `LAW-004` until the
+tolerance contract ships. A law that fails any generated check fails the
+whole `@law(...)` block.
 
 ## 5. Schema-violation diagnostic codes
 
 | Code | Meaning |
 |---|---|
-| `LAW-001` | Generated law check failed or the declared law has an incompatible arity |
+| `LAW-001` | Generated law check failed, the declaration has an incompatible arity, or a canonical form lacks a shipped bounded checker |
 | `LAW-003` | `@law(use = other_law)` cited a law the optimizer can't recognize |
-| `LAW-004` | IEEE-754 add/mul claimed exactly associative without `eps` or `approximate` (likely correctness bug) |
+| `LAW-004` | Float/approximate law modifier used before tolerance semantics ship |
 | `LAW-006` | Deprecated alias `zero = Z` (use `absorbing = Z`) - `--check-laws` hard error |
 | `LAW-007` | Deprecated alias `distributive` bare (use `distributive_over = g`) - `--check-laws` hard error |
 | `LAW-008` | Unrecognized law name (fix the spelling or remove) - `--check-laws` hard error |
 
 Normal compile still emits audit-info `LAW-G123` for adopter visibility.
 `nuc test --check-laws` emits `LAW-001` for generated check failures
-and promotes `LAW-006`/`LAW-007`/`LAW-008` to hard errors.
+and unsupported canonical integer-law forms, emits `LAW-004` for
+float/approximate modifiers, and promotes `LAW-006`/`LAW-007`/`LAW-008`
+to hard errors.
 
 ## 6. References
 
@@ -93,3 +98,4 @@ and promotes `LAW-006`/`LAW-007`/`LAW-008` to hard errors.
 - v0.8.263 R14-D3 Phase 1 (router `--check-laws` un-ignore)
 - v0.8.264 R14-D5 Phase 1 (this schema)
 - v0.8.328 R14 Phase 2a (`nuc test --check-laws` bounded integer checks)
+- helper1 v0838 R14 Phase 3b (`distributive_over` bounded checks + fail-closed unsupported forms)

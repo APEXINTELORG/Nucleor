@@ -11400,6 +11400,17 @@ fn rt_string_vec_append(v: Vec<i32>, extra: Vec<i32>) -> i64 {
 }
 
 #[manual_drop]
+fn rt_string_vec_append_unique(v: Vec<i32>, extra: Vec<i32>) -> i64 {
+    let n: i64 = vec_len(extra);
+    let mut i: i64 = 0;
+    while i < n {
+        priv_string_vec_push_unique(v, vec_get(extra, i));
+        i = i + 1;
+    };
+    return vec_len(v);
+}
+
+#[manual_drop]
 fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
     if str_contains(header, "with") == 0 { return 0; };
     let hlen: i64 = str_len(header);
@@ -14713,6 +14724,46 @@ fn no_alloc_body_has_alloc_pattern(source: str, fn_name: str) -> i64 {
 }
 
 #[manual_drop]
+fn rt_same_file_fn_body_calls_any(source: str, fn_name: str, target_fns: Vec<i32>) -> i64 {
+    if vec_len(target_fns) == 0 { return 0; };
+    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+    if str_len(body_raw) == 0 { return 0; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let mut i: i64 = 0;
+    while i < vec_len(target_fns) {
+        let callee: str = vec_get(target_fns, i);
+        if str_eq(callee, fn_name) == 0 {
+            let pat: str = str_concat(callee, "(");
+            if str_contains(body, pat) == 1 { return 1; };
+        };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn collect_same_file_fns_calling_any(source: str, target_fns: Vec<i32>) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    if vec_len(target_fns) == 0 { return fns; };
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            if rt_same_file_fn_body_calls_any(source, fn_name, target_fns) == 1 {
+                priv_string_vec_push_unique(fns, fn_name);
+            };
+        };
+        p = eol + 1;
+    };
+    return fns;
+}
+
+#[manual_drop]
 fn collect_allocating_same_file_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14746,7 +14797,7 @@ fn check_no_alloc_transitive_call_violations(diags: Vec<i32>, source: str, fn_na
         if str_eq(callee, fn_name) == 0 {
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
-                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file allocation but `", str_concat(fn_name, "` is marked #[no_alloc] (audit RT-G1 Phase 1.5)"))));
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file allocation but `", str_concat(fn_name, "` is marked #[no_alloc] (audit RT-G1 Phase 2b)"))));
                 diag_add_ex(diags, "error", "rt", "RT-001", msg, fn_name, 0, 0, "");
                 emitted = emitted + 1;
             };
@@ -14762,6 +14813,8 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     if vec_len(no_alloc_fns) == 0 { return diags; };
     let alloc_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Alloc");
     let alloc_body_fns: Vec<i32> = collect_allocating_same_file_fns(source);
+    let alloc_caller_fns: Vec<i32> = collect_same_file_fns_calling_any(source, alloc_body_fns);
+    rt_string_vec_append_unique(alloc_body_fns, alloc_caller_fns);
     let mut i: i64 = 0;
     while i < vec_len(no_alloc_fns) {
         let fn_name: str = vec_get(no_alloc_fns, i);
@@ -14787,7 +14840,7 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
 //   - `dbg!`                  — convention: panics on assertion fail
 //
 // Same v1 limitations as #[no_alloc]:
-//   - Source-level only (no AST, no transitive call-graph chase)
+//   - Source-level only (no AST, bounded same-file call-graph chase)
 //   - String/comment-aware skip
 //   - Per-file scope
 
@@ -14865,6 +14918,43 @@ fn no_panic_check_list() -> Vec<i32> {
     v.push(".unwrap");
     v.push(".expect");
     return v;
+}
+
+#[manual_drop]
+fn no_panic_body_has_panic_pattern(source: str, fn_name: str) -> i64 {
+    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+    if str_len(body_raw) == 0 { return 0; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let panic_names: Vec<i32> = no_panic_check_list();
+    let mut ai: i64 = 0;
+    while ai < vec_len(panic_names) {
+        let n: str = vec_get(panic_names, ai);
+        let pat: str = str_concat(n, "(");
+        if str_contains(body, pat) == 1 { return 1; };
+        ai = ai + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn collect_panicking_same_file_fns(source: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            if no_panic_body_has_panic_pattern(source, fn_name) == 1 {
+                priv_string_vec_push_unique(fns, fn_name);
+            };
+        };
+        p = eol + 1;
+    };
+    return fns;
 }
 
 #[manual_drop]
@@ -14947,14 +15037,42 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
 }
 
 #[manual_drop]
+fn check_no_panic_transitive_call_violations(diags: Vec<i32>, source: str, fn_name: str, panic_fns: Vec<i32>) -> i64 {
+    if vec_len(panic_fns) == 0 { return 0; };
+    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+    if str_len(body_raw) == 0 { return 0; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let mut emitted: i64 = 0;
+    let mut i: i64 = 0;
+    while i < vec_len(panic_fns) {
+        let callee: str = vec_get(panic_fns, i);
+        if str_eq(callee, fn_name) == 0 {
+            let pat: str = str_concat(callee, "(");
+            if str_contains(body, pat) == 1 {
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file panic-prone code but `", str_concat(fn_name, "` is marked #[no_panic] (audit RT-G3 Phase 2b)"))));
+                diag_add_ex(diags, "error", "rt", "RT-002", msg, fn_name, 0, 0, "");
+                emitted = emitted + 1;
+            };
+        };
+        i = i + 1;
+    };
+    return emitted;
+}
+
+#[manual_drop]
 fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
+    if vec_len(no_panic_fns) == 0 { return diags; };
     let panic_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Panic");
+    let panic_body_fns: Vec<i32> = collect_panicking_same_file_fns(source);
+    let panic_caller_fns: Vec<i32> = collect_same_file_fns_calling_any(source, panic_body_fns);
+    rt_string_vec_append_unique(panic_body_fns, panic_caller_fns);
     let mut i: i64 = 0;
     while i < vec_len(no_panic_fns) {
         let fn_name: str = vec_get(no_panic_fns, i);
         check_no_panic_violations(diags, source, fn_name);
         check_effect_call_violations(diags, source, fn_name, panic_effect_fns, "Panic", "no_panic");
+        check_no_panic_transitive_call_violations(diags, source, fn_name, panic_body_fns);
         i = i + 1;
     };
     return diags;
@@ -31248,7 +31366,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0858_count: i64 = simple_attribute_audit_count(after_async, str_concat("@law(", ""));
         if v0858_count > 0 {
             print(str_concat("info[LAW-G123]: `@law(...)` algebraic-law annotations in source: ", str_from_int(v0858_count)));
-            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`) plus schema hard errors for deprecated aliases and unknown law names. AST/IR rewrite metadata, Arbitrary-driven broad property tests, distributive/inverse/fusion generation, float-law safeguards, and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`, `distributive_over`) plus schema hard errors for deprecated aliases, unsupported canonical forms, float/approximate modifiers, and unknown law names. AST/IR rewrite metadata, Arbitrary-driven broad property tests, inverse/fusion generation, float-law safeguards, and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
     // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
@@ -31282,7 +31400,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0854_total: i64 = v0854_deadline + v0854_no_alloc + v0854_no_panic + v0854_isr;
         if v0854_total > 0 {
             print(str_concat("info[RT-G135]: real-time/determinism annotations in source: ", str_from_int(v0854_total)));
-            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1: #[no_alloc] scans annotated fn bodies, tagged callees, and one-hop same-file helpers whose own bodies contain hardcoded allocation patterns; deeper transitive, cross-module, and fn-pointer helper paths still escape detection. RT-G3: #[no_panic] only checks 7 explicit panic helpers; arithmetic overflow, array OOB, division-by-zero (all panic sources) are NOT checked. RT-G5: #[deadline=N] numeric budget has no cost table / WCET pass behind it. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Phase 2b adds transitive analysis + WCET pass. Adopter discipline today: do NOT rely on these annotations as compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains whose own bodies contain hardcoded allocation/panic patterns; deeper transitive, cross-module, closure, and fn-pointer helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
     // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
