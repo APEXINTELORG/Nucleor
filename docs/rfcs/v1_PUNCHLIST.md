@@ -459,6 +459,15 @@ launch. After memory safety completes, these are next-priority.
   twin-core quantum noise model, while `twin_core.nr` remains
   backward compatible and explicitly says it is not a robotics digital
   twin. Remaining gap: real robotics digital twin / sim-to-real rod.
+- **ROBO-5 TF timestamped interpolation:** DONE for Phase 1 on
+  2026-05-06. `tf_add_frame_at`, `tf_set_pose_at`, and `tf_lookup_at`
+  keep the latest two stamped samples per frame and interpolate
+  translation plus normalized quaternion orientation for in-window
+  lookups; `tf_timestamped_lookup_smoke.nr` locks midpoint
+  interpolation, out-of-window rejection, and legacy latest-pose
+  compatibility. Remaining gap: string-keyed frame names, disconnected
+  forest support, deeper history buffers, cache/lazy lookup strategy,
+  and hard-RT allocation protocol.
 
 ## Sequencing — proposed waves
 

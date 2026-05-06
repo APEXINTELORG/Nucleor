@@ -35,12 +35,12 @@
 //
 //   tf_free(tf);
 //
-// **Limitations** (string-keyed frames / time-stamped buffer / lazy
-// caching land in v0.6 if needed):
+// **Limitations** (string-keyed frames / forest / lazy caching land
+// in v0.6 if needed):
 // - Integer frame IDs only — caller manages name→id mapping.
 // - Single tree only (no disconnected forest).
-// - No time stamps or interpolation buffer; for time-varying
-//   transforms call `tf_set_pose` between lookups.
+// - Time-stamped interpolation keeps the latest two samples per
+//   frame only; deeper history buffers are follow-up work.
 // - Brute-force ancestor walk: `O(depth)` per lookup, max depth 64.
 //
 // See `stdlib/runtime/tf_rt.c`.
@@ -49,9 +49,15 @@
 extern fn nuc_tf_new(max_frames: i64) -> i64;
 extern fn nuc_tf_add_frame(h: i64, frame_id: i64, parent_id: i64,
     t_ptr: i64, q_ptr: i64) -> i64;
+extern fn nuc_tf_add_frame_at(h: i64, frame_id: i64, parent_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64;
 extern fn nuc_tf_set_pose(h: i64, frame_id: i64, t_ptr: i64, q_ptr: i64) -> i64;
+extern fn nuc_tf_set_pose_at(h: i64, frame_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64;
 extern fn nuc_tf_lookup(h: i64, source_id: i64, target_id: i64,
     t_out_ptr: i64, q_out_ptr: i64) -> i64;
+extern fn nuc_tf_lookup_at(h: i64, source_id: i64, target_id: i64,
+    stamp_b: i64, t_out_ptr: i64, q_out_ptr: i64) -> i64;
 extern fn nuc_tf_free(h: i64);
 
 fn tf_new(max_frames: i64) -> i64 { return nuc_tf_new(max_frames); }
@@ -63,9 +69,23 @@ fn tf_add_frame(h: i64, frame_id: i64, parent_id: i64, t_ptr: i64, q_ptr: i64) -
     return nuc_tf_add_frame(h, frame_id, parent_id, t_ptr, q_ptr);
 }
 
+// Register a frame with an initial timestamped pose. `stamp` is an
+// f64 bit-cast timestamp in caller-defined units.
+fn tf_add_frame_at(h: i64, frame_id: i64, parent_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64 {
+    return nuc_tf_add_frame_at(h, frame_id, parent_id, stamp_b, t_ptr, q_ptr);
+}
+
 // Update pose of an existing frame. Returns 1 on success.
 fn tf_set_pose(h: i64, frame_id: i64, t_ptr: i64, q_ptr: i64) -> i64 {
     return nuc_tf_set_pose(h, frame_id, t_ptr, q_ptr);
+}
+
+// Update pose with a timestamp. The runtime keeps the previous and
+// current sample and interpolates between them in `tf_lookup_at`.
+fn tf_set_pose_at(h: i64, frame_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64 {
+    return nuc_tf_set_pose_at(h, frame_id, stamp_b, t_ptr, q_ptr);
 }
 
 // Lookup pose of `target` expressed in `source`'s frame.
@@ -75,6 +95,15 @@ fn tf_lookup(h: i64, source_id: i64, target_id: i64,
     t_out_ptr: i64, q_out_ptr: i64) -> i64
 {
     return nuc_tf_lookup(h, source_id, target_id, t_out_ptr, q_out_ptr);
+}
+
+// Timestamped lookup. Each frame with two timestamped samples is
+// interpolated at `stamp`; static or single-sample frames use their
+// stored pose.
+fn tf_lookup_at(h: i64, source_id: i64, target_id: i64,
+    stamp_b: i64, t_out_ptr: i64, q_out_ptr: i64) -> i64
+{
+    return nuc_tf_lookup_at(h, source_id, target_id, stamp_b, t_out_ptr, q_out_ptr);
 }
 
 fn tf_free(h: i64) { nuc_tf_free(h); }

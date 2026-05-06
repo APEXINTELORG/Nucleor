@@ -38,7 +38,7 @@ launchability; Tier C are stdlib-coherence guarantees.
 11. **[Numeric Correctness](Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md)** — NUM-G1 f64 literals truncated to 6 decimal digits at lex time. `3.1415926535897932` silently becomes `3.141592`. **Affects every float user.**
 12. **[Tensor / ML / Autodiff](Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md)** — ML-1 `nuc_attn_flash` ABI mismatch (rod 6 args, C 7 args). Silent miscompute on every flash-attention call.
 13. **[Quantum Subsystem](Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md)** — QM-2/QM-11/QM-13/QM-14 now have Phase 1 capacity/status preflight coverage; QM-7 Clifford rod coverage includes rotated Surface-17 d=3 coverage, bounded stabilizer/logical weight-enumerator helpers, and a bounded property micro-suite. Remaining QM-7 gaps are QASM/OpenQASM2 interop and optional external citation-backed published enumerator parity.
-14. **[Robotics Control Stack](Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md)** — ROBO-2 multi-DOF DMP batch, ROBO-11 quantum-twin naming mitigation, ROBO-12 magnetometer yaw correction, ROBO-13 fixed-orientation OBB CCD, and ROBO-14 Phase 1 end-to-end smoke coverage exist; ROBO-7 frame-typing safety still Phase A. Mars Climate Orbiter failure mode is live.
+14. **[Robotics Control Stack](Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md)** — ROBO-2 multi-DOF DMP batch, ROBO-5 latest-two-sample timestamped TF interpolation, ROBO-11 quantum-twin naming mitigation, ROBO-12 magnetometer yaw correction, ROBO-13 fixed-orientation OBB CCD, and ROBO-14 Phase 1 end-to-end smoke coverage exist; ROBO-7 frame-typing safety still Phase A. Mars Climate Orbiter failure mode is live.
 
 ## CRITICAL findings (silent miscompute / launch-blocker class)
 
@@ -57,6 +57,7 @@ must close before OSS goes public:
 | **QM-7** | Quantum | PARTIAL | Clifford Bell/GHZ, gate identity, reset/rebuild, [[5,1,3]] distance, Surface-17 d=3, bounded weight-enumerator, and property micro-suite smokes landed; QASM/OpenQASM2 and optional external published enumerator citation parity remain open |
 | **ROBO-7** | Robotics | SAFETY | frame-typing Phase A only — Mars Climate failure mode live |
 | **ROBO-14** | Robotics | PARTIAL | IK/RRT/CHOMP/TOPP/FK smoke coverage landed; 6-DOF obstacle/dynamics variant remains |
+| **ROBO-5** | Robotics | PARTIAL | Latest-two-sample timestamped TF interpolation landed; name-keyed lookup, forest support, deeper buffers, cache/lazy lookup remain |
 | **ROBO-12** | Robotics | PARTIAL | AHRS 9-DOF magnetometer yaw correction landed; calibration/declination + Madgwick remain |
 | **ROBO-13** | Robotics | PARTIAL | Static OBB-OBB SAT + fixed-orientation translational CCD landed; angular CCD + convex mesh sweep remain |
 | **PERF-11** | Performance | TELEMETRY | bisect_mem threshold below baseline — false-positive every run |
