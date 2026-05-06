@@ -8,7 +8,7 @@
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
 # Total helpers: 874
-# Of which REVIEW REQUIRED: 72
+# Of which REVIEW REQUIRED: 0
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,78 +22,317 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
-#   __nucleor_compile_src_clear              (Unclassified)
-#   __nucleor_compile_src_get                (Unclassified)
-#   __nucleor_compile_src_set                (Unclassified)
-#   __nucleor_str_cache_get                  (Unclassified)
-#   __nucleor_str_cache_is_miss_marker       (Unclassified)
-#   __nucleor_str_cache_put                  (Unclassified)
-#   __nucleor_str_cache_put_miss             (Unclassified)
-#   __nucleor_sym_aux_built_at               (Unclassified)
-#   __nucleor_sym_aux_create                 (Unclassified)
-#   __nucleor_sym_aux_get                    (Unclassified)
-#   __nucleor_sym_aux_set_built_at           (Unclassified)
-#   async_await                              (Unclassified)
-#   async_spawn                              (Unclassified)
-#   contract_ensure                          (Unclassified)
-#   contract_invariant                       (Unclassified)
-#   contract_require                         (Unclassified)
-#   deadline_check                           (Unclassified)
-#   dyn_box_data                             (Unclassified)
-#   dyn_box_free                             (Unclassified)
-#   dyn_box_make                             (Unclassified)
-#   dyn_box_type                             (Unclassified)
-#   f8e4m3_from_f32                          (Unclassified)
-#   f8e4m3_to_str                            (Unclassified)
-#   f8e5m2_from_f32                          (Unclassified)
-#   f8e5m2_to_str                            (Unclassified)
-#   infer_fn_return_type_cached              (Unclassified)
-#   infer_var_type_cached                    (Unclassified)
-#   int_to_hex_upper                         (Unclassified)
-#   int_to_str_force_sign                    (Unclassified)
-#   max_depth_enter                          (Unclassified)
-#   max_depth_exit                           (Unclassified)
-#   option_and_then                          (Unclassified)
-#   option_expect                            (Unclassified)
-#   option_is_none                           (Unclassified)
-#   option_is_some                           (Unclassified)
-#   option_map                               (Unclassified)
-#   option_to_debug_str_i64                  (Unclassified)
-#   option_unwrap                            (Unclassified)
-#   option_unwrap_or                         (Unclassified)
-#   option_unwrap_or_else                    (Unclassified)
-#   result_and_then                          (Unclassified)
-#   result_err                               (Unclassified)
-#   result_expect                            (Unclassified)
-#   result_is_err                            (Unclassified)
-#   result_is_ok                             (Unclassified)
-#   result_map                               (Unclassified)
-#   result_ok                                (Unclassified)
-#   result_or_else                           (Unclassified)
-#   result_to_debug_str_i64                  (Unclassified)
-#   result_unwrap                            (Unclassified)
-#   result_unwrap_err                        (Unclassified)
-#   result_unwrap_or                         (Unclassified)
-#   result_unwrap_or_else                    (Unclassified)
-#   sizeof_bf16                              (Unclassified)
-#   sizeof_bool                              (Unclassified)
-#   sizeof_char                              (Unclassified)
-#   sizeof_f16                               (Unclassified)
-#   sizeof_f32                               (Unclassified)
-#   sizeof_f64                               (Unclassified)
-#   sizeof_i128                              (Unclassified)
-#   sizeof_i16                               (Unclassified)
-#   sizeof_i32                               (Unclassified)
-#   sizeof_i64                               (Unclassified)
-#   sizeof_i8                                (Unclassified)
-#   sizeof_isize                             (Unclassified)
-#   sizeof_ptr                               (Unclassified)
-#   sizeof_u128                              (Unclassified)
-#   sizeof_u16                               (Unclassified)
-#   sizeof_u32                               (Unclassified)
-#   sizeof_u64                               (Unclassified)
-#   sizeof_u8                                (Unclassified)
-#   sizeof_usize                             (Unclassified)
+
+
+# ----- class: ADT -----
+
+[[helper]]
+name             = "option_and_then"
+class            = "ADT"
+symbol           = "__nucleor_option_and_then"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_expect"
+class            = "ADT"
+symbol           = "__nucleor_option_expect"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_is_none"
+class            = "ADT"
+symbol           = "__nucleor_option_is_none"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_is_some"
+class            = "ADT"
+symbol           = "__nucleor_option_is_some"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_map"
+class            = "ADT"
+symbol           = "__nucleor_option_map"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_to_debug_str_i64"
+class            = "ADT"
+symbol           = "__nucleor_option_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_unwrap"
+class            = "ADT"
+symbol           = "__nucleor_option_unwrap"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_unwrap_or"
+class            = "ADT"
+symbol           = "__nucleor_option_unwrap_or"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "option_unwrap_or_else"
+class            = "ADT"
+symbol           = "__nucleor_option_unwrap_or_else"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_and_then"
+class            = "ADT"
+symbol           = "__nucleor_result_and_then"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_err"
+class            = "ADT"
+symbol           = "__nucleor_result_err"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_expect"
+class            = "ADT"
+symbol           = "__nucleor_result_expect"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_is_err"
+class            = "ADT"
+symbol           = "__nucleor_result_is_err"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_is_ok"
+class            = "ADT"
+symbol           = "__nucleor_result_is_ok"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_map"
+class            = "ADT"
+symbol           = "__nucleor_result_map"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_ok"
+class            = "ADT"
+symbol           = "__nucleor_result_ok"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_or_else"
+class            = "ADT"
+symbol           = "__nucleor_result_or_else"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_to_debug_str_i64"
+class            = "ADT"
+symbol           = "__nucleor_result_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_unwrap"
+class            = "ADT"
+symbol           = "__nucleor_result_unwrap"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_unwrap_err"
+class            = "ADT"
+symbol           = "__nucleor_result_unwrap_err"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_unwrap_or"
+class            = "ADT"
+symbol           = "__nucleor_result_unwrap_or"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "result_unwrap_or_else"
+class            = "ADT"
+symbol           = "__nucleor_result_unwrap_or_else"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
 
 
 # ----- class: Allocation -----
@@ -178,6 +417,62 @@ effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "dyn_box_data"
+class            = "Allocation"
+symbol           = "__nucleor_dyn_box_data"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "dyn_box_free"
+class            = "Allocation"
+symbol           = "__nucleor_dyn_box_free"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "dyn_box_make"
+class            = "Allocation"
+symbol           = "__nucleor_dyn_box_make"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "dyn_box_type"
+class            = "Allocation"
+symbol           = "__nucleor_dyn_box_type"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -1043,6 +1338,34 @@ since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
+name             = "async_await"
+class            = "Concurrency"
+symbol           = "__nucleor_async_await"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["sync"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "async_spawn"
+class            = "Concurrency"
+symbol           = "__nucleor_async_spawn"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["sync"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "atomic_add"
 class            = "Concurrency"
 symbol           = "__nucleor_atomic_add"
@@ -1556,6 +1879,93 @@ effects          = ["sync"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+
+# ----- class: ControlFlow -----
+
+[[helper]]
+name             = "contract_ensure"
+class            = "ControlFlow"
+symbol           = "__nucleor_contract_ensure"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "contract_invariant"
+class            = "ControlFlow"
+symbol           = "__nucleor_contract_invariant"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "contract_require"
+class            = "ControlFlow"
+symbol           = "__nucleor_contract_require"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "deadline_check"
+class            = "ControlFlow"
+symbol           = "__nucleor_deadline_check"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "max_depth_enter"
+class            = "ControlFlow"
+symbol           = "__nucleor_max_depth_enter"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "max_depth_exit"
+class            = "ControlFlow"
+symbol           = "__nucleor_max_depth_exit"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["panic"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "predicate_holds"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -2836,6 +3246,275 @@ effects          = ["io"]
 taint            = "propagates"
 units            = "passthrough"
 proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+
+# ----- class: Introspection -----
+
+[[helper]]
+name             = "sizeof_bf16"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_bf16"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_bool"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_bool"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_char"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_char"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_f16"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_f16"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_f32"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_f32"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_f64"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_f64"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_i128"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_i128"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_i16"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_i16"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_i32"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_i32"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_i64"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_i64"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_i8"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_i8"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_isize"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_isize"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_ptr"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_ptr"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_u128"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_u128"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_u16"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_u16"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_u32"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_u32"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_u64"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_u64"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_u8"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_u8"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sizeof_usize"
+class            = "Introspection"
+symbol           = "__nucleor_sizeof_usize"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -6263,9 +6942,51 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f8e4m3_from_f32"
+class            = "PureMath"
+symbol           = "__nucleor_f8e4m3_from_f32"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f8e4m3_to_f32"
 class            = "PureMath"
 symbol           = "__nucleor_f8e4m3_to_f32"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f8e4m3_to_str"
+class            = "PureMath"
+symbol           = "__nucleor_f8e4m3_to_str"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f8e5m2_from_f32"
+class            = "PureMath"
+symbol           = "__nucleor_f8e5m2_from_f32"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -6282,6 +7003,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f8e5m2_to_f32"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f8e5m2_to_str"
+class            = "PureMath"
+symbol           = "__nucleor_f8e5m2_to_str"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -6927,6 +7662,62 @@ notes            = ""
 # ----- class: StringFormat -----
 
 [[helper]]
+name             = "__nucleor_str_cache_get"
+class            = "StringFormat"
+symbol           = "__nucleor_str_cache_get"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_str_cache_is_miss_marker"
+class            = "StringFormat"
+symbol           = "__nucleor_str_cache_is_miss_marker"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_str_cache_put"
+class            = "StringFormat"
+symbol           = "__nucleor_str_cache_put"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr, ptr) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_str_cache_put_miss"
+class            = "StringFormat"
+symbol           = "__nucleor_str_cache_put_miss"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "bool_to_str"
 class            = "StringFormat"
 symbol           = "__nucleor_bool_to_str"
@@ -7543,6 +8334,20 @@ since            = "0.2.25"
 notes            = ""
 
 [[helper]]
+name             = "int_to_hex_upper"
+class            = "StringFormat"
+symbol           = "__nucleor_int_to_hex_upper"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "int_to_oct"
 class            = "StringFormat"
 symbol           = "__nucleor_int_to_oct"
@@ -7568,6 +8373,20 @@ units            = "passthrough"
 proof_obligation = "none"
 stability        = "stable"
 since            = "0.2.24"
+notes            = ""
+
+[[helper]]
+name             = "int_to_str_force_sign"
+class            = "StringFormat"
+symbol           = "__nucleor_int_to_str_force_sign"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]
@@ -9610,6 +10429,104 @@ notes            = ""
 # ----- class: ToolingMeta -----
 
 [[helper]]
+name             = "__nucleor_compile_src_clear"
+class            = "ToolingMeta"
+symbol           = "__nucleor_compile_src_clear"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_compile_src_get"
+class            = "ToolingMeta"
+symbol           = "__nucleor_compile_src_get"
+dispatch         = "RuntimeCall"
+abi              = "() -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_compile_src_set"
+class            = "ToolingMeta"
+symbol           = "__nucleor_compile_src_set"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_sym_aux_built_at"
+class            = "ToolingMeta"
+symbol           = "__nucleor_sym_aux_built_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_sym_aux_create"
+class            = "ToolingMeta"
+symbol           = "__nucleor_sym_aux_create"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_sym_aux_get"
+class            = "ToolingMeta"
+symbol           = "__nucleor_sym_aux_get"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_sym_aux_set_built_at"
+class            = "ToolingMeta"
+symbol           = "__nucleor_sym_aux_set_built_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "assert_eq"
 class            = "ToolingMeta"
 symbol           = "__nucleor_assert_eq"
@@ -9647,6 +10564,34 @@ effects          = ["io"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "infer_fn_return_type_cached"
+class            = "ToolingMeta"
+symbol           = "__nucleor_infer_fn_return_type"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "infer_var_type_cached"
+class            = "ToolingMeta"
+symbol           = "__nucleor_infer_var_type"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -9776,1017 +10721,6 @@ proof_obligation = "none"
 stability        = "unstable"
 since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
-
-
-# ----- class: Unclassified -----
-
-[[helper]]
-name             = "__nucleor_compile_src_clear"
-class            = "Unclassified"
-symbol           = "__nucleor_compile_src_clear"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_compile_src_get"
-class            = "Unclassified"
-symbol           = "__nucleor_compile_src_get"
-dispatch         = "RuntimeCall"
-abi              = "() -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_compile_src_set"
-class            = "Unclassified"
-symbol           = "__nucleor_compile_src_set"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_str_cache_get"
-class            = "Unclassified"
-symbol           = "__nucleor_str_cache_get"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_str_cache_is_miss_marker"
-class            = "Unclassified"
-symbol           = "__nucleor_str_cache_is_miss_marker"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_str_cache_put"
-class            = "Unclassified"
-symbol           = "__nucleor_str_cache_put"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr, ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_str_cache_put_miss"
-class            = "Unclassified"
-symbol           = "__nucleor_str_cache_put_miss"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_sym_aux_built_at"
-class            = "Unclassified"
-symbol           = "__nucleor_sym_aux_built_at"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_sym_aux_create"
-class            = "Unclassified"
-symbol           = "__nucleor_sym_aux_create"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_sym_aux_get"
-class            = "Unclassified"
-symbol           = "__nucleor_sym_aux_get"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "__nucleor_sym_aux_set_built_at"
-class            = "Unclassified"
-symbol           = "__nucleor_sym_aux_set_built_at"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "async_await"
-class            = "Unclassified"
-symbol           = "__nucleor_async_await"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "async_spawn"
-class            = "Unclassified"
-symbol           = "__nucleor_async_spawn"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "contract_ensure"
-class            = "Unclassified"
-symbol           = "__nucleor_contract_ensure"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "contract_invariant"
-class            = "Unclassified"
-symbol           = "__nucleor_contract_invariant"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "contract_require"
-class            = "Unclassified"
-symbol           = "__nucleor_contract_require"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "deadline_check"
-class            = "Unclassified"
-symbol           = "__nucleor_deadline_check"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "dyn_box_data"
-class            = "Unclassified"
-symbol           = "__nucleor_dyn_box_data"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "dyn_box_free"
-class            = "Unclassified"
-symbol           = "__nucleor_dyn_box_free"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> void"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "dyn_box_make"
-class            = "Unclassified"
-symbol           = "__nucleor_dyn_box_make"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "dyn_box_type"
-class            = "Unclassified"
-symbol           = "__nucleor_dyn_box_type"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "f8e4m3_from_f32"
-class            = "Unclassified"
-symbol           = "__nucleor_f8e4m3_from_f32"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "f8e4m3_to_str"
-class            = "Unclassified"
-symbol           = "__nucleor_f8e4m3_to_str"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "f8e5m2_from_f32"
-class            = "Unclassified"
-symbol           = "__nucleor_f8e5m2_from_f32"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "f8e5m2_to_str"
-class            = "Unclassified"
-symbol           = "__nucleor_f8e5m2_to_str"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "infer_fn_return_type_cached"
-class            = "Unclassified"
-symbol           = "__nucleor_infer_fn_return_type"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "infer_var_type_cached"
-class            = "Unclassified"
-symbol           = "__nucleor_infer_var_type"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "int_to_hex_upper"
-class            = "Unclassified"
-symbol           = "__nucleor_int_to_hex_upper"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "int_to_str_force_sign"
-class            = "Unclassified"
-symbol           = "__nucleor_int_to_str_force_sign"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "max_depth_enter"
-class            = "Unclassified"
-symbol           = "__nucleor_max_depth_enter"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "max_depth_exit"
-class            = "Unclassified"
-symbol           = "__nucleor_max_depth_exit"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_and_then"
-class            = "Unclassified"
-symbol           = "__nucleor_option_and_then"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_expect"
-class            = "Unclassified"
-symbol           = "__nucleor_option_expect"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_is_none"
-class            = "Unclassified"
-symbol           = "__nucleor_option_is_none"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_is_some"
-class            = "Unclassified"
-symbol           = "__nucleor_option_is_some"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_map"
-class            = "Unclassified"
-symbol           = "__nucleor_option_map"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_to_debug_str_i64"
-class            = "Unclassified"
-symbol           = "__nucleor_option_to_debug_str_i64"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_unwrap"
-class            = "Unclassified"
-symbol           = "__nucleor_option_unwrap"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_unwrap_or"
-class            = "Unclassified"
-symbol           = "__nucleor_option_unwrap_or"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "option_unwrap_or_else"
-class            = "Unclassified"
-symbol           = "__nucleor_option_unwrap_or_else"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_and_then"
-class            = "Unclassified"
-symbol           = "__nucleor_result_and_then"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_err"
-class            = "Unclassified"
-symbol           = "__nucleor_result_err"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_expect"
-class            = "Unclassified"
-symbol           = "__nucleor_result_expect"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_is_err"
-class            = "Unclassified"
-symbol           = "__nucleor_result_is_err"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_is_ok"
-class            = "Unclassified"
-symbol           = "__nucleor_result_is_ok"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_map"
-class            = "Unclassified"
-symbol           = "__nucleor_result_map"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_ok"
-class            = "Unclassified"
-symbol           = "__nucleor_result_ok"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_or_else"
-class            = "Unclassified"
-symbol           = "__nucleor_result_or_else"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_to_debug_str_i64"
-class            = "Unclassified"
-symbol           = "__nucleor_result_to_debug_str_i64"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> ptr"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_unwrap"
-class            = "Unclassified"
-symbol           = "__nucleor_result_unwrap"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_unwrap_err"
-class            = "Unclassified"
-symbol           = "__nucleor_result_unwrap_err"
-dispatch         = "RuntimeCall"
-abi              = "(ptr) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_unwrap_or"
-class            = "Unclassified"
-symbol           = "__nucleor_result_unwrap_or"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "result_unwrap_or_else"
-class            = "Unclassified"
-symbol           = "__nucleor_result_unwrap_or_else"
-dispatch         = "RuntimeCall"
-abi              = "(ptr, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_bf16"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_bf16"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_bool"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_bool"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_char"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_char"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_f16"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_f16"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_f32"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_f32"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_f64"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_f64"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_i128"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_i128"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_i16"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_i16"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_i32"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_i32"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_i64"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_i64"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_i8"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_i8"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_isize"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_isize"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_ptr"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_ptr"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_u128"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_u128"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_u16"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_u16"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_u32"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_u32"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_u64"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_u64"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_u8"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_u8"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "sizeof_usize"
-class            = "Unclassified"
-symbol           = "__nucleor_sizeof_usize"
-dispatch         = "RuntimeCall"
-abi              = "() -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 
 # ----- class: VectorOps -----
