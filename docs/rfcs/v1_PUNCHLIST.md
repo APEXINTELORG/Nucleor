@@ -457,6 +457,15 @@ launch. After memory safety completes, these are next-priority.
   Released slots are reused and `logical_qubit_clear()` still wipes the
   process-local registry. Remaining gap: registry remains process-local
   and not thread-safe.
+- **QM-16 qsim trajectory noise channels:** DONE for Phase 1 on
+  2026-05-06 — `qsim_noise_bit_flip`, `qsim_noise_dephase`, and
+  `qsim_noise_depolarizing` expose caller-controlled stochastic
+  trajectory noise with probability validation and status returns.
+  `qsim_noise_trajectory_smoke.nr` locks deterministic `p=0` / `p=1`
+  behavior and invalid-probability handling. Remaining gap: this is
+  not a full density-matrix/Kraus backend; amplitude damping, phase
+  damping, mixed-state composition, and exact channel composition
+  remain future work.
 - **QM-17 qsim mid-circuit feedback primitive:** DONE for Phase 1 on
   2026-05-06 — `qsim_if_measure(sv, measure_q, expected, then_gate,
   then_q, else_gate, else_q, angle)` measures one qubit and immediately

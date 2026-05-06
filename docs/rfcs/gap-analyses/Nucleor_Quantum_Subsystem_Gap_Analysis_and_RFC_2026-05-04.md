@@ -162,6 +162,17 @@ No emit, no ingest, no stub. Users wanting to port from Qiskit/Cirq or run on IB
 ## QM-16 — No Kraus-operator or density-matrix noise model — **MEDIUM**
 diff_sim noise is learnable parameterized depolarizing but not independently specifiable. Cannot set "apply dephasing channel after each T gate with rate 0.01." Trace-close noise estimate is heuristic, not simulation result.
 
+**2026-05-06 update:** Phase 1 caller-controlled statevector trajectory
+noise is now shipped. `qsim_noise_bit_flip(sv, q, p)`,
+`qsim_noise_dephase(sv, q, p)`, and
+`qsim_noise_depolarizing(sv, q, p)` let callers explicitly apply
+per-gate stochastic trajectory noise with probability validation and
+stable status codes. `qsim_noise_trajectory_smoke.nr` locks deterministic
+`p=0` and `p=1` behavior plus invalid probability handling. Remaining
+gap: this is not a full density-matrix/Kraus backend; amplitude damping,
+phase damping, mixed-state composition, and exact channel composition
+remain future work.
+
 ## QM-17 — Quantum-classical mid-circuit feedback by convention only — **LOW**
 `qsim_measure` returns i64; caller branches. No `qsim_if_measure` primitive. This distinction matters for hardware-targeting tools (RFC-0054 Phase B).
 
@@ -228,7 +239,9 @@ and target-lowering semantics remain RFC-0054 Phase B.
   remaining work is truncation-error quantification and optional hard-fail
   policy for nonconvergence-sensitive callers.
 - QM-10: add Ry/Rz/T/S/CCX/CZ/SWAP CUDA kernels. Implement CPU fallback. Wrap in `gpu_quantum.nr` rod.
-- QM-16: add Kraus-operator noise channel. User can specify per-gate noise model independent of learnable diff_sim parameters.
+- QM-16: qsim statevector trajectory noise is shipped for bit-flip,
+  dephasing, and depolarizing channels; remaining work is full
+  density-matrix/Kraus semantics and damping channels.
 - QM-17: statevector `qsim_if_measure(...)` feedback primitive is shipped;
   remaining work is hardware timing and target lowering.
 
