@@ -173,3 +173,82 @@ Linux/macOS evidence with native `cargo`, `bin/nucleor`, and
 `libnucleor_rust_bridge.a`, plus an optional native leak-signal path such as
 ASAN or valgrind if R06 Phase 2 requires allocator-profiler evidence rather
 than repeated crash/hang-free ownership cycles.
+
+## Continuation Scope D/E Results
+
+Scope D was supported by the existing rod surface. `stdlib/rods/rust.nr` and
+`stdlib/rods/rust_bridge/src/lib.rs` already expose
+`rust_hash_string_fnv1a`, a deterministic primitive-return hash helper. This
+continuation did not invent runtime ABI or compiler work.
+
+Additional file added:
+
+```text
+tests/features/rust_bridge_hash_determinism_smoke.nr
+```
+
+The new fixture verifies deterministic FNV-1a behavior, pins the empty-string
+offset basis as signed i64, keeps the older randomized `rust_hash_string`
+callable, and pairs Rust-owned returned strings from `rust_to_uppercase` and
+`rust_base64_encode` with `rust_free_str`.
+
+Harness extensions:
+
+```text
+PowerShell: -Fixture string-free|hash|all|string-free-repeat|<path>, -Json
+POSIX:      --fixture string-free|hash|all|string-free-repeat|<path>, --json
+```
+
+Default behavior remains the original string-free fixture. The `all` selector
+runs the default string-free fixture plus the new hash determinism fixture.
+JSON output is opt-in and is not wired into normal verify/perf gates.
+
+Additional validation:
+
+```text
+$ pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor
+doctor cargo: OK - C:\Users\JoeWe\.cargo\bin\cargo.exe
+doctor bridge-crate: OK - C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\stdlib\rods\rust_bridge
+doctor release-artifact: OK - C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib
+doctor compiler-binary: OK - C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\bin\nucleor.exe
+doctor focused-fixture:string-free: OK - C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\tests\features\rust_bridge_string_free_smoke.nr
+doctor fixture-buildable: OK - prerequisites are sufficient to build selector string-free
+doctor result: ready for rust_bridge ownership harness
+exit=0
+
+$ pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 20
+building focused fixture: tests/features/rust_bridge_string_free_smoke.nr
+building focused fixture: tests/features/rust_bridge_hash_determinism_smoke.nr
+OK rust_bridge ownership: fixture_selector=all iterations=20 fixture_executions=40 fixture_alloc_free_cycles=2040 bridge_artifact=C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib executable=C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828\target\_rust_bridge_ownership_check.exe
+exit=0
+
+$ pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor -Json | ConvertFrom-Json
+exit=0 status=ready mode=doctor fixture=string-free cargo=True
+
+$ pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 5 -Json | ConvertFrom-Json
+exit=0 status=passed completed=10 fixtures=2
+
+$ bash tools/check_rust_bridge_ownership.sh --doctor
+doctor cargo: FAIL - found Windows cargo, not native POSIX cargo: /mnt/c/Users/JoeWe/.cargo/bin/cargo.exe
+doctor bridge-crate: OK - /mnt/c/Users/JoeWe/Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828/stdlib/rods/rust_bridge
+doctor release-artifact: FAIL - POSIX artifact missing; Windows artifact is not accepted: /mnt/c/Users/JoeWe/Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828/stdlib/rods/rust_bridge/target/release/nucleor_rust_bridge.lib
+doctor compiler-binary: FAIL - native POSIX compiler missing; Windows .exe is not accepted: /mnt/c/Users/JoeWe/Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828/bin/nucleor.exe
+doctor focused-fixture:string-free: OK - /mnt/c/Users/JoeWe/Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828/tests/features/rust_bridge_string_free_smoke.nr
+doctor fixture-buildable: FAIL - missing native POSIX cargo, compiler, bridge crate/artifact, or fixture
+doctor result: not ready for POSIX rust_bridge ownership harness
+exit=96
+
+$ bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20
+UNSUPPORTED rust_bridge ownership: found Windows cargo, not native POSIX cargo: /mnt/c/Users/JoeWe/.cargo/bin/cargo.exe
+exit=96
+
+$ bash tools/check_rust_bridge_ownership.sh --doctor --json | ConvertFrom-Json
+exit=96 status=unsupported mode=doctor nativeCargo=False reason=found Windows cargo, not native POSIX cargo: /mnt/c/Users/JoeWe/.cargo/bin/cargo.exe
+
+$ bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 5 --json | ConvertFrom-Json
+exit=96 status=unsupported completed=0 fixtures=2 reason=found Windows cargo, not native POSIX cargo: /mnt/c/Users/JoeWe/.cargo/bin/cargo.exe
+```
+
+R06 Phase 3a/3b are branch-ready in this opt-in harness lane. Native
+Linux/macOS evidence remains open for the POSIX harness because this host only
+observed Windows cargo/compiler/artifacts through WSL interop.
