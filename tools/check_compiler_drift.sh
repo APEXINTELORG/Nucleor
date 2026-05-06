@@ -249,18 +249,11 @@ esac
 
 # --- Manifest freshness checks ---
 # v0.2.42 added helper_manifest.toml enforcement.
-# v0.2.47 generalized to any manifest under docs/rfcs/ that has a
-# matching tools/gen_*_manifest.py generator. Each freshness check
-# regenerates the manifest, diffs against the committed snapshot, and
-# fails the gate if they differ.
-
-# Resolve PYTHON once for .py-based manifest checks.
-PYTHON=""
-if command -v python >/dev/null 2>&1; then
-    PYTHON=python
-elif command -v python3 >/dev/null 2>&1; then
-    PYTHON=python3
-fi
+# v0.2.47 generalized manifest freshness checks under docs/rfcs/.
+# RFC-0063 Track C now requires drift-gated generators to use native
+# Nucleor sources; this gate intentionally has no Python fallback.
+# Each freshness check regenerates the manifest, diffs against the
+# committed snapshot, and fails the gate if they differ.
 
 # Resolve native nucleor binary for .nr-based manifest checks (RFC-0063
 # Track C — porting Python generators to native).
@@ -276,8 +269,9 @@ check_manifest() {
     if [ ! -f "$gen_path" ] || [ ! -f "$manifest_path" ]; then
         return 0
     fi
-    # Polyglot: dispatch by generator extension. .nr generators run via
-    # bin/nucleor; .py generators run via the Python interpreter.
+    # Drift-gated generators run via bin/nucleor. Retired Python
+    # generators may remain in the repo as archival/reference material,
+    # but they are not valid gate inputs.
     case "$gen_path" in
         *.nr)
             if [ -z "$NUCLEOR_BIN" ]; then
@@ -285,15 +279,9 @@ check_manifest() {
                 return 0
             fi
             ;;
-        *.py)
-            if [ -z "$PYTHON" ]; then
-                echo "WARN: python not in PATH — skipping $label freshness check"
-                return 0
-            fi
-            ;;
         *)
-            echo "WARN: unsupported generator extension for $label — skipping"
-            return 0
+            echo "FAIL: unsupported drift-gated generator extension for $label: $gen_path"
+            return 1
             ;;
     esac
     local snapshot="$TMP/$(basename "$manifest_path").snapshot"
@@ -330,13 +318,6 @@ check_manifest() {
                 return 1
             }
             ;;
-        *.py)
-            "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
-                echo "FAIL: $(basename "$gen_path") crashed."
-                cp "$snapshot" "$manifest_path"
-                return 1
-            }
-            ;;
     esac
     local snapshot_norm="$TMP/$(basename "$manifest_path").snapshot.norm"
     local generated_norm="$TMP/$(basename "$manifest_path").generated.norm"
@@ -346,7 +327,6 @@ check_manifest() {
         local regen_cmd
         case "$gen_path" in
             *.nr) regen_cmd="$NUCLEOR_BIN build $gen_path -o $(basename "$gen_path" .nr) && ./target/$(basename "$gen_path" .nr)" ;;
-            *.py) regen_cmd="$PYTHON $gen_path" ;;
             *)    regen_cmd="<unknown generator type>" ;;
         esac
         echo ""

@@ -738,6 +738,10 @@ proper analysis → Phase 4 hard error):
   no longer requires Python for its Windows byte-compare path; it
   now uses `fc /B` for linked binary comparison and retains `cmp -s`
   for POSIX. Python interop rods remain intentional and unchanged.
+- **2026-05-06**: RFC-0063 Track C Phase 5.5 closed for the drift
+  gate. `tools/check_compiler_drift.sh` no longer probes for Python or
+  executes `.py` generators; drift-gated freshness checks now require
+  native `.nr` generators through `bin/nucleor`.
 - **2026-05-06**: PERF-5 closed for the canonical bash gate.
   `tools/verify.sh` now includes a routine RFC-NRT-003
   `verify-reproducible` step requiring byte-identical IR and EXE
