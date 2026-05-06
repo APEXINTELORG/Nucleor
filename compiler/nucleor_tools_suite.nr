@@ -19060,10 +19060,11 @@ fn run_publish_command(argc: i64) -> i64 {
     let manifest_path: str = lock_resolve_manifest_target(manifest_target);
     if str_len(manifest_path) == 0 {
         print("ERROR: no Nucleor.toml found");
-        print("Usage: nuc publish [path/to/Nucleor.toml|project_dir] [--registry <dir>]");
+        print("Usage: nuc publish [path/to/Nucleor.toml|project_dir] [--registry <dir>] [--dry-run] [--sign [--key-id <id>]]");
         return 1;
     };
     let registry_dir: str = registry_dir_native(argc, 2);
+    let dry_run: i64 = cli_has_flag(argc, 2, "--dry-run");
     let mut sign_package: i64 = cli_has_flag(argc, 2, "--sign");
     let mut signing_key_id: str = cli_option_value(argc, 2, "--key-id");
     if str_len(signing_key_id) > 0 { sign_package = 1; };
@@ -19095,6 +19096,25 @@ fn run_publish_command(argc: i64) -> i64 {
     if str_len(file_read_string(sanitize(str_concat(path_with_sep(publish_root), "Nucleor.toml")))) > 0 {
         print(str_concat("ERROR: package already exists in registry: ", publish_root));
         return 1;
+    };
+    if dry_run == 1 {
+        print("publish dry-run: no files copied, no registry metadata written, no checksums written, no signatures created");
+        print(str_concat("manifest: ", manifest_path));
+        print(str_concat("package: ", manifest_settings_package_name(settings)));
+        print(str_concat("version: ", manifest_settings_version(settings)));
+        print(str_concat("registry: ", registry_dir));
+        print(str_concat("registry_package_dir: ", publish_root));
+        print(str_concat("export_manifest_target: ", sanitize(str_concat(path_with_sep(publish_root), package_exports_manifest_file_name()))));
+        print(str_concat("metadata_target: ", sanitize(str_concat(path_with_sep(publish_root), registry_metadata_file_name()))));
+        print(str_concat("checksum_target: ", sanitize(str_concat(path_with_sep(publish_root), package_checksum_file_name()))));
+        if sign_package == 1 {
+            print(str_concat("signature_target: ", sanitize(str_concat(path_with_sep(publish_root), package_signature_file_name()))));
+            print(str_concat("signing_key_id: ", signing_key_id));
+        } else {
+            print("signature_target: (not requested)");
+            print("signing_key_id: (none)");
+        };
+        return 0;
     };
     if publish_copy_graph_native(manifest_path, graph, publish_root) != 0 {
         print(str_concat("ERROR: failed to copy package into registry: ", publish_root));
@@ -20105,6 +20125,8 @@ fn print_help() -> i64 {
     print("  doc <file> [--out f]   Emit Markdown reference for `pub fn` / `fn` decls (RFC-0029)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
+    print("    --dry-run            Validate publish inputs and print targets without writing");
+    print("    --sign [--key-id id] Sign package metadata after publishing");
     print("  registry [subcmd]      Inspect local packages and configure registry remotes");
     print("    list|search|versions|verify");
     print("  sage <subcmd> <file>   Sage_NS prove / certificate / gap checks");

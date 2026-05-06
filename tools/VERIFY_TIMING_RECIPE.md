@@ -229,6 +229,59 @@ fixture process run. The hash fixture
 `rust_hash_string_fnv1a` deterministic hash helper and frees the Rust-owned
 strings it obtains while checking returned-string behavior.
 
+## PKG-1 publish/sign dry-run and native Linux transcript
+
+PKG-1 remains a native Linux release-evidence item, but the non-mutating
+preflight path is now explicit. Use these commands before any real package
+publish/sign attempt:
+
+```powershell
+pwsh -NoProfile -File tools\native_release.ps1 -Help
+pwsh -NoProfile -File tools\native_release.ps1 -Root . package-sign-preflight <registry-package-dir>
+pwsh -NoProfile -File tools\native_release.ps1 -Root . package-sign-preflight <registry-package-dir> --json |
+  ConvertFrom-Json | Out-Null
+```
+
+`package-sign-preflight` reports the package directory, package metadata path,
+checksum path, export manifest path when present, requested or inferred key id,
+expected `Nucleor.publish.signature.json` path, key presence, and whether a
+real signing run would overwrite an existing signature. It must not create
+keys, write signatures, copy packages, or mutate a registry.
+
+The tools-suite publish path also supports a pre-copy dry-run:
+
+```powershell
+nuc publish <path-to-Nucleor.toml-or-project-dir> --registry <temp-registry> --dry-run
+nuc publish <path-to-Nucleor.toml-or-project-dir> --registry <temp-registry> --dry-run --sign --key-id <throwaway-key-id>
+```
+
+The dry-run validates the manifest, dependency lock precondition, dependency
+graph, and existing-package refusal before it prints the registry package
+directory plus export metadata, checksum, signature, and key-id targets. It
+must not copy files, write registry metadata, write checksums, sign, or create
+keys.
+
+Native Linux release transcript checklist:
+
+```bash
+git clean -xfd target .nuc_cache
+./bin/nucleor build compiler/nucleor_s1_compiler.nr -o verify_compiler
+stage1=target/verify_compiler; test -x "$stage1" || stage1=target/verify_compiler.exe
+"$stage1" build compiler/nucleor_s1_compiler.nr -o verify_compiler_2
+stage2=target/verify_compiler_2; test -x "$stage2" || stage2=target/verify_compiler_2.exe
+cmp -s "$stage1" "$stage2"
+bash tools/check_perf_regression.sh --doctor
+bash tools/check_perf_regression.sh --json
+nuc publish <fixture-or-release-manifest> --registry "$TMPDIR/nucleor-registry" --dry-run --sign --key-id throwaway-ci
+nuc publish <fixture-or-release-manifest> --registry "$TMPDIR/nucleor-registry" --sign --key-id throwaway-ci
+pwsh -NoProfile -File tools/native_release.ps1 -Root . package-sign-preflight "$TMPDIR/nucleor-registry/<pkg>/<version>" --json
+pwsh -NoProfile -File tools/native_release.ps1 -Root . package-verify "$TMPDIR/nucleor-registry/<pkg>/<version>" --json
+```
+
+The signed-publish half of that checklist must run only against a throwaway
+registry and a throwaway key. Windows, WSL, or Windows `.exe` interop output is
+not valid native POSIX evidence for PKG-1 or the POSIX perf gate.
+
 ## v0.8.317 — cold/hot memory split for the perf gate
 
 `tools/check_perf_regression.ps1` now reads the split RSS fields and enforces
