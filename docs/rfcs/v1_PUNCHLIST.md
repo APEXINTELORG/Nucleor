@@ -161,7 +161,13 @@ launch. After memory safety completes, these are next-priority.
   2026-05-05 (`fb8b7c0b`) — adds Linux `/proc` process-tree cap
   wrapper and removes the soft `NUC_TRACE_ALLOC` green fallback from
   memory-budget gates.
-- General perf-budget gates; CI integration.
+- **R10-D3 POSIX cold/hot perf gate prep:** INTEGRATED on main
+  2026-05-05 (`1a962893`) — adds `tools/check_perf_regression.sh`,
+  wires the POSIX perf monitor into `tools/verify.sh`, refuses WSL /
+  Windows `.exe` interop as RSS evidence, and documents native Linux
+  validation. Native Linux transcript still required before R10-D3
+  can be marked closed.
+- General CI integration remains open.
 
 ## Tier C items (stdlib coherence)
 
@@ -233,3 +239,6 @@ proper analysis → Phase 4 hard error):
   import-cycle helper fixtures. Self-host fixed-point md5:
   `697bea7d73dc8d72ceeba86e9b886f79`; perf gate: cold 3.60s / 307MB
   process-tree RSS.
+- **2026-05-05**: POSIX cold/hot perf gate prep integrated on main
+  (`1a962893`). The gate is wired but intentionally refuses WSL/interop;
+  native Linux evidence is still required for R10-D3 closure.
