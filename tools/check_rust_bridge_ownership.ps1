@@ -1,5 +1,6 @@
 param(
     [switch]$Doctor,
+    [switch]$SelfTest,
     [ValidateRange(1, 100000)]
     [int]$Iterations = 100,
     [string]$Fixture = "string-free",
@@ -9,7 +10,9 @@ param(
     [int]$BuildTimeoutSec = 180,
     [ValidateRange(1, 3600)]
     [int]$RunTimeoutSec = 30,
-    [switch]$Json
+    [switch]$Json,
+    [ValidateSet("none", "cargo", "compiler", "bridge-artifact")]
+    [string]$SimulateMissing = "none"
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,11 +35,27 @@ $bridgeArtifactCandidates = @(
     (Join-Path $bridgeReleaseDir "nucleor_rust_bridge.lib"),
     (Join-Path $bridgeReleaseDir "libnucleor_rust_bridge.a")
 )
+$requiredJsonKeys = @(
+    "schema_version",
+    "host_family",
+    "mode",
+    "fixture_selector",
+    "iterations_requested",
+    "fixture_executions_completed",
+    "cargo",
+    "bridge_artifact",
+    "compiler",
+    "result_status",
+    "failure_reason",
+    "fixtures"
+)
 
 $script:completedExecutions = 0
 $script:currentBridgeArtifact = ""
 $script:lastReadiness = $null
 $script:selectedFixtures = @()
+$script:selfTestChecks = @()
+$script:simulateMissingPrerequisite = $SimulateMissing
 
 function Get-FixtureCycleCount([string]$Path) {
     if ($Path -match "rust_bridge_string_free_repeat_smoke\.nr$") {
@@ -46,6 +65,10 @@ function Get-FixtureCycleCount([string]$Path) {
         return 2
     }
     return 100
+}
+
+function Test-ExplicitFixturePath([string]$Selector) {
+    return ($Selector -match "[\\/]" -or $Selector -match "\.nr$")
 }
 
 function New-FixtureInfo([string]$Key, [string]$Arg, [int]$Cycles) {
@@ -88,7 +111,10 @@ function Resolve-Fixtures([string]$Selector) {
             )
         }
         default {
-            return @(New-FixtureInfo "custom" $Selector (Get-FixtureCycleCount $Selector))
+            if (Test-ExplicitFixturePath $Selector) {
+                return @(New-FixtureInfo "custom" $Selector (Get-FixtureCycleCount $Selector))
+            }
+            throw "invalid fixture selector '$Selector'; expected string-free, hash, all, string-free-repeat, or an explicit .nr fixture path"
         }
     }
 }
@@ -99,6 +125,9 @@ function Write-Status([string]$Name, [bool]$Ok, [string]$Detail) {
 }
 
 function Get-CommandPath([string]$Name) {
+    if ($Name -eq "cargo" -and $script:simulateMissingPrerequisite -eq "cargo") {
+        return ""
+    }
     $cmd = Get-Command $Name -ErrorAction SilentlyContinue
     if ($null -eq $cmd) { return "" }
     return [string]$cmd.Source
@@ -178,8 +207,16 @@ function Get-OutputExecutable([string]$Name) {
 
 function Get-Readiness($Fixtures) {
     $cargo = Get-CommandPath "cargo"
-    $compiler = Get-FirstExistingPath $compilerCandidates
-    $bridgeArtifact = Get-FirstExistingPath $bridgeArtifactCandidates
+    $compiler = ""
+    if ($script:simulateMissingPrerequisite -ne "compiler") {
+        $compiler = Get-FirstExistingPath $compilerCandidates
+    }
+
+    $bridgeArtifact = ""
+    if ($script:simulateMissingPrerequisite -ne "bridge-artifact") {
+        $bridgeArtifact = Get-FirstExistingPath $bridgeArtifactCandidates
+    }
+
     $cratePresent = (Test-Path -LiteralPath $bridgeCargo) -and (Test-Path -LiteralPath $bridgeSrc)
     $fixtureRows = @()
     $allFixturesPresent = $true
@@ -198,7 +235,9 @@ function Get-Readiness($Fixtures) {
         }
     }
 
-    $canBuildArtifact = (-not [string]::IsNullOrWhiteSpace($cargo)) -and $cratePresent
+    $canBuildArtifact = (-not [string]::IsNullOrWhiteSpace($cargo)) -and
+        $cratePresent -and
+        ($script:simulateMissingPrerequisite -ne "bridge-artifact")
     $canBuildFixture = (-not [string]::IsNullOrWhiteSpace($cargo)) -and
         (-not [string]::IsNullOrWhiteSpace($compiler)) -and
         $allFixturesPresent -and
@@ -212,7 +251,40 @@ function Get-Readiness($Fixtures) {
         CanBuildArtifact = $canBuildArtifact
         CanBuildFixture = $canBuildFixture
         Fixtures = $fixtureRows
+        SimulatedMissing = $script:simulateMissingPrerequisite
     }
+}
+
+function Get-ReadinessFailureReason($Readiness) {
+    if ($Readiness.Cargo -eq "") {
+        if ($Readiness.SimulatedMissing -eq "cargo") { return "simulated missing cargo" }
+        return "cargo is missing from PATH"
+    }
+    if (-not $Readiness.BridgeCratePresent) {
+        return "rust_bridge crate is missing Cargo.toml or src/lib.rs under $bridgeCrate"
+    }
+    if ($Readiness.BridgeArtifact -eq "" -and -not $Readiness.CanBuildArtifact) {
+        if ($Readiness.SimulatedMissing -eq "bridge-artifact") { return "simulated missing bridge artifact" }
+        return "bridge artifact is missing and cannot be built"
+    }
+    if ($Readiness.Compiler -eq "") {
+        if ($Readiness.SimulatedMissing -eq "compiler") { return "simulated missing compiler" }
+        return "compiler binary missing: expected bin/nucleor.exe or bin/nucleor"
+    }
+    foreach ($fixtureRow in $Readiness.Fixtures) {
+        if (-not $fixtureRow.Present) {
+            return "focused fixture missing: $($fixtureRow.Path)"
+        }
+    }
+    if (-not $Readiness.CanBuildFixture) {
+        return "missing cargo, compiler, bridge crate/artifact, or focused fixture"
+    }
+    return ""
+}
+
+function Get-PreflightExitCode($Readiness) {
+    if ($Readiness.CanBuildFixture) { return 0 }
+    return 96
 }
 
 function New-JsonPayload {
@@ -232,10 +304,14 @@ function New-JsonPayload {
         $BridgeArtifact = $Readiness.BridgeArtifact
     }
 
+    $mode = "run"
+    if ($Doctor) { $mode = "doctor" }
+    if ($SelfTest) { $mode = "self-test" }
+
     return [ordered]@{
         schema_version = 1
         host_family = "windows"
-        mode = if ($Doctor) { "doctor" } else { "run" }
+        mode = $mode
         fixture_selector = $Fixture
         iterations_requested = $Iterations
         fixture_executions_completed = $Completed
@@ -261,6 +337,8 @@ function New-JsonPayload {
                 rust_owned_free_cycles_per_execution = $_.Cycles
             }
         })
+        simulated_missing = $Readiness.SimulatedMissing
+        self_test_checks = @($script:selfTestChecks)
     }
 }
 
@@ -280,6 +358,14 @@ function Exit-Json {
     exit $ExitCode
 }
 
+function Unsupported([string]$Message) {
+    if ($Json) {
+        Exit-Json -Status "unsupported" -FailureReason $Message -ExitCode 96 -Readiness $script:lastReadiness -Fixtures $script:selectedFixtures -Completed $script:completedExecutions -BridgeArtifact $script:currentBridgeArtifact
+    }
+    Write-Host ("UNSUPPORTED rust_bridge ownership: {0}" -f $Message) -ForegroundColor Yellow
+    exit 96
+}
+
 function Fail([string]$Message) {
     if ($Json) {
         Exit-Json -Status "failed" -FailureReason $Message -ExitCode 1 -Readiness $script:lastReadiness -Fixtures $script:selectedFixtures -Completed $script:completedExecutions -BridgeArtifact $script:currentBridgeArtifact
@@ -288,37 +374,116 @@ function Fail([string]$Message) {
     exit 1
 }
 
+function Test-JsonRequiredKeys($ParsedJson) {
+    foreach ($key in $requiredJsonKeys) {
+        if (-not ($ParsedJson.PSObject.Properties.Name -contains $key)) {
+            throw "JSON contract missing required key: $key"
+        }
+    }
+    foreach ($nested in @("present", "path")) {
+        if (-not ($ParsedJson.cargo.PSObject.Properties.Name -contains $nested)) {
+            throw "JSON contract missing cargo.$nested"
+        }
+        if (-not ($ParsedJson.bridge_artifact.PSObject.Properties.Name -contains $nested)) {
+            throw "JSON contract missing bridge_artifact.$nested"
+        }
+        if (-not ($ParsedJson.compiler.PSObject.Properties.Name -contains $nested)) {
+            throw "JSON contract missing compiler.$nested"
+        }
+    }
+}
+
+function Confirm-SelfTest([string]$Name, [bool]$Condition, [string]$Failure) {
+    if (-not $Condition) {
+        throw ("self-test {0}: {1}" -f $Name, $Failure)
+    }
+    $script:selfTestChecks += $Name
+    if (-not $Json) {
+        Write-Host ("self-test {0}: OK" -f $Name)
+    }
+}
+
+function Run-SelfTest {
+    $oldSimulation = $script:simulateMissingPrerequisite
+    try {
+        foreach ($selector in @("string-free", "hash", "all")) {
+            $fixtures = Resolve-Fixtures $selector
+            Confirm-SelfTest "selector:$selector" ($fixtures.Count -ge 1) "selector did not resolve"
+        }
+
+        $invalidFailed = $false
+        $invalidMessage = ""
+        try {
+            $null = Resolve-Fixtures "__invalid_selector__"
+        } catch {
+            $invalidFailed = $true
+            $invalidMessage = [string]$_.Exception.Message
+        }
+        Confirm-SelfTest "selector:invalid" ($invalidFailed -and $invalidMessage -match "invalid fixture selector") "invalid selector did not fail clearly"
+
+        $script:simulateMissingPrerequisite = "none"
+        $fixturesForJson = Resolve-Fixtures "all"
+        $readinessForJson = Get-Readiness $fixturesForJson
+        $payload = New-JsonPayload -Status "passed" -FailureReason "" -Readiness $readinessForJson -Fixtures $fixturesForJson -Completed 0 -BridgeArtifact $readinessForJson.BridgeArtifact
+        $jsonText = $payload | ConvertTo-Json -Depth 8
+        $parsed = $jsonText | ConvertFrom-Json
+        Test-JsonRequiredKeys $parsed
+        Confirm-SelfTest "json:required-keys" $true "JSON contract check failed"
+
+        foreach ($missing in @("cargo", "compiler", "bridge-artifact")) {
+            $script:simulateMissingPrerequisite = $missing
+            $fixturesForMissing = Resolve-Fixtures "string-free"
+            $readiness = Get-Readiness $fixturesForMissing
+            $reason = Get-ReadinessFailureReason $readiness
+            $exitCode = Get-PreflightExitCode $readiness
+            Confirm-SelfTest "fail-closed:$missing" (($exitCode -ne 0) -and -not [string]::IsNullOrWhiteSpace($reason)) "missing prerequisite did not produce nonzero preflight and reason"
+
+            $missingPayload = New-JsonPayload -Status "unsupported" -FailureReason $reason -Readiness $readiness -Fixtures $fixturesForMissing -Completed 0 -BridgeArtifact $readiness.BridgeArtifact
+            $missingJson = $missingPayload | ConvertTo-Json -Depth 8
+            $missingParsed = $missingJson | ConvertFrom-Json
+            Test-JsonRequiredKeys $missingParsed
+            Confirm-SelfTest "json:fail-closed:$missing" (($missingParsed.result_status -eq "unsupported") -and -not [string]::IsNullOrWhiteSpace($missingParsed.failure_reason)) "missing prerequisite JSON was not fail-closed"
+        }
+
+        $script:simulateMissingPrerequisite = $oldSimulation
+        $script:selectedFixtures = Resolve-Fixtures $Fixture
+        $finalReadiness = Get-Readiness $script:selectedFixtures
+        if ($Json) {
+            Exit-Json -Status "passed" -FailureReason "" -ExitCode 0 -Readiness $finalReadiness -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $finalReadiness.BridgeArtifact
+        }
+        Write-Host "self-test result: passed"
+        exit 0
+    } catch {
+        $script:simulateMissingPrerequisite = $oldSimulation
+        $message = [string]$_.Exception.Message
+        if ($Json) {
+            try {
+                $script:selectedFixtures = Resolve-Fixtures $Fixture
+            } catch {
+                $script:selectedFixtures = @()
+            }
+            $r = Get-Readiness $script:selectedFixtures
+            Exit-Json -Status "failed" -FailureReason $message -ExitCode 1 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
+        }
+        Write-Host ("self-test result: FAILED - {0}" -f $message) -ForegroundColor Red
+        exit 1
+    }
+}
+
 function Run-Doctor {
     $r = Get-Readiness $script:selectedFixtures
     $script:lastReadiness = $r
-    $failed = $false
-
-    if ($r.Cargo -eq "") {
-        $failed = $true
-    }
-    if (-not $r.BridgeCratePresent) {
-        $failed = $true
-    }
-    if ($r.Compiler -eq "") {
-        $failed = $true
-    }
-    foreach ($fixtureRow in $r.Fixtures) {
-        if (-not $fixtureRow.Present) {
-            $failed = $true
-        }
-    }
-    if (-not $r.CanBuildFixture) {
-        $failed = $true
-    }
+    $failed = -not $r.CanBuildFixture
+    $failureReason = Get-ReadinessFailureReason $r
 
     if ($Json) {
         if ($failed) {
-            Exit-Json -Status "unsupported" -FailureReason "missing cargo, compiler, bridge crate/artifact, or focused fixture" -ExitCode 96 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
+            Exit-Json -Status "unsupported" -FailureReason $failureReason -ExitCode 96 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
         }
         Exit-Json -Status "ready" -FailureReason "" -ExitCode 0 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
     }
 
-    Write-Status "cargo" ($r.Cargo -ne "") $(if ($r.Cargo -ne "") { $r.Cargo } else { "missing from PATH" })
+    Write-Status "cargo" ($r.Cargo -ne "") $(if ($r.Cargo -ne "") { $r.Cargo } elseif ($r.SimulatedMissing -eq "cargo") { "simulated missing cargo" } else { "missing from PATH" })
     if ($r.BridgeCratePresent) {
         Write-Status "bridge-crate" $true $bridgeCrate
     } else {
@@ -331,16 +496,18 @@ function Run-Doctor {
     } elseif ($r.CanBuildArtifact) {
         Write-Status "release-artifact" $true ("not present yet; normal run will attempt cargo build --release; expected {0}" -f $expected)
     } else {
-        Write-Status "release-artifact" $false ("missing and cannot be built; expected {0}" -f $expected)
+        $artifactDetail = if ($r.SimulatedMissing -eq "bridge-artifact") { "simulated missing bridge artifact" } else { "missing and cannot be built; expected $expected" }
+        Write-Status "release-artifact" $false $artifactDetail
     }
 
-    Write-Status "compiler-binary" ($r.Compiler -ne "") $(if ($r.Compiler -ne "") { $r.Compiler } else { "missing bin/nucleor.exe or bin/nucleor" })
+    $compilerDetail = if ($r.Compiler -ne "") { $r.Compiler } elseif ($r.SimulatedMissing -eq "compiler") { "simulated missing compiler" } else { "missing bin/nucleor.exe or bin/nucleor" }
+    Write-Status "compiler-binary" ($r.Compiler -ne "") $compilerDetail
 
     foreach ($fixtureRow in $r.Fixtures) {
         Write-Status ("focused-fixture:{0}" -f $fixtureRow.Key) $fixtureRow.Present $(if ($fixtureRow.Present) { $fixtureRow.Path } else { "missing $($fixtureRow.Path)" })
     }
 
-    Write-Status "fixture-buildable" $r.CanBuildFixture $(if ($r.CanBuildFixture) { "prerequisites are sufficient to build selector $Fixture" } else { "missing compiler, fixture, cargo, crate, or bridge artifact" })
+    Write-Status "fixture-buildable" $r.CanBuildFixture $(if ($r.CanBuildFixture) { "prerequisites are sufficient to build selector $Fixture" } else { $failureReason })
 
     if ($failed) {
         Write-Host "doctor result: not ready for rust_bridge ownership harness"
@@ -350,26 +517,31 @@ function Run-Doctor {
     exit 0
 }
 
-$script:selectedFixtures = Resolve-Fixtures $Fixture
+if ($SelfTest) {
+    Run-SelfTest
+}
+
+try {
+    $script:selectedFixtures = Resolve-Fixtures $Fixture
+} catch {
+    $message = [string]$_.Exception.Message
+    if ($Json) {
+        $script:selectedFixtures = @()
+        $script:lastReadiness = Get-Readiness $script:selectedFixtures
+        Exit-Json -Status "failed" -FailureReason $message -ExitCode 2 -Readiness $script:lastReadiness -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $script:lastReadiness.BridgeArtifact
+    }
+    Write-Host ("ERROR rust_bridge ownership: {0}" -f $message) -ForegroundColor Red
+    exit 2
+}
 
 if ($Doctor) {
     Run-Doctor
 }
 
 $script:lastReadiness = Get-Readiness $script:selectedFixtures
-if ($script:lastReadiness.Cargo -eq "") {
-    Fail "cargo is missing from PATH; cannot build rust_bridge release artifact"
-}
-if (-not $script:lastReadiness.BridgeCratePresent) {
-    Fail "rust_bridge crate is missing Cargo.toml or src/lib.rs under $bridgeCrate"
-}
-if ($script:lastReadiness.Compiler -eq "") {
-    Fail "compiler binary missing: expected bin/nucleor.exe or bin/nucleor"
-}
-foreach ($fixtureRow in $script:lastReadiness.Fixtures) {
-    if (-not $fixtureRow.Present) {
-        Fail "focused fixture missing: $($fixtureRow.Path)"
-    }
+$preflightReason = Get-ReadinessFailureReason $script:lastReadiness
+if ((Get-PreflightExitCode $script:lastReadiness) -ne 0) {
+    Unsupported $preflightReason
 }
 
 $script:currentBridgeArtifact = $script:lastReadiness.BridgeArtifact

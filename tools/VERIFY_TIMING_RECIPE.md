@@ -156,6 +156,8 @@ pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Iterations 100
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 20
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor -Json
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 5 -Json
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -SelfTest
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -SelfTest -Json
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 `
   -Fixture tests\features\rust_bridge_string_free_repeat_smoke.nr `
   -Iterations 100
@@ -169,6 +171,8 @@ bash tools/check_rust_bridge_ownership.sh --iterations 100
 bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20
 bash tools/check_rust_bridge_ownership.sh --doctor --json
 bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 5 --json
+bash tools/check_rust_bridge_ownership.sh --self-test
+bash tools/check_rust_bridge_ownership.sh --self-test --json
 bash tools/check_rust_bridge_ownership.sh \
   --fixture tests/features/rust_bridge_string_free_repeat_smoke.nr \
   --iterations 100
@@ -187,6 +191,22 @@ runs the default string-free ownership fixture plus
 opt-in and emits schema version, host family, fixture selector, requested
 iterations, completed fixture executions, cargo/compiler/artifact readiness,
 result status, and failure reason.
+
+Self-test mode is no-build/no-cargo/no-artifact contract validation. It checks
+the supported selector set, confirms an invalid bare selector fails clearly,
+validates the JSON key contract, and exercises fail-closed simulations for
+missing cargo, missing compiler, and missing bridge artifact. The simulations
+are test-only and do not mutate `PATH`, rename artifacts, or touch the real
+toolchain.
+
+| Path | Text command | JSON command | Notes |
+|---|---|---|---|
+| Windows doctor | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor` | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor -Json` | Readiness only; no fixture run. |
+| Windows run | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 20` | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 5 -Json` | Requires Windows cargo, bridge artifact or buildable crate, and `bin\nucleor.exe`. |
+| Windows self-test | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -SelfTest` | `pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -SelfTest -Json` | No build; checks contract and fail-closed simulations. |
+| POSIX doctor | `bash tools/check_rust_bridge_ownership.sh --doctor` | `bash tools/check_rust_bridge_ownership.sh --doctor --json` | Refuses WSL/Windows interop evidence. |
+| POSIX run | `bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20` | `bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 5 --json` | Requires native POSIX cargo, `bin/nucleor`, and `libnucleor_rust_bridge.a` or a buildable Rust bridge crate. |
+| POSIX self-test | `bash tools/check_rust_bridge_ownership.sh --self-test` | `bash tools/check_rust_bridge_ownership.sh --self-test --json` | No build; checks contract and fail-closed simulations. |
 
 | Host path | Expected bridge artifact | Compiler binary | Harness |
 |---|---|---|---|

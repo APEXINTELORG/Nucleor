@@ -209,7 +209,10 @@ launch. After memory safety completes, these are next-priority.
   functions. The continuation adds a deterministic `rust_hash_string_fnv1a`
   fixture, `all` fixture selectors, and opt-in machine-readable JSON output
   for future release scripts without wiring the harness into normal verify
-  or perf gates. Remaining R06 work: native POSIX compiler/artifact
+  or perf gates. Queue 2 adds no-build self-test mode, fail-closed
+  prerequisite simulations for cargo/compiler/artifact, JSON stability
+  transcript, future CI allowlist/denylist notes, and a residual blocker
+  reduction plan. Remaining R06 work: native POSIX compiler/artifact
   evidence, optional ASAN/valgrind-style leak-signal evidence, and the
   broader cross-boundary ownership contract for Python/shared-library FFI.
 

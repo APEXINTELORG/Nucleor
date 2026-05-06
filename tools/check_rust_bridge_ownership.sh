@@ -10,9 +10,11 @@ it is not wired into verify.sh or perf gates.
 
 Options:
   --doctor                 Print readiness checks, then exit
+  --self-test              Validate selector, JSON, and fail-closed contracts
   --iterations N           Number of fixture process runs (default: 100)
   --fixture SELECTOR       string-free, hash, all, string-free-repeat, or a fixture path
   --json                   Emit machine-readable JSON instead of text
+  --simulate-missing KIND  Test-only override: cargo, compiler, bridge-artifact, or none
   --out-name NAME          Output basename under target/ (default: _rust_bridge_ownership_check)
   --build-timeout-sec N    Build timeout when timeout(1) is available (default: 180)
   --run-timeout-sec N      Per-run timeout when timeout(1) is available (default: 30)
@@ -58,14 +60,21 @@ out_name="_rust_bridge_ownership_check"
 build_timeout_sec=180
 run_timeout_sec=30
 doctor=0
+self_test=0
 json=0
 completed_executions=0
 failure_reason=""
+simulate_missing="none"
+resolve_error=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --doctor)
             doctor=1
+            shift
+            ;;
+        --self-test)
+            self_test=1
             shift
             ;;
         --iterations)
@@ -81,6 +90,11 @@ while [ "$#" -gt 0 ]; do
         --json)
             json=1
             shift
+            ;;
+        --simulate-missing)
+            [ "$#" -ge 2 ] || usage_error "--simulate-missing needs a value"
+            simulate_missing="$2"
+            shift 2
             ;;
         --out-name)
             [ "$#" -ge 2 ] || usage_error "--out-name needs a value"
@@ -113,6 +127,10 @@ case "$build_timeout_sec" in ''|*[!0-9]*) usage_error "--build-timeout-sec must 
 [ "$build_timeout_sec" -gt 0 ] || usage_error "--build-timeout-sec must be > 0"
 case "$run_timeout_sec" in ''|*[!0-9]*) usage_error "--run-timeout-sec must be a positive integer" ;; esac
 [ "$run_timeout_sec" -gt 0 ] || usage_error "--run-timeout-sec must be > 0"
+case "$simulate_missing" in
+    none|cargo|compiler|bridge-artifact) ;;
+    *) usage_error "--simulate-missing must be cargo, compiler, bridge-artifact, or none" ;;
+esac
 
 bridge_crate="$root/stdlib/rods/rust_bridge"
 bridge_cargo="$bridge_crate/Cargo.toml"
@@ -127,11 +145,15 @@ fixture_keys=()
 fixture_args=()
 fixture_paths=()
 fixture_cycles=()
+self_test_checks=()
 readiness_failed=0
 cargo=""
 cargo_native=1
 compiler_present=1
 bridge_artifact_present=1
+bridge_crate_present=1
+can_build_artifact=1
+can_build_fixture=1
 
 fixture_cycle_count() {
     case "$1" in
@@ -139,6 +161,14 @@ fixture_cycle_count() {
         *rust_bridge_hash_determinism_smoke.nr) printf '2' ;;
         *) printf '100' ;;
     esac
+}
+
+reset_fixtures() {
+    fixture_keys=()
+    fixture_args=()
+    fixture_paths=()
+    fixture_cycles=()
+    resolve_error=""
 }
 
 add_fixture() {
@@ -156,8 +186,17 @@ add_fixture() {
     fixture_cycles+=("$cycles")
 }
 
+is_explicit_fixture_path() {
+    case "$1" in
+        */*|*\\*|*.nr) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 resolve_fixtures() {
-    case "$fixture_selector" in
+    local selector="$1"
+    reset_fixtures
+    case "$selector" in
         string-free)
             add_fixture "string-free" "tests/features/rust_bridge_string_free_smoke.nr" 100
             ;;
@@ -172,9 +211,15 @@ resolve_fixtures() {
             add_fixture "hash" "tests/features/rust_bridge_hash_determinism_smoke.nr" 2
             ;;
         *)
-            add_fixture "custom" "$fixture_selector" "$(fixture_cycle_count "$fixture_selector")"
+            if is_explicit_fixture_path "$selector"; then
+                add_fixture "custom" "$selector" "$(fixture_cycle_count "$selector")"
+            else
+                resolve_error="invalid fixture selector '$selector'; expected string-free, hash, all, string-free-repeat, or an explicit .nr fixture path"
+                return 2
+            fi
             ;;
     esac
+    return 0
 }
 
 command_path() {
@@ -189,6 +234,11 @@ is_exe_path() {
 }
 
 cargo_path() {
+    [ "$simulate_missing" = "cargo" ] && return 0
+    if [ "$simulate_missing" != "none" ]; then
+        printf '%s\n' "/simulated/native/cargo"
+        return 0
+    fi
     local c
     c="$(command_path cargo)"
     if [ -n "$c" ]; then
@@ -245,26 +295,38 @@ check_readiness() {
     cargo_native=1
     compiler_present=1
     bridge_artifact_present=1
+    bridge_crate_present=1
+    can_build_artifact=1
+    can_build_fixture=1
 
     if [ -n "$cargo" ] && ! is_exe_path "$cargo"; then
         cargo_native=0
         doctor_ok "cargo" "$cargo"
     elif [ -n "$cargo" ]; then
         doctor_bad "cargo" "found Windows cargo, not native POSIX cargo: $cargo"
+    elif [ "$simulate_missing" = "cargo" ]; then
+        doctor_bad "cargo" "simulated missing cargo"
     else
         doctor_bad "cargo" "missing from PATH"
     fi
 
     if [ -f "$bridge_cargo" ] && [ -f "$bridge_src" ]; then
+        bridge_crate_present=0
         doctor_ok "bridge-crate" "$bridge_crate"
     else
         doctor_bad "bridge-crate" "missing Cargo.toml or src/lib.rs under $bridge_crate"
     fi
 
-    if [ -f "$bridge_artifact" ]; then
+    if [ "$simulate_missing" = "bridge-artifact" ]; then
+        doctor_bad "release-artifact" "simulated missing bridge artifact"
+    elif [ "$simulate_missing" != "none" ]; then
+        bridge_artifact_present=0
+        doctor_ok "release-artifact" "simulated present bridge artifact: $bridge_artifact"
+    elif [ -f "$bridge_artifact" ]; then
         bridge_artifact_present=0
         doctor_ok "release-artifact" "$bridge_artifact"
     elif [ -n "$cargo" ] && ! is_exe_path "$cargo" && [ -f "$bridge_cargo" ]; then
+        can_build_artifact=0
         doctor_ok "release-artifact" "not present yet; normal run will attempt cargo build --release; expected $bridge_artifact"
     elif [ -f "$windows_bridge_artifact" ]; then
         doctor_bad "release-artifact" "POSIX artifact missing; Windows artifact is not accepted: $windows_bridge_artifact"
@@ -272,7 +334,12 @@ check_readiness() {
         doctor_bad "release-artifact" "missing and cannot be built; expected $bridge_artifact"
     fi
 
-    if [ -x "$compiler" ]; then
+    if [ "$simulate_missing" = "compiler" ]; then
+        doctor_bad "compiler-binary" "simulated missing compiler"
+    elif [ "$simulate_missing" != "none" ]; then
+        compiler_present=0
+        doctor_ok "compiler-binary" "simulated present compiler: $compiler"
+    elif [ -x "$compiler" ]; then
         compiler_present=0
         doctor_ok "compiler-binary" "$compiler"
     elif [ -f "$windows_compiler" ]; then
@@ -293,9 +360,26 @@ check_readiness() {
     done
 
     if [ "$readiness_failed" -eq 0 ]; then
+        can_build_fixture=0
         doctor_ok "fixture-buildable" "prerequisites are sufficient to build selector $fixture_selector"
     else
-        doctor_bad "fixture-buildable" "missing native POSIX cargo, compiler, bridge crate/artifact, or fixture"
+        doctor_bad "fixture-buildable" "$(readiness_failure_reason)"
+    fi
+}
+
+readiness_failure_reason() {
+    if [ -n "$failure_reason" ]; then
+        printf '%s' "$failure_reason"
+    else
+        printf 'missing native POSIX cargo, compiler, bridge crate/artifact, or fixture'
+    fi
+}
+
+preflight_exit_code() {
+    if [ "$can_build_fixture" -eq 0 ]; then
+        printf '0'
+    else
+        printf '96'
     fi
 }
 
@@ -305,16 +389,17 @@ emit_json() {
     local completed="$3"
     local artifact_path="$4"
     local artifact_present=1
-    [ -f "$artifact_path" ] && artifact_present=0
+    [ -f "$artifact_path" ] && [ "$simulate_missing" != "bridge-artifact" ] && artifact_present=0
+    [ "$simulate_missing" != "none" ] && [ "$simulate_missing" != "bridge-artifact" ] && artifact_present=0
+
+    local mode="run"
+    [ "$doctor" -eq 1 ] && mode="doctor"
+    [ "$self_test" -eq 1 ] && mode="self-test"
 
     printf '{\n'
     printf '  "schema_version": 1,\n'
     printf '  "host_family": "posix",\n'
-    if [ "$doctor" -eq 1 ]; then
-        printf '  "mode": "doctor",\n'
-    else
-        printf '  "mode": "run",\n'
-    fi
+    printf '  "mode": "%s",\n' "$mode"
     printf '  "fixture_selector": "%s",\n' "$(json_escape "$fixture_selector")"
     printf '  "iterations_requested": %s,\n' "$iterations"
     printf '  "fixture_executions_completed": %s,\n' "$completed"
@@ -331,6 +416,7 @@ emit_json() {
     printf ', "path": "%s"},\n' "$(json_escape "$compiler")"
     printf '  "result_status": "%s",\n' "$(json_escape "$status")"
     printf '  "failure_reason": "%s",\n' "$(json_escape "$reason")"
+    printf '  "simulated_missing": "%s",\n' "$(json_escape "$simulate_missing")"
     printf '  "fixtures": [\n'
     local i comma present
     for i in "${!fixture_keys[@]}"; do
@@ -342,8 +428,97 @@ emit_json() {
         json_bool "$present"
         printf ', "rust_owned_free_cycles_per_execution": %s}%s\n' "${fixture_cycles[$i]}" "$comma"
     done
-    printf '  ]\n'
+    printf '  ],\n'
+    printf '  "self_test_checks": ['
+    for i in "${!self_test_checks[@]}"; do
+        [ "$i" -gt 0 ] && printf ', '
+        printf '"%s"' "$(json_escape "${self_test_checks[$i]}")"
+    done
+    printf ']\n'
     printf '}\n'
+}
+
+json_has_required_keys() {
+    local text="$1"
+    local key
+    for key in schema_version host_family mode fixture_selector iterations_requested fixture_executions_completed cargo bridge_artifact compiler result_status failure_reason fixtures; do
+        case "$text" in
+            *"\"$key\""*) ;;
+            *) return 1 ;;
+        esac
+    done
+    return 0
+}
+
+self_check() {
+    local name="$1"
+    local ok="$2"
+    local reason="$3"
+    if [ "$ok" -ne 0 ]; then
+        failure_reason="self-test $name: $reason"
+        return 1
+    fi
+    self_test_checks+=("$name")
+    [ "$json" -eq 1 ] || echo "self-test $name: OK"
+    return 0
+}
+
+run_self_test() {
+    local old_simulate="$simulate_missing"
+    local selector json_text preflight reason parsed_ok
+
+    for selector in string-free hash all; do
+        if resolve_fixtures "$selector"; then
+            [ "${#fixture_keys[@]}" -ge 1 ]
+            self_check "selector:$selector" "$?" "selector did not resolve" || return 1
+        else
+            self_check "selector:$selector" 1 "$resolve_error" || return 1
+        fi
+    done
+
+    if resolve_fixtures "__invalid_selector__"; then
+        self_check "selector:invalid" 1 "invalid selector resolved successfully" || return 1
+    else
+        case "$resolve_error" in
+            invalid\ fixture\ selector*) self_check "selector:invalid" 0 "" || return 1 ;;
+            *) self_check "selector:invalid" 1 "$resolve_error" || return 1 ;;
+        esac
+    fi
+
+    simulate_missing="none"
+    resolve_fixtures "all" || return 1
+    check_readiness >/dev/null
+    json_text="$(emit_json "passed" "" 0 "$bridge_artifact")"
+    json_has_required_keys "$json_text"
+    self_check "json:required-keys" "$?" "JSON output missing required keys" || return 1
+
+    for selector in cargo compiler bridge-artifact; do
+        simulate_missing="$selector"
+        resolve_fixtures "string-free" || return 1
+        check_readiness >/dev/null
+        preflight="$(preflight_exit_code)"
+        reason="$(readiness_failure_reason)"
+        if [ "$preflight" -ne 0 ] && [ -n "$reason" ]; then parsed_ok=0; else parsed_ok=1; fi
+        self_check "fail-closed:$selector" "$parsed_ok" "missing prerequisite did not produce nonzero preflight and reason" || return 1
+
+        json_text="$(emit_json "unsupported" "$reason" 0 "$bridge_artifact")"
+        case "$json_text" in
+            *'"result_status": "unsupported"'*'"failure_reason": "'*) parsed_ok=0 ;;
+            *) parsed_ok=1 ;;
+        esac
+        json_has_required_keys "$json_text" || parsed_ok=1
+        self_check "json:fail-closed:$selector" "$parsed_ok" "fail-closed JSON missing status or reason" || return 1
+    done
+
+    simulate_missing="$old_simulate"
+    resolve_fixtures "$fixture_selector" || return 1
+    check_readiness >/dev/null
+    if [ "$json" -eq 1 ]; then
+        emit_json "passed" "" 0 "$bridge_artifact"
+    else
+        echo "self-test result: passed"
+    fi
+    return 0
 }
 
 fail() {
@@ -364,7 +539,29 @@ unsupported() {
     exit 96
 }
 
-resolve_fixtures
+if [ "$self_test" -eq 1 ]; then
+    if run_self_test; then
+        exit 0
+    fi
+    if [ "$json" -eq 1 ]; then
+        resolve_fixtures "$fixture_selector" >/dev/null 2>&1 || true
+        check_readiness >/dev/null
+        emit_json "failed" "$failure_reason" 0 "$bridge_artifact"
+    else
+        echo "self-test result: FAILED - $failure_reason" >&2
+    fi
+    exit 1
+fi
+
+if ! resolve_fixtures "$fixture_selector"; then
+    if [ "$json" -eq 1 ]; then
+        check_readiness >/dev/null
+        emit_json "failed" "$resolve_error" 0 "$bridge_artifact"
+    else
+        echo "ERROR rust_bridge ownership: $resolve_error" >&2
+    fi
+    exit 2
+fi
 
 if [ "$doctor" -eq 1 ]; then
     check_readiness
@@ -373,7 +570,7 @@ if [ "$doctor" -eq 1 ]; then
             emit_json "ready" "" 0 "$bridge_artifact"
             exit 0
         fi
-        emit_json "unsupported" "$failure_reason" 0 "$bridge_artifact"
+        emit_json "unsupported" "$(readiness_failure_reason)" 0 "$bridge_artifact"
         exit 96
     fi
     if [ "$readiness_failed" -eq 0 ]; then
@@ -385,7 +582,7 @@ if [ "$doctor" -eq 1 ]; then
 fi
 
 check_readiness >/dev/null
-[ "$readiness_failed" -eq 0 ] || unsupported "$failure_reason"
+[ "$readiness_failed" -eq 0 ] || unsupported "$(readiness_failure_reason)"
 
 if [ ! -f "$bridge_artifact" ]; then
     [ "$json" -eq 1 ] || echo "rust_bridge POSIX artifact missing; running cargo build --release"
