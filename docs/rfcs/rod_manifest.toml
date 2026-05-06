@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 253
-# Total fn definitions: 3051
-# Total LOC: 12868
+# Total fn definitions: 3052
+# Total LOC: 12872
 
 [[rod]]
 name           = "activation2"
@@ -1941,9 +1941,9 @@ imports        = ["atomic", "spsc_queue"]
 name           = "ssm"
 path           = "stdlib/rods/ssm.nr"
 description    = "State Space Models (modern ML)"
-function_count = 5
+function_count = 6
 cfile_count    = 1
-loc            = 21
+loc            = 25
 imports        = ["ssm"]
 
 [[rod]]
