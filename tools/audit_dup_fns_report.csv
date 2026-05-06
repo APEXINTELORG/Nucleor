@@ -153,7 +153,6 @@ sym_get,2,2,43,5,1,0,SIG_MATCH_BODY_DIFFERS
 sym_clone,1,1,7,7,1,1,IDENTICAL
 smap_hash,2,2,14,14,1,1,IDENTICAL
 smap_new_cap,1,1,19,19,1,1,IDENTICAL
-smap_new,0,0,3,3,1,1,IDENTICAL
 smap_slots,1,1,3,3,1,1,IDENTICAL
 smap_slot_used,2,2,3,3,1,1,IDENTICAL
 smap_slot_key,2,2,3,3,1,1,IDENTICAL
@@ -166,7 +165,6 @@ lx_new,2,2,6,6,1,1,IDENTICAL
 lx_reg,1,1,1,1,1,1,IDENTICAL
 lx_blk,1,1,1,1,1,1,IDENTICAL
 tok_to_ir,1,1,20,7,1,0,SIG_MATCH_BODY_DIFFERS
-is_cmp_or_logic,1,1,1,1,1,1,IDENTICAL
 trait_impl_register,4,4,3,3,1,1,IDENTICAL
 trait_impl_find,3,3,10,10,1,1,IDENTICAL
 iter_method_for_vec,1,1,55,19,1,0,SIG_MATCH_BODY_DIFFERS
@@ -208,10 +206,8 @@ enforce_sendable_contracts,2,2,12,12,1,1,IDENTICAL
 byte_to_line,2,2,12,12,1,1,IDENTICAL
 find_linecol_in_source,3,3,32,32,1,0,SIG_MATCH_BODY_DIFFERS
 find_in_source,3,3,3,3,1,1,IDENTICAL
-find_column_in_source,3,3,3,3,1,1,IDENTICAL
 diag_emit_json,1,3,58,90,0,0,SIG_DIFFERS
 diag_emit_text,1,1,3,22,1,0,SIG_MATCH_BODY_DIFFERS
-own_new,0,0,1,1,1,1,IDENTICAL
 own_put_i,3,3,19,12,1,0,SIG_MATCH_BODY_DIFFERS
 own_put_s,3,3,18,12,1,0,SIG_MATCH_BODY_DIFFERS
 own_set,3,3,1,1,1,1,IDENTICAL
@@ -222,7 +218,6 @@ own_set_i_raw,3,3,1,1,1,1,IDENTICAL
 own_get_i_raw,2,2,5,5,1,1,IDENTICAL
 own_set_i,3,3,1,1,1,1,IDENTICAL
 own_get_i,2,2,5,5,1,1,IDENTICAL
-own_set_s_raw,3,3,1,1,1,1,IDENTICAL
 own_get_s_raw,2,2,5,5,1,1,IDENTICAL
 own_set_s,3,3,1,1,1,1,IDENTICAL
 own_get_s,2,2,5,5,1,1,IDENTICAL
@@ -243,7 +238,6 @@ own_get_ref_target,2,2,1,1,1,1,IDENTICAL
 own_set_ref_kind,3,3,1,1,1,1,IDENTICAL
 own_get_ref_kind,2,2,1,1,1,1,IDENTICAL
 own_shared_borrows,2,2,1,1,1,1,IDENTICAL
-own_mut_borrowed,2,2,1,1,1,1,IDENTICAL
 own_inc_shared,2,2,4,4,1,1,IDENTICAL
 own_dec_shared,2,2,5,5,1,1,IDENTICAL
 own_set_mut_borrow,3,3,4,4,1,1,IDENTICAL
@@ -289,14 +283,12 @@ tprof_start,1,1,4,4,1,1,IDENTICAL
 tprof_mark,4,4,7,7,1,1,IDENTICAL
 tprof_dump,1,1,10,10,1,1,IDENTICAL
 type_diag,6,6,4,4,1,1,IDENTICAL
-sig_new,0,0,1,1,1,1,IDENTICAL
 sig_entry_new,4,3,8,7,0,0,SIG_DIFFERS
 sig_add,6,5,3,3,0,0,SIG_DIFFERS
 sig_find,2,2,3,3,1,1,IDENTICAL
 sig_plist,2,2,5,5,1,1,IDENTICAL
 sig_rtype,2,2,5,5,1,1,IDENTICAL
 sig_is_extern,2,2,5,5,1,1,IDENTICAL
-tenv_new,0,0,1,1,1,1,IDENTICAL
 tenv_set,3,3,1,1,1,1,IDENTICAL
 tenv_get,2,2,5,5,1,1,IDENTICAL
 strip_spaces,1,1,26,10,1,0,SIG_MATCH_BODY_DIFFERS
@@ -334,7 +326,6 @@ cache_v2_prefix,1,1,4,4,1,1,IDENTICAL
 cache_v2_dir,1,1,3,3,1,1,IDENTICAL
 cache_v2_ll_path,1,1,3,3,1,1,IDENTICAL
 cache_v2_meta_dir,1,1,3,3,1,1,IDENTICAL
-cache_v2_meta_path,1,1,3,3,1,1,IDENTICAL
 cache_v2_size_mb,1,1,5,5,1,1,IDENTICAL
 cache_v2_stats_enabled,0,0,4,4,1,1,IDENTICAL
 cache_v2_print_stats,2,2,5,5,1,1,IDENTICAL
@@ -362,8 +353,6 @@ module_record_add,3,3,5,5,1,1,IDENTICAL
 module_records_serialize,1,1,12,12,1,1,IDENTICAL
 module_records_validate,1,1,42,42,1,1,IDENTICAL
 module_graph_cache_id,1,1,8,3,1,0,SIG_MATCH_BODY_DIFFERS
-module_graph_manifest_path,1,1,3,3,1,1,IDENTICAL
-module_graph_source_path,1,1,3,3,1,1,IDENTICAL
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source,3,3,4,4,1,1,IDENTICAL
 load_resolved_source_bundle,2,2,810,49,1,0,SIG_MATCH_BODY_DIFFERS
@@ -379,7 +368,6 @@ dl_parse_fn_signature,3,3,117,96,1,0,SIG_MATCH_BODY_DIFFERS
 expand_deadline,1,1,141,110,1,0,SIG_MATCH_BODY_DIFFERS
 expand_async_strip_keyword,1,1,148,53,1,0,SIG_MATCH_BODY_DIFFERS
 expand_async_await,1,1,59,52,1,0,SIG_MATCH_BODY_DIFFERS
-expand_async_syntax,1,1,3,3,1,1,IDENTICAL
 close_is_arg_position_char,1,1,24,9,1,0,SIG_MATCH_BODY_DIFFERS
 close_parse_arg_list,3,3,44,39,1,0,SIG_MATCH_BODY_DIFFERS
 close_parse_body_end,3,3,32,29,1,0,SIG_MATCH_BODY_DIFFERS

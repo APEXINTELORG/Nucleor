@@ -136,18 +136,22 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `RFC-0063-production-readiness-roadmap.md`
 - **Severity:** TOOLCHAIN CORRECTNESS / PERF / MAINTAINABILITY
-- **Status:** AUDIT DONE; DELETION OPEN. `tools/audit_dup_fns.nr`
+- **Status:** WAVE 1 PARTIAL DONE; BROAD DELETION OPEN. `tools/audit_dup_fns.nr`
   and `tools/audit_dup_fns_report.csv` now map the duplicate
   function surface between `compiler/nucleor_s1_compiler.nr` and
   `compiler/nucleor_tools_suite.nr`.
-- **Important accounting:** no duplicate functions have been deleted
-  yet, so no compile-time or binary-size savings from this lane are
-  realized. Current savings are only from separate perf/tooling fixes.
-- **Current audit counts after helper/cloud integration:** 436
-  duplicate function names: 257 `IDENTICAL` safe-delete candidates,
+- **Important accounting:** v0838 retired 12 byte-identical non-parser
+  tools-suite helper duplicates by moving them into
+  `compiler/nucleor_rfc0063_shared_wave1.nr` and importing that module
+  from `compiler/nucleor_tools_suite.nr`. The s1 compiler remains the
+  raw canonical copy for this batch. The broad s1-to-tools import is
+  still open because the remaining duplicate names would collide unless
+  they are deleted/renamed in the same ship.
+- **Current audit counts after v0838 Wave 1 refresh:** 424
+  duplicate function names: 245 `IDENTICAL` safe-delete candidates,
   163 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
   `SIG_DIFFERS` per-function lift/adapter candidates.
-- **Next build item:** delete or import the 257 identical duplicates
+- **Next build item:** delete or import the remaining 245 identical duplicates
   through the RFC-0063 parser/tools-suite unification strategy, then
   handle the 163 same-signature body-diff candidates and 16
   signature-diff candidates in follow-on waves.
