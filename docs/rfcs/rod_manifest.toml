@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 254
-# Total fn definitions: 3075
-# Total LOC: 13206
+# Total fn definitions: 3106
+# Total LOC: 13393
 
 [[rod]]
 name           = "activation2"
@@ -78,9 +78,9 @@ imports        = []
 name           = "atomic"
 path           = "stdlib/rods/atomic.nr"
 description    = "RFC-0007 atomics"
-function_count = 39
+function_count = 66
 cfile_count    = 0
-loc            = 183
+loc            = 363
 imports        = ["atomic"]
 
 [[rod]]
@@ -402,9 +402,9 @@ imports        = ["compress"]
 name           = "concurrency"
 path           = "stdlib/rods/concurrency.nr"
 description    = "concurrency.nr — Structured concurrency with safety guardrails"
-function_count = 19
+function_count = 23
 cfile_count    = 0
-loc            = 58
+loc            = 65
 imports        = []
 
 [[rod]]
