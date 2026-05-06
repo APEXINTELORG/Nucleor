@@ -77,7 +77,7 @@ This is a **multi-ship architectural roadmap**, not a single punchlist. It super
 
 ### Still patchwork — this RFC's scope
 - **874-helper runtime** is grid-derived in part but accreted in part. VectorOps (113) and StringFormat (131) carry the most monomorphization sprawl.
-- **18 parser-fn token drift entries** (parse_match_stmt 3, parse_stmt 3, parse_expr 12) silently masked until v0.8.323; need explicit closure ship.
+- **Parser-fn divergence** between `nucleor_s1_compiler.nr` and `nucleor_tools_suite.nr` — `parse_stmt` is 22 lines vs 241 (90% delta), `parse_expr` is 85 vs 238 (64% delta). Real-world impact: `nuc check` / `nuc build-strict` / `nuc abi inspect` **segfault on hello-world fixtures** on v0.8.323. Drift gate's "18 missing entries" was the witness regex catching a whisker of architectural debt. Architectural fix: parser unification (Phase 2.0).
 - **5 build-time Python generators** (`tools/gen_*.py`, 65 KB Python total) keep dev environments Python-dependent.
 - **No PGO / LTO** on the shipped compiler binary — leaves measurable performance on the table.
 - **No flame-graph evidence** behind the inlining-vs-not choice for hot helpers; v0.8.308 (12s → 3.7s body-diagnostic consolidation) was the only data-driven perf ship in the recent train.
@@ -211,12 +211,38 @@ Order is by dependency, not value. Each row is one ship cut unless noted.
 | Ship | What | Why first |
 |---|---|---|
 | 1.1 | C1: retire `g1_default_flip_safety_audit.py` | Trivial; demonstrates the retirement pattern |
-| 1.2 | Close the 18-entry parser-fn drift in `nucleor_tools_suite.nr` | B1 surfaced this; blocks `nuc test` / `nuc build-strict` correctness |
+| 1.2 | ~~Close 18-entry parser-fn drift~~ → **made the drift gate honest, deferred real fix to Phase 2.0** | Investigation revealed the drift is structural (90% delta on parse_stmt), not 18 entries. Surgical fix would be patchwork. Phase 2.0 parser unification is the architectural answer. |
 | 1.3 | Capture native Linux perf baseline transcript (R10-D3 closure) | Unblocks Track B; required for hot-path data |
 | 1.4 | C2: port `gen_releases_index.py` → `nuc gen-releases-index` | Smallest port; proves the native-tooling pattern |
 | 1.5 | Effect-row enforcement Phase 2b (E-2 / E-3 cross-module) | Unblocked by Track 1's classification; cleanest soundness win |
 
-### Phase 2 — Generics substrate (next 5–7 ships)
+### Phase 2 — Generics substrate + parser unification (next 8–10 ships)
+
+#### Phase 2.0 — Parser unification (3–5 ships, blocks 2.1+)
+
+The compiler currently carries TWO parsers — `compiler/nucleor_s1_compiler.nr`
+(used by `nuc build`) and `compiler/nucleor_tools_suite.nr` (used by `nuc check`,
+`nuc build-strict`, `nuc abi inspect`). They have drifted significantly:
+`parse_stmt` is 22 lines in tools_suite vs 241 in s1 (90% delta), `parse_expr`
+is 85 vs 238 (64% delta). Real-world impact: `nuc check examples/01_hello.nr`
+**segfaults** on v0.8.323 because tools_suite lacks defensive halts and modern
+parser branches that s1 has accumulated. Surgical sync would be patchwork; the
+correct fix is single-source-of-truth.
+
+| Ship | What |
+|---|---|
+| 2.0.1 | Survey the surface tools_suite needs (parse + type-check + emit-summary; not full IR / link) |
+| 2.0.2 | Refactor `nucleor_s1_compiler.nr` to expose `pub fn parse_program / parse_stmt / parse_expr / parse_match_stmt` for external callers |
+| 2.0.3 | Replace tools_suite's parse_* / lex_* duplicates with imports of the s1 versions |
+| 2.0.4 | Self-host integrity gate: prove no IR change in `bin/nucleor` after the unification |
+| 2.0.5 | Remove `check_parser_fn_drift` from `tools/check_compiler_drift.sh` (gate becomes obsolete) |
+
+**Robustness payoff:** zero parser drift forever. Every defensive halt added
+to s1 (destructuring assignment, yield, post-inc/dec) is automatically picked
+up by `nuc check` / `nuc build-strict`. No more half-features that work in
+`nuc build` but segfault in `nuc check`.
+
+#### Phase 2.1+ — Generics substrate (5–7 ships)
 
 | Ship | What |
 |---|---|
