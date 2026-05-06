@@ -128,6 +128,9 @@ launch. After memory safety completes, these are next-priority.
 - **Phase 2a:** DONE 2026-05-05 — `qm7_clifford_distance_5qubit_smoke.nr`
   locks typed `Vec<i64>` stabilizer insertion plus the known [[5,1,3]]
   perfect-code distance and 15/15 single-qubit detectable-error count.
+- **Phase 2a round-trip:** DONE 2026-05-05 — `qm7_clifford_reset_rebuild_smoke.nr`
+  locks reset-to-zero handle reuse plus repeatable [[5,1,3]] code rebuild
+  on fresh code handles.
 - **Still open for Phase 2 closure:** surface-code distance d=3 rotated
   planar and weight-enumerator validation against published code.
 
@@ -283,10 +286,11 @@ proper analysis → Phase 4 hard error):
   (`1a962893`). The gate is wired but intentionally refuses WSL/interop;
   native Linux evidence is still required for R10-D3 closure.
 - **2026-05-05**: QM-7 Phase 2a advanced with typed Clifford
-  stabilizer Vec wrappers and a [[5,1,3]] distance/detectable-error
-  smoke fixture. The compiler Tier-C disclosure was updated so imports
-  no longer claim zero Clifford coverage. Rotated surface-code and
-  published weight-enumerator parity remain open.
+  stabilizer Vec wrappers, a [[5,1,3]] distance/detectable-error smoke
+  fixture, and reset/rebuild round-trip coverage. The compiler Tier-C
+  disclosure was updated so imports no longer claim zero Clifford
+  coverage. Rotated surface-code and published weight-enumerator parity
+  remain open.
 - **2026-05-05**: Effect/capability Phase 1 advanced again.
   Block-form `restricts [...] { ... }` now emits `EFF-003` during
   `nuc build` instead of accepting or misparsing an unenforced
