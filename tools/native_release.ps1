@@ -1,6 +1,7 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$Root,
+    [string]$Root = "",
+
+    [switch]$Help,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ForwardArgs
@@ -36,6 +37,15 @@ function Release-PubPath([string]$PolicyRoot, [string]$KeyId) {
 
 function Release-TrustedKeyPath([string]$PolicyRoot, [string]$KeyId) {
     return [System.IO.Path]::Combine((Release-TrustedDir $PolicyRoot), ($KeyId + ".pub"))
+}
+
+function Release-UsageText {
+    return "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-sign-preflight <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+}
+
+function Show-ReleaseUsage {
+    Write-Host (Release-UsageText)
+    Write-Host "  package-sign-preflight <dir> [key-id]  Report package signing inputs without creating keys or signatures"
 }
 
 function Ensure-Dir([string]$Path) {
@@ -311,7 +321,7 @@ function Parse-ReleaseArgs([string[]]$RawArgs) {
                 $i++
                 continue
             }
-            throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+            throw (Release-UsageText)
         }
         $positionals.Add($arg)
     }
@@ -746,6 +756,98 @@ function Write-PackageSignatureDocument {
     }
 }
 
+function Get-PackageSignaturePreflight {
+    param(
+        [string]$PackageDir,
+        [string]$PolicyRoot,
+        [string]$RequestedKeyId
+    )
+
+    $metadataPath = Package-MetadataPath $PackageDir
+    $signaturePath = Package-SignaturePath $PackageDir
+    $checksumPath = Package-ChecksumPath $PackageDir
+    foreach ($path in @($metadataPath, $checksumPath)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw "missing package signing input: $path"
+        }
+    }
+
+    $metadataDoc = Get-JsonFile $metadataPath
+    $keyId = $RequestedKeyId
+    $keySource = "requested"
+    if ([string]::IsNullOrWhiteSpace($keyId) -and $metadataDoc.signing) {
+        $keyId = [string]$metadataDoc.signing.key_id
+        $keySource = "metadata"
+    }
+    if ([string]::IsNullOrWhiteSpace($keyId)) {
+        $keyId = "default-local"
+        $keySource = "default"
+    }
+
+    $exportsManifest = $null
+    $exportsPath = $null
+    $exportsPresent = $false
+    if ($metadataDoc.exports -and $metadataDoc.exports.present -and -not [string]::IsNullOrWhiteSpace([string]$metadataDoc.exports.manifest)) {
+        $exportsManifest = [string]$metadataDoc.exports.manifest
+        $exportsPath = Join-Path $PackageDir $exportsManifest
+        $exportsPresent = Test-Path -LiteralPath $exportsPath
+        if (-not $exportsPresent) {
+            throw "missing package export manifest: $exportsPath"
+        }
+    }
+
+    $privateKeyPath = Release-KeyPath $PolicyRoot $keyId
+    $publicKeyPath = Release-PubPath $PolicyRoot $keyId
+    $keyPresent = (Test-Path -LiteralPath $privateKeyPath) -and (Test-Path -LiteralPath $publicKeyPath)
+    $signatureExists = Test-Path -LiteralPath $signaturePath
+    $failureReason = $null
+    if (-not $keyPresent) {
+        $failureReason = "release signing key '$keyId' is missing at $privateKeyPath"
+    }
+
+    return [pscustomobject]@{
+        package_dir = $PackageDir
+        package = [string]$metadataDoc.package.name
+        version = [string]$metadataDoc.package.version
+        metadata_path = $metadataPath
+        checksum_path = $checksumPath
+        exports_manifest = $exportsManifest
+        exports_manifest_path = $exportsPath
+        exports_manifest_present = $exportsPresent
+        key_id = $keyId
+        key_id_source = $keySource
+        private_key_path = $privateKeyPath
+        public_key_path = $publicKeyPath
+        key_present = $keyPresent
+        signature_path = $signaturePath
+        signature_exists = $signatureExists
+        would_overwrite_signature = $signatureExists
+        would_write_signature = $false
+        status = $(if ($keyPresent) { "ready" } else { "blocked" })
+        failure_reason = $failureReason
+    }
+}
+
+function Write-PackageSignaturePreflightText($Result) {
+    Write-Host ("package_dir: {0}" -f $Result.package_dir)
+    Write-Host ("package: {0}" -f $Result.package)
+    Write-Host ("version: {0}" -f $Result.version)
+    Write-Host ("metadata_path: {0}" -f $Result.metadata_path)
+    Write-Host ("checksum_path: {0}" -f $Result.checksum_path)
+    Write-Host ("exports_manifest_path: {0}" -f $Result.exports_manifest_path)
+    Write-Host ("key_id: {0}" -f $Result.key_id)
+    Write-Host ("key_id_source: {0}" -f $Result.key_id_source)
+    Write-Host ("key_present: {0}" -f $(if ($Result.key_present) { "yes" } else { "no" }))
+    Write-Host ("signature_path: {0}" -f $Result.signature_path)
+    Write-Host ("signature_exists: {0}" -f $(if ($Result.signature_exists) { "yes" } else { "no" }))
+    Write-Host ("would_overwrite_signature: {0}" -f $(if ($Result.would_overwrite_signature) { "yes" } else { "no" }))
+    Write-Host ("would_write_signature: {0}" -f $(if ($Result.would_write_signature) { "yes" } else { "no" }))
+    Write-Host ("status: {0}" -f $Result.status)
+    if ($Result.failure_reason) {
+        Write-Host ("failure_reason: {0}" -f $Result.failure_reason)
+    }
+}
+
 function Verify-PackageSignatureDocument {
     param(
         [string]$PackageDir,
@@ -821,6 +923,15 @@ function Verify-PackageSignatureDocument {
     }
 }
 
+if ($Help) {
+    Show-ReleaseUsage
+    return
+}
+if ([string]::IsNullOrWhiteSpace($Root)) {
+    throw (Release-UsageText)
+}
+$Root = [System.IO.Path]::GetFullPath($Root)
+
 $parsed = Parse-ReleaseArgs $ForwardArgs
 $jsonOutput = $parsed.json
 $positionals = $parsed.positionals
@@ -829,7 +940,7 @@ $policyRoot = Get-PolicyRoot
 try {
     switch ($positionals.Count) {
         0 {
-            throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+            throw (Release-UsageText)
         }
         1 {
             if ($positionals[0] -eq "keygen") {
@@ -850,7 +961,7 @@ try {
                 }
                 return
             }
-            throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+            throw (Release-UsageText)
         }
         2 {
             switch ($positionals[0]) {
@@ -926,6 +1037,12 @@ try {
                     }
                     return
                 }
+                "package-sign-preflight" {
+                    $packageDir = Resolve-PathMaybeRelative (Get-Location).Path $positionals[1]
+                    $result = Get-PackageSignaturePreflight -PackageDir $packageDir -PolicyRoot $policyRoot -RequestedKeyId ""
+                    if ($jsonOutput) { $result | ConvertTo-Json -Depth 8 } else { Write-PackageSignaturePreflightText $result }
+                    return
+                }
                 "package-verify" {
                     $packageDir = Resolve-PathMaybeRelative (Get-Location).Path $positionals[1]
                     $result = Verify-PackageSignatureDocument -PackageDir $packageDir -PolicyRoot $policyRoot
@@ -941,7 +1058,7 @@ try {
                     return
                 }
                 default {
-                    throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+                    throw (Release-UsageText)
                 }
             }
         }
@@ -956,6 +1073,12 @@ try {
                         Write-Host ("key_id: {0}" -f $result.key_id)
                         Write-Host ("signature: {0}" -f $result.signature_path)
                     }
+                    return
+                }
+                "package-sign-preflight" {
+                    $packageDir = Resolve-PathMaybeRelative (Get-Location).Path $positionals[1]
+                    $result = Get-PackageSignaturePreflight -PackageDir $packageDir -PolicyRoot $policyRoot -RequestedKeyId $positionals[2]
+                    if ($jsonOutput) { $result | ConvertTo-Json -Depth 8 } else { Write-PackageSignaturePreflightText $result }
                     return
                 }
                 "export-key" {
@@ -998,12 +1121,12 @@ try {
                     return
                 }
                 default {
-                    throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+                    throw (Release-UsageText)
                 }
             }
         }
         default {
-            throw "Usage: nuc release [keygen [key-id]|sign-bundle <dir>|verify-bundle <dir>|package-sign <dir> [key-id]|package-verify <dir>|export-key <key-id> <path>|trust-key <key-id> <path>] [--json]"
+            throw (Release-UsageText)
         }
     }
 } catch {

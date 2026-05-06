@@ -133,13 +133,13 @@ launch. After memory safety completes, these are next-priority.
 ### PKG-1, PKG-3 — Packaging
 
 - **PKG-1 (Linux `nuc publish --sign`):** OPEN — needs native
-  Linux runner evidence plus publish/sign dry-run or preflight
-  closure. Current `nuc publish --sign` delegates from s1 to the
-  tools-suite, copies into a local registry, then invokes
-  `tools/native_release.ps1` for package signing; the missing closure
-  is Linux evidence for that signed publish path plus non-mutating
-  package/signing preflight semantics. See
-  `findings/inbox/helper2_release_tooling_closure_v0830_2026-05-06.md`.
+  Linux runner evidence for the signed publish path. Branch-ready
+  helper2 v0831 adds non-mutating `nuc publish --dry-run` target
+  reporting plus `tools/native_release.ps1 package-sign-preflight`;
+  neither path copies packages, writes registry metadata, creates
+  keys, or writes signatures. Remaining closure is a native Linux
+  transcript against a throwaway registry/key and signature verify.
+  See `findings/inbox/helper2_pkg1_release_dryrun_preflight_v0831_2026-05-06.md`.
 - **PKG-3 (semver resolver) — DONE for v1.0 syntax surface:**
   - caret `^X.Y.Z` v0.8.89
   - tilde `~X.Y.Z` v0.8.90
