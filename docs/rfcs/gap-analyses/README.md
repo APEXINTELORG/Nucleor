@@ -23,7 +23,7 @@ launchability; Tier C are stdlib-coherence guarantees.
 2. **[Type System](Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md)** — T-3 now rejects const-foldable invalid `as char` codepoints with `TYP-026`; broader char distinctness and T-4 empty-type compatibility remain open.
 3. **[Concurrency](Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md)** — C-1, C-2 cancel token linker bomb + POSIX channel no-op stub. Linux concurrency silently broken.
 4. **[Effect / Capability](Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md)** — E-1 direct `pure fn` side effects now emit `EFF-001`; direct same-file `requires [...]` callers now emit `EFF-001`; block-form `restricts [...]`, transitive effect rows, and cross-module propagation remain a trust gap.
-5. **[Real-Time / Determinism](Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md)** — `#[deadline]` / `#[no_alloc]` enforcement gaps.
+5. **[Real-Time / Determinism](Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md)** — `#[no_alloc]` now catches one-hop same-file helper allocations; `#[deadline]`, deeper transitive, cross-module, and fn-pointer enforcement gaps remain.
 6. **[Algebraic Laws](Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md)** — math-and-physics laws not validated by property tests.
 
 ### Tier B — Compilation, runtime, execution
