@@ -112,7 +112,7 @@ bash tools/bootstrap_linux.sh
 file bin/nucleor
 bash tools/check_self_host_md5.sh
 bash tools/check_perf_regression.sh \
-  --baseline tools/perf_baseline.json \
+  --baseline tools/perf_baseline_linux.json \
   --cold-samples 3 \
   --hot-samples 3
 ```
