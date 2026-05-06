@@ -38008,7 +38008,16 @@ fn main() -> i64 {
     } else if str_eq(cmd, "run") {
         let rc: i64 = compile_file_mode_native_isolated(src_path, out_name, 0, use_cache, time_passes, 1);
         if rc != 0 { return rc; };
-        let exe: str = str_concat("target\\", str_concat(out_name, ".exe"));
+        // v0.8.323: platform-aware exe path. Pre-fix the path was
+        // hardcoded as `target\<name>.exe` (Windows backslash + .exe),
+        // which collapsed on POSIX shells: `system("target\foo.exe")`
+        // hit `targetfoo.exe: not found` because the shell ate the
+        // backslash. Closes
+        // findings/promoted/2026-05-06-nuc-run-linux-path-construction.md.
+        // POSIX also needs the `./` prefix because /bin/sh -c does not
+        // include `.` in PATH for security reasons.
+        let exe_dir: str = if host_is_windows() == 1 { "target\\" } else { "./target/" };
+        let exe: str = str_concat(exe_dir, str_concat(out_name, host_exe_suffix()));
         let mut run_rc: i64 = system(exe);
         // v0.3.191: NUC-FEEDBACK-009 follow-on. ML adopters reported
         // post-compiled rc=4294967295 (= -1 = Windows spawn failure
