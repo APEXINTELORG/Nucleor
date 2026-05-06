@@ -36,11 +36,21 @@ fn check_small_init_still_works() -> i64 {
     return 0;
 }
 
+fn check_checked_init() -> i64 {
+    let sv: i64 = qsim_init_checked(2);
+    if sv == 0 { return 16384; };
+    if qsim_num_qubits(sv) != 2 { return 32768; };
+    if qsim_init_checked(0) != 0 { return 65536; };
+    if qsim_init_checked(25) != 0 { return 131072; };
+    return 0;
+}
+
 fn check_limitations() -> i64 {
     let s: str = qsim_limitations();
-    if str_index_of(s, "QM-2") < 0 { return 16384; };
-    if str_index_of(s, "qsim_init_preflight") < 0 { return 32768; };
-    if str_index_of(s, "over_capacity") < 0 { return 65536; };
+    if str_index_of(s, "QM-2") < 0 { return 262144; };
+    if str_index_of(s, "qsim_init_checked") < 0 { return 524288; };
+    if str_index_of(s, "qsim_init_preflight") < 0 { return 1048576; };
+    if str_index_of(s, "over_capacity") < 0 { return 2097152; };
     return 0;
 }
 
@@ -50,6 +60,7 @@ fn main() -> i64 {
     fails = fails + check_preflight();
     fails = fails + check_status_explain();
     fails = fails + check_small_init_still_works();
+    fails = fails + check_checked_init();
     fails = fails + check_limitations();
     return fails;
 }

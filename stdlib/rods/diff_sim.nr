@@ -14,6 +14,7 @@
 // (`*_bits` parameters).
 //
 // See `stdlib/runtime/diff_sim_rt.c`.
+import "quantum_gates.nr"
 #cfile "../runtime/diff_sim_rt.c"
 
 extern fn nuc_diff_sim_init(nq: i64, n_cores: i64, mode_bits: i64, seed: i64) -> i64;
@@ -85,11 +86,11 @@ fn diff_sim_max_cores() -> i64 { return 16; }
 fn diff_sim_min_cores() -> i64 { return 2; }
 fn diff_sim_max_gates() -> i64 { return 200; }
 
-fn diff_gate_h() -> i64 { return 0; }
-fn diff_gate_cnot() -> i64 { return 1; }
-fn diff_gate_x() -> i64 { return 2; }
-fn diff_gate_z() -> i64 { return 3; }
-fn diff_gate_rz() -> i64 { return 6; }
+fn diff_gate_h() -> i64 { return qgate_h(); }
+fn diff_gate_cnot() -> i64 { return qgate_cnot(); }
+fn diff_gate_x() -> i64 { return qgate_x(); }
+fn diff_gate_z() -> i64 { return qgate_z(); }
+fn diff_gate_rz() -> i64 { return qgate_diff_rz(); }
 
 fn diff_gate_type_supported(gate_type: i64) -> i64 {
     if gate_type == diff_gate_h() { return 1; };
@@ -114,6 +115,11 @@ fn diff_sim_init_preflight(nq: i64, n_cores: i64) -> i64 {
     return diff_sim_status_ok();
 }
 
+fn diff_sim_init_checked(nq: i64, n_cores: i64, mode_bits: i64, seed: i64) -> i64 {
+    if diff_sim_init_preflight(nq, n_cores) != diff_sim_status_ok() { return 0; };
+    return diff_sim_init(nq, n_cores, mode_bits, seed);
+}
+
 fn diff_sim_supports_n_qubits(nq: i64) -> i64 {
     if nq < 1 { return 0; };
     if nq > diff_sim_max_qubits() { return 0; };
@@ -130,7 +136,7 @@ fn diff_sim_status_explain(status: i64) -> str {
 }
 
 fn diff_sim_limitations() -> str {
-    return "diff_sim rod limitations (QM-11/QM-12, v0830): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. The native runtime clamps nq>12 and cores outside [2,16], so callers should use diff_sim_init_preflight(nq, n_cores) first. Status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) Gate constants are now exposed as diff_gate_h/cnot/x/z/rz, but diff_sim and MPS still need a shared cross-rod constant surface before QM-12 is fully closed. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
+    return "diff_sim rod limitations (QM-11/QM-12, v0830): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. Prefer diff_sim_init_checked(nq, n_cores, mode_bits, seed), which returns 0 for invalid/over-cap inputs before the native runtime can clamp. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. diff_sim RZ remains rod-specific at 6 while MPS RZ is 4, so rotation IDs must not be treated as cross-rod until native dispatch tables unify. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
 }
 
 // === Ergonomic f64 wrappers (v0.4.267) ===
