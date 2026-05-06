@@ -379,6 +379,15 @@ check_manifest "RELEASES.md" \
     "$ROOT/tools/gen_releases_index.nr" \
     "$ROOT/RELEASES.md" || exit 1
 
+# audit_dup_fns_report.csv — RFC-0063 Phase 2.0.3a duplicate-fn audit.
+# Drives the dedup ship sequencing for parser unification. As 2.0.3b/c/d/e
+# ships land and tools_suite duplicates are deleted, this report's
+# IDENTICAL/SIG_MATCH/SIG_DIFFERS counts update. Drift gate ensures the
+# committed report stays in sync with current compiler source.
+check_manifest "audit_dup_fns_report.csv" \
+    "$ROOT/tools/audit_dup_fns.nr" \
+    "$ROOT/tools/audit_dup_fns_report.csv" || exit 1
+
 # CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
 # class — a tag that was pushed without a per-version CHANGELOG
 # entry. Skips silently if not in a git repo (e.g. tarball release).
