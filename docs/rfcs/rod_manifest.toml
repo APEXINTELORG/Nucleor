@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 249
-# Total fn definitions: 2841
-# Total LOC: 12052
+# Total fn definitions: 2843
+# Total LOC: 12060
 
 [[rod]]
 name           = "activation2"
@@ -1563,9 +1563,9 @@ imports        = ["python"]
 name           = "qsim_graph"
 path           = "stdlib/rods/qsim_graph.nr"
 description    = "RFC-0061 Tier 3 Phase A: quantum"
-function_count = 23
+function_count = 25
 cfile_count    = 1
-loc            = 73
+loc            = 81
 imports        = ["qsim_graph"]
 
 [[rod]]
