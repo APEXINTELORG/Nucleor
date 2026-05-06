@@ -68,6 +68,99 @@ long long nuc_ssm_selective_scan(long long x_h, long long delta_h,
     return (long long)y;
 }
 
+// Backward for nuc_ssm_selective_scan.
+// Returns Vec handles: [grad_x, grad_delta, grad_A, grad_B, grad_C].
+long long nuc_ssm_selective_scan_backward(long long x_h, long long delta_h,
+                                           long long A_h, long long B_h, long long C_h,
+                                           long long grad_y_h,
+                                           long long L, long long D, long long N) {
+    SSVec *x = (SSVec *)(void *)x_h;
+    SSVec *delta = (SSVec *)(void *)delta_h;
+    SSVec *A = (SSVec *)(void *)A_h;
+    SSVec *B = (SSVec *)(void *)B_h;
+    SSVec *C = (SSVec *)(void *)C_h;
+    SSVec *grad_y = (SSVec *)(void *)grad_y_h;
+    int seq = (int)L, dim = (int)D, state = (int)N;
+    int ds = dim * state;
+
+    double *h_hist = (double *)calloc((seq + 1) * ds, sizeof(double));
+    for (int t = 0; t < seq; t++) {
+        for (int d = 0; d < dim; d++) {
+            double dt = _ss_i2f(delta->data[t * dim + d]);
+            double xt = _ss_i2f(x->data[t * dim + d]);
+            for (int n = 0; n < state; n++) {
+                double a = _ss_i2f(A->data[d * state + n]);
+                double b = _ss_i2f(B->data[t * state + n]);
+                double decay = exp(dt * a);
+                double h_prev = h_hist[t * ds + d * state + n];
+                h_hist[(t + 1) * ds + d * state + n] = decay * h_prev + dt * b * xt;
+            }
+        }
+    }
+
+    SSVec *grad_x = ssvec_new(seq * dim);
+    SSVec *grad_delta = ssvec_new(seq * dim);
+    SSVec *grad_A = ssvec_new(dim * state);
+    SSVec *grad_B = ssvec_new(seq * state);
+    SSVec *grad_C = ssvec_new(seq * state);
+    double *gx = (double *)calloc(seq * dim, sizeof(double));
+    double *gd = (double *)calloc(seq * dim, sizeof(double));
+    double *gA = (double *)calloc(dim * state, sizeof(double));
+    double *gB = (double *)calloc(seq * state, sizeof(double));
+    double *gC = (double *)calloc(seq * state, sizeof(double));
+    double *bar_h_next = (double *)calloc(ds, sizeof(double));
+    double *bar_h_prev = (double *)calloc(ds, sizeof(double));
+
+    for (int t = seq - 1; t >= 0; t--) {
+        memset(bar_h_prev, 0, ds * sizeof(double));
+        for (int d = 0; d < dim; d++) {
+            double dt = _ss_i2f(delta->data[t * dim + d]);
+            double xt = _ss_i2f(x->data[t * dim + d]);
+            double gy = _ss_i2f(grad_y->data[t * dim + d]);
+            for (int n = 0; n < state; n++) {
+                int dn = d * state + n;
+                double a = _ss_i2f(A->data[dn]);
+                double b = _ss_i2f(B->data[t * state + n]);
+                double c = _ss_i2f(C->data[t * state + n]);
+                double decay = exp(dt * a);
+                double h_prev = h_hist[t * ds + dn];
+                double h_t = h_hist[(t + 1) * ds + dn];
+                double bar_h = gy * c + bar_h_next[dn];
+                double grad_decay = bar_h * h_prev;
+
+                gC[t * state + n] += gy * h_t;
+                gd[t * dim + d] += bar_h * b * xt + grad_decay * a * decay;
+                gA[dn] += grad_decay * dt * decay;
+                gB[t * state + n] += bar_h * dt * xt;
+                gx[t * dim + d] += bar_h * dt * b;
+                bar_h_prev[dn] += bar_h * decay;
+            }
+        }
+        memcpy(bar_h_next, bar_h_prev, ds * sizeof(double));
+    }
+
+    for (int i = 0; i < seq * dim; i++) {
+        grad_x->data[i] = _ss_f2i(gx[i]);
+        grad_delta->data[i] = _ss_f2i(gd[i]);
+    }
+    for (int i = 0; i < dim * state; i++) grad_A->data[i] = _ss_f2i(gA[i]);
+    for (int i = 0; i < seq * state; i++) {
+        grad_B->data[i] = _ss_f2i(gB[i]);
+        grad_C->data[i] = _ss_f2i(gC[i]);
+    }
+
+    SSVec *result = ssvec_new(5);
+    result->data[0] = (long long)grad_x;
+    result->data[1] = (long long)grad_delta;
+    result->data[2] = (long long)grad_A;
+    result->data[3] = (long long)grad_B;
+    result->data[4] = (long long)grad_C;
+
+    free(h_hist); free(gx); free(gd); free(gA); free(gB); free(gC);
+    free(bar_h_next); free(bar_h_prev);
+    return (long long)result;
+}
+
 // ================================================================
 //  Mamba-2 SSD (Structured State Space Duality)
 //  Chunked computation: process chunks of size P, accumulate states.
