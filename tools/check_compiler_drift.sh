@@ -250,10 +250,12 @@ check_manifest() {
         *.nr)
             # Two-step: build then exec. Avoids `nuc run`'s Linux
             # path-construction bug (uses Windows backslashes + .exe;
-            # tracked separately). Build is cached so cost is minimal
-            # on repeat runs. The chmod +x is a workaround for the
-            # native-link cache restore path dropping the executable
-            # bit (separate v0.8 cache bug, pending finding).
+            # tracked in
+            # findings/promoted/2026-05-06-nuc-run-linux-path-construction.md).
+            # Build is cached so cost is minimal on repeat runs.
+            # The cache-hit-drops-exec-bit bug was closed in v0.8.323
+            # (fs_copy_file now preserves source mode on POSIX), so no
+            # chmod workaround is needed here.
             local gen_basename
             gen_basename="$(basename "$gen_path" .nr)"
             "$NUCLEOR_BIN" build "$gen_path" -o "$gen_basename" >/dev/null 2>&1 || {
@@ -261,7 +263,6 @@ check_manifest() {
                 cp "$snapshot" "$manifest_path"
                 return 1
             }
-            chmod +x "$ROOT/target/$gen_basename" 2>/dev/null
             "$ROOT/target/$gen_basename" >/dev/null 2>&1 || {
                 echo "FAIL: $(basename "$gen_path") exec crashed."
                 cp "$snapshot" "$manifest_path"
