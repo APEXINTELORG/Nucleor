@@ -30449,8 +30449,16 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // would fire on self-compilation — a Linux-bootstrap false-positive.
     // str_concat avoids the literal pattern appearing in source text
     // so the search string is constructed at runtime.
+    // v0.8.323 (RFC-0063 Phase 2.0.3 prep): also exempt
+    // nucleor_tools_suite.nr — same rationale (compiler source contains
+    // the pattern in error-message strings) and the parser-unification
+    // ship needs tools_suite to be able to `import "...nucleor_s1_compiler.nr"`
+    // without the detector tripping on s1's strings.
     let ce_halt: str = str_concat("compile_error", "!(");
-    if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 0 {
+    let is_compiler_src: i64 = if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 1 { 1 }
+        else if str_ends_with(src_path, "nucleor_tools_suite.nr") == 1 { 1 }
+        else { 0 };
+    if is_compiler_src == 0 {
         if str_contains(resolved, ce_halt) == 1 {
             print("ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.");
             print("       This is the canonical compile_error! semantic — it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.");
