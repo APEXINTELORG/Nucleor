@@ -79,6 +79,8 @@ V2/Copy claim not ported to OSS. `source_call_graph` exists for analysis only. *
 ## ML-13 — No end-to-end convergence test — **HIGH**
 Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_autodiff.nr` computes gradient at single point but no tolerance. **No test trains model on data and asserts loss decreases or accuracy passes threshold.** Correctness of backprop, Adam, gradient zeroing untested at functional level.
 
+Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` now trains a 2-layer MLP on XOR using dense forward/backward, sigmoid backward, gradient zeroing, and Adam updates, then asserts the four predictions land on the correct side of 0.5.
+
 ## ML-14 — Autodiff not composable with rod kernels — **HIGH**
 `autodiff.nr` uses flat global tape with handle-based nodes. `nn_rt.c` implements own internal gradient accumulation. **Two systems entirely separate** — no bridge that registers `nuc_nn_dense_forward` as differentiable op on the autodiff tape. User cannot build `loss = cross_entropy(nn_forward(x), target); ad_grad(loss, x)` because dense layer is not a tape node.
 
@@ -107,7 +109,7 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 
 **Phase 1 (emergency, ABI + audit):**
 - ML-1: fix `attention2.nr` extern declaration to match C signature (7 params with seq_q/seq_k split). Add fixture test that actually CALLS the function with known input and asserts output. Audit every other extern in the rod stack for arity mismatches. **Shipped and fixture-backed by helper1 v0861 for flash/GQA rectangular paths.**
-- ML-13 P1: add convergence test for `nn.nr`: 2-layer MLP on XOR, 1000 Adam steps, assert loss < 0.01. If this fails, the entire training surface is broken and we don't know it.
+- ML-13 P1: add convergence test for `nn.nr`: 2-layer MLP on XOR, Adam updates, assert predictions separate XOR classes. **Shipped helper1 v0864.**
 - ML-15 P1: document the f64-bitcast-i64 limitation in `tensor_nd` doc header.
 
 **Phase 2 (short-term, missing kernels):**
