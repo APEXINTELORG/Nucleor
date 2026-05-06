@@ -62,6 +62,25 @@ fn sort_strs(v: Vec<str>) -> i64 {
     return n;
 }
 
+fn sort_parallel_by_key(keys: Vec<str>, values: Vec<str>) -> i64 {
+    let n: i64 = vec_len(keys);
+    let mut i: i64 = 1;
+    while i < n {
+        let key: str = vec_get(keys, i);
+        let value: str = vec_get(values, i);
+        let mut j: i64 = i - 1;
+        while j >= 0 && str_cmp_lt(vec_get(keys, j), key) == 0 {
+            vec_set(keys, j + 1, vec_get(keys, j));
+            vec_set(values, j + 1, vec_get(values, j));
+            j = j - 1;
+        };
+        vec_set(keys, j + 1, key);
+        vec_set(values, j + 1, value);
+        i = i + 1;
+    };
+    return n;
+}
+
 fn contains_str(v: Vec<str>, value: str) -> i64 {
     let n: i64 = vec_len(v);
     let mut i: i64 = 0;
@@ -220,25 +239,35 @@ fn collect_str_eq_return_ones_in_fn(src: str, fn_name: str, out: Vec<str>) -> i6
     return count;
 }
 
-fn collect_ir_declares(src: str, symbols: Vec<str>) -> i64 {
+fn collect_ir_declares_with_abi(src: str, symbols: Vec<str>, abis: Vec<str>) -> i64 {
     let needle: str = "sb_append(sb, \"declare ";
     let mut p: i64 = 0;
     let mut count: i64 = 0;
     while p >= 0 {
         let hit: i64 = find_from(src, needle, p);
         if hit < 0 { break; };
-        let at_pos: i64 = find_from(src, "@", hit + str_len(needle));
+        let ret_start: i64 = hit + str_len(needle);
+        let at_pos: i64 = find_from(src, "@", ret_start);
         if at_pos < 0 { p = hit + str_len(needle); continue; };
         let open_paren: i64 = find_from(src, "(", at_pos);
         if open_paren < 0 { p = at_pos + 1; continue; };
+        let close_paren: i64 = find_from(src, ")", open_paren);
+        if close_paren < 0 { p = open_paren + 1; continue; };
         let sym: str = str_substring(src, at_pos + 1, open_paren);
+        let ret_end: i64 = at_pos - 1;
+        let ret_ty: str = str_substring(src, ret_start, ret_end);
+        let args_ty: str = str_substring(src, open_paren + 1, close_paren);
+        let abi: str = str_concat(str_concat(str_concat("(", args_ty), ") -> "), ret_ty);
         if str_starts_with(sym, "__nucleor_") == 1 {
-            push_unique(symbols, sym);
+            if contains_str(symbols, sym) == 0 {
+                vec_push(symbols, sym);
+                vec_push(abis, abi);
+            };
             count = count + 1;
         };
         p = open_paren + 1;
     };
-    sort_strs(symbols);
+    sort_parallel_by_key(symbols, abis);
     return count;
 }
 
@@ -365,6 +394,17 @@ fn print_value_lines(label: str, values: Vec<str>) -> i64 {
     return n;
 }
 
+fn print_pair_lines(label: str, keys: Vec<str>, values: Vec<str>) -> i64 {
+    let n: i64 = vec_len(keys);
+    let mut i: i64 = 0;
+    while i < n {
+        let line: str = str_concat(vec_get(keys, i), str_concat("|", vec_get(values, i)));
+        print(str_concat(label, str_concat(": ", line)));
+        i = i + 1;
+    };
+    return n;
+}
+
 // ---------- main ----------
 
 fn main() -> i64 {
@@ -397,7 +437,8 @@ fn main() -> i64 {
     collect_str_eq_return_ones_in_fn(src, "is_ptr_arg", ptr_arg_names);
 
     let ir_symbols: Vec<str> = vec_new();
-    let ir_decl_count: i64 = collect_ir_declares(src, ir_symbols);
+    let ir_abis: Vec<str> = vec_new();
+    let ir_decl_count: i64 = collect_ir_declares_with_abi(src, ir_symbols, ir_abis);
 
     let c_files: Vec<str> = vec_new();
     let runtime_symbols: Vec<str> = vec_new();
@@ -418,7 +459,7 @@ fn main() -> i64 {
     };
     sort_strs(union_symbols);
 
-    print("helper_manifest_inventory_v2");
+    print("helper_manifest_inventory_v3");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -439,6 +480,7 @@ fn main() -> i64 {
     print_value_lines("void_ret_name", void_names);
     print_value_lines("ptr_ret_name", ptr_ret_names);
     print_value_lines("ptr_arg_name", ptr_arg_names);
+    print_pair_lines("ir_abi", ir_symbols, ir_abis);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
     return 0;
