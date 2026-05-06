@@ -112,3 +112,85 @@ Focused verify:
 - `test features/qm7_clifford_surface_d3_smoke`: PASS 1, SKIP 1127
 - `test features/qm7_clifford_distance_5qubit_smoke`: PASS 1, SKIP 1127
 - `test features/qm7_clifford_reset_rebuild_smoke`: PASS 1, SKIP 1127
+
+## Scope G - QM-8/QM-9 qsim graph query ergonomics
+
+Implemented as a focused fixture:
+
+- `tests/features/qsim_graph_query_contract_smoke.nr`
+
+The fixture locks direct and transitive query behavior through the public
+qsim_graph surface after a mixed checked-record plus high-level auto-record
+sequence:
+
+- `qsim_gate_dag_parent_count`
+- `qsim_gate_dag_parent_at`
+- `qsim_gate_dag_depends_on`
+- `qsim_gate_dag_size`
+- `qsim_graph_clear`
+
+It also verifies that `qsim_swap` exposes the inherited three-CNOT chain and
+that clear/rebuild resets the parent query state. `qsim_graph_limitations()`,
+`qsim_graph_status_disclosure_smoke.nr`, and `docs/rfcs/v1_PUNCHLIST.md` now
+name this as the R11-D4 Phase 2e query contract.
+
+## Scope H - QM-7 Clifford limitations/status coherence
+
+Updated:
+
+- `tests/features/clifford_disclosure_smoke.nr`
+
+The disclosure smoke now matches the actual post-Surface-17 status:
+
+- covered: reset/rebuild round-trip and rotated Surface-17 d=3
+- still open: QASM/OpenQASM2 interop and published weight-enumerator parity
+
+No Clifford runtime ABI or compiler edits were made.
+
+## Scope I - Quantum/qsim release evidence matrix
+
+| Area | Fixture | Command | Status | Remaining gap |
+| --- | --- | --- | --- | --- |
+| QM-7 Bell/GHZ | `tests/features/qm7_clifford_bell_ghz_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_bell_ghz_smoke"` | PASS 1, SKIP 1128 | No broad randomized Clifford property suite |
+| QM-7 gate identities | `tests/features/qm7_clifford_gate_identities.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_gate_identities"` | PASS 1, SKIP 1128 | No broad randomized Clifford property suite |
+| QM-7 [[5,1,3]] distance | `tests/features/qm7_clifford_distance_5qubit_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_distance_5qubit_smoke"` | PASS 1, SKIP 1127 | None for this fixture |
+| QM-7 reset/rebuild | `tests/features/qm7_clifford_reset_rebuild_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_reset_rebuild_smoke"` | PASS 1, SKIP 1127 | None for this fixture |
+| QM-7 rotated d=3 surface code | `tests/features/qm7_clifford_surface_d3_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_surface_d3_smoke"` | PASS 1, SKIP 1127 | None for distance/detectability invariant |
+| QM-7 weight enumerator | none yet | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_weight_enumerator_smoke"` | BLOCKED | Needs new Clifford enumerator API |
+| qsim graph status codes | `tests/features/qsim_graph_status_codes_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_status_codes_smoke"` | PASS 1, SKIP 1128 | Raw runtime still returns `-1`; checked wrapper decodes known causes |
+| qsim checked record | `tests/features/qsim_graph_checked_record_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_checked_record_smoke"` | PASS 1, SKIP 1128 | Raw runtime ABI unchanged |
+| qsim auto-entangle | `tests/features/qsim_graph_auto_entangle_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_auto_entangle_smoke"` | PASS 1, SKIP 1127 | Process-local state is not thread-safe |
+| qsim auto-record | `tests/features/qsim_graph_auto_record_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_auto_record_smoke"` | PASS 1, SKIP 1127 | CCX represented as two two-qubit records |
+| qsim lifecycle/clear | `tests/features/qsim_graph_lifecycle_auto_record_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_lifecycle_auto_record_smoke"` | PASS 1, SKIP 1127 | Process-local state is not thread-safe |
+| qsim query contract | `tests/features/qsim_graph_query_contract_smoke.nr` | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_query_contract_smoke"` | PASS 1, SKIP 1128 | No cross-thread query contract |
+| disclosure status | `tests/features/clifford_disclosure_smoke.nr`, `tests/features/qsim_graph_status_disclosure_smoke.nr` | focused verify filters for both fixtures | PASS 1, SKIP 1128 each | Compiler Tier-C info text still has stale qsim wording |
+
+## Scope J - Quantum next-code-surface blocker table
+
+| Blocker | Missing API or invariant | Likely files | Runtime/compiler ABI required | Focused validation after implementation |
+| --- | --- | --- | --- | --- |
+| QM7-WE | Published stabilizer/logical weight-enumerator parity | `stdlib/runtime/clifford_rt.c`, `stdlib/rods/clifford.nr`, new fixture | Runtime/stdlib ABI required | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_weight_enumerator_smoke"` |
+| QM7-QASM | QASM/OpenQASM2 import/export round-trip | `stdlib/rods/clifford.nr`, likely new runtime parser/emitter surface | Runtime/stdlib ABI likely | `bash tools/verify.sh --sequential-fixtures --only "test features/qm7_clifford_qasm_roundtrip_smoke"` |
+| QM89-DIAG | Compiler Tier-C info text still says qsim/qsim_graph are not wired even after high-level auto-entangle/auto-record wrappers | `compiler/nucleor_s1_compiler.nr`, generated seed/bin after main owns compiler edit | Compiler edit plus normal self-host promotion | Build any qsim graph auto-record fixture and assert the stale sentence is absent |
+| QSIM-THREAD | qsim_graph process-local state is not thread-safe across pthread/async boundaries | `stdlib/runtime/qsim_graph_rt.c`, `stdlib/rods/qsim_graph.nr`, thread fixture | Runtime locking/thread-local design required | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_thread_safety_smoke"` |
+| QSIM-NARY | CCX is represented as two two-qubit control-target records because public gate-record API is binary | `stdlib/runtime/qsim_graph_rt.c`, `stdlib/rods/qsim_graph.nr`, qsim fixtures | Runtime/stdlib ABI required | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_ccx_nary_record_smoke"` |
+| QSIM-RAW-STATUS | Raw `qsim_gate_record` still returns plain `-1`; checked wrapper decodes known causes but does not change the C ABI | `stdlib/runtime/qsim_graph_rt.c`, `stdlib/rods/qsim_graph.nr` | Runtime ABI required if raw return contract changes | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_graph_raw_status_smoke"` |
+
+## Queue 3 validation
+
+Direct builds/runs:
+
+- `qsim_graph_query_contract_smoke.nr` build: PASS
+- `target\_qsim_graph_query.exe`: PASS
+- `clifford_disclosure_smoke.nr` build: PASS
+- `target\_clifford_disclosure.exe`: PASS
+
+Focused verify:
+
+- `test features/qsim_graph_query_contract_smoke`: PASS 1, SKIP 1128
+- `test features/clifford_disclosure_smoke`: PASS 1, SKIP 1128
+- `test features/qsim_graph_status_disclosure_smoke`: PASS 1, SKIP 1128
+- `test features/qm7_clifford_bell_ghz_smoke`: PASS 1, SKIP 1128
+- `test features/qm7_clifford_gate_identities`: PASS 1, SKIP 1128
+- `test features/qsim_graph_status_codes_smoke`: PASS 1, SKIP 1128
+- `test features/qsim_graph_checked_record_smoke`: PASS 1, SKIP 1128
