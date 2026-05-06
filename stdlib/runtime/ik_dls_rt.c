@@ -654,3 +654,138 @@ long long nuc_ik_dls_solve_6d(
     free(J); free(perturbed); free(JJt_plus_lam); free(invJJt); free(Jt_invJJt);
     return (long long)iter;
 }
+
+long long nuc_ik_dls_solve_6d_nullspace(
+    long long ch, long long vars_ptr,
+    long long tx_b, long long ty_b, long long tz_b,
+    long long tqw_b, long long tqx_b, long long tqy_b, long long tqz_b,
+    long long q_pref_ptr,
+    long long secondary_weight_b,
+    long long max_iters,
+    long long tolerance_b,
+    long long damping_b,
+    long long weight_orient_b)
+{
+    int n = (int)nuc_fk_chain_count(ch);
+    if (n <= 0) return 0;
+    double *vars = (double *)(void *)(size_t)vars_ptr;
+    double *q_pref = (double *)(void *)(size_t)q_pref_ptr;
+    double tx = _i2f(tx_b), ty = _i2f(ty_b), tz = _i2f(tz_b);
+    double tqw = _i2f(tqw_b), tqx = _i2f(tqx_b), tqy = _i2f(tqy_b), tqz = _i2f(tqz_b);
+    double tol = _i2f(tolerance_b);
+    double lambda = _i2f(damping_b);
+    double lambda2 = lambda * lambda;
+    double w_orient = _i2f(weight_orient_b);
+    if (w_orient <= 0) w_orient = 1.0;
+    double w_sec = _i2f(secondary_weight_b);
+    if (w_sec < 0) w_sec = 0;
+
+    double *J = (double *)malloc(6 * n * sizeof(double));
+    double *perturbed = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double *JJt_plus_lam = (double *)malloc(36 * sizeof(double));
+    double *invJJt = (double *)malloc(36 * sizeof(double));
+    double *Jpinv = (double *)malloc(6 * n * sizeof(double)); // n x 6
+    double *NS = (double *)malloc(n * n * sizeof(double));
+    double *e_q = (double *)malloc(n * sizeof(double));
+    double *dq_sec = (double *)malloc(n * sizeof(double));
+    int last = n - 1;
+    double eps = 1e-5;
+    int iter;
+
+    for (iter = 0; iter < max_iters; iter++) {
+        nuc_fk_chain_update(ch, vars_ptr);
+        double cx = _i2f(nuc_fk_chain_link_pos_x(ch, last));
+        double cy = _i2f(nuc_fk_chain_link_pos_y(ch, last));
+        double cz = _i2f(nuc_fk_chain_link_pos_z(ch, last));
+        double cqw = _i2f(nuc_fk_chain_link_quat_w(ch, last));
+        double cqx = _i2f(nuc_fk_chain_link_quat_x(ch, last));
+        double cqy = _i2f(nuc_fk_chain_link_quat_y(ch, last));
+        double cqz = _i2f(nuc_fk_chain_link_quat_z(ch, last));
+
+        double e_pos[3] = { tx - cx, ty - cy, tz - cz };
+        double e_orient[3];
+        _angular_error(tqw, tqx, tqy, tqz, cqw, cqx, cqy, cqz, e_orient);
+        double e[6] = {
+            e_pos[0], e_pos[1], e_pos[2],
+            e_orient[0] * w_orient, e_orient[1] * w_orient, e_orient[2] * w_orient
+        };
+        double err2 = 0;
+        for (int k = 0; k < 6; k++) err2 += e[k] * e[k];
+        if (err2 < tol * tol) break;
+
+        for (int j = 0; j < n; j++) {
+            memcpy(perturbed, vars, n * sizeof(double));
+            perturbed[j] += eps;
+            nuc_fk_chain_update(ch, perturbed_h);
+            double px = _i2f(nuc_fk_chain_link_pos_x(ch, last));
+            double py = _i2f(nuc_fk_chain_link_pos_y(ch, last));
+            double pz = _i2f(nuc_fk_chain_link_pos_z(ch, last));
+            double pqw = _i2f(nuc_fk_chain_link_quat_w(ch, last));
+            double pqx = _i2f(nuc_fk_chain_link_quat_x(ch, last));
+            double pqy = _i2f(nuc_fk_chain_link_quat_y(ch, last));
+            double pqz = _i2f(nuc_fk_chain_link_quat_z(ch, last));
+            J[0*n + j] = (px - cx) / eps;
+            J[1*n + j] = (py - cy) / eps;
+            J[2*n + j] = (pz - cz) / eps;
+            double da[3];
+            _angular_error(pqw, pqx, pqy, pqz, cqw, cqx, cqy, cqz, da);
+            J[3*n + j] = da[0] / eps * w_orient;
+            J[4*n + j] = da[1] / eps * w_orient;
+            J[5*n + j] = da[2] / eps * w_orient;
+        }
+
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                double s = 0;
+                for (int k = 0; k < n; k++) s += J[r*n + k] * J[c*n + k];
+                JJt_plus_lam[r*6 + c] = s + (r == c ? lambda2 : 0);
+            }
+        }
+        if (!_inverse_6x6(JJt_plus_lam, invJJt)) break;
+
+        // Damped pseudoinverse J+ = J^T * inv(JJ^T + lambda^2 I), n x 6.
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < 6; c++) {
+                double s = 0;
+                for (int k = 0; k < 6; k++) s += J[k*n + r] * invJJt[k*6 + c];
+                Jpinv[r*6 + c] = s;
+            }
+        }
+
+        for (int r = 0; r < n; r++) {
+            double dq = 0;
+            for (int c = 0; c < 6; c++) dq += Jpinv[r*6 + c] * e[c];
+            vars[r] += dq;
+        }
+
+        if (q_pref && w_sec > 0) {
+            for (int r = 0; r < n; r++) {
+                for (int c = 0; c < n; c++) {
+                    double s = 0;
+                    for (int k = 0; k < 6; k++) s += Jpinv[r*6 + k] * J[k*n + c];
+                    NS[r*n + c] = (r == c ? 1.0 : 0.0) - s;
+                }
+            }
+            for (int r = 0; r < n; r++) e_q[r] = w_sec * (q_pref[r] - vars[r]);
+            for (int r = 0; r < n; r++) {
+                double s = 0;
+                for (int c = 0; c < n; c++) s += NS[r*n + c] * e_q[c];
+                dq_sec[r] = s;
+            }
+            for (int r = 0; r < n; r++) vars[r] += dq_sec[r];
+        }
+
+        _IKLimits *L = _lookup_limits(ch);
+        if (L) {
+            for (int r = 0; r < n && r < L->n; r++) {
+                if (vars[r] < L->lo[r]) vars[r] = L->lo[r];
+                if (vars[r] > L->hi[r]) vars[r] = L->hi[r];
+            }
+        }
+    }
+
+    free(J); free(perturbed); free(JJt_plus_lam); free(invJJt);
+    free(Jpinv); free(NS); free(e_q); free(dq_sec);
+    return (long long)iter;
+}
