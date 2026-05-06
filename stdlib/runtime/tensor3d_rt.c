@@ -54,6 +54,31 @@ static void _check_t3_dims(long long d1, long long d2, long long d3) {
     }
 }
 
+static void _check_t3_dims2(long long rows, long long cols) {
+    if (rows < 0 || cols < 0) {
+        fprintf(stderr, "PANIC: nuc_t3_new_2d: negative dim (%lld, %lld)\n", rows, cols);
+        fflush(stderr); exit(1);
+    }
+    if (rows > 2147483647LL || cols > 2147483647LL) {
+        fprintf(stderr, "PANIC: nuc_t3_new_2d: dim exceeds i32 (%lld, %lld)\n", rows, cols);
+        fflush(stderr); exit(1);
+    }
+    if (rows > 0 && cols > (long long)(2147483647LL / rows)) {
+        fprintf(stderr, "PANIC: nuc_t3_new_2d: total elements %lld * %lld exceeds i32\n", rows, cols);
+        fflush(stderr); exit(1);
+    }
+}
+
+long long nuc_t3_new_2d(long long rows, long long cols) {
+    _check_t3_dims2(rows, cols);
+    Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
+    t->ndim = 2;
+    t->shape[0] = (int)rows; t->shape[1] = (int)cols;
+    t3_compute_strides(t);
+    t->data = (double *)calloc((size_t)t->total, sizeof(double));
+    return (long long)t;
+}
+
 // Create 3D tensor
 long long nuc_t3_new(long long d1, long long d2, long long d3) {
     _check_t3_dims(d1, d2, d3);
@@ -328,6 +353,48 @@ long long nuc_t3_bmm(long long ah, long long bh) {
                 c->data[bi * M * N + i * N + j] = sum;
             }
     return (long long)c;
+}
+
+// 2D matrix multiply: [M, K] x [K, N] -> [M, N]
+long long nuc_t3_matmul(long long ah, long long bh) {
+    Tensor3D *a = (Tensor3D *)(void *)ah, *b = (Tensor3D *)(void *)bh;
+    if (!a || !b) return 0;
+    if (a->ndim != 2 || b->ndim != 2) return 0;
+    int M = a->shape[0], K = a->shape[1], N = b->shape[1];
+    if (b->shape[0] != K) return 0;
+
+    Tensor3D *c = (Tensor3D *)calloc(1, sizeof(Tensor3D));
+    c->ndim = 2; c->shape[0] = M; c->shape[1] = N;
+    t3_compute_strides(c);
+    c->data = (double *)calloc((size_t)c->total, sizeof(double));
+
+    for (int i = 0; i < M; i++) {
+        for (int k = 0; k < K; k++) {
+            double av = a->data[i * K + k];
+            for (int j = 0; j < N; j++) {
+                c->data[i * N + j] += av * b->data[k * N + j];
+            }
+        }
+    }
+    return (long long)c;
+}
+
+long long nuc_t3_transpose(long long h) {
+    Tensor3D *a = (Tensor3D *)(void *)h;
+    if (!a || a->ndim != 2) return 0;
+    int rows = a->shape[0], cols = a->shape[1];
+
+    Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
+    t->ndim = 2; t->shape[0] = cols; t->shape[1] = rows;
+    t3_compute_strides(t);
+    t->data = (double *)malloc((size_t)t->total * sizeof(double));
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            t->data[c * rows + r] = a->data[r * cols + c];
+        }
+    }
+    return (long long)t;
 }
 
 void nuc_t3_free(long long h) {
