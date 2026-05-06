@@ -21,6 +21,7 @@
 
 import "complex.nr"
 import "bitwise.nr"
+import "qsim_graph.nr"
 
 #cfile "quantum_rt.c"
 
@@ -288,6 +289,7 @@ fn qsim_p(sv: i64, q: i64, theta: i64) {
 // CNOT (CX): controlled-X
 fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CNOT", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CNOT", ctrl, tgt); };
+    qsim_entangle_register(ctrl, tgt);
     let zero: i64 = cx_zero();
     let one: i64 = cx_one();
     qsim_cgate1(sv, ctrl, tgt, zero, one, one, zero);
@@ -296,6 +298,7 @@ fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
 // CZ: controlled-Z
 fn qsim_cz(sv: i64, ctrl: i64, tgt: i64) {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CZ", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CZ", ctrl, tgt); };
+    qsim_entangle_register(ctrl, tgt);
     let one: i64 = cx_one();
     let mone: i64 = cx_neg(one);
     let zero: i64 = cx_zero();
@@ -309,6 +312,7 @@ fn qsim_crk(sv: i64, ctrl: i64, tgt: i64, k: i64) {
     let denom: i64 = f64_from_int(bit_shift_left(1, k));
     let theta: i64 = f64_div(f64_tau(), denom);
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate_angle("CRK", _q2_json(ctrl, tgt), theta); rods_trace_entangle("CRK", ctrl, tgt); };
+    qsim_entangle_register(ctrl, tgt);
     let phase: i64 = cx_new(f64_cos(theta), f64_sin(theta));
     qsim_cgate1(sv, ctrl, tgt, one, zero, zero, phase);
 }
@@ -327,6 +331,8 @@ fn qsim_swap(sv: i64, q1: i64, q2: i64) {
 // Toffoli (CCX): doubly-controlled X
 fn qsim_ccx(sv: i64, c1: i64, c2: i64, tgt: i64) {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CCX", _q3_json(c1, c2, tgt), 0, 0); rods_trace_entangle("CCX", c1, tgt); rods_trace_entangle("CCX", c2, tgt); };
+    qsim_entangle_register(c1, tgt);
+    qsim_entangle_register(c2, tgt);
     let zero: i64 = cx_zero();
     let one: i64 = cx_one();
     qsim_ccgate1(sv, c1, c2, tgt, zero, one, one, zero);

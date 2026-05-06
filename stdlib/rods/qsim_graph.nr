@@ -17,7 +17,7 @@
 //
 //   import "stdlib/rods/qsim_graph.nr"
 //
-//   qsim_entangle_register(0, 1);   // CNOT 0 -> 1 entangles q0 + q1
+//   qsim_entangle_register(0, 1);   // Manual graph registration remains available
 //   qsim_entangle_register(1, 2);
 //   let n: i64 = qsim_entanglement_count();          // 1 component
 //   let sz: i64 = qsim_entanglement_size(0);          // 3 qubits
@@ -158,5 +158,5 @@ fn qsim_graph_status_explain(q1: i64, q2: i64) -> str {
 }
 
 fn qsim_graph_limitations() -> str {
-    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306/v0.8.324/v0.8.325): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / raw qsim_gate_record return -1 silently. Prefer qsim_gate_record_checked(name, q1, q2): >=0 real gate id, -1 out_of_range, -2 dag_full, -3 unknown raw failure after preflight passed. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining, or call qsim_gate_record_preflight(q1, q2) for status code 0=ok, 1=out_of_range, 2=dag_full BEFORE invoking raw qsim_gate_record. (2) RAW ESCAPE HATCH REMAINS: qsim_gate_record still returns raw gate ids or -1; the checked/preflight status surface helps adopters avoid known -1 causes but does not rewrite the C runtime ABI. (3) NO AUTO-ENTANGLE-FROM-GATE: qsim CNOT in stdlib/rods/quantum.nr emits rods_trace_entangle but does NOT auto-call qsim_entangle_register; adopters must call qsim_entangle_register manually after CNOT. (4) PROCESS-LOCAL state: not thread-safe across pthread/async boundaries.";
+    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306/v0.8.324/v0.8.325/v0828): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / raw qsim_gate_record return -1 silently. Prefer qsim_gate_record_checked(name, q1, q2): >=0 real gate id, -1 out_of_range, -2 dag_full, -3 unknown raw failure after preflight passed. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining, or call qsim_gate_record_preflight(q1, q2) for status code 0=ok, 1=out_of_range, 2=dag_full BEFORE invoking raw qsim_gate_record. (2) RAW ESCAPE HATCH REMAINS: qsim_gate_record still returns raw gate ids or -1; the checked/preflight status surface helps adopters avoid known -1 causes but does not rewrite the C runtime ABI. (3) PHASE 2A AUTO-ENTANGLE: qsim CNOT/CZ/CRK/CCX in stdlib/rods/quantum.nr now call qsim_entangle_register in the same semantic places their trace hooks declare entanglement; qsim_swap inherits this through its CNOT sequence. Raw gate-DAG auto-recording remains open. (4) PROCESS-LOCAL state: not thread-safe across pthread/async boundaries.";
 }

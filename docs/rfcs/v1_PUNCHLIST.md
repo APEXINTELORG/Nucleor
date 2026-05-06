@@ -222,6 +222,12 @@ launch. After memory safety completes, these are next-priority.
   real gate IDs on success and structured negative status
   (`-1=out_of_range`, `-2=dag_full`, `-3=unknown raw failure`).
   The raw C runtime ABI remains unchanged.
+- **R11-D4 qsim auto-entangle:** DONE for Phase 2a on 2026-05-06 —
+  `qsim_cnot`, `qsim_cz`, `qsim_crk`, and `qsim_ccx` now
+  auto-register with `qsim_graph`'s entanglement tracker in the same
+  semantic places their trace hooks declare entanglement. `qsim_swap`
+  inherits this through its existing CNOT decomposition. Remaining
+  gaps: raw gate-DAG auto-recording and pthread/async thread-safety.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
