@@ -196,6 +196,20 @@ launch. After memory safety completes, these are next-priority.
   Current public Clifford APIs expose distance and detectability, not a
   stabilizer/logical weight-enumerator surface.
 
+### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard DONE
+
+- **Source:** `RFC-0005-units.md`, `RFC-0047-typed-units-7vector.md`
+- **Status:** FAIL-CLOSED ARCHIVE GUARD DONE 2026-05-06. The main
+  `nuc build` preflight now rejects the three V1 archive hazards that
+  previously compiled through erased storage: bare numeric-to-unit
+  initialization (`TYP-007`), adding mismatched dimensions (`TYP-003`),
+  and assigning a velocity-shaped unit value into a distance binding
+  (`TYP-008`). Active fixtures: `err_unit_bare_coercion.nr`,
+  `err_unit_mismatch.nr`, `err_unit_assign.nr`.
+- **Still open:** full parser/type-checker dimension algebra for
+  `unit<T, dim>`, UNIT-001..005 semantic diagnostics, 7-vector lowering,
+  literal suffix support, and positive typed-unit API coverage.
+
 ### ROBO-7 — Frame-typing safety
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
@@ -487,6 +501,12 @@ proper analysis → Phase 4 hard error):
   archive `Box<T>` use-after-move test. `is_copy_type` now classifies
   `Box<...>` as non-Copy before `type_base_name` unwraps the inner type;
   `err_box_use_after_move.nr` locks the `OWN-001` diagnostic.
+- **2026-05-06**: RFC-0005 typed-units archive guard promoted the V1
+  `err_unit_*` negative fixtures into the active suite. `nuc build`
+  now fails closed for the archived bare numeric-to-unit, mismatched
+  add/sub, and velocity-to-distance assignment hazards without claiming
+  full `unit<T, dim>` algebra; UNIT-001..005 and 7-vector semantics
+  remain queued.
 - **2026-05-06**: Effect/capability Phase 2b fixture promotion advanced.
   Archived pure negatives for builtin print-family I/O, direct
   `requires [...]` callee calls, and immediate wrapper inference now live
