@@ -487,6 +487,170 @@ fn is_intentional_placeholder(symbol: str) -> i64 {
     return 0;
 }
 
+fn policy_result(effects: str, taint: str, proof: str) -> str {
+    let left: str = str_concat(effects, "|");
+    let mid: str = str_concat(taint, "|passthrough|");
+    return str_concat(str_concat(left, mid), proof);
+}
+
+fn is_collection_readonly_name(name: str) -> i64 {
+    let under: i64 = str_index_of(name, "_");
+    if under < 0 { return 0; };
+    let family: str = str_substring(name, 0, under);
+    let rest: str = str_substring(name, under + 1, str_len(name));
+    let family_ok: i64 =
+        str_eq(family, "hashmap") == 1 || str_eq(family, "hashset") == 1 ||
+        str_eq(family, "btreemap") == 1 || str_eq(family, "btreeset") == 1 ||
+        str_eq(family, "vecdeque") == 1;
+    if family_ok == 0 { return 0; };
+    if str_eq_any4(rest, "get", "contains", "len", "capacity") == 1 { return 1; };
+    if str_eq_any4(rest, "is_empty", "get_or", "key_at", "val_at") == 1 { return 1; };
+    if str_eq(rest, "at") == 1 { return 1; };
+    return 0;
+}
+
+fn policy_fields_for_name(name0: str, cls: str) -> str {
+    let name: str = bare_helper_name(name0);
+
+    if str_eq(name, "panic") == 1 {
+        return policy_result("[\"panic\"]", "passthrough", "callsite_unreachable_or_recoverable");
+    };
+    if str_eq(name, "assert") == 1 {
+        return policy_result("[\"panic\"]", "passthrough", "predicate_holds");
+    };
+    if str_eq_any2(name, "assert_eq", "assert_ne") == 1 {
+        return policy_result("[\"panic\"]", "passthrough", "predicate_holds");
+    };
+    if str_eq(name, "dbg") == 1 {
+        return policy_result("[\"io\"]", "passthrough", "io_capability_required");
+    };
+    if str_eq_any2(name, "manifest_report", "manifest_validate") == 1 {
+        return policy_result("[\"alloc\"]", "passthrough", "none");
+    };
+    if str_eq_any2(name, "crc32", "crc32_update") == 1 {
+        return policy_result("[]", "passthrough", "none");
+    };
+    if str_eq_any3(name, "fnv1a_64_i64", "fnv1a_64_str", "murmur3_64") == 1 {
+        return policy_result("[]", "passthrough", "none");
+    };
+    if str_eq(name, "string_print") == 1 {
+        return policy_result("[\"io\"]", "passthrough", "io_capability_required");
+    };
+    if str_eq_any3(name, "rods_f64_add", "rods_f64_sub", "rods_f64_div") == 1 {
+        return policy_result("[]", "passthrough", "none");
+    };
+    if str_eq(name, "rods_f64_encode") == 1 {
+        return policy_result("[\"alloc\"]", "passthrough", "none");
+    };
+    if str_eq_any2(name, "option_unwrap", "option_expect") == 1 {
+        return policy_result("[\"panic\"]", "passthrough", "predicate_holds");
+    };
+    if str_eq_any3(name, "result_unwrap", "result_unwrap_err", "result_expect") == 1 {
+        return policy_result("[\"panic\"]", "passthrough", "predicate_holds");
+    };
+    if str_eq_any2(name, "option_to_debug_str_i64", "result_to_debug_str_i64") == 1 {
+        return policy_result("[\"alloc\"]", "passthrough", "none");
+    };
+    if str_eq_any2(name, "dyn_box_data", "dyn_box_type") == 1 {
+        return policy_result("[]", "passthrough", "none");
+    };
+
+    if str_starts_with(name, "checked_") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "wrapping_") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "saturating_") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq_any2(name, "sat_i32", "wrap_i32") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "char_") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq(name, "chr") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "str_") == 1 {
+        let rest: str = str_substring(name, 4, str_len(name));
+        if str_eq_any4(rest, "eq", "contains", "count", "ends_with") == 1 { return policy_result("[]", "passthrough", "none"); };
+        if str_eq_any4(rest, "starts_with", "index_of", "is_empty", "len") == 1 { return policy_result("[]", "passthrough", "none"); };
+        if str_eq(rest, "char_at") == 1 { return policy_result("[]", "passthrough", "none"); };
+        if str_eq_any4(rest, "to_i64", "to_f64", "to_bool", "to_i64_radix") == 1 { return policy_result("[]", "passthrough", "none"); };
+    };
+    if str_eq_any2(name, "parse_hex", "parse_bin") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "string_") == 1 {
+        let srest: str = str_substring(name, 7, str_len(name));
+        if str_eq_any4(srest, "capacity", "eq", "eq_str", "get_byte") == 1 { return policy_result("[]", "passthrough", "none"); };
+        if str_eq_any4(srest, "len", "starts_with", "ends_with", "contains") == 1 { return policy_result("[]", "passthrough", "none"); };
+        if str_eq(srest, "as_ptr") == 1 { return policy_result("[]", "passthrough", "none"); };
+    };
+    if is_collection_readonly_name(name) == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq_any2(name, "os_family", "os_pointer_width") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq_any2(name, "path_is_absolute", "path_separator") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_starts_with(name, "path_") == 1 {
+        let prest: str = str_substring(name, 5, str_len(name));
+        if str_eq_any4(prest, "components", "normalize", "strip_extension", "with_extension") == 1 {
+            return policy_result("[\"alloc\"]", "passthrough", "none");
+        };
+    };
+    if str_starts_with(name, "fs_") == 1 {
+        let frest: str = str_substring(name, 3, str_len(name));
+        if str_eq_any4(frest, "basename", "dirname", "extension", "join") == 1 {
+            return policy_result("[\"alloc\"]", "passthrough", "none");
+        };
+        if str_eq_any4(frest, "exists", "is_dir", "is_file", "size") == 1 {
+            return policy_result("[\"io\"]", "propagates", "io_capability_required");
+        };
+        if str_eq_any4(frest, "mtime", "list_dir", "canonicalize", "current_dir") == 1 {
+            return policy_result("[\"io\"]", "propagates", "io_capability_required");
+        };
+        if str_eq(frest, "temp_dir") == 1 {
+            return policy_result("[\"io\"]", "propagates", "io_capability_required");
+        };
+    };
+    if str_eq_any3(name, "read_byte", "read_i64", "read_line") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_eq_any3(name, "env_get", "env_has", "env_keys") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_eq_any4(name, "getenv", "getcwd", "process_id", "system") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_starts_with(name, "isatty_") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_eq_any3(name, "args_count", "args_get", "init_args") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_starts_with(name, "file_read_") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_eq_any3(name, "toml_get_int", "toml_get_str", "toml_has") == 1 {
+        return policy_result("[]", "passthrough", "none");
+    };
+    if str_eq(name, "toml_parse_file") == 1 {
+        return policy_result("[\"io\"]", "propagates", "io_capability_required");
+    };
+    if str_eq(name, "uuid_v4") == 1 {
+        return policy_result("[\"random\", \"alloc\"]", "passthrough", "rng_capability_required");
+    };
+    if str_starts_with(name, "tensor_") == 1 {
+        let trest: str = str_substring(name, 7, str_len(name));
+        if str_eq_any4(trest, "get", "cols", "rows", "max") == 1 { return policy_result("[]", "passthrough", "bounds_within_shape"); };
+        if str_eq_any4(trest, "min", "mean", "sum", "stddev") == 1 { return policy_result("[]", "passthrough", "bounds_within_shape"); };
+        if str_eq(trest, "variance") == 1 { return policy_result("[]", "passthrough", "bounds_within_shape"); };
+        if str_eq_any2(trest, "set", "fill") == 1 { return policy_result("[]", "passthrough", "bounds_within_shape"); };
+        if str_eq_any4(trest, "zeros", "ones", "transpose", "matmul") == 1 { return policy_result("[\"alloc\"]", "passthrough", "shape_compatible"); };
+    };
+
+    if str_eq(cls, "PureMath") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq(cls, "VectorOps") == 1 { return policy_result("[\"alloc\"]", "passthrough", "bounds_within_len"); };
+    if str_eq(cls, "Random") == 1 { return policy_result("[\"random\"]", "passthrough", "rng_capability_required"); };
+    if str_eq(cls, "Time") == 1 { return policy_result("[\"clock\"]", "passthrough", "clock_capability_required"); };
+    if str_eq(cls, "Concurrency") == 1 { return policy_result("[\"sync\"]", "passthrough", "happens_before_release_acquire"); };
+    if str_eq(cls, "Allocation") == 1 { return policy_result("[\"alloc\"]", "passthrough", "alloc_capability_or_arena_owned"); };
+    if str_eq(cls, "StringFormat") == 1 { return policy_result("[\"alloc\"]", "passthrough", "none"); };
+    if str_eq(cls, "Collection") == 1 { return policy_result("[\"alloc\"]", "passthrough", "none"); };
+    if str_eq(cls, "IO") == 1 { return policy_result("[\"io\"]", "passthrough", "io_capability_required"); };
+    if str_eq(cls, "DataCodec") == 1 { return policy_result("[\"alloc\"]", "passthrough", "none"); };
+    if str_eq(cls, "ADT") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq(cls, "Introspection") == 1 { return policy_result("[]", "passthrough", "none"); };
+    if str_eq(cls, "ControlFlow") == 1 { return policy_result("[\"panic\"]", "passthrough", "predicate_holds"); };
+    return policy_result("TODO", "TODO", "TODO");
+}
+
 // ---------- compiler-source inventory ----------
 
 fn collect_get_rt_pairs(src: str, names: Vec<str>, symbols: Vec<str>) -> i64 {
@@ -804,13 +968,16 @@ fn main() -> i64 {
     };
 
     let manifest_stability: Vec<str> = vec_new();
+    let manifest_policy: Vec<str> = vec_new();
     let mut stable_count: i64 = 0;
     let mut unstable_count: i64 = 0;
     let mut experimental_count: i64 = 0;
     let mut review_required_count: i64 = 0;
+    let mut policy_todo_count: i64 = 0;
     m = 0;
     while m < vec_len(manifest_symbols) {
         let sym: str = vec_get(manifest_symbols, m);
+        let name: str = vec_get(manifest_names, m);
         let cls: str = vec_get(manifest_classes, m);
         let stability: str = if contains_str(runtime_symbols, sym) == 1 {
             "stable"
@@ -828,10 +995,15 @@ fn main() -> i64 {
             review_required_count = review_required_count + 1;
         };
         vec_push(manifest_stability, stability);
+        let policy: str = policy_fields_for_name(name, cls);
+        if str_starts_with(policy, "TODO|") == 1 {
+            policy_todo_count = policy_todo_count + 1;
+        };
+        vec_push(manifest_policy, policy);
         m = m + 1;
     };
 
-    print("helper_manifest_inventory_v5");
+    print("helper_manifest_inventory_v6");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -852,6 +1024,8 @@ fn main() -> i64 {
     print(str_concat("unstable_symbols: ", int_to_str(unstable_count)));
     print(str_concat("experimental_symbols: ", int_to_str(experimental_count)));
     print(str_concat("review_required_symbols: ", int_to_str(review_required_count)));
+    print(str_concat("policy_rows: ", int_to_str(vec_len(manifest_policy))));
+    print(str_concat("policy_todo_symbols: ", int_to_str(policy_todo_count)));
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
@@ -861,6 +1035,7 @@ fn main() -> i64 {
     print_pair_lines("ir_abi", ir_symbols, ir_abis);
     print_triple_lines("class_row", manifest_symbols, manifest_names, manifest_classes);
     print_pair_lines("stability_row", manifest_symbols, manifest_stability);
+    print_pair_lines("policy_row", manifest_symbols, manifest_policy);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML comes from tools/gen_helper_manifest.nr");
     return 0;
