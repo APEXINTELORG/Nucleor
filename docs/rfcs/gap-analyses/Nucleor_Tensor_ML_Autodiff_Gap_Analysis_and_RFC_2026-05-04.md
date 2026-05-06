@@ -86,6 +86,8 @@ Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` no
 ## ML-14 — Autodiff not composable with rod kernels — **HIGH**
 `autodiff.nr` uses flat global tape with handle-based nodes. `nn_rt.c` implements own internal gradient accumulation. **Two systems entirely separate** — no bridge that registers `nuc_nn_dense_forward` as differentiable op on the autodiff tape. User cannot build `loss = cross_entropy(nn_forward(x), target); ad_grad(loss, x)` because dense layer is not a tape node.
 
+Update 2026-05-06 helper1 v0867: `nn_autodiff.nr` now provides the first NN/autodiff bridge for dense layers. `nn_dense_forward_ad(layer, input_ad)` lowers a dense forward pass into scalar autodiff tape nodes, registers the dense surface with `differentiable.nr`, and fixture-checks value parity plus input gradients against `nn_dense_forward` and the layer weights in `tests/features/nn_autodiff_dense_bridge_smoke.nr`. Residual: parameter gradients still use `nn.nr` backward/optimizer surfaces, this is not yet one opaque registered layer op, and conv/norm/attention plus compiler-side `@differentiable` lowering remain future work.
+
 ## ML-15 — `tensor_nd` no dtype: all values are f64 bitcast i64 — **MEDIUM**
 `static double _i2f(long long x)` everywhere. No int tensor, bool mask tensor, mixed-precision path. Token ID tensors for embedding lookup are f64-cast i64, not native i32/i64.
 
@@ -129,7 +131,7 @@ Update 2026-05-06 helper1 v0866: `tensor_nd` now has explicit int and bool 2D/ND
 **Phase 3 (medium-term, integration):**
 - ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape.
 - ML-8: add Conv1d and Conv2d learnable layers in `nn.nr`. **Shipped helper1 v0865 as functional Conv1D/Conv2D/depthwise Conv2D forward+backward kernels; optimizer-owned stateful layer objects remain future work.**
-- ML-14: implement bridge between `autodiff` tape and `nn` rod. Each NN layer becomes a registered op on the autodiff graph. `loss = cross_entropy(nn_forward(x), y); ad_grad(loss, x)` works.
+- ML-14: implement bridge between `autodiff` tape and `nn` rod. Each NN layer becomes a registered op on the autodiff graph. `loss = cross_entropy(nn_forward(x), y); ad_grad(loss, x)` works. **P2a shipped helper1 v0867 for Dense input-gradient composition by lowering dense forward into scalar tape nodes; opaque registered layer ops, parameter gradients, and conv/norm/attention bridge coverage remain open.**
 - ML-15 P2: add int tensor and bool mask tensor types to `tensor_nd`. Mixed-precision path. **P2a shipped helper1 v0866 for explicit int/bool tensor constructors, dtype codes, typed flat accessors, and bool mask storage; f32/f64 named dtype and compiler-visible TensorShape/typed tensor checking remain open.**
 
 **Phase 4 (v1.0 gate):**

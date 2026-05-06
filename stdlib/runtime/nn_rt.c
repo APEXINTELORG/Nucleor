@@ -360,6 +360,35 @@ long long nuc_nn_dense_param_count(long long handle) {
     return (long long)(l->out_dim * l->in_dim + l->out_dim);
 }
 
+long long nuc_nn_dense_in_dim(long long handle) {
+    NNDense *l = (NNDense *)(void *)handle;
+    if (!l) return 0;
+    return (long long)l->in_dim;
+}
+
+long long nuc_nn_dense_out_dim(long long handle) {
+    NNDense *l = (NNDense *)(void *)handle;
+    if (!l) return 0;
+    return (long long)l->out_dim;
+}
+
+long long nuc_nn_dense_weight(long long handle, long long out_idx, long long in_idx) {
+    NNDense *l = (NNDense *)(void *)handle;
+    if (!l) return _f2i(0.0);
+    int oi = (int)out_idx;
+    int ii = (int)in_idx;
+    if (oi < 0 || oi >= l->out_dim || ii < 0 || ii >= l->in_dim) return _f2i(0.0);
+    return _f2i(l->W[oi * l->in_dim + ii]);
+}
+
+long long nuc_nn_dense_bias(long long handle, long long out_idx) {
+    NNDense *l = (NNDense *)(void *)handle;
+    if (!l) return _f2i(0.0);
+    int oi = (int)out_idx;
+    if (oi < 0 || oi >= l->out_dim) return _f2i(0.0);
+    return _f2i(l->b[oi]);
+}
+
 // =====================================================
 // Adam with explicit offset for parameter groups
 // =====================================================
