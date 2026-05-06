@@ -229,18 +229,28 @@ is 85 vs 238 (64% delta). Real-world impact: `nuc check examples/01_hello.nr`
 parser branches that s1 has accumulated. Surgical sync would be patchwork; the
 correct fix is single-source-of-truth.
 
-| Ship | What |
-|---|---|
-| 2.0.1 | Survey the surface tools_suite needs (parse + type-check + emit-summary; not full IR / link) |
-| 2.0.2 | Refactor `nucleor_s1_compiler.nr` to expose `pub fn parse_program / parse_stmt / parse_expr / parse_match_stmt` for external callers |
-| 2.0.3 | Replace tools_suite's parse_* / lex_* duplicates with imports of the s1 versions |
-| 2.0.4 | Self-host integrity gate: prove no IR change in `bin/nucleor` after the unification |
-| 2.0.5 | Remove `check_parser_fn_drift` from `tools/check_compiler_drift.sh` (gate becomes obsolete) |
+| Ship | What | Status |
+|---|---|---|
+| 2.0.0 | **Verify cross-module `pub fn` import** is supported across the s1↔tools_suite scale (~430 fns). **Blocker for 2.0.2+** if not already working. Survey 2.0.1 flagged this as a hard prereq. | OPEN |
+| 2.0.1 | Survey the surface tools_suite needs (parse + type-check + emit-summary; not full IR / link) | DONE v0.8.323 — see `findings/promoted/2026-05-06-parser-unification-survey-rfc-0063-phase-2-0-1.md` |
+| 2.0.2 | Mark ~42 s1 fns `pub fn` (full list in survey) so tools_suite can import them | OPEN |
+| 2.0.3 | Delete the 429 duplicate fns from tools_suite + add `import "compiler/nucleor_s1_compiler.nr"` references | OPEN — depends on 2.0.0 + 2.0.2 |
+| 2.0.4 | Self-host integrity gate: prove no IR change in `bin/nucleor` after the unification + verify `nuc check examples/01_hello.nr` no longer segfaults | OPEN |
+| 2.0.5 | Remove `check_parser_fn_drift` from `tools/check_compiler_drift.sh` (gate becomes obsolete) | OPEN |
+
+**Survey 2.0.1 hard data (2026-05-06):**
+- tools_suite carries 693 fns; **429 (62%) are name-duplicates of s1**
+- s1 carries 808 fns; same 429 (53%) duplicate the other direction
+- 264 tools-only fns (CLI dispatch, JSON formatting, ABI analysis, profiling, cache mgmt)
+- 379 s1-only fns (codegen / lowering / IR emission / 30+ safety enforcements)
+- Worst parser drift: `parse_primary` 139 lines (tools) vs 648 (s1) — 79% smaller in tools
+- Estimated total scope: 5-9 ships (~2-3 weeks) **assuming 2.0.0 (cross-module import) is already viable**
 
 **Robustness payoff:** zero parser drift forever. Every defensive halt added
 to s1 (destructuring assignment, yield, post-inc/dec) is automatically picked
 up by `nuc check` / `nuc build-strict`. No more half-features that work in
-`nuc build` but segfault in `nuc check`.
+`nuc build` but segfault in `nuc check`. Plus: tools_suite gains the 30+
+s1-specific safety enforcements it currently lacks.
 
 #### Phase 2.1+ — Generics substrate (5–7 ships)
 
