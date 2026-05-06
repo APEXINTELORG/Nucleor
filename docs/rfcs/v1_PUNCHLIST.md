@@ -388,12 +388,16 @@ launch. After memory safety completes, these are next-priority.
   for invalid/over-cap inputs. `diff_sim_capacity_status_smoke.nr`
   locks the public 12-qubit, 16-core, 200-gate cap surface and raw-init
   fail-closed behavior.
-- **QM-12 shared gate constants:** DONE for the common gate subset on
+- **QM-12 shared gate constants / logical gate kinds:** DONE for Phase 1+2b on
   2026-05-06 — `quantum_gates.nr` now provides shared H/CNOT/X/Z IDs
   consumed by both MPS and diff_sim, with `quantum_gate_constants_smoke.nr`
-  locking cross-rod consistency. Remaining gap: rotation IDs are still
-  rod-specific (`MPS RZ=4/RX=5`, `diff_sim RZ=6`) until native dispatch
-  tables unify or a typed enum lands.
+  locking cross-rod consistency. It also provides logical `qgate_kind_*`
+  constants plus explicit `qgate_kind_to_mps` / `qgate_kind_to_diff`
+  mappers so RZ routes to each rod's native dispatch ID and unsupported
+  rotations such as diff_sim RX fail closed with `qgate_unsupported()`.
+  Remaining gap: native dispatch tables are still separate raw ABIs for
+  compatibility, but cross-rod callers no longer need to reuse raw rotation
+  integers.
 - **QM-13 schedule overlap / checked insertion:** DONE for Phase 1+2a
   on 2026-05-06 — `schedule_validate_no_same_qubit_overlap(sched)`
   detects same-qubit pulse overlap and malformed schedules, and

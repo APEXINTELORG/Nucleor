@@ -38,8 +38,10 @@ fn mps_gate_h() -> i64    { return qgate_h(); }
 fn mps_gate_cnot() -> i64 { return qgate_cnot(); }
 fn mps_gate_x() -> i64    { return qgate_x(); }
 fn mps_gate_z() -> i64    { return qgate_z(); }
-fn mps_gate_rz() -> i64   { return qgate_mps_rz(); }
-fn mps_gate_rx() -> i64   { return qgate_mps_rx(); }
+fn mps_gate_rz() -> i64   { return qgate_kind_to_mps(qgate_kind_rz()); }
+fn mps_gate_rx() -> i64   { return qgate_kind_to_mps(qgate_kind_rx()); }
+fn mps_gate_from_kind(kind: i64) -> i64 { return qgate_kind_to_mps(kind); }
+fn mps_gate_kind_supported(kind: i64) -> i64 { return qgate_kind_supported_by_mps(kind); }
 
 // Returns 1 if `code` is a known/shipped gate-type integer.
 // Phase 2 will add Y, S, T, RY, CZ, SWAP — querying this surface
@@ -60,10 +62,16 @@ fn mps_x(h: i64, q: i64)  { nuc_mps_gate(h, qgate_x(), q, 0, 0); }
 fn mps_z(h: i64, q: i64)  { nuc_mps_gate(h, qgate_z(), q, 0, 0); }
 fn mps_rz(h: i64, q: i64, angle_bits: i64) { nuc_mps_gate(h, qgate_mps_rz(), q, 0, angle_bits); }
 fn mps_rx(h: i64, q: i64, angle_bits: i64) { nuc_mps_gate(h, qgate_mps_rx(), q, 0, angle_bits); }
+fn mps_gate_kind(h: i64, kind: i64, q0: i64, q1: i64, angle_bits: i64) -> i64 {
+    let native: i64 = mps_gate_from_kind(kind);
+    if native == qgate_unsupported() { return 0; };
+    nuc_mps_gate(h, native, q0, q1, angle_bits);
+    return 1;
+}
 
 // === Named 2q gate wrappers ===
 fn mps_cnot(h: i64, ctrl: i64, tgt: i64) { nuc_mps_gate(h, qgate_cnot(), ctrl, tgt, 0); }
 
 fn mps_limitations() -> str {
-    return "MPS rod limitations (QM-2/QM-3/QM-6/QM-12, audit R11-D2/D3 v0.8.305/v0832): (1) GATE COVERAGE: only H, X, Z, RZ, RX, CNOT shipped. H/CNOT/X/Z now consume the shared quantum_gates constants; MPS-specific rotations remain RZ=4/RX=5 until native dispatch tables unify with diff_sim. Y, S, T, RY, CZ, SWAP, Toffoli, controlled-rotation are NOT in mps_rt.c's dispatch — adopter must fall back to qsim or compose from existing primitives. Query mps_gate_type_supported(code) for per-code truth. (2) PROBABILITY/STATE READOUT: mps_prob0(h, q) exposes single-qubit P(q=0), mps_prob_basis(h, basis_bits) exposes computational-basis joint-probability by contracting selected MPS tensor slices, and mps_statevector(h) materializes a qsim-compatible Vec<complex> only up to mps_statevector_max_qubits() to avoid 2^n memory blowups. (3) NO TYPED ENUM yet — gate_type is a raw i64; v0.8.305 ships named wrappers (mps_h, mps_x, mps_cnot, etc.) preserving the raw escape hatch. (4) NO BOND-DIMENSION DIAGNOSTIC: mps_max_bond returns the cap but adopters can't query the CURRENT bond dim mid-circuit; truncation error is silent (Phase 2 ships mps_current_bond + mps_truncation_error). (5) NON-ADJACENT CNOT uses SWAP decomposition (visible in mps_rt.c:386-419) which inflates bond dim — caveat for noise-sensitive applications. Phase 2 wires the missing gates + typed enum + bond-dim diagnostics per audit ship plan.";
+    return "MPS rod limitations (QM-2/QM-3/QM-6/QM-12, audit R11-D2/D3 v0.8.305/v0834): (1) GATE COVERAGE: only H, X, Z, RZ, RX, CNOT shipped. H/CNOT/X/Z now consume shared quantum_gates constants. Cross-rod callers can use qgate_kind_* plus mps_gate_from_kind/mps_gate_kind_supported/mps_gate_kind so RZ/RX route through the MPS native mapping instead of raw magic integers. Y, S, T, RY, CZ, SWAP, Toffoli, controlled-rotation are NOT in mps_rt.c's dispatch — adopter must fall back to qsim or compose from existing primitives. Query mps_gate_type_supported(code) for raw-native code truth and mps_gate_kind_supported(kind) for logical-kind truth. (2) PROBABILITY/STATE READOUT: mps_prob0(h, q) exposes single-qubit P(q=0), mps_prob_basis(h, basis_bits) exposes computational-basis joint-probability by contracting selected MPS tensor slices, and mps_statevector(h) materializes a qsim-compatible Vec<complex> only up to mps_statevector_max_qubits() to avoid 2^n memory blowups. (3) RAW NATIVE ESCAPE HATCH remains for compatibility — gate_type is still accepted as i64. (4) NO BOND-DIMENSION DIAGNOSTIC: mps_max_bond returns the cap but adopters can't query the CURRENT bond dim mid-circuit; truncation error is silent (Phase 2 ships mps_current_bond + mps_truncation_error). (5) NON-ADJACENT CNOT uses SWAP decomposition (visible in mps_rt.c:386-419) which inflates bond dim — caveat for noise-sensitive applications. Phase 2 wires missing gates + bond-dim diagnostics per audit ship plan.";
 }
