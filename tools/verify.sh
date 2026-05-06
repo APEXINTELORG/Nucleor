@@ -2111,6 +2111,16 @@ t4_strict_inference_rejects_empty_type() {
     return 0
 }
 
+t4_strict_core_helper_rtypes_compile() {
+    # T-4 Phase 2b partial: core runtime helpers that return concrete
+    # scalar/string values must stay known under strict inference.
+    nuc_build_with_env "NUC_STRICT_INFERENCE=1" "tests/features/t4_strict_core_helper_rtypes.nr" "_t4_strict_core_helper_rtypes" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_t4_strict_core_helper_rtypes"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    return 0
+}
+
 numg2_runtime_panic_guards() {
     # v0.8.80/81 NUM-G2 runtime guard locks. These are runtime-panic
     # fixtures, so they live outside the generic compile-time err
@@ -5651,6 +5661,7 @@ step "T3.131 v0.4.84 TYP-008 ext — struct field type mismatch on literal RHS h
 step "T3.132 v0.4.85 TYP-008 ext — Vec<T>.push(literal) wrong type halts (was silent str-ptr-as-i64-cell miscompute)" t432_vec_push_wrong_type_halts
 step "T3.133 v0.4.86 TYP-008 ext — Vec<T>.set/.insert(idx, literal) wrong type halts (extends v0.4.85)" t433_vec_set_wrong_type_halts
 step "v0.8 E3 T-4 strict inference rejects empty type" t4_strict_inference_rejects_empty_type
+step "v0.8 T-4 strict inference accepts core helper return types" t4_strict_core_helper_rtypes_compile
 step "v0.8 NUM-G2 math runtime panic guards" numg2_runtime_panic_guards
 step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_at/vec_remove_at (was clang link failure)" t434_vec_insert_remove_dispatch
 step "T3.135 v0.4.88 dispatch fix — s.len/contains/replace/split/starts_with/ends_with route to str_* (was silent vec_* miscompute)" t435_str_method_dispatch
