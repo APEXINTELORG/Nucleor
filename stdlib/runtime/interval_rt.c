@@ -70,6 +70,27 @@ long long nuc_interval_pool_checkpoint(void) {
     return (long long)interval_next;
 }
 
+long long nuc_interval_pool_capacity(void) {
+    ensure_pool();
+    return (long long)(INTERVAL_POOL_SIZE - 1);
+}
+
+long long nuc_interval_pool_used(void) {
+    ensure_pool();
+    return (long long)(interval_next - 1);
+}
+
+long long nuc_interval_pool_remaining(void) {
+    ensure_pool();
+    return (long long)(INTERVAL_POOL_SIZE - interval_next);
+}
+
+long long nuc_interval_pool_preflight(long long count) {
+    ensure_pool();
+    if (count < 0) return 0;
+    return (count <= (long long)(INTERVAL_POOL_SIZE - interval_next)) ? 1 : 0;
+}
+
 void nuc_interval_pool_reset(long long checkpoint) {
     int cp = (int)checkpoint;
     if (cp >= 1 && cp < INTERVAL_POOL_SIZE) {
