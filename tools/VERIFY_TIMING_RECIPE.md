@@ -140,6 +140,12 @@ monitor`. On unsupported hosts the standalone script exits `96`; `verify.sh`
 maps that to an explicit `SKIP` so Windows and shell-check-only hosts do not
 claim POSIX perf evidence.
 
+`tools/verify_fast.sh` is intentionally narrower. It remains valid for focused
+iteration and syntax/memory-budget checks, but it does not run the native
+POSIX cold/hot perf monitor. Release signoff that needs POSIX perf evidence
+must use `tools/verify.sh` on a native Linux runner plus the standalone
+`tools/check_perf_regression.sh` transcript above.
+
 ## R06 rust_bridge ownership harness
 
 `tools/check_rust_bridge_ownership.ps1` and

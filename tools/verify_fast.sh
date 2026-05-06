@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# verify.sh — POSIX smoke gate for the Nucleor OSS distribution.
+# verify_fast.sh - focused POSIX smoke gate for the Nucleor OSS distribution.
 #
-# Mirrors tools/verify.ps1. Same step counter, same exit code, same gates.
+# Fast iteration companion to tools/verify.sh. It keeps the core source,
+# CLI, fixture, memory-budget, and self-host gates, but intentionally omits
+# full-release-only checks such as the native POSIX cold/hot perf monitor.
+# Run tools/verify.sh before release signoff.
 #
-# Usage: ./tools/verify.sh
+# Usage: ./tools/verify_fast.sh
 #
 # Step shape (203 steps total as of v0.2.111):
 #   1.  Binary present + loads
@@ -121,9 +124,13 @@ while [ $# -gt 0 ]; do
             ;;
         --help|-h)
             cat <<'EOH'
-verify.sh — Nucleor smoke gate
+verify_fast.sh - Nucleor focused smoke gate
 
-Usage: bash tools/verify.sh [OPTIONS]
+Usage: bash tools/verify_fast.sh [OPTIONS]
+
+This is the fast iteration gate. It is not a release signoff substitute:
+tools/verify.sh owns full-release steps, including the native POSIX
+cold/hot perf monitor.
 
   --no-color                         Disable ANSI color in output.
   -j, --jobs N                       Parallel-fixture worker count (default 4).
@@ -155,11 +162,11 @@ Environment:
   NUCLEOR_INT_STRICT_INTRIN=1        Run env-on (strict-intrin overflow checks).
 
 Bisect-narrow protocol (v0.5.29):
-  Tier 1 (routine):     bash tools/verify.sh                         # concurrent + CSV
-  Tier 2 (after fail):  bash tools/verify.sh --rerun-failed          # rerun non-PASS
+  Tier 1 (routine):     bash tools/verify_fast.sh                    # concurrent + CSV
+  Tier 2 (after fail):  bash tools/verify_fast.sh --rerun-failed     # rerun non-PASS
   Tier 3 (mem hunt):    bash tools/bisect_mem.sh [--threshold MB]    # log-N half-runs
-  Tier 3 (manual):      bash tools/verify.sh --range 1-348           # ordered slice
-  Tier 4 (single step): bash tools/verify.sh --only "<step name>"
+  Tier 3 (manual):      bash tools/verify_fast.sh --range 1-348      # ordered slice
+  Tier 4 (single step): bash tools/verify_fast.sh --only "<step name>"
   See tools/VERIFY_TIMING_RECIPE.md for the full protocol.
   Goal: never run the full sequential gate as a routine ship — let
   Tier 1 catch time spikes via per-step CSV, let Tier 3 catch memory

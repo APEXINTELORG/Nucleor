@@ -125,7 +125,14 @@ launch. After memory safety completes, these are next-priority.
 
 ### PKG-1, PKG-3 — Packaging
 
-- **PKG-1 (Linux `nuc publish --sign`):** OPEN — needs Linux runner.
+- **PKG-1 (Linux `nuc publish --sign`):** OPEN — needs native
+  Linux runner evidence plus publish/sign dry-run or preflight
+  closure. Current `nuc publish --sign` delegates from s1 to the
+  tools-suite, copies into a local registry, then invokes
+  `tools/native_release.ps1` for package signing; the missing closure
+  is Linux evidence for that signed publish path plus non-mutating
+  package/signing preflight semantics. See
+  `findings/inbox/helper2_release_tooling_closure_v0830_2026-05-06.md`.
 - **PKG-3 (semver resolver) — DONE for v1.0 syntax surface:**
   - caret `^X.Y.Z` v0.8.89
   - tilde `~X.Y.Z` v0.8.90
@@ -331,7 +338,7 @@ proper analysis → Phase 4 hard error):
 
 ## Deferred tail (do not preempt active lanes)
 
-- **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DONE 2026-05-06. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The product/toolchain path no longer shells out to `python -c "import filecmp"` inside `verify-reproducible`; Windows uses `fc /B`, POSIX keeps `cmp -s`, and the compiler/seed artifacts were rebuilt and promoted through the normal md5/drift/perf validation lane.
+- **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DONE 2026-05-06. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The product/toolchain path no longer shells out to `python -c "import filecmp"` inside `verify-reproducible`; Windows uses `fc /B`, POSIX keeps `cmp -s`, and the compiler/seed artifacts were rebuilt and promoted through the normal md5/drift/perf validation lane. Helper2 Queue 4 reclassified the residual Python references as intentional interop, maintenance-only, optional doctor, or test/reference material; see `findings/inbox/helper2_release_tooling_closure_v0830_2026-05-06.md`.
 
 ## Updates log
 
