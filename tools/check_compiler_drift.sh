@@ -13,8 +13,9 @@
 #   3. helper_manifest.toml freshness vs gen_helper_manifest.nr output
 #      (since v0.2.42 — Helpers.md going-forward constraint;
 #      manifest mech v0.2.41, gate enforcement v0.2.42).
-#   4. rod_manifest.toml freshness vs gen_rod_manifest.py output
-#      (since v0.2.47).
+#   4. rod_manifest.toml freshness vs gen_rod_manifest.nr output
+#      (since v0.2.47; ported from Python to native Nucleor v0.8.323
+#      per RFC-0063 Phase 5.1 / Track C C3).
 #   5. RELEASES.md freshness vs gen_releases_index.nr output
 #      (since v0.2.57; ported from Python to native Nucleor v0.8.323
 #      per RFC-0063 Phase 1.4 / Track C C2).
@@ -363,24 +364,24 @@ check_manifest() {
 
 # helper_manifest — Helpers.md going-forward constraint (v0.2.33+, gate v0.2.42).
 # v0.8.323: ported to native Nucleor (RFC-0063 Phase 5 final / Track C C6).
-# Closes the last drift-gated Python dependency. The .py version is
-# preserved one ship cycle as a comparison oracle, then deleted.
+# Closes the last drift-gated Python dependency. The old .py comparison
+# oracle has been retired.
 check_manifest "helper_manifest" \
     "$ROOT/tools/gen_helper_manifest.nr" \
     "$ROOT/docs/rfcs/helper_manifest.toml" || exit 1
 
 # rod_manifest — companion gate enforcement (v0.2.47).
 # v0.8.323: ported to native Nucleor (RFC-0063 Phase 5.1 / Track C C3).
-# Eliminates one of six dev-time Python deps. The .py version is
-# preserved one ship cycle as a comparison oracle, then deleted.
+# Eliminates one of six dev-time Python deps. The old .py comparison
+# oracle has been retired.
 check_manifest "rod_manifest" \
     "$ROOT/tools/gen_rod_manifest.nr" \
     "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
 
 # RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57).
 # v0.8.323: ported to native Nucleor (RFC-0063 Phase 1.4 / Track C C2).
-# Eliminates one of six dev-time Python deps. The .py version is
-# preserved one ship cycle as a comparison oracle, then deleted.
+# Eliminates one of six dev-time Python deps. The old .py comparison
+# oracle has been retired.
 check_manifest "RELEASES.md" \
     "$ROOT/tools/gen_releases_index.nr" \
     "$ROOT/RELEASES.md" || exit 1

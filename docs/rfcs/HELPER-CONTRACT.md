@@ -12,8 +12,9 @@
 >   completed v0.2.41 (taxonomy: 13 classes covering 676 helpers).
 > - **Phase 2 mechanism:** `tools/gen_helper_manifest.py` shipped
 >   v0.2.41; populates `docs/rfcs/helper_manifest.toml` from the
->   canonical s1-compiler ABI tables + runtime C source. Drift-gate
->   enforced via `tools/check_compiler_drift.sh`.
+>   canonical s1-compiler ABI tables + runtime C source. It was later
+>   replaced by native `tools/gen_helper_manifest.nr`; drift-gate
+>   enforcement remains via `tools/check_compiler_drift.sh`.
 > - **Phase 2 population:** 643 of 676 helpers (95.1%) carry
 >   populated `effects` / `taint` / `proof_obligation` fields as
 >   of v0.2.78. Remaining 33 are intentional v0.4 placeholders
@@ -137,7 +138,7 @@ Wait for "go" before the walk.
 - Any helper *used* in a new example or stdlib path triggers the
   same manifest-row obligation if the helper isn't already cataloged.
 - Drift-gate enforcement is **live since v0.2.42**:
-  `tools/check_compiler_drift.sh` runs `gen_helper_manifest.py`
+  `tools/check_compiler_drift.sh` runs `gen_helper_manifest.nr`
   in dry-run mode and compares the output to the committed file;
   any divergence (new helper added to s1, runtime, or tools-suite
   without a regenerated manifest) blocks the verify gate.
