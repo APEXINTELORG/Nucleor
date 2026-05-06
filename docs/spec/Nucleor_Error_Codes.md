@@ -468,13 +468,13 @@ migration plus the within-series enumerated DIAG-001 check.
 
 | Code | Title | RFC section |
 |---|---|---|
-| LAW-001 | Property test fails | [RFC-0031 §3.2](../rfcs/RFC-0031-algebraic-laws.md) |
+| LAW-001 | Generated law check failed or declared law has incompatible arity | [RFC-0031 §3.2](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-002 | SMT disproves law (cert profile) | [RFC-0031 §3.4](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-003 | Law cited but optimizer cannot use it | [RFC-0031](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-004 | Float operation claimed exact associative (warn) | [RFC-0031 §3.3](../rfcs/RFC-0031-algebraic-laws.md) |
-| LAW-006 | Deprecated alias `zero = Z`; use `absorbing = Z` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
-| LAW-007 | Deprecated bare `distributive`; use `distributive_over = g` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
-| LAW-008 | Unrecognized law name | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
+| LAW-006 | `--check-laws` rejected deprecated alias `zero = Z`; use `absorbing = Z` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
+| LAW-007 | `--check-laws` rejected deprecated bare `distributive`; use `distributive_over = g` | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
+| LAW-008 | `--check-laws` rejected an unrecognized law name | [Algebraic law schema](Nucleor_Algebraic_Laws_Schema.md) |
 
 ## GOV series — governance policies
 

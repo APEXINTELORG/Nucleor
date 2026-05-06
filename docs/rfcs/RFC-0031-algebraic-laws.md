@@ -43,8 +43,13 @@ A rewrite the compiler depends on is now also one the user can
 verify. Closes the trust loop.
 
 Current implementation status: Phase 1 capture/scaffold work is in tree
-and must remain part of the build path. The remaining phases are
-implementation work, not a deletion of the feature.
+and must remain part of the build path. The tools-suite test driver now
+ships a bounded integer `nuc test --check-laws` slice for low-risk forms
+(`commutative`, `associative`, `identity`, `absorbing`, `idempotent`,
+`involution`) plus schema hard errors for deprecated aliases and unknown
+law names. Optimizer rewrites, Arbitrary-driven broad property tests,
+float-law tolerance, and SMT proof obligations remain implementation
+work, not a deletion of the feature.
 
 ---
 
@@ -87,14 +92,24 @@ single source of truth is `docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
 | `zero = Z` | `absorbing = Z` | aligns with language-reference and existing test fixtures; "absorbing" is the standard universal-algebra term |
 | `distributive` (bare) | `distributive_over = g` | the partner operator is required for the law to mean anything |
 
-Phase 2 (compiler-side `--check-laws` driver) will emit a clear
-diagnostic on the alias spellings; Phase 1 (this ship, v0.8.264)
-makes the three doc sources agree and adds the canonical-schema
-reference at `docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
+`nuc test --check-laws` emits clear diagnostics on the alias spellings
+(`LAW-006`, `LAW-007`) and unknown law names (`LAW-008`). The regular
+compile path still captures and reports `@law(...)` metadata without
+rejecting aliases, preserving backward-compatible source parsing.
 
 ### 3.2 Property-test generation
 
-For each law, the compiler synthesizes a test that:
+The shipped bounded integer slice synthesizes tests for low-risk
+primitive law forms without requiring the future `Arbitrary` trait:
+
+- `commutative`
+- `associative`
+- `identity = E`
+- `absorbing = Z`
+- `idempotent`
+- `involution`
+
+The full target remains: for each law, the compiler synthesizes a test that:
 - Generates ~1000 random inputs (driven by user-supplied or
   type-default `Arbitrary` impl)
 - Asserts the law holds within a tolerance (configurable for floats
@@ -119,25 +134,24 @@ fn __law_commutative_dot() {
 
 ### 3.3 Run with `nuc test --check-laws`
 
-Filters to law-generated tests:
+Generates law-check functions and runs them through the normal test
+harness:
 
 ```
-$ nuc test --check-laws
-  __law_commutative_add ........ ok
-  __law_associative_add ........ ok
-  __law_identity_add ........... ok
-  __law_commutative_dot ........ ok
-  __law_associative_dot ........ FAILED
-    failed at iteration 437:
-      lhs = 1.0000000000000002
-      rhs = 0.9999999999999998
-      diff = 4e-16  > eps 1e-12
-
-test result: 4 passed; 1 failed
+$ nuc test examples/laws.nr --check-laws
+info[CHECK-LAWS]: generated bounded integer law checks
+  discovered tests: 2
+    __nucleor_law_check_0
+    __nucleor_law_check_1
+  PASS: __nucleor_law_check_0
+  PASS: __nucleor_law_check_1
+test result: PASS (2 tests)
 ```
 
-User can adjust `eps`, mark the law `@law(approximate)`, or remove
-the false claim.
+On a generated counterexample the test emits `error[LAW-001]` and exits
+nonzero. User can remove the false claim, adjust the function, or wait
+for the broader `eps` / `approximate` property-test phase when the law
+is intentionally approximate.
 
 ### 3.4 SMT-backed proof (cert profile)
 
@@ -186,10 +200,10 @@ fn add(a: f64, b: f64) -> f64
 
 | Code | Meaning |
 |---|---|
-| LAW-001 | Property test fails (with counterexample) |
+| LAW-001 | Generated law check fails or declared law has incompatible arity |
 | LAW-002 | SMT disproves law (cert profile) |
 | LAW-003 | Law cited but optimizer cannot use it (signature mismatch) |
-| LAW-004 | Float operation claimed exact associative (warn) |
+| LAW-004 | Float operation claimed exact associative (warn; future cert/profile phase) |
 
 ---
 
@@ -197,12 +211,13 @@ fn add(a: f64, b: f64) -> f64
 
 | Component | Change | LOC |
 |---|---|---|
+| Bounded integer law-check synthesizer | Shipped low-risk subset behind `nuc test --check-laws` | ~300 |
 | Property-test synthesizer | From `@law` to `#[test]` body | ~600 |
 | `Arbitrary` trait + impls for primitives | Stdlib | ~400 |
 | Z3 / CVC5 integration (cert profile) | Subprocess + SMT-LIB encoding | ~800 |
-| `nuc test --check-laws` flag | CLI | ~80 |
+| `nuc test --check-laws` flag | CLI | shipped for bounded integer subset |
 | Doc generator extension | Laws in doc HTML | ~150 |
-| Diagnostics | LAW-001…004 | ~200 |
+| Diagnostics | LAW-001, LAW-006, LAW-007, LAW-008 shipped for `--check-laws`; LAW-002/003/004 future | ~200 |
 | **Total** | | **~2230** |
 
 ---
@@ -223,7 +238,9 @@ fn add(a: f64, b: f64) -> f64
 
 ## 7. Definition of done
 
-- [ ] All law forms generate property tests
+- [x] Low-risk integer forms generate bounded checks under `nuc test --check-laws`
+- [x] Deprecated aliases and unknown law names fail under `nuc test --check-laws`
+- [ ] All law forms generate Arbitrary-driven property tests
 - [ ] `Arbitrary` trait shipped for primitives, Vec, Option, Result,
       tuples
 - [ ] Z3 integration works for integer / Boolean laws

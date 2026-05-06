@@ -1004,6 +1004,42 @@ NREOF
     return $rc
 }
 
+cli_check_laws_smoke() {
+    local out
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_check_true_smoke.nr")" --check-laws --no-cache 2>&1) || {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "info\\[CHECK-LAWS\\]" || return 1
+    echo "$out" | grep -q "__nucleor_law_check_" || return 1
+    echo "$out" | grep -q "test result: PASS" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_check_false_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-001\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_alias_zero_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-006\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_alias_distributive_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-007\\]" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_unknown_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-008\\]" || return 1
+    return 0
+}
+
 # nuc lock smoke (added v0.2.68) — RFC-0019 package manager phase 1
 # is a v0.2 deliverable. Verifies the lockfile generator reads
 # Nucleor.toml, walks the (trivial in this case) dependency graph,
@@ -5421,6 +5457,7 @@ step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
 step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke
 step "CLI: nuc test runs #[test] functions" cli_test_smoke
+step "CLI: nuc test --check-laws validates laws and schema" cli_check_laws_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"

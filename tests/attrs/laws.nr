@@ -1,6 +1,6 @@
 // laws.nr — @law identity/associative/commutative/absorbing are eligible
-// for compile-time rewrite by the optimizer (Phase 4+) and for property-
-// test generation (Phase 2+). Canonical schema lives at
+// for future compile-time rewrite by the optimizer and for bounded integer
+// checks under `nuc test --check-laws`. Canonical schema lives at
 // `docs/spec/Nucleor_Algebraic_Laws_Schema.md` (locked v0.8.264 per
 // audit R14-D5). This fixture's spellings (`commutative`, `associative`,
 // `identity=N`, `absorbing=N`) are all canonical.

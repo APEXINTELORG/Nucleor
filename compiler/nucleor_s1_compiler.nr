@@ -30845,18 +30845,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, and a [[5,1,3]] stabilizer-distance smoke, but rotated surface-code d=3 and published weight-enumerator validation remain open. The kinematics rod still uses plain i64 handles — frame-type safety markers (RFC-0046) are opt-in only, and the Phase B compiler-side TYP-008 frame-mismatch check is NOT yet shipped — mixing camera-frame and base-frame poses is a silent runtime error today (Mars Climate Orbiter failure mode live). Phase 2b adds broader Clifford normal-form invariants + frame-type check pass; Phase 4 promotes adopter use to v1.0 hard-error. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; treat frame markers as documentation, not enforcement. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
         };
     };
-    // v0.8.58 LAW-1/2/3 Phase 1 — `@law(...)` gating info.
-    // Today @law(...) is silently dropped at lex time: no AST
-    // node, no IR annotation, no optimizer pass that consumes
-    // laws. Marketing claims an algebraic-rewrite differentiator
-    // that doesn't exist yet. Phase 2b adds the law extractor +
-    // optimizer pass + property-test synthesizer.
+    // v0.8.58 LAW-1/2/3 Phase 1, refreshed after R14
+    // `--check-laws` wiring. @law(...) is captured and reported;
+    // the main compiler still does not attach it to AST/IR rewrite
+    // metadata. The tools-suite test driver can generate bounded
+    // integer checks for low-risk forms under `nuc test --check-laws`.
     let v0858_has_law: i64 = if str_index_of(after_async, str_concat("@law(", "")) >= 0 { 1 } else { 0 };
     if v0858_has_law == 1 {
         let v0858_count: i64 = simple_attribute_audit_count(after_async, str_concat("@law(", ""));
         if v0858_count > 0 {
             print(str_concat("info[LAW-G123]: `@law(...)` algebraic-law annotations in source: ", str_from_int(v0858_count)));
-            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are SILENTLY DROPPED at lex time — the lexer's generic @attr(...) skip path consumes them with no warning. No AST node is built, no IR annotation propagates, no optimizer pass runs, no `nuc test --check-laws` exists. Adopter relying on @law(commutative) / @law(associative) / @law(identity = X) for compile-time rewrite gets ZERO optimization benefit and ZERO property-test synthesis. Phase 2b adds law extraction + opt_law_rewrite_block pass + Arbitrary trait + property tests. Phase 4 promotes adopter use to first-class. Adopter discipline today: treat @law as documentation only — do NOT rely on it for compile-time guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`) plus schema hard errors for deprecated aliases and unknown law names. AST/IR rewrite metadata, Arbitrary-driven broad property tests, distributive/inverse/fusion generation, float-law safeguards, and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
     // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
@@ -37604,6 +37603,7 @@ fn print_help() -> i64 {
     print("Developer commands:");
     print("  test [file]            Build and run @test / test_* functions");
     print("    --list               List discovered tests without running them");
+    print("    --check-laws         Generate bounded checks for low-risk integer @law annotations");
     print("  bench [file]           Build once and benchmark repeated runs");
     print("    --iterations <n>     Number of measured runs (default 10)");
     print("    --warmup <n>         Number of warmup runs before timing (default 1)");

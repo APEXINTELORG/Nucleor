@@ -1,35 +1,13 @@
-// v0.8.263 R14-D3 Phase 1 — `--check-laws` flag wired (no longer ignored).
+// R14 Phase 2a: true @law declarations must pass under
+// `nuc test --check-laws`.
 //
-// Per audit `BUILD_PLAN_R14_algebraic_laws.md` §1 R14-D3 (CRITICAL):
-// pre-v0.8.263 `nuc_router.ps1:677-680` matched `--check-laws` in
-// the ignored-flags switch branch and silently dropped the value.
-// Adopters running `nuc test --check-laws` got zero feedback that
-// the flag had any effect. Phase 1 wires the flag to a visible
-// acknowledgment + surfaces the existing `info[LAW-CAPTURE]`
-// records emitted by R14-D1 (v0.8.262) at lex time.
-//
-// Phase 1 acceptance criteria (this ship):
-//   - flag is not ignored: an info[CHECK-LAWS] line emits when
-//     `--check-laws` is passed;
-//   - LAW-CAPTURE pipeline still fires (verified at compile time);
-//   - cold compile <= 4s (preserved).
-//
-// Phase 2 acceptance (future ship per build plan §1 R14-D3):
-//   - generate bounded property tests for each captured @law;
-//   - true law passes (this fixture);
-//   - false law fails with nonzero exit (separate err fixture).
-//
-// Test fixture: declares two TRUE algebraic laws:
+// Test fixture: declares two true bounded-integer algebraic laws:
 //   - `add_law` is commutative + associative + has identity 0
 //   - `mul_law` is commutative + associative + has identity 1
-// Both laws hold for the integer body, so under Phase 2 property
-// testing this fixture is expected to pass with rc=0.
 //
-// Phase 1 just verifies the runtime path is sane (annotated fns
-// execute correctly) and that `bin/nucleor.exe build` emits the
-// expected LAW-CAPTURE records.
-//
-// Expected: rc=0.
+// Expected plain run: rc=0.
+// Expected with `nuc test --check-laws`: rc=0 plus generated
+// __nucleor_law_check_* tests.
 
 @law(commutative, associative, identity = 0)
 fn add_law(a: i64, b: i64) -> i64 {
