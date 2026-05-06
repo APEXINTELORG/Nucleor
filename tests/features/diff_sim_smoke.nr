@@ -23,21 +23,21 @@
 import "stdlib/rods/diff_sim.nr"
 
 fn check_init_valid() -> i64 {
-    let h: i64 = diff_sim_init(2, 1, 0, 42);
+    let h: i64 = diff_sim_init(2, 2, 0, 42);
     if h == 0 { return 1; };
     diff_free(h);
     return 0;
 }
 
 fn check_initial_n_gates_zero() -> i64 {
-    let h: i64 = diff_sim_init(2, 1, 0, 42);
+    let h: i64 = diff_sim_init(2, 2, 0, 42);
     if diff_n_gates(h) != 0 { diff_free(h); return 2; };
     diff_free(h);
     return 0;
 }
 
 fn check_n_gates_tracks_calls() -> i64 {
-    let h: i64 = diff_sim_init(2, 1, 0, 42);
+    let h: i64 = diff_sim_init(2, 2, 0, 42);
     diff_gate(h, 0, 0, 0, 0);  // H on q0
     diff_gate(h, 0, 1, 0, 0);  // H on q1
     diff_gate(h, 1, 0, 1, 0);  // CNOT 0→1
@@ -47,7 +47,7 @@ fn check_n_gates_tracks_calls() -> i64 {
 }
 
 fn check_reset_clears_counter() -> i64 {
-    let h: i64 = diff_sim_init(2, 1, 0, 42);
+    let h: i64 = diff_sim_init(2, 2, 0, 42);
     diff_gate(h, 0, 0, 0, 0);
     diff_gate(h, 0, 1, 0, 0);
     diff_reset(h);

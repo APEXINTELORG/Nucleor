@@ -75,6 +75,8 @@ fn qtrace_sparsity(sv: i64) {
 // Create an n-qubit simulator initialized to |0...0>
 // Returns Vec handle (statevector of 2^n complex amplitudes)
 fn qsim_init(n: i64) -> i64 {
+    if n < 1 { return 0; };
+    if n > 24 { return 0; };
     let size: i64 = bit_shift_left(1, n);
     let sv: i64 = vec_new();
     let zero: i64 = cx_zero();
@@ -520,5 +522,5 @@ fn qsim_status_explain(status: i64) -> str {
 }
 
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0830): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). Prefer qsim_init_checked(n), which returns 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before invoking raw qsim_init. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0833): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
 }
