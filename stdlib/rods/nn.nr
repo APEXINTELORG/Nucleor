@@ -17,6 +17,10 @@ extern fn nuc_nn_dense_backward(layer: i64, grad_out: i64) -> i64;
 extern fn nuc_nn_dense_zero_grad(layer: i64);
 extern fn nuc_nn_dense_set_cache(layer: i64, input: i64);
 extern fn nuc_nn_dense_param_count(layer: i64) -> i64;
+extern fn nuc_nn_dense_in_dim(layer: i64) -> i64;
+extern fn nuc_nn_dense_out_dim(layer: i64) -> i64;
+extern fn nuc_nn_dense_weight(layer: i64, out_idx: i64, in_idx: i64) -> i64;
+extern fn nuc_nn_dense_bias(layer: i64, out_idx: i64) -> i64;
 
 // Activations
 extern fn nuc_nn_relu(vec: i64) -> i64;
@@ -71,6 +75,11 @@ extern fn nuc_nn_vec_from_scalar(val: i64) -> i64;
 extern fn nuc_nn_vec_concat(a: i64, b: i64) -> i64;
 extern fn nuc_nn_vec_slice(vec: i64, start: i64, len: i64) -> i64;
 extern fn nuc_nn_weighted_sum(input: i64, weights: i64, dim: i64) -> i64;
+
+fn nn_dense_in_dim(layer: i64) -> i64 { return nuc_nn_dense_in_dim(layer); }
+fn nn_dense_out_dim(layer: i64) -> i64 { return nuc_nn_dense_out_dim(layer); }
+fn nn_dense_weight(layer: i64, out_idx: i64, in_idx: i64) -> i64 { return nuc_nn_dense_weight(layer, out_idx, in_idx); }
+fn nn_dense_bias(layer: i64, out_idx: i64) -> i64 { return nuc_nn_dense_bias(layer, out_idx); }
 
 fn nn_layer_norm(input: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64 {
     return nuc_nn_layer_norm(input, gamma, beta, eps_bits);
