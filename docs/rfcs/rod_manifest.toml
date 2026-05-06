@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 253
-# Total fn definitions: 3063
-# Total LOC: 13118
+# Total rods: 254
+# Total fn definitions: 3072
+# Total LOC: 13200
 
 [[rod]]
 name           = "activation2"
@@ -1257,9 +1257,9 @@ imports        = ["mppi"]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
 description    = "Matrix Product States (efficient quantum simulation)"
-function_count = 36
+function_count = 38
 cfile_count    = 1
-loc            = 72
+loc            = 76
 imports        = []
 
 [[rod]]
@@ -1581,9 +1581,9 @@ imports        = ["python"]
 name           = "qsim_graph"
 path           = "stdlib/rods/qsim_graph.nr"
 description    = "RFC-0061 Tier 3 Phase A: quantum"
-function_count = 25
+function_count = 28
 cfile_count    = 1
-loc            = 81
+loc            = 86
 imports        = ["qsim_graph"]
 
 [[rod]]
@@ -2152,6 +2152,15 @@ function_count = 14
 cfile_count    = 1
 loc            = 55
 imports        = []
+
+[[rod]]
+name           = "transformer_autodiff"
+path           = "stdlib/rods/transformer_autodiff.nr"
+description    = "Transformer / autodiff bridge"
+function_count = 4
+cfile_count    = 0
+loc            = 73
+imports        = ["autodiff", "complex", "differentiable", "transformer", "transformer_autodiff"]
 
 [[rod]]
 name           = "trapvel"
