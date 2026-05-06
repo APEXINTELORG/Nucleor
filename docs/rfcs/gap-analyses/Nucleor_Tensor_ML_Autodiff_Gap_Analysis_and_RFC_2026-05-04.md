@@ -27,6 +27,8 @@ Tensor + autodiff + GNN + attention + SSM + transformer + KV cache + quantize + 
 ## ML-1 — ABI mismatch on `nuc_attn_flash` is silent miscompute — **CRITICAL**
 Rod declares 6 params (Q, K, V, seq_len, d_k, block_size). C function takes 7 (Q, K, V, seq_q, seq_k, d, block_size). Rod collapses seq_q/seq_k into seq_len. **Caller passes `block_size` as `d`; C `block_size` slot uninitialized.** No linker error because all params are `long long`. Test (`attention2_smoke.nr`) doesn't call the function at all.
 
+Update 2026-05-06 helper1 v0861: the rod/runtime ABI is corrected on this branch (`nuc_attn_flash(Q,K,V,seq_q,seq_k,d,block)`), and `tests/features/attention2_cross_attention_smoke.nr` calls the rectangular `attn_flash_cross` path with `seq_q != seq_k` and checks the output numerically. This removes ML-1 as a current launch-blocker for the attention2 rod surface; remaining risk is broader ML convergence/autodiff integration, not this ABI mismatch.
+
 ## ML-2 — `tensor_nd` missing 2D matmul — **HIGH**
 Exports `tensor_bmm` (rank-3 batched) but no `tensor_matmul` for standard A×B. Classic MLP, attention QKV projection, feedforward forward all require it. Callers must use `linalg.nr`, breaking abstraction.
 
@@ -39,6 +41,8 @@ Update 2026-05-06 helper1 v0856/v0857: `tensor_transpose` is now shipped for ran
 
 ## ML-4 — Attention2 flash: seq_q vs seq_k unification — **HIGH**
 Even when ML-1 ABI is fixed, rod surface has no way for callers to specify rectangular attention (seq_q ≠ seq_k). Cross-attention (decoder over encoder) unsupported.
+
+Update 2026-05-06 helper1 v0861: `attn_flash_cross` and `attn_gqa_cross` are public wrappers over the split-length runtime signatures. `tests/features/attention2_cross_attention_smoke.nr` locks both rectangular flash attention and rectangular GQA on small deterministic inputs.
 
 ## ML-5 — SSM rods: no backward / gradient paths — **HIGH**
 `ssm.nr` exposes forward kernels only. Training Mamba/RWKV/xLSTM requires backward through selective scan and WKV recurrences. None exist in `ssm_rt.c`. Training loop using `autodiff.nr` cannot differentiate through these kernels (opaque C functions not on autodiff tape).
@@ -98,14 +102,14 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 ## 3.2. Closure plan
 
 **Phase 1 (emergency, ABI + audit):**
-- ML-1: fix `attention2.nr` extern declaration to match C signature (7 params with seq_q/seq_k split). Add fixture test that actually CALLS the function with known input and asserts output. Audit every other extern in the rod stack for arity mismatches.
+- ML-1: fix `attention2.nr` extern declaration to match C signature (7 params with seq_q/seq_k split). Add fixture test that actually CALLS the function with known input and asserts output. Audit every other extern in the rod stack for arity mismatches. **Shipped and fixture-backed by helper1 v0861 for flash/GQA rectangular paths.**
 - ML-13 P1: add convergence test for `nn.nr`: 2-layer MLP on XOR, 1000 Adam steps, assert loss < 0.01. If this fails, the entire training surface is broken and we don't know it.
 - ML-15 P1: document the f64-bitcast-i64 limitation in `tensor_nd` doc header.
 
 **Phase 2 (short-term, missing kernels):**
 - ML-2: add `tensor_matmul(A, B) -> C` for 2D case. **Shipped helper1 v0856 for rank-2 tensors.**
 - ML-3: add `tensor_transpose(A) -> A^T` and `tensor_permute(A, axes)`. **2D transpose shipped helper1 v0856; general permute shipped helper1 v0857.**
-- ML-4: add seq_q/seq_k separate parameters to `attention2.nr` for cross-attention.
+- ML-4: add seq_q/seq_k separate parameters to `attention2.nr` for cross-attention. **Shipped and fixture-backed by helper1 v0861.**
 - ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV). **Shipped helper1 v0859 for FP8 decode/GEMV/dot and grouped signed-Q4 encode/decode/GEMV; true E4M3 bit encoding and documented error bounds remain future work.**
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`.
