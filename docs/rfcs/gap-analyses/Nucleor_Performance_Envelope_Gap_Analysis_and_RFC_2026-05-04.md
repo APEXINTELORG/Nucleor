@@ -32,8 +32,8 @@ References it in comment (line 290) but does not invoke. Invoked inside `verify.
 ## PERF-4 — `NUCLEOR_INT_STRICT_ARITH` absent from cache key — **HIGH**
 v2 cache canonical flags include only `NUCLEOR_INT_STRICT_INTRIN` and `NUCLEOR_DBC_MODE`. **Flipping `NUCLEOR_INT_STRICT_ARITH` (changes binop IR from wrapping to overflow-panic calls) is not cache-invalidating.** Cached build under wrapping semantics served unchanged under strict-arith mode.
 
-## PERF-5 — `verify-reproducible` not in routine verify gate — **MEDIUM**
-SLSA-Build-Level-3 invariant must be invoked manually. Not a step in `verify.sh` or `verify.ps1`. No scheduled or ship-time check that confirms current compiler binary satisfies invariant.
+## PERF-5 — `verify-reproducible` not in routine verify gate — **CLOSED 2026-05-06**
+SLSA-Build-Level-3 invariant is now in the routine gates. `tools/verify.ps1` already carried the sample-fixture check, and `tools/verify.sh` now runs `nuc verify-reproducible tests/fixtures/t477_provenance_section.nr`, requiring byte-identical IR and linked binary output.
 
 ## PERF-6 — Memory baseline (679 MB) is 5x regression from old target (131 MB) — **MEDIUM**
 Track L reset measurement methodology to "process-tree WorkingSet64 including clang descendants" (from parent-only). Process-tree approach is correct, but 679 MB covers clang's working set, not just compiler. Ceiling 747 MB gives little headroom; clang version change could exceed without compiler regression.
@@ -60,7 +60,7 @@ NR050 explain mentions "Cranelift or LLVM rejected the IR" but no Cranelift back
 - **Cache correctness under partial env change.** `NUCLEOR_INT_STRICT_ARITH` not in cache key → silent execution of stale IR if mixed across sessions.
 - **Process-tree memory accounting creates clang-version sensitivity.** Clang upgrade increasing peak by 70+ MB would blow ceiling without compiler regression.
 - **Tier documentation/implementation skew creates adopter expectations that cannot be met.** `nuc build --tier 2` returns same binary as `--tier 0`.
-- **`verify-reproducible` infrastructure with no routine signal.** New change introducing timestamp/iteration order/absolute path would silently break reproducibility between ships.
+- **`verify-reproducible` infrastructure now has a routine signal.** The remaining risk is CI scheduling/coverage breadth, not absence from the local gate.
 
 ---
 
@@ -86,7 +86,7 @@ NR050 explain mentions "Cranelift or LLVM rejected the IR" but no Cranelift back
 - PERF-1 P2: implement `--tier 0|1|2` end-to-end. Tier 0: `-O0`, no LTO. Tier 1: `-O1`, default. Tier 2: `-O3 -flto`. Add tier-delta gate: cold/hot timing must show measurable delta between tiers.
 - PERF-2 P2: implement the eight perf diagnostic codes. `@hot`-scoped scan for: heap allocation in `@hot` body (HotViolation+HeapInLoop), `format!`/`println!` in `@hot` body (StringFormatHot), indirect dispatch (VirtualDispatchHot), missing `@layout` on hot-path struct (MissingLayout), missing `@law` on function with provable algebraic structure (LawMissing).
 - PERF-3: port `check_perf_regression.ps1` core logic to bash (`tools/check_perf_regression.sh`). Same baseline JSON, same 3-cold + 3-hot sampling. Wire into `verify.sh` as named step.
-- PERF-5: add `verify-reproducible` as routine step in both `verify.sh` and `verify.ps1`. Two iterations, hash compare, fail on diverge.
+- PERF-5: DONE 2026-05-06. `verify-reproducible` is now routine in both `verify.sh` and `verify.ps1`; it builds twice, compares IR hashes, and fails on linked binary divergence.
 - PERF-8: add `hot_max_allowed_memory_mb` to `perf_baseline.json` and check it independently from cold.
 
 **Phase 3 (medium-term):**

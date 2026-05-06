@@ -590,6 +590,25 @@ cli_version_smoke() {
     return 0
 }
 
+verify_reproducible_smoke() {
+    # PERF-5 / RFC-NRT-003: keep the SLSA reproducibility invariant
+    # inside the canonical bash gate. This exercises the linked-binary
+    # byte compare path as well as IR hash equality.
+    "$BIN" verify-reproducible "tests/fixtures/t477_provenance_section.nr" >$NUC_VERIFY_STEP_LOG 2>&1 || {
+        tail -20 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
+        return 1
+    }
+    grep -q "PASS: byte-identical IR" $NUC_VERIFY_STEP_LOG || {
+        tail -20 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
+        return 1
+    }
+    grep -q "EXE diff: byte-identical" $NUC_VERIFY_STEP_LOG || {
+        tail -20 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
+        return 1
+    }
+    return 0
+}
+
 cli_json_smoke() {
     # v0.2.86 — exercise the --json variants on every CLI command
     # that documents one. Output must start with `{` (or `[` for
@@ -5446,6 +5465,7 @@ step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke
 step "CLI: --version / -v / -V / version aliases" cli_version_smoke
+step "RFC-NRT-003: nuc verify-reproducible passes on sample fixture" verify_reproducible_smoke
 step "examples/showcase: lorenz/vqe_h2/market_maker/wing_simulator build" showcase_build_smoke
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke

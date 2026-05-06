@@ -225,6 +225,10 @@ launch. After memory safety completes, these are next-priority.
   Windows `.exe` interop as RSS evidence, and documents native Linux
   validation. Native Linux transcript still required before R10-D3
   can be marked closed.
+- **PERF-5 reproducibility routine gate:** DONE 2026-05-06 —
+  `tools/verify.sh` now runs `nuc verify-reproducible` against the
+  provenance fixture and requires both byte-identical IR and linked
+  EXE output. `tools/verify.ps1` already carried the sibling step.
 - General CI integration remains open.
 
 ## Tier C items (stdlib coherence)
@@ -365,3 +369,7 @@ proper analysis → Phase 4 hard error):
   no longer requires Python for its Windows byte-compare path; it
   now uses `fc /B` for linked binary comparison and retains `cmp -s`
   for POSIX. Python interop rods remain intentional and unchanged.
+- **2026-05-06**: PERF-5 closed for the canonical bash gate.
+  `tools/verify.sh` now includes a routine RFC-NRT-003
+  `verify-reproducible` step requiring byte-identical IR and EXE
+  outputs for `tests/fixtures/t477_provenance_section.nr`.
