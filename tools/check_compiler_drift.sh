@@ -430,4 +430,35 @@ else
     if [ "$fail" = 1 ]; then exit 1; fi
 fi
 
+# RFC-0063 Phase 2.0.2 guard (v0.8.323): the s1 + tools_suite compiler
+# files are intentionally kept WITHOUT any `pub fn` declarations.
+# Adding even one `pub fn` to either file would opt that file into
+# Nucleor's privatization mechanism (priv_apply_if_opted_in), which
+# token-mangles every NON-pub `fn` to `__priv_<file_id>__<name>` —
+# silently breaking the cross-module imports that Phase 2.0.3 plans
+# (tools_suite import "compiler/nucleor_s1_compiler.nr"). Until Phase
+# 2.0.3 ships and either (a) explicitly marks the right surface as
+# pub or (b) RFC-NRT-004 §H module-prefixed lowering lands, neither
+# file should carry a top-level `pub fn`.
+pub_fn_s1=$(grep -cE '^pub fn ' "$S1" 2>/dev/null; true)
+pub_fn_tools=$(grep -cE '^pub fn ' "$TOOLS" 2>/dev/null; true)
+if [ "$pub_fn_s1" != "0" ] || [ "$pub_fn_tools" != "0" ]; then
+    echo ""
+    echo "FAIL: top-level 'pub fn' present in compiler source files."
+    if [ "$pub_fn_s1" != "0" ]; then
+        echo "  $S1: $pub_fn_s1 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$S1" | head -5 | sed 's/^/    /'
+    fi
+    if [ "$pub_fn_tools" != "0" ]; then
+        echo "  $TOOLS: $pub_fn_tools 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$TOOLS" | head -5 | sed 's/^/    /'
+    fi
+    echo "  See findings/promoted/2026-05-06-phase-2-0-0-cross-module-import-verified.md"
+    echo "  for the privatization model. Until RFC-0063 Phase 2.0.3 (parser unification)"
+    echo "  ships, do not add 'pub fn' to either compiler source — it would silently"
+    echo "  break cross-module import compatibility."
+    exit 1
+fi
+echo "OK: no opt-in privatization markers (pub fn) in compiler source"
+
 exit 0
