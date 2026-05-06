@@ -426,6 +426,13 @@ launch. After memory safety completes, these are next-priority.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+- **ROBO-12 AHRS magnetometer yaw correction:** DONE for Phase 1 on
+  2026-05-06. `ahrs_update_mag` adds a 9-DOF Mahony update path using
+  calibrated body-frame magnetometer input against a world +X magnetic
+  reference; `ahrs_magnetometer_yaw_smoke.nr` proves yaw correction
+  from an initial 90-degree heading error. Remaining gap:
+  local declination/calibration helpers, stronger high-dynamics
+  rejection, and Madgwick variant.
 - **ROBO-14 end-to-end robotics smoke:** DONE for Phase 1 on
   2026-05-06. `stdlib/rods/f64_buffer.nr` and
   `stdlib/runtime/f64_buffer_rt.c` close the raw `double[]` fixture

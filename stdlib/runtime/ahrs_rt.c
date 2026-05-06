@@ -62,6 +62,28 @@ static void _q_mul(const double *a, const double *b, double *o) {
     o[3] = a[0]*b[3] + a[1]*b[2] - a[2]*b[1] + a[3]*b[0];
 }
 
+static void _world_to_body(const double *q, double vx, double vy, double vz, double *out) {
+    double qc[4] = { q[0], -q[1], -q[2], -q[3] };
+    double vq[4] = { 0, vx, vy, vz };
+    double tmp[4], res[4];
+    _q_mul(qc, vq, tmp);
+    _q_mul(tmp, q, res);
+    out[0] = res[1]; out[1] = res[2]; out[2] = res[3];
+}
+
+static int _norm3(double *v) {
+    double n = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    if (n <= 1e-9) return 0;
+    v[0] /= n; v[1] /= n; v[2] /= n;
+    return 1;
+}
+
+static void _cross(const double *a, const double *b, double *o) {
+    o[0] = a[1]*b[2] - a[2]*b[1];
+    o[1] = a[2]*b[0] - a[0]*b[2];
+    o[2] = a[0]*b[1] - a[1]*b[0];
+}
+
 long long nuc_ahrs_new(long long Kp_b, long long Ki_b) {
     NAHRS *p = (NAHRS *)calloc(1, sizeof(NAHRS));
     p->q[0] = 1; p->q[1] = p->q[2] = p->q[3] = 0;
@@ -117,48 +139,65 @@ void nuc_ahrs_get_euler(long long h, long long rpy_ptr) {
     rpy[2] = atan2(siny_cosp, cosy_cosp);
 }
 
-// One IMU step. gyro_ptr is double[3] (rad/s body frame), accel_ptr
-// is double[3] (gravity vector in body frame; will be normalized).
-// dt_b is timestep in seconds.
-void nuc_ahrs_update(long long h, long long gyro_ptr, long long accel_ptr, long long dt_b) {
-    NAHRS *p = (NAHRS *)(void *)(size_t)h;
-    if (!p) return;
-    double *g = (double *)(void *)(size_t)gyro_ptr;
-    double *a = (double *)(void *)(size_t)accel_ptr;
-    double dt = _i2f(dt_b);
-    if (!g || dt <= 0) return;
+static void _ahrs_update_inner(NAHRS *p, double *g, double *a, double *m, double dt) {
+    if (!p || !g || dt <= 0) return;
 
     double wx = g[0], wy = g[1], wz = g[2];
+    double ex = 0.0, ey = 0.0, ez = 0.0;
+    int have_accel = 0;
+    double a_meas[3] = {0, 0, 0};
+    double g_pred[3] = {0, 0, 1};
 
     // Accel correction (skip if accel reading is degenerate).
     if (a) {
-        double an = sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
-        if (an > 1e-9) {
-            double ax = a[0]/an, ay = a[1]/an, az = a[2]/an;
-            // Predicted gravity in body frame = q^T · (0, 0, 1).
-            // For body-to-world quaternion q, world vector v in body frame is
-            //   v_body = q* · (0, v) · q.
-            // Compact form for v = (0, 0, 1):
-            double qw = p->q[0], qx = p->q[1], qy = p->q[2], qz = p->q[3];
-            double gx = 2.0 * (qx*qz - qw*qy);
-            double gy = 2.0 * (qw*qx + qy*qz);
-            double gz = qw*qw - qx*qx - qy*qy + qz*qz;
-            // Error = predicted × measured  (axis to rotate predicted into measured).
-            double ex = gy*az - gz*ay;
-            double ey = gz*ax - gx*az;
-            double ez = gx*ay - gy*ax;
-            // Integrate gyro bias (Ki).
-            if (p->Ki > 0) {
-                p->bias[0] += p->Ki * ex * dt;
-                p->bias[1] += p->Ki * ey * dt;
-                p->bias[2] += p->Ki * ez * dt;
-            }
-            // Apply PI correction.
-            wx += p->Kp * ex + p->bias[0];
-            wy += p->Kp * ey + p->bias[1];
-            wz += p->Kp * ez + p->bias[2];
+        a_meas[0] = a[0]; a_meas[1] = a[1]; a_meas[2] = a[2];
+        if (_norm3(a_meas)) {
+            have_accel = 1;
+            _world_to_body(p->q, 0.0, 0.0, 1.0, g_pred);
+            _norm3(g_pred);
+            double e[3];
+            _cross(g_pred, a_meas, e);
+            ex += e[0]; ey += e[1]; ez += e[2];
         }
     }
+
+    // Magnetometer yaw correction. The public contract uses a calibrated
+    // body-frame magnetic vector whose world reference is +X. If accel is
+    // present, both measured and predicted magnetic vectors are projected
+    // into the horizontal plane so the correction is heading-only.
+    if (m) {
+        double m_meas[3] = { m[0], m[1], m[2] };
+        if (_norm3(m_meas)) {
+            double m_pred[3];
+            _world_to_body(p->q, 1.0, 0.0, 0.0, m_pred);
+            _norm3(m_pred);
+            if (have_accel) {
+                double dm = m_meas[0]*a_meas[0] + m_meas[1]*a_meas[1] + m_meas[2]*a_meas[2];
+                m_meas[0] -= dm * a_meas[0];
+                m_meas[1] -= dm * a_meas[1];
+                m_meas[2] -= dm * a_meas[2];
+                double dp = m_pred[0]*g_pred[0] + m_pred[1]*g_pred[1] + m_pred[2]*g_pred[2];
+                m_pred[0] -= dp * g_pred[0];
+                m_pred[1] -= dp * g_pred[1];
+                m_pred[2] -= dp * g_pred[2];
+            }
+            if (_norm3(m_meas) && _norm3(m_pred)) {
+                double e[3];
+                _cross(m_meas, m_pred, e);
+                ex += e[0]; ey += e[1]; ez += e[2];
+            }
+        }
+    }
+
+    // Integrate gyro bias (Ki) and apply PI correction.
+    if ((have_accel || m) && p->Ki > 0) {
+        p->bias[0] += p->Ki * ex * dt;
+        p->bias[1] += p->Ki * ey * dt;
+        p->bias[2] += p->Ki * ez * dt;
+    }
+    wx += p->Kp * ex + p->bias[0];
+    wy += p->Kp * ey + p->bias[1];
+    wz += p->Kp * ez + p->bias[2];
 
     // Quaternion derivative: q̇ = 0.5 * q * (0, wx, wy, wz).
     double qw = p->q[0], qx = p->q[1], qy = p->q[2], qz = p->q[3];
@@ -172,6 +211,31 @@ void nuc_ahrs_update(long long h, long long gyro_ptr, long long accel_ptr, long 
     p->q[2] += qdot[2] * dt;
     p->q[3] += qdot[3] * dt;
     _q_normalize(p->q);
+}
+
+// One IMU step. gyro_ptr is double[3] (rad/s body frame), accel_ptr
+// is double[3] (gravity vector in body frame; will be normalized).
+// dt_b is timestep in seconds.
+void nuc_ahrs_update(long long h, long long gyro_ptr, long long accel_ptr, long long dt_b) {
+    NAHRS *p = (NAHRS *)(void *)(size_t)h;
+    if (!p) return;
+    double *g = (double *)(void *)(size_t)gyro_ptr;
+    double *a = (double *)(void *)(size_t)accel_ptr;
+    double dt = _i2f(dt_b);
+    _ahrs_update_inner(p, g, a, NULL, dt);
+}
+
+// 9-DOF update with magnetometer heading correction. mag_ptr is a
+// calibrated body-frame magnetic vector; the world reference field is +X.
+void nuc_ahrs_update_mag(long long h, long long gyro_ptr, long long accel_ptr,
+                         long long mag_ptr, long long dt_b) {
+    NAHRS *p = (NAHRS *)(void *)(size_t)h;
+    if (!p) return;
+    double *g = (double *)(void *)(size_t)gyro_ptr;
+    double *a = (double *)(void *)(size_t)accel_ptr;
+    double *m = (double *)(void *)(size_t)mag_ptr;
+    double dt = _i2f(dt_b);
+    _ahrs_update_inner(p, g, a, m, dt);
 }
 
 // Read estimated gyro bias (integrated by Ki).  bias_ptr is double[3].
