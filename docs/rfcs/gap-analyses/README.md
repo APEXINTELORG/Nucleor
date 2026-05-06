@@ -37,7 +37,7 @@ launchability; Tier C are stdlib-coherence guarantees.
 
 11. **[Numeric Correctness](Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md)** — NUM-G1 f64 literals truncated to 6 decimal digits at lex time. `3.1415926535897932` silently becomes `3.141592`. **Affects every float user.**
 12. **[Tensor / ML / Autodiff](Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md)** — ML-1 `nuc_attn_flash` ABI mismatch (rod 6 args, C 7 args). Silent miscompute on every flash-attention call.
-13. **[Quantum Subsystem](Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md)** — QM-7 Clifford rod coverage is partially closed; rotated Surface-17 d=3 coverage is landed, and published weight-enumerator parity remains open.
+13. **[Quantum Subsystem](Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md)** — QM-2/QM-11/QM-13/QM-14 now have Phase 1 capacity/status preflight coverage; QM-7 Clifford rod coverage is partially closed; rotated Surface-17 d=3 coverage is landed, and published weight-enumerator parity remains open.
 14. **[Robotics Control Stack](Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md)** — ROBO-7 frame-typing safety still Phase A. Mars Climate Orbiter failure mode is live.
 
 ## CRITICAL findings (silent miscompute / launch-blocker class)
