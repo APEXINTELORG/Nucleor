@@ -46,6 +46,8 @@ Limitations: integer-only IDs (caller maintains name→id map), single tree only
 ## ROBO-6 — URDF parser flattens branching topologies — **HIGH**
 "Branching trees (humanoids) flattened to source-order." Parent/child relationships ignored. Humanoid, quadruped, parallel-chain robots cannot be correctly described. xacro macro expansion absent.
 
+**2026-05-06 update:** Phase 1 topology parsing and safe serial export now exist. The URDF runtime parses `<parent link="..."/>` and `<child link="..."/>`, exposes topology queries (`urdf_joint_parent_index`, child counts, branching/serial predicates), orders out-of-source-order serial trees by topology, and refuses branching/forest topologies in `urdf_to_fk_chain` instead of silently flattening them; `tests/features/urdf_branch_topology_smoke.nr` locks branch detection/refusal plus out-of-order serial FK export. Remaining ROBO-6 work: true branched-tree FK/runtime surface, xacro subset expansion, and richer link/visual/collision/inertial model handling.
+
 ## ROBO-7 — Frame-type safety is Phase A only — **CRITICAL**
 RFC-0046 Phase A ships zero-size marker structs and numeric IDs. **Phase B (compiler-side TYP-008 check) not yet shipped.** Mixing camera-frame and base-frame poses still silent runtime error. `kinematics.nr` still uses plain i64 handles — frame markers entirely opt-in and unchecked. **Mars Climate Orbiter failure mode live.**
 
@@ -107,7 +109,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-7 P2: implement RFC-0046 Phase B. Compiler-side TYP-008 check that `transform(p, tf)` call-site frames match. **Closes Mars Climate Orbiter failure mode.**
 - ROBO-4: 6-DOF Jacobian in nullspace solver.
 - ROBO-5: DONE for Phase 1 latest-two-sample timestamped interpolation. Remaining: name-keyed lookup, multi-tree forest support, deeper time buffers, cache/lazy lookup strategy, and hard-RT allocation protocol.
-- ROBO-6: URDF branching topology support. xacro expansion.
+- ROBO-6: DONE for Phase 1 topology parsing + safe serial export/refusal. Remaining: true branched-tree FK/runtime surface, xacro subset expansion, and richer link/visual/collision/inertial model handling.
 - ROBO-10: WBC strict-priority stack + torque-box constraints.
 - ROBO-12: DONE for Mahony 9-DOF magnetometer yaw correction. Remaining: calibration/declination helpers, high-dynamics rejection policy, and Madgwick variant.
 

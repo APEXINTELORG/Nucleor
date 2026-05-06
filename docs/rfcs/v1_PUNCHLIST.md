@@ -468,6 +468,14 @@ launch. After memory safety completes, these are next-priority.
   compatibility. Remaining gap: string-keyed frame names, disconnected
   forest support, deeper history buffers, cache/lazy lookup strategy,
   and hard-RT allocation protocol.
+- **ROBO-6 URDF topology:** DONE for Phase 1 on 2026-05-06.
+  `<parent link>` / `<child link>` metadata is parsed and queryable,
+  out-of-source-order serial trees are ordered by topology for
+  `urdf_to_fk_chain`, and branching/forest topologies are refused
+  instead of silently flattened; `urdf_branch_topology_smoke.nr`
+  locks branch detection/refusal and topology-ordered serial FK export.
+  Remaining gap: true branched-tree FK/runtime surface, xacro subset
+  expansion, and richer link/visual/collision/inertial model handling.
 
 ## Sequencing — proposed waves
 
