@@ -27,8 +27,39 @@ typedef struct {
     int step;
 } MPS;
 
+typedef struct {
+    long long *data;
+    int len;
+    int cap;
+    long long inline_data[2];
+} MPSVec;
+
 static int mps_tensor_size(MPS *mps, int i) {
     return mps->bond[i] * 2 * mps->bond[i + 1];
+}
+
+static MPSVec *mps_vec_with_len(long long len) {
+    if (len < 0 || len > 2147483647LL) return NULL;
+    int cap = len < 2 ? 2 : (int)len;
+    MPSVec *v = (MPSVec *)calloc(1, sizeof(MPSVec));
+    if (!v) return NULL;
+    v->len = (int)len;
+    v->cap = cap;
+    if (cap <= 2) {
+        v->data = v->inline_data;
+    } else {
+        v->data = (long long *)calloc((size_t)cap, sizeof(long long));
+        if (!v->data) { free(v); return NULL; }
+    }
+    return v;
+}
+
+static long long mps_complex_new(double re, double im) {
+    long long *p = (long long *)malloc(2 * sizeof(long long));
+    if (!p) return 0;
+    p[0] = _mf2i(re);
+    p[1] = _mf2i(im);
+    return (long long)p;
 }
 
 long long nuc_mps_init(long long nq, long long max_bond) {
@@ -595,38 +626,28 @@ long long nuc_mps_prob0(long long handle, long long q_val) {
     return r;
 }
 
-// Return the joint probability for one computational-basis state.
-// `basis_bits` uses the same little-endian qubit convention as qsim:
-// bit q is the requested measured value for qubit q.
-long long nuc_mps_prob_basis(long long handle, long long basis_bits) {
-    MPS *mps = (MPS *)(void *)handle;
-    if (!mps || mps->nq < 0 || mps->nq > 64) return _mf2i(0.0);
-
+static int mps_basis_amplitude(MPS *mps, unsigned long long bits,
+                               double *vec_re, double *vec_im,
+                               double *next_re, double *next_im,
+                               double *out_re, double *out_im) {
+    if (!mps || !vec_re || !vec_im || !next_re || !next_im || !out_re || !out_im) return 0;
     int n = mps->nq;
-    unsigned long long bits = (unsigned long long)basis_bits;
-    if (n < 64 && (bits >> n) != 0ULL) return _mf2i(0.0);
+    if (n < 0 || n > 64) return 0;
+    if (n < 64 && (bits >> n) != 0ULL) return 0;
 
-    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
-    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
-    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
-    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
-    if (!vec_re || !vec_im || !next_re || !next_im) {
-        free(vec_re); free(vec_im); free(next_re); free(next_im);
-        return _mf2i(0.0);
-    }
-
+    memset(vec_re, 0, MPS_MAX_BOND * sizeof(double));
+    memset(vec_im, 0, MPS_MAX_BOND * sizeof(double));
+    memset(next_re, 0, MPS_MAX_BOND * sizeof(double));
+    memset(next_im, 0, MPS_MAX_BOND * sizeof(double));
     vec_re[0] = 1.0;
 
     for (int i = 0; i < n; i++) {
         int bl = mps->bond[i];
         int br = mps->bond[i + 1];
-        if (bl < 1 || br < 1 || bl > MPS_MAX_BOND || br > MPS_MAX_BOND) {
-            free(vec_re); free(vec_im); free(next_re); free(next_im);
-            return _mf2i(0.0);
-        }
+        if (bl < 1 || br < 1 || bl > MPS_MAX_BOND || br > MPS_MAX_BOND) return 0;
 
-        memset(next_re, 0, br * sizeof(double));
-        memset(next_im, 0, br * sizeof(double));
+        memset(next_re, 0, (size_t)br * sizeof(double));
+        memset(next_im, 0, (size_t)br * sizeof(double));
 
         int s = (int)((bits >> i) & 1ULL);
         for (int l = 0; l < bl; l++) {
@@ -648,10 +669,95 @@ long long nuc_mps_prob_basis(long long handle, long long basis_bits) {
         sw = vec_im; vec_im = next_im; next_im = sw;
     }
 
-    double prob = vec_re[0] * vec_re[0] + vec_im[0] * vec_im[0];
+    *out_re = vec_re[0];
+    *out_im = vec_im[0];
+    return 1;
+}
+
+// Return the joint probability for one computational-basis state.
+// `basis_bits` uses the same little-endian qubit convention as qsim:
+// bit q is the requested measured value for qubit q.
+long long nuc_mps_prob_basis(long long handle, long long basis_bits) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > 64 || basis_bits < 0) return _mf2i(0.0);
+
+    int n = mps->nq;
+    unsigned long long bits = (unsigned long long)basis_bits;
+    if (n < 64 && (bits >> n) != 0ULL) return _mf2i(0.0);
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return _mf2i(0.0);
+    }
+
+    double amp_re = 0.0;
+    double amp_im = 0.0;
+    int ok = mps_basis_amplitude(mps, bits, vec_re, vec_im, next_re, next_im, &amp_re, &amp_im);
+    if (!ok) { free(vec_re); free(vec_im); free(next_re); free(next_im); return _mf2i(0.0); }
+
+    double prob = amp_re * amp_re + amp_im * amp_im;
     if (prob < 1e-15) prob = 0.0;
     if (prob > 1.0 && prob < 1.0 + 1e-9) prob = 1.0;
 
     free(vec_re); free(vec_im); free(next_re); free(next_im);
     return _mf2i(prob);
+}
+
+long long nuc_mps_statevector_max_qubits(void) {
+    return 16;
+}
+
+// Materialize a qsim-compatible Vec<complex> statevector for small MPS states.
+// This is intentionally capped: MPS is useful because it avoids 2^n storage,
+// so large-state extraction must fail closed instead of becoming a memory footgun.
+long long nuc_mps_statevector(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > nuc_mps_statevector_max_qubits()) return 0;
+
+    long long size = 1LL << mps->nq;
+    MPSVec *out = mps_vec_with_len(size);
+    if (!out) return 0;
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        if (out->data && out->data != out->inline_data) free(out->data);
+        free(out);
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return 0;
+    }
+
+    for (long long basis = 0; basis < size; basis++) {
+        double amp_re = 0.0;
+        double amp_im = 0.0;
+        int ok = mps_basis_amplitude(mps, (unsigned long long)basis,
+                                     vec_re, vec_im, next_re, next_im,
+                                     &amp_re, &amp_im);
+        if (!ok) {
+            for (long long j = 0; j < basis; j++) free((void *)(size_t)out->data[j]);
+            if (out->data && out->data != out->inline_data) free(out->data);
+            free(out);
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return 0;
+        }
+        if (amp_re > -1e-15 && amp_re < 1e-15) amp_re = 0.0;
+        if (amp_im > -1e-15 && amp_im < 1e-15) amp_im = 0.0;
+        out->data[basis] = mps_complex_new(amp_re, amp_im);
+        if (out->data[basis] == 0) {
+            for (long long j = 0; j < basis; j++) free((void *)(size_t)out->data[j]);
+            if (out->data && out->data != out->inline_data) free(out->data);
+            free(out);
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return 0;
+        }
+    }
+
+    free(vec_re); free(vec_im); free(next_re); free(next_im);
+    return (long long)out;
 }

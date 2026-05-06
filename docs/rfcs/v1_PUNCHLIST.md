@@ -265,14 +265,16 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
-- **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2b on
+- **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2c on
   2026-05-06 — `mps_prob0(h, q)` exposes single-qubit probability
   readout from the MPS contraction, `mps_prob_basis(h, basis_bits)`
-  exposes computational-basis joint probability, and
+  exposes computational-basis joint probability, `mps_statevector(h)`
+  exposes a capped qsim-compatible `Vec<complex>` extraction, and
   `mps_bell_probabilities_smoke.nr` compares Bell-circuit MPS
   marginals plus |00>/|11> joint probabilities against the qsim
-  reference expectations. Remaining gap: no bulk statevector extraction
-  API.
+  reference expectations. The statevector path fails closed above
+  `mps_statevector_max_qubits()` to avoid 2^n memory blowups. Remaining
+  gap: no high-qubit streaming/external-sink extraction API.
 - **QM-2 qsim statevector checked init:** DONE for Phase 1+2a on
   2026-05-06 — `qsim_init_preflight(n)` returns stable status codes
   (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and

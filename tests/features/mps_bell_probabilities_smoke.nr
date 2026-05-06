@@ -1,9 +1,10 @@
-// v0831 QM-6 - MPS Bell marginal and joint probability smoke.
+// v0832 QM-6 - MPS Bell marginal, joint, and statevector smoke.
 //
 // Locks the MPS probability readout against the existing statevector qsim
 // path for a 2-qubit Bell circuit: H(0), CNOT(0,1). Expected: each qubit has
 // P(0)=0.5 and <Z>=0 in both simulators' marginal view. Also locks the
-// MPS computational-basis joint probability readout for |00> and |11>.
+// MPS computational-basis joint probability readout for |00> and |11>, plus
+// the capped qsim-compatible Vec<complex> statevector extraction surface.
 
 import "stdlib/rods/mps.nr"
 import "stdlib/rods/quantum.nr"
@@ -57,6 +58,43 @@ fn check_mps_bell_joint_probabilities() -> i64 {
     return 0;
 }
 
+fn check_mps_bell_statevector() -> i64 {
+    let h: i64 = mps_init(2, 16);
+    mps_h(h, 0);
+    mps_cnot(h, 0, 1);
+
+    let sv: i64 = mps_statevector(h);
+    mps_free(h);
+    if sv == 0 { return 262144; };
+    if vec_len(sv) != 4 { return 524288; };
+
+    let a00: i64 = vec_get(sv, 0);
+    let a01: i64 = vec_get(sv, 1);
+    let a10: i64 = vec_get(sv, 2);
+    let a11: i64 = vec_get(sv, 3);
+
+    if close(cx_real(a00), f64_to_bits(0.7071067811865476), 1e-6) != 1 { return 1048576; };
+    if close(cx_imag(a00), f64_to_bits(0.0), 1e-6) != 1 { return 2097152; };
+    if close(cx_real(a01), f64_to_bits(0.0), 1e-6) != 1 { return 4194304; };
+    if close(cx_imag(a01), f64_to_bits(0.0), 1e-6) != 1 { return 8388608; };
+    if close(cx_real(a10), f64_to_bits(0.0), 1e-6) != 1 { return 16777216; };
+    if close(cx_imag(a10), f64_to_bits(0.0), 1e-6) != 1 { return 33554432; };
+    if close(cx_real(a11), f64_to_bits(0.7071067811865476), 1e-6) != 1 { return 67108864; };
+    if close(cx_imag(a11), f64_to_bits(0.0), 1e-6) != 1 { return 134217728; };
+    return 0;
+}
+
+fn check_mps_statevector_cap() -> i64 {
+    let cap: i64 = mps_statevector_max_qubits();
+    if cap < 2 { return 268435456; };
+
+    let h: i64 = mps_init(cap + 1, 16);
+    let sv: i64 = mps_statevector(h);
+    mps_free(h);
+    if sv != 0 { return 536870912; };
+    return 0;
+}
+
 fn check_qsim_reference_marginals() -> i64 {
     let sv: i64 = qsim_init_checked(2);
     if sv == 0 { return 32; };
@@ -76,7 +114,8 @@ fn check_limitations() -> i64 {
     if str_index_of(s, "mps_prob0") < 0 { return 512; };
     if str_index_of(s, "mps_prob_basis") < 0 { return 65536; };
     if str_index_of(s, "joint-probability") < 0 { return 1024; };
-    if str_index_of(s, "bulk statevector") < 0 { return 131072; };
+    if str_index_of(s, "mps_statevector") < 0 { return 131072; };
+    if str_index_of(s, "memory blowups") < 0 { return 1073741824; };
     return 0;
 }
 
@@ -84,6 +123,8 @@ fn main() -> i64 {
     let mut fails: i64 = 0;
     fails = fails + check_mps_bell_marginals();
     fails = fails + check_mps_bell_joint_probabilities();
+    fails = fails + check_mps_bell_statevector();
+    fails = fails + check_mps_statevector_cap();
     fails = fails + check_qsim_reference_marginals();
     fails = fails + check_limitations();
     return fails;

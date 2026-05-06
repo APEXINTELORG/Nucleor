@@ -57,6 +57,40 @@ Result: clean.
 
 ## Remaining QM-6 gap
 
-Bulk statevector extraction is still absent. The new API provides exact
-single-basis joint probability without materializing the full `2^n` vector,
-which is the right default for MPS memory behavior.
+Bulk statevector extraction was still absent after v0831. The v0831 API
+provides exact single-basis joint probability without materializing the full
+`2^n` vector, which is the right default for MPS memory behavior.
+
+## Follow-on slice - v0832 capped statevector extraction
+
+This branch now also adds a fail-closed bulk extraction API for small MPS
+states:
+
+- Added native `nuc_mps_statevector(handle)` and
+  `nuc_mps_statevector_max_qubits()` in `stdlib/runtime/mps_rt.c`.
+- Added Nucleor wrappers `mps_statevector(h)` and
+  `mps_statevector_max_qubits()` in `stdlib/rods/mps.nr`.
+- The extraction returns a qsim-compatible `Vec<complex>` so existing
+  `vec_get`, `cx_real`, and `cx_imag` accessors work without a second ABI.
+- The extraction fails closed above `mps_statevector_max_qubits()` instead of
+  materializing unbounded `2^n` state.
+- Extended `tests/features/mps_bell_probabilities_smoke.nr` to validate the
+  Bell statevector amplitudes and the over-cap fail-closed path.
+
+Remaining QM-6 caveat after v0832: no high-qubit streaming/external-sink
+state export. The in-memory statevector API is intentionally capped to avoid
+turning MPS into a memory blowup vector.
+
+Validation for v0832:
+
+```powershell
+.\bin\nucleor.exe build tests\features\mps_bell_probabilities_smoke.nr -o target\_qm6_mps_bell_statevector --no-cache
+.\target\_qm6_mps_bell_statevector.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_bell_probabilities_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_named_gate_wrappers_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/quantum_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Direct build/run passed. All four focused canonical gates returned `PASS: 1`,
+`SKIP: 1148`.
