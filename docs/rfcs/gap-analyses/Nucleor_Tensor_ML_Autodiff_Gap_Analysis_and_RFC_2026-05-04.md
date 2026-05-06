@@ -60,6 +60,8 @@ Update 2026-05-06 helper1 v0859: `quant_int8_decode` and `quant_ternary_decode` 
 ## ML-8 — `nn.nr` no convolutional layers — **MEDIUM**
 Dense layers only. No Conv1d/Conv2d/depthwise-separable. Separate `conv.nr` is image-processing convolution, not learnable layer with weight gradients.
 
+Update 2026-05-06 helper1 v0865: `nn_conv1d` / `nn_conv1d_backward`, `nn_conv2d` / `nn_conv2d_backward`, and `nn_depthwise_conv2d` / `nn_depthwise_conv2d_backward` are now shipped in `nn.nr`, with backward helpers returning `[grad_input, grad_kernel]`. Fixture-backed by `tests/features/nn_convolution_layers_smoke.nr`. Residual: these are functional layer kernels, not optimizer-owned stateful layer objects.
+
 ## ML-9 — `nn.nr` no batch norm / no learnable layer norm — **MEDIUM**
 No `batch_norm`/`layer_norm` forward+backward in nn.nr. `gnn_layer_norm` and `tf_layer_norm` exist but forward-only (no gradient). **No training-capable norm layer anywhere.**
 
@@ -124,7 +126,7 @@ Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` no
 
 **Phase 3 (medium-term, integration):**
 - ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape.
-- ML-8: add Conv1d and Conv2d learnable layers in `nn.nr`.
+- ML-8: add Conv1d and Conv2d learnable layers in `nn.nr`. **Shipped helper1 v0865 as functional Conv1D/Conv2D/depthwise Conv2D forward+backward kernels; optimizer-owned stateful layer objects remain future work.**
 - ML-14: implement bridge between `autodiff` tape and `nn` rod. Each NN layer becomes a registered op on the autodiff graph. `loss = cross_entropy(nn_forward(x), y); ad_grad(loss, x)` works.
 - ML-15 P2: add int tensor and bool mask tensor types to `tensor_nd`. Mixed-precision path.
 

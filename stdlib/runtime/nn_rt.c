@@ -1002,3 +1002,227 @@ long long nuc_nn_batch_norm_backward(long long input_vec, long long n_samples, l
     free(xhat);
     return (long long)result;
 }
+
+// =====================================================
+// Functional convolution layers with gradients (ML-8)
+// =====================================================
+
+long long nuc_nn_conv1d(long long input_h, long long kernel_h,
+                        long long c_in, long long c_out, long long length,
+                        long long k_width, long long stride, long long pad) {
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int ci = (int)c_in, co = (int)c_out, L = (int)length;
+    int kw = (int)k_width, s = (int)stride, p = (int)pad;
+    int out_L = (L + 2 * p - kw) / s + 1;
+    NNVec *out = nn_vec_alloc(co * out_L);
+
+    for (int oc = 0; oc < co; oc++) {
+        for (int ox = 0; ox < out_L; ox++) {
+            double sum = 0.0;
+            for (int ic = 0; ic < ci; ic++) {
+                for (int fx = 0; fx < kw; fx++) {
+                    int ix = ox * s - p + fx;
+                    if (ix < 0 || ix >= L) continue;
+                    int in_idx = ic * L + ix;
+                    int k_idx = oc * ci * kw + ic * kw + fx;
+                    sum += _i2f(input->data[in_idx]) * _i2f(kernel->data[k_idx]);
+                }
+            }
+            out->data[oc * out_L + ox] = _f2i(sum);
+        }
+    }
+    return (long long)out;
+}
+
+long long nuc_nn_conv1d_backward(long long grad_out_h, long long input_h, long long kernel_h,
+                                 long long c_in, long long c_out, long long length,
+                                 long long k_width, long long stride, long long pad) {
+    NNVec *grad_out = (NNVec *)(void *)grad_out_h;
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int ci = (int)c_in, co = (int)c_out, L = (int)length;
+    int kw = (int)k_width, s = (int)stride, p = (int)pad;
+    int out_L = (L + 2 * p - kw) / s + 1;
+    NNVec *grad_input = nn_vec_alloc(ci * L);
+    NNVec *grad_kernel = nn_vec_alloc(co * ci * kw);
+
+    for (int oc = 0; oc < co; oc++) {
+        for (int ox = 0; ox < out_L; ox++) {
+            double go = _i2f(grad_out->data[oc * out_L + ox]);
+            for (int ic = 0; ic < ci; ic++) {
+                for (int fx = 0; fx < kw; fx++) {
+                    int ix = ox * s - p + fx;
+                    if (ix < 0 || ix >= L) continue;
+                    int in_idx = ic * L + ix;
+                    int k_idx = oc * ci * kw + ic * kw + fx;
+                    grad_input->data[in_idx] = _f2i(_i2f(grad_input->data[in_idx]) +
+                        go * _i2f(kernel->data[k_idx]));
+                    grad_kernel->data[k_idx] = _f2i(_i2f(grad_kernel->data[k_idx]) +
+                        go * _i2f(input->data[in_idx]));
+                }
+            }
+        }
+    }
+
+    NNVec *result = nn_vec_alloc(2);
+    result->data[0] = (long long)grad_input;
+    result->data[1] = (long long)grad_kernel;
+    return (long long)result;
+}
+
+long long nuc_nn_conv2d(long long input_h, long long kernel_h,
+                        long long c_in, long long c_out,
+                        long long height, long long width,
+                        long long k_height, long long k_width,
+                        long long stride, long long pad) {
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int ci = (int)c_in, co = (int)c_out;
+    int H = (int)height, W = (int)width, kh = (int)k_height, kw = (int)k_width;
+    int s = (int)stride, p = (int)pad;
+    int out_H = (H + 2 * p - kh) / s + 1;
+    int out_W = (W + 2 * p - kw) / s + 1;
+    NNVec *out = nn_vec_alloc(co * out_H * out_W);
+
+    for (int oc = 0; oc < co; oc++) {
+        for (int oh = 0; oh < out_H; oh++) {
+            for (int ow = 0; ow < out_W; ow++) {
+                double sum = 0.0;
+                for (int ic = 0; ic < ci; ic++) {
+                    for (int fh = 0; fh < kh; fh++) {
+                        for (int fw = 0; fw < kw; fw++) {
+                            int ih = oh * s - p + fh;
+                            int iw = ow * s - p + fw;
+                            if (ih < 0 || ih >= H || iw < 0 || iw >= W) continue;
+                            int in_idx = ic * H * W + ih * W + iw;
+                            int k_idx = oc * ci * kh * kw + ic * kh * kw + fh * kw + fw;
+                            sum += _i2f(input->data[in_idx]) * _i2f(kernel->data[k_idx]);
+                        }
+                    }
+                }
+                out->data[oc * out_H * out_W + oh * out_W + ow] = _f2i(sum);
+            }
+        }
+    }
+    return (long long)out;
+}
+
+long long nuc_nn_conv2d_backward(long long grad_out_h, long long input_h, long long kernel_h,
+                                 long long c_in, long long c_out,
+                                 long long height, long long width,
+                                 long long k_height, long long k_width,
+                                 long long stride, long long pad) {
+    NNVec *grad_out = (NNVec *)(void *)grad_out_h;
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int ci = (int)c_in, co = (int)c_out;
+    int H = (int)height, W = (int)width, kh = (int)k_height, kw = (int)k_width;
+    int s = (int)stride, p = (int)pad;
+    int out_H = (H + 2 * p - kh) / s + 1;
+    int out_W = (W + 2 * p - kw) / s + 1;
+    NNVec *grad_input = nn_vec_alloc(ci * H * W);
+    NNVec *grad_kernel = nn_vec_alloc(co * ci * kh * kw);
+
+    for (int oc = 0; oc < co; oc++) {
+        for (int oh = 0; oh < out_H; oh++) {
+            for (int ow = 0; ow < out_W; ow++) {
+                double go = _i2f(grad_out->data[oc * out_H * out_W + oh * out_W + ow]);
+                for (int ic = 0; ic < ci; ic++) {
+                    for (int fh = 0; fh < kh; fh++) {
+                        for (int fw = 0; fw < kw; fw++) {
+                            int ih = oh * s - p + fh;
+                            int iw = ow * s - p + fw;
+                            if (ih < 0 || ih >= H || iw < 0 || iw >= W) continue;
+                            int in_idx = ic * H * W + ih * W + iw;
+                            int k_idx = oc * ci * kh * kw + ic * kh * kw + fh * kw + fw;
+                            grad_input->data[in_idx] = _f2i(_i2f(grad_input->data[in_idx]) +
+                                go * _i2f(kernel->data[k_idx]));
+                            grad_kernel->data[k_idx] = _f2i(_i2f(grad_kernel->data[k_idx]) +
+                                go * _i2f(input->data[in_idx]));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    NNVec *result = nn_vec_alloc(2);
+    result->data[0] = (long long)grad_input;
+    result->data[1] = (long long)grad_kernel;
+    return (long long)result;
+}
+
+long long nuc_nn_depthwise_conv2d(long long input_h, long long kernel_h,
+                                  long long channels, long long height, long long width,
+                                  long long k_height, long long k_width,
+                                  long long stride, long long pad) {
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int C = (int)channels, H = (int)height, W = (int)width;
+    int kh = (int)k_height, kw = (int)k_width, s = (int)stride, p = (int)pad;
+    int out_H = (H + 2 * p - kh) / s + 1;
+    int out_W = (W + 2 * p - kw) / s + 1;
+    NNVec *out = nn_vec_alloc(C * out_H * out_W);
+
+    for (int c = 0; c < C; c++) {
+        for (int oh = 0; oh < out_H; oh++) {
+            for (int ow = 0; ow < out_W; ow++) {
+                double sum = 0.0;
+                for (int fh = 0; fh < kh; fh++) {
+                    for (int fw = 0; fw < kw; fw++) {
+                        int ih = oh * s - p + fh;
+                        int iw = ow * s - p + fw;
+                        if (ih < 0 || ih >= H || iw < 0 || iw >= W) continue;
+                        int in_idx = c * H * W + ih * W + iw;
+                        int k_idx = c * kh * kw + fh * kw + fw;
+                        sum += _i2f(input->data[in_idx]) * _i2f(kernel->data[k_idx]);
+                    }
+                }
+                out->data[c * out_H * out_W + oh * out_W + ow] = _f2i(sum);
+            }
+        }
+    }
+    return (long long)out;
+}
+
+long long nuc_nn_depthwise_conv2d_backward(long long grad_out_h, long long input_h, long long kernel_h,
+                                           long long channels, long long height, long long width,
+                                           long long k_height, long long k_width,
+                                           long long stride, long long pad) {
+    NNVec *grad_out = (NNVec *)(void *)grad_out_h;
+    NNVec *input = (NNVec *)(void *)input_h;
+    NNVec *kernel = (NNVec *)(void *)kernel_h;
+    int C = (int)channels, H = (int)height, W = (int)width;
+    int kh = (int)k_height, kw = (int)k_width, s = (int)stride, p = (int)pad;
+    int out_H = (H + 2 * p - kh) / s + 1;
+    int out_W = (W + 2 * p - kw) / s + 1;
+    NNVec *grad_input = nn_vec_alloc(C * H * W);
+    NNVec *grad_kernel = nn_vec_alloc(C * kh * kw);
+
+    for (int c = 0; c < C; c++) {
+        for (int oh = 0; oh < out_H; oh++) {
+            for (int ow = 0; ow < out_W; ow++) {
+                double go = _i2f(grad_out->data[c * out_H * out_W + oh * out_W + ow]);
+                for (int fh = 0; fh < kh; fh++) {
+                    for (int fw = 0; fw < kw; fw++) {
+                        int ih = oh * s - p + fh;
+                        int iw = ow * s - p + fw;
+                        if (ih < 0 || ih >= H || iw < 0 || iw >= W) continue;
+                        int in_idx = c * H * W + ih * W + iw;
+                        int k_idx = c * kh * kw + fh * kw + fw;
+                        grad_input->data[in_idx] = _f2i(_i2f(grad_input->data[in_idx]) +
+                            go * _i2f(kernel->data[k_idx]));
+                        grad_kernel->data[k_idx] = _f2i(_i2f(grad_kernel->data[k_idx]) +
+                            go * _i2f(input->data[in_idx]));
+                    }
+                }
+            }
+        }
+    }
+
+    NNVec *result = nn_vec_alloc(2);
+    result->data[0] = (long long)grad_input;
+    result->data[1] = (long long)grad_kernel;
+    return (long long)result;
+}

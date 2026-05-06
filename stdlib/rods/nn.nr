@@ -32,6 +32,14 @@ extern fn nuc_nn_layer_norm_backward(input: i64, gamma: i64, grad: i64, eps_bits
 extern fn nuc_nn_batch_norm(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, beta: i64, eps_bits: i64) -> i64;
 extern fn nuc_nn_batch_norm_backward(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64;
 
+// Functional convolution layers with gradients (ML-8)
+extern fn nuc_nn_conv1d(input: i64, kernel: i64, c_in: i64, c_out: i64, length: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+extern fn nuc_nn_conv1d_backward(grad_out: i64, input: i64, kernel: i64, c_in: i64, c_out: i64, length: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+extern fn nuc_nn_conv2d(input: i64, kernel: i64, c_in: i64, c_out: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+extern fn nuc_nn_conv2d_backward(grad_out: i64, input: i64, kernel: i64, c_in: i64, c_out: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+extern fn nuc_nn_depthwise_conv2d(input: i64, kernel: i64, channels: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+extern fn nuc_nn_depthwise_conv2d_backward(grad_out: i64, input: i64, kernel: i64, channels: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64;
+
 // Adam optimizer
 extern fn nuc_nn_adam_new(n_params: i64, lr: i64, beta1: i64, beta2: i64) -> i64;
 extern fn nuc_nn_adam_step_dense(opt: i64, layer: i64);
@@ -78,6 +86,30 @@ fn nn_batch_norm(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, beta: i6
 
 fn nn_batch_norm_backward(input: i64, n_samples: i64, feat_dim: i64, gamma: i64, grad: i64, eps_bits: i64) -> i64 {
     return nuc_nn_batch_norm_backward(input, n_samples, feat_dim, gamma, grad, eps_bits);
+}
+
+fn nn_conv1d(input: i64, kernel: i64, c_in: i64, c_out: i64, length: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_conv1d(input, kernel, c_in, c_out, length, k_width, stride, pad);
+}
+
+fn nn_conv1d_backward(grad_out: i64, input: i64, kernel: i64, c_in: i64, c_out: i64, length: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_conv1d_backward(grad_out, input, kernel, c_in, c_out, length, k_width, stride, pad);
+}
+
+fn nn_conv2d(input: i64, kernel: i64, c_in: i64, c_out: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_conv2d(input, kernel, c_in, c_out, height, width, k_height, k_width, stride, pad);
+}
+
+fn nn_conv2d_backward(grad_out: i64, input: i64, kernel: i64, c_in: i64, c_out: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_conv2d_backward(grad_out, input, kernel, c_in, c_out, height, width, k_height, k_width, stride, pad);
+}
+
+fn nn_depthwise_conv2d(input: i64, kernel: i64, channels: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_depthwise_conv2d(input, kernel, channels, height, width, k_height, k_width, stride, pad);
+}
+
+fn nn_depthwise_conv2d_backward(grad_out: i64, input: i64, kernel: i64, channels: i64, height: i64, width: i64, k_height: i64, k_width: i64, stride: i64, pad: i64) -> i64 {
+    return nuc_nn_depthwise_conv2d_backward(grad_out, input, kernel, channels, height, width, k_height, k_width, stride, pad);
 }
 
 // =====================================================
