@@ -1553,3 +1553,191 @@ Remaining native-Linux-only blockers for Helper2-style work:
 
 When normalizing blocker ledgers, mark R10-D3 as closed and point to the two
 evidence files above.
+
+## Queue 9 - Hermetic Tooling + External Integration Closure Batch
+
+Append-only update, 2026-05-06.
+
+Queue 9 supersedes any remaining "POSIX perf native transcript" work. R10-D3 is
+closed. Continue with the batch below from a fresh branch based on current:
+
+```powershell
+git fetch origin
+git checkout -B fix/helper2-hermetic-external-closure-v0835 origin/fix/main-qm7-surface-code-v0827
+git merge-base HEAD origin/fix/main-qm7-surface-code-v0827
+```
+
+### Scope AP: HERM-A native numerics matrix closure
+
+Goal: remove or reduce the remaining Python dependency around
+`tools/gen_numerics_matrix.py` without adding any new Python helper.
+
+Required work:
+
+- Inspect:
+  - `tools/gen_numerics_matrix.py`;
+  - `tests/lang/numerics_matrix/`;
+  - `tools/gen_rod_manifest.nr`;
+  - `tools/gen_benchmark_summary.nr`;
+  - `tools/check_compiler_drift.sh`.
+- Determine whether `gen_numerics_matrix.py` is required by normal product,
+  compiler, bootstrap, release, or verify/drift paths.
+- If it is not required by normal paths, document that and remove the hard
+  requirement from drift/release docs only where current evidence supports it.
+- If a small native replacement is straightforward, add the smallest native
+  Nucleor generator slice only. Do not attempt a full parser rewrite.
+- If the first native slice cannot be built cleanly, file the blocker with the
+  exact missing primitive and stop that scope.
+
+Validation:
+
+```powershell
+rg -n "gen_numerics_matrix|numerics_matrix|HERM-A|Python" tools docs findings tests
+git diff --check
+```
+
+Run focused generator parity only if you change generated outputs. Do not run
+full verify for report-only work.
+
+### Scope AQ: HERM-B helper manifest native-port feasibility or first slice
+
+Goal: advance the hardest remaining Python-retirement item without destabilizing
+the compiler.
+
+Required work:
+
+- Inspect:
+  - `tools/gen_helper_manifest.py`;
+  - `docs/rfcs/helper_manifest.toml`;
+  - `docs/rfcs/helper_manifest_schema.md`;
+  - `tools/check_compiler_drift.sh`;
+  - existing native generator patterns under `tools/*.nr`.
+- Produce a feasibility matrix covering:
+  - input files read;
+  - output sections emitted;
+  - regex/string parsing needed;
+  - existing Nucleor primitives available;
+  - missing primitives;
+  - smallest safe native first slice.
+- If one small slice is clean, implement only that slice. Do not remove
+  `gen_helper_manifest.py` until byte-for-byte or schema-equivalent parity is
+  proven.
+
+Validation:
+
+```powershell
+rg -n "gen_helper_manifest|helper_manifest|native generator|ToolingMeta|RuntimeCall" tools docs findings compiler
+python tools\gen_helper_manifest.py
+git diff -- docs\rfcs\helper_manifest.toml
+git diff --check
+```
+
+If Python is unavailable, do not fabricate parity. Record the exact blocker and
+continue with report-only work.
+
+### Scope AR: ML-EXT + TRANS current-state audit
+
+Goal: give main/cloud agents a current external-integration map without pulling
+external source into `Nucleor_OSS`.
+
+Required work:
+
+- Audit these observed local paths if present:
+  - `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite`;
+  - `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent`;
+  - `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent_Mainline`;
+  - `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\MLV_Kernel`;
+  - `C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate`.
+- For each present repo/workspace, record:
+  - git branch and HEAD if it is a git repo;
+  - likely verification command from docs/tools;
+  - whether you ran it or why not;
+  - which ML lanes A-K or TRANS-A/B/C it supports;
+  - whether any action belongs in `Nucleor_OSS` now.
+- Do not copy external source into `Nucleor_OSS`.
+- Do not add `nuc port` unless Translate is complete and revalidated. Current
+  expected output is a status/gap report, not integration code.
+
+Output:
+
+```text
+findings/inbox/helper2_ml_translate_status_v0835_2026-05-06.md
+```
+
+Validation:
+
+```powershell
+git diff --check
+```
+
+### Scope AS: PKG-1/R06 native-Linux handoff packet
+
+Goal: convert the remaining native-only blockers into exact cloud-agent work,
+now that R10-D3 perf is closed.
+
+Required work:
+
+- Create or update a compact report under `findings/inbox/` listing:
+  - PKG-1 native Linux signed-publish proof with throwaway registry/key;
+  - R06 rust_bridge native POSIX ownership/artifact proof;
+  - exact base branch;
+  - exact commands the Linux cloud agent should run;
+  - expected pass/fail-closed outputs;
+  - files allowed to change;
+  - files that must not change.
+- Explicitly mark R10-D3 perf native transcript CLOSED with links to:
+  - `findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`;
+  - `tools/perf_baseline_linux.json`.
+
+Output:
+
+```text
+findings/inbox/helper2_pkg_r06_native_linux_handoff_v0835_2026-05-06.md
+```
+
+### Scope AT: blocker ledger v0835
+
+Goal: leave one current, non-redundant ledger after Scopes AP-AS.
+
+Required work:
+
+- Update or create:
+
+```text
+findings/inbox/helper2_blocker_ledger_v0835_2026-05-06.md
+```
+
+- Include rows for:
+  - HERM-A numerics matrix;
+  - HERM-B helper manifest;
+  - PKG-1 native signed publish;
+  - R06 native rust_bridge proof;
+  - ML-EXT;
+  - TRANS;
+  - R10-D3 closed status.
+- For each row: current status, owner, exact next command, platform, whether it
+  blocks v1.0, and whether Helper2 can close it from this host.
+
+## Helper2 Deliverable For Queue 9
+
+Push one branch with as many Scopes AP-AT as are coherent. Prefer finishing the
+reports and exact handoff packets over starting broad code edits. Only implement
+a native generator slice if it is small and obviously testable.
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify for report-only audits. Run `git diff --check` always,
+and run focused generator/parity checks only for changed generator outputs.
