@@ -66,6 +66,11 @@ launch. After memory safety completes, these are next-priority.
   `CRITICAL_SECTION` or `pthread_mutex_t` allocated by `conc_mutex()`.
   `concurrency_mutex_destroy_smoke.nr` locks single and repeated
   lock/unlock/free cycles.
+- **C-16 channel close semantics:** DONE for Phase 2 on 2026-05-06 —
+  `conc_channel_close` marks a bounded channel closed, leaves buffered
+  values readable, ignores sends after close, and makes recv on a closed
+  empty channel return `0` instead of blocking forever.
+  `concurrency_channel_close_smoke.nr` locks the contract.
 - **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
 ### E-1, E-2, E-3 — Effect / Capability trust gap

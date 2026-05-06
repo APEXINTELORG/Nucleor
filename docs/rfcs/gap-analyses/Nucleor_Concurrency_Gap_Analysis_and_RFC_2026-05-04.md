@@ -79,8 +79,8 @@ RFC examples use this syntax; compiler comments (v0.3.138) note it was removed b
 ### C-15 — `async_spawn` registry cap fixed at 256 — **LOW**
 `NUC_ASYNC_REGISTRY_SIZE 256` hard-coded; >256 in-flight async tasks `exit(1)`s. Process-killing panic, not structured error. No adopter-visible way to configure.
 
-### C-16 — Channel close semantics absent — **LOW**
-No `channel_close`/`channel_drop`. Closed-sender scenario (producer exits, consumer still calling `recv`) blocks forever. Standard producer/consumer "done" signal not implementable through the channel type.
+### C-16 — Channel close semantics — **DONE 2026-05-06**
+`conc_channel_close` now marks a channel closed on Win32 and POSIX. Buffered values remain readable, sends after close are ignored, and `recv` on a closed empty channel returns `0` instead of blocking forever. `conc_channel_is_closed` exposes the closed bit for callers that need an explicit status check. Validation: `tests/features/concurrency_channel_close_smoke.nr`.
 
 ### C-17 — AtomicU64/I32/U32/AtomicBool have no typed ordered ops — **LOW**
 Only `AtomicI64` and `AtomicBool` have full ordered API. Other widths have `new`/`drop` only; users must drop to the raw `a.handle` field for ordered ops, defeating type safety.
@@ -170,17 +170,19 @@ Implement `__nucleor_ambient_scheduler` returning a process-global capability to
 ### C-14 (effect system for concurrency unshipped) — Phase 3
 Cross-references the effects RFC. Once the effect system is real, concurrency-effect rules (no-spawn-in-pure, no-channel-in-deadline) become enforceable.
 
-### C-15, C-16, C-17 — Phase 2-3 polish
+### C-15, C-17 — Phase 2-3 polish
 - C-15: configurable async registry size; structured Result-Err on overflow
-- C-16: channel_close primitive + closed-channel semantics on send/recv
 - C-17: full ordered API for AtomicU64/I32/U32
+
+### C-16 (channel close semantics) — Phase 2 DONE 2026-05-06
+Shipped `conc_channel_close` / `conc_channel_is_closed` wrappers plus Win32/POSIX runtime close semantics. Closed channels preserve already-buffered values; sends after close no-op; recv on closed-empty returns `0`. Validation: `tests/features/concurrency_channel_close_smoke.nr`.
 
 ## 3.3. Phasing summary
 
 | Phase | What lands | Closures |
 |---|---|---|
 | **Phase 1 (emergency)** | Cancel token impl, POSIX channel impl, ordered atomic C backing, conc_map fix, mutex destroy, closure-table mutex | C-1, C-2, C-3, C-4, C-11, C-12 |
-| **Phase 2** | Sendable propagation audit, RACE-002/004/006/007 emission, #[atomic] enforcement, scope block, ambient_scheduler impl; barrier shipped 2026-05-06 | C-5, C-6, C-8, C-9, C-13, C-15, C-16, C-17 |
+| **Phase 2** | Sendable propagation audit, RACE-002/004/006/007 emission, #[atomic] enforcement, scope block, ambient_scheduler impl; barrier and channel close shipped 2026-05-06 | C-5, C-6, C-8, C-9, C-13, C-15, C-16, C-17 |
 | **Phase 3** | Actor mailbox + executor, full effect-system integration | C-7, C-14 |
 
 ## 3.4. v1.0 release gate
