@@ -1818,6 +1818,8 @@ git status --short --branch
 bash tools/bootstrap_linux.sh
 test -x ./bin/nucleor
 ./bin/nucleor --version
+./bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache
+test -x ./target/nucleor_tools
 command -v pwsh
 command -v ssh-keygen
 
@@ -1861,6 +1863,10 @@ Do not use `./bin/nucleor release keygen`, `nuc publish --key <path>`, or
 `package-sign-preflight --key-id <id>` for this proof. Current tools-suite
 dispatch exposes `publish`, while `tools/native_release.ps1` exposes
 `keygen <key-id>` and `package-sign-preflight <dir> [key-id]`.
+The `publish` command is routed through the tools-suite binary, so a fresh
+Linux checkout must build `compiler/nucleor_tools_suite.nr` before invoking
+`./bin/nucleor publish`; `target/nucleor_tools` is sufficient and does not need
+to be copied into `bin/`.
 
 If `native_release.ps1 keygen`, signed publish, or package verification is not
 implemented or fails on native Linux, do not paper over it. Capture the exact

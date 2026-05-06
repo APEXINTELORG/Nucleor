@@ -6,15 +6,44 @@ Cloud branch checked: `fix/helper2-native-linux-pkg-r06-closure-v0837`
 
 ## Status
 
-The cloud branch on GitHub is still at the original dispatch commit:
+The cloud branch on GitHub has the corrected command-shape dispatch commit:
 
 ```text
-9448f335178cb7ecac9b3b7700e132c9c80507e8 refs/heads/fix/helper2-native-linux-pkg-r06-closure-v0837
+e75bbf52 docs: correct cloud Linux release proof commands
 ```
 
 No pushed blocker report was visible on that branch during this triage. Treat
 any cloud blocker claims as unverified until the cloud agent pushes a report or
 pastes exact command output.
+
+Follow-up triage in the local Windows worktree reproduced a second dispatch
+precondition gap: `./bin/nucleor publish` delegates to the tools-suite binary
+and fails when `nucleor_tools` / `nucleor_tools.exe` is absent. A fresh native
+Linux checkout must build `compiler/nucleor_tools_suite.nr` after
+`bootstrap_linux.sh` and before running the publish proof.
+
+The same local probe also reproduced a fixture issue: the selected
+`tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml` defaulted to
+`src/main.nr`, but the fixture source is `main.nr`. The manifest now declares
+`entry = "main.nr"` so real publish can generate export/checksum/signature
+artifacts instead of failing after the dry-run phase.
+
+A third release-tooling issue was found while validating the fixed fixture:
+`tools/native_release.ps1` generated throwaway keys with `ssh-keygen -N '""'`,
+which sets the passphrase to two quote characters instead of an empty
+passphrase. Package signing then blocked waiting for a passphrase. The keygen
+call now passes an actual empty argument (`-N ""` after process-argument
+quoting), so non-interactive release proof runs do not hang.
+
+A fourth local argument-construction issue was found in the same path: the
+custom process-argument quoting helper returned an empty token for an empty
+string, so `ssh-keygen` interpreted `-C` as the passphrase value and failed with
+`Too many arguments`. `Quote-ProcessArg` now renders empty strings as `""`.
+
+Local Windows analogue validation now passes end to end: build the tools-suite
+binary, prove signed publish dry-run does not write a signature, keygen
+`throwaway-ci`, real signed publish, `package-sign-preflight`, and
+`package-verify`.
 
 ## Confirmed Dispatch Contract Bug
 
@@ -54,6 +83,8 @@ git status --short --branch
 bash tools/bootstrap_linux.sh
 test -x ./bin/nucleor
 ./bin/nucleor --version
+./bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache
+test -x ./target/nucleor_tools
 command -v pwsh
 command -v ssh-keygen
 
@@ -121,6 +152,13 @@ test -f stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a
 
 - `docs/rfcs/CLOUD_LINUX_PKG_R06_DISPATCH_v0837_2026-05-06.md`
 - `findings/_helper2_assignment_v0828_r06_rust_bridge_ownership_harness_2026-05-06.md`
+- `tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml`
 - `tools/VERIFY_TIMING_RECIPE.md`
+- `tools/native_release.ps1`
 
-Validation: `git diff --check` passed.
+Validation:
+
+- PowerShell parser check for `tools/native_release.ps1`: PASS
+- `native_release.ps1 keygen throwaway-ci --json`: PASS
+- Local PKG-1 signed-publish analogue: PASS
+- `git diff --check`: PASS

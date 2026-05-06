@@ -165,6 +165,7 @@ function New-TempPath([string]$Suffix) {
 function Quote-ProcessArg([string]$Arg) {
     if ($null -eq $Arg) { return '""' }
     $escaped = $Arg.Replace('"', '\"')
+    if ($escaped.Length -eq 0) { return '""' }
     if ($escaped -match '\s' -or $escaped.Contains('"')) {
         return ('"' + $escaped + '"')
     }
@@ -278,7 +279,7 @@ function Ensure-ReleaseKey {
         if (-not $AutoCreate) {
             throw "release signing key '$KeyId' is missing at $priv"
         }
-        $proc = Invoke-ExternalProcess -FileName "ssh-keygen" -Arguments @("-q", "-t", "ed25519", "-N", '""', "-C", ("nucleor-release:" + $KeyId), "-f", $priv)
+        $proc = Invoke-ExternalProcess -FileName "ssh-keygen" -Arguments @("-q", "-t", "ed25519", "-N", "", "-C", ("nucleor-release:" + $KeyId), "-f", $priv)
         if ($proc.exit_code -ne 0 -or -not (Test-Path -LiteralPath $priv) -or -not (Test-Path -LiteralPath $pub)) {
             throw ("failed to generate release signing key '{0}': {1}{2}" -f $KeyId, $proc.stderr, $proc.stdout)
         }
