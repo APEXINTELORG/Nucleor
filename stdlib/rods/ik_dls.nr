@@ -13,10 +13,11 @@
 // Vars are updated in place: caller passes the current
 // configuration in, gets the (improved) configuration out.
 //
-// **Position-only solver.** Orientation IK lands in v0.5
-// (RFC-0013 follow-on) — extends to 6-DOF target via a 6×n
-// Jacobian. The position-only path (3×n) covers most pick-and-
-// place use cases.
+// Solver surfaces:
+// - `ik_dls_solve`: position-only 3 x n DLS.
+// - `ik_dls_solve_nullspace`: position-only task-priority posture.
+// - `ik_dls_solve_6d`: position + orientation 6 x n DLS.
+// - `ik_dls_solve_6d_nullspace`: 6D task with projected posture.
 //
 // See `stdlib/runtime/ik_dls_rt.c`.
 #cfile "../runtime/ik_dls_rt.c"
@@ -98,6 +99,22 @@ extern fn nuc_ik_dls_solve_6d(
     damping_b: i64,
     weight_orient_b: i64) -> i64;
 
+// 6-DOF IK with nullspace posture preference (ROBO-4 Phase 1).
+// Same 6D pose target as `nuc_ik_dls_solve_6d`, plus a
+// `double[n_joints]` preferred posture and secondary weight. The
+// secondary update is projected through the 6D nullspace projector
+// `(I - J+J)` so redundant or task-invisible DOFs can move toward
+// posture preference without first-order disturbance of the pose task.
+extern fn nuc_ik_dls_solve_6d_nullspace(
+    ch: i64, vars_ptr: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tqw_b: i64, tqx_b: i64, tqy_b: i64, tqz_b: i64,
+    q_pref_ptr: i64, secondary_weight_b: i64,
+    max_iters: i64,
+    tolerance_b: i64,
+    damping_b: i64,
+    weight_orient_b: i64) -> i64;
+
 fn ik_dls_solve(
     ch: i64, vars_ptr: i64,
     tx_bits: i64, ty_bits: i64, tz_bits: i64,
@@ -142,5 +159,21 @@ fn ik_dls_solve_6d(
     return nuc_ik_dls_solve_6d(
         ch, vars_ptr, tx_b, ty_b, tz_b,
         tqw_b, tqx_b, tqy_b, tqz_b,
+        max_iters, tolerance_b, damping_b, weight_orient_b);
+}
+
+fn ik_dls_solve_6d_nullspace(
+    ch: i64, vars_ptr: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tqw_b: i64, tqx_b: i64, tqy_b: i64, tqz_b: i64,
+    q_pref_ptr: i64, secondary_weight_b: i64,
+    max_iters: i64,
+    tolerance_b: i64,
+    damping_b: i64,
+    weight_orient_b: i64) -> i64 {
+    return nuc_ik_dls_solve_6d_nullspace(
+        ch, vars_ptr, tx_b, ty_b, tz_b,
+        tqw_b, tqx_b, tqy_b, tqz_b,
+        q_pref_ptr, secondary_weight_b,
         max_iters, tolerance_b, damping_b, weight_orient_b);
 }

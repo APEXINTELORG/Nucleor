@@ -38,6 +38,8 @@ Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-
 ## ROBO-4 — IK nullspace solver uses position-only Jacobian — **HIGH**
 `nuc_ik_dls_solve_nullspace` uses 3-DOF position Jacobian. For n≥7 DOF arms needing orientation + posture simultaneously, you need 6×n Jacobian in nullspace path. 6-DOF path doesn't expose nullspace variant.
 
+**2026-05-06 update:** Phase 1 6D nullspace posture support now exists. `ik_dls_solve_6d_nullspace` uses the existing 6×n pose Jacobian and projects a preferred joint posture through `(I - J+J)`; `tests/features/ik_6d_nullspace_smoke.nr` proves a 6D pose target still solves while a task-invisible redundant DOF moves toward `q_pref`. Remaining ROBO-4 work: production fixtures on a true 7-DOF manipulator with orientation + posture coupling, stronger convergence/scaling policy, and singularity/limit-avoidance evidence.
+
 ## ROBO-5 — TF tree: integer IDs, no timestamps, no forest — **HIGH**
 Limitations: integer-only IDs (caller maintains name→id map), single tree only, no time-stamped buffer or interpolation. Real sensor-fusion produces transforms at different frequencies (camera 30 Hz, lidar 10 Hz); without time-indexed buffer, `tf_set_pose` races with async sources.
 
@@ -107,7 +109,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 
 **Phase 2 (short-term):**
 - ROBO-7 P2: implement RFC-0046 Phase B. Compiler-side TYP-008 check that `transform(p, tf)` call-site frames match. **Closes Mars Climate Orbiter failure mode.**
-- ROBO-4: 6-DOF Jacobian in nullspace solver.
+- ROBO-4: DONE for Phase 1 6D nullspace posture solver. Remaining: true 7-DOF manipulator production fixture, stronger convergence/scaling policy, and singularity/limit-avoidance evidence.
 - ROBO-5: DONE for Phase 1 latest-two-sample timestamped interpolation. Remaining: name-keyed lookup, multi-tree forest support, deeper time buffers, cache/lazy lookup strategy, and hard-RT allocation protocol.
 - ROBO-6: DONE for Phase 1 topology parsing + safe serial export/refusal. Remaining: true branched-tree FK/runtime surface, xacro subset expansion, and richer link/visual/collision/inertial model handling.
 - ROBO-10: WBC strict-priority stack + torque-box constraints.

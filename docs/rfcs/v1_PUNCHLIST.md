@@ -426,6 +426,14 @@ launch. After memory safety completes, these are next-priority.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+- **ROBO-4 6D IK nullspace posture:** DONE for Phase 1 on
+  2026-05-06. `ik_dls_solve_6d_nullspace` uses the 6 x n pose
+  Jacobian and projects preferred posture through `(I - J+J)`;
+  `ik_6d_nullspace_smoke.nr` proves the pose task solves while a
+  task-invisible redundant DOF moves toward `q_pref`. Remaining gap:
+  production fixture on a true 7-DOF arm with orientation + posture
+  coupling, stronger convergence/scaling policy, and singularity /
+  limit-avoidance evidence.
 - **ROBO-2 DMP multi-DOF batch wrapper:** DONE for Phase 1 on
   2026-05-06. `dmp_multi_new`, `dmp_multi_learn`,
   `dmp_multi_reset`, and `dmp_multi_step` expose a whole-joint-vector
