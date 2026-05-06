@@ -56,6 +56,7 @@ extern fn nuc_ahrs_set_orientation(h: i64, q_ptr: i64);
 extern fn nuc_ahrs_get_orientation(h: i64, q_ptr: i64);
 extern fn nuc_ahrs_get_euler(h: i64, rpy_ptr: i64);
 extern fn nuc_ahrs_update(h: i64, gyro_ptr: i64, accel_ptr: i64, dt_b: i64);
+extern fn nuc_ahrs_update_mag(h: i64, gyro_ptr: i64, accel_ptr: i64, mag_ptr: i64, dt_b: i64);
 extern fn nuc_ahrs_get_bias(h: i64, bias_ptr: i64);
 extern fn nuc_ahrs_free(h: i64);
 
@@ -87,6 +88,14 @@ fn ahrs_update(h: i64, gyro_ptr: i64, accel_ptr: i64, dt_b: i64) {
     nuc_ahrs_update(h, gyro_ptr, accel_ptr, dt_b);
 }
 
+// 9-DOF update with magnetometer heading correction. `mag_ptr` is
+// a calibrated body-frame magnetic vector. The runtime uses +X as
+// the world magnetic reference; declination/local-field calibration
+// remains caller responsibility.
+fn ahrs_update_mag(h: i64, gyro_ptr: i64, accel_ptr: i64, mag_ptr: i64, dt_b: i64) {
+    nuc_ahrs_update_mag(h, gyro_ptr, accel_ptr, mag_ptr, dt_b);
+}
+
 // Read the estimated gyro bias (3 doubles) accumulated by the Ki
 // term. Useful for sensor diagnostics.
 fn ahrs_get_bias(h: i64, bias_ptr: i64) { nuc_ahrs_get_bias(h, bias_ptr); }
@@ -106,5 +115,5 @@ fn ahrs_free(h: i64) { nuc_ahrs_free(h); }
 // the same API (e.g. add a magnetometer-fused 9-DOF mode that
 // removes the no-yaw-observability limitation).
 fn ahrs_limitations() -> str {
-    return "AHRS Mahony complementary filter limitations (ROBO-10): (1) no yaw observability without magnetometer; (2) accel correction assumes near-static motion; (3) Ki term assumes constant gyro bias, no thermal model; (4) not optimal for aggressive motion. Phase 2 may add 9-DOF magnetometer fusion.";
+    return "AHRS Mahony complementary filter limitations (ROBO-12): (1) 9-DOF magnetometer update is available via ahrs_update_mag, but caller must calibrate magnetometer and declination; (2) accel correction assumes near-static motion; (3) Ki term assumes constant gyro bias, no thermal model; (4) Madgwick variant is not shipped yet.";
 }

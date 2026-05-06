@@ -60,6 +60,8 @@ Rod named `twin_core.nr` is quantum simulator dual-core differentiable noise mod
 ## ROBO-12 — AHRS lacks magnetometer — yaw unobservable — **HIGH**
 "Yaw is unobservable from accel... add magnetometer correction for absolute heading." Mahony filter with magnetometer and Madgwick variant absent. Drones, ground vehicles needing absolute heading cannot fuse compass.
 
+**2026-05-06 update:** Phase 1 magnetometer fusion now exists. `ahrs_update_mag` adds a 9-DOF Mahony update path with calibrated body-frame magnetometer input and a world +X magnetic reference; `tests/features/ahrs_magnetometer_yaw_smoke.nr` proves yaw correction from an initial 90-degree heading error. Remaining ROBO-12 work: local declination/calibration helpers, stronger high-dynamics rejection, and a Madgwick variant.
+
 ## ROBO-13 — No CCD for OBB pairs or mesh-mesh — **MEDIUM**
 CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing OBB-OBB and convex-mesh-vs-mesh. Fast-moving rigid bodies with oriented geometry cannot be swept exactly.
 
@@ -98,7 +100,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-5: TF tree with name-keyed lookup + time-stamped buffer + interpolation. Multi-tree (forest) support.
 - ROBO-6: URDF branching topology support. xacro expansion.
 - ROBO-10: WBC strict-priority stack + torque-box constraints.
-- ROBO-12: AHRS with magnetometer + Madgwick variant.
+- ROBO-12: DONE for Mahony 9-DOF magnetometer yaw correction. Remaining: calibration/declination helpers, high-dynamics rejection policy, and Madgwick variant.
 
 **Phase 3 (medium-term):**
 - ROBO-1: TOPP-RA (convex per-step torque/dynamics constraints).
