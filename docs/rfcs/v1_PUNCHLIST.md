@@ -209,6 +209,11 @@ launch. After memory safety completes, these are next-priority.
   same Surface-17 stabilizer set. The fixture verifies internal exhaustive
   counts by weight; external published weight-enumerator value citations remain
   an advisory documentation gap, not a missing runtime surface.
+- **Phase 2d bounded property micro-suite:** DONE 2026-05-06 —
+  `qm7_clifford_property_micro_suite.nr` locks clone/reset isolation,
+  small gate-sequence identities, repeatable [[5,1,3]] rebuilds, logical
+  non-detectability, single-error detectability, and five-qubit
+  stabilizer/logical weight-count consistency.
 - **Still open for Phase 2 closure:** QASM/OpenQASM2 interop and a citation-backed
   external published weight-enumerator parity row if the launch docs require one.
 
@@ -493,6 +498,9 @@ proper analysis → Phase 4 hard error):
   coverage from Tomita/Svore Table II.
 - **2026-05-06**: QM-7 Phase 2c adds bounded Clifford stabilizer/logical
   weight-enumerator helpers and locks Surface-17 internal exhaustive counts.
+- **2026-05-06**: QM-7 Phase 2d adds a bounded Clifford property
+  micro-suite over clone/reset isolation, small gate-sequence identities,
+  and repeatable [[5,1,3]] code invariants.
   Remaining open items are QASM/OpenQASM2 interop and optional external
   citation-backed published enumerator parity.
 - **2026-05-05**: Effect/capability Phase 1 advanced again.
