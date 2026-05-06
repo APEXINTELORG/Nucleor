@@ -35,7 +35,7 @@ Update 2026-05-06 helper1 v0856: `tensor_new_2d` and `tensor_matmul` are now shi
 ## ML-3 — `tensor_nd` missing transpose — **HIGH**
 No `tensor_transpose` or `tensor_permute`. K^T in attention, weight transpose in backprop, CP factor permutation all require it. Combined with ML-2, tensor_nd structurally incomplete for matmul-heavy workloads.
 
-Update 2026-05-06 helper1 v0856: `tensor_transpose` is now shipped for rank-2 tensors and covered by `tests/features/tensor_nd_matmul_transpose_smoke.nr`. General `tensor_permute` / multi-axis transpose remain open.
+Update 2026-05-06 helper1 v0856/v0857: `tensor_transpose` is now shipped for rank-2 tensors and covered by `tests/features/tensor_nd_matmul_transpose_smoke.nr`; `tensor_permute` is now shipped for arbitrary-rank tensor axes and covered by `tests/features/tensor_nd_permute_smoke.nr`.
 
 ## ML-4 — Attention2 flash: seq_q vs seq_k unification — **HIGH**
 Even when ML-1 ABI is fixed, rod surface has no way for callers to specify rectangular attention (seq_q ≠ seq_k). Cross-attention (decoder over encoder) unsupported.
@@ -100,7 +100,7 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 
 **Phase 2 (short-term, missing kernels):**
 - ML-2: add `tensor_matmul(A, B) -> C` for 2D case. **Shipped helper1 v0856 for rank-2 tensors.**
-- ML-3: add `tensor_transpose(A) -> A^T` and `tensor_permute(A, axes)`. **2D transpose shipped helper1 v0856; general permute remains open.**
+- ML-3: add `tensor_transpose(A) -> A^T` and `tensor_permute(A, axes)`. **2D transpose shipped helper1 v0856; general permute shipped helper1 v0857.**
 - ML-4: add seq_q/seq_k separate parameters to `attention2.nr` for cross-attention.
 - ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV).
 - ML-7: add decode for int8 and ternary.

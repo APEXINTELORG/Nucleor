@@ -397,6 +397,42 @@ long long nuc_t3_transpose(long long h) {
     return (long long)t;
 }
 
+long long nuc_t3_permute(long long h, long long axes_h) {
+    typedef struct { long long *data; int len; int cap; } NVec;
+    Tensor3D *src = (Tensor3D *)(void *)h;
+    NVec *axes = (NVec *)(void *)axes_h;
+    if (!src || !axes) return 0;
+    if (axes->len != src->ndim) return 0;
+
+    int used[T3_MAX_DIMS] = {0};
+    int axis_map[T3_MAX_DIMS] = {0};
+    for (int i = 0; i < axes->len; i++) {
+        long long a = axes->data[i];
+        if (a < 0 || a >= src->ndim) return 0;
+        if (used[(int)a]) return 0;
+        used[(int)a] = 1;
+        axis_map[i] = (int)a;
+    }
+
+    Tensor3D *dst = (Tensor3D *)calloc(1, sizeof(Tensor3D));
+    dst->ndim = src->ndim;
+    for (int i = 0; i < dst->ndim; i++) dst->shape[i] = src->shape[axis_map[i]];
+    t3_compute_strides(dst);
+    dst->data = (double *)malloc((size_t)dst->total * sizeof(double));
+
+    for (int out = 0; out < dst->total; out++) {
+        int rem = out;
+        int src_idx = 0;
+        for (int d = 0; d < dst->ndim; d++) {
+            int coord = rem / dst->strides[d];
+            rem = rem % dst->strides[d];
+            src_idx += coord * src->strides[axis_map[d]];
+        }
+        dst->data[out] = src->data[src_idx];
+    }
+    return (long long)dst;
+}
+
 void nuc_t3_free(long long h) {
     Tensor3D *t = (Tensor3D *)(void *)h;
     if (t) { free(t->data); free(t); }
