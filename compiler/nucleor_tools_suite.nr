@@ -14998,10 +14998,11 @@ fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json
 
 fn compiler_version_label() -> str {
     // v0.4.180: caught up from stale "0.2.0-v2" (sync with s1).
-    // v0.8.323: caught up from stale 0.4.180 (sync with s1 per RFC-0063
-    // Phase 1 follow-on; tools_suite was missed in the v0.8.323 audit
-    // because the parity gate only covered s1's label).
-    return "0.8.322";
+    // v0.8.323 (initial): caught up from stale 0.4.180 (sync with s1
+    // per RFC-0063 Phase 1 follow-on; tools_suite was missed in the
+    // first v0.8.323 audit because the parity gate only covered s1).
+    // v0.8.323 (release): bumped to match the new CHANGELOG heading.
+    return "0.8.323";
 }
 
 fn compiler_backend_label() -> str {

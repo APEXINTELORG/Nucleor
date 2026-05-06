@@ -279,10 +279,16 @@ check_manifest() {
     tr -d '\r' < "$snapshot" > "$snapshot_norm"
     tr -d '\r' < "$manifest_path" > "$generated_norm"
     if ! diff -q "$snapshot_norm" "$generated_norm" >/dev/null 2>&1; then
+        local regen_cmd
+        case "$gen_path" in
+            *.nr) regen_cmd="$NUCLEOR_BIN build $gen_path -o $(basename "$gen_path" .nr) && ./target/$(basename "$gen_path" .nr)" ;;
+            *.py) regen_cmd="$PYTHON $gen_path" ;;
+            *)    regen_cmd="<unknown generator type>" ;;
+        esac
         echo ""
         echo "FAIL: $manifest_path is stale."
         echo "Re-run the generator and commit the result:"
-        echo "  python $gen_path"
+        echo "  $regen_cmd"
         echo "  git add $manifest_path"
         cp "$snapshot" "$manifest_path"
         return 1

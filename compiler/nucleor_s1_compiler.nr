@@ -36671,9 +36671,10 @@ fn compiler_version_label() -> str {
     // time. Update when cutting each new release.
     // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
     // v0.8.322: caught up from stale 0.4.180 (~140 ships behind).
+    // v0.8.323: production readiness audit pass — RFC-0063 Phase 1.
     // tools/check_compiler_drift.sh enforces parity with the latest
     // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
-    return "0.8.322";
+    return "0.8.323";
 }
 
 #[manual_drop]
