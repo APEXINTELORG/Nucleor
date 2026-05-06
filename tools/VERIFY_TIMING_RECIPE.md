@@ -142,22 +142,49 @@ claim POSIX perf evidence.
 
 ## R06 rust_bridge ownership harness
 
-`tools/check_rust_bridge_ownership.ps1` is an opt-in harness for the Rust
-bridge string ownership path. It is not wired into `verify.sh` or
-`verify.ps1`. Use it when changing `stdlib/rods/rust_bridge`,
-`stdlib/rods/rust.nr`, or the `rust_free_str` ownership convention:
+`tools/check_rust_bridge_ownership.ps1` and
+`tools/check_rust_bridge_ownership.sh` are opt-in harnesses for the Rust
+bridge string ownership path. They are not wired into `verify.sh` or
+`verify.ps1`. Use them when changing `stdlib/rods/rust_bridge`,
+`stdlib/rods/rust.nr`, or the `rust_free_str` ownership convention.
+
+Windows validation:
 
 ```powershell
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Iterations 100
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 `
+  -Fixture tests\features\rust_bridge_string_free_repeat_smoke.nr `
+  -Iterations 100
+```
+
+POSIX validation:
+
+```bash
+bash tools/check_rust_bridge_ownership.sh --doctor
+bash tools/check_rust_bridge_ownership.sh --iterations 100
+bash tools/check_rust_bridge_ownership.sh \
+  --fixture tests/features/rust_bridge_string_free_repeat_smoke.nr \
+  --iterations 100
 ```
 
 The normal run builds `stdlib/rods/rust_bridge` with `cargo build --release`
-when the release artifact is missing, builds
-`tests/features/rust_bridge_string_free_smoke.nr`, then runs the resulting
-fixture repeatedly. Each fixture execution performs 100 alloc/free cycles
-through the Rust bridge. Missing `cargo`, missing crate files, missing compiler
-binary, fixture build failure, or any nonzero fixture run is a hard failure.
+when the release artifact is missing, builds the focused fixture, then runs the
+resulting executable repeatedly. Missing `cargo`, missing crate files, missing
+compiler binary, fixture build failure, or any nonzero fixture run is a hard
+failure.
+
+| Host path | Expected bridge artifact | Compiler binary | Harness |
+|---|---|---|---|
+| Windows | `stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib` | `bin\nucleor.exe` | `tools\check_rust_bridge_ownership.ps1` |
+| POSIX Linux/macOS | `stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a` | `bin/nucleor` | `tools/check_rust_bridge_ownership.sh` |
+
+`tests/features/rust_bridge_string_free_smoke.nr` is the narrow legacy
+fixture: each run performs 100 alloc/free cycles through
+`rust_to_uppercase`/`rust_regex_find`. The broader repeat fixture
+`tests/features/rust_bridge_string_free_repeat_smoke.nr` covers all seven
+string-returning Rust bridge functions and performs 700 alloc/free cycles per
+fixture process run.
 
 ## v0.8.317 — cold/hot memory split for the perf gate
 

@@ -2,6 +2,7 @@ param(
     [switch]$Doctor,
     [ValidateRange(1, 100000)]
     [int]$Iterations = 100,
+    [string]$Fixture = "tests/features/rust_bridge_string_free_smoke.nr",
     [string]$Root = "",
     [string]$OutName = "_rust_bridge_ownership_check",
     [ValidateRange(1, 3600)]
@@ -21,8 +22,14 @@ $bridgeCrate = Join-Path $Root "stdlib\rods\rust_bridge"
 $bridgeCargo = Join-Path $bridgeCrate "Cargo.toml"
 $bridgeSrc = Join-Path $bridgeCrate "src\lib.rs"
 $bridgeReleaseDir = Join-Path $bridgeCrate "target\release"
-$fixtureRel = "tests/features/rust_bridge_string_free_smoke.nr"
-$fixture = Join-Path $Root $fixtureRel
+$fixtureArg = $Fixture.Replace("\", "/")
+if ([System.IO.Path]::IsPathRooted($Fixture)) {
+    $fixture = [System.IO.Path]::GetFullPath($Fixture)
+    $fixtureRel = $fixture
+} else {
+    $fixtureRel = $fixtureArg
+    $fixture = Join-Path $Root $Fixture
+}
 $targetDir = Join-Path $Root "target"
 $compilerCandidates = @(
     (Join-Path $Root "bin\nucleor.exe"),
@@ -119,6 +126,13 @@ function Get-OutputExecutable([string]$Name) {
         (Join-Path $targetDir $Name)
     )
     return Get-FirstExistingPath $candidates
+}
+
+function Get-FixtureCycleCount([string]$Path) {
+    if ($Path -match "rust_bridge_string_free_repeat_smoke\.nr$") {
+        return 700
+    }
+    return 100
 }
 
 function Get-Readiness {
@@ -222,7 +236,7 @@ if ($oldExe -ne "") {
 }
 
 Write-Host ("building focused fixture: {0}" -f $fixtureRel)
-$buildResult = Invoke-CapturedProcess -FilePath $readiness.Compiler -ArgumentList @("build", $fixtureRel, "-o", $OutName, "--no-cache") -WorkingDirectory $Root -TimeoutSec $BuildTimeoutSec
+$buildResult = Invoke-CapturedProcess -FilePath $readiness.Compiler -ArgumentList @("build", $fixtureArg, "-o", $OutName, "--no-cache") -WorkingDirectory $Root -TimeoutSec $BuildTimeoutSec
 if ($buildResult.TimedOut -or $buildResult.ExitCode -ne 0) {
     Fail ("fixture build failed with exit {0}`n{1}" -f $buildResult.ExitCode, (Format-ProcessTail $buildResult))
 }
@@ -232,7 +246,7 @@ if ($exe -eq "") {
     Fail ("fixture build reported success but executable was not found under target for output {0}" -f $OutName)
 }
 
-$fixtureCycles = 100
+$fixtureCycles = Get-FixtureCycleCount $fixtureArg
 for ($i = 1; $i -le $Iterations; $i++) {
     $runResult = Invoke-CapturedProcess -FilePath $exe -ArgumentList @() -WorkingDirectory $Root -TimeoutSec $RunTimeoutSec
     if ($runResult.TimedOut -or $runResult.ExitCode -ne 0) {
