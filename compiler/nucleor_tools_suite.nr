@@ -7747,6 +7747,81 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(ebase, abase) == 1 { return 1; };
     return 0;
 }
+fn builtin_rtype_format_string_i64(name: str) -> i64 {
+    if str_eq(name, "str_eq") == 1 { return 1; };
+    if str_eq(name, "str_starts_with") == 1 { return 1; };
+    if str_eq(name, "str_ends_with") == 1 { return 1; };
+    if str_eq(name, "str_index_of") == 1 { return 1; };
+    if str_eq(name, "str_contains") == 1 { return 1; };
+    if str_eq(name, "str_is_empty") == 1 { return 1; };
+    if str_eq(name, "str_count") == 1 { return 1; };
+    if str_eq(name, "str_to_i64") == 1 { return 1; };
+    if str_eq(name, "str_to_int") == 1 { return 1; };
+    if str_eq(name, "str_to_int_strict") == 1 { return 1; };
+    if str_eq(name, "str_to_bool") == 1 { return 1; };
+    if str_eq(name, "str_to_i64_radix") == 1 { return 1; };
+    if str_eq(name, "parse_hex") == 1 { return 1; };
+    if str_eq(name, "parse_bin") == 1 { return 1; };
+    return 0;
+}
+
+fn builtin_rtype_format_string_str(name: str) -> i64 {
+    if str_eq(name, "str_concat") == 1 { return 1; };
+    if str_eq(name, "str_to_lower") == 1 { return 1; };
+    if str_eq(name, "str_to_upper") == 1 { return 1; };
+    if str_eq(name, "str_replace") == 1 { return 1; };
+    if str_eq(name, "str_repeat") == 1 { return 1; };
+    if str_eq(name, "str_reverse") == 1 { return 1; };
+    if str_eq(name, "str_pad_left") == 1 { return 1; };
+    if str_eq(name, "str_pad_right") == 1 { return 1; };
+    if str_eq(name, "str_center") == 1 { return 1; };
+    if str_eq(name, "str_join") == 1 { return 1; };
+    if str_eq(name, "int_to_str") == 1 { return 1; };
+    if str_eq(name, "str_from_int") == 1 { return 1; };
+    if str_eq(name, "bool_to_str") == 1 { return 1; };
+    if str_eq(name, "int_to_hex") == 1 { return 1; };
+    if str_eq(name, "int_to_bin") == 1 { return 1; };
+    if str_eq(name, "int_to_oct") == 1 { return 1; };
+    if str_eq(name, "int_to_str_force_sign") == 1 { return 1; };
+    if str_eq(name, "int_to_hex_upper") == 1 { return 1; };
+    if str_eq(name, "f64_to_str") == 1 { return 1; };
+    if str_eq(name, "f32_to_str") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_prec") == 1 { return 1; };
+    if str_eq(name, "f32_to_str_prec") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_upper") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") == 1 { return 1; };
+    if str_eq(name, "format_i64") == 1 { return 1; };
+    if str_eq(name, "format_str") == 1 { return 1; };
+    if str_eq(name, "format_hex") == 1 { return 1; };
+    if str_eq(name, "format_bool") == 1 { return 1; };
+    if str_eq(name, "format_f64") == 1 { return 1; };
+    if str_eq(name, "format2_ii") == 1 { return 1; };
+    if str_eq(name, "format2_si") == 1 { return 1; };
+    if str_eq(name, "format2_ss") == 1 { return 1; };
+    if str_eq(name, "format2_is") == 1 { return 1; };
+    if str_eq(name, "format2_ff") == 1 { return 1; };
+    if str_eq(name, "format2_fi") == 1 { return 1; };
+    if str_eq(name, "format2_if") == 1 { return 1; };
+    if str_eq(name, "format3_fff") == 1 { return 1; };
+    if str_eq(name, "format3_iii") == 1 { return 1; };
+    if str_eq(name, "format3_sii") == 1 { return 1; };
+    if str_eq(name, "format3_iss") == 1 { return 1; };
+    if str_eq(name, "format3_sss") == 1 { return 1; };
+    if str_eq(name, "format3_ssi") == 1 { return 1; };
+    if str_eq(name, "format3_sis") == 1 { return 1; };
+    if str_eq(name, "format3_iis") == 1 { return 1; };
+    if str_eq(name, "format3_isi") == 1 { return 1; };
+    if str_eq(name, "format3_iif") == 1 { return 1; };
+    if str_eq(name, "format3_iff") == 1 { return 1; };
+    if str_eq(name, "format3_sff") == 1 { return 1; };
+    if str_eq(name, "format3_ssf") == 1 { return 1; };
+    if str_eq(name, "format3_sif") == 1 { return 1; };
+    if str_eq(name, "format3_isf") == 1 { return 1; };
+    return 0;
+}
+
 fn builtin_rtype(name: str) -> str {
     if str_eq(name, "str_len") == 1 || str_eq(name, "str_char_at") == 1 || str_eq(name, "str_char_at_strict") == 1 { return "i64"; };
     if str_eq(name, "str_substring") == 1 || str_eq(name, "str_substring_strict") == 1 || str_eq(name, "str_trim") == 1 || str_eq(name, "str_trim_start") == 1 || str_eq(name, "str_trim_end") == 1 { return "str"; };
@@ -8155,7 +8230,13 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 type_diag(diags, source, fn_name, vname, "TYP-021", v21msg_t);
             };
             if str_len(tstr) > 0 {
-                if str_len(init_t) == 0 && str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 {
+                let strict_infer_t4: i64 = if str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 { 1 } else { 0 };
+                if str_len(init_t) == 0 && strict_infer_t4 == 1 && node_kind(pool, init) == 7 {
+                    let strict_callee_t4: str = node_field(pool, init, 1);
+                    if builtin_rtype_format_string_i64(strict_callee_t4) == 1 { init_t = "i64"; }
+                    else if builtin_rtype_format_string_str(strict_callee_t4) == 1 { init_t = "str"; };
+                };
+                if str_len(init_t) == 0 && strict_infer_t4 == 1 {
                     let v27msg_t: str = str_concat("type inference failed for binding '", str_concat(vname, "'; explicit annotation required"));
                     type_diag(diags, source, fn_name, vname, "TYP-027", v27msg_t);
                 } else if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {

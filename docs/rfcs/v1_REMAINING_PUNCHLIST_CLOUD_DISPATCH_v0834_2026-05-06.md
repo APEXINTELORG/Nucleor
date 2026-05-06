@@ -107,8 +107,8 @@ unification.
 - Cross-module import viability is confirmed.
 - `tools/audit_dup_fns.nr` exists.
 - Current duplicate report after helper/cloud integration:
-  - 434 duplicate function names
-  - 255 `IDENTICAL`
+  - 436 duplicate function names
+  - 257 `IDENTICAL`
   - 163 `SIG_MATCH_BODY_DIFFERS`
   - 16 `SIG_DIFFERS`
 - No duplicate deletion/import savings have landed yet.
@@ -125,7 +125,7 @@ unification.
 
 **Next build work:**
 
-1. Create a reviewed Wave 1 deletion plan for the 255 `IDENTICAL` candidates.
+1. Create a reviewed Wave 1 deletion plan for the 257 `IDENTICAL` candidates.
 2. Delete/import a coherent Wave 1 batch from `compiler/nucleor_tools_suite.nr`.
 3. Avoid duplicate-name import collisions. If remaining duplicate names block
    import, use the documented `_tools_legacy` strategy or split the work into
@@ -247,10 +247,13 @@ Run perf gate if compiler hot path changes materially.
 - T-4 Phase 2b partial also covers direct IO/env/path runtime helper
   return types in strict inference: `env_*`, `getcwd`/`getenv`,
   OS-info, read-only FS, path, and byte-compare helpers.
+- T-4 Phase 2b partial also covers direct format/string runtime helper
+  return types in strict inference: string predicates, string utilities,
+  integer parse/format helpers, and `format*` helpers.
 
 Still open:
 
-- T-4 strict empty-type compatibility beyond covered core/IO/path helper returns:
+- T-4 strict empty-type compatibility beyond covered core/IO/path/format/string helper returns:
   generic/helper expansion, default-on promotion, and broad stdlib audit.
 - Broader T-3 char distinctness.
 - Non-constant char-cast proof.

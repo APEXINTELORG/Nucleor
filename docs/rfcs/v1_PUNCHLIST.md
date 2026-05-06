@@ -119,11 +119,11 @@ launch. After memory safety completes, these are next-priority.
 - **Important accounting:** no duplicate functions have been deleted
   yet, so no compile-time or binary-size savings from this lane are
   realized. Current savings are only from separate perf/tooling fixes.
-- **Current audit counts after helper/cloud integration:** 434
-  duplicate function names: 255 `IDENTICAL` safe-delete candidates,
+- **Current audit counts after helper/cloud integration:** 436
+  duplicate function names: 257 `IDENTICAL` safe-delete candidates,
   163 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
   `SIG_DIFFERS` per-function lift/adapter candidates.
-- **Next build item:** delete or import the 255 identical duplicates
+- **Next build item:** delete or import the 257 identical duplicates
   through the RFC-0063 parser/tools-suite unification strategy, then
   handle the 163 same-signature body-diff candidates and 16
   signature-diff candidates in follow-on waves.
@@ -152,9 +152,14 @@ launch. After memory safety completes, these are next-priority.
   types for direct `env_*`, `getcwd`/`getenv`, OS-info, read-only FS,
   path, and byte-compare helpers; `t4_strict_io_path_helper_rtypes.nr`
   locks the positive strict-mode assignment path.
+- **T-4 Phase 2b partial:** DONE 2026-05-06 for format/string helper
+  return typing. Strict inference now knows scalar/string return types
+  for direct string predicates, format helpers, integer parse/format
+  helpers, and core string utility helpers; `t4_strict_format_string_helper_rtypes.nr`
+  locks the positive strict-mode assignment path.
 - **Phase 2b still open:** T-4 strict empty-type compatibility beyond
-  covered core/IO/path helper returns, broader T-3 char distinctness,
-  and non-constant char-cast proof.
+  covered core/IO/path/format/string helper returns, broader T-3 char
+  distinctness, and non-constant char-cast proof.
   The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
   as a current blocker after v0.8.319 rebuilt/promoted
