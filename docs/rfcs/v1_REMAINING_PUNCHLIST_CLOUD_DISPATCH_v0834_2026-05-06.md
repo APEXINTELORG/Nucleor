@@ -59,8 +59,8 @@ not a whole-project completion number.
 | 6. Algebraic laws | 50% | Capture and bounded checks landed; rewrite/proof gates open |
 | 7. PKG-1 Linux signed publish proof | 75% | Dry-run/preflight staged; native signed transcript open |
 | 8. R06 FFI ownership | 60% | Harnesses staged; native POSIX and broader FFI contract open |
-| 9. Quantum residuals | 80% | Most QM Phase 1/2 surfaces closed; targeted residuals open |
-| 10. Hermetic/native tooling | 55% | Several ports landed; remaining generator ports and Python-free drift open |
+| 9. Quantum residuals | 88% | Most QM Phase 1/2 surfaces closed; targeted residuals open |
+| 10. Hermetic/native tooling | 70% | Drift-gated generators are native and stale optional C5 Python generator is retired |
 
 **2026-05-06 update:** R10-D3 POSIX perf native evidence is no longer an
 open native-Linux blocker. It is closed by
@@ -581,6 +581,7 @@ Closed or mostly closed:
 - QM-2 qsim checked init.
 - QM-7 Clifford d=3 surface coverage.
 - QM-8/QM-9 qsim graph preflight and checked record.
+- QM-8/QM-9 qsim graph runtime spinlock guard and disclosure.
 - QM-11 diff_sim checked init.
 - QM-12 shared common gate constants.
 - QM-13 schedule overlap and checked insertion.
@@ -590,7 +591,7 @@ Still open:
 
 - Published Clifford weight-enumerator parity and API.
 - High-qubit MPS streaming/external-sink extraction.
-- qsim graph thread safety.
+- qsim graph per-handle state for scalable independent graph ownership.
 - Typed rotation IDs or unified native rotation dispatch.
 - Backend calibration/resource scheduler and hardware target lowering.
 - Logical registry thread safety.
@@ -610,8 +611,8 @@ Still open:
 
 - QM-A: Clifford weight-enumerator API plus published parity fixture.
 - QM-B: MPS high-qubit streaming/external sink design and first safe API.
-- QM-C: qsim graph/thread-safety audit and fail-closed process-local warning or
-  lock-backed implementation.
+- QM-C: qsim graph per-handle state design or finding; the global runtime
+  spinlock guard is already landed.
 - QM-D: typed rotation IDs or dispatch-unification finding if implementation is
   larger than a clean stdlib/runtime slice.
 
@@ -648,13 +649,14 @@ runtime changes affect hot paths.
 - Python interop is classified as intentional.
 - `tools/check_compiler_drift.sh` no longer invokes a Python generator for any
   active generated-artifact freshness check.
+- The stale optional/offline `tools/gen_numerics_matrix.py` generator is
+  retired; the numerics matrix is now curated committed fixtures.
 
-Still open:
+Still open / residual:
 
-- `gen_numerics_matrix.py` has been retired instead of ported: it was
-  optional/offline, not drift-gated, and stale versus the committed matrix.
-- The numerics matrix is now treated as curated committed fixtures under
-  `tests/lang/numerics_matrix/`, with the existing PowerShell/Bash runners.
+- Temporary Python comparison oracles for already-native generators should be
+  removed or explicitly kept out of release-critical paths after their
+  comparison window ends.
 - Keep maintenance-only Python references clearly optional.
 
 **Primary files:**
