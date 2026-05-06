@@ -644,7 +644,8 @@ runtime changes affect hot paths.
 **Current state:**
 
 - `gen_releases_index.py`, `gen_rod_manifest.py`,
-  `gen_benchmark_summary.py`, and `gen_helper_manifest.py` have native paths.
+  `gen_benchmark_summary.py`, and `gen_helper_manifest.py` have native paths,
+  and their former Python comparison-oracle files are retired.
 - `verify-reproducible` no longer requires Python for Windows byte compare.
 - Python interop is classified as intentional.
 - `tools/check_compiler_drift.sh` no longer invokes a Python generator for any
@@ -654,14 +655,11 @@ runtime changes affect hot paths.
 
 Still open / residual:
 
-- Temporary Python comparison oracles for already-native generators should be
-  removed or explicitly kept out of release-critical paths after their
-  comparison window ends.
-- Keep maintenance-only Python references clearly optional.
+- Keep maintenance-only historical Python references clearly documented as
+  historical when they appear in old reports or migration docs.
 
 **Primary files:**
 
-- `tools/gen_helper_manifest.py`
 - `tools/check_compiler_drift.sh`
 - `tools/gen_rod_manifest.nr`
 - `tools/gen_benchmark_summary.nr`
@@ -673,8 +671,7 @@ Still open / residual:
 
 - HERM-A: CLOSED by retiring the stale optional numerics matrix Python
   generator; no release-critical path invokes it.
-- HERM-B: native helper manifest generator path is present; keep the Python
-  source only as a temporary comparison oracle.
+- HERM-B: CLOSED by retiring the native-replaced Python generator sources.
 - HERM-C: active drift-gated generator checks are Python-free; keep future
   `.py` fallback checks out of release-critical paths unless explicitly
   re-justified.
