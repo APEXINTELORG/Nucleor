@@ -38140,13 +38140,11 @@ fn main() -> i64 {
         // and has content" -- enough for the presence check.
         if exe_a_present == 1 && exe_b_present == 1 {
             if host_is_windows() == 1 {
-                // Use Python's filecmp.cmp for byte-equality. Python is
-                // already a build dependency (manifest generators use it)
-                // and filecmp.cmp does a true byte-compare without the
-                // path-quoting / shell-version pitfalls of fc.exe / cmd.exe
-                // / Get-FileHash (which needs PS >= 4.0; some pwsh-nested
-                // distros don't expose it). Exits 0 if equal, 1 if differ.
-                let cmp_cmd: str = str_concat("python -c \"import filecmp,sys; sys.exit(0 if filecmp.cmp(r'", str_concat(exe_a, str_concat("', r'", str_concat(exe_b, "', shallow=False) else 1)\""))));
+                // fc /B is part of the Windows command processor and
+                // performs a true byte compare. Keep this path free of
+                // Python so `nuc verify-reproducible` does not require a
+                // Python install on adopter machines.
+                let cmp_cmd: str = str_concat("fc /B ", str_concat(core_shell_quote(host_shell_path(exe_a)), str_concat(" ", str_concat(core_shell_quote(host_shell_path(exe_b)), " >NUL 2>NUL"))));
                 let cmp_rc: i64 = system(cmp_cmd);
                 exe_check_ran = 1;
                 if cmp_rc == 0 { exe_match = 1; };
