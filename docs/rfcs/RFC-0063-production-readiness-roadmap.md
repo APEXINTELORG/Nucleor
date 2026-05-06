@@ -169,6 +169,14 @@ Lowers to one runtime helper template, instantiated per `T` at IR emission. The 
 | C5 | `gen_numerics_matrix.py` | 13.7 KB | Port to `nuc gen-numerics-matrix` |
 | C6 | `gen_helper_manifest.py` | 35 KB | Port last — most evolved, requires regex + TOML emission |
 
+**C1 disposition note.** `g1_default_flip_safety_audit.py` is not a live
+compiler invariant and should not be embedded in `nucleor.exe`. It was a
+source-text migration audit for the RFC-0062 G-1 default-flip, which is now
+unconditional. Keep the historical audit result in changelog/RFC evidence and
+delete the active Python helper. If this class of check becomes useful again,
+rebuild it as an optional native audit command, e.g. `nuc audit auto-drop`, using
+compiler-owned AST/ownership metadata rather than reintroducing a Python helper.
+
 **Per-port checklist:**
 1. Native Nucleor implementation under `compiler/nucleor_tools_suite.nr` as a `nuc gen-*` dispatch.
 2. Output byte-identical to the Python version (locked via `tools/check_compiler_drift.sh` regression).
