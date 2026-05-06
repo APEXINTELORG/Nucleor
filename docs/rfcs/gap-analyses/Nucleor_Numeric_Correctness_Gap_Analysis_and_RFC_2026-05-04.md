@@ -35,6 +35,8 @@ Lexer encodes `int_part * 1_000_000 + frac_millionths`. `3.1415926535897932` sil
 RFC-0043 documents this. `fixed_point.nr` rod is workaround; provides no compiler-enforced separation between Q formats. `let a: fixed<8,8> = ...; let b: fixed<16,16> = a;` silently succeeds (both are i64). Mixed-format arithmetic produces wrong results. `fixed_saturate` returns raw i64 when `I+F == 63` without clamping.
 
 ## NUM-G5 — `interval_rt.c` pool exhaustion wraps silently — **HIGH**
+
+Update 2026-05-06 helper1 v0860: the interval runtime had already been changed to fail closed instead of wrapping on pool exhaustion; this slice adds public pool capacity/status/preflight helpers (`iv_pool_capacity`, `iv_pool_used`, `iv_pool_remaining`, `iv_pool_preflight`) so callers can avoid exhaustion before allocating large interval batches. `tests/features/interval_pool_status_smoke.nr` locks checkpoint/reset accounting and preflight refusal for impossible allocation counts.
 At pool full, `interval_next = 1` — pool wraps and new handles alias into live data with no diagnostic. Long-running proofs without checkpoint resets are silently corrupted. No capacity counter or overflow warning.
 
 ## NUM-G6 — `interval` sin/cos widening uses DBL_EPSILON not rigorous ULP bound — **MEDIUM**
@@ -91,7 +93,7 @@ Macro computes `long long r = a * b` with no overflow check before clamping. For
 - NUM-G9 P1: emit warning NUM-WARN-001 on `@const_fn`: "Compile-time evaluation not yet enforced; attribute is currently a no-op. See RFC-0034."
 
 **Phase 2 (short-term):**
-- NUM-G5: `interval_rt.c` pool exhaustion fires runtime panic instead of silently wrapping. User must increase pool or reset checkpoints.
+- NUM-G5: `interval_rt.c` pool exhaustion fails closed instead of silently wrapping, and helper1 v0860 adds public status/preflight helpers so callers can query capacity before allocation. User must increase pool or reset checkpoints for larger workloads.
 - NUM-G7: `rods_complex_abs` uses `hypot(a, b)`. `rods_complex_div` uses range-aware formula (Smith's algorithm). Document NaN/Inf propagation contract.
 - NUM-G8 P2: replace global flag with thread-local storage. `checked_*` returns become re-entrant.
 - NUM-G11: implement `round_down`/`round_up`/`round_to_nearest`/`get_rounding_mode` in `numeric.nr` rod. Direct wrappers around `fesetround`. **Mode get/set + next-up/down shipped helper1 v0858.**

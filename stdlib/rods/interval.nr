@@ -10,6 +10,10 @@
 #cfile "../runtime/interval_rt.c"
 
 extern fn nuc_interval_pool_checkpoint() -> i64;
+extern fn nuc_interval_pool_capacity() -> i64;
+extern fn nuc_interval_pool_used() -> i64;
+extern fn nuc_interval_pool_remaining() -> i64;
+extern fn nuc_interval_pool_preflight(count: i64) -> i64;
 extern fn nuc_interval_pool_reset(checkpoint: i64);
 extern fn nuc_interval_new(lo: i64, hi: i64) -> i64;
 extern fn nuc_interval_point(x: i64) -> i64;
@@ -34,6 +38,10 @@ extern fn nuc_interval_max(a: i64, b: i64) -> i64;
 extern fn nuc_interval_min(a: i64, b: i64) -> i64;
 
 fn iv_checkpoint() -> i64 { return nuc_interval_pool_checkpoint(); }
+fn iv_pool_capacity() -> i64 { return nuc_interval_pool_capacity(); }
+fn iv_pool_used() -> i64 { return nuc_interval_pool_used(); }
+fn iv_pool_remaining() -> i64 { return nuc_interval_pool_remaining(); }
+fn iv_pool_preflight(count: i64) -> i64 { return nuc_interval_pool_preflight(count); }
 fn iv_reset(cp: i64) { nuc_interval_pool_reset(cp); }
 fn iv_new(lo: i64, hi: i64) -> i64 { return nuc_interval_new(lo, hi); }
 fn iv_point(x: i64) -> i64 { return nuc_interval_point(x); }
