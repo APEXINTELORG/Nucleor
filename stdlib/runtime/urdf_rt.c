@@ -11,16 +11,17 @@
 //     <origin xyz="x y z" rpy="r p y"/>     (RPY = roll-pitch-yaw)
 //     <axis xyz="x y z"/>
 //     <limit lower="..." upper="..." effort="..." velocity="..."/>
-//     ... (parent/child/dynamics ignored — see limitations)
+//     <parent link="..."/>
+//     <child link="..."/>
+//     ... (dynamics ignored — see limitations)
 //   </joint>
 //
 // **Limitations** (the v0.5 ship is intentionally minimal; the
 // follow-on URDF compliance pass lands in v0.6):
-// - Linear-chain assumption: joints are loaded in source order
-//   from base to tip; <parent>/<child> link relationships are
-//   *not* used to reconstruct the topology. Branching trees
-//   (e.g., humanoid robots) are flattened to the source-order
-//   sequence — wrong for those, fine for serial arms.
+// - FK export remains serial-chain only. <parent>/<child> link
+//   relationships are parsed and used to order serial trees, and
+//   branching/forest topologies are refused by urdf_to_fk_chain
+//   instead of being silently flattened.
 // - Continuous joints are treated as revolute (no distinction).
 // - Mesh / visual / collision / inertial subtrees are skipped.
 // - Includes (xacro <xacro:include>) are NOT resolved — the
@@ -47,6 +48,10 @@ typedef struct {
     double lo, hi;
     int has_limit;
     char name[64];
+    char parent_link[64];
+    char child_link[64];
+    int has_parent_link;
+    int has_child_link;
 } _URDFJoint;
 
 typedef struct {
@@ -144,6 +149,79 @@ static void _rpy_to_quat(double r, double p, double y, double *q_out) {
     q_out[3] = sy * cp * cr - cy * sp * sr;  // z
 }
 
+static int _copy_attr_value(char *dst, int dst_cap, const char *src) {
+    if (!dst || dst_cap <= 0 || !src) return 0;
+    int n = (int)strlen(src);
+    if (n >= dst_cap) n = dst_cap - 1;
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+    return n > 0;
+}
+
+static int _topology_available(NURDF *u) {
+    if (!u || u->n_joints <= 0) return 0;
+    for (int i = 0; i < u->n_joints; i++) {
+        if (!u->joints[i].has_parent_link || !u->joints[i].has_child_link) return 0;
+    }
+    return 1;
+}
+
+static int _joint_parent_index(NURDF *u, int i) {
+    if (!u || i < 0 || i >= u->n_joints) return -2;
+    _URDFJoint *j = &u->joints[i];
+    if (!j->has_parent_link) return i == 0 ? -1 : i - 1;
+    for (int k = 0; k < u->n_joints; k++) {
+        if (k == i) continue;
+        if (u->joints[k].has_child_link &&
+            strcmp(u->joints[k].child_link, j->parent_link) == 0) {
+            return k;
+        }
+    }
+    return -1;
+}
+
+static int _joint_child_count(NURDF *u, int parent_idx) {
+    if (!u || parent_idx < -1 || parent_idx >= u->n_joints) return 0;
+    int n = 0;
+    for (int i = 0; i < u->n_joints; i++) {
+        if (_joint_parent_index(u, i) == parent_idx) n++;
+    }
+    return n;
+}
+
+static int _first_child_index(NURDF *u, int parent_idx) {
+    if (!u || parent_idx < -1 || parent_idx >= u->n_joints) return -1;
+    for (int i = 0; i < u->n_joints; i++) {
+        if (_joint_parent_index(u, i) == parent_idx) return i;
+    }
+    return -1;
+}
+
+static int _has_branching(NURDF *u) {
+    if (!_topology_available(u)) return 0;
+    if (_joint_child_count(u, -1) > 1) return 1;
+    for (int i = 0; i < u->n_joints; i++) {
+        if (_joint_child_count(u, i) > 1) return 1;
+    }
+    return 0;
+}
+
+static int _topology_is_serial(NURDF *u) {
+    if (!u) return 0;
+    if (!_topology_available(u)) return 1;
+    if (u->n_joints == 0) return 1;
+    if (_joint_child_count(u, -1) != 1) return 0;
+    int cur = _first_child_index(u, -1);
+    int visited = 0;
+    while (cur >= 0 && visited <= u->n_joints) {
+        visited++;
+        int n_child = _joint_child_count(u, cur);
+        if (n_child > 1) return 0;
+        cur = n_child == 1 ? _first_child_index(u, cur) : -1;
+    }
+    return visited == u->n_joints;
+}
+
 // === URDF rod surface ===
 
 long long nuc_urdf_new(void) {
@@ -191,9 +269,7 @@ long long nuc_urdf_parse(long long h, long long src_ptr) {
         if (!open_close || open_close > jend) { cursor = jend + 8; continue; }
         char buf[128];
         if (_find_attr(jstart - 1, open_close, "name", buf, sizeof(buf))) {
-            int nlen = (int)strlen(buf);
-            if (nlen >= (int)sizeof(j->name)) nlen = sizeof(j->name) - 1;
-            memcpy(j->name, buf, nlen); j->name[nlen] = '\0';
+            _copy_attr_value(j->name, (int)sizeof(j->name), buf);
         }
         if (_find_attr(jstart - 1, open_close, "type", buf, sizeof(buf))) {
             if (strcmp(buf, "revolute") == 0 || strcmp(buf, "continuous") == 0)
@@ -224,6 +300,27 @@ long long nuc_urdf_parse(long long h, long long src_ptr) {
             if (ax_close && ax_close < jend) {
                 if (_find_attr(ax - 1, ax_close, "xyz", buf, sizeof(buf))) {
                     _parse_3d(buf, j->axis);
+                }
+            }
+        }
+        // <parent link="..."/> and <child link="..."/>
+        const char *par = _find_elem(open_close, jend, "parent");
+        if (par) {
+            const char *par_close = strchr(par, '>');
+            if (par_close && par_close < jend) {
+                if (_find_attr(par - 1, par_close, "link", buf, sizeof(buf))) {
+                    j->has_parent_link = _copy_attr_value(j->parent_link,
+                        (int)sizeof(j->parent_link), buf);
+                }
+            }
+        }
+        const char *child = _find_elem(open_close, jend, "child");
+        if (child) {
+            const char *child_close = strchr(child, '>');
+            if (child_close && child_close < jend) {
+                if (_find_attr(child - 1, child_close, "link", buf, sizeof(buf))) {
+                    j->has_child_link = _copy_attr_value(j->child_link,
+                        (int)sizeof(j->child_link), buf);
                 }
             }
         }
@@ -297,6 +394,31 @@ long long nuc_urdf_joint_has_limit(long long h, long long i) {
     return (long long)u->joints[i].has_limit;
 }
 
+long long nuc_urdf_has_topology(long long h) {
+    NURDF *u = (NURDF *)(void *)(size_t)h;
+    return _topology_available(u) ? 1LL : 0LL;
+}
+
+long long nuc_urdf_joint_parent_index(long long h, long long i) {
+    NURDF *u = (NURDF *)(void *)(size_t)h;
+    return (long long)_joint_parent_index(u, (int)i);
+}
+
+long long nuc_urdf_joint_child_count(long long h, long long parent_index) {
+    NURDF *u = (NURDF *)(void *)(size_t)h;
+    return (long long)_joint_child_count(u, (int)parent_index);
+}
+
+long long nuc_urdf_has_branching(long long h) {
+    NURDF *u = (NURDF *)(void *)(size_t)h;
+    return _has_branching(u) ? 1LL : 0LL;
+}
+
+long long nuc_urdf_topology_is_serial(long long h) {
+    NURDF *u = (NURDF *)(void *)(size_t)h;
+    return _topology_is_serial(u) ? 1LL : 0LL;
+}
+
 // === FK chain integration ===
 //
 // Forward-declare the FK chain runtime symbols (defined in
@@ -309,26 +431,38 @@ long long nuc_fk_chain_add_joint(
     long long off_qw_bits, long long off_qx_bits, long long off_qy_bits, long long off_qz_bits,
     long long axis_x_bits, long long axis_y_bits, long long axis_z_bits);
 
+static long long _append_fk_joint(long long ch, _URDFJoint *j) {
+    double q[4];
+    _rpy_to_quat(j->rpy[0], j->rpy[1], j->rpy[2], q);
+    return nuc_fk_chain_add_joint(ch,
+        (long long)j->joint_type,
+        _f2i(j->xyz[0]), _f2i(j->xyz[1]), _f2i(j->xyz[2]),
+        _f2i(q[0]), _f2i(q[1]), _f2i(q[2]), _f2i(q[3]),
+        _f2i(j->axis[0]), _f2i(j->axis[1]), _f2i(j->axis[2]));
+}
+
 // Build an FK chain handle from the parsed URDF, treating the
-// joint sequence as a serial chain (linear-topology assumption).
-// Returns the FK chain handle, or 0 on failure.
+// joint sequence as a serial chain. When parent/child link metadata
+// is available, serial trees are ordered by topology and branching
+// or forest topologies are refused instead of silently flattened.
+// Returns the FK chain handle, or 0 on failure/refused topology.
 long long nuc_urdf_to_fk_chain(long long h) {
     NURDF *u = (NURDF *)(void *)(size_t)h;
     if (!u) return 0;
+    int topo = _topology_available(u);
+    if (topo && !_topology_is_serial(u)) return 0;
     long long ch = nuc_fk_chain_new();
     if (!ch) return 0;
-    for (int i = 0; i < u->n_joints; i++) {
-        _URDFJoint *j = &u->joints[i];
-        double q[4];
-        _rpy_to_quat(j->rpy[0], j->rpy[1], j->rpy[2], q);
-        // Map URDF joint type → FK joint type. URDF "revolute" /
-        // "continuous" → FK_REVOLUTE (0); URDF "prismatic" → 1;
-        // URDF "fixed" → 2.
-        nuc_fk_chain_add_joint(ch,
-            (long long)j->joint_type,
-            _f2i(j->xyz[0]), _f2i(j->xyz[1]), _f2i(j->xyz[2]),
-            _f2i(q[0]), _f2i(q[1]), _f2i(q[2]), _f2i(q[3]),
-            _f2i(j->axis[0]), _f2i(j->axis[1]), _f2i(j->axis[2]));
+    if (!topo) {
+        for (int i = 0; i < u->n_joints; i++) {
+            _append_fk_joint(ch, &u->joints[i]);
+        }
+    } else {
+        int cur = _first_child_index(u, -1);
+        while (cur >= 0) {
+            _append_fk_joint(ch, &u->joints[cur]);
+            cur = _first_child_index(u, cur);
+        }
     }
     return ch;
 }

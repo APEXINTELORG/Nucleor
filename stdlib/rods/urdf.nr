@@ -10,13 +10,15 @@
 //     <origin xyz="x y z" rpy="r p y"/>
 //     <axis xyz="x y z"/>
 //     <limit lower="..." upper="..." effort="..." velocity="..."/>
+//     <parent link="..."/>
+//     <child link="..."/>
 //   </joint>
 //
 // **Limitations** (full URDF compliance lands in v0.6 if needed):
-// - Linear-chain assumption: joints are loaded in source order
-//   from base to tip. <parent>/<child> link relationships are NOT
-//   used to reconstruct the topology — branching trees (humanoids)
-//   are flattened to source-order. Fine for serial arms.
+// - FK export remains serial-chain only. <parent>/<child> link
+//   relationships are parsed and used to order serial trees; branching
+//   trees and disconnected forests are refused by `urdf_to_fk_chain`
+//   instead of being silently flattened.
 // - "continuous" joint type treated as "revolute".
 // - Mesh / visual / collision / inertial subtrees skipped.
 // - xacro <xacro:include> NOT resolved — preprocess to plain URDF.
@@ -44,6 +46,11 @@ extern fn nuc_urdf_joint_origin_rpy(h: i64, i: i64, dim: i64) -> i64;
 extern fn nuc_urdf_joint_limit_lo(h: i64, i: i64) -> i64;
 extern fn nuc_urdf_joint_limit_hi(h: i64, i: i64) -> i64;
 extern fn nuc_urdf_joint_has_limit(h: i64, i: i64) -> i64;
+extern fn nuc_urdf_has_topology(h: i64) -> i64;
+extern fn nuc_urdf_joint_parent_index(h: i64, i: i64) -> i64;
+extern fn nuc_urdf_joint_child_count(h: i64, parent_index: i64) -> i64;
+extern fn nuc_urdf_has_branching(h: i64) -> i64;
+extern fn nuc_urdf_topology_is_serial(h: i64) -> i64;
 extern fn nuc_urdf_to_fk_chain(h: i64) -> i64;
 extern fn nuc_urdf_free(h: i64);
 
@@ -87,10 +94,25 @@ fn urdf_joint_limit_lo(h: i64, i: i64) -> i64 { return nuc_urdf_joint_limit_lo(h
 fn urdf_joint_limit_hi(h: i64, i: i64) -> i64 { return nuc_urdf_joint_limit_hi(h, i); }
 fn urdf_joint_has_limit(h: i64, i: i64) -> i64 { return nuc_urdf_joint_has_limit(h, i); }
 
+// Topology metadata parsed from <parent link="..."/> and
+// <child link="..."/>. Parent index is -1 for root-link joints.
+// If no URDF topology metadata exists, parent_index falls back to
+// source-order serial semantics for legacy callers.
+fn urdf_has_topology(h: i64) -> i64 { return nuc_urdf_has_topology(h); }
+fn urdf_joint_parent_index(h: i64, i: i64) -> i64 {
+    return nuc_urdf_joint_parent_index(h, i);
+}
+fn urdf_joint_child_count(h: i64, parent_index: i64) -> i64 {
+    return nuc_urdf_joint_child_count(h, parent_index);
+}
+fn urdf_has_branching(h: i64) -> i64 { return nuc_urdf_has_branching(h); }
+fn urdf_topology_is_serial(h: i64) -> i64 { return nuc_urdf_topology_is_serial(h); }
+
 // Construct an FK chain (see `fk_chain.nr`) from the parsed URDF,
-// treating the joint sequence as a serial chain. Returns the FK
-// chain handle. RPY origin rotations are converted to quaternions
-// internally.
+// treating the joint topology as a serial chain. If parent/child
+// metadata is present, source order no longer matters for serial
+// trees; branched trees and disconnected forests return 0 because
+// FK-chain cannot represent them without a tree FK surface.
 fn urdf_to_fk_chain(h: i64) -> i64 { return nuc_urdf_to_fk_chain(h); }
 
 fn urdf_free(h: i64) { nuc_urdf_free(h); }
