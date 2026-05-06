@@ -110,6 +110,14 @@ Remaining gap: true external-sink/callback streaming is still not exposed.
 ## QM-8 — Two entanglement trackers not wired together — **HIGH**
 `quantum_rt.c` (32-qubit, trace-only, no active flag) and `qsim_graph_rt.c` (1024-qubit, queryable, union-by-size). When `qsim_cnot` fires, calls `rods_trace_entangle` (trace UF) but NOT `nuc_qsim_entangle_register` (queryable UF). Caller using `qsim_graph.nr` must manually register entanglements separately — easy to forget, no enforcement.
 
+**2026-05-06 helper1 v0835 update:** current qsim graph thread-safety status
+is now explicit and fixture-backed. `qsim_graph_is_thread_safe()` returns `0`,
+`qsim_graph_requires_external_lock()` returns `1`, and
+`qsim_graph_thread_safety_required_primitive()` names the missing
+runtime-owned qsim_graph mutex or per-graph handle-state refactor. The
+underlying runtime still uses process-local static union-find and gate-DAG
+arrays, so this is disclosure, not synchronized access.
+
 ## QM-9 — Gate-influence DAG silent overflow at 4096 gates — **MEDIUM**
 `NUC_QSIM_MAX_GATES 4096`. Larger circuits return -1 from `nuc_qsim_gate_record` but **nothing signals this to Nucleor layer** — silent overflow with partial DAG data.
 
