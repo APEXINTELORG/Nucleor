@@ -364,6 +364,16 @@ fn qsim_prob0(sv: i64, q: i64) -> i64 {
     return prob;
 }
 
+// Probability of measuring qubit q as `outcome` (0 or 1). This is
+// the header-advertised compatibility surface; qsim_prob0 remains the
+// lower-level primitive used internally.
+fn qsim_prob(sv: i64, q: i64, outcome: i64) -> i64 {
+    let p0: i64 = qsim_prob0(sv, q);
+    if outcome == 0 { return p0; };
+    if outcome == 1 { return f64_sub(f64_from_int(1), p0); };
+    return f64_from_int(0);
+}
+
 // Measure qubit q, collapse state, return outcome (0 or 1)
 fn qsim_measure(sv: i64, q: i64) -> i64 {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); };
@@ -459,6 +469,27 @@ fn qsim_dump(sv: i64) {
     };
 }
 
+// Return the underlying statevector handle explicitly. The state is
+// already represented as a Vec<complex> handle; this wrapper makes the
+// documented surface real without copying.
+fn qsim_statevec(sv: i64) -> i64 {
+    return sv;
+}
+
+// Deep-copy the statevector amplitudes. Complex values are handle
+// objects, so copy their real/imag fields rather than aliasing handles.
+fn qsim_copy(sv: i64) -> i64 {
+    let size: i64 = vec_len(sv);
+    let out: i64 = vec_new();
+    let mut i: i64 = 0;
+    while i < size {
+        let amp: i64 = vec_get(sv, i);
+        vec_push(out, cx_new(cx_real(amp), cx_imag(amp)));
+        i = i + 1;
+    };
+    return out;
+}
+
 // Reset to |0...0>
 fn qsim_reset(sv: i64) {
     let size: i64 = vec_len(sv);
@@ -522,5 +553,5 @@ fn qsim_status_explain(status: i64) -> str {
 }
 
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0833): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) NO SAFE STATEVEC ACCESSOR: full amplitude readout requires raw vec_get on the i64 handle. Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations (QM-1/QM-2, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (4) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
 }

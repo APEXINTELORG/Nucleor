@@ -25,6 +25,12 @@ Quantum is positioned as a domain stdlib (not a hardware-targeting compiler). Fo
 ## QM-1 — Header advertises functions that don't exist — **LOW**
 `qsim_copy`, `qsim_statevec`, `qsim_prob` advertised in `quantum.nr` header but not implemented in body. Doc/spec drift.
 
+**2026-05-06 update:** QM-1 is closed by making the advertised functions real.
+`qsim_prob(sv, q, outcome)` wraps `qsim_prob0` for both measurement outcomes,
+`qsim_statevec(sv)` exposes the underlying statevector handle explicitly, and
+`qsim_copy(sv)` deep-copies complex amplitude handles so later mutations diverge.
+`qsim_header_compat_smoke.nr` locks all three surfaces plus the limitations text.
+
 ## QM-2 — Statevector MAX_QUBITS 32 silently miscounts at >32 qubits — **MEDIUM**
 Static array in entanglement tracker. Tracker silently stops counting for q >= 32; simulator operates on more qubits — silent miscount in trace events for circuits with 33+ qubits.
 
@@ -163,7 +169,8 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
   computational-basis joint probability, and capped qsim-compatible
   statevector extraction are shipped; remaining work is high-qubit
   streaming/external-sink extraction if needed.
-- QM-1: remove unimplemented function names from `quantum.nr` header comment.
+- QM-1: DONE. `qsim_prob`, `qsim_statevec`, and `qsim_copy` now exist and
+  are fixture-backed.
 - QM-2: preflight/disclosure, `qsim_init_checked`, and raw `qsim_init`
   fail-closed behavior are shipped.
 
