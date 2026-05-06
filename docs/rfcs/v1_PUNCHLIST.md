@@ -149,7 +149,13 @@ launch. After memory safety completes, these are next-priority.
 
 ### Real-Time / Determinism
 - Source: `gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md`
-- Phase 1: audit `#[deadline]` / `#[no_alloc]` enforcement.
+- **RT-G1 Phase 1.5:** DONE on 2026-05-05 — `#[no_alloc]`
+  now rejects direct same-file calls into helpers whose own bodies
+  contain known allocation patterns. Remaining gap: deeper
+  transitive calls, cross-module callees, and fn-pointer dispatch
+  still require the AST/IR traversal pass.
+- **Still open:** `#[deadline]` numeric/WCET backing and broader RT
+  attribute enforcement audit.
 
 ### Algebraic Laws
 - Source: `gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md`

@@ -36,7 +36,7 @@ Maps to the gap inventory.
 ## 2.2. The fifteen gaps
 
 ### RT-G1 — False-negative surface: transitive allocation through unchecked callee — **HIGH**
-`#[no_alloc]` only scans the annotated function's own body for hardcoded allocating-function name patterns, plus any callee explicitly tagged `with [Alloc]`. A helper function that calls `str_concat` internally will NOT be caught unless the helper appears in `no_alloc_check_list()` or carries a `with [Alloc]` annotation. **RFC promises transitive inference; implementation provides one-level source-text pattern matching.** Concrete failure: `#[no_alloc] fn motor_step() { let s: str = format_path(x, y); }` where `format_path` calls `str_concat` internally — no RT-001 fires.
+`#[no_alloc]` scans the annotated function's own body for hardcoded allocating-function name patterns, any callee explicitly tagged `with [Alloc]`, and as of 2026-05-05 a one-hop same-file helper whose own body contains a known allocation pattern. **RFC promises transitive inference; implementation still provides bounded source-text pattern matching.** Remaining false-negative surface: deeper helper chains, cross-module callees without explicit effects, and function-pointer calls.
 
 ### RT-G2 — False-negative: function pointer calls in `#[no_alloc]`/`#[no_dyn]` fns — **HIGH**
 Source-level scanner for `#[no_dyn]` only looks for literal token `"dyn "`. Indirect call through fn-pointer stored in a struct field produces no RT-003. Same for `#[no_alloc]` — callee invoked through fn-pointer, scanner can't see through, no RT-001 fires.
@@ -54,7 +54,7 @@ Deadline wrapper uses `time_monotonic_us()` — wall-clock elapsed time on host 
 v0.6.0 shipped `#[isr]` with parse + IR marker, but **no Cortex-M or RISC-V sysroot exists.** No `arm-none-eabi` toolchain support, no linker script, no vector table emission. ISR test fixture `rfc0008_isr_minimal.nr` runs on x86_64 Windows host and prints "OK" — does not generate interrupt handler code. **A user reading "ISR support" and attempting to target an STM32F4 has no path to do so.**
 
 ### RT-G7 — `#[isr]` inheritance is source-scan only — same gap as RT-G1/G3 — **MEDIUM**
-`#[isr]` inherits `#[no_alloc]`/`#[no_panic]` checks via the same source-level substring scan. False-negative surface of RT-G1 and RT-G3 applies equally. ISR calling a helper containing `Vec::push` is not caught unless helper name is in hardcoded list.
+`#[isr]` inherits `#[no_alloc]`/`#[no_panic]` checks via the same source-level substring scan. The `#[no_alloc]` side now catches one-hop same-file helpers containing known allocation patterns, but the remaining false-negative surface of RT-G1 and RT-G3 applies equally.
 
 ### RT-G8 — `#[no_alloc]`/`#[no_panic]` scope is per-file — cross-module gap — **MEDIUM**
 Both check fns operate on a single source string. `#[no_alloc]` fn calling imported function from another rod — callee body not available for scanning. `check_effect_call_violations()` catches cases where callee has explicit `with [Alloc]` annotation, but **rod audit manifests (RFC-0001 §3.5) are not implemented.** No `rod_rt.audit.toml` consumed by compiler.
