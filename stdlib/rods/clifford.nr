@@ -57,7 +57,7 @@ fn cliff_random_gate(h: i64, gate_type: i64, seed: i64) { nuc_cliff_random_gate(
 
 // === R11 Phase 1 (v0.8.312) - clifford rod disclosure (QM-7) ===
 //
-// Updated 2026-05-05 after QM-7 fixtures landed in tests/features.
+// Updated 2026-05-06 after QM-7 Surface-17 coverage landed in tests/features.
 fn clifford_limitations() -> str {
-    return "Clifford-stabilizer rod limitations (QM-7, updated 2026-05-05): (1) OSS verify coverage now includes Bell/GHZ entanglement, gate identities, reset/rebuild round-trip coverage, and a [[5,1,3]] stabilizer-distance smoke, but not a broad randomized property suite. (2) ERROR-MODEL coverage is still narrow: cliff_error_detectable / cliff_count_errors are checked on a known code, but adopters must validate their own stabilizer construction. (3) NO QASM / OpenQASM2 INTEROP. (4) Rotated surface-code d=3 and published weight-enumerator parity remain open for QM-7 Phase 2 closure.";
+    return "Clifford-stabilizer rod limitations (QM-7, updated 2026-05-06): (1) OSS verify coverage now includes Bell/GHZ entanglement, gate identities, reset/rebuild round-trip coverage, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke, but not a broad randomized property suite. (2) ERROR-MODEL coverage is still narrow: cliff_error_detectable / cliff_count_errors are checked on known codes, but adopters must validate their own stabilizer construction. (3) NO QASM / OpenQASM2 INTEROP. (4) Published weight-enumerator parity remains open until the rod exposes stabilizer/logical weight-enumerator APIs.";
 }

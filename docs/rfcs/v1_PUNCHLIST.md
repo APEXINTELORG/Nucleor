@@ -131,8 +131,14 @@ launch. After memory safety completes, these are next-priority.
 - **Phase 2a round-trip:** DONE 2026-05-05 — `qm7_clifford_reset_rebuild_smoke.nr`
   locks reset-to-zero handle reuse plus repeatable [[5,1,3]] code rebuild
   on fresh code handles.
-- **Still open for Phase 2 closure:** surface-code distance d=3 rotated
-  planar and weight-enumerator validation against published code.
+- **Phase 2b rotated surface d=3:** DONE 2026-05-06 —
+  `qm7_clifford_surface_d3_smoke.nr` locks the published Surface-17
+  stabilizer/logical set from Tomita/Svore Table II, 9 physical qubits,
+  8 generators, distance 3, 27/27 single-qubit detectable errors, and
+  non-detectability of the logical `X2 X4 X6` / `Z0 Z4 Z8` operators.
+- **Still open for Phase 2 closure:** published weight-enumerator parity.
+  Current public Clifford APIs expose distance and detectability, not a
+  stabilizer/logical weight-enumerator surface.
 
 ### ROBO-7 — Frame-typing safety
 
@@ -252,6 +258,14 @@ launch. After memory safety completes, these are next-priority.
   records two control-target relationships because the public checked
   record surface is two-qubit. Remaining gap: process-local graph
   state is not thread-safe across pthread/async boundaries.
+- **R11-D4 qsim graph lifecycle auto-record closure:** DONE for
+  Phase 2d on 2026-05-06 — focused coverage now locks
+  `qsim_graph_clear()` resetting both entanglement and gate-DAG state,
+  fresh post-clear qsim runs starting with zero graph counts, exact
+  one-record behavior for CNOT/CZ/CRK, inherited three-record SWAP, and
+  the documented two-control-target CCX representation. Remaining gap:
+  process-local graph state is not thread-safe across pthread/async
+  boundaries.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
@@ -321,6 +335,9 @@ proper analysis → Phase 4 hard error):
   disclosure was updated so imports no longer claim zero Clifford
   coverage. Rotated surface-code and published weight-enumerator parity
   remain open.
+- **2026-05-06**: QM-7 Phase 2b adds rotated Surface-17 d=3 fixture
+  coverage from Tomita/Svore Table II. Remaining open item is published
+  weight-enumerator parity, blocked on a new Clifford rod enumerator API.
 - **2026-05-05**: Effect/capability Phase 1 advanced again.
   Block-form `restricts [...] { ... }` now emits `EFF-003` during
   `nuc build` instead of accepting or misparsing an unenforced
