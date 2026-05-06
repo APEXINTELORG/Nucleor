@@ -231,10 +231,10 @@ correct fix is single-source-of-truth.
 
 | Ship | What | Status |
 |---|---|---|
-| 2.0.0 | **Verify cross-module `pub fn` import** is supported across the s1↔tools_suite scale (~430 fns). **Blocker for 2.0.2+** if not already working. Survey 2.0.1 flagged this as a hard prereq. | OPEN |
+| 2.0.0 | Verify cross-module `pub fn` import is viable at the s1↔tools_suite scale (~430 fns). | DONE v0.8.323 — see `findings/promoted/2026-05-06-phase-2-0-0-cross-module-import-verified.md`. Three smoke tests pass: basic fn imports, complex `Vec<i32>` cross-module, and the duplicate-name PANIC confirms the canonical "delete duplicates + import" pattern. |
 | 2.0.1 | Survey the surface tools_suite needs (parse + type-check + emit-summary; not full IR / link) | DONE v0.8.323 — see `findings/promoted/2026-05-06-parser-unification-survey-rfc-0063-phase-2-0-1.md` |
-| 2.0.2 | Mark ~42 s1 fns `pub fn` (full list in survey) so tools_suite can import them | OPEN |
-| 2.0.3 | Delete the 429 duplicate fns from tools_suite + add `import "compiler/nucleor_s1_compiler.nr"` references | OPEN — depends on 2.0.0 + 2.0.2 |
+| 2.0.2 | (Reframed) Confirm s1 has no `priv`-style scoping that hides fns from import. **Note from 2.0.0:** Nucleor's visibility model treats every fn as effectively `pub`, so this is mostly a verification ship — no source change needed. | UNBLOCKED |
+| 2.0.3 | Delete the 429 duplicate fns from tools_suite + add `import "compiler/nucleor_s1_compiler.nr"` at the top | UNBLOCKED — main lift |
 | 2.0.4 | Self-host integrity gate: prove no IR change in `bin/nucleor` after the unification + verify `nuc check examples/01_hello.nr` no longer segfaults | OPEN |
 | 2.0.5 | Remove `check_parser_fn_drift` from `tools/check_compiler_drift.sh` (gate becomes obsolete) | OPEN |
 
