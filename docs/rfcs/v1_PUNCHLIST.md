@@ -435,6 +435,13 @@ launch. After memory safety completes, these are next-priority.
   records plus high-level CNOT/CZ/CRK/SWAP auto-recording. Remaining
   gap: process-local graph state is not thread-safe across pthread/async
   boundaries.
+- **R11-D4 qsim graph thread-safety disclosure:** DONE for Phase 2f on
+  2026-05-06 — `qsim_graph_is_thread_safe()` returns `0`,
+  `qsim_graph_requires_external_lock()` returns `1`, and
+  `qsim_graph_thread_safety_required_primitive()` names the required
+  runtime-owned qsim_graph mutex or per-graph handle-state refactor.
+  `qsim_graph_thread_safety_disclosure_smoke.nr` locks this contract.
+  Remaining gap: actual synchronized runtime state is still open.
 - **QM-11 diff_sim checked init:** DONE for Phase 1+2b on 2026-05-06
   — `diff_sim_init_preflight(nq, n_cores)` exposes stable status
   codes for invalid/over-cap qubits and cores, and
