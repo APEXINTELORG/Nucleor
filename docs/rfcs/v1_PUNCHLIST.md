@@ -317,7 +317,7 @@ proper analysis → Phase 4 hard error):
 
 ## Deferred tail (do not preempt active lanes)
 
-- **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DEFERRED. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The deferred cleanup is only the product/toolchain path where `compiler/nucleor_s1_compiler.nr` shells out to `python -c "import filecmp"` inside `verify-reproducible`; replace it later with a Nucleor/toolchain-native byte comparison, then rebuild/promote `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll` with normal md5/drift/perf validation.
+- **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DONE 2026-05-06. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The product/toolchain path no longer shells out to `python -c "import filecmp"` inside `verify-reproducible`; Windows uses `fc /B`, POSIX keeps `cmp -s`, and the compiler/seed artifacts were rebuilt and promoted through the normal md5/drift/perf validation lane.
 
 ## Updates log
 
@@ -361,3 +361,7 @@ proper analysis → Phase 4 hard error):
   case. Full `requires [...]` transitive row propagation, real
   restricts-block enforcement, cross-module propagation, and
   RFC-0033 row subtyping remain open.
+- **2026-05-06**: TOOLCHAIN-PY-1 closed. `nuc verify-reproducible`
+  no longer requires Python for its Windows byte-compare path; it
+  now uses `fc /B` for linked binary comparison and retains `cmp -s`
+  for POSIX. Python interop rods remain intentional and unchanged.
