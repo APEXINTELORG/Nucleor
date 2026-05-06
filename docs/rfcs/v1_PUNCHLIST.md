@@ -435,6 +435,13 @@ launch. After memory safety completes, these are next-priority.
   path. Remaining gap: full coupled TOPP-RA with path-dependent
   torque/dynamics constraints, asymmetric limits, and non-diagonal
   inertia/Coriolis/gravity terms.
+- **ROBO-3 analytical IK path:** DONE for Phase 1 on 2026-05-06.
+  `ik_analytic_planar_2link` provides a closed-form two-revolute-link
+  planar solver with elbow branch selection and unreachable-target
+  refusal; `ik_analytic_planar_2link_smoke.nr` locks the exact
+  `(1, 1)` target solution plus an unreachable case. Remaining gap:
+  6-DOF canonical manipulator solvers, branch enumeration,
+  singularity classification, and FK-backed solution validation.
 - **ROBO-4 6D IK nullspace posture:** DONE for Phase 1 on
   2026-05-06. `ik_dls_solve_6d_nullspace` uses the 6 x n pose
   Jacobian and projects preferred posture through `(I - J+J)`;

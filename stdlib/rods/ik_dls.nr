@@ -14,6 +14,7 @@
 // configuration in, gets the (improved) configuration out.
 //
 // Solver surfaces:
+// - `ik_analytic_planar_2link`: closed-form 2R planar analytical IK.
 // - `ik_dls_solve`: position-only 3 x n DLS.
 // - `ik_dls_solve_nullspace`: position-only task-priority posture.
 // - `ik_dls_solve_6d`: position + orientation 6 x n DLS.
@@ -26,6 +27,12 @@
 // symbols). Importing fk_chain.nr chains its #cfile so both
 // translation units get compiled + linked together.
 import "stdlib/rods/fk_chain.nr"
+
+extern fn nuc_ik_analytic_planar_2link(
+    tx_b: i64, ty_b: i64,
+    l1_b: i64, l2_b: i64,
+    elbow_sign: i64,
+    q_out_ptr: i64) -> i64;
 
 extern fn nuc_ik_dls_solve(
     ch: i64, vars_ptr: i64,
@@ -114,6 +121,18 @@ extern fn nuc_ik_dls_solve_6d_nullspace(
     tolerance_b: i64,
     damping_b: i64,
     weight_orient_b: i64) -> i64;
+
+fn ik_analytic_planar_2link(
+    tx: f64, ty: f64,
+    l1: f64, l2: f64,
+    elbow_sign: i64,
+    q_out_ptr: i64) -> i64
+{
+    return nuc_ik_analytic_planar_2link(
+        f64_to_bits(tx), f64_to_bits(ty),
+        f64_to_bits(l1), f64_to_bits(l2),
+        elbow_sign, q_out_ptr);
+}
 
 fn ik_dls_solve(
     ch: i64, vars_ptr: i64,
