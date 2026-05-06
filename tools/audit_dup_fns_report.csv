@@ -309,7 +309,7 @@ type_check_stmts,11,10,13,13,0,0,SIG_DIFFERS
 type_check_program,6,6,222,33,1,0,SIG_MATCH_BODY_DIFFERS
 text_contains,2,2,12,12,1,0,SIG_MATCH_BODY_DIFFERS
 source_has_scope_escape_ref_binding,1,1,14,14,1,1,IDENTICAL
-preflight_source_check,1,1,12,9,1,0,SIG_MATCH_BODY_DIFFERS
+preflight_source_check,1,1,15,9,1,0,SIG_MATCH_BODY_DIFFERS
 match_bind_payloads_typed,7,7,25,60,1,0,SIG_MATCH_BODY_DIFFERS
 match_bind_payloads,6,5,29,7,0,0,SIG_DIFFERS
 capture_has_name,2,2,8,8,1,1,IDENTICAL

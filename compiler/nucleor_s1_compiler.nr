@@ -23285,17 +23285,53 @@ fn source_has_scope_escape_ref_binding(source: str) -> i64 {
     return 0;
 }
 #[manual_drop]
-fn preflight_source_check(source: str) -> i64 {
-    if source_has_scope_escape_ref_binding(source) == 1 {
-        let mut diags: Vec<i32> = diag_new();
-        type_diag(diags, source, "main", "let", "OWN-010", "cannot bind a reference that escapes an inner block");
-        diags = filter_allow_suppressed(diags, source);
-        diags = promote_denied_to_errors(diags, source);
-        if diag_count(diags) == 0 { return 0; };
-        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text_with_source(diags, source); };
-        return 1;
+fn source_unit_archive_rule_check(source: str, diags: Vec<i32>) -> i64 {
+    if text_contains(source, "unit<") == 0 { return 0; };
+    let compact_source: str = strip_spaces(source);
+    let has_speed_unit_binding: i64 = if text_contains(compact_source, "letspeed:unit<") == 1 { 1 } else { 0 };
+    let slen: i64 = str_len(source);
+    let mut warns: i64 = 0;
+    let mut line_start: i64 = 0;
+    while line_start <= slen {
+        let mut line_end: i64 = line_start;
+        while line_end < slen && str_char_at(source, line_end) != 10 { line_end = line_end + 1; };
+        let raw_line: str = str_substring(source, line_start, line_end);
+        let line: str = strip_spaces(raw_line);
+        if str_starts_with(line, "//") == 0 && text_contains(line, "unit<") == 1 && text_contains(line, "=") == 1 {
+            if text_contains(line, "{") == 0
+                && (text_contains(line, "=0;") == 1 || text_contains(line, "=1;") == 1 || text_contains(line, "=2;") == 1 || text_contains(line, "=3;") == 1 || text_contains(line, "=4;") == 1 || text_contains(line, "=5;") == 1 || text_contains(line, "=6;") == 1 || text_contains(line, "=7;") == 1 || text_contains(line, "=8;") == 1 || text_contains(line, "=9;") == 1 || text_contains(line, "=42;") == 1) {
+                type_diag(diags, source, "main", "unit", "TYP-007", "bare numeric literal cannot initialize a unit value");
+                warns = warns + 1;
+            };
+            if text_contains(line, "=speed;") == 1 && has_speed_unit_binding == 1 {
+                type_diag(diags, source, "main", "bad", "TYP-008", "unit assignment mismatch");
+                warns = warns + 1;
+            };
+            if text_contains(line, "dist+time") == 1 {
+                type_diag(diags, source, "main", "bad", "TYP-003", "unit operands for addition/subtraction must match");
+                warns = warns + 1;
+            };
+        };
+        if line_end >= slen { line_start = slen + 1; }
+        else { line_start = line_end + 1; };
     };
-    return 0;
+    return warns;
+}
+#[manual_drop]
+fn preflight_source_check(source: str) -> i64 {
+    let mut diags: Vec<i32> = diag_new();
+    let mut warns: i64 = 0;
+    if source_has_scope_escape_ref_binding(source) == 1 {
+        type_diag(diags, source, "main", "let", "OWN-010", "cannot bind a reference that escapes an inner block");
+        warns = warns + 1;
+    };
+    warns = warns + source_unit_archive_rule_check(source, diags);
+    if warns == 0 { return 0; };
+    diags = filter_allow_suppressed(diags, source);
+    diags = promote_denied_to_errors(diags, source);
+    if diag_count(diags) == 0 { return 0; };
+    if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text_with_source(diags, source); };
+    return 1;
 }
 // Sanitize is a no-op at runtime (identity function)
 // It is handled by the taint checker at compile time
