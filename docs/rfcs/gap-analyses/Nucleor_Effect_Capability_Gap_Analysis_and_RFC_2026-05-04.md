@@ -58,8 +58,8 @@ EFF-001 and EFF-002 are registered in s1's diagnostic code table and appear in `
 ### E-8 — `with [...]` clause enforcement is partial and source-text based — **MEDIUM**
 The `with [...]` clause is skipped by the AST parser. **Only the `no_alloc`/`Alloc` cross-check is enforced** via source-text header scanning. `with [Panic]`, `with [Filesystem.read(...)]`, `with [IO]`, `with [Random]`, `with [Network.connect(...)]`, `with [pure]` etc. have zero enforcement.
 
-### E-9 — `pure fn` check does not traverse user-defined call chains — **MEDIUM**
-Even in tools-suite, only direct calls to hardcoded effectful-builtin list checked. If `pure fn f()` calls `g()` which calls `print()`, EFF-001 does NOT fire for `f`. Transitive closure exists in `infer_source_effects` but only used for `restricts [...]` block checking.
+### E-9 — `pure fn` check has bounded same-file user-call coverage — **MEDIUM REMAINING**
+The s1 build path now rejects `pure fn f()` when it calls a same-file user helper whose body directly performs print/alloc/ambient side effects. The remaining gap is broader effect inference: transitive `requires [...]` row propagation, imported modules, shadowed names, method calls, closures, higher-order calls, and effect-row subtyping are still not AST-backed.
 
 ### E-10 — `ambient_random()` in `pure fn` fires link error, not EFF-001 — **MEDIUM**
 The `err_pure_ambient_random.nr` test is in `tests/err/` (active) but with comment: "EXPECT: link error... should fire pure-vs-effect; actually link-fails on `__nucleor_ambient_random` v0.4 placeholder." Test passes for the wrong reason. **No EFF diagnostic fires; runtime helper symbol is missing, causing linker error.**
@@ -77,7 +77,7 @@ RFC-0032 says EFF-001..003 are errors. Tools-suite emits EFF-001 as warning. Con
 
 - **The "tools-suite enforces but build doesn't" pattern is a fundamental trust gap.** Architecture splits enforcement between two compilers. `nuc build` (s1) has zero effect enforcement. CI running only `nuc build` against fixtures gets no effect signal. Effect annotations become misleading documentation.
 - **Capability token soundness — aliasable through i64.** `RandomCap` is opaque i64 wrapped in type alias. Nothing prevents `let cap: i64 = 0; let fake: RandomCap = cap;`. Type alias provides naming discipline but not runtime-checked authority.
-- **Effect inference completeness.** Source-text scanning means comments containing function names pollute the call graph; shadowed names, method calls, closures, higher-order calls are not correctly analyzed; cross-module calls invisible; transitive closure runs at most 8 passes (may not converge for deep mutual recursion).
+- **Effect inference completeness.** Source-text scanning means shadowed names, method calls, closures, higher-order calls, and cross-module calls are not correctly analyzed. Same-file pure calls into direct-effect helpers are now covered, but full `requires [...]` row propagation and AST-backed effect inference remain open.
 - **The `requires`/`restricts` keyword removal is a public-facing trust issue.** Removal was correct fix for silent-miscompute class. Fix made by silently discarding clause content rather than issuing "feature not yet implemented" diagnostic. **A user writing documented effect syntax today gets no warning that the annotation has zero effect.** From the user's perspective, the annotation looks valid, the code compiles, the contract appears enforced. It is not.
 
 ---
@@ -109,7 +109,7 @@ Cross-references E-1/2/3 Phase 2-3. Same closure work.
 ### E-5 (pure-fn check is warning + builtin-only) — Phase 2
 - Promote EFF-001 from warning to error.
 - Extend `is_effectful_builtin` to include `ambient_random`, `ambient_scheduler`, `ambient_fs` (when implemented), `ambient_net` (when implemented), `ambient_time`, `ambient_env`.
-- Add transitive check: pure fn calling user fn that calls effectful builtin transitively triggers EFF-001 with a chain trace.
+- Same-file transitive check: pure fn calling a user fn with direct print/alloc/ambient side effects now triggers EFF-001. Remaining work is effect-row propagation beyond this bounded helper case.
 
 ### E-6 (missing capability tokens) — Phase 2
 Implement `FsCap`, `NetCap`, `TimeCap`, `EnvCap`:

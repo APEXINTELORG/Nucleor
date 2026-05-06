@@ -16771,6 +16771,8 @@ fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
 fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
+    let has_pure_source: i64 = source_has_real_pure_fn_decl(source);
+    let transitive_effectful: Vec<i32> = if has_pure_source == 1 { collect_transitive_effectful_fns(source) } else { Vec::new() };
     // Tracks attribute lines accumulated since the last non-attr
     // non-comment non-blank line. Cleared on encountering a fn decl
     // (consumed by the fn) or a non-attr code line (cleared).
@@ -16872,6 +16874,14 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                         let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
                         let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
+                    } else {
+                        let pure_body: str = strip_strings_and_line_comments(body);
+                        let pure_callee: str = first_effectful_user_call(pure_body, transitive_effectful, fn_name);
+                        if str_len(pure_callee) > 0 {
+                            let msg_trans2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(pure_callee, "()` which has transitive side effects; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0829)"))));
+                            let lc_trans2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                            diag_add_ex(diags, "error", "effect", "EFF-001", msg_trans2, fn_name, vec_get(lc_trans2, 0), vec_get(lc_trans2, 1), "");
+                        };
                     };
                 };
 
@@ -17212,10 +17222,112 @@ fn pure_fn_body_effect_code(source: str, fn_name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
+fn effect_scan_fn_names(source: str) -> Vec<i32> {
+    let mut names: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let trimmed: str = str_trim(line);
+        let is_comment: i64 = if str_index_of(trimmed, "//") == 0 { 1 } else { 0 };
+        if is_comment == 0 {
+            let info: Vec<i32> = priv_extract_fn_decl_info(line);
+            let fn_name: str = vec_get(info, 0);
+            if str_len(fn_name) > 0 { names.push(fn_name); };
+        };
+        p = eol + 1;
+    };
+    return names;
+}
+
+#[manual_drop]
+fn str_vec_contains(v: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(v) {
+        if str_eq(vec_get(v, i), name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn source_has_real_pure_fn_decl(source: str) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let trimmed: str = str_trim(line);
+        if str_index_of(trimmed, "//") != 0 {
+            let compact: str = strip_spaces(line);
+            let clen: i64 = str_len(compact);
+            if clen >= 6 && str_eq(str_substring(compact, 0, 6), "purefn") == 1 { return 1; };
+            if clen >= 9 && str_eq(str_substring(compact, 0, 9), "pubpurefn") == 1 { return 1; };
+        };
+        p = eol + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn first_effectful_user_call(body: str, effectful: Vec<i32>, self_name: str) -> str {
+    let mut i: i64 = 0;
+    while i < vec_len(effectful) {
+        let callee: str = vec_get(effectful, i);
+        if str_eq(callee, self_name) == 0 {
+            let pat: str = str_concat(callee, "(");
+            if str_contains(body, pat) == 1 { return callee; };
+        };
+        i = i + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn collect_transitive_effectful_fns(source: str) -> Vec<i32> {
+    let names: Vec<i32> = effect_scan_fn_names(source);
+    let mut effectful: Vec<i32> = Vec::new();
+    let mut i: i64 = 0;
+    while i < vec_len(names) {
+        let fn_name: str = vec_get(names, i);
+        if pure_fn_body_effect_code(source, fn_name) > 0 { effectful.push(fn_name); };
+        i = i + 1;
+    };
+    let mut pass: i64 = 0;
+    let mut changed: i64 = 1;
+    while pass < 8 && changed == 1 {
+        changed = 0;
+        i = 0;
+        while i < vec_len(names) {
+            let fn_name2: str = vec_get(names, i);
+            if str_vec_contains(effectful, fn_name2) == 0 {
+                let body_raw: str = source_fn_body_for_scan(source, fn_name2);
+                if str_len(body_raw) > 0 {
+                    let body: str = strip_strings_and_line_comments(body_raw);
+                    let callee: str = first_effectful_user_call(body, effectful, fn_name2);
+                    if str_len(callee) > 0 {
+                        effectful.push(fn_name2);
+                        changed = 1;
+                    };
+                };
+            };
+            i = i + 1;
+        };
+        pass = pass + 1;
+    };
+    return effectful;
+}
+
 // Walks the source line-by-line. When a line declares `pure fn
 // <name>(`, scans the body for effects and emits EFF-001.
 #[manual_drop]
 fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
+    if source_has_real_pure_fn_decl(source) == 0 { return diags; };
+    let transitive_effectful: Vec<i32> = collect_transitive_effectful_fns(source);
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
     while p < slen {
@@ -17243,6 +17355,17 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                     let msg: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                } else {
+                    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+                    if str_len(body_raw) > 0 {
+                        let body: str = strip_strings_and_line_comments(body_raw);
+                        let callee: str = first_effectful_user_call(body, transitive_effectful, fn_name);
+                        if str_len(callee) > 0 {
+                            let msg_trans: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(callee, "()` which has transitive side effects; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0829)"))));
+                            let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                            diag_add_ex(diags, "error", "effect", "EFF-001", msg_trans, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
+                        };
+                    };
                 };
             };
         };
@@ -30914,10 +31037,12 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability audit-pass info.
     // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
     // no-signal class with EFF-001 for print/alloc/ambient capability use.
+    // v0829 adds bounded same-file pure-call transitive checking for
+    // user helpers whose bodies contain direct side effects.
     // The remaining trust gap is the effect-row surface:
     // `requires [...]`, real block-form `restricts [...]` enforcement,
-    // transitive effect inference, and cross-module propagation are not
-    // fully enforced by s1. Block-form `restricts [...] { ... }` now
+    // transitive requires-row propagation, and cross-module propagation
+    // are not fully enforced by s1. Block-form `restricts [...] { ... }` now
     // fails closed with EFF-003 until that enforcement lands.
     // Phase 2b moves effect-row enforcement into the main build path.
     // Shared gate: skip if none of the three keywords are textually
@@ -30936,7 +31061,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive user-call inference, and cross-module propagation. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive requires-row propagation, cross-module propagation, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts

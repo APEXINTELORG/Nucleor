@@ -62,6 +62,11 @@ launch. After memory safety completes, these are next-priority.
   `nuc build` emits `EFF-001` for direct print/alloc/ambient-capability
   use; active fixtures `err_pure_print_build.nr` and
   `err_pure_ambient_random.nr` lock this.
+- **E-9 same-file pure transitive user-call check:** DONE for
+  Phase 2b partial on 2026-05-06 — `pure fn` now emits `EFF-001`
+  when it calls a same-file user helper whose body directly performs
+  print/alloc/ambient side effects; active fixture
+  `err_pure_transitive_user_effect.nr` locks this.
 - **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
   Phase 1 — `nuc build` emits `EFF-002`; active fixture
   `err_pure_requires.nr` locks this.
@@ -79,8 +84,8 @@ launch. After memory safety completes, these are next-priority.
   `err_restricts_builtin_io.nr` locks this.
 - **Still open:** full standalone `requires [...]` row enforcement
   beyond direct same-file calls, real block-form `restricts [...]`
-  enforcement, transitive user-call effect inference, and
-  cross-module propagation.
+  enforcement, transitive `requires [...]` row propagation, cross-module
+  propagation, and broader RFC-0033 effect-row subtyping.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
@@ -349,3 +354,10 @@ proper analysis → Phase 4 hard error):
   Block-form `restricts [...] { ... }` now emits `EFF-003` during
   `nuc build` instead of accepting or misparsing an unenforced
   guarantee. Real restricts-block effect enforcement remains open.
+- **2026-05-06**: Effect/capability Phase 2b partial advanced.
+  `pure fn` now rejects same-file calls into user helpers whose bodies
+  directly perform print/alloc/ambient side effects; active fixture
+  `err_pure_transitive_user_effect.nr` locks the transitive helper
+  case. Full `requires [...]` transitive row propagation, real
+  restricts-block enforcement, cross-module propagation, and
+  RFC-0033 row subtyping remain open.
