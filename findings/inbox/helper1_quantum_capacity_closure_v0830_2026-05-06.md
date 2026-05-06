@@ -151,13 +151,104 @@ rg -n "logical|registry|qubit|capacity|status" stdlib tests docs
 rg -n "QM-2|QM-3|QM-6|QM-11|QM-12|QM-13|QM-14" docs stdlib tests
 ```
 
+## Follow-on slice - QM-13 checked schedule insertion
+
+After the first push, this branch also advanced the QM-13 remaining blocker with
+a stdlib-only checked insertion surface:
+
+- `schedule_push_at(&mut sched, pulse, qubit_id, start_ns)`
+- `schedule_total_duration(sched)` now reports the maximum scheduled end time
+  instead of relying on the last row, so explicitly parallel schedules have the
+  correct makespan.
+- `schedule_push(sched, pulse, qubit_id)` remains the legacy serialized append.
+
+Added fixture:
+
+- `tests/features/logical_qubit_schedule_push_at_smoke.nr`
+
+The fixture covers backend-parallel different-qubit insertion, same-qubit
+overlap rejection without mutation, boundary-touching same-qubit insertion,
+invalid rows, and limitations-string disclosure.
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\logical_qubit_schedule_push_at_smoke.nr -o target\_qm13_schedule_push_at --no-cache
+.\target\_qm13_schedule_push_at.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_push_at_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_overlap_preflight_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_registry_capacity_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Direct build/run passed. All four focused canonical gate checks returned
+`PASS: 1`, `SKIP: 1128`.
+
+## Follow-on slice - QM-12 shared gate constants
+
+This branch also closes the QM-12 common-constant gap without changing any
+native runtime ABI:
+
+- Added `stdlib/rods/quantum_gates.nr`.
+- Migrated `mps.nr` and `diff_sim.nr` to consume shared H/CNOT/X/Z constants.
+- Kept rotation constants explicitly rod-specific because native dispatch
+  tables diverge today: MPS `RZ=4/RX=5`, diff_sim `RZ=6`.
+
+Added fixture:
+
+- `tests/features/quantum_gate_constants_smoke.nr`
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\quantum_gate_constants_smoke.nr -o target\_qm12_quantum_gate_constants --no-cache
+.\target\_qm12_quantum_gate_constants.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/quantum_gate_constants_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/mps_named_gate_wrappers_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Direct build/run passed. All five focused canonical gate checks returned
+`PASS: 1`, `SKIP: 1129`.
+
+## Follow-on slice - QM-2/QM-11 checked init wrappers
+
+This branch also adds stdlib-only fail-closed initialization wrappers without
+changing native runtime ABI:
+
+- `qsim_init_checked(n)` returns `0` for invalid or over-cap counts before
+  allocating the statevector.
+- `diff_sim_init_checked(nq, n_cores, mode_bits, seed)` returns `0` before the
+  native diff_sim runtime can clamp invalid qubit/core counts.
+
+Updated fixtures:
+
+- `tests/features/qsim_state_capacity_status_smoke.nr`
+- `tests/features/diff_sim_capacity_status_smoke.nr`
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\qsim_state_capacity_status_smoke.nr -o target\_qm2_statevector_capacity --no-cache
+.\target\_qm2_statevector_capacity.exe
+.\bin\nucleor.exe build tests\features\diff_sim_capacity_status_smoke.nr -o target\_qm11_diff_sim_capacity --no-cache
+.\target\_qm11_diff_sim_capacity.exe
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/qsim_state_capacity_status_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+bash -lc 'tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke" | tail -n 12; exit ${PIPESTATUS[0]}'
+```
+
+Both direct build/run checks passed. Both focused canonical gate checks returned
+`PASS: 1`, `SKIP: 1129`.
+
 ## Remaining blocker matrix
 
 | Blocker | Current status | Exact surface needed | Owner suggestion | Focused validation after implementation |
 | --- | --- | --- | --- | --- |
-| QM-2 native qsim init fail-closed | `qsim_init_preflight` shipped; raw `qsim_init` still caller-disciplined | Runtime or stdlib checked init that refuses n<1 and n>24 without allocation | main/helper depending on runtime-edit allowance | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_state_capacity_status_smoke"` plus over-cap checked-init fixture |
-| QM-11 native diff_sim no-clamp status | `diff_sim_init_preflight` shipped; native init still clamps | `nuc_diff_sim_init_checked` or changed native init status semantics | main if ABI change; helper if wrapper-only | `bash tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke"` plus native checked-init fixture |
-| QM-12 shared gate constants | diff_sim constants shipped; MPS constants already local, no shared module | Shared quantum gate constant rod/module consumed by MPS and diff_sim | helper stdlib slice | `bash tools/verify.sh --sequential-fixtures --only "test features/quantum_gate_constants_smoke"` |
-| QM-13 backend-aware schedule insertion | overlap validator shipped; `schedule_push` globally serializes | `schedule_push_at` or backend-aware scheduler API with same-qubit overlap rejection | helper stdlib slice if no runtime needed | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_overlap_preflight_smoke"` plus push-at fixture |
+| QM-2 native qsim init fail-closed | `qsim_init_preflight` and `qsim_init_checked` shipped; raw `qsim_init` remains public | Native fail-closed behavior if the raw escape hatch stays public | main/helper depending on runtime-edit allowance | `bash tools/verify.sh --sequential-fixtures --only "test features/qsim_state_capacity_status_smoke"` plus raw-overcap policy fixture if native behavior changes |
+| QM-11 native diff_sim no-clamp status | `diff_sim_init_preflight` and `diff_sim_init_checked` shipped; raw native init still clamps when called directly | Native no-clamp error behavior if the raw escape hatch stays public | main if ABI change; helper if wrapper-only | `bash tools/verify.sh --sequential-fixtures --only "test features/diff_sim_capacity_status_smoke"` plus raw native no-clamp fixture if ABI changes |
+| QM-12 shared gate constants | common H/CNOT/X/Z shared rod shipped and consumed by MPS + diff_sim; rotations remain rod-specific | Typed/cross-rod rotation enum after native dispatch tables unify | main/helper depending on native dispatch scope | `bash tools/verify.sh --sequential-fixtures --only "test features/quantum_gate_constants_smoke"` plus rotation enum fixture |
+| QM-13 backend-aware schedule insertion | `schedule_validate_no_same_qubit_overlap` and `schedule_push_at` shipped; legacy `schedule_push` remains serialized append | Backend calibration/resource scheduler and hardware target lowering | main/helper depending on backend scope | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_schedule_push_at_smoke"` plus backend-specific scheduler fixture |
 | QM-14 partial logical-qubit release | registry cap preflight shipped; only clear-all release exists | `nuc_lq_release(handle)` plus Nucleor wrapper/status | main/helper depending on runtime-edit allowance | `bash tools/verify.sh --sequential-fixtures --only "test features/logical_qubit_registry_capacity_smoke"` plus partial-release fixture |
 | QM-6 MPS Bell probabilities | MPS smoke already applies gates and checks Z expectations on current main; no probability/statevector extraction API | MPS probability or statevector readout API for direct Bell probability parity | main/helper depending on runtime ABI | `bash tools/verify.sh --sequential-fixtures --only "test features/mps_bell_probabilities_smoke"` |

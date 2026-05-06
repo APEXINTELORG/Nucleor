@@ -45,11 +45,24 @@ fn check_small_init_still_works() -> i64 {
     return 0;
 }
 
+fn check_checked_init() -> i64 {
+    let h: i64 = diff_sim_init_checked(2, 2, 0, 42);
+    if h == 0 { return 524288; };
+    if diff_n_gates(h) != 0 { diff_free(h); return 1048576; };
+    diff_free(h);
+    if diff_sim_init_checked(0, 2, 0, 42) != 0 { return 2097152; };
+    if diff_sim_init_checked(13, 2, 0, 42) != 0 { return 4194304; };
+    if diff_sim_init_checked(2, 1, 0, 42) != 0 { return 8388608; };
+    if diff_sim_init_checked(2, 17, 0, 42) != 0 { return 16777216; };
+    return 0;
+}
+
 fn check_limitations() -> i64 {
     let s: str = diff_sim_limitations();
-    if str_index_of(s, "QM-11") < 0 { return 524288; };
-    if str_index_of(s, "diff_sim_init_preflight") < 0 { return 1048576; };
-    if str_index_of(s, "over_qubit_cap") < 0 { return 2097152; };
+    if str_index_of(s, "QM-11") < 0 { return 33554432; };
+    if str_index_of(s, "diff_sim_init_checked") < 0 { return 67108864; };
+    if str_index_of(s, "diff_sim_init_preflight") < 0 { return 134217728; };
+    if str_index_of(s, "over_qubit_cap") < 0 { return 268435456; };
     return 0;
 }
 
@@ -59,6 +72,7 @@ fn main() -> i64 {
     fails = fails + check_preflight();
     fails = fails + check_gate_constants();
     fails = fails + check_small_init_still_works();
+    fails = fails + check_checked_init();
     fails = fails + check_limitations();
     return fails;
 }
