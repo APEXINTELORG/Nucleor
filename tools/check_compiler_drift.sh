@@ -12,8 +12,9 @@
 #      manifest mech v0.2.41, gate enforcement v0.2.42).
 #   3. rod_manifest.toml freshness vs gen_rod_manifest.py output
 #      (since v0.2.47).
-#   4. RELEASES.md freshness vs gen_releases_index.py output
-#      (since v0.2.57).
+#   4. RELEASES.md freshness vs gen_releases_index.nr output
+#      (since v0.2.57; ported from Python to native Nucleor v0.8.323
+#      per RFC-0063 Phase 1.4 / Track C C2).
 #   5. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
 #      have a `## [version]` heading in CHANGELOG.md (since v0.2.83).
 #
@@ -201,7 +202,7 @@ echo "OK: tools-suite ABI tables match nucleor_s1_compiler.nr"
 # regenerates the manifest, diffs against the committed snapshot, and
 # fails the gate if they differ.
 
-# Resolve PYTHON once for all manifest checks.
+# Resolve PYTHON once for .py-based manifest checks.
 PYTHON=""
 if command -v python >/dev/null 2>&1; then
     PYTHON=python
@@ -209,22 +210,72 @@ elif command -v python3 >/dev/null 2>&1; then
     PYTHON=python3
 fi
 
+# Resolve native nucleor binary for .nr-based manifest checks (RFC-0063
+# Track C — porting Python generators to native).
+NUCLEOR_BIN=""
+if [ -x "$ROOT/bin/nucleor" ]; then
+    NUCLEOR_BIN="$ROOT/bin/nucleor"
+elif [ -x "$ROOT/bin/nucleor.exe" ]; then
+    NUCLEOR_BIN="$ROOT/bin/nucleor.exe"
+fi
+
 check_manifest() {
     local label="$1" gen_path="$2" manifest_path="$3"
     if [ ! -f "$gen_path" ] || [ ! -f "$manifest_path" ]; then
         return 0
     fi
-    if [ -z "$PYTHON" ]; then
-        echo "WARN: python not in PATH — skipping $label freshness check"
-        return 0
-    fi
+    # Polyglot: dispatch by generator extension. .nr generators run via
+    # bin/nucleor; .py generators run via the Python interpreter.
+    case "$gen_path" in
+        *.nr)
+            if [ -z "$NUCLEOR_BIN" ]; then
+                echo "WARN: bin/nucleor not present — skipping $label freshness check"
+                return 0
+            fi
+            ;;
+        *.py)
+            if [ -z "$PYTHON" ]; then
+                echo "WARN: python not in PATH — skipping $label freshness check"
+                return 0
+            fi
+            ;;
+        *)
+            echo "WARN: unsupported generator extension for $label — skipping"
+            return 0
+            ;;
+    esac
     local snapshot="$TMP/$(basename "$manifest_path").snapshot"
     cp "$manifest_path" "$snapshot"
-    "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
-        echo "FAIL: $(basename "$gen_path") crashed."
-        cp "$snapshot" "$manifest_path"
-        return 1
-    }
+    case "$gen_path" in
+        *.nr)
+            # Two-step: build then exec. Avoids `nuc run`'s Linux
+            # path-construction bug (uses Windows backslashes + .exe;
+            # tracked separately). Build is cached so cost is minimal
+            # on repeat runs. The chmod +x is a workaround for the
+            # native-link cache restore path dropping the executable
+            # bit (separate v0.8 cache bug, pending finding).
+            local gen_basename
+            gen_basename="$(basename "$gen_path" .nr)"
+            "$NUCLEOR_BIN" build "$gen_path" -o "$gen_basename" >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") build crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            chmod +x "$ROOT/target/$gen_basename" 2>/dev/null
+            "$ROOT/target/$gen_basename" >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") exec crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            ;;
+        *.py)
+            "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            ;;
+    esac
     local snapshot_norm="$TMP/$(basename "$manifest_path").snapshot.norm"
     local generated_norm="$TMP/$(basename "$manifest_path").generated.norm"
     tr -d '\r' < "$snapshot" > "$snapshot_norm"
@@ -253,9 +304,12 @@ check_manifest "rod_manifest" \
     "$ROOT/tools/gen_rod_manifest.py" \
     "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
 
-# RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57)
+# RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57).
+# v0.8.323: ported to native Nucleor (RFC-0063 Phase 1.4 / Track C C2).
+# Eliminates one of six dev-time Python deps. The .py version is
+# preserved one ship cycle as a comparison oracle, then deleted.
 check_manifest "RELEASES.md" \
-    "$ROOT/tools/gen_releases_index.py" \
+    "$ROOT/tools/gen_releases_index.nr" \
     "$ROOT/RELEASES.md" || exit 1
 
 # CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
