@@ -36743,9 +36743,9 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
-    // (v0.4.179 was the probe-agent TYP-011 ext merge.)
-    return "0.4.180";
+    // v0.8.323: align CLI identity with the v0.8 release/tag stream.
+    // v0.4.180 was a stale build-internal label after the v0.8 ship train.
+    return "0.8.323";
 }
 
 #[manual_drop]
