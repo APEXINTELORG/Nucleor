@@ -91,7 +91,9 @@ fn diff_gate_h() -> i64 { return qgate_h(); }
 fn diff_gate_cnot() -> i64 { return qgate_cnot(); }
 fn diff_gate_x() -> i64 { return qgate_x(); }
 fn diff_gate_z() -> i64 { return qgate_z(); }
-fn diff_gate_rz() -> i64 { return qgate_diff_rz(); }
+fn diff_gate_rz() -> i64 { return qgate_kind_to_diff(qgate_kind_rz()); }
+fn diff_gate_from_kind(kind: i64) -> i64 { return qgate_kind_to_diff(kind); }
+fn diff_gate_kind_supported(kind: i64) -> i64 { return qgate_kind_supported_by_diff(kind); }
 
 fn diff_gate_type_supported(gate_type: i64) -> i64 {
     if gate_type == diff_gate_h() { return 1; };
@@ -137,7 +139,7 @@ fn diff_sim_status_explain(status: i64) -> str {
 }
 
 fn diff_sim_limitations() -> str {
-    return "diff_sim rod limitations (QM-11/QM-12, v0833): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. diff_sim_init(nq, n_cores, mode_bits, seed) and diff_sim_init_checked(...) both return 0 for invalid/over-cap inputs instead of relying on native clamp behavior. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. diff_sim RZ remains rod-specific at 6 while MPS RZ is 4, so rotation IDs must not be treated as cross-rod until native dispatch tables unify. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
+    return "diff_sim rod limitations (QM-11/QM-12, v0834): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. diff_sim_init(nq, n_cores, mode_bits, seed) and diff_sim_init_checked(...) both return 0 for invalid/over-cap inputs instead of relying on native clamp behavior. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. Cross-rod callers can use qgate_kind_* plus diff_gate_from_kind/diff_gate_kind_supported/diff_gate_kind so RZ routes to diff_sim native 6 while RX cleanly reports unsupported instead of reusing the MPS native ID. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
 }
 
 // === Ergonomic f64 wrappers (v0.4.267) ===
@@ -158,6 +160,12 @@ fn diff_sim_limitations() -> str {
 
 fn diff_gate_f64(h: i64, gate_type: i64, q0: i64, q1: i64, angle: f64) {
     nuc_diff_gate(h, gate_type, q0, q1, f64_to_bits(angle));
+}
+fn diff_gate_kind(h: i64, kind: i64, q0: i64, q1: i64, angle: f64) -> i64 {
+    let native: i64 = diff_gate_from_kind(kind);
+    if native == qgate_unsupported() { return 0; };
+    nuc_diff_gate(h, native, q0, q1, f64_to_bits(angle));
+    return 1;
 }
 fn diff_backward_f64(h: i64, grad_loss: f64) {
     nuc_diff_backward(h, f64_to_bits(grad_loss));

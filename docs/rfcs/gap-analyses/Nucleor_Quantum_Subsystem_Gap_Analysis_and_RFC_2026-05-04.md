@@ -86,12 +86,14 @@ invalid inputs. `diff_sim_capacity_status_smoke.nr` locks the public
 ## QM-12 — diff_sim and MPS share gate type enum but neither exposes constants — **LOW**
 Both start H=0/CNOT=1/X=2 but enum not in shared header or Nucleor constant. Magic integers at callsites. Adding new gate to one without other silently diverges.
 
-**2026-05-06 update:** common shared constants are now shipped:
-`quantum_gates.nr` exposes H/CNOT/X/Z and both MPS and diff_sim consume that
-surface. `quantum_gate_constants_smoke.nr` locks cross-rod consistency. The
-remaining gap is rotation IDs: MPS uses RZ=4/RX=5 while diff_sim uses RZ=6, so
-rotation IDs stay rod-specific until native dispatch tables unify or a typed
-gate enum lands.
+**2026-05-06 update:** common shared constants and logical gate kinds are now
+shipped. `quantum_gates.nr` exposes H/CNOT/X/Z native IDs, `qgate_kind_*`
+logical constants, and explicit `qgate_kind_to_mps` / `qgate_kind_to_diff`
+mappers. `quantum_gate_constants_smoke.nr` locks cross-rod consistency and
+rotation mapping: RZ routes to MPS native `4` and diff_sim native `6`; RX maps
+to MPS native `5` and reports unsupported for diff_sim. Native dispatch tables
+remain separate raw ABIs for compatibility, but cross-rod callers no longer
+need to reuse raw rotation integers.
 
 ## QM-13 — Pulse-level schedule has no qubit-parallel constraint enforcement — **MEDIUM**
 `Schedule` doesn't enforce qubit-parallel constraints: two pulses on same qubit at overlapping times can be pushed without error. `schedule_push` places pulses sequentially on global timeline, ignoring qubit_id.
@@ -162,9 +164,9 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 - QM-11: preflight/disclosure and `diff_sim_init_checked` are shipped;
   remaining work is native no-clamp error behavior if raw `diff_sim_init`
   remains public, or a configurable cap.
-- QM-12: shared H/CNOT/X/Z constants are shipped and consumed by diff_sim and
-  MPS; remaining work is a typed/cross-rod rotation enum once native dispatch
-  tables are unified.
+- QM-12: shared H/CNOT/X/Z constants and logical gate-kind mappers are shipped
+  and consumed by diff_sim and MPS; native dispatch tables remain separate raw
+  ABIs for compatibility.
 - QM-13: schedule overlap validator and `schedule_push_at` checked insertion
   are shipped; remaining work is backend calibration/resource scheduling and
   hardware target lowering.
