@@ -1523,3 +1523,33 @@ Whether main needs drift/self-host/perf/full verify:
 Do not run full verify for read-only/report-only external audits. Run focused
 validation for any tool or generated-output change, and `git diff --check` for
 all branches.
+
+## Queue 8.1 Update - R10-D3 Native Linux Perf Blocker Closed
+
+Append-only update, 2026-05-06.
+
+Cloud-side native Linux validation has landed for R10-D3. Do not continue to
+track "POSIX perf native transcript" as an open blocker unless you are
+explicitly working RFC-0063 Phase 4 Linux perf optimization.
+
+Closed evidence:
+
+- `findings/promoted/2026-05-06-r10-d3-native-linux-perf-baseline-captured.md`
+- `tools/perf_baseline_linux.json`
+
+Captured Linux baseline:
+
+- cold self-build: 9.05s;
+- hot self-build: 0.47s;
+- cold process-tree RSS: 286MB;
+- hot process-tree RSS: 17MB.
+
+Remaining native-Linux-only blockers for Helper2-style work:
+
+- PKG-1 native Linux signed-publish transcript with throwaway registry/key;
+- R06 rust_bridge native POSIX ownership/artifact proof;
+- RFC-0063 Phase 4 Linux perf optimization only if explicitly assigned
+  separately from R10-D3 closure.
+
+When normalizing blocker ledgers, mark R10-D3 as closed and point to the two
+evidence files above.
