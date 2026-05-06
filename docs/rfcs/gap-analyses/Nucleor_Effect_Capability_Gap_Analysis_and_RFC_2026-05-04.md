@@ -58,8 +58,8 @@ EFF-001 and EFF-002 are registered in s1's diagnostic code table and appear in `
 ### E-8 — `with [...]` clause enforcement is partial and source-text based — **MEDIUM**
 The `with [...]` clause is skipped by the AST parser. **Only the `no_alloc`/`Alloc` cross-check is enforced** via source-text header scanning. `with [Panic]`, `with [Filesystem.read(...)]`, `with [IO]`, `with [Random]`, `with [Network.connect(...)]`, `with [pure]` etc. have zero enforcement.
 
-### E-9 — `pure fn` check has bounded same-file user-call coverage — **MEDIUM REMAINING**
-The s1 build path now rejects `pure fn f()` when it calls a same-file user helper whose body directly performs print/alloc/ambient side effects. The remaining gap is broader effect inference: transitive `requires [...]` row propagation, imported modules, shadowed names, method calls, closures, higher-order calls, and effect-row subtyping are still not AST-backed.
+### E-9 — `pure fn` check has bounded same-file/user-surface coverage — **MEDIUM REMAINING**
+The s1 build path now rejects `pure fn f()` when it calls a same-file user helper whose body directly performs print/alloc/ambient side effects, when it calls an undeclared extern/default-unsafe effect surface, or when the body uses structured scheduling (`scope { ... }` / `spawn { ... }`) or `channel(...)`. The remaining gap is broader effect inference: transitive `requires [...]` row propagation, imported modules, shadowed names, method calls, closures, higher-order calls, and effect-row subtyping are still not AST-backed.
 
 ### E-10 — `ambient_random()` in `pure fn` fires link error, not EFF-001 — **MEDIUM**
 The `err_pure_ambient_random.nr` test is in `tests/err/` (active) but with comment: "EXPECT: link error... should fire pure-vs-effect; actually link-fails on `__nucleor_ambient_random` v0.4 placeholder." Test passes for the wrong reason. **No EFF diagnostic fires; runtime helper symbol is missing, causing linker error.**
@@ -109,7 +109,8 @@ Cross-references E-1/2/3 Phase 2-3. Same closure work.
 ### E-5 (pure-fn check is warning + builtin-only) — Phase 2
 - Promote EFF-001 from warning to error.
 - Extend `is_effectful_builtin` to include `ambient_random`, `ambient_scheduler`, `ambient_fs` (when implemented), `ambient_net` (when implemented), `ambient_time`, `ambient_env`.
-- Same-file transitive check: pure fn calling a user fn with direct print/alloc/ambient side effects now triggers EFF-001. Remaining work is effect-row propagation beyond this bounded helper case.
+- Same-file transitive check: pure fn calling a user fn with direct print/alloc/ambient side effects now triggers EFF-001.
+- Pure effect-surface expansion: pure fn calling an undeclared extern now triggers EFF-001, and pure fn bodies using structured scheduling (`scope { ... }` / `spawn { ... }`) or `channel(...)` trigger EFF-001. Remaining work is effect-row propagation beyond these bounded same-file/default-extern cases.
 
 ### E-6 (missing capability tokens) — Phase 2
 Implement `FsCap`, `NetCap`, `TimeCap`, `EnvCap`:
