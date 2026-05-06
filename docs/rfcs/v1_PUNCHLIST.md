@@ -103,6 +103,31 @@ launch. After memory safety completes, these are next-priority.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
+### RFC-0063 Phase 2.0 — Parser/tools-suite unification and duplicate deletion
+
+- **Source:** `RFC-0063-production-readiness-roadmap.md`
+- **Severity:** TOOLCHAIN CORRECTNESS / PERF / MAINTAINABILITY
+- **Status:** AUDIT DONE; DELETION OPEN. `tools/audit_dup_fns.nr`
+  and `tools/audit_dup_fns_report.csv` now map the duplicate
+  function surface between `compiler/nucleor_s1_compiler.nr` and
+  `compiler/nucleor_tools_suite.nr`.
+- **Important accounting:** no duplicate functions have been deleted
+  yet, so no compile-time or binary-size savings from this lane are
+  realized. Current savings are only from separate perf/tooling fixes.
+- **Current audit counts after helper/cloud integration:** 434
+  duplicate function names: 255 `IDENTICAL` safe-delete candidates,
+  163 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
+  `SIG_DIFFERS` per-function lift/adapter candidates.
+- **Next build item:** delete or import the 255 identical duplicates
+  through the RFC-0063 parser/tools-suite unification strategy, then
+  handle the 163 same-signature body-diff candidates and 16
+  signature-diff candidates in follow-on waves.
+- **Required gates for any deletion wave:** `bash tools/check_compiler_drift.sh`,
+  focused `nuc check` / `nuc build-strict` / `nuc abi inspect` smoke,
+  self-host fixed point if `bin/nucleor.exe` or
+  `bootstrap/nucleor_s1_seed.ll` changes, and perf gate if the compiler
+  or tools-suite hot path changes.
+
 ### T-3, T-4 — Type system silent fallthrough — Phase 1 DONE; Phase 2b queued
 
 - **T-3 char-cast Phase 1:** DONE v0.8.46 audit-pass info, locked v0.8.78 fixture.
