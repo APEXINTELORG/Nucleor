@@ -64,6 +64,8 @@ Cartesian-space CHOMP (FK + Jacobian to optimize end-effector trajectory in task
 ## ROBO-10 — WBC velocity-level only, no strict-priority, no torque box — **HIGH**
 "Strict-priority hierarchy / box constraints / torque-level control land in v0.6." Velocity-level sufficient for kinematically-redundant arms but **not for torque-controlled legged robots.** Siciliano-Slotine null-space projection deferred.
 
+**2026-05-06 update:** Strict-priority HWBC evidence now exists. The `hwbc` rod already implements Siciliano-Slotine null-space projection, and `tests/features/hwbc_strict_priority_smoke.nr` now proves a lower-priority conflicting task cannot perturb the higher-priority command while an independent null-space task still succeeds. Remaining ROBO-10 work: box-constrained hierarchy and torque-level / dynamics-coupled control.
+
 ## ROBO-11 — `twin_core` is quantum noise twin, not robot digital twin — **LOW** (naming only)
 Rod named `twin_core.nr` is quantum simulator dual-core differentiable noise model. **No robotics digital twin rod:** no sim-to-real bridge, no physics-based state mirror. Naming misleading.
 
@@ -114,7 +116,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-4: DONE for Phase 1 6D nullspace posture solver. Remaining: true 7-DOF manipulator production fixture, stronger convergence/scaling policy, and singularity/limit-avoidance evidence.
 - ROBO-5: DONE for Phase 1 latest-two-sample timestamped interpolation. Remaining: name-keyed lookup, multi-tree forest support, deeper time buffers, cache/lazy lookup strategy, and hard-RT allocation protocol.
 - ROBO-6: DONE for Phase 1 topology parsing + safe serial export/refusal. Remaining: true branched-tree FK/runtime surface, xacro subset expansion, and richer link/visual/collision/inertial model handling.
-- ROBO-10: WBC strict-priority stack + torque-box constraints.
+- ROBO-10: DONE for strict-priority HWBC evidence. Remaining: box-constrained hierarchy and torque-level / dynamics-coupled control.
 - ROBO-12: DONE for Mahony 9-DOF magnetometer yaw correction. Remaining: calibration/declination helpers, high-dynamics rejection policy, and Madgwick variant.
 
 **Phase 3 (medium-term):**
