@@ -248,14 +248,11 @@ check_manifest() {
     cp "$manifest_path" "$snapshot"
     case "$gen_path" in
         *.nr)
-            # Two-step: build then exec. Avoids `nuc run`'s Linux
-            # path-construction bug (uses Windows backslashes + .exe;
-            # tracked in
-            # findings/promoted/2026-05-06-nuc-run-linux-path-construction.md).
-            # Build is cached so cost is minimal on repeat runs.
-            # The cache-hit-drops-exec-bit bug was closed in v0.8.323
-            # (fs_copy_file now preserves source mode on POSIX), so no
-            # chmod workaround is needed here.
+            # Two-step: build then exec. We could use `nuc run` now
+            # that the v0.8.323 path-construction fix landed, but
+            # explicit build+exec is more transparent in CI logs and
+            # doesn't depend on the run dispatch staying correct
+            # across future ships.
             local gen_basename
             gen_basename="$(basename "$gen_path" .nr)"
             "$NUCLEOR_BIN" build "$gen_path" -o "$gen_basename" >/dev/null 2>&1 || {

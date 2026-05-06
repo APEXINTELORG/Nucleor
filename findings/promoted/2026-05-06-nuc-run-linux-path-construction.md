@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-06
 **Surfaced by:** RFC-0063 Phase 1.4 (commit `d298ee8`) — when wiring the native gen_releases_index.nr port into `tools/check_compiler_drift.sh`, the natural `nuc run <file>` invocation failed on Linux.
-**Status:** OPEN — worked around in the drift gate; needs proper fix.
+**Status:** **CLOSED in v0.8.323** — `compiler/nucleor_s1_compiler.nr` `nuc run` dispatch now reads `host_is_windows() ? "target\\" : "./target/"` for the exe directory and uses `host_exe_suffix()` (which returns `.exe` on Windows, `""` on POSIX). Verified `./bin/nucleor run examples/01_hello.nr` prints `Hello, Nucleor!` on Linux.
 
 ## Symptom
 
