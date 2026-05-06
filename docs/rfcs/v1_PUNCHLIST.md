@@ -68,9 +68,14 @@ launch. After memory safety completes, these are next-priority.
 - **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
+- **Block-form `restricts [...] { ... }`:** DONE for Phase 1
+  no-silent-trust-gap behavior — `nuc build` emits `EFF-003`
+  saying the block form is not yet enforced by s1 and must not be
+  relied on as a compile-time guarantee; active fixture
+  `err_restricts_builtin_io.nr` locks this.
 - **Still open:** standalone `requires [...]` row enforcement,
-  block-form `restricts [...]`, transitive user-call effect inference,
-  and cross-module propagation.
+  real block-form `restricts [...]` enforcement, transitive user-call
+  effect inference, and cross-module propagation.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
@@ -251,3 +256,7 @@ proper analysis → Phase 4 hard error):
   smoke fixture. The compiler Tier-C disclosure was updated so imports
   no longer claim zero Clifford coverage. Rotated surface-code and
   published weight-enumerator parity remain open.
+- **2026-05-05**: Effect/capability Phase 1 advanced again.
+  Block-form `restricts [...] { ... }` now emits `EFF-003` during
+  `nuc build` instead of accepting or misparsing an unenforced
+  guarantee. Real restricts-block effect enforcement remains open.
