@@ -361,9 +361,12 @@ check_manifest() {
     return 0
 }
 
-# helper_manifest — Helpers.md going-forward constraint (v0.2.33+, gate v0.2.42)
+# helper_manifest — Helpers.md going-forward constraint (v0.2.33+, gate v0.2.42).
+# v0.8.323: ported to native Nucleor (RFC-0063 Phase 5 final / Track C C6).
+# Closes the last drift-gated Python dependency. The .py version is
+# preserved one ship cycle as a comparison oracle, then deleted.
 check_manifest "helper_manifest" \
-    "$ROOT/tools/gen_helper_manifest.py" \
+    "$ROOT/tools/gen_helper_manifest.nr" \
     "$ROOT/docs/rfcs/helper_manifest.toml" || exit 1
 
 # rod_manifest — companion gate enforcement (v0.2.47).
