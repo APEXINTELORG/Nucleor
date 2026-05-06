@@ -96,6 +96,14 @@ expectations. The bulk extraction path fails closed above
 `mps_statevector_max_qubits()` to avoid 2^n memory blowups. Remaining gap: no
 high-qubit streaming/external-sink extraction API.
 
+**2026-05-06 helper1 v0835 update:** bounded high-qubit range extraction is
+now shipped. `mps_statevector_range(h, start_basis, count)` materializes only a
+caller-capped computational-basis amplitude window, and
+`mps_statevector_range_max_count()` exposes the per-call cap. The focused
+fixture `mps_statevector_range_smoke.nr` locks extraction above the full
+statevector cap, Bell-window parity, and fail-closed invalid/cap behavior.
+Remaining gap: true external-sink/callback streaming is still not exposed.
+
 ## QM-7 — Clifford rod coverage mostly closed — **MEDIUM REMAINING**
 41 KB runtime with stabilizer formalism, distance, error detection, and bounded weight-enumerator helpers. The original zero-test gap is now closed by deterministic Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/detectable-error, rotated Surface-17 d=3 stabilizer/logical, Surface-17 stabilizer/logical weight-count, and bounded property micro-suite smokes. Remaining launch risk is validation breadth: external published weight-enumerator value citations are still absent in-tree, QASM/OpenQASM2 interop is absent, and the suite is not a randomized stabilizer property test.
 
@@ -207,8 +215,9 @@ and target-lowering semantics remain RFC-0054 Phase B.
 - QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, rotated Surface-17 d=3 stabilizer/logical behavior, bounded Surface-17 stabilizer/logical weight counts, and bounded property micro-suite behavior. Remaining Phase 2 closure is external published enumerator citation parity and QASM/OpenQASM2 interop. **No Clifford code ships without these tests.**
 - QM-6: MPS gate correctness, Bell marginal probabilities,
   computational-basis joint probability, and capped qsim-compatible
-  statevector extraction are shipped; remaining work is high-qubit
-  streaming/external-sink extraction if needed.
+  statevector extraction are shipped; bounded range extraction is also
+  shipped for high-qubit probes that do not need full `2^n` materialization.
+  Remaining work is true external-sink/callback streaming if needed.
 - QM-1: DONE. `qsim_prob`, `qsim_statevec`, and `qsim_copy` now exist and
   are fixture-backed.
 - QM-2: preflight/disclosure, `qsim_init_checked`, and raw `qsim_init`
