@@ -29,6 +29,8 @@
 //   to keep steps from de-smoothing the trajectory; here we
 //   approximate that effect by clamping the per-step move magnitude
 //   (much simpler, similar empirical behavior on typical paths).
+// - nuc_chomp_optimize_covariant applies the actual inverse discrete
+//   smoothness metric over the interior waypoints before stepping.
 // - Endpoints (ξ_0, ξ_{N-1}) are NEVER moved.
 //
 // Compile: clang -c stdlib/runtime/chomp_rt.c -o target/chomp.obj -O2
@@ -68,6 +70,36 @@ static void _obs_grad_at(obs_cost_fn_t fn, double *config, int n_dim,
         config[j] = saved;
         out[j] = (up - base) / eps;
     }
+}
+
+// Solve (A + reg I) x = rhs for the CHOMP smoothness metric over
+// interior waypoints with clamped endpoints. A is the tri-diagonal
+// Dirichlet second-difference matrix: diag 2, off-diag -1.
+static int _solve_smoothness_metric(int m, double reg,
+                                    const double *rhs, double *out,
+                                    double *cprime, double *dprime)
+{
+    if (m <= 0) return 0;
+    if (reg < 0) reg = 0;
+    double diag = 2.0 + reg;
+    double denom = diag;
+    if (fabs(denom) < 1e-12) return 0;
+
+    cprime[0] = (m > 1) ? (-1.0 / denom) : 0.0;
+    dprime[0] = rhs[0] / denom;
+
+    for (int i = 1; i < m; i++) {
+        denom = diag + cprime[i - 1];
+        if (fabs(denom) < 1e-12) return 0;
+        cprime[i] = (i < m - 1) ? (-1.0 / denom) : 0.0;
+        dprime[i] = (rhs[i] + dprime[i - 1]) / denom;
+    }
+
+    out[m - 1] = dprime[m - 1];
+    for (int i = m - 2; i >= 0; i--) {
+        out[i] = dprime[i] - cprime[i] * out[i + 1];
+    }
+    return 1;
 }
 
 // CHOMP optimizer entry point. `path_ptr` is a caller-allocated
@@ -141,6 +173,97 @@ long long nuc_chomp_optimize(
     }
 
     free(grad); free(obs_grad);
+    return iter;
+}
+
+// Full covariant CHOMP entry point. This matches nuc_chomp_optimize's
+// cost model and endpoint constraints, but preconditions each
+// dimension's interior gradient by the inverse smoothness metric
+// before applying the step:
+//
+//     delta = A^-1 grad
+//     xi <- xi - alpha * delta
+//
+// `metric_reg` adds diagonal regularization to A for numerical
+// damping. `max_step` is optional; pass <= 0 to disable per-coordinate
+// clamping, or a positive bit-cast f64 to cap one coordinate's step.
+long long nuc_chomp_optimize_covariant(
+    long long path_ptr, long long N, long long n_dim,
+    long long max_iters,
+    long long alpha_b, long long w_smooth_b, long long w_obs_b,
+    long long obs_cost_fp,
+    long long metric_reg_b, long long max_step_b)
+{
+    if (N < 3 || n_dim <= 0) return -1;
+    double *path = (double *)(void *)(size_t)path_ptr;
+    if (!path) return -1;
+    obs_cost_fn_t obs_fn = (obs_cost_fn_t)(void *)(size_t)obs_cost_fp;
+
+    int n = (int)n_dim;
+    int Ni = (int)N;
+    int m = Ni - 2;
+    double alpha = _i2f(alpha_b);
+    double w_smooth = _i2f(w_smooth_b);
+    double w_obs    = _i2f(w_obs_b);
+    double metric_reg = _i2f(metric_reg_b);
+    double max_step = _i2f(max_step_b);
+    double eps = 1e-5;
+
+    double *grad = (double *)malloc(m * n * sizeof(double));
+    double *obs_grad = (double *)malloc(n * sizeof(double));
+    double *rhs = (double *)malloc(m * sizeof(double));
+    double *precond = (double *)malloc(m * sizeof(double));
+    double *cprime = (double *)malloc(m * sizeof(double));
+    double *dprime = (double *)malloc(m * sizeof(double));
+    if (!grad || !obs_grad || !rhs || !precond || !cprime || !dprime) {
+        free(grad); free(obs_grad); free(rhs); free(precond); free(cprime); free(dprime);
+        return -1;
+    }
+
+    long long iter;
+    for (iter = 0; iter < max_iters; iter++) {
+        for (int i = 1; i < Ni - 1; i++) {
+            double *xi   = path + i * n;
+            double *xim  = path + (i - 1) * n;
+            double *xip  = path + (i + 1) * n;
+            double *gi   = grad + (i - 1) * n;
+            for (int j = 0; j < n; j++) {
+                gi[j] = 2.0 * (2.0 * xi[j] - xim[j] - xip[j]) * w_smooth;
+            }
+            if (obs_fn && w_obs > 0) {
+                _obs_grad_at(obs_fn, xi, n, eps, obs_grad);
+                for (int j = 0; j < n; j++) gi[j] += w_obs * obs_grad[j];
+            }
+        }
+
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < m; i++) rhs[i] = grad[i * n + j];
+            if (!_solve_smoothness_metric(m, metric_reg, rhs, precond, cprime, dprime)) {
+                free(grad); free(obs_grad); free(rhs); free(precond); free(cprime); free(dprime);
+                return -1;
+            }
+            for (int i = 0; i < m; i++) grad[i * n + j] = precond[i];
+        }
+
+        double max_move = 0;
+        for (int i = 1; i < Ni - 1; i++) {
+            double *xi = path + i * n;
+            double *gi = grad + (i - 1) * n;
+            double m2 = 0;
+            for (int j = 0; j < n; j++) {
+                double dx = -alpha * gi[j];
+                if (max_step > 0 && fabs(dx) > max_step) {
+                    dx = (dx > 0 ? max_step : -max_step);
+                }
+                xi[j] += dx;
+                m2 += dx * dx;
+            }
+            if (m2 > max_move) max_move = m2;
+        }
+        if (max_move < 1e-12) { iter++; break; }
+    }
+
+    free(grad); free(obs_grad); free(rhs); free(precond); free(cprime); free(dprime);
     return iter;
 }
 

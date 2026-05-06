@@ -56,6 +56,8 @@ RFC-0046 Phase A ships zero-size marker structs and numeric IDs. **Phase B (comp
 ## ROBO-8 — CHOMP uses approximated pre-conditioning — **MEDIUM**
 "We approximate by clamping per-step move magnitude — much simpler, similar empirical behavior on typical paths." Full covariant A⁻¹∇F pre-conditioner absent. On narrow corridors or high-DOF robots, gradient poorly scaled; convergence degrades to vanilla GD.
 
+**2026-05-06 update:** Phase 1 covariant preconditioning now exists. `chomp_optimize_covariant` solves the clamped-endpoint inverse smoothness metric over interior waypoints before applying the CHOMP update, and `tests/features/chomp_covariant_preconditioner_smoke.nr` proves the `A^-1 grad` path collapses a smoothness-only zig-zag while preserving endpoints. Remaining ROBO-8 work: production evidence on high-DOF / obstacle-gradient paths, exact SDF gradients, and tuning guidance for `metric_reg` / `max_step`.
+
 ## ROBO-9 — CHOMP joint-space only — no Cartesian variant — **MEDIUM**
 Cartesian-space CHOMP (FK + Jacobian to optimize end-effector trajectory in task space) absent. Variant commonly used for manipulator reach-around tasks.
 
@@ -119,7 +121,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-1: TOPP-RA (convex per-step torque/dynamics constraints).
 - ROBO-2: DONE for Phase 1 multi-DOF batch wrapper. Remaining: true coupled-basis learning across DOFs.
 - ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
-- ROBO-8: full covariant CHOMP pre-conditioning.
+- ROBO-8: DONE for Phase 1 covariant pre-conditioning. Remaining: high-DOF / obstacle-gradient evidence, exact SDF gradients, and tuning guidance.
 - ROBO-9: Cartesian-space CHOMP variant.
 - ROBO-13: DONE for Phase 1 static OBB-OBB + fixed-orientation translational CCD. Remaining: angular CCD and convex mesh-vs-mesh sweep.
 - Annotate robotics rods with `#[no_alloc]` where possible. Document which functions are RT-safe.
