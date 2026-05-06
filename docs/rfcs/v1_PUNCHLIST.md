@@ -147,9 +147,14 @@ launch. After memory safety completes, these are next-priority.
   `str_substring`, trim variants, `args_get`, and `file_read_string`
   in both compiler copies; `t4_strict_core_helper_rtypes.nr` locks the
   positive strict-mode assignment path.
+- **T-4 Phase 2b partial:** DONE 2026-05-06 for direct IO/env/path
+  helper return typing. Strict inference now knows scalar/string return
+  types for direct `env_*`, `getcwd`/`getenv`, OS-info, read-only FS,
+  path, and byte-compare helpers; `t4_strict_io_path_helper_rtypes.nr`
+  locks the positive strict-mode assignment path.
 - **Phase 2b still open:** T-4 strict empty-type compatibility beyond
-  core helper returns, broader T-3 char distinctness, and non-constant
-  char-cast proof.
+  covered core/IO/path helper returns, broader T-3 char distinctness,
+  and non-constant char-cast proof.
   The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
   as a current blocker after v0.8.319 rebuilt/promoted
@@ -540,3 +545,7 @@ proper analysis → Phase 4 hard error):
   Core runtime helper return types are now known in both compiler copies,
   and `tests/features/t4_strict_core_helper_rtypes.nr` locks the positive
   strict-mode assignment path.
+- **2026-05-06**: T-4 strict inference Phase 2b partial advanced again.
+  Direct IO/env/path runtime helper return types are now known in both
+  compiler copies, and `tests/features/t4_strict_io_path_helper_rtypes.nr`
+  locks the positive strict-mode assignment path.

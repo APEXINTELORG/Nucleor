@@ -53,7 +53,7 @@ not a whole-project completion number.
 |---|---:|---|
 | 1. RFC-0063 parser/tools-suite unification | 35% | Audit complete; deletion/import waves open |
 | 2. Effect/capability enforcement | 55% | Several Phase 2b slices landed; full propagation still open |
-| 3. T-3/T-4 type-system strictness | 45% | Phase 1, partial char work, and core helper strict rtypes landed; strict modes open |
+| 3. T-3/T-4 type-system strictness | 48% | Phase 1, partial char work, and core plus IO/path strict rtypes landed; strict modes open |
 | 4. ROBO-7 frame typing | 10% | Open compiler/type work |
 | 5. RT determinism | 30% | Direct same-file checks landed; deeper traversal and deadline backing open |
 | 6. Algebraic laws | 50% | Capture and bounded checks landed; rewrite/proof gates open |
@@ -244,10 +244,13 @@ Run perf gate if compiler hot path changes materially.
 - T-4 Phase 2b partial covers core helper return types in strict
   inference: `str_len`, `str_char_at`, `str_substring`, trim variants,
   `args_get`, and `file_read_string`.
+- T-4 Phase 2b partial also covers direct IO/env/path runtime helper
+  return types in strict inference: `env_*`, `getcwd`/`getenv`,
+  OS-info, read-only FS, path, and byte-compare helpers.
 
 Still open:
 
-- T-4 strict empty-type compatibility beyond core helper returns:
+- T-4 strict empty-type compatibility beyond covered core/IO/path helper returns:
   generic/helper expansion, default-on promotion, and broad stdlib audit.
 - Broader T-3 char distinctness.
 - Non-constant char-cast proof.
