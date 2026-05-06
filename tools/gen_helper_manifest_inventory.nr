@@ -1,12 +1,12 @@
 // gen_helper_manifest_inventory.nr
 //
-// Read-only native inventory prototype for tools/gen_helper_manifest.py.
+// Read-only native inventory probe for tools/gen_helper_manifest.nr.
 //
 // This is an opt-in HERM-B first slice. It inventories the source surfaces
-// consumed by the Python helper-manifest generator, prints stable counts to
+// consumed by the native helper-manifest generator, prints stable counts to
 // stdout, and intentionally does not write docs/rfcs/helper_manifest.toml.
-// Keep tools/gen_helper_manifest.py as the drift-gate generator until a later
-// native port proves schema-equivalent or byte-equivalent TOML output.
+// The canonical drift-gated TOML writer is tools/gen_helper_manifest.nr; this
+// probe stays read-only so it can classify helper-manifest source surfaces.
 
 // ---------- generic helpers ----------
 
@@ -862,6 +862,6 @@ fn main() -> i64 {
     print_triple_lines("class_row", manifest_symbols, manifest_names, manifest_classes);
     print_pair_lines("stability_row", manifest_symbols, manifest_stability);
     print_value_lines("candidate_symbol", union_symbols);
-    print("note: read-only inventory only; canonical TOML still comes from tools/gen_helper_manifest.py");
+    print("note: read-only inventory only; canonical TOML comes from tools/gen_helper_manifest.nr");
     return 0;
 }

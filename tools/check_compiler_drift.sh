@@ -10,7 +10,7 @@
 #   2. s1 ↔ tools-suite compiler identity parity, plus checked-in
 #      binary identity parity (prevents stale `nucleor --version`
 #      hardcodes).
-#   3. helper_manifest.toml freshness vs gen_helper_manifest.py output
+#   3. helper_manifest.toml freshness vs gen_helper_manifest.nr output
 #      (since v0.2.42 — Helpers.md going-forward constraint;
 #      manifest mech v0.2.41, gate enforcement v0.2.42).
 #   4. rod_manifest.toml freshness vs gen_rod_manifest.py output
