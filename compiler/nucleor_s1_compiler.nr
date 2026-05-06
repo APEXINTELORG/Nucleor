@@ -30768,11 +30768,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     };
     // v0.8.62 QM-8/9 + ROBO-8 Phase 1 — Wave 3 final Tier C
     // closure. v0828 closes the high-level qsim wrapper half of
-    // QM-8: qsim_cnot/CZ/CRK/CCX now update qsim_graph entanglement.
-    // Raw runtime tracker unification and gate-DAG auto-record remain open.
-    // QM-9: gate-influence DAG silently overflows at 4096 gates;
-    // nuc_qsim_gate_record returns -1 but Nucleor layer doesn't
-    // signal. ROBO-8: CHOMP uses approximated pre-conditioning
+    // QM-8/QM-9: qsim_cnot/CZ/CRK/CCX now update qsim_graph
+    // entanglement and gate-DAG records through checked wrappers.
+    // Raw runtime tracker unification remains open. QM-9: the raw
+    // gate-influence DAG still caps at 4096 gates, but Nucleor callers
+    // now have checked status/preflight helpers. ROBO-8: CHOMP uses approximated pre-conditioning
     // (clamp-magnitude vs full covariant A⁻¹∇F).
     let v0862_has_qsim_cnot: i64 = if str_index_of(after_async, str_concat("qsim_", "cnot")) >= 0 { 1 } else { 0 };
     let v0862_has_qsim_gate_record: i64 = if str_index_of(after_async, str_concat("qsim_gate_", "record")) >= 0 { 1 } else { 0 };
@@ -30784,7 +30784,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0862_total: i64 = v0862_qsim_cnot + v0862_qsim_gate + v0862_chomp;
         if v0862_total > 0 {
             print(str_concat("info[QM-89-ROBO-8]: Wave 3 final Tier C surface: ", str_from_int(v0862_total)));
-            print("  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8 Phase 2a is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration in the same semantic places their trace hooks declare entanglement; raw runtime tracker unification and automatic gate-DAG recording remain open. QM-9 — nuc_qsim_gate_record silently overflows at 4096 gates (returns -1 but no signal to Nucleor layer); larger circuits get partial DAG data unless callers use qsim_gate_record_checked/preflight. ROBO-8 — CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow signal hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.");
+            print("  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_swap inherits this through its CNOT sequence. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 — CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.");
         };
     };
     // v0.8.61 ML-2/3/5/6/10 Phase 1 — Tensor/ML/Autodiff surface
