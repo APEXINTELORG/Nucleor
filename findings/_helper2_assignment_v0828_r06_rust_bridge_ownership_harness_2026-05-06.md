@@ -1767,3 +1767,252 @@ pwsh tools/run_numerics_matrix.ps1
 ```bash
 bash tools/run_numerics_matrix.sh
 ```
+
+---
+
+## Queue 10 Addendum - Native Linux PKG-1/R06 Closure
+
+Append-only update, 2026-05-06. Queue 9 landed the handoff packet and the
+mainline now records R10-D3 native Linux perf baseline as closed. Continue from
+this same helper2 workstream only if you are on a true native Linux host. Do not
+use WSL-mounted Windows `.exe` interop as POSIX evidence.
+
+Current main base:
+
+```bash
+git fetch origin --prune
+git checkout -B fix/helper2-native-linux-pkg-r06-closure-v0837 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Expected base at assignment time:
+
+```text
+origin/main: 9c29f246a0639b7fbe82e65f283baa4fda9689b3
+```
+
+If origin/main has advanced, use the fetched current origin/main and record the
+actual base in your report.
+
+### Scope AU: PKG-1 native Linux signed publish proof
+
+Goal: close PKG-1 with a native Linux transcript, or leave a precise blocker if
+the host/tooling cannot produce a valid signed publish roundtrip.
+
+Source of truth to follow:
+
+```text
+findings/inbox/helper2_pkg_r06_native_linux_handoff_v0835_2026-05-06.md
+docs/rfcs/v1_PUNCHLIST.md
+docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md
+```
+
+Required commands, adjusted only for temporary directory names:
+
+```bash
+set -euo pipefail
+uname -a
+test "$(uname -s)" = "Linux"
+git status --short --branch
+bash tools/bootstrap_linux.sh
+test -x ./bin/nucleor
+./bin/nucleor --version
+
+tmp="$(mktemp -d)"
+registry="$tmp/nucleor-registry"
+keydir="$tmp/nucleor-keys"
+mkdir -p "$registry" "$keydir"
+
+./bin/nucleor publish tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml \
+  --registry "$registry" \
+  --dry-run \
+  --sign \
+  --key-id throwaway-ci
+
+test ! -e "$registry/foo/0.1.0/Nucleor.publish.signature.json"
+
+./bin/nucleor release keygen --out "$keydir/throwaway-ci" --key-id throwaway-ci
+
+./bin/nucleor publish tests/fixtures/t14_registry/foo/0.1.0/Nucleor.toml \
+  --registry "$registry" \
+  --sign \
+  --key "$keydir/throwaway-ci.private" \
+  --key-id throwaway-ci
+
+test -f "$registry/foo/0.1.0/Nucleor.toml"
+test -f "$registry/foo/0.1.0/Nucleor.publish.json"
+test -f "$registry/foo/0.1.0/Nucleor.package.sha256"
+test -f "$registry/foo/0.1.0/Nucleor.publish.signature.json"
+
+pwsh -NoProfile -File tools/native_release.ps1 -Root . package-sign-preflight \
+  "$registry/foo/0.1.0" \
+  --key-id throwaway-ci \
+  --json
+
+pwsh -NoProfile -File tools/native_release.ps1 -Root . package-verify \
+  "$registry/foo/0.1.0" \
+  --json
+```
+
+If `release keygen`, signed publish, or package verification is not implemented
+or fails on native Linux, do not paper over it. Capture the exact command,
+stdout/stderr, exit code, and minimal source path likely responsible. Stop with
+a blocker report instead of making speculative compiler edits.
+
+Allowed changes for Scope AU:
+
+```text
+tools/native_release.ps1
+compiler/nucleor_tools_suite.nr only if publish CLI dispatch is truly broken
+tests/fixtures/t14_registry/
+docs/rfcs/v1_PUNCHLIST.md
+docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md
+findings/inbox/helper2_pkg1_native_linux_signed_publish_v0837_2026-05-06.md
+```
+
+Do not edit `bin/`, `bootstrap/`, broad verify gates, or performance baselines
+for this scope.
+
+### Scope AV: R06 native POSIX rust_bridge ownership/artifact proof
+
+Goal: close the native POSIX rust_bridge ownership proof with native cargo,
+native `./bin/nucleor`, and a POSIX static artifact. This is helper2's existing
+R06 workstream; finish it if the native host can provide the evidence.
+
+Required commands:
+
+```bash
+set -euo pipefail
+uname -a
+test "$(uname -s)" = "Linux"
+command -v cargo
+cargo --version
+test -x ./bin/nucleor
+./bin/nucleor --version
+
+bash tools/check_rust_bridge_ownership.sh --doctor
+bash tools/check_rust_bridge_ownership.sh --self-test
+bash tools/check_rust_bridge_ownership.sh --doctor --json
+bash tools/check_rust_bridge_ownership.sh --self-test --json
+bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20
+bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 5 --json
+test -f stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a
+```
+
+Optional stronger signal if available:
+
+```bash
+bash tools/check_rust_bridge_ownership.sh --fixture string-free-repeat --iterations 100
+```
+
+If native cargo, native compiler, or the POSIX `.a` artifact is missing, stop
+with a blocker report. Do not count Windows `.lib`, Windows cargo, or
+`bin/nucleor.exe` as POSIX proof.
+
+Allowed changes for Scope AV:
+
+```text
+stdlib/rods/rust_bridge/src/lib.rs
+stdlib/rods/rust_bridge.nr
+tools/check_rust_bridge_ownership.sh
+tools/VERIFY_TIMING_RECIPE.md
+docs/ffi-conventions.md
+docs/rfcs/v1_PUNCHLIST.md
+docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md
+findings/inbox/helper2_r06_native_posix_rust_bridge_v0837_2026-05-06.md
+```
+
+Do not add normal full-verify/perf wiring for rust_bridge unless the main agent
+explicitly reopens CI-gate scope. Keep the harness opt-in.
+
+### Scope AW: status closure and blocker ledger refresh
+
+After AU/AV, update the status docs only to the level proven by native evidence.
+
+Required status files:
+
+```text
+docs/rfcs/v1_PUNCHLIST.md
+docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md
+findings/inbox/helper2_blocker_ledger_v0835_2026-05-06.md
+```
+
+Rules:
+
+- Mark PKG-1 DONE only if signed publish and package verify both pass on native
+  Linux against a throwaway registry/key.
+- Mark R06 native POSIX proof DONE only if the POSIX rust_bridge harness passes
+  with native cargo, native `./bin/nucleor`, and `libnucleor_rust_bridge.a`.
+- Keep R10-D3 native Linux perf closed; do not rerun or reopen it unless a
+  command in this queue directly proves a regression.
+- If one lane closes and the other blocks, mark them separately.
+
+### Queue 10 validation
+
+Always run:
+
+```bash
+git diff --check
+```
+
+Run these if touched:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+```
+
+Run self-host/perf only if compiler, bootstrap, binary, cache, or hot toolchain
+paths changed. Do not run full verify unless a real source change warrants it
+and the host has enough time.
+
+### Helper2 deliverable for Queue 10
+
+Push one branch:
+
+```text
+fix/helper2-native-linux-pkg-r06-closure-v0837
+```
+
+Final report must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Host uname:
+Compiler version:
+PKG-1 status:
+PKG-1 commands and outputs:
+R06 status:
+R06 commands and outputs:
+Files changed:
+Files intentionally not changed:
+Validation:
+Remaining blockers:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+If native Linux evidence cannot be produced, the branch should still push a
+blocker report with exact failing commands and no status overclaim.
+
+### Operator Clarification: Local Helper2 vs Cloud Linux Agent
+
+If Helper2 is running on the local Windows machine, do not attempt Queue 10
+execution locally. This queue requires a true native Linux host and is better
+suited for the cloud Linux agent.
+
+Local Helper2 ownership is limited to:
+
+- keeping this handoff packet accurate;
+- reviewing the cloud agent's returned transcript;
+- integrating status/report docs after native Linux evidence lands.
+
+Cloud Linux agent ownership is:
+
+- run Scope AU PKG-1 signed publish proof;
+- run Scope AV R06 native POSIX rust_bridge proof;
+- push `fix/helper2-native-linux-pkg-r06-closure-v0837` or a blocker report
+  with exact commands and outputs.
