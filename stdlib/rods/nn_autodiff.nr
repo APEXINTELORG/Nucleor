@@ -190,5 +190,5 @@ fn nn_conv1d_ad(input_ad: i64, kernel_bits: i64, c_in: i64, c_out: i64, length: 
 }
 
 fn nn_autodiff_limitations() -> str {
-    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872/v0873): nn_dense_forward_ad, nn_layer_norm_ad, nn_batch_norm_ad, and nn_conv1d_ad lower Dense, LayerNorm, BatchNorm/batch-norm, and Conv1D forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover Conv2D/depthwise/attention, and does not provide compiler-side @differentiable lowering.";
+    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872/v0873): nn_dense_forward_ad, nn_layer_norm_ad, nn_batch_norm_ad, and nn_conv1d_ad lower Dense, LayerNorm, BatchNorm/batch-norm, and Conv1D forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover broader convolution surfaces such as Conv2D/depthwise or attention, and does not provide compiler-side @differentiable lowering.";
 }
