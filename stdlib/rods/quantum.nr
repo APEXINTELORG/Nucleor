@@ -418,6 +418,56 @@ fn qsim_if_measure(sv: i64, measure_q: i64, expected: i64, then_gate: i64, then_
     return outcome;
 }
 
+fn qsim_noise_status_ok() -> i64 { return 0; }
+fn qsim_noise_status_invalid_probability() -> i64 { return 0 - 1; }
+
+fn qsim_noise_probability_ok(p: i64) -> i64 {
+    if f64_lt(p, f64_from_int(0)) == 1 { return 0; };
+    if f64_gt(p, f64_from_int(1)) == 1 { return 0; };
+    return 1;
+}
+
+fn qsim_noise_should_apply(p: i64) -> i64 {
+    if qsim_noise_probability_ok(p) != 1 { return qsim_noise_status_invalid_probability(); };
+    if f64_eq(p, f64_from_int(0)) == 1 { return 0; };
+    if f64_eq(p, f64_from_int(1)) == 1 { return 1; };
+    if f64_lt(rng_f64(), p) == 1 { return 1; };
+    return 0;
+}
+
+// Stochastic-trajectory bit-flip noise: with probability p, apply X(q).
+// This is a statevector trajectory surface, not a density-matrix backend.
+fn qsim_noise_bit_flip(sv: i64, q: i64, p: i64) -> i64 {
+    let apply: i64 = qsim_noise_should_apply(p);
+    if apply < 0 { return apply; };
+    if apply == 1 { qsim_x(sv, q); };
+    return qsim_noise_status_ok();
+}
+
+// Stochastic-trajectory dephasing/phase-flip noise: with probability p,
+// apply Z(q).
+fn qsim_noise_dephase(sv: i64, q: i64, p: i64) -> i64 {
+    let apply: i64 = qsim_noise_should_apply(p);
+    if apply < 0 { return apply; };
+    if apply == 1 { qsim_z(sv, q); };
+    return qsim_noise_status_ok();
+}
+
+// Stochastic-trajectory depolarizing noise: with probability p, apply
+// one of X/Y/Z uniformly. Deterministic p=0/p=1 callers can use the
+// status return to gate tests; intermediate p uses the runtime RNG.
+fn qsim_noise_depolarizing(sv: i64, q: i64, p: i64) -> i64 {
+    let apply: i64 = qsim_noise_should_apply(p);
+    if apply < 0 { return apply; };
+    if apply == 1 {
+        let branch: i64 = rng_range(3);
+        if branch == 0 { qsim_x(sv, q); };
+        if branch == 1 { qsim_y(sv, q); };
+        if branch == 2 { qsim_z(sv, q); };
+    };
+    return qsim_noise_status_ok();
+}
+
 // Measure qubit q, collapse state, return outcome (0 or 1)
 fn qsim_measure(sv: i64, q: i64) -> i64 {
     if rods_trace_enabled() == 1 { rods_trace_next_step(); };
@@ -597,5 +647,5 @@ fn qsim_status_explain(status: i64) -> str {
 }
 
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1/QM-2/QM-17, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains Phase B. (4) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). (5) NO NOISE MODEL: gates are perfect - no T1/T2/dephasing. Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations (QM-1/QM-2/QM-16/QM-17, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains Phase B. (4) TRAJECTORY NOISE: qsim_noise_bit_flip, qsim_noise_dephase, and qsim_noise_depolarizing expose explicit per-gate stochastic trajectory noise with probability preflight. This is not a full density-matrix/Kraus backend. (5) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
 }
