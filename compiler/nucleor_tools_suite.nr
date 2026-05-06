@@ -2289,6 +2289,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
     if str_eq(name, "file_read_string_or_panic") { return "__nucleor_file_read_string_or_panic"; };
     if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
+    if str_eq(name, "file_bytes_equal") { return "__nucleor_file_bytes_equal"; };
     if str_eq(name, "system") { return "__nucleor_system"; };
     if str_eq(name, "getenv") { return "__nucleor_getenv"; };
     if str_eq(name, "env_get") { return "__nucleor_env_get"; };
@@ -3506,6 +3507,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "file_read_string") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_read_string_or_panic") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_write_string") { return 1; };
+    if str_eq(name, "file_bytes_equal") { return 1; };
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_append_char") { return 0; };
@@ -3885,6 +3887,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_file_read_string(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_file_read_string_or_panic(ptr)\n");
     sb_append(sb, "declare void @__nucleor_file_write_string(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_file_bytes_equal(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_getenv(ptr)\n");

@@ -133,6 +133,7 @@ CLASS_RULES = [
                          r"^heapmap_", r"^vecdeque_"]),
     ("StringFormat",    [r"^str_", r"^string_", r"^sb_", r"^format_", r"^format[0-9]",
                          r"^chr$", r"^char_", r"^int_to_(str|hex|bin|oct)$",
+                         r"^int_to_hex_upper$", r"^int_to_str_force_sign$",
                          r"^f64_to_str$", r"^bool_to_str$",
                          r"^str_to_(i64|f64|bool)$", r"^str_to_i64_radix$",
                          r"^parse_(hex|bin)$"]),
@@ -142,20 +143,42 @@ CLASS_RULES = [
                          r"^print", r"^eprint", r"^pipe_", r"^proc_", r"^system$",
                          r"^socket_", r"^http_", r"^tcp_", r"^udp_", r"^putchar$",
                          r"^args_", r"^init_args$", r"^dbg_"]),
+    # async_* lives here (await/spawn are scheduler-bound).
     ("Concurrency",     [r"^mutex_", r"^channel_", r"^chan_", r"^thread_",
                          r"^rwlock_", r"^cancel_token_", r"^once_", r"^atomic_",
                          r"^cas_", r"^par_", r"^scheduler_", r"^ambient_scheduler",
-                         r"^cpu_count$"]),
+                         r"^async_", r"^cpu_count$"]),
     ("Random",          [r"^rng_", r"^random_", r"^ambient_random$"]),
     ("Time",            [r"^time_", r"^sleep_", r"^now_"]),
+    # ControlFlow (v0.8.323) — runtime invariant-checking primitives.
+    # contract_{require,ensure,invariant} are DBC contract enforcement;
+    # deadline_check is RT deadline budgeting; max_depth_{enter,exit}
+    # is recursion-bound counter. All can panic on violation. Distinct
+    # from PanickingArith because the panic class is contract failure,
+    # not arithmetic overflow.
+    ("ControlFlow",     [r"^contract_(require|ensure|invariant)$",
+                         r"^deadline_check$",
+                         r"^max_depth_(enter|exit)$"]),
     ("PanickingArith",  [r"^checked_", r"^saturating_", r"^wrapping_",
                          r"^overflow", r"^panic", r"^trap_", r"^bounds_check",
                          r"^stack_probe", r"^assert$", r"^sat_i32$", r"^wrap_i32$"]),
+    # Introspection (v0.8.323) — compile-time-known queries. sizeof_*
+    # always returns a constant integer for the queried type. Pure
+    # but distinct from PureMath because the value is type-derived,
+    # not arithmetic.
+    ("Introspection",   [r"^sizeof_"]),
+    # ADT (v0.8.323) — Option/Result sum-type accessors. Mostly pure
+    # (predicates, accessors, higher-order map/and_then/or_else); a
+    # few panic on wrong-variant (unwrap/expect/unwrap_err) and a few
+    # allocate (to_debug_str_*). Per-helper effect refinement lives
+    # in NAME_OVERRIDES / PATTERN_OVERRIDES.
+    ("ADT",             [r"^option_", r"^result_"]),
     ("PureMath",        [r"^popcount$", r"^leading_zeros$", r"^trailing_zeros$",
                          r"^byte_swap$", r"^rotate_left$", r"^rotate_right$",
                          r"^count_ones$", r"^count_zeros$",
                          r"^i64_", r"^f64_", r"^f32_", r"^i32_", r"^f16_",
                          r"^f8e[45]m[23]_to_f32$",
+                         r"^f8e[45]m[23]_(from_f32|to_str)$",
                          r"^abs$", r"^min$", r"^max$", r"^clamp$", r"^sqrt$",
                          r"^sin$", r"^cos$", r"^tan$", r"^pow$", r"^exp$",
                          r"^log$", r"^floor$", r"^ceil$", r"^round$",
@@ -166,16 +189,24 @@ CLASS_RULES = [
     ("DataCodec",       [r"^toml_", r"^json_", r"^csv_", r"^ini_", r"^base64_",
                          r"^msgpack_", r"^uuid_", r"^sha256", r"^fnv1a",
                          r"^murmur3", r"^crc32", r"^bit_"]),
+    # dyn_box_{make,data,type,free} — Box<dyn Trait> 2-cell handle
+    # primitives. make/free are alloc-side; data/type are pure
+    # accessors but live here for cohesion with the family.
     ("Allocation",      [r"^region_", r"^arena_", r"^alloc_", r"^free$",
                          r"^realloc$", r"^drop_", r"^malloc$", r"^memcpy$",
-                         r"^calloc$", r"^capture_"]),
+                         r"^calloc$", r"^capture_", r"^dyn_box_"]),
     ("TensorOps",       [r"^tensor_", r"^matmul", r"^conv2d", r"^attention",
                          r"^cuda_", r"^gpu_", r"^device_", r"^layout_",
                          r"^dlpack_", r"^kvcache_", r"^kvprefix_"]),
+    # ToolingMeta — adds compiler-internal cache / symbol-aux / type-
+    # inference cache helpers (v0.8.323). These are dev-only surfaces
+    # used by the compiler's stage-dump / cache-v2 / inference passes.
     ("ToolingMeta",     [r"^plot_", r"^profile_", r"^certify_", r"^evidence_",
                          r"^impact_", r"^audit_", r"^policy_", r"^doc_",
                          r"^manifest_", r"^stage_", r"^bench_", r"^cli_",
                          r"^test_", r"^summary_", r"^py_eval$",
+                         r"^compile_src_", r"^str_cache_", r"^sym_aux_",
+                         r"^infer_.*_cached$",
                          r"^rods_f64_", r"^assert_(eq|ne)$", r"^dbg$"]),
     # bf16 reduced-precision falls in PureMath (similar to f16_*)
     ("PureMath",        [r"^bf16_"]),
@@ -324,9 +355,14 @@ INTENTIONAL_PLACEHOLDER = {
 
 
 def classify(name):
+    # Some helpers' get_rt_name() mapping uses the full __nucleor_*
+    # prefixed name as both input and output (e.g. compile_src_*,
+    # str_cache_*, sym_aux_*). Normalise so all CLASS_RULES patterns
+    # can assume the bare-name convention.
+    bare = name[len("__nucleor_"):] if name.startswith("__nucleor_") else name
     for cls, patterns in CLASS_RULES:
         for p in patterns:
-            if re.match(p, name):
+            if re.match(p, bare):
                 return cls
     return "Unclassified"
 
@@ -367,6 +403,19 @@ NAME_OVERRIDES = {
     "rods_f64_sub":     ([],        "passthrough", "none"),
     "rods_f64_div":     ([],        "passthrough", "none"),
     "rods_f64_encode":  (["alloc"], "passthrough", "none"),
+    # ADT v0.8.323 — panicking members of Option/Result.
+    "option_unwrap":         (["panic"], "passthrough", "predicate_holds"),
+    "option_expect":         (["panic"], "passthrough", "predicate_holds"),
+    "result_unwrap":         (["panic"], "passthrough", "predicate_holds"),
+    "result_unwrap_err":     (["panic"], "passthrough", "predicate_holds"),
+    "result_expect":         (["panic"], "passthrough", "predicate_holds"),
+    # ADT v0.8.323 — allocating members (debug stringify).
+    "option_to_debug_str_i64": (["alloc"], "passthrough", "none"),
+    "result_to_debug_str_i64": (["alloc"], "passthrough", "none"),
+    # Allocation v0.8.323 — Box<dyn Trait> handle pure accessors
+    # (the make/free pair stays under the class default `alloc`).
+    "dyn_box_data":     ([],        "passthrough", "none"),
+    "dyn_box_type":     ([],        "passthrough", "none"),
 }
 
 
@@ -521,6 +570,18 @@ CLASS_DEFAULTS = {
     # touch the OS. Pure hash helpers and TOML lookups + I/O parse
     # variants are singled out by NAME_OVERRIDES / PATTERN_OVERRIDES.
     "DataCodec":      (["alloc"],     "passthrough", "none"),
+    # ADT (v0.8.323) — Option/Result sum-type accessors. Bulk are
+    # pure (predicates, accessors, higher-order). Panicking members
+    # (unwrap/expect/unwrap_err) and allocating members
+    # (to_debug_str_*) are singled out below.
+    "ADT":            ([],            "passthrough", "none"),
+    # Introspection (v0.8.323) — sizeof_* compile-time queries.
+    # Always pure, deterministic, return type-derived constant.
+    "Introspection":  ([],            "passthrough", "none"),
+    # ControlFlow (v0.8.323) — runtime invariant primitives. The
+    # bulk panic on violation; per-helper differentiation in
+    # NAME_OVERRIDES below.
+    "ControlFlow":    (["panic"],     "passthrough", "predicate_holds"),
 }
 
 

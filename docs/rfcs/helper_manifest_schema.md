@@ -22,7 +22,7 @@ The short Nucleor-source name (no `__nucleor_` prefix). Example:
 `vec_mean_f64`. This is what users write in `.nr` source.
 
 ### `class` — string
-One of the 14 v0.2 taxonomy classes:
+One of the 17 v0.2 / v0.8.323 taxonomy classes:
 
 | Class | Meaning |
 |---|---|
@@ -33,13 +33,16 @@ One of the 14 v0.2 taxonomy classes:
 | `VectorOps` | `vec_*` batch helpers, plus SIMD lane-wise (`f32x4_*`, `i32x4_*`, `simd_*`). |
 | `Collection` | HashMap, HashSet, BTreeMap, BTreeSet, VecDeque, HeapMap. |
 | `TensorOps` | Tensor / GPU / CUDA / DLPack / KV-cache helpers. |
-| `Concurrency` | Atomics, mutexes, channels, threads, rwlocks, cancel tokens, schedulers, parallel reducers. |
+| `Concurrency` | Atomics, mutexes, channels, threads, rwlocks, cancel tokens, schedulers, parallel reducers, `async_*`. |
 | `Time` | Wall and monotonic clocks, sleep, ISO formatting, calendar decomposition. |
 | `DataCodec` | TOML, JSON, CSV, INI, Base64, MessagePack, SHA-256, FNV-1a, MurmurHash3, CRC32, bitwise ops. |
-| `Allocation` | Region / arena / capture allocation primitives, `free`, `realloc`. |
-| `ToolingMeta` | Diagnostic / profiling / certification / doc-gen helpers used by the `nuc` tool. |
+| `Allocation` | Region / arena / capture allocation primitives, `free`, `realloc`, `dyn_box_*`. |
+| `ToolingMeta` | Diagnostic / profiling / certification / doc-gen helpers used by the `nuc` tool, plus compiler-internal caches (`compile_src_*`, `str_cache_*`, `sym_aux_*`, `infer_*_cached`). |
 | `Random` | RNG bridges and convenience wrappers (`rng_*`, `random_*`, `vec_shuffle`, `vec_sample`, `random_fill`). |
-| `Unclassified` | Name pattern did not match any class rule. Listed under REVIEW REQUIRED at the top. |
+| `ADT` | (v0.8.323) Sum-type accessors for Option/Result. Mostly pure (predicates, accessors, higher-order); panicking members (`unwrap`, `expect`, `unwrap_err`) and allocating members (`to_debug_str_*`) are differentiated by NAME_OVERRIDES. |
+| `Introspection` | (v0.8.323) Compile-time-known queries — `sizeof_*` for every primitive type. Pure, deterministic, type-derived constant. |
+| `ControlFlow` | (v0.8.323) Runtime invariant primitives — DBC contracts (`contract_require / ensure / invariant`), real-time (`deadline_check`), recursion bound (`max_depth_enter / exit`). All can panic on violation. |
+| `Unclassified` | Name pattern did not match any class rule. Listed under REVIEW REQUIRED at the top. Should be empty in a clean manifest. |
 
 ### `symbol` — string
 The C linker symbol the compiler emits, always

@@ -42,9 +42,17 @@ done
 
 cd "$ROOT"
 
-BIN="bin/nucleor"
-if [ -x "bin/nucleor.exe" ]; then
+# Prefer the POSIX bare binary; fall back to .exe only when bin/nucleor
+# is missing (Windows/WSL workflows). Previously the priority was
+# inverted, so on Linux this script tried to exec the Windows PE
+# binary as a shell script and failed with "Unterminated quoted
+# string". Mirrors tools/verify.sh:205.
+if [ -x "bin/nucleor" ]; then
+    BIN="bin/nucleor"
+elif [ -x "bin/nucleor.exe" ]; then
     BIN="bin/nucleor.exe"
+else
+    BIN="bin/nucleor"
 fi
 
 [ -x "$BIN" ] || { echo "FAIL: compiler binary not found: $BIN" >&2; exit 1; }

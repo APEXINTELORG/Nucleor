@@ -6284,6 +6284,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
     if str_eq(name, "file_read_string_or_panic") { return "__nucleor_file_read_string_or_panic"; };
     if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
+    if str_eq(name, "file_bytes_equal") { return "__nucleor_file_bytes_equal"; };
     if str_eq(name, "system") { return "__nucleor_system"; };
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
@@ -7463,6 +7464,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "file_read_string") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_read_string_or_panic") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_write_string") { return 1; };
+    if str_eq(name, "file_bytes_equal") { return 1; };
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_append_char") { return 0; };
@@ -8099,6 +8101,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_file_read_string(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_file_read_string_or_panic(ptr)\n");
     sb_append(sb, "declare void @__nucleor_file_write_string(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_file_bytes_equal(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
@@ -16869,19 +16872,29 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                     };
                     let pure_body: str = strip_strings_and_line_comments(body);
                     let mut pcode: i64 = 0;
+                    let mut specific_callee: str = "";
                     if has_print == 1 { pcode = 1; };
                     if pcode == 0 && has_alloc == 1 { pcode = 2; };
                     if pcode == 0 && has_ambient == 1 { pcode = 3; };
                     if pcode == 0 && str_index_of(pure_body, "scope {") >= 0 { pcode = 4; };
                     if pcode == 0 && str_index_of(pure_body, "spawn {") >= 0 { pcode = 4; };
                     if pcode == 0 && str_index_of(pure_body, "channel(") >= 0 { pcode = 5; };
+                    // v0.8.323 (RFC-0063 Phase 1.5): bridge syntactic-Phase-1
+                    // toward semantic-Phase-2b. Inspect body for known-impure
+                    // stdlib helpers (vec_push, str_concat, file_*, ...) that
+                    // the constructor-only Phase-1 check missed.
+                    if pcode == 0 {
+                        specific_callee = priv_first_impure_callee(pure_body);
+                        if str_len(specific_callee) > 0 { pcode = 6; };
+                    };
                     if pcode > 0 {
                         let kind2: str = if pcode == 1 { "calls print/println/print_* — I/O is not pure" }
                             else if pcode == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
                             else if pcode == 3 { "uses ambient capability (ambient_*) — non-deterministic input is not pure" }
                             else if pcode == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
-                            else { "uses channel construction — sync.channel effects are not pure" };
-                        let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
+                            else if pcode == 5 { "uses channel construction — sync.channel effects are not pure" }
+                            else { str_concat("calls ", str_concat(specific_callee, " — not pure")) };
+                        let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307; Phase-2b helper-effect bridge v0.8.323)"))));
                         let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
                     } else {
@@ -17407,6 +17420,97 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
 //
 // Severity = warning. Suppress with `#[allow_fn(PERF-3)]` when
 // the alloc is intentional (e.g. amortized via reserve()).
+// v0.8.323 (RFC-0063 Phase 1.5): bridge syntactic-Phase-1 toward
+// semantic-Phase-2b. Returns the first known-impure stdlib helper
+// found in `body`, suffixed with the reason — or "" if none. Catches
+// the soundness gap where a pure fn calls a helper that allocates or
+// does IO via a non-constructor name (vec_push, str_concat, etc.).
+//
+// The list is curated to high-frequency callees from
+// docs/rfcs/helper_manifest.toml (effects != []). Manual sync with
+// the manifest until full call-graph effect propagation lands
+// (Phase 2.0 parser unification + Phase 2.1+ generic monomorphization
+// give us the substrate to do this properly across modules).
+//
+// Conservatism note: only flags helpers whose effect is unambiguous
+// from the name. Read-only accessors (vec_get, vec_len, hashmap_get,
+// str_eq, str_len, str_starts_with, ...) are NOT flagged — they're
+// classified as pure in PATTERN_OVERRIDES.
+#[manual_drop]
+fn priv_first_impure_callee(body: str) -> str {
+    // --- Allocation: Vec mutators / producers ---
+    if str_index_of(body, "vec_push(") >= 0 { return "vec_push (allocates: may grow Vec)"; };
+    if str_index_of(body, "vec_insert_at(") >= 0 { return "vec_insert_at (allocates / mutates)"; };
+    if str_index_of(body, "vec_remove_at(") >= 0 { return "vec_remove_at (mutates)"; };
+    if str_index_of(body, "vec_extend(") >= 0 { return "vec_extend (allocates)"; };
+    if str_index_of(body, "vec_clone(") >= 0 { return "vec_clone (allocates)"; };
+    if str_index_of(body, "vec_clear(") >= 0 { return "vec_clear (mutates)"; };
+    if str_index_of(body, "vec_sort(") >= 0 { return "vec_sort (mutates)"; };
+    if str_index_of(body, "vec_sort_i64(") >= 0 { return "vec_sort_i64 (mutates)"; };
+    if str_index_of(body, "vec_reverse(") >= 0 { return "vec_reverse (mutates)"; };
+    if str_index_of(body, "vec_shuffle(") >= 0 { return "vec_shuffle (mutates + uses RNG capability)"; };
+    if str_index_of(body, "vec_filter(") >= 0 { return "vec_filter (allocates new Vec)"; };
+    if str_index_of(body, "vec_map(") >= 0 { return "vec_map (allocates new Vec)"; };
+    if str_index_of(body, "vec_swap(") >= 0 { return "vec_swap (mutates)"; };
+    // --- Allocation: HashMap / Collection mutators / producers ---
+    if str_index_of(body, "hashmap_new(") >= 0 { return "hashmap_new (allocates)"; };
+    if str_index_of(body, "hashmap_insert(") >= 0 { return "hashmap_insert (allocates / mutates)"; };
+    if str_index_of(body, "hashmap_remove(") >= 0 { return "hashmap_remove (mutates)"; };
+    if str_index_of(body, "hashmap_clone(") >= 0 { return "hashmap_clone (allocates)"; };
+    if str_index_of(body, "hashmap_clear(") >= 0 { return "hashmap_clear (mutates)"; };
+    if str_index_of(body, "hashmap_keys(") >= 0 { return "hashmap_keys (allocates a Vec)"; };
+    if str_index_of(body, "hashmap_values(") >= 0 { return "hashmap_values (allocates a Vec)"; };
+    if str_index_of(body, "hashmap_merge(") >= 0 { return "hashmap_merge (mutates)"; };
+    // --- Allocation: String producers ---
+    if str_index_of(body, "str_concat(") >= 0 { return "str_concat (allocates new string)"; };
+    if str_index_of(body, "str_substring(") >= 0 { return "str_substring (allocates new string)"; };
+    if str_index_of(body, "str_lines(") >= 0 { return "str_lines (allocates a Vec)"; };
+    if str_index_of(body, "str_split(") >= 0 { return "str_split (allocates a Vec)"; };
+    if str_index_of(body, "str_chars(") >= 0 { return "str_chars (allocates a Vec)"; };
+    if str_index_of(body, "str_to_lower(") >= 0 { return "str_to_lower (allocates)"; };
+    if str_index_of(body, "str_to_upper(") >= 0 { return "str_to_upper (allocates)"; };
+    if str_index_of(body, "str_trim(") >= 0 { return "str_trim (allocates)"; };
+    if str_index_of(body, "str_pad_left(") >= 0 { return "str_pad_left (allocates)"; };
+    if str_index_of(body, "str_pad_right(") >= 0 { return "str_pad_right (allocates)"; };
+    if str_index_of(body, "str_replace(") >= 0 { return "str_replace (allocates)"; };
+    if str_index_of(body, "str_join(") >= 0 { return "str_join (allocates)"; };
+    if str_index_of(body, "str_reverse(") >= 0 { return "str_reverse (allocates)"; };
+    if str_index_of(body, "int_to_str(") >= 0 { return "int_to_str (allocates new string)"; };
+    if str_index_of(body, "int_to_hex(") >= 0 { return "int_to_hex (allocates new string)"; };
+    if str_index_of(body, "f64_to_str(") >= 0 { return "f64_to_str (allocates new string)"; };
+    if str_index_of(body, "bool_to_str(") >= 0 { return "bool_to_str (allocates new string)"; };
+    if str_index_of(body, "sb_new(") >= 0 { return "sb_new (allocates StringBuilder)"; };
+    if str_index_of(body, "sb_append(") >= 0 { return "sb_append (mutates / allocates)"; };
+    // --- IO: read side ---
+    if str_index_of(body, "file_read_string(") >= 0 { return "file_read_string (IO + allocates)"; };
+    if str_index_of(body, "file_read_string_or_panic(") >= 0 { return "file_read_string_or_panic (IO + allocates + panics)"; };
+    if str_index_of(body, "getenv(") >= 0 { return "getenv (IO + allocates)"; };
+    if str_index_of(body, "getcwd(") >= 0 { return "getcwd (IO + allocates)"; };
+    // --- IO: write side ---
+    if str_index_of(body, "file_write_string(") >= 0 { return "file_write_string (IO)"; };
+    if str_index_of(body, "file_append_string(") >= 0 { return "file_append_string (IO)"; };
+    if str_index_of(body, "system(") >= 0 { return "system (IO + spawns process)"; };
+    if str_index_of(body, "eprint(") >= 0 { return "eprint (IO)"; };
+    if str_index_of(body, "eprintln(") >= 0 { return "eprintln (IO)"; };
+    if str_index_of(body, "putchar(") >= 0 { return "putchar (IO)"; };
+    // --- Time: clock effect ---
+    if str_index_of(body, "time_now(") >= 0 { return "time_now (clock capability)"; };
+    if str_index_of(body, "time_iso_now(") >= 0 { return "time_iso_now (clock capability)"; };
+    if str_index_of(body, "now_monotonic(") >= 0 { return "now_monotonic (clock capability)"; };
+    // --- Random: non-deterministic ---
+    if str_index_of(body, "random_int(") >= 0 { return "random_int (non-deterministic input)"; };
+    if str_index_of(body, "random_uniform(") >= 0 { return "random_uniform (non-deterministic input)"; };
+    if str_index_of(body, "random_normal(") >= 0 { return "random_normal (non-deterministic input)"; };
+    if str_index_of(body, "rng_int(") >= 0 { return "rng_int (RNG capability)"; };
+    // --- ADT: panicking accessors ---
+    if str_index_of(body, "option_unwrap(") >= 0 { return "option_unwrap (panics on None)"; };
+    if str_index_of(body, "option_expect(") >= 0 { return "option_expect (panics on None)"; };
+    if str_index_of(body, "result_unwrap(") >= 0 { return "result_unwrap (panics on Err)"; };
+    if str_index_of(body, "result_expect(") >= 0 { return "result_expect (panics on Err)"; };
+    if str_index_of(body, "result_unwrap_err(") >= 0 { return "result_unwrap_err (panics on Ok)"; };
+    return "";
+}
+
 #[manual_drop]
 fn detect_heap_in_loop_in_body(body: str) -> i64 {
     // Returns 1 if any `Vec::new(` / `Box::new(` is found inside
@@ -38144,39 +38248,13 @@ fn main() -> i64 {
         let ll_hash_b: str = content_hash(ll_bytes_b);
         let ll_len_a: i64 = str_len(ll_bytes_a);
         let ll_len_b: i64 = str_len(ll_bytes_b);
-        // EXE comparison via shell-out (file_read_string truncates at
-        // the first NUL byte, which PE files have just past the DOS
-        // header -- a tempting but BROKEN comparison shape). fc.exe
-        // /b on Windows does a real byte-compare and exits 0 if
-        // identical. POSIX uses cmp.
         let mut exe_check_ran: i64 = 0;
         let mut exe_match: i64 = 0;
-        // Confirm both EXEs exist before invoking fc / cmp -- a missing
-        // EXE is otherwise indistinguishable from a tool error.
-        let exe_a_check: str = file_read_string(exe_a);
-        let exe_b_check: str = file_read_string(exe_b);
-        let exe_a_present: i64 = if str_len(exe_a_check) > 0 { 1 } else { 0 };
-        let exe_b_present: i64 = if str_len(exe_b_check) > 0 { 1 } else { 0 };
-        // Note: file_read_string truncates at first NUL, but PE/ELF files
-        // start with a non-NUL signature, so a non-zero len means "exists
-        // and has content" -- enough for the presence check.
-        if exe_a_present == 1 && exe_b_present == 1 {
-            if host_is_windows() == 1 {
-                // fc /B is part of the Windows command processor and
-                // performs a true byte compare. Keep this path free of
-                // Python so `nuc verify-reproducible` does not require a
-                // Python install on adopter machines.
-                let cmp_cmd: str = str_concat("fc /B ", str_concat(core_shell_quote(host_shell_path(exe_a)), str_concat(" ", str_concat(core_shell_quote(host_shell_path(exe_b)), " >NUL 2>NUL"))));
-                let cmp_rc: i64 = system(cmp_cmd);
-                exe_check_ran = 1;
-                if cmp_rc == 0 { exe_match = 1; };
-            } else {
-                let cmp_cmd: str = str_concat("cmp -s \"", str_concat(exe_a, str_concat("\" \"", str_concat(exe_b, "\""))));
-                let cmp_rc: i64 = system(cmp_cmd);
-                exe_check_ran = 1;
-                if cmp_rc == 0 { exe_match = 1; };
-            };
-        };
+        // v0.8.323: native runtime helper (TOOLCHAIN-PY-1 closed).
+        // Replaces the prior shell byte-compare with one C-level path for
+        // Windows and POSIX. The helper compares bytes and handles NULs.
+        exe_check_ran = 1;
+        if file_bytes_equal(exe_a, exe_b) == 1 { exe_match = 1; };
         print(str_concat("verify-reproducible: source = ", src_path));
         print(str_concat("  IR  build A: ", str_concat(ll_a, str_concat(" (", str_concat(str_from_int(ll_len_a), str_concat(" bytes, hash=", str_concat(ll_hash_a, ")")))))));
         print(str_concat("  IR  build B: ", str_concat(ll_b, str_concat(" (", str_concat(str_from_int(ll_len_b), str_concat(" bytes, hash=", str_concat(ll_hash_b, ")")))))));

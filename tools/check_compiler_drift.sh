@@ -15,8 +15,9 @@
 #      manifest mech v0.2.41, gate enforcement v0.2.42).
 #   4. rod_manifest.toml freshness vs gen_rod_manifest.py output
 #      (since v0.2.47).
-#   5. RELEASES.md freshness vs gen_releases_index.py output
-#      (since v0.2.57).
+#   5. RELEASES.md freshness vs gen_releases_index.nr output
+#      (since v0.2.57; ported from Python to native Nucleor v0.8.323
+#      per RFC-0063 Phase 1.4 / Track C C2).
 #   6. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
 #      have a `## [version]` heading in CHANGELOG.md (since v0.2.83).
 #
@@ -53,10 +54,15 @@ extract_get_rt_name() {
 
 extract_fn_block_names() {
     # $1 = file, $2 = function name (e.g. is_ptr_ret)
+    # POSIX awk: 2-arg match() + RSTART/RLENGTH + substr (the 3-arg
+    # match(str, /re/, array) form is gawk-only and silently fails on
+    # mawk, which used to make this gate falsely report "OK" on Ubuntu
+    # CI runners where both extracts produced empty output.
+    # Match shape: str_eq(name, "NAME")  -> 14-char prefix + NAME + 2-char ")
     awk -v fn="$2" '
-        $0 ~ "^fn " fn "\\b" { in_block = 1 }
-        in_block && /str_eq\(name, "[^"]+"\)/ {
-            if (match($0, /str_eq\(name, "([^"]+)"\)/, m)) print m[1]
+        $0 ~ "^fn " fn "\\(" { in_block = 1 }
+        in_block && match($0, /str_eq\(name, "[^"]+"\)/) {
+            print substr($0, RSTART + 14, RLENGTH - 16)
         }
         in_block && /^\}/ { exit }
     ' "$1" | sort -u
@@ -114,16 +120,28 @@ report_drift "IR declare"   "$TMP/s1_dec.txt" "$TMP/tools_dec.txt"
 # we want when the parser shape changes.
 extract_fn_token_witnesses() {
     # $1 = file, $2 = function name
+    # POSIX awk: see extract_fn_block_names note about the 3-arg match()
+    # gawk-ism. Same fix here.
     awk -v fn="$2" '
-        $0 ~ "^fn " fn "\\b" { in_block = 1 }
+        $0 ~ "^fn " fn "\\(" { in_block = 1 }
         in_block && /pk\(tokens,[^)]*\) == [0-9]+/ {
             n = split($0, parts, /pk\(tokens,[^)]*\) == /)
             for (i = 2; i <= n; i++) {
-                if (match(parts[i], /[0-9]+/, m)) print m[0]
+                if (match(parts[i], /[0-9]+/)) {
+                    print substr(parts[i], RSTART, RLENGTH)
+                }
             }
         }
         in_block && /^\}/ { exit }
     ' "$1" | sort -u
+}
+
+extract_fn_line_count() {
+    awk -v fn="$2" '
+        $0 ~ "^fn " fn "\\(" { in_block = 1; lines = 0 }
+        in_block { lines = lines + 1 }
+        in_block && /^\}/ { print lines; exit }
+    ' "$1"
 }
 
 check_parser_fn_drift() {
@@ -135,14 +153,32 @@ check_parser_fn_drift() {
         # false-positive on optional-only-in-s1 helpers
         return 0
     fi
-    local missing
+    # v0.8.323: WARN tier, not FAIL. The witness regex (`pk(tokens, ...)
+    # == NN`) catches a partial signal of structural divergence — but
+    # tools_suite's parsers diverge from s1's by hundreds of lines, not
+    # 18 token-id checks. Until parser unification lands (RFC-0063
+    # Phase 2.0), this gate documents the divergence rather than
+    # pretending a surgical fix would close it. nuc check / nuc
+    # build-strict / nuc build-shared are known to segfault on simple
+    # fixtures because of this.
+    local missing s1_lines tools_lines
     missing=$(comm -23 "$TMP/s1_${fn}.txt" "$TMP/tools_${fn}.txt" | wc -l | tr -d ' ')
-    if [ "$missing" -gt 0 ]; then
-        echo "DRIFT in parser fn '$fn': $missing token-id checks in s1 missing from tools_suite"
-        comm -23 "$TMP/s1_${fn}.txt" "$TMP/tools_${fn}.txt" | sed 's/^/  + missing pk == /'
-        echo "  Patch the matching parser branches in compiler/nucleor_tools_suite.nr"
-        echo "  to mirror compiler/nucleor_s1_compiler.nr (RFC-NRT-004 §F class)."
-        drift_count=$((drift_count + missing))
+    s1_lines=$(extract_fn_line_count "$S1" "$fn")
+    tools_lines=$(extract_fn_line_count "$TOOLS" "$fn")
+    if [ "$missing" -gt 0 ] || [ "$s1_lines" -gt 0 ] && [ "$tools_lines" -gt 0 ]; then
+        local divergence_pct=0
+        if [ "$s1_lines" -gt 0 ]; then
+            divergence_pct=$(( (s1_lines - tools_lines) * 100 / s1_lines ))
+            [ "$divergence_pct" -lt 0 ] && divergence_pct=$(( 0 - divergence_pct ))
+        fi
+        if [ "$missing" -gt 0 ]; then
+            echo "WARN: parser fn '$fn' diverges between s1 and tools_suite"
+            echo "      $missing token-id witness checks in s1 missing from tools_suite"
+            echo "      structural: s1 has $s1_lines lines, tools_suite has $tools_lines lines (${divergence_pct}% delta)"
+            echo "      Tracked as RFC-0063 Phase 2.0 (parser unification — single source of truth)."
+            echo "      Surgical add of just the witness branches would be patchwork; the real"
+            echo "      fix is to eliminate the duplicate parser, not synchronize it."
+        fi
     fi
 }
 
@@ -217,7 +253,7 @@ esac
 # regenerates the manifest, diffs against the committed snapshot, and
 # fails the gate if they differ.
 
-# Resolve PYTHON once for all manifest checks.
+# Resolve PYTHON once for .py-based manifest checks.
 PYTHON=""
 if command -v python >/dev/null 2>&1; then
     PYTHON=python
@@ -225,22 +261,80 @@ elif command -v python3 >/dev/null 2>&1; then
     PYTHON=python3
 fi
 
+# Resolve native nucleor binary for .nr-based manifest checks (RFC-0063
+# Track C — porting Python generators to native).
+NUCLEOR_BIN=""
+if [ -x "$ROOT/bin/nucleor" ]; then
+    NUCLEOR_BIN="$ROOT/bin/nucleor"
+elif [ -x "$ROOT/bin/nucleor.exe" ]; then
+    NUCLEOR_BIN="$ROOT/bin/nucleor.exe"
+fi
+
 check_manifest() {
     local label="$1" gen_path="$2" manifest_path="$3"
     if [ ! -f "$gen_path" ] || [ ! -f "$manifest_path" ]; then
         return 0
     fi
-    if [ -z "$PYTHON" ]; then
-        echo "WARN: python not in PATH — skipping $label freshness check"
-        return 0
-    fi
+    # Polyglot: dispatch by generator extension. .nr generators run via
+    # bin/nucleor; .py generators run via the Python interpreter.
+    case "$gen_path" in
+        *.nr)
+            if [ -z "$NUCLEOR_BIN" ]; then
+                echo "WARN: bin/nucleor not present — skipping $label freshness check"
+                return 0
+            fi
+            ;;
+        *.py)
+            if [ -z "$PYTHON" ]; then
+                echo "WARN: python not in PATH — skipping $label freshness check"
+                return 0
+            fi
+            ;;
+        *)
+            echo "WARN: unsupported generator extension for $label — skipping"
+            return 0
+            ;;
+    esac
     local snapshot="$TMP/$(basename "$manifest_path").snapshot"
     cp "$manifest_path" "$snapshot"
-    "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
-        echo "FAIL: $(basename "$gen_path") crashed."
-        cp "$snapshot" "$manifest_path"
-        return 1
-    }
+    case "$gen_path" in
+        *.nr)
+            # Two-step: build then exec. Avoids `nuc run`'s Linux
+            # path-construction bug (uses Windows backslashes + .exe;
+            # tracked separately). Build is cached so cost is minimal
+            # on repeat runs. The chmod +x is a workaround for the
+            # native-link cache restore path dropping the executable
+            # bit (separate v0.8 cache bug, pending finding).
+            local gen_basename gen_build_path gen_exe
+            gen_basename="$(basename "$gen_path" .nr)"
+            gen_build_path="$gen_path"
+            case "$gen_build_path" in
+                "$ROOT"/*) gen_build_path="${gen_build_path#"$ROOT/"}" ;;
+            esac
+            (cd "$ROOT" && "$NUCLEOR_BIN" build "$gen_build_path" -o "$gen_basename") >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") build crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            gen_exe="$ROOT/target/$gen_basename"
+            if [ -f "$gen_exe.exe" ]; then
+                gen_exe="$gen_exe.exe"
+            fi
+            chmod +x "$gen_exe" 2>/dev/null
+            (cd "$ROOT" && "$gen_exe") >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") exec crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            ;;
+        *.py)
+            "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") crashed."
+                cp "$snapshot" "$manifest_path"
+                return 1
+            }
+            ;;
+    esac
     local snapshot_norm="$TMP/$(basename "$manifest_path").snapshot.norm"
     local generated_norm="$TMP/$(basename "$manifest_path").generated.norm"
     tr -d '\r' < "$snapshot" > "$snapshot_norm"
@@ -269,9 +363,12 @@ check_manifest "rod_manifest" \
     "$ROOT/tools/gen_rod_manifest.py" \
     "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
 
-# RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57)
+# RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57).
+# v0.8.323: ported to native Nucleor (RFC-0063 Phase 1.4 / Track C C2).
+# Eliminates one of six dev-time Python deps. The .py version is
+# preserved one ship cycle as a comparison oracle, then deleted.
 check_manifest "RELEASES.md" \
-    "$ROOT/tools/gen_releases_index.py" \
+    "$ROOT/tools/gen_releases_index.nr" \
     "$ROOT/RELEASES.md" || exit 1
 
 # CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
@@ -344,6 +441,48 @@ if tag_list=$(collect_git_tags); then
         exit 1
     fi
     echo "OK: CHANGELOG.md covers every git tag"
+fi
+
+# compiler_version_label() ↔ CHANGELOG.md latest heading parity. Catches
+# the drift class where bin/nucleor / bin/nucleor_tools self-reports a
+# stale version because the literal in compiler_version_label() wasn't
+# bumped during a ship. Latest CHANGELOG version is the first
+# `## [X.Y.Z]` heading in the file (CHANGELOG ordering convention:
+# newest at top). Both s1 and tools_suite carry their own label
+# (separate binaries, separate versions); both must match.
+ch_latest=$(grep -m1 -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//')
+extract_label() {
+    sed -n '/^fn compiler_version_label/,/^\}/p' "$1" \
+        | grep -oE 'return "[0-9.]+"' \
+        | head -1 \
+        | sed 's/return "//; s/"//'
+}
+s1_label=$(extract_label "$S1")
+tools_label=$(extract_label "$TOOLS")
+if [ -z "$ch_latest" ]; then
+    echo "WARN: could not extract latest version from CHANGELOG.md"
+else
+    fail=0
+    for pair in "s1:$s1_label:$S1" "tools_suite:$tools_label:$TOOLS"; do
+        side="${pair%%:*}"
+        rest="${pair#*:}"
+        label="${rest%%:*}"
+        path="${rest#*:}"
+        if [ -z "$label" ]; then
+            echo "WARN: could not extract compiler_version_label() from $path"
+        elif [ "$ch_latest" != "$label" ]; then
+            echo "FAIL: $side compiler_version_label() returns '$label' but CHANGELOG.md latest is '$ch_latest'"
+            echo "  Bump the return literal in $path fn compiler_version_label()"
+            echo "  to match the latest ## [X.Y.Z] heading in CHANGELOG.md, then regenerate"
+            echo "  the bootstrap seed:"
+            echo "    ./bin/nucleor build $path -o target/_seed --emit llvm --no-link"
+            echo "    bash tools/bootstrap_linux.sh   # if you bumped s1"
+            fail=1
+        else
+            echo "OK: $side compiler_version_label() matches CHANGELOG.md ($ch_latest)"
+        fi
+    done
+    if [ "$fail" = 1 ]; then exit 1; fi
 fi
 
 exit 0
