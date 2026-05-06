@@ -16,7 +16,7 @@
 
 **Headline finding 1: frame-typing safety is Phase A only — markers exist but compiler does not enforce.** All handles are plain i64. Mixing camera-frame and base-frame poses is still a silent runtime error. **This is the Mars Climate Orbiter failure mode and it's still live.**
 
-**Headline finding 2: no end-to-end IK→plan→trajectory→endpoint test.** Every stage independent; `robotic_arm.nr` showcase runs each stage but doesn't verify the loop closes with numerical correctness.
+**Headline finding 2: end-to-end IK→plan→trajectory→endpoint smoke coverage now exists, but production-grade 6-DOF robotics validation remains open.** The v0.8 helper1 slice added a typed `f64_buffer` scratch surface and `tests/features/robo14_end_to_end_smoke.nr`, which closes the old "no Vec<f64> plumbing" blocker for raw `double[]` rod APIs. Remaining work is the harder 6-DOF/orientation/obstacle/dynamics variant.
 
 **Headline finding 3: none of the robotics rods carry `#[no_alloc]+#[deadline]` annotations.** A robot control loop needing hard-RT cannot use these rods without either pre-allocating handles or annotating the rod itself. **No documented protocol** for hard-RT use of the robotics stack.
 
@@ -66,6 +66,8 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 ## ROBO-14 — No end-to-end IK→plan→trajectory→endpoint test — **HIGH**
 `robotic_arm.nr` showcase uses `ik_dls_solve` but **does NOT feed result into RRT/PRM, smooth with CHOMP, time-parameterize with TOPP, verify endpoint matches IK target.** Each stage independent; no test asserting full IK→plan→execute→verify loop closes with numeric correctness. Smoke tests are link-and-return ("Build-only smoke; full IK convergence test needs proper Vec<f64> plumbing").
 
+**2026-05-06 update:** Phase 1 smoke coverage now exists. `stdlib/rods/f64_buffer.nr` + `stdlib/runtime/f64_buffer_rt.c` provide the missing typed scratch buffer for raw `double[]` rod APIs, and `tests/features/robo14_end_to_end_smoke.nr` now runs a deterministic planar arm through IK, RRT free-space planning, CHOMP smoothing, TOPP time-parameterization, and FK endpoint verification. Remaining ROBO-14 work is the production-grade variant: 6-DOF pose/orientation IK, nonzero collision/obstacle callbacks, and dynamics-aware timing.
+
 ## Cross-cutting risks
 - **Frame-typing safety (highest severity).** All handles plain i64. `kinematics_frame.nr` markers cannot be attached to `kinematics.nr` Pose handle today; RFC-0046 Phase B is the only mechanism that catches camera→world substitution. Until then, every `pose_compose`/`tf_lookup`/`se3_apply` call site is potential silent miscompute. **Mars Climate Orbiter failure mode.**
 - **Real-time composability.** Compiler has `#[no_alloc]`/`#[deadline]` infrastructure; **none of the robotics rods carry these annotations.** All rods heap-allocate. Robot control loop needing `#[no_alloc] #[deadline(500us)]` cannot use any of these rods without pre-allocating handles outside loop or annotating rod itself. **No documented protocol** for using these rods in hard-RT context.
@@ -86,7 +88,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 
 **Phase 1 (emergency):**
 - ROBO-7 P1: emit warning when `kinematics_frame` marker is declared but not enforced. "Frame-type check is Phase A — markers are advisory only. Phase B (compiler enforcement) tracked in RFC-0046."
-- ROBO-14 P1: add end-to-end test: 6-DOF arm, IK solves for target pose, RRT plans path in joint space, CHOMP smooths, TOPP time-parameterizes, FK forward through trajectory, assert final pose within tolerance of target. **This single test would catch huge swaths of regressions.**
+- ROBO-14 P1: DONE for deterministic smoke coverage. `robo14_end_to_end_smoke.nr` now proves the raw-buffer plumbing and stage composition: IK solves a reachable target, RRT plans in joint space, CHOMP smooths the path, TOPP time-parameterizes it, and FK verifies the final endpoint within tolerance. Follow-up: promote to 6-DOF pose/orientation plus nonzero obstacle callbacks.
 - ROBO-11: rename `twin_core.nr` to `quantum_twin.nr` to remove naming confusion. Or document the misnomer prominently.
 - Documentation pass: explicit `#[no_alloc]+#[deadline]` protocol for robotics rods. Even "you can't use these rods in hard-RT today" is honest.
 
@@ -116,7 +118,7 @@ Phase 1 minimum (frame-type warning + end-to-end test). Phase 2 strongly preferr
 
 ## 3.4. Open questions
 1. RFC-0046 Phase B implementation: how does the compiler know which functions take Pose arguments? Recommendation: annotate `Pose` argument types with frame markers in fn signature; compiler propagates.
-2. End-to-end test (ROBO-14): use `linalg.nr` for assertions or implement test-specific utilities? Recommendation: linalg.nr — keeps the test honest about real Nucleor APIs.
+2. End-to-end test (ROBO-14): Phase 1 uses `f64_buffer.nr` plus local f64 tolerances to keep the test on real public rod APIs. Phase 2 can add `linalg.nr` assertions if the 6-DOF fixture needs vector/matrix diagnostics.
 3. URDF branching (ROBO-6): full ROS xacro support or subset? Recommendation: subset (parameters + macros, no Python evaluation).
 
 ---
