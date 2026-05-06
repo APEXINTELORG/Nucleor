@@ -108,7 +108,11 @@ launch. After memory safety completes, these are next-priority.
 ### QM-7 — Clifford rod test coverage — Phase 1 DONE
 
 - **Status:** DONE v0.8.87/.88 — 12 deterministic correctness assertions covering init/lifecycle, single-qubit gates (X/Y/Z/S/S^4), two-qubit (CNOT^2 identity, control-zero no-op), entanglement (Bell, GHZ).
-- **Phase 2 queued:** surface-code distance d=3 rotated planar, weight enumerator validation against published code.
+- **Phase 2a:** DONE 2026-05-05 — `qm7_clifford_distance_5qubit_smoke.nr`
+  locks typed `Vec<i64>` stabilizer insertion plus the known [[5,1,3]]
+  perfect-code distance and 15/15 single-qubit detectable-error count.
+- **Still open for Phase 2 closure:** surface-code distance d=3 rotated
+  planar and weight-enumerator validation against published code.
 
 ### ROBO-7 — Frame-typing safety
 
@@ -242,3 +246,8 @@ proper analysis → Phase 4 hard error):
 - **2026-05-05**: POSIX cold/hot perf gate prep integrated on main
   (`1a962893`). The gate is wired but intentionally refuses WSL/interop;
   native Linux evidence is still required for R10-D3 closure.
+- **2026-05-05**: QM-7 Phase 2a advanced with typed Clifford
+  stabilizer Vec wrappers and a [[5,1,3]] distance/detectable-error
+  smoke fixture. The compiler Tier-C disclosure was updated so imports
+  no longer claim zero Clifford coverage. Rotated surface-code and
+  published weight-enumerator parity remain open.

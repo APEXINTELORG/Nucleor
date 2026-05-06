@@ -21,10 +21,10 @@ extern fn nuc_cliff_x(h: i64, q: i64);
 extern fn nuc_cliff_y(h: i64, q: i64);
 extern fn nuc_cliff_z(h: i64, q: i64);
 extern fn nuc_cliff_measure(h: i64, q: i64) -> i64;
-extern fn nuc_cliff_error_detectable(h: i64, error_vec: i64) -> i64;
+extern fn nuc_cliff_error_detectable(h: i64, error_vec: Vec<i64>) -> i64;
 extern fn nuc_cliff_num_stabilizers(h: i64) -> i64;
 extern fn nuc_cliff_distance(h: i64, n_logical: i64) -> i64;
-extern fn nuc_cliff_add_stabilizer(h: i64, pauli_vec: i64) -> i64;
+extern fn nuc_cliff_add_stabilizer(h: i64, pauli_vec: Vec<i64>) -> i64;
 extern fn nuc_cliff_reset(h: i64);
 extern fn nuc_cliff_get_stabilizers(h: i64) -> i64;
 extern fn nuc_cliff_state_features(h: i64, n_logical: i64) -> i64;
@@ -45,22 +45,19 @@ fn cliff_y(h: i64, q: i64) { nuc_cliff_y(h, q); }
 fn cliff_z(h: i64, q: i64) { nuc_cliff_z(h, q); }
 fn cliff_measure(h: i64, q: i64) -> i64 { return nuc_cliff_measure(h, q); }
 fn cliff_distance(h: i64, n_logical: i64) -> i64 { return nuc_cliff_distance(h, n_logical); }
-fn cliff_add_stabilizer(h: i64, pauli: i64) -> i64 { return nuc_cliff_add_stabilizer(h, pauli); }
+fn cliff_add_stabilizer(h: i64, pauli: Vec<i64>) -> i64 { return nuc_cliff_add_stabilizer(h, pauli); }
 fn cliff_reset(h: i64) { nuc_cliff_reset(h); }
 fn cliff_num_stabilizers(h: i64) -> i64 { return nuc_cliff_num_stabilizers(h); }
 fn cliff_get_stabilizers(h: i64) -> i64 { return nuc_cliff_get_stabilizers(h); }
 fn cliff_state_features(h: i64, n_logical: i64) -> i64 { return nuc_cliff_state_features(h, n_logical); }
-fn cliff_error_detectable(h: i64, err: i64) -> i64 { return nuc_cliff_error_detectable(h, err); }
+fn cliff_error_detectable(h: i64, err: Vec<i64>) -> i64 { return nuc_cliff_error_detectable(h, err); }
 fn cliff_count_errors(h: i64) -> i64 { return nuc_cliff_count_detectable_errors(h); }
 fn cliff_best_d_k1(h: i64) -> i64 { return nuc_cliff_best_distance_k1(h); }
 fn cliff_random_gate(h: i64, gate_type: i64, seed: i64) { nuc_cliff_random_gate(h, gate_type, seed); }
 
-// === R11 Phase 1 (v0.8.312) — clifford rod disclosure (QM-7) ===
+// === R11 Phase 1 (v0.8.312) - clifford rod disclosure (QM-7) ===
 //
-// Per s1 compiler audit comment ~line 29432 (QM-7 / Tier-C
-// correctness audit-pass): the Clifford-stabilizer rod ships a
-// usable surface but has ZERO TEST COVERAGE in the OSS verify
-// gate (no fixtures under tests/features/cliff_*.nr).
+// Updated 2026-05-05 after QM-7 fixtures landed in tests/features.
 fn clifford_limitations() -> str {
-    return "Clifford-stabilizer rod limitations (QM-7, audit info-pass v0.8.312): (1) ZERO TEST COVERAGE in this distribution — no tests/features/cliff_*.nr fixtures assert golden stabilizer-update outputs. The rod has been exercised in research scripts but those are not in the OSS verify gate. (2) NO ROUND-TRIP property test: cliff_add_stabilizer / cliff_reset / re-init does not have a documented invariant. (3) NO ERROR-MODEL coverage: cliff_error_detectable / cliff_count_errors operate against the active stabilizer set but their meaningfulness depends on the stabilizer construction the adopter built. (4) NO QASM / OpenQASM2 INTEROP. Discipline today: bring property tests for any production use; treat as experimental until Phase 2 lands fixtures per audit ship plan.";
+    return "Clifford-stabilizer rod limitations (QM-7, updated 2026-05-05): (1) OSS verify coverage now includes Bell/GHZ entanglement, gate identities, and a [[5,1,3]] stabilizer-distance smoke, but not a broad randomized property suite. (2) NO ROUND-TRIP property test: cliff_add_stabilizer / cliff_reset / re-init does not have a documented invariant. (3) ERROR-MODEL coverage is still narrow: cliff_error_detectable / cliff_count_errors are checked on a known code, but adopters must validate their own stabilizer construction. (4) NO QASM / OpenQASM2 INTEROP. (5) Rotated surface-code d=3 and published weight-enumerator parity remain open for QM-7 Phase 2 closure.";
 }
