@@ -10,6 +10,7 @@
 #cfile "../runtime/tensor3d_rt.c"
 
 extern fn nuc_t3_new(d1: i64, d2: i64, d3: i64) -> i64;
+extern fn nuc_t3_new_2d(rows: i64, cols: i64) -> i64;
 extern fn nuc_t3_new_nd(shape: i64) -> i64;
 extern fn nuc_t3_ndim(h: i64) -> i64;
 extern fn nuc_t3_shape(h: i64, dim: i64) -> i64;
@@ -26,9 +27,12 @@ extern fn nuc_t3_mul(a: i64, b: i64) -> i64;
 extern fn nuc_t3_scale(h: i64, s: i64) -> i64;
 extern fn nuc_t3_sum_axis(h: i64, axis: i64) -> i64;
 extern fn nuc_t3_bmm(a: i64, b: i64) -> i64;
+extern fn nuc_t3_matmul(a: i64, b: i64) -> i64;
+extern fn nuc_t3_transpose(h: i64) -> i64;
 extern fn nuc_t3_free(h: i64);
 
 fn tensor_new_3d(d1: i64, d2: i64, d3: i64) -> i64 { return nuc_t3_new(d1, d2, d3); }
+fn tensor_new_2d(rows: i64, cols: i64) -> i64 { return nuc_t3_new_2d(rows, cols); }
 fn tensor_new_nd(shape: i64) -> i64 { return nuc_t3_new_nd(shape); }
 fn tensor_ndim(h: i64) -> i64 { return nuc_t3_ndim(h); }
 fn tensor_shape(h: i64, dim: i64) -> i64 { return nuc_t3_shape(h, dim); }
@@ -45,6 +49,8 @@ fn tensor_mul(a: i64, b: i64) -> i64 { return nuc_t3_mul(a, b); }
 fn tensor_scale(h: i64, s: i64) -> i64 { return nuc_t3_scale(h, s); }
 fn tensor_sum_axis(h: i64, axis: i64) -> i64 { return nuc_t3_sum_axis(h, axis); }
 fn tensor_bmm(a: i64, b: i64) -> i64 { return nuc_t3_bmm(a, b); }
+fn tensor_matmul(a: i64, b: i64) -> i64 { return nuc_t3_matmul(a, b); }
+fn tensor_transpose(h: i64) -> i64 { return nuc_t3_transpose(h); }
 fn tensor_free(h: i64) { nuc_t3_free(h); }
 
 // === R08-D1 Phase 1 (v0.8.288) — tensor shape/dtype metadata ===
@@ -97,5 +103,5 @@ fn tensor_shape_eq(a: i64, b: i64) -> i64 {
 }
 
 fn tensor_limitations() -> str {
-    return "Tensor rod limitations (ML-1, audit R08-D1 v0.8.288): (1) DTYPE: only i64 elements are shipped; tensor_dtype() always returns 'i64'. No f32/f64/i32 surfaces yet — adopters needing float tensors must encode bits into i64 manually or use the f64-bits helpers in numerics rod. (2) SHAPE CHECKS: matmul / elementwise / bmm runtime ops do NOT emit a stable diagnostic on shape mismatch — they may trap or return an invalid handle. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) NO 2D MATMUL ALIAS: tensor_bmm is 3D-batched; there is no dedicated 2D matmul wrapper today (use bmm with batch=1 or a manual loop). Phase 2 wires per-op shape-mismatch diagnostics + compiler-visible TensorShape<N,M,...> types per RFC + multiple dtypes.";
+    return "Tensor rod limitations (ML-1/ML-2/ML-3, audit R08-D1 v0.8.288 + helper1 v0856): (1) DTYPE: only i64 elements are shipped; tensor_dtype() always returns 'i64'. No f32/f64/i32 surfaces yet - adopters needing float tensors must encode bits into i64 manually or use the f64-bits helpers in numerics rod. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) 2D OPS: tensor_new_2d, tensor_matmul, and tensor_transpose are shipped for rank-2 tensors. General tensor_permute / multi-axis transpose remain future work. Phase 2 wires compiler-visible TensorShape<N,M,...> types per RFC + multiple dtypes.";
 }
