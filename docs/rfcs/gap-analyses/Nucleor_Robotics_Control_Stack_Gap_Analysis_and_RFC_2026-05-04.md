@@ -67,6 +67,8 @@ Rod named `twin_core.nr` is quantum simulator dual-core differentiable noise mod
 ## ROBO-13 — No CCD for OBB pairs or mesh-mesh — **MEDIUM**
 CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing OBB-OBB and convex-mesh-vs-mesh. Fast-moving rigid bodies with oriented geometry cannot be swept exactly.
 
+**2026-05-06 update:** Phase 1 OBB coverage now exists. `coll_obb_obb` adds static SAT overlap for oriented boxes and `coll_ccd_obb_obb` computes exact time-of-impact for linearly translated OBB centers with fixed orientations; `tests/features/collision_obb_ccd_smoke.nr` locks overlap, clear, initial-hit, swept-hit, and swept-clear cases. Remaining ROBO-13 work: angular CCD and convex mesh-vs-mesh sweep.
+
 ## ROBO-14 — No end-to-end IK→plan→trajectory→endpoint test — **HIGH**
 `robotic_arm.nr` showcase uses `ik_dls_solve` but **does NOT feed result into RRT/PRM, smooth with CHOMP, time-parameterize with TOPP, verify endpoint matches IK target.** Each stage independent; no test asserting full IK→plan→execute→verify loop closes with numeric correctness. Smoke tests are link-and-return ("Build-only smoke; full IK convergence test needs proper Vec<f64> plumbing").
 
@@ -110,7 +112,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
 - ROBO-8: full covariant CHOMP pre-conditioning.
 - ROBO-9: Cartesian-space CHOMP variant.
-- ROBO-13: OBB-OBB and mesh-mesh CCD.
+- ROBO-13: DONE for Phase 1 static OBB-OBB + fixed-orientation translational CCD. Remaining: angular CCD and convex mesh-vs-mesh sweep.
 - Annotate robotics rods with `#[no_alloc]` where possible. Document which functions are RT-safe.
 
 **Phase 4 (v1.0+):**

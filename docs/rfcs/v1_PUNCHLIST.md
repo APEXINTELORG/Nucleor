@@ -448,6 +448,12 @@ launch. After memory safety completes, these are next-priority.
   endpoint verification on a deterministic planar arm. Remaining gap:
   upgrade this to a production-grade 6-DOF pose/orientation fixture
   with nonzero collision/obstacle callbacks and dynamics-aware timing.
+- **ROBO-13 OBB-OBB collision / CCD:** DONE for Phase 1 on
+  2026-05-06. `coll_obb_obb` adds static SAT overlap and
+  `coll_ccd_obb_obb` computes time-of-impact for linearly translated
+  OBB centers with fixed orientations; `collision_obb_ccd_smoke.nr`
+  locks overlap, clear, initial-hit, swept-hit, and swept-clear cases.
+  Remaining gap: angular CCD and convex mesh-vs-mesh sweep.
 
 ## Sequencing — proposed waves
 
