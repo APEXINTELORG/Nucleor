@@ -651,6 +651,73 @@ fn policy_fields_for_name(name0: str, cls: str) -> str {
     return policy_result("TODO", "TODO", "TODO");
 }
 
+fn since_for_name(name0: str) -> str {
+    let name: str = bare_helper_name(name0);
+
+    if str_eq_any4(name, "vec_map_i64", "vec_filter_i64", "vec_fold_i64", "vec_each_i64") == 1 { return "0.2.9"; };
+    if str_eq_any3(name, "vec_sum_i64", "vec_min_i64", "vec_max_i64") == 1 { return "0.2.9"; };
+
+    if str_eq_any4(name, "vec_contains_i64", "vec_index_of_i64", "vec_reverse_i64", "vec_sort_i64") == 1 { return "0.2.10"; };
+    if str_eq_any2(name, "vec_clone_i64", "vec_clear_i64") == 1 { return "0.2.10"; };
+
+    if str_eq_any4(name, "vec_avg_i64", "vec_dot_i64", "vec_count_eq_i64", "vec_any_i64") == 1 { return "0.2.13"; };
+    if str_eq_any4(name, "vec_all_i64", "vec_sum_f64", "vec_min_f64", "vec_max_f64") == 1 { return "0.2.13"; };
+
+    if str_eq_any4(name, "char_is_alpha", "char_is_digit", "char_is_alnum", "char_is_whitespace") == 1 { return "0.2.14"; };
+    if str_eq_any4(name, "char_is_upper", "char_is_lower", "char_is_hex_digit", "char_is_ascii") == 1 { return "0.2.14"; };
+    if str_eq_any4(name, "char_is_punct", "char_to_upper", "char_to_lower", "char_digit_value") == 1 { return "0.2.14"; };
+
+    if str_eq_any4(name, "rng_int", "rng_uniform", "rng_normal", "rng_bernoulli") == 1 { return "0.2.15"; };
+    if str_eq_any4(name, "rng_exponential", "rng_seed", "random_uniform", "random_normal") == 1 { return "0.2.15"; };
+
+    if str_eq_any4(name, "hashmap_keys", "hashmap_values", "time_iso_now", "time_format_iso") == 1 { return "0.2.16"; };
+
+    if str_eq_any3(name, "fnv1a_64_str", "fnv1a_64_i64", "murmur3_64") == 1 { return "0.2.17"; };
+    if str_eq_any2(name, "print_raw", "eprint_raw") == 1 { return "0.2.17"; };
+
+    if str_eq_any4(name, "f64_abs", "f64_min", "f64_max", "f64_sign") == 1 { return "0.2.18"; };
+    if str_eq_any3(name, "f64_copy_sign", "count_ones", "count_zeros") == 1 { return "0.2.18"; };
+
+    if str_eq_any4(name, "fs_temp_dir", "fs_current_dir", "fs_remove_dir", "fs_copy_file") == 1 { return "0.2.19"; };
+    if str_eq(name, "fs_canonicalize") == 1 { return "0.2.19"; };
+
+    if str_eq_any2(name, "env_has", "env_keys") == 1 { return "0.2.20"; };
+    if str_eq_any4(name, "str_is_empty", "str_count", "str_reverse", "str_trim_start") == 1 { return "0.2.20"; };
+    if str_eq(name, "str_trim_end") == 1 { return "0.2.20"; };
+
+    if str_eq_any4(name, "time_year", "time_month", "time_day", "time_hour") == 1 { return "0.2.21"; };
+    if str_eq_any4(name, "time_minute", "time_second", "time_weekday", "time_day_of_year") == 1 { return "0.2.21"; };
+    if str_eq(name, "time_elapsed_ms") == 1 { return "0.2.21"; };
+
+    if str_eq_any4(name, "vec_first", "vec_last", "vec_is_empty", "vec_swap") == 1 { return "0.2.22"; };
+    if str_eq_any3(name, "vec_extend", "vec_remove_at", "vec_insert_at") == 1 { return "0.2.22"; };
+
+    if str_eq_any4(name, "path_separator", "path_is_absolute", "path_normalize", "path_with_extension") == 1 { return "0.2.23"; };
+    if str_eq_any2(name, "path_strip_extension", "path_components") == 1 { return "0.2.23"; };
+
+    if str_eq_any4(name, "str_to_i64", "str_to_f64", "str_to_bool", "int_to_str") == 1 { return "0.2.24"; };
+    if str_eq_any2(name, "f64_to_str", "bool_to_str") == 1 { return "0.2.24"; };
+
+    if str_eq_any4(name, "int_to_hex", "int_to_bin", "int_to_oct", "str_to_i64_radix") == 1 { return "0.2.25"; };
+    if str_eq_any2(name, "parse_hex", "parse_bin") == 1 { return "0.2.25"; };
+
+    if str_eq_any4(name, "str_pad_left", "str_pad_right", "str_center", "str_join") == 1 { return "0.2.26"; };
+    if str_eq_any2(name, "str_lines", "str_chars") == 1 { return "0.2.26"; };
+
+    if str_eq_any4(name, "hashmap_is_empty", "hashmap_get_or", "hashmap_merge", "hashmap_clone") == 1 { return "0.2.27"; };
+
+    if str_eq_any4(name, "checked_div", "checked_rem", "checked_neg", "wrapping_div") == 1 { return "0.2.28"; };
+    if str_eq_any3(name, "wrapping_rem", "wrapping_neg", "saturating_neg") == 1 { return "0.2.28"; };
+
+    if str_eq_any4(name, "random_int", "random_bool", "random_choice", "vec_shuffle") == 1 { return "0.2.29"; };
+    if str_eq_any2(name, "vec_sample", "random_fill") == 1 { return "0.2.29"; };
+
+    if str_eq_any4(name, "vec_mean_f64", "vec_median_f64", "vec_variance_f64", "vec_stddev_f64") == 1 { return "0.2.30"; };
+    if str_eq_any2(name, "vec_range_i64", "vec_percentile_f64") == 1 { return "0.2.30"; };
+
+    return "0.1.0";
+}
+
 // ---------- compiler-source inventory ----------
 
 fn collect_get_rt_pairs(src: str, names: Vec<str>, symbols: Vec<str>) -> i64 {
@@ -969,11 +1036,13 @@ fn main() -> i64 {
 
     let manifest_stability: Vec<str> = vec_new();
     let manifest_policy: Vec<str> = vec_new();
+    let manifest_since: Vec<str> = vec_new();
     let mut stable_count: i64 = 0;
     let mut unstable_count: i64 = 0;
     let mut experimental_count: i64 = 0;
     let mut review_required_count: i64 = 0;
     let mut policy_todo_count: i64 = 0;
+    let mut since_explicit_count: i64 = 0;
     m = 0;
     while m < vec_len(manifest_symbols) {
         let sym: str = vec_get(manifest_symbols, m);
@@ -1000,10 +1069,15 @@ fn main() -> i64 {
             policy_todo_count = policy_todo_count + 1;
         };
         vec_push(manifest_policy, policy);
+        let since: str = since_for_name(name);
+        if str_eq(since, "0.1.0") == 0 {
+            since_explicit_count = since_explicit_count + 1;
+        };
+        vec_push(manifest_since, since);
         m = m + 1;
     };
 
-    print("helper_manifest_inventory_v6");
+    print("helper_manifest_inventory_v7");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -1026,6 +1100,8 @@ fn main() -> i64 {
     print(str_concat("review_required_symbols: ", int_to_str(review_required_count)));
     print(str_concat("policy_rows: ", int_to_str(vec_len(manifest_policy))));
     print(str_concat("policy_todo_symbols: ", int_to_str(policy_todo_count)));
+    print(str_concat("since_rows: ", int_to_str(vec_len(manifest_since))));
+    print(str_concat("since_explicit_symbols: ", int_to_str(since_explicit_count)));
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
@@ -1036,6 +1112,7 @@ fn main() -> i64 {
     print_triple_lines("class_row", manifest_symbols, manifest_names, manifest_classes);
     print_pair_lines("stability_row", manifest_symbols, manifest_stability);
     print_pair_lines("policy_row", manifest_symbols, manifest_policy);
+    print_pair_lines("since_row", manifest_symbols, manifest_since);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML comes from tools/gen_helper_manifest.nr");
     return 0;
