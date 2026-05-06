@@ -87,8 +87,15 @@ launch. After memory safety completes, these are next-priority.
 ### T-3, T-4 — Type system silent fallthrough — Phase 1 DONE; Phase 2b queued
 
 - **T-3 char-cast Phase 1:** DONE v0.8.46 audit-pass info, locked v0.8.78 fixture.
+- **T-3 char-cast Phase 2b partial:** DONE for const-foldable
+  `as char` codepoints — `nuc build` emits `TYP-026` for values
+  outside `0..0x10FFFF` or inside the surrogate range; active
+  fixture `err_t3_invalid_char_cast.nr` locks this. Runtime/IR
+  char distinctness and non-constant proof remain queued.
 - **T-4 empty-type compat Phase 1:** DONE v0.8.79 canary fixture (well-typed path locked; inversion protocol encoded for when Phase 2b strict mode lands).
-- **Phase 2b for both:** queued — needs compiler edit. The earlier
+- **Phase 2b still open:** T-4 strict empty-type compatibility,
+  broader T-3 char distinctness, and non-constant char-cast proof.
+  The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
   as a current blocker after v0.8.319 rebuilt/promoted
   `bin/nucleor.exe` + `bootstrap/nucleor_s1_seed.ll`, passed
