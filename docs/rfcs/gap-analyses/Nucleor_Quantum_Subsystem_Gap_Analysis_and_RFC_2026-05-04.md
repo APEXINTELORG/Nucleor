@@ -14,7 +14,7 @@
 
 Quantum is positioned as a domain stdlib (not a hardware-targeting compiler). Four simulators (statevector, MPS, Clifford stabilizer, differentiable multi-core) cover ~12 to ~32 qubits depending on technique. S12b trace protocol provides provenance. RFC-0054 deferred QIR/OpenQASM/pulse hardware interop to Phase B.
 
-**Headline finding: Clifford rod coverage is largely closed for deterministic small-code evidence, not complete for ecosystem interop.** 41 KB runtime with stabilizer formalism, distance computation, error detection, and bounded weight-enumerator helpers now has deterministic smoke coverage including a rotated Surface-17 d=3 stabilizer/logical fixture and internal exhaustive stabilizer/logical weight counts. External citation-backed published weight-enumerator parity and QASM/OpenQASM2 interop remain open.
+**Headline finding: Clifford rod coverage is largely closed for deterministic small-code evidence, not complete for ecosystem interop.** 41 KB runtime with stabilizer formalism, distance computation, error detection, and bounded weight-enumerator helpers now has deterministic smoke coverage including a rotated Surface-17 d=3 stabilizer/logical fixture, internal exhaustive stabilizer/logical weight counts, and a bounded property micro-suite. External citation-backed published weight-enumerator parity and QASM/OpenQASM2 interop remain open.
 
 **Second finding: dual entanglement trackers exist and are not wired together.** `quantum_rt.c` has trace-only UF; `qsim_graph_rt.c` has queryable UF. Caller using qsim_graph must manually register entanglements separately from running circuits — easy to forget, no enforcement.
 
@@ -61,7 +61,7 @@ expectations. The bulk extraction path fails closed above
 high-qubit streaming/external-sink extraction API.
 
 ## QM-7 — Clifford rod coverage mostly closed — **MEDIUM REMAINING**
-41 KB runtime with stabilizer formalism, distance, error detection, and bounded weight-enumerator helpers. The original zero-test gap is now closed by deterministic Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/detectable-error, rotated Surface-17 d=3 stabilizer/logical, and Surface-17 stabilizer/logical weight-count smokes. Remaining launch risk is validation breadth: external published weight-enumerator value citations are still absent in-tree, QASM/OpenQASM2 interop is absent, and the suite is not a randomized stabilizer property test.
+41 KB runtime with stabilizer formalism, distance, error detection, and bounded weight-enumerator helpers. The original zero-test gap is now closed by deterministic Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/detectable-error, rotated Surface-17 d=3 stabilizer/logical, Surface-17 stabilizer/logical weight-count, and bounded property micro-suite smokes. Remaining launch risk is validation breadth: external published weight-enumerator value citations are still absent in-tree, QASM/OpenQASM2 interop is absent, and the suite is not a randomized stabilizer property test.
 
 ## QM-8 — Two entanglement trackers not wired together — **HIGH**
 `quantum_rt.c` (32-qubit, trace-only, no active flag) and `qsim_graph_rt.c` (1024-qubit, queryable, union-by-size). When `qsim_cnot` fires, calls `rods_trace_entangle` (trace UF) but NOT `nuc_qsim_entangle_register` (queryable UF). Caller using `qsim_graph.nr` must manually register entanglements separately — easy to forget, no enforcement.
@@ -130,7 +130,7 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 `qsim_measure` returns i64; caller branches. No `qsim_if_measure` primitive. This distinction matters for hardware-targeting tools (RFC-0054 Phase B).
 
 ## Cross-cutting risks
-- **Correctness validation thin.** Only executed correctness test for statevector is Bell entanglement (QM-6). No assertion that |H|0⟩|² = 0.5 within tolerance, no GHZ, no phase-sensitive (T/S/Rz angles). Clifford now has deterministic smoke coverage for Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/error-detection behavior, rotated Surface-17 d=3 stabilizer/logical behavior, and internal exhaustive Surface-17 stabilizer/logical weight counts, but no broad randomized stabilizer property suite and no in-tree external citation for published enumerator values.
+- **Correctness validation thin.** Only executed correctness test for statevector is Bell entanglement (QM-6). No assertion that |H|0⟩|² = 0.5 within tolerance, no GHZ, no phase-sensitive (T/S/Rz angles). Clifford now has deterministic smoke coverage for Bell/GHZ, gate identity, reset/rebuild, known [[5,1,3]] distance/error-detection behavior, rotated Surface-17 d=3 stabilizer/logical behavior, internal exhaustive Surface-17 stabilizer/logical weight counts, and a bounded property micro-suite, but no broad randomized stabilizer property suite and no in-tree external citation for published enumerator values.
 - **Static-capacity constants scattered across four runtimes** (32, 20, 64, 12, 1024, 4096) not centralized, not surfaced to Nucleor as named constants, some overflow silently.
 - **Dual-tracker fragmentation risk** (QM-8) — architecturally fine for Phase A but if RFC-0061 Tier 3 Phase B wires them together, both will need active-flag discrepancy review.
 - **MPS Jacobi SVD numerical stability** (QM-5) — clamp on negative residuals masks numerical noise as zero bond dimension.
@@ -140,7 +140,7 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 # Part III — RFC
 
 ## 3.1. Goals
-1. Finish the remaining QM-7 validation gap: keep the landed deterministic Clifford smokes, keep the rotated Surface-17 d=3 fixture and bounded weight-enumerator fixture, then add external citation-backed published enumerator parity only if launch docs require it.
+1. Finish the remaining QM-7 validation gap: keep the landed deterministic Clifford smokes, keep the rotated Surface-17 d=3 fixture, bounded weight-enumerator fixture, and bounded property micro-suite, then add external citation-backed published enumerator parity only if launch docs require it.
 2. Wire the two entanglement trackers together (QM-8).
 3. Add named gate APIs and centralized capacity constants.
 4. Document the Clifford and MPS limits prominently.
@@ -148,7 +148,7 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 ## 3.2. Closure plan
 
 **Phase 1 (emergency, test coverage):**
-- QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, rotated Surface-17 d=3 stabilizer/logical behavior, and bounded Surface-17 stabilizer/logical weight counts. Remaining Phase 2 closure is external published enumerator citation parity and QASM/OpenQASM2 interop. **No Clifford code ships without these tests.**
+- QM-7: deterministic Clifford suite now covers Bell state via H + CNOT, 3-qubit GHZ, gate identities, reset/rebuild, known [[5,1,3]] distance/detectable-error behavior, rotated Surface-17 d=3 stabilizer/logical behavior, bounded Surface-17 stabilizer/logical weight counts, and bounded property micro-suite behavior. Remaining Phase 2 closure is external published enumerator citation parity and QASM/OpenQASM2 interop. **No Clifford code ships without these tests.**
 - QM-6: MPS gate correctness, Bell marginal probabilities,
   computational-basis joint probability, and capped qsim-compatible
   statevector extraction are shipped; remaining work is high-qubit
