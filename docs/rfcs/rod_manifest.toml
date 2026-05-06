@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 250
-# Total fn definitions: 2896
-# Total LOC: 12267
+# Total rods: 252
+# Total fn definitions: 3024
+# Total LOC: 12775
 
 [[rod]]
 name           = "activation2"
@@ -33,9 +33,9 @@ imports        = ["admit"]
 name           = "ahrs"
 path           = "stdlib/rods/ahrs.nr"
 description    = "Attitude & Heading Reference System via the"
-function_count = 9
+function_count = 10
 cfile_count    = 1
-loc            = 24
+loc            = 28
 imports        = ["ahrs"]
 
 [[rod]]
@@ -312,9 +312,9 @@ imports        = []
 name           = "chomp"
 path           = "stdlib/rods/chomp.nr"
 description    = "Covariant Hamiltonian Optimization for Motion"
-function_count = 3
+function_count = 6
 cfile_count    = 1
-loc            = 26
+loc            = 75
 imports        = []
 
 [[rod]]
@@ -339,9 +339,9 @@ imports        = ["cli", "fmt", "strings"]
 name           = "clifford"
 path           = "stdlib/rods/clifford.nr"
 description    = "Clifford / stabilizer formalism (quantum error correction)"
-function_count = 23
+function_count = 26
 cfile_count    = 1
-loc            = 48
+loc            = 54
 imports        = ["clifford"]
 
 [[rod]]
@@ -357,9 +357,9 @@ imports        = ["collections"]
 name           = "collision"
 path           = "stdlib/rods/collision.nr"
 description    = "Geometric collision primitives for robotics."
-function_count = 16
+function_count = 18
 cfile_count    = 1
-loc            = 183
+loc            = 224
 imports        = []
 
 [[rod]]
@@ -510,9 +510,9 @@ imports        = ["diff_drive"]
 name           = "diff_sim"
 path           = "stdlib/rods/diff_sim.nr"
 description    = "Differentiable quantum simulation"
-function_count = 46
+function_count = 49
 cfile_count    = 1
-loc            = 119
+loc            = 127
 imports        = []
 
 [[rod]]
@@ -649,6 +649,15 @@ function_count = 3
 cfile_count    = 1
 loc            = 23
 imports        = ["env"]
+
+[[rod]]
+name           = "f64_buffer"
+path           = "stdlib/rods/f64_buffer.nr"
+description    = "Robotics, vision, estimation, and trajectory rods often take"
+function_count = 9
+cfile_count    = 1
+loc            = 25
+imports        = []
 
 [[rod]]
 name           = "fast_corner"
@@ -915,9 +924,9 @@ imports        = ["icp_p2p"]
 name           = "ik_dls"
 path           = "stdlib/rods/ik_dls.nr"
 description    = "Damped Least Squares inverse kinematics."
-function_count = 6
+function_count = 8
 cfile_count    = 1
-loc            = 65
+loc            = 105
 imports        = ["fk_chain"]
 
 [[rod]]
@@ -978,9 +987,9 @@ imports        = ["interp"]
 name           = "interval"
 path           = "stdlib/rods/interval.nr"
 description    = "Interval Arithmetic (rigorous numerical bounds)"
-function_count = 23
+function_count = 27
 cfile_count    = 1
-loc            = 47
+loc            = 55
 imports        = ["interval"]
 
 [[rod]]
@@ -1248,9 +1257,9 @@ imports        = ["mppi"]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
 description    = "Matrix Product States (efficient quantum simulation)"
-function_count = 24
+function_count = 36
 cfile_count    = 1
-loc            = 46
+loc            = 72
 imports        = []
 
 [[rod]]
@@ -1293,18 +1302,18 @@ imports        = ["neuromorphic"]
 name           = "nn"
 path           = "stdlib/rods/nn.nr"
 description    = "Neural Network Training"
-function_count = 12
+function_count = 16
 cfile_count    = 1
-loc            = 275
+loc            = 291
 imports        = ["complex", "nn"]
 
 [[rod]]
 name           = "numeric"
 path           = "stdlib/rods/numeric.nr"
 description    = "RFC-0015 numeric type operations"
-function_count = 59
-cfile_count    = 0
-loc            = 59
+function_count = 69
+cfile_count    = 1
+loc            = 80
 imports        = ["numeric"]
 
 [[rod]]
@@ -1590,27 +1599,36 @@ imports        = ["quad"]
 name           = "quantize"
 path           = "stdlib/rods/quantize.nr"
 description    = "Weight + activation quantization (Q4 / int8 / ternary / FP8)"
-function_count = 13
+function_count = 21
 cfile_count    = 1
-loc            = 46
+loc            = 66
 imports        = []
 
 [[rod]]
 name           = "quantum"
 path           = "stdlib/rods/quantum.nr"
 description    = "Quantum circuit simulator"
-function_count = 47
+function_count = 69
 cfile_count    = 1
-loc            = 379
+loc            = 473
 imports        = ["quantum"]
 
 [[rod]]
 name           = "quantum_gates"
 path           = "stdlib/rods/quantum_gates.nr"
-description    = "shared quantum gate type constants."
-function_count = 9
+description    = "shared quantum gate type constants and logical kinds."
+function_count = 22
 cfile_count    = 0
-loc            = 17
+loc            = 63
+imports        = []
+
+[[rod]]
+name           = "quantum_twin"
+path           = "stdlib/rods/quantum_twin.nr"
+description    = "This rod intentionally re-exports the existing dual-core quantum"
+function_count = 0
+cfile_count    = 0
+loc            = 1
 imports        = []
 
 [[rod]]
@@ -2022,9 +2040,9 @@ imports        = ["tensor_decomp"]
 name           = "tensor_nd"
 path           = "stdlib/rods/tensor_nd.nr"
 description    = "N-Dimensional Tensors"
-function_count = 22
+function_count = 26
 cfile_count    = 1
-loc            = 69
+loc            = 77
 imports        = ["tensor_nd"]
 
 [[rod]]
@@ -2040,9 +2058,9 @@ imports        = ["fmt", "test"]
 name           = "tf"
 path           = "stdlib/rods/tf.nr"
 description    = "Hierarchical coordinate-frame transform tree."
-function_count = 9
+function_count = 12
 cfile_count    = 1
-loc            = 44
+loc            = 63
 imports        = ["kinematics_frame", "tf"]
 
 [[rod]]
@@ -2112,18 +2130,18 @@ imports        = ["topp"]
 name           = "trajectory"
 path           = "stdlib/rods/trajectory.nr"
 description    = "Smooth time-parameterized joint trajectories."
-function_count = 68
+function_count = 84
 cfile_count    = 1
-loc            = 213
+loc            = 259
 imports        = []
 
 [[rod]]
 name           = "transformer"
 path           = "stdlib/rods/transformer.nr"
 description    = "Classic transformer building blocks"
-function_count = 9
+function_count = 13
 cfile_count    = 1
-loc            = 35
+loc            = 51
 imports        = []
 
 [[rod]]
@@ -2143,15 +2161,6 @@ function_count = 26
 cfile_count    = 0
 loc            = 317
 imports        = []
-
-[[rod]]
-name           = "quantum_twin"
-path           = "stdlib/rods/quantum_twin.nr"
-description    = "Honest alias for the dual-core quantum noise model; not a robotics digital twin."
-function_count = 0
-cfile_count    = 0
-loc            = 7
-imports        = ["twin_core"]
 
 [[rod]]
 name           = "ukf"
@@ -2175,9 +2184,9 @@ imports        = ["units"]
 name           = "urdf"
 path           = "stdlib/rods/urdf.nr"
 description    = "Minimal URDF parser + FK chain integration."
-function_count = 12
+function_count = 17
 cfile_count    = 1
-loc            = 34
+loc            = 48
 imports        = ["fk_chain"]
 
 [[rod]]
