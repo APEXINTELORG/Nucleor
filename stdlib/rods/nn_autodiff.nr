@@ -19,6 +19,10 @@ fn nn_autodiff_register_layer_norm() -> i64 {
     return differentiable_register("nuc_nn_layer_norm");
 }
 
+fn nn_autodiff_register_batch_norm() -> i64 {
+    return differentiable_register("nuc_nn_batch_norm");
+}
+
 fn nn_dense_forward_ad(layer: i64, input_ad: i64) -> i64 {
     nn_autodiff_register_dense();
 
@@ -83,6 +87,59 @@ fn nn_layer_norm_ad(input_ad: i64, gamma_bits: i64, beta_bits: i64, eps_bits: i6
     return out;
 }
 
+fn nn_batch_norm_ad(input_ad: i64, n_samples: i64, feat_dim: i64, gamma_bits: i64, beta_bits: i64, eps_bits: i64) -> i64 {
+    nn_autodiff_register_batch_norm();
+
+    let out: i64 = vec_new();
+    let total: i64 = n_samples * feat_dim;
+    if n_samples <= 0 { return out; };
+    if feat_dim <= 0 { return out; };
+    if vec_len(input_ad) < total { return out; };
+
+    let inv_ns_bits: i64 = f64_div(f64_from_int(1), f64_from_int(n_samples));
+    let inv_ns: i64 = ad_const(inv_ns_bits);
+
+    let means: i64 = vec_new();
+    let denoms: i64 = vec_new();
+
+    let mut f: i64 = 0;
+    while f < feat_dim {
+        let mut sum: i64 = ad_const(f64_from_int(0));
+        let mut s: i64 = 0;
+        while s < n_samples {
+            let idx: i64 = s * feat_dim + f;
+            sum = ad_add(sum, vec_get(input_ad, idx));
+            s = s + 1;
+        };
+        let mean: i64 = ad_mul(sum, inv_ns);
+        vec_push(means, mean);
+
+        let mut var_sum: i64 = ad_const(f64_from_int(0));
+        s = 0;
+        while s < n_samples {
+            let idx: i64 = s * feat_dim + f;
+            let centered: i64 = ad_sub(vec_get(input_ad, idx), mean);
+            var_sum = ad_add(var_sum, ad_mul(centered, centered));
+            s = s + 1;
+        };
+        let var: i64 = ad_mul(var_sum, inv_ns);
+        vec_push(denoms, ad_sqrt(ad_add(var, ad_const(eps_bits))));
+        f = f + 1;
+    };
+
+    let mut idx_out: i64 = 0;
+    while idx_out < total {
+        let feat: i64 = idx_out % feat_dim;
+        let centered: i64 = ad_sub(vec_get(input_ad, idx_out), vec_get(means, feat));
+        let xhat: i64 = ad_div(centered, vec_get(denoms, feat));
+        let scaled: i64 = ad_mul(ad_const(vec_get(gamma_bits, feat)), xhat);
+        vec_push(out, ad_add(scaled, ad_const(vec_get(beta_bits, feat))));
+        idx_out = idx_out + 1;
+    };
+
+    return out;
+}
+
 fn nn_autodiff_limitations() -> str {
-    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871): nn_dense_forward_ad and nn_layer_norm_ad lower Dense and LayerNorm forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover convolution/batch-norm/attention, and does not provide compiler-side @differentiable lowering.";
+    return "NN/autodiff bridge limitations (ML-14, helper1 v0867/v0871/v0872): nn_dense_forward_ad, nn_layer_norm_ad, and nn_batch_norm_ad lower Dense, LayerNorm, and BatchNorm forward paths into scalar autodiff tape nodes and support input gradients. Parameter gradients still use nn.nr backward/optimizer surfaces; this bridge does not yet register one opaque layer op, does not cover convolution/attention, and does not provide compiler-side @differentiable lowering.";
 }
