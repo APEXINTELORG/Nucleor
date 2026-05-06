@@ -333,6 +333,12 @@ launch. After memory safety completes, these are next-priority.
 
 ### Quantum (beyond QM-7)
 - Source: `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
+- **QM-1 qsim header compatibility:** DONE for Phase 1 on 2026-05-06
+  — the advertised `qsim_prob`, `qsim_statevec`, and `qsim_copy`
+  surfaces now exist in `stdlib/rods/quantum.nr`. `qsim_prob` supports
+  both 0/1 outcomes, `qsim_statevec` returns the statevector handle
+  explicitly, and `qsim_copy` deep-copies complex amplitude handles.
+  `qsim_header_compat_smoke.nr` locks the behavior.
 - **QM-3 MPS named gate wrappers:** DONE for Phase 1 on 2026-05-06
   — `mps_h`, `mps_x`, `mps_z`, `mps_rz`, `mps_rx`, `mps_cnot`,
   `mps_gate_*` constants, `mps_gate_type_supported`, and
