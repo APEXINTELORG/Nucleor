@@ -721,7 +721,9 @@ void nuc_dmp_multi_free(long long h) {
 // - Symmetric box bounds only (|v| ≤ vmax, |a| ≤ amax). Asymmetric
 //   bounds (e.g., gravity-loaded vertical axes) need the full LP
 //   formulation.
-// - No torque/dynamics constraints. Pure kinematic.
+// - Optional diagonal inertia + torque limits can tighten each
+//   joint's acceleration bound. Full coupled torque/dynamics
+//   constraints still need the full LP formulation.
 
 typedef struct {
     int n_dim;
@@ -730,6 +732,8 @@ typedef struct {
     double *waypoints;     // n_waypoints × n_dim, flat
     double *vmax;          // n_dim
     double *amax;          // n_dim
+    double *tau_max;       // n_dim, <= 0 means disabled
+    double *inertia;       // n_dim, positive diagonal inertia
     // After solve:
     double *b;             // n_waypoints (squared path velocity)
     double *t;             // n_waypoints (cumulative time)
@@ -744,9 +748,12 @@ long long nuc_topp_new(long long n_dim) {
     p->waypoints = (double *)malloc(p->cap_waypoints * p->n_dim * sizeof(double));
     p->vmax = (double *)malloc(p->n_dim * sizeof(double));
     p->amax = (double *)malloc(p->n_dim * sizeof(double));
+    p->tau_max = (double *)calloc(p->n_dim, sizeof(double));
+    p->inertia = (double *)malloc(p->n_dim * sizeof(double));
     for (int j = 0; j < p->n_dim; j++) {
         p->vmax[j] = 1.0;     // sane defaults: 1 unit/s, 1 unit/s²
         p->amax[j] = 1.0;
+        p->inertia[j] = 1.0;
     }
     return (long long)(size_t)p;
 }
@@ -780,6 +787,40 @@ void nuc_topp_set_amax(long long h, long long j, long long amax_b) {
     p->solved = 0;
 }
 
+void nuc_topp_set_inertia(long long h, long long j, long long inertia_b) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || j < 0 || j >= (long long)p->n_dim) return;
+    double inertia = _i2f(inertia_b);
+    if (inertia > 0) {
+        p->inertia[j] = inertia;
+        p->solved = 0;
+    }
+}
+
+void nuc_topp_set_tau_max(long long h, long long j, long long tau_max_b) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || j < 0 || j >= (long long)p->n_dim) return;
+    double tau_max = _i2f(tau_max_b);
+    p->tau_max[j] = (tau_max > 0) ? tau_max : 0.0;
+    p->solved = 0;
+}
+
+static double _topp_effective_amax_joint(NTopp *p, int j) {
+    double a = p->amax[j];
+    if (a < 0) a = 0;
+    if (p->tau_max && p->inertia && p->tau_max[j] > 0 && p->inertia[j] > 0) {
+        double dyn_a = p->tau_max[j] / p->inertia[j];
+        if (dyn_a < a) a = dyn_a;
+    }
+    return a;
+}
+
+long long nuc_topp_effective_amax(long long h, long long j) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || j < 0 || j >= (long long)p->n_dim) return _f2i(0.0);
+    return _f2i(_topp_effective_amax_joint(p, (int)j));
+}
+
 // Solve the parameterization. Returns 0 on success, -1 on bad
 // state (fewer than 2 waypoints).
 long long nuc_topp_solve(long long h) {
@@ -806,7 +847,8 @@ long long nuc_topp_solve(long long h) {
             double adq = fabs(dq);
             if (adq < 1e-18) continue;  // joint stationary on this segment
             double v_j = p->vmax[j] / adq;
-            double a_j = p->amax[j] / adq;
+            double a_joint = _topp_effective_amax_joint(p, j);
+            double a_j = a_joint / adq;
             if (v_j * v_j < v_lim2) v_lim2 = v_j * v_j;
             if (a_j < a_lim)        a_lim = a_j;
         }
@@ -1152,6 +1194,8 @@ void nuc_topp_free(long long h) {
     if (p->waypoints) free(p->waypoints);
     if (p->vmax) free(p->vmax);
     if (p->amax) free(p->amax);
+    if (p->tau_max) free(p->tau_max);
+    if (p->inertia) free(p->inertia);
     if (p->b) free(p->b);
     if (p->t) free(p->t);
     free(p);

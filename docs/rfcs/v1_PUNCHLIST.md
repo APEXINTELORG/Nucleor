@@ -426,6 +426,15 @@ launch. After memory safety completes, these are next-priority.
 
 ### Robotics (beyond ROBO-7)
 - Source: `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+- **ROBO-1 TOPP diagonal torque-limit tightening:** DONE for Phase 1 on
+  2026-05-06. The multi-DOF TOPP solver now accepts per-joint
+  `inertia` and `tau_max`, exposes `topp_effective_amax`, and
+  tightens each acceleration bound by `tau_max / inertia` when that
+  limit is active; `topp_torque_limit_smoke.nr` proves the torque
+  box materially lengthens traversal time versus the same kinematic
+  path. Remaining gap: full coupled TOPP-RA with path-dependent
+  torque/dynamics constraints, asymmetric limits, and non-diagonal
+  inertia/Coriolis/gravity terms.
 - **ROBO-4 6D IK nullspace posture:** DONE for Phase 1 on
   2026-05-06. `ik_dls_solve_6d_nullspace` uses the 6 x n pose
   Jacobian and projects preferred posture through `(I - J+J)`;

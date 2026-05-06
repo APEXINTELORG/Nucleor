@@ -249,11 +249,16 @@ fn dmp_multi_free(h: i64) { nuc_dmp_multi_free(h); }
 // step basis lands in v0.6 if needed):
 // - Only piecewise-linear paths. Sample splines first.
 // - Symmetric box bounds only.
-// - Pure kinematic (no torque/dynamics constraints).
+// - Optional diagonal inertia + torque limits can tighten each
+//   joint's acceleration bound, but coupled dynamics / full
+//   torque-level TOPP-RA remain future work.
 extern fn nuc_topp_new(n_dim: i64) -> i64;
 extern fn nuc_topp_add_waypoint(h: i64, q_ptr: i64) -> i64;
 extern fn nuc_topp_set_vmax(h: i64, j: i64, vmax_b: i64);
 extern fn nuc_topp_set_amax(h: i64, j: i64, amax_b: i64);
+extern fn nuc_topp_set_inertia(h: i64, j: i64, inertia_b: i64);
+extern fn nuc_topp_set_tau_max(h: i64, j: i64, tau_max_b: i64);
+extern fn nuc_topp_effective_amax(h: i64, j: i64) -> i64;
 extern fn nuc_topp_solve(h: i64) -> i64;
 extern fn nuc_topp_total_time(h: i64) -> i64;
 extern fn nuc_topp_time_at_waypoint(h: i64, i: i64) -> i64;
@@ -267,6 +272,9 @@ fn topp_add_waypoint(h: i64, q_ptr: i64) -> i64 {
 }
 fn topp_set_vmax(h: i64, j: i64, vmax_b: i64) { nuc_topp_set_vmax(h, j, vmax_b); }
 fn topp_set_amax(h: i64, j: i64, amax_b: i64) { nuc_topp_set_amax(h, j, amax_b); }
+fn topp_set_inertia(h: i64, j: i64, inertia_b: i64) { nuc_topp_set_inertia(h, j, inertia_b); }
+fn topp_set_tau_max(h: i64, j: i64, tau_max_b: i64) { nuc_topp_set_tau_max(h, j, tau_max_b); }
+fn topp_effective_amax(h: i64, j: i64) -> i64 { return nuc_topp_effective_amax(h, j); }
 fn topp_solve(h: i64) -> i64 { return nuc_topp_solve(h); }
 
 // Total traversal time of the parameterized path, as bit-cast f64.
@@ -293,7 +301,7 @@ fn topp_free(h: i64) { nuc_topp_free(h); }
 // Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
 // surfaces TOPP's documented approximations as a queryable string.
 fn topp_limitations() -> str {
-    return "TOPP limitations (ROBO-14): (1) only piecewise-linear paths — sample splines first; (2) symmetric box bounds on velocity + acceleration only; (3) pure kinematic — no torque/dynamics constraints. Phase 2 may add full TOPP-RA via convex optimization per-step + asymmetric bounds + dynamics-aware torque limits.";
+    return "TOPP limitations (ROBO-1): (1) only piecewise-linear paths — sample splines first; (2) symmetric box bounds on velocity + acceleration only; (3) kinematic base solver with optional diagonal inertia/tau_max acceleration tightening; full coupled torque dynamics remain future work. Phase 2 may add full TOPP-RA via convex optimization per-step + asymmetric bounds + dynamics-aware torque limits.";
 }
 
 // === Catmull-Rom spline (v0.2.237) ===
@@ -402,6 +410,15 @@ fn topp_set_vmax_f64(h: i64, j: i64, vmax: f64) {
 }
 fn topp_set_amax_f64(h: i64, j: i64, amax: f64) {
     nuc_topp_set_amax(h, j, f64_to_bits(amax));
+}
+fn topp_set_inertia_f64(h: i64, j: i64, inertia: f64) {
+    nuc_topp_set_inertia(h, j, f64_to_bits(inertia));
+}
+fn topp_set_tau_max_f64(h: i64, j: i64, tau_max: f64) {
+    nuc_topp_set_tau_max(h, j, f64_to_bits(tau_max));
+}
+fn topp_effective_amax_f64(h: i64, j: i64) -> f64 {
+    return f64_from_bits(nuc_topp_effective_amax(h, j));
 }
 fn topp_total_time_f64(h: i64) -> f64 {
     return f64_from_bits(nuc_topp_total_time(h));

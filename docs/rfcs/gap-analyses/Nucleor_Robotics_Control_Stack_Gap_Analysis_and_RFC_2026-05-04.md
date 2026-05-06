@@ -27,6 +27,8 @@
 ## ROBO-1 — TOPP is kinematic-only, piecewise-linear paths only — **MEDIUM**
 Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-step constraints) deferred to v0.6. Forward+backward pass on `b(s) = (ds/dt)²` ignores actuator torque curves. Time-optimal claim approximate for real robots.
 
+**2026-05-06 update:** Phase 1 diagonal torque-limit tightening now exists in the multi-DOF TOPP solver. `topp_set_inertia`, `topp_set_tau_max`, and `topp_effective_amax` let a caller provide per-joint diagonal inertia and torque boxes so the solver tightens each joint acceleration bound by `tau_max / inertia`; `tests/features/topp_torque_limit_smoke.nr` proves the torque-limited solve takes materially longer than the same kinematic path. Remaining ROBO-1 work: full coupled TOPP-RA with path-dependent torque/dynamics constraints, asymmetric limits, and non-diagonal inertia/Coriolis/gravity terms.
+
 ## ROBO-2 — DMP has no multi-DOF batch wrapper — **LOW**
 "Multi-DOF: instantiate one DMP per joint." No `dmp_multi_new`/`dmp_multi_step` for whole joint-vector. Forces repetitive per-joint calls; prevents learning cross-DOF coupling.
 
@@ -120,7 +122,7 @@ CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing
 - ROBO-12: DONE for Mahony 9-DOF magnetometer yaw correction. Remaining: calibration/declination helpers, high-dynamics rejection policy, and Madgwick variant.
 
 **Phase 3 (medium-term):**
-- ROBO-1: TOPP-RA (convex per-step torque/dynamics constraints).
+- ROBO-1: DONE for Phase 1 diagonal inertia/tau_max acceleration tightening. Remaining: full coupled TOPP-RA with path-dependent torque/dynamics constraints.
 - ROBO-2: DONE for Phase 1 multi-DOF batch wrapper. Remaining: true coupled-basis learning across DOFs.
 - ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
 - ROBO-8: DONE for Phase 1 covariant pre-conditioning. Remaining: high-DOF / obstacle-gradient evidence, exact SDF gradients, and tuning guidance.
