@@ -1286,3 +1286,240 @@ git switch -C fix/helper2-hermetic-release-closure-v0832 origin/fix/main-qm7-sur
 git diff -- docs\BENCHMARK.md
 git diff --check
 ```
+
+---
+
+## Queue 8 Update - blocker-aware external integration + hermetic tooling batch
+
+Append-only update: 2026-05-06.
+
+Read this before continuing. Your recent reports list real residual blockers:
+
+- PKG-1 native Linux signed-publish transcript;
+- POSIX perf native transcript;
+- POSIX rust_bridge ownership proof with native cargo/compiler/artifact.
+
+Do **not** keep re-running those native-POSIX proof lanes from Windows/WSL.
+They are native-Linux-only closure items unless you are actually on a native
+Linux host with native `bin/nucleor`, native `cargo`, `clang`, and ELF proof.
+If your current host is Windows or WSL, mark those rows `NATIVE-LINUX-ONLY`
+in your report and move to the work below.
+
+Base from the latest integration branch that carries the cloud dispatch pack:
+
+```powershell
+git -C C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828 fetch origin
+git -C C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828 switch -C fix/helper2-external-hermetic-closure-v0834 origin/fix/main-qm7-surface-code-v0827
+git -C C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828 merge-base HEAD origin/fix/main-qm7-surface-code-v0827
+git -C C:\Users\JoeWe\Nucleor_OSS_helper2_r06_rust_bridge_ownership_v0828 status --short --branch
+```
+
+Primary coordination doc now on GitHub:
+
+```text
+docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md
+```
+
+### Scope AK: ML-EXT-A/B/C external ML Suite visibility audit
+
+Goal: give main/cloud agents current visibility into the external ML Suite
+workspaces without importing ML Suite code into `Nucleor_OSS`.
+
+Observed local paths on this machine:
+
+```text
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent_Mainline
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\MLV_Kernel
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Expansion_Spine_Integration_Brief_2026-05-01.md
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Build_Spine\BUILD_PATH_v0.4_to_v1.3.md
+```
+
+Required work:
+
+- Read-only inspect the ML Suite repos/workspaces above.
+- For each repo: record path exists/missing, git branch, HEAD, dirty status,
+  primary verify/test command if discoverable, and whether it appears to be
+  canonical or superseded.
+- Map evidence to ML Expansion lanes A-K from the dispatch pack:
+  A evidence claims/backend dispatch, B frontend surfaces, C kernel/serve/pkg,
+  D dtype claim rule, E HF metadata, F ONNX/GGUF, G vLLM serving, H
+  Arrow/DLPack/tabular, I boosting, J backend manifest/accounting, K package
+  manifest/lockfile/NCAP/conformance.
+- Produce a gap matrix:
+  - belongs in `Nucleor_OSS`;
+  - remains external in ML Suite;
+  - needs only docs/CLI contract;
+  - blocker/unknown.
+- Do **not** copy ML Suite source into `Nucleor_OSS`.
+- Do **not** claim ML replacement surfaces without native execution evidence.
+
+Output:
+
+```text
+findings/inbox/helper2_ml_suite_external_visibility_v0834_2026-05-06.md
+```
+
+Suggested commands:
+
+```powershell
+Get-ChildItem -LiteralPath C:\Users\JoeWe\Desktop\Nucleor_OSS_Files -Force -Directory | Where-Object { $_.Name -match 'ML|Translate|Suite|ParallelAgent|MLV' }
+git -C C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite status --short --branch
+git -C C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent_Mainline status --short --branch
+rg -n "verify|test|parity|claim|evidence|ONNX|GGUF|vLLM|DLPack|boost|backend|NCAP|conformance" C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_ML_Suite_ParallelAgent_Mainline\docs
+```
+
+### Scope AL: TRANS-A/B Translate current-state verification and gap report
+
+Goal: verify current `Nucleor_Translate` state and define what remains before
+the future `nuc port` shim is allowed.
+
+Observed local path:
+
+```text
+C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate
+```
+
+Required work:
+
+- Read-only inspect current Translate branch, HEAD, dirty status.
+- Find and run the cheapest documented test/verify command if safe.
+- Record language matrix: completed, partial, missing.
+- Check whether the spine-recorded state is still true:
+  - 6 of 20 languages done;
+  - 368 tests PASS;
+  - compiler pin is Nucleor 0.4.5 or changed.
+- Produce an adopter-readiness gap report for:
+  - control-flow IR;
+  - float parsing;
+  - C structs;
+  - any other current blockers.
+- Do **not** copy Translate source into `Nucleor_OSS`.
+- Do **not** wire `nuc port`.
+
+Output:
+
+```text
+findings/inbox/helper2_translate_current_state_v0834_2026-05-06.md
+```
+
+Suggested commands:
+
+```powershell
+git -C C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate status --short --branch
+git -C C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate log --oneline -5
+rg -n "test|verify|PASS|language|Python|Rust|Go|TypeScript|JavaScript|control-flow|float|struct|0\\.4\\.5|nuc port|nuctranslate" C:\Users\JoeWe\Desktop\Nucleor_OSS_Files\Nucleor_Translate
+```
+
+### Scope AM: HERM-A native numerics matrix generator or precise blocker
+
+Goal: advance Lane 10 without adding Python dependencies.
+
+Required work:
+
+- Inspect `tools/gen_numerics_matrix.py`, `tools/run_numerics_matrix.*`, and
+  current generated outputs.
+- If clean, implement `tools/gen_numerics_matrix.nr` with parity evidence.
+- If not clean, write a precise blocker with missing Nucleor primitives and
+  smallest safe first native slice.
+- Do not broaden default full verify or add slow numerics runs.
+- Do not add any new Python helper.
+
+Validation:
+
+```powershell
+rg -n "gen_numerics_matrix|run_numerics_matrix|numerics_matrix|NUM-" tools docs tests
+python tools\gen_numerics_matrix.py
+.\bin\nucleor.exe build tools\gen_numerics_matrix.nr -o gen_numerics_matrix --no-cache
+.\target\gen_numerics_matrix.exe
+git diff --check
+```
+
+If the native file is not implemented, replace the build/run commands with the
+blocker proof and report why.
+
+### Scope AN: HERM-B helper manifest native-port feasibility or first slice
+
+Goal: prepare `gen_helper_manifest.py` replacement without a fragile rewrite.
+
+Required work:
+
+- Inspect `tools/gen_helper_manifest.py`.
+- Compare existing native tool patterns:
+  - `tools/gen_releases_index.nr`;
+  - `tools/gen_rod_manifest.nr`;
+  - `tools/gen_benchmark_summary.nr`;
+  - `tools/audit_dup_fns.nr`.
+- Write the feasibility matrix:
+  - input files read;
+  - output sections emitted;
+  - regex/string parsing features used by Python;
+  - Nucleor primitives already available;
+  - missing primitives;
+  - smallest safe first native slice.
+- If one slice is clearly self-contained, implement that slice only.
+- Do not replace `gen_helper_manifest.py` or change drift-gate ownership
+  unless parity is proven.
+
+Validation:
+
+```powershell
+rg -n "gen_helper_manifest|helper_manifest|native generator|audit_dup_fns|gen_rod_manifest|gen_benchmark_summary" tools docs findings
+python tools\gen_helper_manifest.py
+git diff -- docs\rfcs\helper_manifest.toml
+git diff --check
+```
+
+### Scope AO: blocker ledger normalization
+
+Goal: compress the remaining Helper2 blockers into a current, non-redundant
+handoff so main can dispatch the right environment-specific work.
+
+Required work:
+
+- Create or update one report under `findings/inbox/` that normalizes:
+  - PKG-1 native Linux signed publish proof;
+  - POSIX perf native transcript;
+  - POSIX rust_bridge native ownership proof;
+  - TOOLCHAIN-PY keep-closed audit;
+  - HERM-A/HERM-B status;
+  - ML-EXT and TRANS status if completed.
+- For every blocker, include:
+  - current evidence;
+  - exact platform requirement;
+  - exact command to close;
+  - whether Helper2 can close it from current host;
+  - owner recommendation.
+- Update docs only where backed by new evidence.
+
+Output:
+
+```text
+findings/inbox/helper2_blocker_ledger_v0834_2026-05-06.md
+```
+
+## Helper2 Deliverable For Queue 8
+
+Push one branch with as many Scopes AK-AO as are coherent. It is fine if
+AM/AN become blocker reports instead of code ports, but AK/AL/AO should be
+finishable from Windows because they are read-only audits plus report work.
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify for read-only/report-only external audits. Run focused
+validation for any tool or generated-output change, and `git diff --check` for
+all branches.
