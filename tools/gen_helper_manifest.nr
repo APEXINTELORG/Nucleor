@@ -10,8 +10,9 @@
 // RFC-0063 Phase 5 final / Track C C6: fourth and largest port of a
 // Python dev-time generator to native Nucleor (after gen_releases_index,
 // gen_rod_manifest, gen_benchmark_summary). Closes the last drift-gated
-// Python dependency. After this commit, only gen_numerics_matrix.py
-// remains as a non-gated optional Python dev tool.
+// Python dependency. The former non-gated optional numerics matrix
+// Python generator was retired after it fell behind the committed
+// fixture tree.
 //
 // Output is intended to be byte-equivalent to gen_helper_manifest.py
 // modulo the `.py` → `.nr` attribution line. Drift gate verifies.

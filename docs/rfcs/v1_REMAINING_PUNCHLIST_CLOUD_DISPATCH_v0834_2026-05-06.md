@@ -651,15 +651,14 @@ runtime changes affect hot paths.
 
 Still open:
 
-- Port `gen_numerics_matrix.py` to native Nucleor or remove it from required
-  product/toolchain paths.
-- Refresh or retire `gen_numerics_matrix.py` before any native port: its current
-  output rewrites 10 committed matrix fixtures back to older syntax.
+- `gen_numerics_matrix.py` has been retired instead of ported: it was
+  optional/offline, not drift-gated, and stale versus the committed matrix.
+- The numerics matrix is now treated as curated committed fixtures under
+  `tests/lang/numerics_matrix/`, with the existing PowerShell/Bash runners.
 - Keep maintenance-only Python references clearly optional.
 
 **Primary files:**
 
-- `tools/gen_numerics_matrix.py`
 - `tools/gen_helper_manifest.py`
 - `tools/check_compiler_drift.sh`
 - `tools/gen_rod_manifest.nr`
@@ -670,8 +669,8 @@ Still open:
 
 **Cloud slices:**
 
-- HERM-A: native numerics matrix generator only after the Python oracle is
-  refreshed, or evidence that the generator stays optional/offline.
+- HERM-A: CLOSED by retiring the stale optional numerics matrix Python
+  generator; no release-critical path invokes it.
 - HERM-B: native helper manifest generator path is present; keep the Python
   source only as a temporary comparison oracle.
 - HERM-C: active drift-gated generator checks are Python-free; keep future

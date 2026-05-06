@@ -7,6 +7,11 @@ should turn its tests green.
 
 ## Workflow
 
+- This matrix is now a curated committed fixture tree. The former
+  optional Python generator `tools/gen_numerics_matrix.py` was retired
+  on 2026-05-06 because it lagged the committed fixtures and rewrote
+  current syntax back to older forms. Add or update matrix cases
+  directly in this directory, and keep this manifest in sync.
 - Tests in this tree are NOT picked up by the standard verify
   gate (`tools/verify.ps1`) because verify enumerates only the
   top level of each `tests/{lang,attrs,runtime,rods,features}/`
