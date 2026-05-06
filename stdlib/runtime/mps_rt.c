@@ -582,3 +582,15 @@ long long nuc_mps_expect_z(long long handle, long long q_val) {
     free(env_re); free(env_im); free(tmp_re); free(tmp_im);
     long long r; memcpy(&r, &result, 8); return r;
 }
+
+long long nuc_mps_prob0(long long handle, long long q_val) {
+    long long z_bits = nuc_mps_expect_z(handle, q_val);
+    double z;
+    memcpy(&z, &z_bits, sizeof(double));
+    double p0 = 0.5 * (1.0 + z);
+    if (p0 < 0.0) p0 = 0.0;
+    if (p0 > 1.0) p0 = 1.0;
+    long long r;
+    memcpy(&r, &p0, sizeof(double));
+    return r;
+}
