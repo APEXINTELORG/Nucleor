@@ -12,6 +12,8 @@
 // allocation.
 #[allow(PERF-3)]
 
+import "nucleor_rfc0063_shared_wave1.nr"
+
 // T1.1 Phase 3c (v0.2.310): widened internal arithmetic to i64
 // (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
 // large IR constants format correctly under Phase 1's narrow-as
@@ -4921,9 +4923,6 @@ fn smap_new_cap(cap: i64) -> Vec<i32> {
     m.push(cap);
     return m;
 }
-fn smap_new() -> Vec<i32> {
-    return smap_new_cap(64);
-}
 fn smap_slots(m: Vec<i32>) -> i64 {
     return vec_get(m, 4);
 }
@@ -5031,8 +5030,6 @@ fn tok_to_ir(tok: i64) -> i64 {
     if tok == 34 { return 11; }; if tok == 35 { return 12; };
     if tok == 36 { return 13; }; if tok == 37 { return 14; }; return 0 - 1;
 }
-fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; return 0; }
-
 // Struct registry helpers
 fn trait_impl_register(impls: Vec<i32>, type_name: str, method_name: str, mangled: str) -> i64 {
     impls.push(type_name); impls.push(method_name); impls.push(mangled); return 0;
@@ -5858,10 +5855,6 @@ fn line_col_to_byte(source: str, line: i64, col: i64) -> i64 {
     return 0;
 }
 
-fn find_column_in_source(source: str, fn_name: str, var_name: str) -> i64 {
-    return vec_get(find_linecol_in_source(source, fn_name, var_name), 1);
-}
-
 fn json_escape(s: str) -> str {
     let slen: i64 = str_len(s);
     let mut result: i64 = sb_new();
@@ -6272,7 +6265,6 @@ fn review_acc_taint_call(taint: Vec<i32>, fn_name: str, callee: str, tainted_arg
 // =====================================================
 // OWNERSHIP CHECKER (S11.5)
 // =====================================================
-fn own_new() -> Vec<i32> { return Vec::new(); }
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
     let mut slot: i64 = 0 - 1;
     let mut i: i64 = 0;
@@ -6321,7 +6313,6 @@ fn own_get_i(o: Vec<i32>, key: str) -> i64 {
     if v < 0 { return 0; };
     return v;
 }
-fn own_set_s_raw(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, key, val); }
 fn own_get_s_raw(o: Vec<i32>, key: str) -> str {
     let v: i64 = sym_get(o, key);
     if v < 0 { return ""; };
@@ -6387,7 +6378,6 @@ fn own_get_ref_target(o: Vec<i32>, name: str) -> str { return own_get_s_raw(o, s
 fn own_set_ref_kind(o: Vec<i32>, name: str, kind: i64) -> i64 { return own_set_i_raw(o, str_concat("__oi_ref_kind_", name), kind); }
 fn own_get_ref_kind(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_ref_kind_", name)); }
 fn own_shared_borrows(o: Vec<i32>, key: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_shared_", key)); }
-fn own_mut_borrowed(o: Vec<i32>, key: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_mut_", key)); }
 fn own_inc_shared(o: Vec<i32>, key: str) -> i64 {
     own_track_key(o, "__shared_keys", key);
     return own_set_i_raw(o, str_concat("__oi_shared_", key), own_shared_borrows(o, key) + 1);
@@ -7641,7 +7631,6 @@ fn type_diag(diags: Vec<i32>, source: str, fn_name: str, symbol: str, code: str,
     let loc: Vec<i32> = find_linecol_in_source(source, fn_name, symbol);
     return diag_add_ex(diags, "error", "type", code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
 }
-fn sig_new() -> Vec<i32> { return smap_new(); }
 fn sig_entry_new(plist: i64, rtype: str, is_extern: i64) -> Vec<i32> {
     let mut entry: Vec<i32> = Vec::new();
     entry.push(plist);
@@ -7670,7 +7659,6 @@ fn sig_is_extern(sigs: Vec<i32>, name: str) -> i64 {
     if entry < 0 { return 0; };
     return vec_get(entry, 2);
 }
-fn tenv_new() -> Vec<i32> { return Vec::new(); }
 fn tenv_set(env: Vec<i32>, name: str, tstr: str) -> i64 { env.push(name); env.push(tstr); return 0; }
 fn tenv_get(env: Vec<i32>, name: str) -> str {
     let v: i64 = sym_get(env, name);
@@ -10713,10 +10701,6 @@ fn cache_v2_meta_dir(key: str) -> str {
     return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
 }
 
-fn cache_v2_meta_path(key: str) -> str {
-    return sanitize(str_concat(cache_v2_meta_dir(key), "/meta.json"));
-}
-
 fn cache_v2_size_mb(ll: str) -> i64 {
     let n: i64 = str_len(ll);
     if n <= 0 { return 0; };
@@ -11226,13 +11210,6 @@ fn module_records_validate(manifest: str) -> Vec<i32> {
 fn module_graph_cache_id(src_path: str) -> str {
     return content_hash(str_concat("module-graph-v1|", sanitize(src_path)));
 }
-fn module_graph_manifest_path(src_path: str) -> str {
-    return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".manifest")));
-}
-fn module_graph_source_path(src_path: str) -> str {
-    return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".resolved")));
-}
-
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
     // T1.5a (v0.2.340): tools-suite resolver brought to parity with the
     // s1 compiler resolver. Previously this only handled
@@ -14600,10 +14577,6 @@ fn expand_async_await(src: str) -> str {
         };
     };
     return sb_to_str(sb);
-}
-
-fn expand_async_syntax(src: str) -> str {
-    return expand_async_await(expand_async_strip_keyword(src));
 }
 
 // ===== T2.3 (v0.2.349): closure literals (synced from s1) =====
