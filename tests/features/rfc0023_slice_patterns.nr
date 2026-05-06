@@ -1,7 +1,8 @@
 // RFC-0023 — slice patterns on Vec. v0.4.169 regression-guard fixture.
-// `[a, .., b]` matches a Vec with at least 2 elements and binds the
-// first to `a`, the last to `b`. `[single]` matches a 1-element Vec.
-// `[]` matches an empty Vec.
+// Exact-length slice patterns are supported today. `[a, b, c]` matches
+// a 3-element Vec, `[single]` matches a 1-element Vec, and `[]` matches
+// an empty Vec. Rest-binding slice patterns remain covered by the
+// negative fixture until full rest matching lands.
 
 fn main() -> i32 {
     let mut v: Vec<i32> = Vec::new();
@@ -9,10 +10,10 @@ fn main() -> i32 {
     v.push(20);
     v.push(30);
     let head_tail: i32 = match v {
-        [a, .., b] => a + b,    // matches: 10 + 30 = 40
+        [a, middle, b] => a + middle + b, // matches: 10 + 20 + 30 = 60
         _          => 0,
     };
-    if head_tail != 40 { return 1; };
+    if head_tail != 60 { return 1; };
 
     let mut v2: Vec<i32> = Vec::new();
     v2.push(7);

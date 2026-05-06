@@ -46,7 +46,10 @@ fn json_from_f64(val: i64) -> Vec<i32> { return json_new(6, val); }
 
 fn json_array_new() -> Vec<i32> {
     let mut elems: Vec<i32> = Vec::new();
-    return json_new(4, elems);
+    let mut v: Vec<i32> = Vec::new();
+    v.push(4);
+    v.push(elems);
+    return v;
 }
 
 fn json_array_push(arr: Vec<i32>, val: Vec<i32>) {
@@ -57,7 +60,11 @@ fn json_array_push(arr: Vec<i32>, val: Vec<i32>) {
 fn json_object_new() -> Vec<i32> {
     let mut keys: Vec<i32> = Vec::new();
     let mut vals: Vec<i32> = Vec::new();
-    return json_new_obj(keys, vals);
+    let mut v: Vec<i32> = Vec::new();
+    v.push(5);
+    v.push(keys);
+    v.push(vals);
+    return v;
 }
 
 fn json_object_set(obj: Vec<i32>, key: str, val: Vec<i32>) {

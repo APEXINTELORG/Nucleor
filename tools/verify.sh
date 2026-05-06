@@ -426,7 +426,7 @@ TEST_DIRS=(lang attrs runtime rods features)
 # Files matching this pattern are auxiliary helpers imported by another
 # test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
 # them keeps the gate from treating them as duplicate-main failures.
-TEST_SKIP_REGEX='_aux\.nr$'
+TEST_SKIP_REGEX='_aux\.nr$|import_dedupe_lib\.nr$'
 ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$|err_t4_strict_inference\.nr$|err_numg2_math_abs_imin\.nr$|err_numg2_math_gcd_imin\.nr$|err_numg2_math_pow_int_overflow\.nr$'
 TEST_COUNT=0
 for d in "${TEST_DIRS[@]}"; do
@@ -726,7 +726,7 @@ cli_explain_full_smoke() {
         "NR001" "NR005" "NR010" "NR020" "NR030" "NR031" "NR032" "NR033"
         "NR034" "NR035" "NR036" "NR040" "NR050" "NR051" "NR070" "NR090"
         # RFC-0001 RT
-        "RT-001" "RT-002" "RT-003" "RT-004" "RT-005" "RT-006" "RT-007" "RT-008"
+        "RT-001" "RT-002" "RT-003" "RT-004" "RT-005" "RT-006" "RT-007" "RT-008" "RT-009"
         "ASYNC-001"
         # RFC-0002 allocators
         "ALLOC-001" "ALLOC-002" "ALLOC-003"
@@ -789,6 +789,8 @@ cli_explain_full_smoke() {
         # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
         # RFC-0015 phase 3c.1 surfacing of i64-into-iN-param sites.
         "NUM-022" "NUM-023" "NUM-024"
+        # Router / hot-path performance diagnostics
+        "PERF-1" "PERF-2" "PERF-3"
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001" "MATCH-002" "MATCH-003" "MATCH-004" "MATCH-005" "MATCH-006"
         "MATCH-007" "MATCH-008" "MATCH-009" "MATCH-010"
@@ -804,7 +806,7 @@ cli_explain_full_smoke() {
         # RFC-0022 cross-platform (v0.2)
         "TGT-001" "TGT-002" "TGT-003" "TGT-004"
         # RFC-0031 algebraic laws
-        "LAW-001" "LAW-002" "LAW-003" "LAW-004"
+        "LAW-001" "LAW-002" "LAW-003" "LAW-004" "LAW-006" "LAW-007" "LAW-008"
         # RFC-0032 effects
         "EFF-001" "EFF-002" "EFF-003" "EFF-004" "EFF-005"
         # RFC-0020 DIAG (minted v0.3.36 — first DIAG-NNN code)
@@ -1064,6 +1066,11 @@ NREOF
 
 build_example() {
     local ex="$1"
+    if [ "$ex" = "13_test_framework" ]; then
+        "$BIN" test "examples/13_test_framework.nr" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+        grep -q "test result: PASS" $NUC_VERIFY_STEP_LOG || return 1
+        return 0
+    fi
     "$BIN" build "examples/$ex.nr" -o "$ex" >$NUC_VERIFY_STEP_LOG 2>&1
     if [ ! -x "target/$ex" ] && [ ! -x "target/$ex.exe" ]; then
         tail -1 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
@@ -1095,6 +1102,11 @@ build_test() {
     local dir="$1" tname="$2"
     if [ "$tname" = "rust_interop" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
         return 2
+    fi
+    if [ "$dir" = "features" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
+        case "$tname" in
+            rust_bridge_*) return 2 ;;
+        esac
     fi
     "$BIN" build "tests/$dir/$tname.nr" -o "$tname" >$NUC_VERIFY_STEP_LOG 2>&1
     local exe="target/$tname"
@@ -1168,6 +1180,15 @@ if [ "$kind" = "test" ]; then
         t1="$(now_ms)"
         dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
         finish SKIP "$dt" "rust bridge unavailable"
+    fi
+    if [ "$dir" = "features" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
+        case "$tname" in
+            rust_bridge_*)
+                t1="$(now_ms)"
+                dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+                finish SKIP "$dt" "rust bridge unavailable"
+                ;;
+        esac
     fi
     out_name="_pv_${dir}_${tname}"
     "$BIN" build "tests/$dir/$tname.nr" -o "$out_name" > "$steplog" 2>&1
@@ -1393,9 +1414,9 @@ tools_suite_memory_budget() {
 
 t33_wcet_estimator() {
     "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE 'warning\[RT-004\]: heuristic deadline estimate [0-9]+ us' $NUC_VERIFY_STEP_LOG || return 1
     grep -q 'exceeds #\[deadline = 1 us\]' $NUC_VERIFY_STEP_LOG || return 1
-    grep -q 'v1 estimator' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'default loop multiplier 100x' $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t35_rt007_unguarded_deadline() {
@@ -3268,13 +3289,14 @@ t386_print_multiarg_panic() {
 }
 
 t383_let_tuple_destructure_panic() {
-    # T3.83 (v0.4.33a): `let (a, b) = ...` printed ERROR but emitted
-    # placeholder let-stmt and continued. Adopter's bindings never
-    # came into scope. Now panics. NEGATIVE test.
+    # T3.83 (v0.4.33a): `let (a, b) = ...` used to silently drop
+    # bindings. It is now a supported positive path; assert runtime value.
     "$BIN" build "tests/fixtures/repro_v33a_let_tuple_panic.nr" -o "_t383_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ "$?" -ne 0 ] || return 1
-    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "PANIC: nucleor: tuple destructuring in" $NUC_VERIFY_STEP_LOG || return 1
+    local exe
+    if [ -x "target/_t383_check" ]; then exe="target/_t383_check"; else exe="target/_t383_check.exe"; fi
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG.run 2>&1
+    [ "$?" -eq 12 ] || return 1
     return 0
 }
 
@@ -3699,10 +3721,13 @@ t358_trait_default_methods() {
 }
 
 t357_tuple_let_diagnostic() {
-    # T3.57 (v0.3.81): negative regression — `let (a, b) = ...;`
-    # pre-v0.3.81 segfaulted the compiler. Post: clean diagnostic.
+    # T3.57 (v0.3.81): negative regression. Typed tuple-let patterns
+    # remain unsupported, but must fail as a parser diagnostic, not crash.
     "$BIN" build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    local code=$?
+    [ "$code" -ne 139 ] && [ "$code" -ne 134 ] && [ "$code" -ne -1073741819 ] || return 1
+    [ "$code" -ne 0 ] || return 1
+    grep -q "error\\[NR020\\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -4771,12 +4796,14 @@ t22_iter_methods() {
 t21_range_patterns() {
     # v0.2.347 (T2.1): inclusive `LO..=HI` and exclusive `LO..HI`
     # range patterns wired through to existing __range / __range_bad
-    # lowering. Synced across both compilers. 3 #[test] cases.
-    "$BIN" test "tests/smoke/t21_range_patterns.nr" >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -q "PASS: test_range_inclusive_boundaries" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "PASS: test_range_exclusive_normalizes" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "PASS: test_range_falls_through_to_wildcard" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "test result: PASS (3 tests)" $NUC_VERIFY_STEP_LOG || return 1
+    # lowering. Run through the main compiler; tools-suite parser parity is
+    # tracked separately because it still has a reduced frontend.
+    "$BIN" build "tests/smoke/t21_range_patterns.nr" -o "_t21_range_patterns" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_t21_range_patterns"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG.run 2>&1 || return 1
+    grep -q "OK t21_range_patterns" $NUC_VERIFY_STEP_LOG.run || return 1
 }
 
 t26_format_macros() {

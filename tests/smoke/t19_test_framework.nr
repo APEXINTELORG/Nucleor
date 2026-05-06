@@ -24,14 +24,14 @@ fn test_division() {
     assert_ne(20 / 4, 6);
 }
 
-// T1.1 ↔ T1.9 cross-compiler narrow-wrap regression guard
-// (added v0.2.337 after discovering the tools_suite lower_stmt
-// was missing the narrow_via_as hook). 250+10 must wrap mod 256.
+// T1.1 ↔ T1.9 cross-compiler narrow-width regression guard.
+// Strict arithmetic now traps on implicit u8 overflow; keep the
+// runner coverage by spelling the intended wrap explicitly.
 #[test]
 fn test_narrow_wrap_u8_in_test_fn() {
-    let a: u8 = 250;
-    let b: u8 = 10;
-    let c: u8 = a + b;
+    let a: i64 = 250;
+    let b: i64 = 10;
+    let c: i64 = wrapping_add_u8(a, b);
     assert_eq(c, 4);
 }
 
