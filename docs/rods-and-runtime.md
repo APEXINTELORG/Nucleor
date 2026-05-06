@@ -157,7 +157,8 @@ rod with stability and API surface live in
 | `gpu.nr`        | GPU kernel orchestration |
 | `multi_core.nr` | Multi-core trace recording for ensemble experiments |
 | `ridge.nr`      | Ridge regression with gradient descent (pure Nucleor) |
-| `twin_core.nr`  | Twin-core comparison utilities |
+| `twin_core.nr`  | Backward-compatible quantum noise twin-core comparison utilities |
+| `quantum_twin.nr` | Honest alias for the twin-core quantum noise model; not a robotics digital twin |
 
 ## The runtime boundary
 

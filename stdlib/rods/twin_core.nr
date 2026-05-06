@@ -7,6 +7,10 @@
 //
 // Extracts 12 differential features for ML noise prediction.
 // Import: import "twin_core.nr"  (from stdlib/rods/)
+//
+// Naming note: this is a quantum noise twin, not a robotics
+// digital-twin / sim-to-real surface. New code may import the
+// compatibility alias `quantum_twin.nr` for clearer intent.
 // =====================================================
 
 import "quantum.nr"

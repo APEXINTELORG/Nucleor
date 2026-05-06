@@ -454,6 +454,11 @@ launch. After memory safety completes, these are next-priority.
   OBB centers with fixed orientations; `collision_obb_ccd_smoke.nr`
   locks overlap, clear, initial-hit, swept-hit, and swept-clear cases.
   Remaining gap: angular CCD and convex mesh-vs-mesh sweep.
+- **ROBO-11 quantum twin naming:** DONE for Phase 1 on 2026-05-06.
+  `quantum_twin.nr` is now the honest import alias for the existing
+  twin-core quantum noise model, while `twin_core.nr` remains
+  backward compatible and explicitly says it is not a robotics digital
+  twin. Remaining gap: real robotics digital twin / sim-to-real rod.
 
 ## Sequencing — proposed waves
 
