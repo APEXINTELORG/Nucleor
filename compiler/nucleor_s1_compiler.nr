@@ -16823,7 +16823,10 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
             let bod_len: i64 = str_len(body);
             if bod_len > 0 {
                 // Pre-compute a single set of substring presence flags.
-                let has_print: i64 = if str_index_of(body, "print(") >= 0 { 1 } else { if str_index_of(body, "println(") >= 0 { 1 } else { 0 } };
+                let has_print: i64 = if str_index_of(body, "print(") >= 0 { 1 } else {
+                    if str_index_of(body, "println(") >= 0 { 1 } else {
+                        if str_index_of(body, "print_") >= 0 { 1 } else {
+                            if str_index_of(body, "eprint") >= 0 { 1 } else { 0 } } } };
                 let has_alloc: i64 = if str_index_of(body, "Vec::new") >= 0 { 1 } else { if str_index_of(body, "Box::new") >= 0 { 1 } else { 0 } };
                 let has_panic: i64 = if str_index_of(body, "panic(") >= 0 { 1 } else {
                     if str_index_of(body, ".unwrap(") >= 0 { 1 } else {
@@ -16873,7 +16876,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                     if pcode == 0 && str_index_of(pure_body, "spawn {") >= 0 { pcode = 4; };
                     if pcode == 0 && str_index_of(pure_body, "channel(") >= 0 { pcode = 5; };
                     if pcode > 0 {
-                        let kind2: str = if pcode == 1 { "calls print() / println() — I/O is not pure" }
+                        let kind2: str = if pcode == 1 { "calls print/println/print_* — I/O is not pure" }
                             else if pcode == 2 { "allocates (Vec::new / Box::new) — heap allocation is not pure" }
                             else if pcode == 3 { "uses ambient capability (ambient_*) — non-deterministic input is not pure" }
                             else if pcode == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
@@ -17190,7 +17193,7 @@ fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
 // closure is Phase 2 (audit ship plan step 2).
 
 // Returns 0 (clean) or non-zero code naming the first effect:
-//   1 = print
+//   1 = print / print_* / eprint*
 //   2 = allocation (Vec::new / Box::new)
 //   3 = ambient capability (ambient_random / ambient_*)
 #[manual_drop]
@@ -17224,6 +17227,8 @@ fn pure_fn_body_effect_code(source: str, fn_name: str) -> i64 {
     let body: str = str_substring(source, body_start, body_end);
     if str_index_of(body, "print(") >= 0 { return 1; };
     if str_index_of(body, "println(") >= 0 { return 1; };
+    if str_index_of(body, "print_") >= 0 { return 1; };
+    if str_index_of(body, "eprint") >= 0 { return 1; };
     if str_index_of(body, "Vec::new") >= 0 { return 2; };
     if str_index_of(body, "Box::new") >= 0 { return 2; };
     if str_index_of(body, "ambient_random") >= 0 { return 3; };
@@ -17529,7 +17534,7 @@ fn enforce_heap_in_loop(diags: Vec<i32>, source: str) -> Vec<i32> {
 // Find the body of `fn <name>(...)` and scan for effectful
 // substrings. Returns 0 if pure (or not found), or a non-zero
 // code naming the first effect found:
-//   1 = print
+//   1 = print / print_* / eprint*
 //   2 = allocation (Vec::new / Box::new)
 //   3 = panic / unwrap / expect / assert
 //   4 = ambient capability (ambient_random / ambient_*)
@@ -17563,6 +17568,9 @@ fn const_fn_body_effect_code(source: str, fn_name: str) -> i64 {
     };
     let body: str = str_substring(source, body_start, body_end);
     if str_index_of(body, "print(") >= 0 { return 1; };
+    if str_index_of(body, "println(") >= 0 { return 1; };
+    if str_index_of(body, "print_") >= 0 { return 1; };
+    if str_index_of(body, "eprint") >= 0 { return 1; };
     if str_index_of(body, "Vec::new") >= 0 { return 2; };
     if str_index_of(body, "Box::new") >= 0 { return 2; };
     if str_index_of(body, "panic(") >= 0 { return 3; };
@@ -31050,8 +31058,9 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability audit-pass info.
     // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
     // no-signal class with EFF-001 for print/alloc/ambient capability use.
-    // v0829 adds bounded same-file pure-call transitive checking for
-    // user helpers whose bodies contain direct side effects.
+    // v0829/v0831 add bounded same-file pure-call checking for user helpers
+    // whose bodies contain direct side effects, requires-row surfaces, and
+    // builtin print-family I/O.
     // The remaining trust gap is the effect-row surface:
     // `requires [...]`, real block-form `restricts [...]` enforcement,
     // transitive requires-row propagation, and cross-module propagation
@@ -31074,7 +31083,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects now fail with EFF-001, pure calls to undeclared extern/default-unsafe surfaces and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond one-hop same-file calls: real restricts-block enforcement, transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond bounded same-file calls: real restricts-block enforcement, deeper transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts

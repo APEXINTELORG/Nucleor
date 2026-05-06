@@ -62,17 +62,24 @@ launch. After memory safety completes, these are next-priority.
   `nuc build` emits `EFF-001` for direct print/alloc/ambient-capability
   use; active fixtures `err_pure_print_build.nr` and
   `err_pure_ambient_random.nr` lock this.
-- **E-9 same-file pure transitive user-call check:** DONE for
+- **E-9 same-file pure transitive user/requires-row check:** DONE for
   Phase 2b partial on 2026-05-06 — `pure fn` now emits `EFF-001`
   when it calls a same-file user helper whose body directly performs
-  print/alloc/ambient side effects; active fixture
-  `err_pure_transitive_user_effect.nr` locks this.
+  print/alloc/ambient side effects, when it calls a same-file function
+  declaring a `requires [...]` row, or when it calls a same-file wrapper
+  that immediately violates a callee requires row; active fixtures
+  `err_pure_transitive_user_effect.nr`, `err_pure_violation.nr`, and
+  `err_pure_inference.nr` lock this.
 - **E-10/E-11 pure effect-surface expansion:** DONE for another
   Phase 2b partial on 2026-05-06 — `pure fn` now emits `EFF-001`
   for undeclared extern calls, structured scheduling blocks
   (`scope { ... }` / `spawn { ... }`), and `channel(...)`; active
   fixtures `err_pure_extern_default_effect.nr` and
   `err_pure_scope_schedule.nr` lock the first two surfaces.
+- **E-12 pure builtin print-family I/O:** DONE for Phase 2b partial on
+  2026-05-06 — pure/const/hot body scans now treat `print_*` and
+  `eprint*` helper calls as I/O; active fixture
+  `err_pure_builtin_io.nr` locks the archived `print_int` case.
 - **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
   Phase 1 — `nuc build` emits `EFF-002`; active fixture
   `err_pure_requires.nr` locks this.
@@ -89,10 +96,10 @@ launch. After memory safety completes, these are next-priority.
   relied on as a compile-time guarantee; active fixture
   `err_restricts_builtin_io.nr` locks this.
 - **Still open:** full standalone `requires [...]` row enforcement
-  beyond direct same-file calls, real block-form `restricts [...]`
-  enforcement, transitive `requires [...]` row propagation, cross-module
-  propagation, method/closure/higher-order effects, and broader RFC-0033
-  effect-row subtyping.
+  beyond bounded same-file/direct-wrapper calls, real block-form
+  `restricts [...]` enforcement, deeper transitive `requires [...]` row
+  propagation, cross-module propagation, method/closure/higher-order
+  effects, and broader RFC-0033 effect-row subtyping.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
@@ -387,6 +394,11 @@ proper analysis → Phase 4 hard error):
   in the build path with `EFF-001`; fixtures
   `err_pure_extern_default_effect.nr` and `err_pure_scope_schedule.nr`
   moved out of `_unimplemented/`.
+- **2026-05-06**: Effect/capability Phase 2b fixture promotion advanced.
+  Archived pure negatives for builtin print-family I/O, direct
+  `requires [...]` callee calls, and immediate wrapper inference now live
+  under `tests/err/` as `err_pure_builtin_io.nr`,
+  `err_pure_violation.nr`, and `err_pure_inference.nr`.
 - **2026-05-06**: TOOLCHAIN-PY-1 closed. `nuc verify-reproducible`
   no longer requires Python for its Windows byte-compare path; it
   now uses `fc /B` for linked binary comparison and retains `cmp -s`

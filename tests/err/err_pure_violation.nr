@@ -1,4 +1,6 @@
-// Error test: pure function cannot call effectful function
+// EXPECT: error[EFF-001]
+// R05-D4 Phase 2b: pure functions cannot call same-file functions
+// whose `requires [...]` row declares an effect.
 fn read_data() -> i32 requires [io.read] {
     42
 }
