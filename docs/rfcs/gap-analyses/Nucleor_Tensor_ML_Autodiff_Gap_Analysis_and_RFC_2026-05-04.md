@@ -83,6 +83,8 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 
 Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` now trains a 2-layer MLP on XOR using dense forward/backward, sigmoid backward, gradient zeroing, and Adam updates, then asserts the four predictions land on the correct side of 0.5.
 
+Update 2026-05-06 helper1 v0868: `tests/features/gnn_node_convergence_smoke.nr` now trains a one-channel GATv2 layer on a two-node self-loop graph, using sigmoid loss, `gnn_gatv2_backward`, `gnn_gatv2_zero_grad`, and Adam updates. The fixture asserts the learned node scores separate the two node classes and that the final prediction gap improves materially over the initial gap. SSM and transformer convergence tests remain open ML-13 P2 work.
+
 ## ML-14 — Autodiff not composable with rod kernels — **HIGH**
 `autodiff.nr` uses flat global tape with handle-based nodes. `nn_rt.c` implements own internal gradient accumulation. **Two systems entirely separate** — no bridge that registers `nuc_nn_dense_forward` as differentiable op on the autodiff tape. User cannot build `loss = cross_entropy(nn_forward(x), target); ad_grad(loss, x)` because dense layer is not a tape node.
 
@@ -126,7 +128,7 @@ Update 2026-05-06 helper1 v0866: `tensor_nd` now has explicit int and bool 2D/ND
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`. **Shipped helper1 v0862 with focused forward/backward fixture coverage.**
 - ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block. **Shipped helper1 v0863 with causal attention and encoder-memory cross-attention fixture coverage.**
-- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training).
+- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training). **GNN P2a shipped helper1 v0868 with a trainable two-node GATv2 node-classification fixture; SSM and transformer remain open.**
 
 **Phase 3 (medium-term, integration):**
 - ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape.
