@@ -47,6 +47,8 @@ Update 2026-05-06 helper1 v0861: `attn_flash_cross` and `attn_gqa_cross` are pub
 ## ML-5 — SSM rods: no backward / gradient paths — **HIGH**
 `ssm.nr` exposes forward kernels only. Training Mamba/RWKV/xLSTM requires backward through selective scan and WKV recurrences. None exist in `ssm_rt.c`. Training loop using `autodiff.nr` cannot differentiate through these kernels (opaque C functions not on autodiff tape).
 
+Update 2026-05-06 helper1 v0869: `ssm_selective_scan_backward(...)` now returns gradients for `x`, `delta`, `A`, `B`, and `C` for the Mamba-style selective scan. `tests/features/ssm_sequence_convergence_smoke.nr` uses that backward surface to train scalar per-step `B[t]` weights against a cumulative sequence target and asserts material loss reduction plus final prediction accuracy. Residual: SSD/RWKV/xLSTM backward paths and autodiff-tape integration remain open.
+
 ## ML-6 — Quantize: no FP8 gemv / no grouped quantization — **HIGH**
 `nuc_quant_fp8_encode` exists but no `nuc_quant_fp8_gemv` or `_dot`. **FP8 path is encode-only; no inference possible with FP8 weights.** No grouped (per-group-of-N) quantization surface — standard format for GPTQ-style 4-bit inference (which the MLV project uses).
 
@@ -84,6 +86,8 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 Update 2026-05-06 helper1 v0864: `tests/features/nn_xor_convergence_smoke.nr` now trains a 2-layer MLP on XOR using dense forward/backward, sigmoid backward, gradient zeroing, and Adam updates, then asserts the four predictions land on the correct side of 0.5.
 
 Update 2026-05-06 helper1 v0868: `tests/features/gnn_node_convergence_smoke.nr` now trains a one-channel GATv2 layer on a two-node self-loop graph, using sigmoid loss, `gnn_gatv2_backward`, `gnn_gatv2_zero_grad`, and Adam updates. The fixture asserts the learned node scores separate the two node classes and that the final prediction gap improves materially over the initial gap. SSM and transformer convergence tests remain open ML-13 P2 work.
+
+Update 2026-05-06 helper1 v0869: `tests/features/ssm_sequence_convergence_smoke.nr` now covers SSM sequence-prediction convergence for the selective-scan path. It trains scalar `B[t]` parameters using `ssm_selective_scan_backward` and asserts the learned sequence matches `[0.5, 1.0, 1.5, 2.0]` within tolerance. Transformer small-LM convergence remains open ML-13 P2 work.
 
 ## ML-14 — Autodiff not composable with rod kernels — **HIGH**
 `autodiff.nr` uses flat global tape with handle-based nodes. `nn_rt.c` implements own internal gradient accumulation. **Two systems entirely separate** — no bridge that registers `nuc_nn_dense_forward` as differentiable op on the autodiff tape. User cannot build `loss = cross_entropy(nn_forward(x), target); ad_grad(loss, x)` because dense layer is not a tape node.
@@ -128,10 +132,10 @@ Update 2026-05-06 helper1 v0866: `tensor_nd` now has explicit int and bool 2D/ND
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
 - ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`. **Shipped helper1 v0862 with focused forward/backward fixture coverage.**
 - ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block. **Shipped helper1 v0863 with causal attention and encoder-memory cross-attention fixture coverage.**
-- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training). **GNN P2a shipped helper1 v0868 with a trainable two-node GATv2 node-classification fixture; SSM and transformer remain open.**
+- ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training). **GNN P2a shipped helper1 v0868 with a trainable two-node GATv2 node-classification fixture; SSM P2b shipped helper1 v0869 with a selective-scan sequence-prediction convergence fixture; transformer remains open.**
 
 **Phase 3 (medium-term, integration):**
-- ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape.
+- ML-5: add backward passes for SSM kernels (Mamba, RWKV, xLSTM). Wire into autodiff tape. **P1 shipped helper1 v0869 for Mamba-style selective-scan backward returning gradients for x/delta/A/B/C; SSD/RWKV/xLSTM backward and autodiff-tape integration remain open.**
 - ML-8: add Conv1d and Conv2d learnable layers in `nn.nr`. **Shipped helper1 v0865 as functional Conv1D/Conv2D/depthwise Conv2D forward+backward kernels; optimizer-owned stateful layer objects remain future work.**
 - ML-14: implement bridge between `autodiff` tape and `nn` rod. Each NN layer becomes a registered op on the autodiff graph. `loss = cross_entropy(nn_forward(x), y); ad_grad(loss, x)` works. **P2a shipped helper1 v0867 for Dense input-gradient composition by lowering dense forward into scalar tape nodes; opaque registered layer ops, parameter gradients, and conv/norm/attention bridge coverage remain open.**
 - ML-15 P2: add int tensor and bool mask tensor types to `tensor_nd`. Mixed-precision path. **P2a shipped helper1 v0866 for explicit int/bool tensor constructors, dtype codes, typed flat accessors, and bool mask storage; f32/f64 named dtype and compiler-visible TensorShape/typed tensor checking remain open.**
