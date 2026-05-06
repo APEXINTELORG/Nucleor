@@ -267,3 +267,85 @@ long long nuc_threadpool_map(long long pool_h, long long fn_ptr, long long vec_h
     free(futures);
     return (long long)out;
 }
+
+// ================================================================
+//  Reusable Barrier
+// ================================================================
+
+typedef struct {
+    long long parties;
+    long long waiting;
+    long long generation;
+#ifdef _WIN32
+    CRITICAL_SECTION lock;
+    CONDITION_VARIABLE cond;
+#else
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+#endif
+} NucBarrier;
+
+long long nuc_barrier_new(long long parties) {
+    if (parties < 1) return 0;
+    NucBarrier *b = (NucBarrier *)calloc(1, sizeof(NucBarrier));
+    if (!b) return 0;
+    b->parties = parties;
+#ifdef _WIN32
+    InitializeCriticalSection(&b->lock);
+    InitializeConditionVariable(&b->cond);
+#else
+    pthread_mutex_init(&b->lock, NULL);
+    pthread_cond_init(&b->cond, NULL);
+#endif
+    return (long long)b;
+}
+
+long long nuc_barrier_wait(long long barrier_h) {
+    NucBarrier *b = (NucBarrier *)(void *)barrier_h;
+    if (!b || b->parties < 1) return -1;
+    long long rc = 0;
+#ifdef _WIN32
+    EnterCriticalSection(&b->lock);
+    long long generation = b->generation;
+    b->waiting++;
+    if (b->waiting >= b->parties) {
+        b->waiting = 0;
+        b->generation++;
+        WakeAllConditionVariable(&b->cond);
+        rc = 1;
+    } else {
+        while (generation == b->generation) {
+            SleepConditionVariableCS(&b->cond, &b->lock, INFINITE);
+        }
+    }
+    LeaveCriticalSection(&b->lock);
+#else
+    pthread_mutex_lock(&b->lock);
+    long long generation = b->generation;
+    b->waiting++;
+    if (b->waiting >= b->parties) {
+        b->waiting = 0;
+        b->generation++;
+        pthread_cond_broadcast(&b->cond);
+        rc = 1;
+    } else {
+        while (generation == b->generation) {
+            pthread_cond_wait(&b->cond, &b->lock);
+        }
+    }
+    pthread_mutex_unlock(&b->lock);
+#endif
+    return rc;
+}
+
+void nuc_barrier_free(long long barrier_h) {
+    NucBarrier *b = (NucBarrier *)(void *)barrier_h;
+    if (!b) return;
+#ifdef _WIN32
+    DeleteCriticalSection(&b->lock);
+#else
+    pthread_mutex_destroy(&b->lock);
+    pthread_cond_destroy(&b->cond);
+#endif
+    free(b);
+}
