@@ -19,11 +19,15 @@ fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MATRIX="$ROOT/tests/lang/numerics_matrix"
-NUCLEOR="$ROOT/bin/nucleor.exe"
 TGT="$ROOT/target"
 
-if [[ ! -x "$NUCLEOR" && ! -f "$NUCLEOR" ]]; then
-    echo "ERROR: $NUCLEOR not found. Build the compiler first." >&2
+# Prefer the POSIX bare binary; fall back to .exe on Windows/WSL.
+if [[ -x "$ROOT/bin/nucleor" ]]; then
+    NUCLEOR="$ROOT/bin/nucleor"
+elif [[ -x "$ROOT/bin/nucleor.exe" ]]; then
+    NUCLEOR="$ROOT/bin/nucleor.exe"
+else
+    echo "ERROR: bin/nucleor (or bin/nucleor.exe) not found. Build the compiler first." >&2
     exit 0
 fi
 

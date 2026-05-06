@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.323] — 2026-05-06
+
+**Compiler identity hardening and RFC-0063 native tooling prep.**
+
+### Fixed
+
+- `nucleor --version` now reports `0.8.323` from the promoted compiler
+  binary instead of the stale `0.4.180` identity string.
+- `tools/check_compiler_drift.sh` now checks that the s1 compiler, tools
+  suite, promoted binary, and latest changelog heading agree on the
+  compiler version.
+- The native `.nr` generator path in `tools/check_compiler_drift.sh` now
+  builds from repo-relative paths and executes the Windows `.exe` artifact
+  when the gate is run through WSL.
+
+### Changed
+
+- Added the RFC-0063 native release-index generator path so `RELEASES.md`
+  freshness can be checked without adding a new Python product dependency.
+
 ## [0.8.322] — 2026-05-05
 
 **Effect/capability Phase 1 — fail closed on unenforced restricts blocks.**

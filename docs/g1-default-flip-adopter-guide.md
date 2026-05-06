@@ -77,25 +77,27 @@ pipeline. With/without the env var:
   auto-drop call inserted at fn exit). Runtime returns rc=3
   (same observable behavior; the leak is silently fixed).
 
-## Known gap (v0.8.39)
+## Historical gap (v0.8.39 — closed v0.8.75)
 
-The env-flip mechanism works for adopter fixtures but produces
-byte-identical IR for the seed compiler self-host. The seed has
-89 default-flip-candidate fns (per `tools/g1_safety_audit_report.txt`)
-that don't receive the generated drop calls under the env var.
+The env-flip mechanism worked for adopter fixtures but produced
+byte-identical IR for the seed compiler self-host. The seed had
+89 default-flip-candidate fns (audited via the now-retired
+`tools/g1_default_flip_safety_audit.py`) that didn't receive the
+generated drop calls under the env var.
 
-The gap is between `name_in_auto_drop` returning 1 and
-`auto_drop_register` actually registering the binding for cleanup.
-Hypotheses are documented in `docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md`
-§2b-3-trace investigation notes. The unconditional default-flip
-(Phase 2b-3 final) waits on resolving this gap.
+The gap was traced to `name_in_auto_drop` returning 1 while
+`auto_drop_register` failed to register the binding for cleanup.
+Root cause and resolution are documented in
+`docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md` §2b-3-trace. The
+unconditional default-flip landed in v0.8.75.
 
 ## Timeline
 
 - v0.8.31–v0.8.32: `#[manual_drop]` reserved + suppress wired
-- v0.8.35–v0.8.37: safety audit tool + auto-classifier
+- v0.8.35–v0.8.37: safety audit tool + auto-classifier (retired
+  v0.8.323 — RFC-0063 Phase 1.1; one-shot purpose served)
 - v0.8.39: env-gated flip experiment (this ship enables this guide)
-- vNext: trace + fix the seed-side gap
-- vNext+1: Phase 2b-3 — flip default unconditionally
-- vNext+2: Phase 4 — `#[manual_drop]` becomes only valid in
-  unsafe blocks; remove the env-var gate
+- v0.8.64: cache_v2_canonical_flags root-caused; trace closed
+- v0.8.75: Phase 2b-3 — default-flip unconditional ✅
+- v1.0 (target): Phase 4 — `#[manual_drop]` becomes only valid in
+  unsafe blocks; env-var gate removed
