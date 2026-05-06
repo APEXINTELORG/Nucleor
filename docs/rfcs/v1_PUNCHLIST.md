@@ -357,6 +357,16 @@ launch. After memory safety completes, these are next-priority.
   non-adjacent, reverse-direction, invalid, and non-CNOT reset
   behavior. Remaining gap: the overhead is not yet emitted into S12b
   trace records.
+- **QM-5 MPS SVD convergence/clamp diagnostics:** DONE for Phase 1 on
+  2026-05-06 — `mps_last_svd_converged`,
+  `mps_last_svd_sweeps`, `mps_last_svd_off_norm`,
+  `mps_last_svd_negative_clamps`, `mps_total_svd_nonconverged`,
+  and `mps_total_svd_negative_clamps` expose the Jacobi SVD
+  convergence and negative-eigenvalue-clamp boundary. The focused
+  `mps_svd_diagnostics_smoke.nr` locks initial/default status and a
+  Bell two-qubit SVD that converges without clamps. Remaining gap:
+  truncation-error magnitude is still not quantified, and
+  nonconvergence is reported rather than hard-failed.
 - **QM-6 MPS Bell probability fixture:** DONE for Phase 1+2c on
   2026-05-06 — `mps_prob0(h, q)` exposes single-qubit probability
   readout from the MPS contraction, `mps_prob_basis(h, basis_bits)`

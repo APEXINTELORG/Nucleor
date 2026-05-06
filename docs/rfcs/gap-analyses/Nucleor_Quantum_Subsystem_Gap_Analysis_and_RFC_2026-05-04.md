@@ -69,6 +69,17 @@ Remaining gap: the overhead is not yet wired into S12b trace records.
 ## QM-5 — MPS SVD: 100-iter Jacobi with silent clamp on negative eigenvalues — **HIGH**
 Correct for small bond dimensions but no documented convergence guarantee beyond 1e-28 off-norm. Near max bond (64), SVD may not converge; singular values silently clamped to zero via `max(eigenvalue, 0)` — **potential silent truncation error with no warning.**
 
+**2026-05-06 update:** Phase 1 MPS SVD status diagnostics are now
+shipped. `mps_last_svd_converged(h)`, `mps_last_svd_sweeps(h)`,
+`mps_last_svd_off_norm(h)`, `mps_last_svd_negative_clamps(h)`,
+`mps_total_svd_nonconverged(h)`, and
+`mps_total_svd_negative_clamps(h)` expose the Jacobi convergence and
+negative-eigenvalue-clamp boundary to Nucleor callers.
+`mps_svd_diagnostics_smoke.nr` locks initial/default status plus a Bell
+two-qubit gate SVD that converges without clamps. Remaining gap:
+truncation-error magnitude is still not quantified and nonconvergence is
+reported rather than promoted to a hard runtime failure.
+
 ## QM-6 — MPS smoke test is allocation-only — **HIGH**
 Original finding: `mps_smoke.nr` tested only `mps_init` + free; no gate was
 applied, no statevector/probability was extracted, and no Bell-state test
@@ -204,7 +215,9 @@ diff_sim noise is learnable parameterized depolarizing but not independently spe
 **Phase 3 (medium-term):**
 - QM-4: Nucleor-facing MPS SWAP-overhead accounting is shipped; remaining
   work is wiring that overhead into S12b trace records.
-- QM-5: add convergence diagnostic to MPS SVD. Warn when 100 iterations don't converge to 1e-28. Document as accuracy boundary.
+- QM-5: Nucleor-facing MPS SVD convergence/clamp diagnostics are shipped;
+  remaining work is truncation-error quantification and optional hard-fail
+  policy for nonconvergence-sensitive callers.
 - QM-10: add Ry/Rz/T/S/CCX/CZ/SWAP CUDA kernels. Implement CPU fallback. Wrap in `gpu_quantum.nr` rod.
 - QM-16: add Kraus-operator noise channel. User can specify per-gate noise model independent of learnable diff_sim parameters.
 - QM-17: add `qsim_if_measure(cond, then_gate, else_gate)` primitive for fast-feedback semantics.

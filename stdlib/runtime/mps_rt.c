@@ -27,6 +27,12 @@ typedef struct {
     int step;
     long long last_swap_overhead;
     long long total_swap_overhead;
+    int last_svd_converged;
+    int last_svd_sweeps;
+    double last_svd_off_norm;
+    int last_svd_negative_clamps;
+    long long total_svd_nonconverged;
+    long long total_svd_negative_clamps;
 } MPS;
 
 typedef struct {
@@ -72,6 +78,12 @@ long long nuc_mps_init(long long nq, long long max_bond) {
     mps->step = 0;
     mps->last_swap_overhead = 0;
     mps->total_swap_overhead = 0;
+    mps->last_svd_converged = 1;
+    mps->last_svd_sweeps = 0;
+    mps->last_svd_off_norm = 0.0;
+    mps->last_svd_negative_clamps = 0;
+    mps->total_svd_nonconverged = 0;
+    mps->total_svd_negative_clamps = 0;
 
     // Initialize to |00...0> state
     // Each tensor A[i] has bond[i]=1, bond[i+1]=1, shape [1,2,1]
@@ -123,9 +135,14 @@ static void mps_apply_1q(MPS *mps, int q, double *gate) {
 // then S = sqrt(eigenvalues), U = M * V * diag(1/S)
 // This is exact for the small matrices in MPS (typically 2-128 rows/cols)
 static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
-                        double *U_re, double *U_im, double *S, double *Vt_re, double *Vt_im, int *k_out) {
+                        double *U_re, double *U_im, double *S, double *Vt_re, double *Vt_im, int *k_out,
+                        int *converged_out, int *sweeps_out, double *off_norm_out, int *negative_clamps_out) {
     int k = m < n ? m : n;
     if (k > max_k) k = max_k;
+    int converged = 0;
+    int sweeps = 0;
+    double final_off_norm = 0.0;
+    int negative_clamps = 0;
 
     // Step 1: Compute A = M^H * M [n x n], Hermitian positive semi-definite
     double *A_re = (double *)calloc(n * n, sizeof(double));
@@ -156,7 +173,9 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
         for (int i = 0; i < n; i++)
             for (int j = i + 1; j < n; j++)
                 off_norm += A_re[i*n+j]*A_re[i*n+j] + A_im[i*n+j]*A_im[i*n+j];
-        if (off_norm < 1e-28) break;
+        final_off_norm = off_norm;
+        sweeps = sweep + 1;
+        if (off_norm < 1e-28) { converged = 1; break; }
 
         for (int p = 0; p < n; p++)
             for (int q = p + 1; q < n; q++) {
@@ -230,6 +249,7 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
     double *eig = (double *)calloc(n, sizeof(double));
     int *idx = (int *)calloc(n, sizeof(int));
     for (int i = 0; i < n; i++) {
+        if (A_re[i*n+i] < 0.0) negative_clamps++;
         eig[i] = A_re[i*n+i] > 0 ? A_re[i*n+i] : 0; // clamp negative eigenvalues
         idx[i] = i;
     }
@@ -273,6 +293,11 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
         for (int i = 0; i < n; i++) { Vt_re[j*n+i] = 0; Vt_im[j*n+i] = 0; }
         for (int i = 0; i < m; i++) { U_re[i*k+j] = 0; U_im[i*k+j] = 0; }
     }
+
+    if (converged_out) *converged_out = converged;
+    if (sweeps_out) *sweeps_out = sweeps;
+    if (off_norm_out) *off_norm_out = final_off_norm;
+    if (negative_clamps_out) *negative_clamps_out = negative_clamps;
 
     free(A_re); free(A_im); free(V_re); free(V_im); free(eig); free(idx);
 }
@@ -351,7 +376,18 @@ void nuc_mps_gate_2q(long long handle, long long q_val, double *gate_4x4_re, dou
     double *Vt_re = (double *)calloc(mps->max_bond * M_cols, sizeof(double));
     double *Vt_im = (double *)calloc(mps->max_bond * M_cols, sizeof(double));
 
-    simple_svd(M_re, M_im, M_rows, M_cols, mps->max_bond, U_re, U_im, S, Vt_re, Vt_im, &new_bond);
+    int svd_converged = 0;
+    int svd_sweeps = 0;
+    double svd_off_norm = 0.0;
+    int svd_negative_clamps = 0;
+    simple_svd(M_re, M_im, M_rows, M_cols, mps->max_bond, U_re, U_im, S, Vt_re, Vt_im, &new_bond,
+               &svd_converged, &svd_sweeps, &svd_off_norm, &svd_negative_clamps);
+    mps->last_svd_converged = svd_converged;
+    mps->last_svd_sweeps = svd_sweeps;
+    mps->last_svd_off_norm = svd_off_norm;
+    mps->last_svd_negative_clamps = svd_negative_clamps;
+    if (!svd_converged) mps->total_svd_nonconverged++;
+    mps->total_svd_negative_clamps += svd_negative_clamps;
 
     // Truncate: keep only singular values above threshold
     double thresh = 1e-10;
@@ -518,6 +554,42 @@ long long nuc_mps_cnot_swap_overhead(long long nq, long long q0, long long q1) {
     long long d = q0 > q1 ? q0 - q1 : q1 - q0;
     if (d <= 1) return 0;
     return 2 * (d - 1);
+}
+
+long long nuc_mps_last_svd_converged(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->last_svd_converged ? 1 : 0;
+}
+
+long long nuc_mps_last_svd_sweeps(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->last_svd_sweeps;
+}
+
+long long nuc_mps_last_svd_off_norm(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return _mf2i(0.0);
+    return _mf2i(mps->last_svd_off_norm);
+}
+
+long long nuc_mps_last_svd_negative_clamps(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->last_svd_negative_clamps;
+}
+
+long long nuc_mps_total_svd_nonconverged(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->total_svd_nonconverged;
+}
+
+long long nuc_mps_total_svd_negative_clamps(long long handle) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps) return 0;
+    return mps->total_svd_negative_clamps;
 }
 
 // Extract features: max bond dimension, mean entropy
