@@ -385,28 +385,45 @@ if tag_list=$(collect_git_tags); then
 fi
 
 # compiler_version_label() ↔ CHANGELOG.md latest heading parity. Catches
-# the drift class where bin/nucleor self-reports a stale version because
-# the literal in compiler_version_label() wasn't bumped during a ship.
-# Latest CHANGELOG version is the first `## [X.Y.Z]` heading in the
-# file (CHANGELOG ordering convention: newest at top).
+# the drift class where bin/nucleor / bin/nucleor_tools self-reports a
+# stale version because the literal in compiler_version_label() wasn't
+# bumped during a ship. Latest CHANGELOG version is the first
+# `## [X.Y.Z]` heading in the file (CHANGELOG ordering convention:
+# newest at top). Both s1 and tools_suite carry their own label
+# (separate binaries, separate versions); both must match.
 ch_latest=$(grep -m1 -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//')
-src_label=$(sed -n '/^fn compiler_version_label/,/^\}/p' "$S1" \
-    | grep -oE 'return "[0-9.]+"' \
-    | head -1 \
-    | sed 's/return "//; s/"//')
+extract_label() {
+    sed -n '/^fn compiler_version_label/,/^\}/p' "$1" \
+        | grep -oE 'return "[0-9.]+"' \
+        | head -1 \
+        | sed 's/return "//; s/"//'
+}
+s1_label=$(extract_label "$S1")
+tools_label=$(extract_label "$TOOLS")
 if [ -z "$ch_latest" ]; then
     echo "WARN: could not extract latest version from CHANGELOG.md"
-elif [ -z "$src_label" ]; then
-    echo "WARN: could not extract compiler_version_label() from $S1"
-elif [ "$ch_latest" != "$src_label" ]; then
-    echo "FAIL: compiler_version_label() returns '$src_label' but CHANGELOG.md latest is '$ch_latest'"
-    echo "  Bump the return literal in compiler/nucleor_s1_compiler.nr fn compiler_version_label()"
-    echo "  to match the latest ## [X.Y.Z] heading in CHANGELOG.md, then regenerate the"
-    echo "  bootstrap seed: ./bin/nucleor build compiler/nucleor_s1_compiler.nr -o target/_seed --emit llvm --no-link"
-    echo "  cp target/_seed.ll bootstrap/nucleor_s1_seed.ll && bash tools/bootstrap_linux.sh"
-    exit 1
 else
-    echo "OK: compiler_version_label() matches CHANGELOG.md ($ch_latest)"
+    fail=0
+    for pair in "s1:$s1_label:$S1" "tools_suite:$tools_label:$TOOLS"; do
+        side="${pair%%:*}"
+        rest="${pair#*:}"
+        label="${rest%%:*}"
+        path="${rest#*:}"
+        if [ -z "$label" ]; then
+            echo "WARN: could not extract compiler_version_label() from $path"
+        elif [ "$ch_latest" != "$label" ]; then
+            echo "FAIL: $side compiler_version_label() returns '$label' but CHANGELOG.md latest is '$ch_latest'"
+            echo "  Bump the return literal in $path fn compiler_version_label()"
+            echo "  to match the latest ## [X.Y.Z] heading in CHANGELOG.md, then regenerate"
+            echo "  the bootstrap seed:"
+            echo "    ./bin/nucleor build $path -o target/_seed --emit llvm --no-link"
+            echo "    bash tools/bootstrap_linux.sh   # if you bumped s1"
+            fail=1
+        else
+            echo "OK: $side compiler_version_label() matches CHANGELOG.md ($ch_latest)"
+        fi
+    done
+    if [ "$fail" = 1 ]; then exit 1; fi
 fi
 
 exit 0
