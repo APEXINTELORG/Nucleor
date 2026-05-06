@@ -332,3 +332,24 @@ long long nuc_tf_cross_entropy(long long pred_h, long long target) {
     double loss = log_sum - _tr_i2f(pred->data[t]);
     return _tr_f2i(loss);
 }
+
+long long nuc_tf_cross_entropy_grad(long long pred_h, long long target) {
+    TRVec *pred = (TRVec *)(void *)pred_h;
+    int n = pred->len;
+    int t = (int)target;
+    TRVec *grad = trvec_new(n);
+
+    double max_val = _tr_i2f(pred->data[0]);
+    for (int i = 1; i < n; i++) {
+        double x = _tr_i2f(pred->data[i]);
+        if (x > max_val) max_val = x;
+    }
+    double sum_exp = 0;
+    for (int i = 0; i < n; i++) sum_exp += exp(_tr_i2f(pred->data[i]) - max_val);
+    for (int i = 0; i < n; i++) {
+        double p = exp(_tr_i2f(pred->data[i]) - max_val) / sum_exp;
+        if (i == t) p -= 1.0;
+        grad->data[i] = _tr_f2i(p);
+    }
+    return (long long)grad;
+}

@@ -28,6 +28,7 @@ extern fn nuc_tf_encoder_decoder_block(tgt_Q_h: i64, tgt_K_h: i64, tgt_V_h: i64,
 extern fn nuc_tf_feedforward(xh: i64, W1_h: i64, b1_h: i64, W2_h: i64, b2_h: i64, d_in: i64, d_hidden: i64) -> i64;
 extern fn nuc_tf_positional_encoding(seq_len: i64, d_model: i64) -> i64;
 extern fn nuc_tf_cross_entropy(pred_h: i64, target: i64) -> i64;
+extern fn nuc_tf_cross_entropy_grad(pred_h: i64, target: i64) -> i64;
 
 fn tf_softmax(v: i64) -> i64 { return nuc_tf_softmax(v); }
 fn tf_layer_norm(x: i64, gamma: i64, beta: i64) -> i64 {
@@ -65,4 +66,7 @@ fn tf_positional_encoding(seq_len: i64, d_model: i64) -> i64 {
 }
 fn tf_cross_entropy(pred: i64, target: i64) -> i64 {
     return nuc_tf_cross_entropy(pred, target);
+}
+fn tf_cross_entropy_grad(pred: i64, target: i64) -> i64 {
+    return nuc_tf_cross_entropy_grad(pred, target);
 }
