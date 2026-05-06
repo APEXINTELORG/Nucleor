@@ -52,6 +52,15 @@ launch. After memory safety completes, these are next-priority.
 - **C-1 cancel_token (Win32 + POSIX impls):** DONE v0.8.83 (helper agent — InterlockedExchange64 / __sync_lock_test_and_set + smoke fixture).
 - **C-2 POSIX channel:** DONE v0.8.85 (pthread_mutex + 2x cond_var bounded-FIFO mirroring Win32 semantics; finding `findings/promoted/2026-05-04-c-2-posix-channel-stub-...` closed).
 - **C-3 ordered atomic C backing:** DONE v0.8.86 — reclassified as wrong-class. Compiler emits LLVM atomic intrinsics directly (atomicrmw / load atomic / store atomic / cmpxchg); C-fallback path doesn't fire. Regression canary `tests/features/c3_ordered_atomics_direct_smoke.nr` locks behavior.
+- **C-10 thread barrier:** DONE for Phase 2 on 2026-05-06 —
+  `thread_barrier_new`, `thread_barrier_wait`, and
+  `thread_barrier_free` expose a reusable fixed-party runtime barrier.
+  `concurrency.nr` documents this surface but does not re-export it,
+  avoiding duplicate `thread_rt.c` linkage when adopters import both
+  rods. The runtime is backed by Win32 condition variables / POSIX
+  pthread condition variables. `thread_barrier_smoke.nr` runs four OS
+  threads through two rendezvous rounds and verifies no worker passes
+  the first barrier before all peers arrive.
 - **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
 ### E-1, E-2, E-3 — Effect / Capability trust gap

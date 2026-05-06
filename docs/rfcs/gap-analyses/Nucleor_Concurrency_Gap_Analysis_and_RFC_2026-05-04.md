@@ -61,8 +61,8 @@ ATOMIC-001..005 in registry but no emission callsites. A function marked `#[atom
 ### C-9 — `scope { spawn { ... } ... }` syntax entirely absent — **MEDIUM**
 RFC examples use this syntax; compiler comments (v0.3.138) note it was removed because the parse branch was dead. Tools-suite scanner detects literal string `"scope {"` for effect inference but it's dead for the main compiler. The "parent always waits for children" claim is only true if the user manually calls `conc_join` for every handle.
 
-### C-10 — Thread pool barrier not implemented — **MEDIUM**
-`thread.nr` header advertises "Thread pool, futures, parallel map, barrier." Pool/futures/parallel-map exist; **no `nuc_barrier_new`/`nuc_barrier_wait`** anywhere. Parallel algorithms requiring mid-computation rendezvous have no stdlib barrier.
+### C-10 — Thread pool barrier — **DONE 2026-05-06**
+`thread_barrier_new`, `thread_barrier_wait`, and `thread_barrier_free` now expose a reusable fixed-party runtime barrier. `concurrency.nr` points callers to this surface but does not re-export it, avoiding duplicate `thread_rt.c` linkage when both rods are imported. The runtime implementation uses Win32 condition variables on Windows and pthread condition variables on POSIX. `thread_barrier_smoke.nr` runs four OS threads through two rendezvous rounds and verifies no worker passes the first barrier before all peers arrive.
 
 ### C-11 — Mutex resource leak — no destroy path — **MEDIUM**
 `conc_mutex()` allocates `CRITICAL_SECTION`/`pthread_mutex_t`; **no `conc_mutex_destroy`/`mutex_free`**. Long-running programs leak both OS handle and heap allocation. No RAII drop integration. (Cross-references G-1 in memory safety.)
@@ -147,8 +147,12 @@ Implement the ATOMIC-001..005 enforcement pass. Source-text or AST scan inside `
 ### C-9 (`scope { spawn { ... } }` absent) — Phase 2
 Restore the `scope` block as a true structured-concurrency primitive. Parse the block; collect all `spawn` calls within; emit a join-all at the closing brace. Compiler-enforced "parent always waits for children." Test fixture confirming a `scope` block joins all spawns at exit.
 
-### C-10 (no barrier) — Phase 2
-Add `nuc_barrier_new(n)` / `nuc_barrier_wait(b)` / `nuc_barrier_free(b)` runtime functions. Win32: counting semaphore + mutex; POSIX: pthread barrier. Wire into `thread.nr` per the header advertisement.
+### C-10 (barrier) — Phase 2 DONE
+Shipped as `nuc_barrier_new(n)` / `nuc_barrier_wait(b)` /
+`nuc_barrier_free(b)`, wired through `thread.nr` as
+`thread_barrier_new` / `thread_barrier_wait` / `thread_barrier_free`.
+`concurrency.nr` documents the thread-barrier path rather than re-exporting it.
+Validation: `tests/features/thread_barrier_smoke.nr`.
 
 ### C-11 (mutex resource leak) — Phase 1
 Add `conc_mutex_destroy` / `mutex_free`. **Cross-references memory-safety G-1** (auto-drop) — eventually the Mutex type implements Drop and cleanup is automatic.
@@ -176,7 +180,7 @@ Cross-references the effects RFC. Once the effect system is real, concurrency-ef
 | Phase | What lands | Closures |
 |---|---|---|
 | **Phase 1 (emergency)** | Cancel token impl, POSIX channel impl, ordered atomic C backing, conc_map fix, mutex destroy, closure-table mutex | C-1, C-2, C-3, C-4, C-11, C-12 |
-| **Phase 2** | Sendable propagation audit, RACE-002/004/006/007 emission, #[atomic] enforcement, scope block, barrier, ambient_scheduler impl | C-5, C-6, C-8, C-9, C-10, C-13, C-15, C-16, C-17 |
+| **Phase 2** | Sendable propagation audit, RACE-002/004/006/007 emission, #[atomic] enforcement, scope block, ambient_scheduler impl; barrier shipped 2026-05-06 | C-5, C-6, C-8, C-9, C-13, C-15, C-16, C-17 |
 | **Phase 3** | Actor mailbox + executor, full effect-system integration | C-7, C-14 |
 
 ## 3.4. v1.0 release gate
