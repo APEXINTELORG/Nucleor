@@ -63,6 +63,8 @@ Dense layers only. No Conv1d/Conv2d/depthwise-separable. Separate `conv.nr` is i
 ## ML-9 — `nn.nr` no batch norm / no learnable layer norm — **MEDIUM**
 No `batch_norm`/`layer_norm` forward+backward in nn.nr. `gnn_layer_norm` and `tf_layer_norm` exist but forward-only (no gradient). **No training-capable norm layer anywhere.**
 
+Update 2026-05-06 helper1 v0862: `nn_layer_norm` / `nn_layer_norm_backward` and `nn_batch_norm` / `nn_batch_norm_backward` are now shipped in `nn.nr`, with backward returning `[grad_input, grad_gamma, grad_beta]` handles. Fixture-backed by `tests/features/nn_norm_layers_smoke.nr`.
+
 ## ML-10 — Transformer: no causal mask / no encoder-decoder — **HIGH**
 `tf_attention` computes full bidirectional only. Building GPT-style decoder requires manual masking outside kernel, not composable with attention2.
 
@@ -112,7 +114,7 @@ Every ML rod smoke test is "compile + non-null handle + print OK." Example `12_a
 - ML-4: add seq_q/seq_k separate parameters to `attention2.nr` for cross-attention. **Shipped and fixture-backed by helper1 v0861.**
 - ML-6 P2: add `nuc_quant_fp8_gemv` and `nuc_quant_fp8_dot`. Add grouped quantization with per-group scales (matches GPTQ format used in MLV). **Shipped helper1 v0859 for FP8 decode/GEMV/dot and grouped signed-Q4 encode/decode/GEMV; true E4M3 bit encoding and documented error bounds remain future work.**
 - ML-7: add decode for int8 and ternary. **Shipped helper1 v0859.**
-- ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`.
+- ML-9: add `batch_norm` and `layer_norm` with backward in `nn.nr`. **Shipped helper1 v0862 with focused forward/backward fixture coverage.**
 - ML-10: add causal mask parameter to `tf_attention`. Add encoder-decoder transformer block.
 - ML-13 P2: add convergence tests for GNN (small node-classification task), SSM (sequence prediction), transformer (small LM training).
 

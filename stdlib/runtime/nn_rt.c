@@ -12,6 +12,16 @@
 static double _i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
 static long long _f2i(double f) { long long i; memcpy(&i, &f, sizeof(long long)); return i; }
 
+typedef struct { long long *data; int len; int cap; } NNVec;
+
+static NNVec *nn_vec_alloc(int len) {
+    NNVec *v = (NNVec *)malloc(sizeof(NNVec));
+    v->len = len;
+    v->cap = len > 0 ? len : 1;
+    v->data = (long long *)calloc((size_t)v->cap, sizeof(long long));
+    return v;
+}
+
 // =====================================================
 // Dense Layer
 // =====================================================
@@ -755,4 +765,240 @@ long long nuc_nn_softmax_backward(long long softmax_vec, long long grad_vec) {
         out->data[i] = _f2i(si * (gi - dot));
     }
     return (long long)out;
+}
+
+// =====================================================
+// Training-capable normalization layers (ML-9)
+// =====================================================
+
+long long nuc_nn_layer_norm(long long input_vec, long long gamma_vec, long long beta_vec, long long eps_bits) {
+    NNVec *x = (NNVec *)(void *)input_vec;
+    NNVec *gamma = (NNVec *)(void *)gamma_vec;
+    NNVec *beta = (NNVec *)(void *)beta_vec;
+    int n = x ? x->len : 0;
+    NNVec *out = nn_vec_alloc(n);
+    if (n <= 0) return (long long)out;
+
+    double eps = _i2f(eps_bits);
+    if (!(eps > 0.0)) eps = 1e-5;
+
+    double mean = 0.0;
+    for (int i = 0; i < n; i++) mean += _i2f(x->data[i]);
+    mean /= (double)n;
+
+    double var = 0.0;
+    for (int i = 0; i < n; i++) {
+        double d = _i2f(x->data[i]) - mean;
+        var += d * d;
+    }
+    var /= (double)n;
+    double inv = 1.0 / sqrt(var + eps);
+
+    for (int i = 0; i < n; i++) {
+        double g = (gamma && i < gamma->len) ? _i2f(gamma->data[i]) : 1.0;
+        double b = (beta && i < beta->len) ? _i2f(beta->data[i]) : 0.0;
+        double xhat = (_i2f(x->data[i]) - mean) * inv;
+        out->data[i] = _f2i(xhat * g + b);
+    }
+    return (long long)out;
+}
+
+long long nuc_nn_layer_norm_backward(long long input_vec, long long gamma_vec, long long grad_vec, long long eps_bits) {
+    NNVec *x = (NNVec *)(void *)input_vec;
+    NNVec *gamma = (NNVec *)(void *)gamma_vec;
+    NNVec *grad = (NNVec *)(void *)grad_vec;
+    int n = x ? x->len : 0;
+
+    NNVec *dx = nn_vec_alloc(n);
+    NNVec *dgamma = nn_vec_alloc(n);
+    NNVec *dbeta = nn_vec_alloc(n);
+    NNVec *result = nn_vec_alloc(3);
+    result->data[0] = (long long)dx;
+    result->data[1] = (long long)dgamma;
+    result->data[2] = (long long)dbeta;
+    if (n <= 0 || !grad) return (long long)result;
+
+    double eps = _i2f(eps_bits);
+    if (!(eps > 0.0)) eps = 1e-5;
+
+    double mean = 0.0;
+    for (int i = 0; i < n; i++) mean += _i2f(x->data[i]);
+    mean /= (double)n;
+
+    double var = 0.0;
+    for (int i = 0; i < n; i++) {
+        double d = _i2f(x->data[i]) - mean;
+        var += d * d;
+    }
+    var /= (double)n;
+    double inv = 1.0 / sqrt(var + eps);
+
+    double *xhat = (double *)malloc((size_t)n * sizeof(double));
+    double sum_dxhat = 0.0;
+    double sum_dxhat_xhat = 0.0;
+    for (int i = 0; i < n; i++) {
+        double go = (i < grad->len) ? _i2f(grad->data[i]) : 0.0;
+        double g = (gamma && i < gamma->len) ? _i2f(gamma->data[i]) : 1.0;
+        xhat[i] = (_i2f(x->data[i]) - mean) * inv;
+        double dxhat = go * g;
+        sum_dxhat += dxhat;
+        sum_dxhat_xhat += dxhat * xhat[i];
+        dgamma->data[i] = _f2i(go * xhat[i]);
+        dbeta->data[i] = _f2i(go);
+    }
+
+    double scale = inv / (double)n;
+    for (int i = 0; i < n; i++) {
+        double go = (i < grad->len) ? _i2f(grad->data[i]) : 0.0;
+        double g = (gamma && i < gamma->len) ? _i2f(gamma->data[i]) : 1.0;
+        double dxhat = go * g;
+        dx->data[i] = _f2i(scale * ((double)n * dxhat - sum_dxhat - xhat[i] * sum_dxhat_xhat));
+    }
+    free(xhat);
+    return (long long)result;
+}
+
+long long nuc_nn_batch_norm(long long input_vec, long long n_samples, long long feat_dim,
+                            long long gamma_vec, long long beta_vec, long long eps_bits) {
+    NNVec *x = (NNVec *)(void *)input_vec;
+    NNVec *gamma = (NNVec *)(void *)gamma_vec;
+    NNVec *beta = (NNVec *)(void *)beta_vec;
+    int ns = (int)n_samples;
+    int fd = (int)feat_dim;
+    int total = (ns > 0 && fd > 0) ? ns * fd : 0;
+    if (x && x->len < total) total = x->len;
+    NNVec *out = nn_vec_alloc(total);
+    if (!x || ns <= 0 || fd <= 0 || total <= 0) return (long long)out;
+
+    double eps = _i2f(eps_bits);
+    if (!(eps > 0.0)) eps = 1e-5;
+
+    double *mean = (double *)calloc((size_t)fd, sizeof(double));
+    double *var = (double *)calloc((size_t)fd, sizeof(double));
+    double *inv = (double *)calloc((size_t)fd, sizeof(double));
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx < total) mean[f] += _i2f(x->data[idx]);
+        }
+    }
+    for (int f = 0; f < fd; f++) mean[f] /= (double)ns;
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx < total) {
+                double d = _i2f(x->data[idx]) - mean[f];
+                var[f] += d * d;
+            }
+        }
+    }
+    for (int f = 0; f < fd; f++) {
+        var[f] /= (double)ns;
+        inv[f] = 1.0 / sqrt(var[f] + eps);
+    }
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx >= total) continue;
+            double g = (gamma && f < gamma->len) ? _i2f(gamma->data[f]) : 1.0;
+            double b = (beta && f < beta->len) ? _i2f(beta->data[f]) : 0.0;
+            double xhat = (_i2f(x->data[idx]) - mean[f]) * inv[f];
+            out->data[idx] = _f2i(xhat * g + b);
+        }
+    }
+
+    free(mean);
+    free(var);
+    free(inv);
+    return (long long)out;
+}
+
+long long nuc_nn_batch_norm_backward(long long input_vec, long long n_samples, long long feat_dim,
+                                     long long gamma_vec, long long grad_vec, long long eps_bits) {
+    NNVec *x = (NNVec *)(void *)input_vec;
+    NNVec *gamma = (NNVec *)(void *)gamma_vec;
+    NNVec *grad = (NNVec *)(void *)grad_vec;
+    int ns = (int)n_samples;
+    int fd = (int)feat_dim;
+    int total = (ns > 0 && fd > 0) ? ns * fd : 0;
+    if (x && x->len < total) total = x->len;
+
+    NNVec *dx = nn_vec_alloc(total);
+    NNVec *dgamma = nn_vec_alloc(fd > 0 ? fd : 0);
+    NNVec *dbeta = nn_vec_alloc(fd > 0 ? fd : 0);
+    NNVec *result = nn_vec_alloc(3);
+    result->data[0] = (long long)dx;
+    result->data[1] = (long long)dgamma;
+    result->data[2] = (long long)dbeta;
+    if (!x || !grad || ns <= 0 || fd <= 0 || total <= 0) return (long long)result;
+
+    double eps = _i2f(eps_bits);
+    if (!(eps > 0.0)) eps = 1e-5;
+
+    double *mean = (double *)calloc((size_t)fd, sizeof(double));
+    double *var = (double *)calloc((size_t)fd, sizeof(double));
+    double *inv = (double *)calloc((size_t)fd, sizeof(double));
+    double *sum_dxhat = (double *)calloc((size_t)fd, sizeof(double));
+    double *sum_dxhat_xhat = (double *)calloc((size_t)fd, sizeof(double));
+    double *xhat = (double *)calloc((size_t)total, sizeof(double));
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx < total) mean[f] += _i2f(x->data[idx]);
+        }
+    }
+    for (int f = 0; f < fd; f++) mean[f] /= (double)ns;
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx < total) {
+                double d = _i2f(x->data[idx]) - mean[f];
+                var[f] += d * d;
+            }
+        }
+    }
+    for (int f = 0; f < fd; f++) {
+        var[f] /= (double)ns;
+        inv[f] = 1.0 / sqrt(var[f] + eps);
+    }
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx >= total) continue;
+            double go = (idx < grad->len) ? _i2f(grad->data[idx]) : 0.0;
+            double g = (gamma && f < gamma->len) ? _i2f(gamma->data[f]) : 1.0;
+            xhat[idx] = (_i2f(x->data[idx]) - mean[f]) * inv[f];
+            double dxhat = go * g;
+            sum_dxhat[f] += dxhat;
+            sum_dxhat_xhat[f] += dxhat * xhat[idx];
+            dgamma->data[f] = _f2i(_i2f(dgamma->data[f]) + go * xhat[idx]);
+            dbeta->data[f] = _f2i(_i2f(dbeta->data[f]) + go);
+        }
+    }
+
+    for (int s = 0; s < ns; s++) {
+        for (int f = 0; f < fd; f++) {
+            int idx = s * fd + f;
+            if (idx >= total) continue;
+            double go = (idx < grad->len) ? _i2f(grad->data[idx]) : 0.0;
+            double g = (gamma && f < gamma->len) ? _i2f(gamma->data[f]) : 1.0;
+            double dxhat = go * g;
+            dx->data[idx] = _f2i((inv[f] / (double)ns) *
+                ((double)ns * dxhat - sum_dxhat[f] - xhat[idx] * sum_dxhat_xhat[f]));
+        }
+    }
+
+    free(mean);
+    free(var);
+    free(inv);
+    free(sum_dxhat);
+    free(sum_dxhat_xhat);
+    free(xhat);
+    return (long long)result;
 }
