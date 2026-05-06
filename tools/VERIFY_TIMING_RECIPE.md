@@ -153,6 +153,9 @@ Windows validation:
 ```powershell
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Iterations 100
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 20
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Doctor -Json
+pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 -Fixture all -Iterations 5 -Json
 pwsh -NoProfile -File tools\check_rust_bridge_ownership.ps1 `
   -Fixture tests\features\rust_bridge_string_free_repeat_smoke.nr `
   -Iterations 100
@@ -163,6 +166,9 @@ POSIX validation:
 ```bash
 bash tools/check_rust_bridge_ownership.sh --doctor
 bash tools/check_rust_bridge_ownership.sh --iterations 100
+bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20
+bash tools/check_rust_bridge_ownership.sh --doctor --json
+bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 5 --json
 bash tools/check_rust_bridge_ownership.sh \
   --fixture tests/features/rust_bridge_string_free_repeat_smoke.nr \
   --iterations 100
@@ -174,6 +180,14 @@ resulting executable repeatedly. Missing `cargo`, missing crate files, missing
 compiler binary, fixture build failure, or any nonzero fixture run is a hard
 failure.
 
+The `-Fixture` / `--fixture` selector accepts `string-free` (default),
+`hash`, `all`, `string-free-repeat`, or an explicit fixture path. `all`
+runs the default string-free ownership fixture plus
+`tests/features/rust_bridge_hash_determinism_smoke.nr`. The JSON mode is
+opt-in and emits schema version, host family, fixture selector, requested
+iterations, completed fixture executions, cargo/compiler/artifact readiness,
+result status, and failure reason.
+
 | Host path | Expected bridge artifact | Compiler binary | Harness |
 |---|---|---|---|
 | Windows | `stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib` | `bin\nucleor.exe` | `tools\check_rust_bridge_ownership.ps1` |
@@ -184,7 +198,10 @@ fixture: each run performs 100 alloc/free cycles through
 `rust_to_uppercase`/`rust_regex_find`. The broader repeat fixture
 `tests/features/rust_bridge_string_free_repeat_smoke.nr` covers all seven
 string-returning Rust bridge functions and performs 700 alloc/free cycles per
-fixture process run.
+fixture process run. The hash fixture
+`tests/features/rust_bridge_hash_determinism_smoke.nr` locks the existing
+`rust_hash_string_fnv1a` deterministic hash helper and frees the Rust-owned
+strings it obtains while checking returned-string behavior.
 
 ## v0.8.317 — cold/hot memory split for the perf gate
 

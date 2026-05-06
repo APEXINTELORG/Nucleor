@@ -2,13 +2,14 @@ param(
     [switch]$Doctor,
     [ValidateRange(1, 100000)]
     [int]$Iterations = 100,
-    [string]$Fixture = "tests/features/rust_bridge_string_free_smoke.nr",
+    [string]$Fixture = "string-free",
     [string]$Root = "",
     [string]$OutName = "_rust_bridge_ownership_check",
     [ValidateRange(1, 3600)]
     [int]$BuildTimeoutSec = 180,
     [ValidateRange(1, 3600)]
-    [int]$RunTimeoutSec = 30
+    [int]$RunTimeoutSec = 30,
+    [switch]$Json
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,14 +23,6 @@ $bridgeCrate = Join-Path $Root "stdlib\rods\rust_bridge"
 $bridgeCargo = Join-Path $bridgeCrate "Cargo.toml"
 $bridgeSrc = Join-Path $bridgeCrate "src\lib.rs"
 $bridgeReleaseDir = Join-Path $bridgeCrate "target\release"
-$fixtureArg = $Fixture.Replace("\", "/")
-if ([System.IO.Path]::IsPathRooted($Fixture)) {
-    $fixture = [System.IO.Path]::GetFullPath($Fixture)
-    $fixtureRel = $fixture
-} else {
-    $fixtureRel = $fixtureArg
-    $fixture = Join-Path $Root $Fixture
-}
 $targetDir = Join-Path $Root "target"
 $compilerCandidates = @(
     (Join-Path $Root "bin\nucleor.exe"),
@@ -40,9 +33,64 @@ $bridgeArtifactCandidates = @(
     (Join-Path $bridgeReleaseDir "libnucleor_rust_bridge.a")
 )
 
-function Fail([string]$Message) {
-    Write-Host ("ERROR rust_bridge ownership: {0}" -f $Message) -ForegroundColor Red
-    exit 1
+$script:completedExecutions = 0
+$script:currentBridgeArtifact = ""
+$script:lastReadiness = $null
+$script:selectedFixtures = @()
+
+function Get-FixtureCycleCount([string]$Path) {
+    if ($Path -match "rust_bridge_string_free_repeat_smoke\.nr$") {
+        return 700
+    }
+    if ($Path -match "rust_bridge_hash_determinism_smoke\.nr$") {
+        return 2
+    }
+    return 100
+}
+
+function New-FixtureInfo([string]$Key, [string]$Arg, [int]$Cycles) {
+    $argForCompiler = $Arg.Replace("\", "/")
+    if ([System.IO.Path]::IsPathRooted($Arg)) {
+        $path = [System.IO.Path]::GetFullPath($Arg)
+        $display = $path
+    } else {
+        $path = Join-Path $Root $Arg
+        $display = $argForCompiler
+    }
+
+    return [pscustomobject]@{
+        Key = $Key
+        Arg = $argForCompiler
+        Path = $path
+        Display = $display
+        Cycles = $Cycles
+    }
+}
+
+function Resolve-Fixtures([string]$Selector) {
+    switch ($Selector) {
+        "string-free" {
+            return @(New-FixtureInfo "string-free" "tests/features/rust_bridge_string_free_smoke.nr" 100)
+        }
+        "string-free-repeat" {
+            return @(New-FixtureInfo "string-free-repeat" "tests/features/rust_bridge_string_free_repeat_smoke.nr" 700)
+        }
+        "repeat" {
+            return @(New-FixtureInfo "string-free-repeat" "tests/features/rust_bridge_string_free_repeat_smoke.nr" 700)
+        }
+        "hash" {
+            return @(New-FixtureInfo "hash" "tests/features/rust_bridge_hash_determinism_smoke.nr" 2)
+        }
+        "all" {
+            return @(
+                (New-FixtureInfo "string-free" "tests/features/rust_bridge_string_free_smoke.nr" 100),
+                (New-FixtureInfo "hash" "tests/features/rust_bridge_hash_determinism_smoke.nr" 2)
+            )
+        }
+        default {
+            return @(New-FixtureInfo "custom" $Selector (Get-FixtureCycleCount $Selector))
+        }
+    }
 }
 
 function Write-Status([string]$Name, [bool]$Ok, [string]$Detail) {
@@ -128,42 +176,153 @@ function Get-OutputExecutable([string]$Name) {
     return Get-FirstExistingPath $candidates
 }
 
-function Get-FixtureCycleCount([string]$Path) {
-    if ($Path -match "rust_bridge_string_free_repeat_smoke\.nr$") {
-        return 700
-    }
-    return 100
-}
-
-function Get-Readiness {
+function Get-Readiness($Fixtures) {
     $cargo = Get-CommandPath "cargo"
     $compiler = Get-FirstExistingPath $compilerCandidates
     $bridgeArtifact = Get-FirstExistingPath $bridgeArtifactCandidates
     $cratePresent = (Test-Path -LiteralPath $bridgeCargo) -and (Test-Path -LiteralPath $bridgeSrc)
-    $fixturePresent = Test-Path -LiteralPath $fixture
+    $fixtureRows = @()
+    $allFixturesPresent = $true
+
+    foreach ($fixtureInfo in $Fixtures) {
+        $present = Test-Path -LiteralPath $fixtureInfo.Path
+        if (-not $present) {
+            $allFixturesPresent = $false
+        }
+        $fixtureRows += [pscustomobject]@{
+            Key = $fixtureInfo.Key
+            Arg = $fixtureInfo.Arg
+            Path = $fixtureInfo.Path
+            Present = $present
+            Cycles = $fixtureInfo.Cycles
+        }
+    }
+
     $canBuildArtifact = (-not [string]::IsNullOrWhiteSpace($cargo)) -and $cratePresent
-    $canBuildFixture = (-not [string]::IsNullOrWhiteSpace($compiler)) -and $fixturePresent -and (($bridgeArtifact -ne "") -or $canBuildArtifact)
+    $canBuildFixture = (-not [string]::IsNullOrWhiteSpace($cargo)) -and
+        (-not [string]::IsNullOrWhiteSpace($compiler)) -and
+        $allFixturesPresent -and
+        (($bridgeArtifact -ne "") -or $canBuildArtifact)
+
     return [pscustomobject]@{
         Cargo = $cargo
         Compiler = $compiler
         BridgeArtifact = $bridgeArtifact
         BridgeCratePresent = $cratePresent
-        FixturePresent = $fixturePresent
         CanBuildArtifact = $canBuildArtifact
         CanBuildFixture = $canBuildFixture
+        Fixtures = $fixtureRows
     }
 }
 
+function New-JsonPayload {
+    param(
+        [string]$Status,
+        [string]$FailureReason,
+        $Readiness,
+        $Fixtures,
+        [int]$Completed,
+        [string]$BridgeArtifact
+    )
+
+    if ($null -eq $Readiness) {
+        $Readiness = Get-Readiness $Fixtures
+    }
+    if ([string]::IsNullOrWhiteSpace($BridgeArtifact)) {
+        $BridgeArtifact = $Readiness.BridgeArtifact
+    }
+
+    return [ordered]@{
+        schema_version = 1
+        host_family = "windows"
+        mode = if ($Doctor) { "doctor" } else { "run" }
+        fixture_selector = $Fixture
+        iterations_requested = $Iterations
+        fixture_executions_completed = $Completed
+        cargo = [ordered]@{
+            present = ($Readiness.Cargo -ne "")
+            path = $Readiness.Cargo
+        }
+        bridge_artifact = [ordered]@{
+            present = ($BridgeArtifact -ne "")
+            path = if ($BridgeArtifact -ne "") { $BridgeArtifact } else { ($bridgeArtifactCandidates -join "; ") }
+        }
+        compiler = [ordered]@{
+            present = ($Readiness.Compiler -ne "")
+            path = $Readiness.Compiler
+        }
+        result_status = $Status
+        failure_reason = $FailureReason
+        fixtures = @($Readiness.Fixtures | ForEach-Object {
+            [ordered]@{
+                key = $_.Key
+                path = $_.Path
+                present = $_.Present
+                rust_owned_free_cycles_per_execution = $_.Cycles
+            }
+        })
+    }
+}
+
+function Exit-Json {
+    param(
+        [string]$Status,
+        [string]$FailureReason,
+        [int]$ExitCode,
+        $Readiness,
+        $Fixtures,
+        [int]$Completed,
+        [string]$BridgeArtifact
+    )
+
+    $payload = New-JsonPayload -Status $Status -FailureReason $FailureReason -Readiness $Readiness -Fixtures $Fixtures -Completed $Completed -BridgeArtifact $BridgeArtifact
+    $payload | ConvertTo-Json -Depth 8
+    exit $ExitCode
+}
+
+function Fail([string]$Message) {
+    if ($Json) {
+        Exit-Json -Status "failed" -FailureReason $Message -ExitCode 1 -Readiness $script:lastReadiness -Fixtures $script:selectedFixtures -Completed $script:completedExecutions -BridgeArtifact $script:currentBridgeArtifact
+    }
+    Write-Host ("ERROR rust_bridge ownership: {0}" -f $Message) -ForegroundColor Red
+    exit 1
+}
+
 function Run-Doctor {
-    $r = Get-Readiness
+    $r = Get-Readiness $script:selectedFixtures
+    $script:lastReadiness = $r
     $failed = $false
+
+    if ($r.Cargo -eq "") {
+        $failed = $true
+    }
+    if (-not $r.BridgeCratePresent) {
+        $failed = $true
+    }
+    if ($r.Compiler -eq "") {
+        $failed = $true
+    }
+    foreach ($fixtureRow in $r.Fixtures) {
+        if (-not $fixtureRow.Present) {
+            $failed = $true
+        }
+    }
+    if (-not $r.CanBuildFixture) {
+        $failed = $true
+    }
+
+    if ($Json) {
+        if ($failed) {
+            Exit-Json -Status "unsupported" -FailureReason "missing cargo, compiler, bridge crate/artifact, or focused fixture" -ExitCode 96 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
+        }
+        Exit-Json -Status "ready" -FailureReason "" -ExitCode 0 -Readiness $r -Fixtures $script:selectedFixtures -Completed 0 -BridgeArtifact $r.BridgeArtifact
+    }
 
     Write-Status "cargo" ($r.Cargo -ne "") $(if ($r.Cargo -ne "") { $r.Cargo } else { "missing from PATH" })
     if ($r.BridgeCratePresent) {
         Write-Status "bridge-crate" $true $bridgeCrate
     } else {
         Write-Status "bridge-crate" $false ("missing Cargo.toml or src/lib.rs under {0}" -f $bridgeCrate)
-        $failed = $true
     }
 
     $expected = $bridgeArtifactCandidates -join "; "
@@ -173,17 +332,15 @@ function Run-Doctor {
         Write-Status "release-artifact" $true ("not present yet; normal run will attempt cargo build --release; expected {0}" -f $expected)
     } else {
         Write-Status "release-artifact" $false ("missing and cannot be built; expected {0}" -f $expected)
-        $failed = $true
     }
 
     Write-Status "compiler-binary" ($r.Compiler -ne "") $(if ($r.Compiler -ne "") { $r.Compiler } else { "missing bin/nucleor.exe or bin/nucleor" })
-    if ($r.Compiler -eq "") { $failed = $true }
 
-    Write-Status "focused-fixture" $r.FixturePresent $(if ($r.FixturePresent) { $fixture } else { "missing $fixture" })
-    if (-not $r.FixturePresent) { $failed = $true }
+    foreach ($fixtureRow in $r.Fixtures) {
+        Write-Status ("focused-fixture:{0}" -f $fixtureRow.Key) $fixtureRow.Present $(if ($fixtureRow.Present) { $fixtureRow.Path } else { "missing $($fixtureRow.Path)" })
+    }
 
-    Write-Status "fixture-buildable" $r.CanBuildFixture $(if ($r.CanBuildFixture) { "prerequisites are sufficient to build $fixtureRel" } else { "missing compiler, fixture, cargo, crate, or bridge artifact" })
-    if (-not $r.CanBuildFixture) { $failed = $true }
+    Write-Status "fixture-buildable" $r.CanBuildFixture $(if ($r.CanBuildFixture) { "prerequisites are sufficient to build selector $Fixture" } else { "missing compiler, fixture, cargo, crate, or bridge artifact" })
 
     if ($failed) {
         Write-Host "doctor result: not ready for rust_bridge ownership harness"
@@ -193,66 +350,81 @@ function Run-Doctor {
     exit 0
 }
 
+$script:selectedFixtures = Resolve-Fixtures $Fixture
+
 if ($Doctor) {
     Run-Doctor
 }
 
-if ($Iterations -lt 1) {
-    Write-Host "ERROR rust_bridge ownership: Iterations must be > 0" -ForegroundColor Red
-    exit 2
-}
-
-$readiness = Get-Readiness
-if ($readiness.Cargo -eq "") {
+$script:lastReadiness = Get-Readiness $script:selectedFixtures
+if ($script:lastReadiness.Cargo -eq "") {
     Fail "cargo is missing from PATH; cannot build rust_bridge release artifact"
 }
-if (-not $readiness.BridgeCratePresent) {
+if (-not $script:lastReadiness.BridgeCratePresent) {
     Fail "rust_bridge crate is missing Cargo.toml or src/lib.rs under $bridgeCrate"
 }
-if ($readiness.Compiler -eq "") {
+if ($script:lastReadiness.Compiler -eq "") {
     Fail "compiler binary missing: expected bin/nucleor.exe or bin/nucleor"
 }
-if (-not $readiness.FixturePresent) {
-    Fail "focused fixture missing: $fixture"
+foreach ($fixtureRow in $script:lastReadiness.Fixtures) {
+    if (-not $fixtureRow.Present) {
+        Fail "focused fixture missing: $($fixtureRow.Path)"
+    }
 }
 
-$bridgeArtifact = $readiness.BridgeArtifact
-if ($bridgeArtifact -eq "") {
-    Write-Host "rust_bridge artifact missing; running cargo build --release"
-    $cargoResult = Invoke-CapturedProcess -FilePath $readiness.Cargo -ArgumentList @("build", "--release") -WorkingDirectory $bridgeCrate -TimeoutSec $BuildTimeoutSec
+$script:currentBridgeArtifact = $script:lastReadiness.BridgeArtifact
+if ($script:currentBridgeArtifact -eq "") {
+    if (-not $Json) {
+        Write-Host "rust_bridge artifact missing; running cargo build --release"
+    }
+    $cargoResult = Invoke-CapturedProcess -FilePath $script:lastReadiness.Cargo -ArgumentList @("build", "--release") -WorkingDirectory $bridgeCrate -TimeoutSec $BuildTimeoutSec
     if ($cargoResult.TimedOut -or $cargoResult.ExitCode -ne 0) {
         Fail ("cargo build --release failed with exit {0}`n{1}" -f $cargoResult.ExitCode, (Format-ProcessTail $cargoResult))
     }
-    $bridgeArtifact = Get-FirstExistingPath $bridgeArtifactCandidates
-    if ($bridgeArtifact -eq "") {
+    $script:currentBridgeArtifact = Get-FirstExistingPath $bridgeArtifactCandidates
+    if ($script:currentBridgeArtifact -eq "") {
         Fail ("cargo build --release completed but no bridge artifact was found. Expected: {0}" -f ($bridgeArtifactCandidates -join "; "))
     }
+    $script:lastReadiness = Get-Readiness $script:selectedFixtures
 }
 
 New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
-$oldExe = Get-OutputExecutable $OutName
-if ($oldExe -ne "") {
-    Remove-Item -LiteralPath $oldExe -Force -ErrorAction SilentlyContinue
-}
+$totalCycles = 0
+$lastExe = ""
 
-Write-Host ("building focused fixture: {0}" -f $fixtureRel)
-$buildResult = Invoke-CapturedProcess -FilePath $readiness.Compiler -ArgumentList @("build", $fixtureArg, "-o", $OutName, "--no-cache") -WorkingDirectory $Root -TimeoutSec $BuildTimeoutSec
-if ($buildResult.TimedOut -or $buildResult.ExitCode -ne 0) {
-    Fail ("fixture build failed with exit {0}`n{1}" -f $buildResult.ExitCode, (Format-ProcessTail $buildResult))
-}
-
-$exe = Get-OutputExecutable $OutName
-if ($exe -eq "") {
-    Fail ("fixture build reported success but executable was not found under target for output {0}" -f $OutName)
-}
-
-$fixtureCycles = Get-FixtureCycleCount $fixtureArg
-for ($i = 1; $i -le $Iterations; $i++) {
-    $runResult = Invoke-CapturedProcess -FilePath $exe -ArgumentList @() -WorkingDirectory $Root -TimeoutSec $RunTimeoutSec
-    if ($runResult.TimedOut -or $runResult.ExitCode -ne 0) {
-        Fail ("ownership fixture iteration {0}/{1} failed with exit {2}`n{3}" -f $i, $Iterations, $runResult.ExitCode, (Format-ProcessTail $runResult))
+foreach ($fixtureInfo in $script:selectedFixtures) {
+    $oldExe = Get-OutputExecutable $OutName
+    if ($oldExe -ne "") {
+        Remove-Item -LiteralPath $oldExe -Force -ErrorAction SilentlyContinue
     }
+
+    if (-not $Json) {
+        Write-Host ("building focused fixture: {0}" -f $fixtureInfo.Display)
+    }
+    $buildResult = Invoke-CapturedProcess -FilePath $script:lastReadiness.Compiler -ArgumentList @("build", $fixtureInfo.Arg, "-o", $OutName, "--no-cache") -WorkingDirectory $Root -TimeoutSec $BuildTimeoutSec
+    if ($buildResult.TimedOut -or $buildResult.ExitCode -ne 0) {
+        Fail ("fixture build failed with exit {0}`n{1}" -f $buildResult.ExitCode, (Format-ProcessTail $buildResult))
+    }
+
+    $exe = Get-OutputExecutable $OutName
+    if ($exe -eq "") {
+        Fail ("fixture build reported success but executable was not found under target for output {0}" -f $OutName)
+    }
+    $lastExe = $exe
+
+    for ($i = 1; $i -le $Iterations; $i++) {
+        $runResult = Invoke-CapturedProcess -FilePath $exe -ArgumentList @() -WorkingDirectory $Root -TimeoutSec $RunTimeoutSec
+        if ($runResult.TimedOut -or $runResult.ExitCode -ne 0) {
+            Fail ("ownership fixture {0} iteration {1}/{2} failed with exit {3}`n{4}" -f $fixtureInfo.Key, $i, $Iterations, $runResult.ExitCode, (Format-ProcessTail $runResult))
+        }
+        $script:completedExecutions += 1
+    }
+    $totalCycles += ($Iterations * $fixtureInfo.Cycles)
 }
 
-Write-Host ("OK rust_bridge ownership: iterations={0} fixture_alloc_free_cycles={1} bridge_artifact={2} executable={3}" -f $Iterations, ($Iterations * $fixtureCycles), $bridgeArtifact, $exe)
+if ($Json) {
+    Exit-Json -Status "passed" -FailureReason "" -ExitCode 0 -Readiness $script:lastReadiness -Fixtures $script:selectedFixtures -Completed $script:completedExecutions -BridgeArtifact $script:currentBridgeArtifact
+}
+
+Write-Host ("OK rust_bridge ownership: fixture_selector={0} iterations={1} fixture_executions={2} fixture_alloc_free_cycles={3} bridge_artifact={4} executable={5}" -f $Fixture, $Iterations, $script:completedExecutions, $totalCycles, $script:currentBridgeArtifact, $lastExe)
 exit 0

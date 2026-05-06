@@ -189,15 +189,18 @@ launch. After memory safety completes, these are next-priority.
 ### Interop / FFI
 - Source: `gap-analyses/Nucleor_Interop_FFI_Gap_Analysis_and_RFC_2026-05-04.md`
 - Already partially closed by RFC-0062 G-5/G-7/G-9 Phase 1+2a. Cross-reference pending.
-- **R06 Phase 2 rust_bridge ownership harness:** BRANCH-READY on helper2
+- **R06 Phase 2/3 rust_bridge ownership harness:** BRANCH-READY on helper2
   v0828 (`fix/helper2-r06-rust-bridge-ownership-harness-v0828`) — adds
   standalone PowerShell and POSIX opt-in harnesses for `rust_free_str`
   ownership evidence. Windows prerequisites are available and the harness
   ran repeated ownership cycles through the focused smoke fixture. The
   broader repeat fixture covers all seven Rust string-returning bridge
-  functions. Remaining R06 work: native POSIX compiler/artifact evidence,
-  optional ASAN/valgrind-style leak-signal evidence, and the broader
-  cross-boundary ownership contract for Python/shared-library FFI.
+  functions. The continuation adds a deterministic `rust_hash_string_fnv1a`
+  fixture, `all` fixture selectors, and opt-in machine-readable JSON output
+  for future release scripts without wiring the harness into normal verify
+  or perf gates. Remaining R06 work: native POSIX compiler/artifact
+  evidence, optional ASAN/valgrind-style leak-signal evidence, and the
+  broader cross-boundary ownership contract for Python/shared-library FFI.
 
 ### Performance Envelope (beyond PERF-11)
 - Source: `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`
