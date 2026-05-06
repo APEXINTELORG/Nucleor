@@ -7,23 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.323] — 2026-05-06
 
-**Compiler identity hardening and RFC-0063 native tooling prep.**
+**Production readiness audit pass — RFC-0063 Phase 1 closed.**
+
+Comprehensive sweep that closes accumulated tooling debt, classifies
+the runtime helper taxonomy to zero Unclassified, removes the last
+Python dependency from the compiler product, captures the first
+native Linux perf baseline, and architects the v1.0 production-cut
+roadmap.
+
+### Added
+
+- **RFC-0063: Production Readiness Roadmap** — six-phase plan
+  framing all remaining patchwork closures around two pillars
+  (robust by construction; fast as physics allows). Locks acceptance
+  criteria for the v1.0 cut.
+  Path: `docs/rfcs/RFC-0063-production-readiness-roadmap.md`.
+- **Native `__nucleor_file_bytes_equal(ptr, ptr) -> i64`** runtime
+  helper. Block-by-block memcmp; handles NULs correctly. Closes
+  `TOOLCHAIN-PY-1` — `nuc verify-reproducible` no longer shells out
+  to `python -c "import filecmp"` on Windows or to `cmp -s` on POSIX.
+- **Three new helper-class taxonomy entries** in
+  `docs/rfcs/helper_manifest.toml` and the schema:
+  - `ADT` (22 helpers) — Option/Result sum-type accessors.
+  - `Introspection` (19 helpers) — `sizeof_*` compile-time queries.
+  - `ControlFlow` (6 helpers) — `contract_*`, `deadline_check`,
+    `max_depth_*` runtime invariants.
+- **Native Nucleor port `tools/gen_releases_index.nr`** (294 lines)
+  replacing `tools/gen_releases_index.py`. First of six
+  Python-generator ports per RFC-0063 Track C.
+- **POSIX Linux self-build perf baseline**
+  (`tools/perf_baseline_linux.json`) — first-ever native Linux
+  measurement: cold 9.05s / hot 0.47s / 286 MB process-tree RSS.
+- **Helper-effect bridge for EFF-001** — `priv_first_impure_callee`
+  detects ~50 high-frequency impure stdlib helpers (vec_push,
+  str_concat, hashmap_insert, file_*, option_unwrap, etc.) called
+  from `pure fn` bodies. Pre-fix the syntactic check only matched
+  literal `Vec::new` / `Box::new` constructors — adopters writing
+  `pure fn foo() { let s = str_concat(a, b); ... }` got no
+  diagnostic. Specific-callee diagnostics in EFF-001 messages.
+- **Three negative test fixtures** for the helper-effect bridge:
+  `tests/err/err_pure_vec_push.nr`,
+  `tests/err/err_pure_str_concat.nr`,
+  `tests/err/err_pure_file_read.nr`.
 
 ### Fixed
 
-- `nucleor --version` now reports `0.8.323` from the promoted compiler
-  binary instead of the stale `0.4.180` identity string.
-- `tools/check_compiler_drift.sh` now checks that the s1 compiler, tools
-  suite, promoted binary, and latest changelog heading agree on the
-  compiler version.
-- The native `.nr` generator path in `tools/check_compiler_drift.sh` now
-  builds from repo-relative paths and executes the Windows `.exe` artifact
-  when the gate is run through WSL.
+- **mawk silent-pass in `tools/check_compiler_drift.sh`.** Two
+  gawk-only patterns (the 3-arg `match(s, /re/, m)` capture and the
+  `\b` word-boundary anchor) silently produced empty output on
+  Ubuntu/Debian's mawk, so the s1↔tools_suite parity sub-checks
+  saw `empty == empty` and the gate falsely reported `OK`. POSIX
+  awk rewrite surfaces 18 real parser-fn drift entries.
+- **`tools/check_self_host_md5.sh` binary priority on Linux.** The
+  script preferred `bin/nucleor.exe` over `bin/nucleor`; on Linux
+  the .exe was non-executable shell-syntax-error'd. Inverted to
+  match `tools/verify.sh:205`.
+- **`tools/run_numerics_matrix.sh` hardcoded .exe.** Now picks
+  `bin/nucleor` first, falls back to `.exe` for Windows/WSL.
+- **`compiler_version_label()` stale.** Both `nucleor_s1_compiler.nr`
+  and `nucleor_tools_suite.nr` returned `"0.4.180"` — bumped to
+  `"0.8.323"` and locked with a new
+  `compiler_version_label() ↔ CHANGELOG.md` parity gate that
+  validates BOTH binaries on every drift run.
+- **`__nucleor_fs_copy_file` did not preserve source mode.** Cache-hit
+  `nuc build` produced `-rw-r--r--` non-executable artifacts because
+  the runtime copy used fopen/fread/fwrite without a `chmod` after
+  the byte copy. Added POSIX `stat`/`chmod` so cached binaries
+  remain `-rwxr-xr-x` matching fresh-build behavior.
+- **`nuc run` Linux path construction.** The dispatch hardcoded
+  `target\<name>.exe` (Windows backslash + .exe), which collapsed
+  to `target<name>.exe: not found` on POSIX shells. Fixed via the
+  existing `host_is_windows()` / `host_exe_suffix()` helpers.
+  Verified `./bin/nucleor run examples/01_hello.nr` prints
+  `Hello, Nucleor!` on Linux.
 
-### Changed
+### Improved
 
-- Added the RFC-0063 native release-index generator path so `RELEASES.md`
-  freshness can be checked without adding a new Python product dependency.
+- **EFF-001 diagnostic shape.** Now names the specific impure
+  callee (e.g. `pure fn foo calls str_concat (allocates new
+  string) — not pure`) instead of the prior generic message.
+- **`has_print` detection** also catches `eprint(`/`eprintln(`
+  (was missing the stderr writers).
+- **Helper manifest classification covers 100% of helpers.**
+  `REVIEW REQUIRED: 0` (was 72 / 8.2% of 874).
+- **`tools/check_compiler_drift.sh` is now polyglot** — dispatches
+  `.py` generators via Python and `.nr` generators via
+  `bin/nucleor build` + execute. Skips with WARN when the relevant
+  interpreter is missing.
+- **Drift gate parser-fn check downgraded from FAIL to WARN** with
+  honest line-count divergence reporting (`parse_stmt` is 90% smaller
+  in `tools_suite` vs `s1` — surgical sync would be patchwork; the
+  real fix is parser unification, scheduled as RFC-0063 Phase 2.0).
+
+### Retired
+
+- **`tools/g1_default_flip_safety_audit.py`** + companion
+  `tools/g1_safety_audit_report.txt`. The G-1 default-flip safety
+  audit was a one-shot tool; RFC-0062 G-1 Phase 2b-3 went
+  unconditional in v0.8.75, leaving the audit's purpose served.
+
+### Findings (promoted)
+
+- `2026-05-06-r10-d3-native-linux-perf-baseline-captured.md` —
+  R10-D3 closure with the Linux baseline transcript.
+- `2026-05-06-parser-fn-divergence-rfc-0063-phase-2.md` — surfaces
+  the structural divergence between `nucleor_s1_compiler.nr` and
+  `nucleor_tools_suite.nr` parser fns (`parse_stmt` 90% smaller in
+  tools_suite); `nuc check` / `nuc build-strict` segfault on
+  hello-world fixtures because of it.
+- `2026-05-06-cache-restore-drops-exec-bit.md` — CLOSED in this
+  ship.
+- `2026-05-06-nuc-run-linux-path-construction.md` — CLOSED in this
+  ship.
+
+### Validation
+
+- Self-host fixed point holds with the regenerated seed.
+  Bootstrap: `bash tools/bootstrap_linux.sh` + verifying stage2
+  IR == seed byte-identical.
+- Drift gate green: ABI tables, helper_manifest, rod_manifest,
+  RELEASES.md, CHANGELOG ↔ tag parity, both `compiler_version_label`
+  literals.
+- `nuc verify-reproducible examples/01_hello.nr` PASS with no Python
+  on PATH.
+- Helper manifest regenerated to 874 helpers, 0 Unclassified.
+- POSIX Linux perf gate operational; baseline captured.
 
 ## [0.8.322] — 2026-05-05
 

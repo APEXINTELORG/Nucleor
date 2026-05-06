@@ -12,7 +12,7 @@ GitHub tag URLs follow the pattern `https://github.com/APEXINTELORG/Nucleor/rele
 
 | Version | Date | Summary |
 |---|---|---|
-| **v0.8.323** | 2026-05-06 | Compiler identity hardening and RFC-0063 native tooling prep |
+| **v0.8.323** | 2026-05-06 | Production readiness audit pass — RFC-0063 Phase 1 closed |
 | **v0.8.322** | 2026-05-05 | Effect/capability Phase 1 — fail closed on unenforced restricts blocks |
 | **v0.8.321** | 2026-05-05 | QM-7 Phase 2a — Clifford stabilizer-distance coverage |
 | **v0.8.320** | 2026-05-05 | Effect/capability Phase 1 — reject pure requires rows |
@@ -3142,4 +3142,3 @@ emulation |
 | **v0.1.2** | 2026-04-21 | `nuc zen` |
 | **v0.1.1** | 2026-04-21 | 29 new `.nr` rod wrappers |
 | **v0.1.0** | 2026-04-21 | Self-hosted compiler |
-

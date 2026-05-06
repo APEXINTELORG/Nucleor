@@ -29526,12 +29526,18 @@ fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, ke
 }
 
 #[manual_drop]
-fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
+fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str, ll_artifact_path: str) -> i64 {
     let dir: str = cache_v2_dir(key);
     let meta_dir: str = cache_v2_meta_dir(key);
     fs_create_dir_all(dir);
     fs_create_dir_all(meta_dir);
-    file_write_string(cache_v2_ll_path(key), ll);
+    let ll_cache_path: str = cache_v2_ll_path(key);
+    let copied: i64 = if str_len(ll_artifact_path) > 0 && fs_exists(ll_artifact_path) == 1 {
+        fs_copy_file(ll_artifact_path, ll_cache_path)
+    } else { 0 };
+    if copied == 0 {
+        file_write_string(ll_cache_path, ll);
+    };
     let meta: str = cache_v2_meta_json(input_filename, flags, compiler_identity(), key, ll);
     file_write_string(cache_v2_meta_path(key), meta);
     file_write_string(sanitize(str_concat(dir, "/meta.json")), meta);
@@ -29540,13 +29546,14 @@ fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
 
 #[manual_drop]
 fn build_cache_key(source: str, strict_mode: i64) -> str {
+    let source_hash: str = sha256_hex(source);
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-cache-v2|");
     sb_append(sb, compiler_identity());
     sb_append(sb, "|");
     sb_append(sb, cache_v2_canonical_flags(strict_mode));
     sb_append(sb, "|");
-    sb_append(sb, source);
+    sb_append(sb, source_hash);
     return sha256_hex(sb_to_str(sb));
 }
 
@@ -30570,7 +30577,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let manifest_path: str = module_graph_manifest_path(src_path);
     let source_path: str = module_graph_source_path(src_path);
     let max_depth_path: str = module_graph_max_depth_source_path(src_path);
-    if use_cache == 1 {
+    let is_compiler_src: i64 = if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 1 { 1 }
+        else if str_ends_with(src_path, "nucleor_tools_suite.nr") == 1 { 1 }
+        else { 0 };
+    if use_cache == 1 && is_compiler_src == 0 {
         let manifest: str = file_read_string(manifest_path);
         let cached_source: str = file_read_string(source_path);
         let cached_max_depth_source: str = file_read_string(max_depth_path);
@@ -30621,8 +30631,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // would fire on self-compilation — a Linux-bootstrap false-positive.
     // str_concat avoids the literal pattern appearing in source text
     // so the search string is constructed at runtime.
+    // v0.8.323 (RFC-0063 Phase 2.0.3 prep): also exempt
+    // nucleor_tools_suite.nr — same rationale (compiler source contains
+    // the pattern in error-message strings) and the parser-unification
+    // ship needs tools_suite to be able to `import "...nucleor_s1_compiler.nr"`
+    // without the detector tripping on s1's strings.
     let ce_halt: str = str_concat("compile_error", "!(");
-    if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 0 {
+    if is_compiler_src == 0 {
         if str_contains(resolved, ce_halt) == 1 {
             print("ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.");
             print("       This is the canonical compile_error! semantic — it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.");
@@ -30638,6 +30653,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // `<ident>.await` to `async_await(<ident>)`. Threads-only
     // commitment per RFC-0027 phase 1.
     let after_async: str = expand_async_syntax(after_format);
+    // Compiler self-builds are not adopter code. Keep the advisory
+    // audit surface active for user programs, but avoid repeatedly
+    // scanning and printing the compiler's own multi-megabyte source
+    // during self-host/perf gates.
+    if is_compiler_src == 0 {
     // v0.8.5 (RFC-0045 Phase B step-1) — `@differentiable` audit.
     // The lex-time `@`-attribute skip (line ~247) already accepts
     // the attribute silently. Phase B-step-1 adds a build-time
@@ -31324,6 +31344,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[CFG-G8]: match expressions in build: ", str_from_int(v0828_match_count)));
         print("  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions) can have arms that diverge in move/borrow behavior — one arm consumes a value, another borrows it. The move tracker today is conservative on simple cases but doesn't fully reason about arm-level divergence. Phase 2b adds move-state join analysis at every control-flow join point; Phase 4 promotes mixed-arm patterns to deny-by-default with `#[allow(divergent_move)]` opt-out. Adopter discipline today: keep arm-level move/borrow behavior consistent (all arms borrow, or all arms consume).");
     };
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
@@ -31343,7 +31364,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let after_derive_eq: str = expand_derive_partialeq(after_max_depth);
     let after_derive_clone: str = expand_derive_clone(after_derive_eq);
     let source: str = expand_actor_decl_keyword(expand_closures(after_derive_clone));
-    if use_cache == 1 {
+    if use_cache == 1 && is_compiler_src == 0 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
         file_write_string(source_path, source);
@@ -32086,7 +32107,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_key, link_native, time_passes);
     if use_cache == 1 {
         if rc == 0 {
-            cache_v2_store(cache_key, src_path, cache_flags, ll);
+            let cache_store_ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+            cache_v2_store(cache_key, src_path, cache_flags, ll, cache_store_ll_path);
             print(str_concat("cache: miss -> stored (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(ll)), " MB)")))));
         } else {
             print(str_concat("cache: miss -> not stored (sha=", str_concat(cache_v2_prefix(cache_key), ", size 0 MB)")));
@@ -36847,8 +36869,11 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    // v0.8.323: align CLI identity with the v0.8 release/tag stream.
-    // v0.4.180 was a stale build-internal label after the v0.8 ship train.
+    // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
+    // v0.8.322: caught up from stale 0.4.180 (~140 ships behind).
+    // v0.8.323: production readiness audit pass — RFC-0063 Phase 1.
+    // tools/check_compiler_drift.sh enforces parity with the latest
+    // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
     return "0.8.323";
 }
 
@@ -38190,7 +38215,16 @@ fn main() -> i64 {
     } else if str_eq(cmd, "run") {
         let rc: i64 = compile_file_mode_native_isolated(src_path, out_name, 0, use_cache, time_passes, 1);
         if rc != 0 { return rc; };
-        let exe: str = str_concat("target\\", str_concat(out_name, ".exe"));
+        // v0.8.323: platform-aware exe path. Pre-fix the path was
+        // hardcoded as `target\<name>.exe` (Windows backslash + .exe),
+        // which collapsed on POSIX shells: `system("target\foo.exe")`
+        // hit `targetfoo.exe: not found` because the shell ate the
+        // backslash. Closes
+        // findings/promoted/2026-05-06-nuc-run-linux-path-construction.md.
+        // POSIX also needs the `./` prefix because /bin/sh -c does not
+        // include `.` in PATH for security reasons.
+        let exe_dir: str = if host_is_windows() == 1 { "target\\" } else { "./target/" };
+        let exe: str = str_concat(exe_dir, str_concat(out_name, host_exe_suffix()));
         let mut run_rc: i64 = system(exe);
         // v0.3.191: NUC-FEEDBACK-009 follow-on. ML adopters reported
         // post-compiled rc=4294967295 (= -1 = Windows spawn failure

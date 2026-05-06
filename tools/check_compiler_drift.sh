@@ -299,12 +299,14 @@ check_manifest() {
     cp "$manifest_path" "$snapshot"
     case "$gen_path" in
         *.nr)
-            # Two-step: build then exec. Avoids `nuc run`'s Linux
-            # path-construction bug (uses Windows backslashes + .exe;
-            # tracked separately). Build is cached so cost is minimal
-            # on repeat runs. The chmod +x is a workaround for the
-            # native-link cache restore path dropping the executable
-            # bit (separate v0.8 cache bug, pending finding).
+            # Two-step: build then exec. We could use `nuc run` now
+            # that the v0.8.323 path-construction fix landed, but
+            # explicit build+exec is more transparent in CI logs and
+            # doesn't depend on the run dispatch staying correct
+            # across future ships. Keep the build path repo-relative so
+            # a Windows bin/nucleor.exe invoked through WSL can still
+            # read the source path, and execute .exe outputs when that
+            # is what the host produced.
             local gen_basename gen_build_path gen_exe
             gen_basename="$(basename "$gen_path" .nr)"
             gen_build_path="$gen_path"
@@ -340,10 +342,16 @@ check_manifest() {
     tr -d '\r' < "$snapshot" > "$snapshot_norm"
     tr -d '\r' < "$manifest_path" > "$generated_norm"
     if ! diff -q "$snapshot_norm" "$generated_norm" >/dev/null 2>&1; then
+        local regen_cmd
+        case "$gen_path" in
+            *.nr) regen_cmd="$NUCLEOR_BIN build $gen_path -o $(basename "$gen_path" .nr) && ./target/$(basename "$gen_path" .nr)" ;;
+            *.py) regen_cmd="$PYTHON $gen_path" ;;
+            *)    regen_cmd="<unknown generator type>" ;;
+        esac
         echo ""
         echo "FAIL: $manifest_path is stale."
         echo "Re-run the generator and commit the result:"
-        echo "  python $gen_path"
+        echo "  $regen_cmd"
         echo "  git add $manifest_path"
         cp "$snapshot" "$manifest_path"
         return 1
@@ -484,5 +492,36 @@ else
     done
     if [ "$fail" = 1 ]; then exit 1; fi
 fi
+
+# RFC-0063 Phase 2.0.2 guard (v0.8.323): the s1 + tools_suite compiler
+# files are intentionally kept WITHOUT any `pub fn` declarations.
+# Adding even one `pub fn` to either file would opt that file into
+# Nucleor's privatization mechanism (priv_apply_if_opted_in), which
+# token-mangles every NON-pub `fn` to `__priv_<file_id>__<name>` —
+# silently breaking the cross-module imports that Phase 2.0.3 plans
+# (tools_suite import "compiler/nucleor_s1_compiler.nr"). Until Phase
+# 2.0.3 ships and either (a) explicitly marks the right surface as
+# pub or (b) RFC-NRT-004 §H module-prefixed lowering lands, neither
+# file should carry a top-level `pub fn`.
+pub_fn_s1=$(grep -cE '^pub fn ' "$S1" 2>/dev/null; true)
+pub_fn_tools=$(grep -cE '^pub fn ' "$TOOLS" 2>/dev/null; true)
+if [ "$pub_fn_s1" != "0" ] || [ "$pub_fn_tools" != "0" ]; then
+    echo ""
+    echo "FAIL: top-level 'pub fn' present in compiler source files."
+    if [ "$pub_fn_s1" != "0" ]; then
+        echo "  $S1: $pub_fn_s1 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$S1" | head -5 | sed 's/^/    /'
+    fi
+    if [ "$pub_fn_tools" != "0" ]; then
+        echo "  $TOOLS: $pub_fn_tools 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$TOOLS" | head -5 | sed 's/^/    /'
+    fi
+    echo "  See findings/promoted/2026-05-06-phase-2-0-0-cross-module-import-verified.md"
+    echo "  for the privatization model. Until RFC-0063 Phase 2.0.3 (parser unification)"
+    echo "  ships, do not add 'pub fn' to either compiler source — it would silently"
+    echo "  break cross-module import compatibility."
+    exit 1
+fi
+echo "OK: no opt-in privatization markers (pub fn) in compiler source"
 
 exit 0

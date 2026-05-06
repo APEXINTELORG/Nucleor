@@ -6867,6 +6867,21 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
         }
     }
     fclose(fi); fclose(fo);
+#ifndef _WIN32
+    /* v0.8.323: preserve source mode on POSIX (cp -p style for mode
+     * bits only). Without this, the destination file gets the default
+     * umask mode (typically 0644), so an executable source becomes
+     * non-executable at the destination — which broke the native-link
+     * cache restore path: cache miss produced -rwxr-xr-x, cache hit
+     * produced -rw-r--r-- and "Permission denied" on exec. On Windows
+     * the executable bit is implicit via .exe extension so this is a
+     * no-op there. Closes
+     * findings/promoted/2026-05-06-cache-restore-drops-exec-bit.md. */
+    struct stat _src_st;
+    if (stat(from, &_src_st) == 0) {
+        (void)chmod(to, _src_st.st_mode & 07777);
+    }
+#endif
     return 1;
 }
 
