@@ -718,6 +718,26 @@ fn since_for_name(name0: str) -> str {
     return "0.1.0";
 }
 
+fn notes_for_row(stability: str, cls: str) -> str {
+    let mut notes: str = "";
+    if str_eq(stability, "unstable") == 1 {
+        notes = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred";
+    }
+    else if str_eq(stability, "experimental") == 1 {
+        notes = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)";
+    };
+    if str_eq(cls, "Unclassified") == 1 {
+        let class_note: str = "name pattern did not match any class rule (REVIEW REQUIRED)";
+        if str_len(notes) > 0 {
+            notes = str_concat(notes, str_concat("; ", class_note));
+        }
+        else {
+            notes = class_note;
+        };
+    };
+    return notes;
+}
+
 // ---------- compiler-source inventory ----------
 
 fn collect_get_rt_pairs(src: str, names: Vec<str>, symbols: Vec<str>) -> i64 {
@@ -1037,12 +1057,14 @@ fn main() -> i64 {
     let manifest_stability: Vec<str> = vec_new();
     let manifest_policy: Vec<str> = vec_new();
     let manifest_since: Vec<str> = vec_new();
+    let manifest_notes: Vec<str> = vec_new();
     let mut stable_count: i64 = 0;
     let mut unstable_count: i64 = 0;
     let mut experimental_count: i64 = 0;
     let mut review_required_count: i64 = 0;
     let mut policy_todo_count: i64 = 0;
     let mut since_explicit_count: i64 = 0;
+    let mut notes_nonempty_count: i64 = 0;
     m = 0;
     while m < vec_len(manifest_symbols) {
         let sym: str = vec_get(manifest_symbols, m);
@@ -1074,10 +1096,15 @@ fn main() -> i64 {
             since_explicit_count = since_explicit_count + 1;
         };
         vec_push(manifest_since, since);
+        let notes: str = notes_for_row(stability, cls);
+        if str_len(notes) > 0 {
+            notes_nonempty_count = notes_nonempty_count + 1;
+        };
+        vec_push(manifest_notes, notes);
         m = m + 1;
     };
 
-    print("helper_manifest_inventory_v7");
+    print("helper_manifest_inventory_v8");
     print(str_concat("source: ", s1_path));
     print(str_concat("runtime_dir: ", rt_dir));
     print(str_concat("runtime_c_files: ", int_to_str(vec_len(c_files))));
@@ -1102,6 +1129,8 @@ fn main() -> i64 {
     print(str_concat("policy_todo_symbols: ", int_to_str(policy_todo_count)));
     print(str_concat("since_rows: ", int_to_str(vec_len(manifest_since))));
     print(str_concat("since_explicit_symbols: ", int_to_str(since_explicit_count)));
+    print(str_concat("notes_rows: ", int_to_str(vec_len(manifest_notes))));
+    print(str_concat("notes_nonempty_symbols: ", int_to_str(notes_nonempty_count)));
     print_first_values("get_rt_name_symbol", unique_rt_symbols, 12);
     print_first_values("ir_symbol", ir_symbols, 12);
     print_first_values("runtime_symbol", runtime_symbols, 12);
@@ -1113,6 +1142,7 @@ fn main() -> i64 {
     print_pair_lines("stability_row", manifest_symbols, manifest_stability);
     print_pair_lines("policy_row", manifest_symbols, manifest_policy);
     print_pair_lines("since_row", manifest_symbols, manifest_since);
+    print_pair_lines("notes_row", manifest_symbols, manifest_notes);
     print_value_lines("candidate_symbol", union_symbols);
     print("note: read-only inventory only; canonical TOML comes from tools/gen_helper_manifest.nr");
     return 0;
