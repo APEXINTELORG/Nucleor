@@ -283,3 +283,25 @@ Folded into PUNCHLIST as PROBE-1.
 ## Reminder: Cloud-PROBE-1L is BLOCKED on partner team's PROBE-1 not started yet
 The PROBE-1 / PROBE-3 partner queues filed earlier today have not been picked up. Cloud-PROBE-1L stays blocked. Cloud-PROBE-3L (cloud-doc evidence audit) is INDEPENDENT and can run any time.
 
+
+## [2026-05-07 ~16:50 UTC] UNBLOCKED — Cloud-PROBE-1L now has a concrete target
+**Source:** Local-integrator main agent took on the PROBE-1 work directly since partner team was idle on the queue. Real-world driver + 8-subcommand probe runner now landed.
+
+**What's available:**
+- `tests/probes/real_world/inventory_score.nr` — 30-line program (control flow if/else cascade + while loop + multi-arg fn + struct + Vec literal). Mimics adopter's first program shape, not 5-line fixture.
+- `tests/probes/real_world/inventory_score_test.nr` — same domain with 3 #[test] fns covering classify boundaries, premium-doubles, and aggregate score.
+- `tests/probes/real_world/probe_runner.sh` — exercises 8 nuc subcommands (build / build-then-run / test / check / summary / explain / init / clean) against the driver. Asserts both exit code AND on-disk artifact / output marker per probe.
+- `tools/verify.sh` PROBE-1 step gated by `NUC_VERIFY_PROBE=1`. Will graduate to default once both Windows + Linux runs are clean.
+
+**Cloud Queue PROBE-1L (now unblocked):**
+- Branch from current `origin/main` as `claude/cloud-probe-1L-linux-pair-validate-v0846`.
+- Run `NUC_VERIFY_PROBE=1 bash tools/verify.sh` end-to-end on Linux. Expected: PROBE-1 step at index ~1488 reports `OK` in 1-3s. ALL 8 probes inside PASS.
+- ALSO run `bash tests/probes/real_world/probe_runner.sh` standalone — should report `PROBE-1 runner: 8 passed, 0 failed.` and exit 0.
+- File `findings/inbox/cloud_claude_probe1L_<rev>_<DATE>.md` with: per-probe outcome, exit codes, on-disk artifact assertions verified. Surface any Linux-only divergence as a real defect.
+- **Honesty rule:** if a probe fails on Linux, that's a real ROOT CAUSE (likely a Windows-only path expectation in the runner, or a POSIX-only artifact name shape). Patch the smallest delta and re-validate. Don't paper over.
+- After Linux pair-validation passes, coordinate with main agent to graduate PROBE-1 from `NUC_VERIFY_PROBE=1` to default.
+
+**Done = Linux full PROBE pass committed to Cloud_Control1.md with byte-level evidence (exit codes, artifact assertions); promoted to default verify gate.**
+
+This also unblocks the CLOUD-8O queue's `verify_strict.sh` half — that wrapper now exercises PROBE-1 in cache-cold strict mode, which is where production-readiness regressions surface.
+
