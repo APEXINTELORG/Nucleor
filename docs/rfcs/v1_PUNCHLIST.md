@@ -162,7 +162,7 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `RFC-0063-production-readiness-roadmap.md`
 - **Severity:** TOOLCHAIN CORRECTNESS / PERF / MAINTAINABILITY
-- **Status:** WAVE 5 PARTIAL DONE; BROAD DELETION OPEN. `tools/audit_dup_fns.nr`
+- **Status:** WAVE 6 PARTIAL DONE; BROAD DELETION OPEN. `tools/audit_dup_fns.nr`
   and `tools/audit_dup_fns_report.csv` now map the duplicate
   function surface between `compiler/nucleor_s1_compiler.nr` and
   `compiler/nucleor_tools_suite.nr`.
@@ -170,18 +170,19 @@ launch. After memory safety completes, these are next-priority.
   tools-suite helper duplicates, v0839 retired 40 more
   byte-identical `own_*` ownership helpers, v0840 Wave 3 retired 25
   byte-identical `ir_*` helpers, v0840 Wave 4 retired 25
-  byte-identical cache/path/host helpers, and v0840 Wave 5 retired
-  20 byte-identical atomic-ordering/map/container helpers by moving them into
+  byte-identical cache/path/host helpers, v0840 Wave 5 retired
+  20 byte-identical atomic-ordering/map/container helpers, and v0841 Wave 6
+  retired 29 byte-identical smap/diagnostic/record/source helpers by moving them into
   `compiler/nucleor_rfc0063_shared_wave1.nr` and importing that module
   from `compiler/nucleor_tools_suite.nr`. The s1 compiler remains the
   raw canonical copy for these batches. The broad s1-to-tools import is
   still open because the remaining duplicate names would collide unless
   they are deleted/renamed in the same ship.
-- **Current audit counts after v0840 Wave 5 refresh:** 314
-  duplicate function names: 135 `IDENTICAL` safe-delete candidates,
+- **Current audit counts after v0841 Wave 6 refresh:** 285
+  duplicate function names: 106 `IDENTICAL` safe-delete candidates,
   163 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
   `SIG_DIFFERS` per-function lift/adapter candidates.
-- **Next build item:** delete or import the remaining 135 identical duplicates
+- **Next build item:** delete or import the remaining 106 identical duplicates
   through the RFC-0063 parser/tools-suite unification strategy, then
   handle the 163 same-signature body-diff candidates and 16
   signature-diff candidates in follow-on waves.

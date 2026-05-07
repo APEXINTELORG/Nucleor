@@ -4694,105 +4694,9 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     while i >= 0 { if str_eq(vec_get(s, i), name) { return vec_get(s, i + 1); }; i = i - 2; };
     return 0 - 1;
 }
-fn smap_hash(key: str, cap: i64) -> i64 {
-    let mut hash: i64 = 5381;
-    let slen: i64 = str_len(key);
-    let mut i: i64 = 0;
-    while i < slen {
-        hash = hash * 33 + str_char_at(key, i);
-        if cap > 0 {
-            hash = hash - (hash / cap) * cap;
-            if hash < 0 { hash = 0 - hash; };
-        };
-        i = i + 1;
-    };
-    return hash;
-}
-fn smap_new_cap(cap: i64) -> Vec<i32> {
-    let mut keys: Vec<i32> = Vec::new();
-    let mut vals: Vec<i32> = Vec::new();
-    let mut occ: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    while i < cap {
-        keys.push("");
-        vals.push(0 - 1);
-        occ.push(0);
-        i = i + 1;
-    };
-    let mut m: Vec<i32> = Vec::new();
-    m.push(keys);
-    m.push(vals);
-    m.push(occ);
-    m.push(0);
-    m.push(cap);
-    return m;
-}
-fn smap_slots(m: Vec<i32>) -> i64 {
-    return vec_get(m, 4);
-}
-fn smap_slot_used(m: Vec<i32>, slot: i64) -> i64 {
-    return vec_get(vec_get(m, 2), slot);
-}
-fn smap_slot_key(m: Vec<i32>, slot: i64) -> str {
-    return vec_get(vec_get(m, 0), slot);
-}
-fn smap_slot_val(m: Vec<i32>, slot: i64) -> i64 {
-    return vec_get(vec_get(m, 1), slot);
-}
-fn smap_find_slot(m: Vec<i32>, key: str) -> i64 {
-    let cap: i64 = smap_slots(m);
-    let mut slot: i64 = smap_hash(key, cap);
-    let mut probes: i64 = 0;
-    while probes < cap {
-        if smap_slot_used(m, slot) == 0 { return 0 - slot - 1; };
-        if str_eq(smap_slot_key(m, slot), key) == 1 { return slot; };
-        slot = slot + 1;
-        if slot >= cap { slot = 0; };
-        probes = probes + 1;
-    };
-    return 0 - 1;
-}
-fn smap_grow(m: Vec<i32>) -> i64 {
-    let old_cap: i64 = smap_slots(m);
-    let grown: Vec<i32> = smap_new_cap(old_cap * 2);
-    let mut i: i64 = 0;
-    while i < old_cap {
-        if smap_slot_used(m, i) == 1 {
-            smap_set(grown, smap_slot_key(m, i), smap_slot_val(m, i));
-        };
-        i = i + 1;
-    };
-    vec_set(m, 0, vec_get(grown, 0));
-    vec_set(m, 1, vec_get(grown, 1));
-    vec_set(m, 2, vec_get(grown, 2));
-    vec_set(m, 3, vec_get(grown, 3));
-    vec_set(m, 4, vec_get(grown, 4));
-    return 0;
-}
-fn smap_set(m: Vec<i32>, key: str, value: i64) -> i64 {
-    let count: i64 = vec_get(m, 3);
-    let cap: i64 = smap_slots(m);
-    if count * 2 >= cap { smap_grow(m); };
-    let slot: i64 = smap_find_slot(m, key);
-    if slot >= 0 {
-        vec_set(vec_get(m, 1), slot, value);
-        return 0;
-    };
-    let ins: i64 = 0 - slot - 1;
-    vec_set(vec_get(m, 0), ins, str_concat("", key));
-    vec_set(vec_get(m, 1), ins, value);
-    vec_set(vec_get(m, 2), ins, 1);
-    vec_set(m, 3, vec_get(m, 3) + 1);
-    return 0;
-}
 fn smap_has(m: Vec<i32>, key: str) -> i64 {
     if smap_find_slot(m, key) >= 0 { return 1; };
     return 0;
-}
-fn smap_get(m: Vec<i32>, key: str) -> i64 {
-    let slot: i64 = smap_find_slot(m, key);
-    if slot >= 0 { return smap_slot_val(m, slot); };
-    return 0 - 1;
 }
 fn smap_clone(m: Vec<i32>) -> Vec<i32> {
     let cloned: Vec<i32> = smap_new_cap(smap_slots(m));
@@ -5446,41 +5350,6 @@ fn type_is_ref(t: str) -> i64 {
     if str_len(t) >= 1 && str_char_at(t, 0) == 38 { return 1; };
     return 0;
 }
-fn struct_find(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
-    let mut i: i64 = 0;
-    while i < vec_len(structs) {
-        if str_eq(node_field(pool, vec_get(structs, i), 1), name) { return i; };
-        i = i + 1;
-    };
-    return 0 - 1;
-}
-fn struct_find_type(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
-    return struct_find(pool, structs, type_base_name(name));
-}
-fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
-    let flist: i64 = node_field(pool, struct_nid, 2);
-    let cnt: i64 = list_len(pool, flist);
-    let mut i: i64 = 0;
-    while i < cnt {
-        let fn_nid: i64 = list_get(pool, flist, i);
-        if str_eq(node_field(pool, fn_nid, 1), fname) { return i; };
-        i = i + 1;
-    };
-    return 0 - 1;
-}
-
-fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
-    let flist: i64 = node_field(pool, struct_nid, 2);
-    let cnt: i64 = list_len(pool, flist);
-    let mut i: i64 = 0;
-    while i < cnt {
-        let fn_nid: i64 = list_get(pool, flist, i);
-        if str_eq(node_field(pool, fn_nid, 1), fname) { return node_field(pool, fn_nid, 2); };
-        i = i + 1;
-    };
-    return "";
-}
-
 fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -5549,10 +5418,6 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
 // =====================================================
 // S12a — STRUCTURED DIAGNOSTIC SURFACE
 // =====================================================
-fn diag_new() -> Vec<i32> { return Vec::new(); }
-fn diag_add(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64) -> i64 {
-    return diag_add_ex(diags, severity, checker, code, message, fn_name, line, 0, "");
-}
 fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64, col: i64, related_id: str) -> i64 {
     let mut d: Vec<i32> = Vec::new();
     d.push(severity); d.push(checker); d.push(code); d.push(message); d.push(fn_name); d.push(line);
@@ -5571,22 +5436,6 @@ fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message:
     diags.push(d);
     return vec_len(diags);
 }
-fn diag_count(diags: Vec<i32>) -> i64 { return vec_len(diags); }
-fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
-
-fn byte_to_line(source: str, byte_off: i64) -> i64 {
-    let slen: i64 = str_len(source);
-    let mut line: i64 = 1;
-    let mut i: i64 = 0;
-    let limit: i64 = byte_off;
-    if limit > slen { return 0; };
-    while i < limit {
-        if str_char_at(source, i) == 10 { line = line + 1; };
-        i = i + 1;
-    };
-    return line;
-}
-
 fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let fnlen: i64 = str_len(fn_name);
@@ -5619,10 +5468,6 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     out.push(1);
     return out;
 }
-fn find_in_source(source: str, fn_name: str, var_name: str) -> i64 {
-    return vec_get(find_linecol_in_source(source, fn_name, var_name), 0);
-}
-
 fn line_col_to_byte(source: str, line: i64, col: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut cur_line: i64 = 1;
@@ -6096,15 +5941,6 @@ fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
     };
     return 1;
 }
-fn path_overlaps(a: str, b: str) -> i64 {
-    if str_len(a) == 0 || str_len(b) == 0 { return 0; };
-    if str_eq(a, b) == 1 { return 1; };
-    let ap: str = str_concat(a, ".");
-    let bp: str = str_concat(b, ".");
-    if str_starts_with(b, ap) == 1 { return 1; };
-    if str_starts_with(a, bp) == 1 { return 1; };
-    return 0;
-}
 fn expr_borrow_key(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -6176,40 +6012,6 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         i = i + 2;
     };
     return 0;
-}
-
-fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
-    let mut i: i64 = 0;
-    while i < vec_len(enums) {
-        if str_eq(node_field(pool, vec_get(enums, i), 1), name) { return i; };
-        i = i + 1;
-    };
-    return 0 - 1;
-}
-
-fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
-    if str_len(tstr) == 0 { return 1; };
-    if type_is_mut_ref(tstr) == 1 { return 0; };
-    if type_is_shared_ref(tstr) == 1 { return 1; };
-    if str_starts_with(tstr, "Box<") == 1 { return 0; };
-    let base: str = type_base_name(tstr);
-    if str_eq(base, "i64") { return 1; }; if str_eq(base, "i32") { return 1; };
-    if str_eq(base, "str") { return 1; }; if str_eq(base, "bool") { return 1; };
-    if str_eq(base, "f64") { return 1; }; if str_eq(base, "ptr") { return 1; };
-    if str_eq(base, "void") { return 1; };
-    if str_eq(base, "Vec") { return 1; }; if str_eq(base, "HashMap") { return 1; };
-    if str_eq(base, "StringBuilder") { return 1; };
-    if str_eq(base, "Box") { return 0; };
-    if str_eq(base, "Option") { return 0; };
-    if str_eq(base, "Result") { return 0; };
-    if str_eq(base, "Arena") { return 1; };
-    if str_eq(base, "DeviceBuffer") { return 0; };
-    if str_eq(base, "RandomCap") { return 1; };
-    if str_eq(base, "Tensor") { return 0; };
-    // User-defined struct or enum is Move
-    if struct_find(pool, structs, base) >= 0 { return 0; };
-    if enum_find(pool, enums, base) >= 0 { return 0; };
-    return 1; // unknown types default to Copy
 }
 
 fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
@@ -7191,24 +6993,6 @@ fn sig_entry_new(plist: i64, rtype: str, is_extern: i64) -> Vec<i32> {
 fn sig_add(sigs: Vec<i32>, name: str, plist: i64, rtype: str, is_extern: i64) -> i64 {
     return smap_set(sigs, name, sig_entry_new(plist, rtype, is_extern));
 }
-fn sig_find(sigs: Vec<i32>, name: str) -> i64 {
-    return smap_get(sigs, name);
-}
-fn sig_plist(sigs: Vec<i32>, name: str) -> i64 {
-    let entry: i64 = sig_find(sigs, name);
-    if entry < 0 { return 0 - 1; };
-    return vec_get(entry, 0);
-}
-fn sig_rtype(sigs: Vec<i32>, name: str) -> str {
-    let entry: i64 = sig_find(sigs, name);
-    if entry < 0 { return ""; };
-    return vec_get(entry, 1);
-}
-fn sig_is_extern(sigs: Vec<i32>, name: str) -> i64 {
-    let entry: i64 = sig_find(sigs, name);
-    if entry < 0 { return 0; };
-    return vec_get(entry, 2);
-}
 fn tenv_set(env: Vec<i32>, name: str, tstr: str) -> i64 { env.push(name); env.push(tstr); return 0; }
 fn tenv_get(env: Vec<i32>, name: str) -> str {
     let v: i64 = sym_get(env, name);
@@ -7383,33 +7167,6 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
     return "";
-}
-fn source_line(source: str, line: i64) -> str {
-    let slen: i64 = str_len(source);
-    let mut cur: i64 = 1;
-    let mut start: i64 = 0;
-    let mut i: i64 = 0;
-    while i < slen {
-        if cur == line {
-            let mut end: i64 = i;
-            while end < slen && str_char_at(source, end) != 10 { end = end + 1; };
-            return str_substring(source, start, end);
-        };
-        if str_char_at(source, i) == 10 { cur = cur + 1; start = i + 1; };
-        i = i + 1;
-    };
-    if cur == line { return str_substring(source, start, slen); };
-    return "";
-}
-fn line_has_unit_literal(source: str, fn_name: str, symbol: str) -> i64 {
-    let line: i64 = find_in_source(source, fn_name, symbol);
-    let txt: str = source_line(source, line);
-    let mut i: i64 = 0;
-    while i < str_len(txt) {
-        if str_char_at(txt, i) == 123 { return 1; };
-        i = i + 1;
-    };
-    return 0;
 }
 fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 {
     let line: i64 = find_in_source(source, fn_name, symbol);
@@ -11230,7 +10987,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
     if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
     if str_eq(code, "DEPTH-005") { return "Sum of (max_depth_i * estimated_frame_size_i) along a recursion chain exceeds the project's stack budget."; };
-    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and the check failed, or the declared law has unsupported arity for the annotated function. The shipped checker covers commutative, associative, identity, absorbing, idempotent, involution, and distributive_over forms. Inverse/fusion generation, Arbitrary-driven broad property tests, float tolerance handling, and SMT proof obligations remain future RFC-0031 phases and fail closed instead of being silently accepted."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and the check failed, or the declared law has unsupported arity for the annotated function. The shipped checker covers commutative, associative, identity, absorbing, idempotent, involution, distributive_over, and unary inverse forms (inverse round-trips `f(g(a)) == a` and `g(f(a)) == a` at four bounded sample integers). Fusion generation, Arbitrary-driven broad property tests, float tolerance handling, and SMT proof obligations remain future RFC-0031 phases and fail closed instead of being silently accepted."; };
     if str_eq(code, "LAW-002") { return "RESERVED diagnostic. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. Phase 1 (v0.8.265) does not run any solver; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED diagnostic. Phase 2 of RFC-0031 will pattern-match @law citations during optimizer pass; today the law-rewrite pass is a metadata-only no-op (v0.8.265). LAW-003 is reserved for the rewrite pass once it has real semantics."; };
     if str_eq(code, "LAW-004") { return "`nuc test --check-laws` rejects float/approximate law modifiers until the language has explicit tolerance semantics. The canonical schema (docs/spec/Nucleor_Algebraic_Laws_Schema.md) lists eps as a future modifier for floats; this bounded integer checker fails closed."; };
@@ -11456,7 +11213,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
     if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };
     if str_eq(code, "DEPTH-005") { return "RFC-0014 stack-budget check multiplies declared depth by estimated frame size. Reduce locals/frame size, reduce N, or convert recursion to iteration."; };
-    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and found a counterexample, or the declaration is arity-incompatible with the annotated function. The checker currently covers commutative, associative, identity, absorbing, idempotent, involution, and distributive_over forms; broader random Arbitrary generation, inverse/fusion generation, float tolerance handling, and cert-profile SMT proofs remain queued."; };
+    if str_eq(code, "LAW-001") { return "`nuc test --check-laws` generated a bounded integer check for a low-risk @law annotation and found a counterexample, or the declaration is arity-incompatible with the annotated function (or, for `inverse = g`, the partner name is missing). The checker currently covers commutative, associative, identity, absorbing, idempotent, involution, distributive_over, and unary inverse forms; broader random Arbitrary generation, fusion generation, float tolerance handling, and cert-profile SMT proofs remain queued."; };
     if str_eq(code, "LAW-002") { return "RESERVED. Phase 3 of RFC-0031 will route @law through Z3/CVC5 SMT proof under --profile=cert. As of v0.8.265 (Phase 1) no solver runs; LAW-002 is reserved for future emission."; };
     if str_eq(code, "LAW-003") { return "RESERVED. Phase 2 of RFC-0031 will pattern-match @law citations during the optimizer's law-rewrite pass. As of v0.8.265 the law-rewrite pass (`opt_law_rewrite_block`) is a metadata-only no-op; LAW-003 is reserved for emission once the rewrite path has real semantics."; };
     if str_eq(code, "LAW-004") { return "`nuc test --check-laws` now emits this when a law uses `eps` or `approximate` before the float tolerance contract ships. Add an integer-only bounded law, or wait for the RFC-0031 float tolerance phase."; };
@@ -12294,6 +12051,45 @@ fn law_append_distributive_over_checks(sb: i64, fn_name: str, over_fn: str) {
     sb_append(sb, "    };\n");
 }
 
+// R14 Phase 3b broad property pack — bounded integer inverse-law
+// check generation. For a unary fn `f` annotated with
+// `@law(inverse = g)`, generate both `f(g(a)) == a` and
+// `g(f(a)) == a` round-trips at four sample integers covering
+// positive, negative, small-magnitude, and zero-adjacent values.
+// Arity gate at the call site keeps this bounded to unary fns.
+// Float inverse forms continue to fail closed via the existing
+// `f64` / `eps=` / `approximate` gates upstream of this routine.
+fn law_append_inverse_checks(sb: i64, fn_name: str, inv_fn: str) {
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, inv_fn);
+    sb_append(sb, "(7)) != 7 {\n");
+    law_append_panic(sb, "LAW-001", "inverse", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(");
+    sb_append(sb, inv_fn);
+    sb_append(sb, "(0 - 3)) != 0 - 3 {\n");
+    law_append_panic(sb, "LAW-001", "inverse", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, inv_fn);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(5)) != 5 {\n");
+    law_append_panic(sb, "LAW-001", "inverse", fn_name);
+    sb_append(sb, "    };\n");
+    sb_append(sb, "    if ");
+    sb_append(sb, inv_fn);
+    sb_append(sb, "(");
+    sb_append(sb, fn_name);
+    sb_append(sb, "(0 - 1)) != 0 - 1 {\n");
+    law_append_panic(sb, "LAW-001", "inverse", fn_name);
+    sb_append(sb, "    };\n");
+}
+
 fn law_generate_check_fn(fn_name: str, law_body: str, arity: i64, check_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let mut sb: i64 = sb_new();
@@ -12364,8 +12160,20 @@ fn law_generate_check_fn(fn_name: str, law_body: str, arity: i64, check_name: st
                         return out;
                     };
                     law_append_distributive_over_checks(sb, fn_name, law_item_value(item));
-                } else if str_starts_with(item, "inverse=") == 1
-                    || str_eq(item, "fusion") == 1
+                } else if str_starts_with(item, "inverse=") == 1 {
+                    if arity != 1 {
+                        print(str_concat("error[LAW-001]: inverse law requires a unary fn: ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    let inv_fn: str = law_item_value(item);
+                    if str_len(inv_fn) == 0 {
+                        print(str_concat("error[LAW-001]: inverse law requires a partner function name (e.g. `inverse = g`): ", fn_name));
+                        out.push(1); out.push("");
+                        return out;
+                    };
+                    law_append_inverse_checks(sb, fn_name, inv_fn);
+                } else if str_eq(item, "fusion") == 1
                     || str_starts_with(item, "seed=") == 1
                     || str_starts_with(item, "cases=") == 1 {
                     print(str_concat("error[LAW-001]: canonical law form is not generated by this bounded integer checker: ", item));
