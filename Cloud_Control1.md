@@ -354,3 +354,19 @@ Residuals: 58 ML fixtures fail the verify gate on a fresh Linux clone today. The
 
 **Honest residual:** Cloud's full 58-fixture list is in their evidence audit; I tested 5. The remaining 53 likely all clear with the same one-line annotation but I have not Windows-tested them all. Cloud's next pass on Linux will surface any remaining ones (likely zero, but if non-zero, same one-line fix per affected facade fn). If a sibling fn in nn_facade.nr or elsewhere has the same shape (move Vec into struct return), apply manual_drop per the protocol.
 
+
+## [2026-05-07 ~18:05 UTC] PROBE-1 GRADUATED to default verify gate
+Cloud's PROBE-1L pair-validation report (`findings/inbox/cloud_claude_probe1L_v0846_2026-05-07.md`) confirms 8/8 probes PASS on native Linux. Windows side was 8/8 PASS at ship. Default verify gate now includes PROBE-1 unconditionally — `NUC_VERIFY_PROBE=1` env-var gate removed in commit `<pending>`.
+
+## [2026-05-07 ~18:05 UTC] NEW QUEUE — Cloud-PROBE-1L-RERUN (priority): re-validate on top of 86517547
+Cloud's `claude/verify-round-3-tests-RnTlO` evaluation reported `PASS=1432 / SKIP=1 / FAIL=56` on `a585dd0c` — that snapshot was BEFORE the `86517547` data_facade.nr `#[manual_drop]` fix on 5 `frame_*_from_vec` sister fns. The 58→56 delta came from just the tensor_facade fix (`1bf185d0`). Data_facade should reduce further.
+
+**Cloud action:**
+- Pull current `origin/main` (now at `<pending>` post-PROBE-1 graduation).
+- Run `bash tools/verify_strict.sh` (cache-cold, NUC_VERIFY_STRICT=1).
+- Expected post-fix counts: most ml_pandas_* and ml_*_frame_* fixtures should drop out of the FAIL bucket. Any remaining FAILs are the residual class for ML-RETROFIT-1 (ML agent's queue) to sweep — likely sister fns in `nn_facade.nr` / `boost_facade.nr` / `tabular_facade.nr` etc. that have the same move-Vec-into-struct return shape but haven't been annotated yet.
+- File `findings/inbox/cloud_claude_probe1L_rerun_<rev>_<DATE>.md` with: pre-86517547 vs post-86517547 PASS/SKIP/FAIL counts, per-ml-fixture residual list (which still fail vs which now pass), so ML agent can prioritize the sweep against the actual list rather than guessing.
+- **No patches.** Validation only.
+
+**Done = post-86517547 fresh-clone Linux verify count + per-fixture residual list filed for ML agent.**
+

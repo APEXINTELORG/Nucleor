@@ -5928,14 +5928,16 @@ step "T1.8 self-host compiler IR fixed point" t18_self_host_compiler_fixed_point
 # 5-line `add(a, b) { return a + b; }` shapes that dominate the existing
 # fixture corpus. Designed to surface bug classes that hide behind
 # trivial fixtures (T2.5 / T2.1 latent OOB class, R1-R5 cloud bucket).
-# Gated by NUC_VERIFY_PROBE=1 during initial rollout; will graduate to
-# default once both Windows and Linux runs are clean.
+#
+# Graduation history:
+#   v0846 (2026-05-07): added under `NUC_VERIFY_PROBE=1` opt-in.
+#   v0846 (2026-05-07, same day): graduated to default after Linux
+#       pair-validation (cloud findings/inbox/cloud_claude_probe1L_v0846_*)
+#       reported 8/8 probes PASS on native Linux; Windows already 8/8 PASS.
 real_world_probes() {
     bash "$ROOT/tests/probes/real_world/probe_runner.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
-if [ "${NUC_VERIFY_PROBE:-0}" = "1" ]; then
-    step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/clean)" real_world_probes
-fi
+step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/clean)" real_world_probes
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
