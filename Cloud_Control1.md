@@ -67,7 +67,14 @@ The R1-R5 fixes from Round 2 (8D-8H) are already on main via commit `92f8efd8` (
 
 - [ ] **8M / partner 1B Linux rebase** — The local partner has a v0845 branch `fix/partner-rfc0063-tools-suite-wave11-v0845` (commit `49576c98`) that retires 13 `SIG_MATCH_BODY_DIFFERS` duplicates from `compiler/nucleor_tools_suite.nr`. The branch is based on `5890c846` and conflicts with the v0845 1A duplicate-removal already on main when cherry-picked locally. **Cloud's Linux env may resolve the conflict more cleanly** (the partner had a different Windows-line-ending heuristic). Rebase `49576c98` onto current `origin/main`, regenerate `tools/audit_dup_fns_report.csv` via `target/audit_dup_fns.exe`, push as `fix/cloud-round3-partner-1B-rebased-v0845`, append DONE entry. **If the conflict is genuinely structural (overlapping deletions) write a blocker — do not force a merge that drops legitimate retirement.**
 
-- [ ] **8N / 7A POSIX side R06 hash transcript** — Windows side has not yet landed; this remains optional follow-on. Wait for `fix/r06-cross-platform-hash-transcript-v0845` Windows-half before starting POSIX side. Handoff §Lane 7 / Queue 7A.
+- [ ] **8N / 7A POSIX side R06 hash transcript — UNBLOCKED** — Windows half landed on `origin/main` @ `4d9fa35d` (commit "docs+stdlib(7A+7B+7C): R06/FFI lane combined ship"). Windows reference at `tests/features/rust_bridge_cross_platform_hash_transcript_windows.txt`. Linux pairing protocol:
+  ```bash
+  cd stdlib/rods/rust_bridge && cargo build --release && cd -
+  bin/nucleor build tests/features/rust_bridge_cross_platform_hash_transcript_smoke.nr -o rb_xpht
+  ./target/rb_xpht > /tmp/transcript_linux.txt
+  diff -u tests/features/rust_bridge_cross_platform_hash_transcript_windows.txt /tmp/transcript_linux.txt
+  ```
+  Expected: byte-identical (exit 0, no diff output). If diff reports any byte difference, that's a real Q7A production blocker — file findings/inbox report with the failing input and the divergent hash. Branch `probe/cloud-round3-r06-hash-transcript-linux-pair-v0845`. Append a Round-3 DONE entry citing the diff exit code + first 30 lines of /tmp/transcript_linux.txt.
 
 ## Round 3 round-trip discipline
 
