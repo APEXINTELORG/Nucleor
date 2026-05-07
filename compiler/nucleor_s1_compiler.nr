@@ -11499,15 +11499,21 @@ fn rt_string_vec_append_unique(v: Vec<i32>, extra: Vec<i32>) -> i64 {
 // sub of eff). Edge cases preserved: zero `with` keyword in header
 // returns 0 immediately; multi-token rows still match per token;
 // case-sensitive comparison preserved.
+// v0843 R05 consolidation spike: generic row extractor for any
+// keyword that introduces a `KEYWORD [ROW]` clause in a fn header.
+// Replaces two near-duplicate helpers (effect_row_from_header for
+// `requires`, the v0842 extract_with_row for `with`). Word boundary
+// is required on the LHS so identifiers like `forwith` or
+// `prerequires` don't false-match; optional whitespace is allowed
+// between the keyword and `[`.
 #[manual_drop]
-fn extract_with_row(header: str) -> str {
-    if str_contains(header, "with") == 0 { return ""; };
+fn extract_keyword_row(header: str, keyword: str) -> str {
+    if str_contains(header, keyword) == 0 { return ""; };
     let hlen: i64 = str_len(header);
-    let kw: str = "with";
-    let klen: i64 = str_len(kw);
+    let klen: i64 = str_len(keyword);
     let mut p: i64 = 0;
     while p + klen <= hlen {
-        if str_eq_at_len(header, p, kw, klen) == 1 {
+        if str_eq_at_len(header, p, keyword, klen) == 1 {
             let before_ok: i64 = if p == 0 { 1 } else {
                 let b: i64 = str_char_at(header, p - 1);
                 if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
@@ -11525,6 +11531,11 @@ fn extract_with_row(header: str) -> str {
         p = p + 1;
     };
     return "";
+}
+
+#[manual_drop]
+fn extract_with_row(header: str) -> str {
+    return extract_keyword_row(header, "with");
 }
 
 #[manual_drop]
@@ -11581,23 +11592,7 @@ fn source_has_requires_row_code(source: str) -> i64 {
 
 #[manual_drop]
 fn effect_row_from_header(header: str) -> str {
-    if str_contains(header, "requires") == 0 { return ""; };
-    let compact: str = strip_spaces(header);
-    let key: str = str_concat("requires", "[");
-    let klen: i64 = str_len(key);
-    let clen: i64 = str_len(compact);
-    let mut p: i64 = 0;
-    while p + klen <= clen {
-        if str_eq_at_len(compact, p, key, klen) == 1 {
-            let start: i64 = p + klen;
-            let mut end: i64 = start;
-            while end < clen && str_char_at(compact, end) != 93 { end = end + 1; };
-            if end < clen { return str_substring(compact, start, end); };
-            return "";
-        };
-        p = p + 1;
-    };
-    return "";
+    return extract_keyword_row(header, "requires");
 }
 
 #[manual_drop]
@@ -11858,17 +11853,22 @@ fn restricts_extract_call_names(body: str) -> Vec<i32> {
     return names;
 }
 
-// Walks `source` once and returns a flat [name, body, name, body, ...]
-// table of every same-file user fn whose decl line carries a real
-// `fn IDENT` (per `priv_extract_fn_decl_info`) AND a `{` body. Used by
-// the bounded same-file transitive restricts-block check to look up a
-// callee's body without re-scanning the source per hop. The compiler
-// self-source pays this cost only when a code-position `restricts [`
-// is actually found; the lazy build sits inside
-// `enforce_restricts_block_effects`.
+// v0843 R05 consolidation spike: one source-walk that captures every
+// same-file user fn's name + declared `requires [...]` row + body in
+// a single pass, returning a flat [name, requires_row, body, ...]
+// table. Replaces the v0840+v0841 split where
+// `collect_requires_effect_rows` + `collect_fn_bodies` walked the
+// source independently. Pre-v0843 the restricts-block enforcement
+// paid for two full line-by-line walks per `restricts [...]` block
+// detected in code; post-v0843 it pays for one. `pure fn` decls
+// receive an empty requires-row entry so the requires-row enforcement
+// never picks them up. The lazy build inside
+// `enforce_restricts_block_effects` keeps the compiler self-build
+// (where all `restricts` mentions sit in strings or comments) from
+// paying this cost at all.
 #[manual_drop]
-fn collect_fn_bodies(source: str) -> Vec<i32> {
-    let mut bodies: Vec<i32> = Vec::new();
+fn collect_fn_table(source: str) -> Vec<i32> {
+    let mut table: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
     while p < slen {
@@ -11878,8 +11878,12 @@ fn collect_fn_bodies(source: str) -> Vec<i32> {
         let info: Vec<i32> = priv_extract_fn_decl_info(line);
         let fn_name: str = vec_get(info, 0);
         if str_len(fn_name) > 0 {
+            let compact_line: str = strip_spaces(line);
+            let is_pure_decl: i64 = if str_starts_with(compact_line, "purefn") == 1 { 1 } else { if str_starts_with(compact_line, "pubpurefn") == 1 { 1 } else { 0 } };
             let mut h: i64 = p;
             while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+            let header: str = str_substring(source, p, h);
+            let req_row: str = if is_pure_decl == 1 { "" } else { extract_keyword_row(header, "requires") };
             if h < slen && str_char_at(source, h) == 123 {
                 let body_start: i64 = h + 1;
                 let mut q: i64 = h + 1;
@@ -11891,8 +11895,9 @@ fn collect_fn_bodies(source: str) -> Vec<i32> {
                     q = q + 1;
                 };
                 let body: str = str_substring(source, body_start, q - 1);
-                bodies.push(fn_name);
-                bodies.push(body);
+                table.push(fn_name);
+                table.push(req_row);
+                table.push(body);
                 p = q;
             } else {
                 p = eol + 1;
@@ -11901,16 +11906,27 @@ fn collect_fn_bodies(source: str) -> Vec<i32> {
             p = eol + 1;
         };
     };
-    return bodies;
+    return table;
 }
 
 #[manual_drop]
-fn lookup_fn_body(bodies: Vec<i32>, name: str) -> str {
-    let n: i64 = vec_len(bodies);
+fn lookup_fn_row_in_table(table: Vec<i32>, name: str) -> str {
+    let n: i64 = vec_len(table);
     let mut i: i64 = 0;
-    while i + 1 < n {
-        if str_eq(vec_get(bodies, i), name) == 1 { return vec_get(bodies, i + 1); };
-        i = i + 2;
+    while i + 2 < n {
+        if str_eq(vec_get(table, i), name) == 1 { return vec_get(table, i + 1); };
+        i = i + 3;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn lookup_fn_body_in_table(table: Vec<i32>, name: str) -> str {
+    let n: i64 = vec_len(table);
+    let mut i: i64 = 0;
+    while i + 2 < n {
+        if str_eq(vec_get(table, i), name) == 1 { return vec_get(table, i + 2); };
+        i = i + 3;
     };
     return "";
 }
@@ -11929,16 +11945,16 @@ fn name_in_vec(haystack: Vec<i32>, needle: str) -> i64 {
 // Bounded same-file transitive scan: returns the first effect found
 // in `body` (directly or via a same-file user-fn body within
 // `depth_remaining` hops) that overlaps `deny_row`, or "" if none.
-// Visited-by-name dedup prevents cycles and re-walks. At depth 0 the
-// scan still checks builtin and direct user-row hits — the depth
-// budget controls only whether un-rowed user fn callees are walked
-// further. This is the v0841 transitive ship; depth 3 (4 bodies
-// total — block + 3 hops) closes the existing
-// err_effect_deep_chain.nr 4-fn chain. Matches per-callee
-// `restricts_builtin_effect` (print-family / channel) and any
-// requires-row overlap via `effect_row_intersect_first`.
+// Visited-by-name dedup prevents cycles and re-walks.
+// v0843: takes a unified `table` of [name, requires_row, body, ...]
+// triples (built once via `collect_fn_table`) instead of separate
+// rows + bodies vectors — same observable behaviour at half the
+// per-build source-walk cost. The depth cap is raised to 8 because
+// visited-by-name dedup already guarantees termination in O(N) per
+// chain; 8 hops covers practical deep chains while still bounding
+// diagnostic noise on pathological inputs.
 #[manual_drop]
-fn restricts_transitive_check(deny_row: str, body: str, rows: Vec<i32>, bodies: Vec<i32>, depth_remaining: i64, visited: Vec<i32>) -> str {
+fn restricts_transitive_check(deny_row: str, body: str, table: Vec<i32>, depth_remaining: i64, visited: Vec<i32>) -> str {
     let calls: Vec<i32> = restricts_extract_call_names(body);
     let cn: i64 = vec_len(calls);
     let mut ci: i64 = 0;
@@ -11950,27 +11966,31 @@ fn restricts_transitive_check(deny_row: str, body: str, rows: Vec<i32>, bodies: 
                 return str_concat(b_eff, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
             };
         } else {
-            let mut found_user: i64 = 0;
-            let mut hit_str: str = "";
+            let n: i64 = vec_len(table);
             let mut ri: i64 = 0;
-            while ri + 1 < vec_len(rows) && found_user == 0 {
-                if str_eq(vec_get(rows, ri), callee) == 1 {
-                    found_user = 1;
-                    let row: str = vec_get(rows, ri + 1);
-                    let h: str = effect_row_intersect_first(deny_row, row);
-                    if str_len(h) > 0 {
-                        hit_str = str_concat(h, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
-                    };
+            let mut callee_in_table: i64 = 0;
+            let mut callee_row: str = "";
+            let mut callee_body: str = "";
+            while ri + 2 < n && callee_in_table == 0 {
+                if str_eq(vec_get(table, ri), callee) == 1 {
+                    callee_in_table = 1;
+                    callee_row = vec_get(table, ri + 1);
+                    callee_body = vec_get(table, ri + 2);
                 };
-                ri = ri + 2;
+                ri = ri + 3;
             };
-            if str_len(hit_str) > 0 { return hit_str; };
-            if found_user == 0 && depth_remaining > 0 && name_in_vec(visited, callee) == 0 {
-                let callee_body: str = lookup_fn_body(bodies, callee);
-                if str_len(callee_body) > 0 {
-                    visited.push(callee);
-                    let nested: str = restricts_transitive_check(deny_row, callee_body, rows, bodies, depth_remaining - 1, visited);
-                    if str_len(nested) > 0 { return nested; };
+            if callee_in_table == 1 {
+                if str_len(callee_row) > 0 {
+                    let h: str = effect_row_intersect_first(deny_row, callee_row);
+                    if str_len(h) > 0 {
+                        return str_concat(h, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
+                    };
+                } else {
+                    if depth_remaining > 0 && name_in_vec(visited, callee) == 0 && str_len(callee_body) > 0 {
+                        visited.push(callee);
+                        let nested: str = restricts_transitive_check(deny_row, callee_body, table, depth_remaining - 1, visited);
+                        if str_len(nested) > 0 { return nested; };
+                    };
                 };
             };
         };
@@ -12008,9 +12028,8 @@ fn restricts_transitive_check(deny_row: str, body: str, rows: Vec<i32>, bodies: 
 #[manual_drop]
 fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     if str_index_of(source, "restricts") < 0 { return diags; };
-    let rows: Vec<i32> = collect_requires_effect_rows(source);
-    let mut bodies: Vec<i32> = Vec::new();
-    let mut bodies_built: i64 = 0;
+    let mut table: Vec<i32> = Vec::new();
+    let mut table_built: i64 = 0;
     let slen: i64 = str_len(source);
     let kw: str = "restricts";
     let klen: i64 = str_len(kw);
@@ -12082,14 +12101,14 @@ fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                                 emitted = 1;
                             };
                             if emitted == 0 {
-                                if bodies_built == 0 {
-                                    bodies = collect_fn_bodies(source);
-                                    bodies_built = 1;
+                                if table_built == 0 {
+                                    table = collect_fn_table(source);
+                                    table_built = 1;
                                 };
                                 let mut visited: Vec<i32> = Vec::new();
-                                let trans_hit: str = restricts_transitive_check(deny_row, body, rows, bodies, 3, visited);
+                                let trans_hit: str = restricts_transitive_check(deny_row, body, table, 8, visited);
                                 if str_len(trans_hit) > 0 {
-                                    let msg: str = str_concat("block uses effect `", str_concat(trans_hit, str_concat(" denied by `restricts [", str_concat(deny_row, "]` (audit R05-D5 v0.8.323 transitive)"))));
+                                    let msg: str = str_concat("block uses effect `", str_concat(trans_hit, str_concat(" denied by `restricts [", str_concat(deny_row, "]` (audit R05-D6 v0843 transitive)"))));
                                     let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
                                     diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
                                     emitted = 1;
@@ -15659,6 +15678,59 @@ fn source_fn_body_for_scan(source: str, fn_name: str) -> str {
     return "";
 }
 
+// v0843 R05 consolidation: paired with `source_fn_body_for_scan`.
+// Returns the callee's header substring (everything from `fn NAME(`
+// up to but not including the opening `{` or terminating `;`), or
+// "" if not found. Used by `check_effect_call_violations` to find
+// the callee's actual `with [...]` row so the diagnostic can name
+// the offending sub-effect token rather than just the family root.
+#[manual_drop]
+fn source_fn_header_for_scan(source: str, fn_name: str) -> str {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at_len(source, p, needle, nlen) == 1 {
+            let mut h: i64 = p;
+            while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+            return str_substring(source, p, h);
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+// v0843 R05 consolidation: returns the first token in `row` that
+// covers `eff` under the symmetric family rule (token == eff, eff
+// is sub of token, or token is sub of eff), or "" if none.
+// `restricts_row_covers_effect` answers yes/no; this returns the
+// actual matching token for use in diagnostics.
+#[manual_drop]
+fn row_token_covering(row: str, eff: str) -> str {
+    let rlen: i64 = str_len(row);
+    let elen: i64 = str_len(eff);
+    if rlen == 0 || elen == 0 { return ""; };
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    while p <= rlen {
+        let at_end: i64 = if p == rlen { 1 } else { 0 };
+        let at_comma: i64 = if at_end == 0 && str_char_at(row, p) == 44 { 1 } else { 0 };
+        if at_end == 1 || at_comma == 1 {
+            let tok: str = strip_spaces(str_substring(row, start, p));
+            let tlen: i64 = str_len(tok);
+            if tlen > 0 {
+                if str_eq(tok, eff) == 1 { return tok; };
+                if elen > tlen && str_starts_with(eff, str_concat(tok, ".")) == 1 { return tok; };
+                if tlen > elen && str_starts_with(tok, str_concat(eff, ".")) == 1 { return tok; };
+            };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
 #[manual_drop]
 fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effect_fns: Vec<i32>, effect_name: str, contract_name: str) -> i64 {
     if vec_len(effect_fns) == 0 { return 0; };
@@ -15673,7 +15745,15 @@ fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effe
         if str_eq(callee, fn_name) == 0 {
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
-                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(effect_name, str_concat("` but `", str_concat(fn_name, str_concat("` is declared with [", str_concat(contract_name, "]"))))))));
+                let callee_header: str = source_fn_header_for_scan(source, callee);
+                let callee_with_row: str = extract_keyword_row(callee_header, "with");
+                let matched: str = row_token_covering(callee_with_row, effect_name);
+                let effect_phrase: str = if str_len(matched) == 0 || str_eq(matched, effect_name) == 1 {
+                    str_concat("`", str_concat(effect_name, "`"))
+                } else {
+                    str_concat("`", str_concat(matched, str_concat("` (in the `", str_concat(effect_name, "` family)"))))
+                };
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect ", str_concat(effect_phrase, str_concat(" but `", str_concat(fn_name, str_concat("` is declared with [", str_concat(contract_name, "]"))))))));
                 diag_add_ex(diags, "error", "effect", "EFF-003", msg, fn_name, 0, 0, "");
                 emitted = emitted + 1;
             };
