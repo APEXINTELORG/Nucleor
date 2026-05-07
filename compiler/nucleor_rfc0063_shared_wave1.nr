@@ -635,3 +635,215 @@ fn normalize_output_name(raw: str) -> str {
     };
     return sanitize(base);
 }
+
+#[manual_drop]
+fn is_atomic_ordered_builtin(name: str) -> i64 {
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_fetch_add_") == 1 || str_starts_with(name, "atomic_i64_fetch_sub_") == 1 || str_starts_with(name, "atomic_i64_fetch_and_") == 1 || str_starts_with(name, "atomic_i64_fetch_or_") == 1 || str_starts_with(name, "atomic_i64_fetch_xor_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_swap_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if str_ends_with(name, "_relaxed_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acquire_relaxed") == 1 || str_ends_with(name, "_acquire_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_release_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acqrel_relaxed") == 1 || str_ends_with(name, "_acqrel_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_seqcst_relaxed") == 1 || str_ends_with(name, "_seqcst_acquire") == 1 || str_ends_with(name, "_seqcst_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn atomic_tail_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acqrel") == 1 { return "acq_rel"; };
+    if str_contains(name, "_release") == 1 { return "release"; };
+    if str_contains(name, "_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+#[manual_drop]
+fn atomic_cmpxchg_success_order_llvm(name: str) -> str {
+    if str_contains(name, "compare_exchange_seqcst_") == 1 { return "seq_cst"; };
+    if str_contains(name, "compare_exchange_acqrel_") == 1 { return "acq_rel"; };
+    if str_contains(name, "compare_exchange_release_") == 1 { return "release"; };
+    if str_contains(name, "compare_exchange_acquire_") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+#[manual_drop]
+fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acquire_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_acqrel_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_seqcst_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+#[manual_drop]
+fn atomic_rmw_op_llvm(name: str) -> str {
+    // Order matters: check `swap` before the fetch_* family. The new
+    // ordered helper `atomic_i64_swap_<order>` lowers to `atomicrmw
+    // xchg`. Default fall-through is `add` for fetch_add (no infix).
+    if str_contains(name, "_swap_") == 1 { return "xchg"; };
+    if str_contains(name, "fetch_sub") == 1 { return "sub"; };
+    if str_contains(name, "fetch_and") == 1 { return "and"; };
+    if str_contains(name, "fetch_or") == 1 { return "or"; };
+    if str_contains(name, "fetch_xor") == 1 { return "xor"; };
+    return "add";
+}
+
+#[manual_drop]
+fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let ds: str = str_from_int(d);
+    if argc <= 0 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr = inttoptr i64 %r.");
+    sb_append(sb, str_from_int(vec_get(args, 0))); sb_append(sb, " to ptr\n");
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = load atomic i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".atomic.ptr "); sb_append(sb, atomic_tail_order_llvm(name));
+        sb_append(sb, ", align 8\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if argc > 1 {
+            sb_append(sb, "  store atomic i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+            sb_append(sb, ", ptr %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr ");
+            sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, ", align 8\n");
+        };
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if argc >= 3 {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.pair = cmpxchg ptr %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.ptr, i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 1))); sb_append(sb, ", i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 2))); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_success_order_llvm(name)); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_failure_order_llvm(name)); sb_append(sb, "\n");
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = extractvalue { i64, i1 } %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.pair, 0\n");
+        } else {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        };
+        return 0;
+    };
+    if argc > 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = atomicrmw ");
+        sb_append(sb, atomic_rmw_op_llvm(name)); sb_append(sb, " ptr %r."); sb_append(sb, ds);
+        sb_append(sb, ".atomic.ptr, i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+        sb_append(sb, " "); sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, "\n");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn block_has_term(blk: Vec<i32>) -> i64 {
+    let ic: i64 = ir_block_inst_count(blk);
+    if ic == 0 { return 0; };
+    let op: i64 = ir_op(ir_block_get_inst(blk, ic - 1));
+    if op == 20 || op == 21 || op == 22 { return 1; }; return 0;
+}
+
+#[manual_drop]
+fn cmap_new() -> Vec<i32> { let mut m: Vec<i32> = Vec::new(); return m; }
+
+#[manual_drop]
+fn cmap_set(m: Vec<i32>, reg: i64, val: i64) -> i64 {
+    let mc: i64 = vec_len(m);
+    let mut i: i64 = 0;
+    while i < mc {
+        if vec_get(m, i) == reg { vec_set(m, i + 1, val); return 0; };
+        i = i + 2;
+    };
+    m.push(reg); m.push(val); return 0;
+}
+
+#[manual_drop]
+fn cmap_get(m: Vec<i32>, reg: i64) -> i64 {
+    let mc: i64 = vec_len(m);
+    let mut i: i64 = 0;
+    while i < mc {
+        if vec_get(m, i) == reg { return vec_get(m, i + 1); };
+        i = i + 2;
+    };
+    return 0 - 9999999;
+}
+
+#[manual_drop]
+fn cmap_has(m: Vec<i32>, reg: i64) -> i64 {
+    let mc: i64 = vec_len(m);
+    let mut i: i64 = 0;
+    while i < mc {
+        if vec_get(m, i) == reg { return 1; };
+        i = i + 2;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn ctr_new() -> Vec<i32> { let mut c: Vec<i32> = Vec::new(); c.push(0); return c; }
+
+#[manual_drop]
+fn sym_new() -> Vec<i32> { return Vec::new(); }
+
+#[manual_drop]
+fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg); return 0; }
+
+#[manual_drop]
+fn sym_clone(s: Vec<i32>) -> Vec<i32> {
+    let mut c: Vec<i32> = Vec::new();
+    let mut i: i64 = 0;
+    let cnt: i64 = vec_len(s);
+    while i < cnt { c.push(vec_get(s, i)); i = i + 1; };
+    return c;
+}
+
+#[manual_drop]
+fn lx_new(reg: i64, blk: Vec<i32>) -> Vec<i32> {
+    let mut p: Vec<i32> = Vec::new();
+    p.push(reg);
+    p.push(blk);
+    return p;
+}
+
+#[manual_drop]
+fn lx_reg(p: Vec<i32>) -> i64 { return vec_get(p, 0); }
+
+#[manual_drop]
+fn lx_blk(p: Vec<i32>) -> Vec<i32> { return vec_get(p, 1); }
+
+#[manual_drop]
+fn trait_impl_register(impls: Vec<i32>, type_name: str, method_name: str, mangled: str) -> i64 {
+    impls.push(type_name); impls.push(method_name); impls.push(mangled); return 0;
+}
+
+#[manual_drop]
+fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
+    let mut i: i64 = 0;
+    while i < vec_len(impls) {
+        if str_eq(vec_get(impls, i), type_name) == 1 && str_eq(vec_get(impls, i + 1), method_name) == 1 {
+            return vec_get(impls, i + 2);
+        };
+        i = i + 3;
+    };
+    return "";
+}
