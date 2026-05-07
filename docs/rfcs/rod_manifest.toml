@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
 # Total fn definitions: 3862
-# Total LOC: 26814
+# Total LOC: 26819
 
 [[rod]]
 name           = "activation2"
@@ -2384,7 +2384,7 @@ path           = "stdlib/rods/ml/data_facade.nr"
 description    = "pandas-style FrameI64F64 + nullable variant + 100+ pandas-deep parity helpers (cumsum/cumprod/cummax/cummin/diff/abs/clip/expanding/groupby/sort/describe/rank)"
 function_count = 144
 cfile_count    = 0
-loc            = 2990
+loc            = 2995
 imports        = ["ml/dtype_core", "ml/tensor_facade"]
 
 [[rod]]
