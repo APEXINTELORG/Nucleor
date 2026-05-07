@@ -969,8 +969,8 @@ cli_init_smoke() {
         prepare_local_runtime "$PWD" || exit 1
         "$BIN" build src/main.nr -o smokeproj >/dev/null 2>&1 || exit 1
         local exe="target/smokeproj"
-        [ -x "$exe.exe" ] && exe="$exe.exe"
-        [ -x "$exe" ] || exit 1
+        [ -f "$exe.exe" ] && exe="$exe.exe"
+        [ -f "$exe" ] || exit 1
         local out
         out=$("$exe" 2>&1)
         [ -n "$out" ] || exit 1
@@ -1077,14 +1077,14 @@ NREOF
 build_example() {
     local ex="$1"
     "$BIN" build "examples/$ex.nr" -o "$ex" >$NUC_VERIFY_STEP_LOG 2>&1
-    if [ ! -x "target/$ex" ] && [ ! -x "target/$ex.exe" ]; then
+    if [ ! -f "target/$ex" ] && [ ! -f "target/$ex.exe" ]; then
         tail -1 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
         return 1
     fi
     # Capture stdout to $NUC_VERIFY_EX_OUT_LOG so we can shape-check it.
     # Catches the silent-regression case where an example builds + exits
     # 0 but produces wrong/no output (added v0.2.61).
-    if [ -x "target/$ex" ]; then
+    if [ -f "target/$ex" ]; then
         "target/$ex" >$NUC_VERIFY_EX_OUT_LOG 2>&1
     else
         "target/$ex.exe" >$NUC_VERIFY_EX_OUT_LOG 2>&1
@@ -1110,8 +1110,8 @@ build_test() {
     fi
     "$BIN" build "tests/$dir/$tname.nr" -o "$tname" >$NUC_VERIFY_STEP_LOG 2>&1
     local exe="target/$tname"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    if [ ! -x "$exe" ]; then
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    if [ ! -f "$exe" ]; then
         echo "       build failed" | sed 's/^/       /'
         return 1
     fi
@@ -1184,8 +1184,8 @@ if [ "$kind" = "test" ]; then
     out_name="_pv_${dir}_${tname}"
     "$BIN" build "tests/$dir/$tname.nr" -o "$out_name" > "$steplog" 2>&1
     exe="target/$out_name"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    if [ ! -x "$exe" ]; then
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    if [ ! -f "$exe" ]; then
         t1="$(now_ms)"
         dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
         finish FAIL "$dt" "build_failed"
@@ -1358,7 +1358,7 @@ run_parallel_fixture_steps() {
 
 self_host_rebuild() {
     "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler" >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/verify_compiler" ] || [ -x "target/verify_compiler.exe" ]
+    [ -f "target/verify_compiler" ] || [ -f "target/verify_compiler.exe" ]
 }
 
 # v0.2.161 — guard against memory regressions in the self-host compile.
@@ -1471,14 +1471,14 @@ rfc0014_max_depth_full_ship() {
     "$BIN" build "tests/features/rfc0014_max_depth_bounded.nr" -o "_rfc0014_max_depth" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
     grep -q "__nucleor_max_depth_enter" "target/_rfc0014_max_depth.ll" || return 1
     local exe="target/_rfc0014_max_depth"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe.exe" ] && exe="$exe.exe"
     local out
     out=$("$exe" 2>&1) || return 1
     echo "$out" | grep -q "OK rfc0014_max_depth_bounded" || return 1
 
     "$BIN" build "tests/fixtures/rfc0014_max_depth_runtime_overrun.nr" -o "_rfc0014_depth_overrun" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
     local overrun_exe="target/_rfc0014_depth_overrun"
-    [ -x "$overrun_exe.exe" ] && overrun_exe="$overrun_exe.exe"
+    [ -f "$overrun_exe.exe" ] && overrun_exe="$overrun_exe.exe"
     local overrun_out
     overrun_out=$("$overrun_exe" 2>&1)
     echo "$overrun_out" | grep -q "DEPTH-003" || return 1
@@ -1710,8 +1710,8 @@ t356_indexed_lhs_diagnostic() {
     # Bash mirror lagged the .ps1 update; v0.3.140 sync.
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
-    if [ -x "target/_t356_check" ]; then exe="target/_t356_check"; else exe="target/_t356_check.exe"; fi
-    [ -x "$exe" ] || return 1
+    if [ -f "target/_t356_check" ]; then exe="target/_t356_check"; else exe="target/_t356_check.exe"; fi
+    [ -f "$exe" ] || return 1
     "$exe" >/dev/null 2>&1
     [ "$?" -eq 231 ] || return 1
     return 0
@@ -1824,8 +1824,8 @@ t447_shift_var_rhs_bounds() {
     rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t447_runtime_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     local rt_rc=$?
@@ -1977,7 +1977,7 @@ numg2_runtime_panic_guards() {
     "$BIN" build "tests/err/err_numg2_math_abs_imin.nr" -o "_err_numg2_math_abs_imin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe_abs="target/_err_numg2_math_abs_imin"
-    [ -x "$exe_abs.exe" ] && exe_abs="$exe_abs.exe"
+    [ -f "$exe_abs.exe" ] && exe_abs="$exe_abs.exe"
     local out_abs
     out_abs=$("$exe_abs" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -1986,7 +1986,7 @@ numg2_runtime_panic_guards() {
     "$BIN" build "tests/err/err_numg2_math_gcd_imin.nr" -o "_err_numg2_math_gcd_imin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe_gcd="target/_err_numg2_math_gcd_imin"
-    [ -x "$exe_gcd.exe" ] && exe_gcd="$exe_gcd.exe"
+    [ -f "$exe_gcd.exe" ] && exe_gcd="$exe_gcd.exe"
     local out_gcd
     out_gcd=$("$exe_gcd" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -1995,7 +1995,7 @@ numg2_runtime_panic_guards() {
     "$BIN" build "tests/err/err_numg2_math_pow_int_overflow.nr" -o "_err_numg2_math_pow_int_overflow" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe_pow="target/_err_numg2_math_pow_int_overflow"
-    [ -x "$exe_pow.exe" ] && exe_pow="$exe_pow.exe"
+    [ -f "$exe_pow.exe" ] && exe_pow="$exe_pow.exe"
     local out_pow
     out_pow=$("$exe_pow" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2042,8 +2042,8 @@ t446_rich_pattern_forms() {
     do
         "$BIN" build "tests/fixtures/${case}.nr" -o "_t446_${case}" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
         local exe="target/_t446_${case}"
-        [ -x "$exe.exe" ] && exe="$exe.exe"
-        [ -x "$exe" ] || return 1
+        [ -f "$exe.exe" ] && exe="$exe.exe"
+        [ -f "$exe" ] || return 1
         "$exe" >>$NUC_VERIFY_STEP_LOG 2>&1 || return 1
     done
 
@@ -2071,8 +2071,8 @@ t444_debug_vec_str_and_option() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t444_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | sed -n '1p' | grep -q '^\[\"a\", \"b\", \"c\"\]$' || return 1
@@ -2086,8 +2086,8 @@ t443_recursive_debug() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t443_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | sed -n '1p' | grep -q "^\\[1, 2, 3\\]$" || return 1
@@ -2105,8 +2105,8 @@ t441_var_div_zero_runtime_panic() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t441_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     local rt_rc=$?
@@ -2125,8 +2125,8 @@ t_saturating_block_per_op() {
     grep -q "__nucleor_saturating_sub_i64" "target/_sat_block_check.ll" || return 1
     grep -q "__nucleor_saturating_mul_i64" "target/_sat_block_check.ll" || return 1
     local exe="target/_sat_block_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | grep -q "OK saturating block per op" || return 1
@@ -2142,8 +2142,8 @@ strict_intrin_fixture_overflows() {
     [ "$rc" = "0" ] || return 1
     grep -q "$needle" "target/${out}.ll" || return 1
     local exe="target/${out}"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
     local rt_rc=$?
     [ "$rt_rc" != "0" ] || return 1
@@ -2159,8 +2159,8 @@ t_rfc0006_invariant_ctor_runtime() {
     "$BIN" build "tests/features/rfc0006_invariant_ctor.nr" -o "_t_rfc6_ctor" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_ctor"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2171,8 +2171,8 @@ t_rfc0006_invariant_ctor_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_ctor_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_ctor_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2191,7 +2191,7 @@ t_rfc0006_dbc_mode_runtime() {
     Remove_Item="" "$BIN" build "$(verify_bin_path "$src")" -o "_t_rfc6_dbc_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local debug_exe="target/_t_rfc6_dbc_debug"
-    [ -x "$debug_exe.exe" ] && debug_exe="$debug_exe.exe"
+    [ -f "$debug_exe.exe" ] && debug_exe="$debug_exe.exe"
     local debug_out
     debug_out=$("$debug_exe" 2>&1)
     echo "$debug_out" | grep -q "CONTRACT-003: invariant violated" || return 1
@@ -2199,7 +2199,7 @@ t_rfc0006_dbc_mode_runtime() {
     nuc_build_with_env "NUCLEOR_DBC_MODE=safe-release" "$src" "_t_rfc6_dbc_sr" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local sr_exe="target/_t_rfc6_dbc_sr"
-    [ -x "$sr_exe.exe" ] && sr_exe="$sr_exe.exe"
+    [ -f "$sr_exe.exe" ] && sr_exe="$sr_exe.exe"
     local sr_out
     sr_out=$("$sr_exe" 2>&1)
     echo "$sr_out" | grep -q "CONTRACT-001: require precondition violated" || return 1
@@ -2207,7 +2207,7 @@ t_rfc0006_dbc_mode_runtime() {
     nuc_build_with_env "NUCLEOR_DBC_MODE=release" "$src" "_t_rfc6_dbc_rel" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local rel_exe="target/_t_rfc6_dbc_rel"
-    [ -x "$rel_exe.exe" ] && rel_exe="$rel_exe.exe"
+    [ -f "$rel_exe.exe" ] && rel_exe="$rel_exe.exe"
     local rel_out
     rel_out=$("$rel_exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2225,8 +2225,8 @@ t_rfc0006_old_expr_runtime() {
     "$BIN" build "tests/features/rfc0006_old_expr.nr" -o "_t_rfc6_old" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_old"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2236,8 +2236,8 @@ t_rfc0006_old_expr_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_old_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_old_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2252,8 +2252,8 @@ t_rfc0007_atomic_bool() {
     "$BIN" build "tests/features/rfc0007_atomic_bool.nr" -o "_t_ab" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_ab"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2280,8 +2280,8 @@ t_str_char_at_strict_basic() {
     "$BIN" build "tests/features/str_char_at_strict_basic.nr" -o "_t_scas" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_scas"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2295,8 +2295,8 @@ t_str_char_at_strict_oob() {
     "$BIN" build "tests/err/err_str_char_at_strict_oob.nr" -o "_t_scas_oob" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_scas_oob"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2404,8 +2404,8 @@ t_rfc0006_no_check_runtime() {
     "$BIN" build "tests/features/rfc0006_no_check.nr" -o "_t_rfc6_nochk" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_nochk"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2417,8 +2417,8 @@ t_rfc0006_no_check_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_nochk_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_nochk_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2434,8 +2434,8 @@ t_rfc0006_multi_attrs_runtime() {
     "$BIN" build "tests/features/rfc0006_multi_attrs.nr" -o "_t_rfc6_multi" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_multi"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2445,8 +2445,8 @@ t_rfc0006_multi_attrs_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_multi_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_multi_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2464,8 +2464,8 @@ t_rfc0006_invariant_runtime() {
     "$BIN" build "tests/features/rfc0006_invariant_basic.nr" -o "_t_rfc6_inv" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_inv"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2475,8 +2475,8 @@ t_rfc0006_invariant_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_inv_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_inv_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2491,8 +2491,8 @@ t_rfc0006_ensure_midbody_runtime() {
     "$BIN" build "tests/features/rfc0006_ensure_midbody.nr" -o "_t_rfc6_emid" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_emid"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2503,8 +2503,8 @@ t_rfc0006_ensure_midbody_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_emid_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_emid_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     [ "$?" = "1" ] || return 1
@@ -2520,8 +2520,8 @@ t_rfc0006_ensure_runtime() {
     "$BIN" build "tests/features/rfc0006_ensure_basic.nr" -o "_t_rfc6_ens" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_ens"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2531,8 +2531,8 @@ t_rfc0006_ensure_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_ens_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_ens_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     local nrc=$?
@@ -2549,8 +2549,8 @@ t_rfc0006_require_runtime() {
     "$BIN" build "tests/features/rfc0006_require_basic.nr" -o "_t_rfc6_basic" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_rfc6_basic"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     [ "$?" = "0" ] || return 1
@@ -2563,8 +2563,8 @@ t_rfc0006_require_runtime() {
     "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_violate"
-    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
-    [ -x "$nexe" ] || return 1
+    [ -f "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -f "$nexe" ] || return 1
     local nout
     nout=$("$nexe" 2>&1)
     local nrc=$?
@@ -2587,8 +2587,8 @@ t_wrap_block_no_trap() {
     "$BIN" build "tests/features/overflow_wrapping.nr" -o "_t_wrap_block" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe="target/_t_wrap_block"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local rout
     rout=$("$exe" 2>&1)
     local rc=$?
@@ -2613,8 +2613,8 @@ t_strict_intrin_narrow_widths() {
     [ "$rc" = "0" ] || return 1
     grep -q "__nucleor_saturating_add_i64" "target/_strict_intrin_modes_precedence.ll" || return 1
     local exe="target/_strict_intrin_modes_precedence"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
     [ "$?" = "0" ] || return 1
     return 0
@@ -2637,8 +2637,8 @@ t439_result_or_else() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t439_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | sed -n '1p' | grep -q "^70$" || return 1
@@ -2652,8 +2652,8 @@ t438_option_result_fn_arg_methods() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t438_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | sed -n '1p' | grep -q "^10$" || return 1
@@ -2672,8 +2672,8 @@ t437_option_result_method_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local exe="target/_t437_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
     local out
     out=$("$exe" 2>&1)
     echo "$out" | sed -n '1p' | grep -q "^42$" || return 1
@@ -2694,8 +2694,8 @@ t442_format_struct_display_debug() {
     "$BIN" build "tests/fixtures/repro_v91_format_struct_display.nr" -o "_t438_display" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe1="target/_t438_display"
-    [ -x "$exe1.exe" ] && exe1="$exe1.exe"
-    [ -x "$exe1" ] || return 1
+    [ -f "$exe1.exe" ] && exe1="$exe1.exe"
+    [ -f "$exe1" ] || return 1
     local out1
     out1=$("$exe1" 2>&1)
     echo "$out1" | tail -1 | grep -q "^Point(3, 4)$" || return 1
@@ -2703,8 +2703,8 @@ t442_format_struct_display_debug() {
     "$BIN" build "tests/fixtures/repro_v91_format_struct_debug.nr" -o "_t438_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local exe2="target/_t438_debug"
-    [ -x "$exe2.exe" ] && exe2="$exe2.exe"
-    [ -x "$exe2" ] || return 1
+    [ -f "$exe2.exe" ] && exe2="$exe2.exe"
+    [ -f "$exe2" ] || return 1
     local out2
     out2=$("$exe2" 2>&1)
     echo "$out2" | tail -1 | grep -q '^Sample { name: "alpha", count: 7, ok: true }$' || return 1
@@ -3186,8 +3186,8 @@ t381_closure_mutate_capture_writeback() {
     # the caller's value stayed unchanged. Now writes back.
     "$BIN" build "tests/fixtures/repro_v32a_closure_mutate_panic.nr" -o "_t381_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
-    if [ -x "target/_t381_check" ]; then exe="target/_t381_check"; else exe="target/_t381_check.exe"; fi
-    [ -x "$exe" ] || return 1
+    if [ -f "target/_t381_check" ]; then exe="target/_t381_check"; else exe="target/_t381_check.exe"; fi
+    [ -f "$exe" ] || return 1
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -eq 5 ] || return 1
     return 0
@@ -3323,9 +3323,9 @@ t374_env_get_or() {
     # Pre-v0.3.98, env_get_or wasn't registered, failing at clang link.
     # Post: returns the default fallback string (len 7 = "default").
     "$BIN" build "tests/fixtures/t374_env_get_or.nr" -o "_t374_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t374_check" ] || [ -x "target/_t374_check.exe" ] || return 1
+    [ -f "target/_t374_check" ] || [ -f "target/_t374_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t374_check" ]; then exe="target/_t374_check"; else exe="target/_t374_check.exe"; fi
+    if [ -f "target/_t374_check" ]; then exe="target/_t374_check"; else exe="target/_t374_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 7 ] || return 1
@@ -3342,8 +3342,8 @@ t373_bitwise_op_diagnostic() {
     # The bash mirror lagged the .ps1 update; v0.3.139 sync.
     "$BIN" build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
-    if [ -x "target/_t373_check" ]; then exe="target/_t373_check"; else exe="target/_t373_check.exe"; fi
-    [ -x "$exe" ] || return 1
+    if [ -f "target/_t373_check" ]; then exe="target/_t373_check"; else exe="target/_t373_check.exe"; fi
+    [ -f "$exe" ] || return 1
     "$exe" >/dev/null 2>&1
     [ "$?" -eq 0 ] || return 1
     return 0
@@ -3355,8 +3355,8 @@ t372_mut_closure_capture_diagnostic() {
     # the updated captured total.
     "$BIN" build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
-    if [ -x "target/_t372_check" ]; then exe="target/_t372_check"; else exe="target/_t372_check.exe"; fi
-    [ -x "$exe" ] || return 1
+    if [ -f "target/_t372_check" ]; then exe="target/_t372_check"; else exe="target/_t372_check.exe"; fi
+    [ -f "$exe" ] || return 1
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -eq 12 ] || return 1
     return 0
@@ -3366,9 +3366,9 @@ t371_extended_macro_set() {
     # T3.71 (v0.3.95): regression test for extended macro set
     # (assert_eq!, assert_ne!, todo!, unimplemented!, unreachable!).
     "$BIN" build "tests/fixtures/t371_extended_macro_set.nr" -o "_t371_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t371_check" ] || [ -x "target/_t371_check.exe" ] || return 1
+    [ -f "target/_t371_check" ] || [ -f "target/_t371_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t371_check" ]; then exe="target/_t371_check"; else exe="target/_t371_check.exe"; fi
+    if [ -f "target/_t371_check" ]; then exe="target/_t371_check"; else exe="target/_t371_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3381,9 +3381,9 @@ t370_panic_assert_macros() {
     # `@assert undefined`) because the macro `!` was parsed as
     # negate-then-parens. Post: textual rewrite drops the `!`.
     "$BIN" build "tests/fixtures/t370_panic_assert_macros.nr" -o "_t370_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t370_check" ] || [ -x "target/_t370_check.exe" ] || return 1
+    [ -f "target/_t370_check" ] || [ -f "target/_t370_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t370_check" ]; then exe="target/_t370_check"; else exe="target/_t370_check.exe"; fi
+    if [ -f "target/_t370_check" ]; then exe="target/_t370_check"; else exe="target/_t370_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3412,9 +3412,9 @@ t368_dyn_keyword_parse() {
     # T3.68 (v0.3.92/v0.4.117): parser acceptance plus
     # Box<dyn Trait> binding/call-argument coercion from Box<Concrete>.
     "$BIN" build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t368_check" ] || [ -x "target/_t368_check.exe" ] || return 1
+    [ -f "target/_t368_check" ] || [ -f "target/_t368_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t368_check" ]; then exe="target/_t368_check"; else exe="target/_t368_check.exe"; fi
+    if [ -f "target/_t368_check" ]; then exe="target/_t368_check"; else exe="target/_t368_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 47 ] || return 1
@@ -3426,9 +3426,9 @@ t367_question_op_chain() {
     # Pre-v0.3.91, ir_br_cond labels were swapped — Ok early-returned
     # instead of Err. Every chain after the first ? was dead code.
     "$BIN" build "tests/fixtures/t367_question_op_chain.nr" -o "_t367_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t367_check" ] || [ -x "target/_t367_check.exe" ] || return 1
+    [ -f "target/_t367_check" ] || [ -f "target/_t367_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t367_check" ]; then exe="target/_t367_check"; else exe="target/_t367_check.exe"; fi
+    if [ -f "target/_t367_check" ]; then exe="target/_t367_check"; else exe="target/_t367_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 100 ] || return 1
@@ -3443,9 +3443,9 @@ t366_struct_init_shorthand() {
     # name. Pure-shorthand `Point { x, y }` not yet supported (the
     # parse_primary trigger needs the `IDENT :` shape).
     "$BIN" build "tests/fixtures/t366_struct_init_shorthand.nr" -o "_t366_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t366_check" ] || [ -x "target/_t366_check.exe" ] || return 1
+    [ -f "target/_t366_check" ] || [ -f "target/_t366_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t366_check" ]; then exe="target/_t366_check"; else exe="target/_t366_check.exe"; fi
+    if [ -f "target/_t366_check" ]; then exe="target/_t366_check"; else exe="target/_t366_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3457,9 +3457,9 @@ t365_trait_generic_method() {
     # param. Pre-v0.3.89, `fn count<T>(self)` in trait body cascaded
     # into 22+ parse errors. Post: generic-param shape consumed.
     "$BIN" build "tests/fixtures/t365_trait_generic_method.nr" -o "_t365_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t365_check" ] || [ -x "target/_t365_check.exe" ] || return 1
+    [ -f "target/_t365_check" ] || [ -f "target/_t365_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t365_check" ]; then exe="target/_t365_check"; else exe="target/_t365_check.exe"; fi
+    if [ -f "target/_t365_check" ]; then exe="target/_t365_check"; else exe="target/_t365_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 3 ] || return 1
@@ -3472,9 +3472,9 @@ t364_vec_iter_chain() {
     # link with `unresolved external symbol __nucleor_vec_iter`.
     # Post: .iter() routes to vec_iter_i64 (identity pass-through).
     "$BIN" build "tests/fixtures/t364_vec_iter_chain.nr" -o "_t364_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t364_check" ] || [ -x "target/_t364_check.exe" ] || return 1
+    [ -f "target/_t364_check" ] || [ -f "target/_t364_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t364_check" ]; then exe="target/_t364_check"; else exe="target/_t364_check.exe"; fi
+    if [ -f "target/_t364_check" ]; then exe="target/_t364_check"; else exe="target/_t364_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3489,9 +3489,9 @@ t363_struct_like_enum_variant() {
     # zero-arg variant call. Post: struct-init form parsed and
     # values pushed in source order.
     "$BIN" build "tests/fixtures/t363_struct_like_enum_variant.nr" -o "_t363_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t363_check" ] || [ -x "target/_t363_check.exe" ] || return 1
+    [ -f "target/_t363_check" ] || [ -f "target/_t363_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t363_check" ]; then exe="target/_t363_check"; else exe="target/_t363_check.exe"; fi
+    if [ -f "target/_t363_check" ]; then exe="target/_t363_check"; else exe="target/_t363_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3505,9 +3505,9 @@ t362_match_multi_capture() {
     # all comma-separated bindings, encodes them as `|`-separated for
     # the existing match_bind_payloads helper.
     "$BIN" build "tests/fixtures/t362_match_multi_capture.nr" -o "_t362_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t362_check" ] || [ -x "target/_t362_check.exe" ] || return 1
+    [ -f "target/_t362_check" ] || [ -f "target/_t362_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t362_check" ]; then exe="target/_t362_check"; else exe="target/_t362_check.exe"; fi
+    if [ -f "target/_t362_check" ]; then exe="target/_t362_check"; else exe="target/_t362_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3538,9 +3538,9 @@ t360_match_arm_assign() {
     # wrapped the LHS as a no-op expr-stmt. Programs compiled but
     # mis-computed.
     "$BIN" build "tests/fixtures/t360_match_arm_assign.nr" -o "_t360_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t360_check" ] || [ -x "target/_t360_check.exe" ] || return 1
+    [ -f "target/_t360_check" ] || [ -f "target/_t360_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t360_check" ]; then exe="target/_t360_check"; else exe="target/_t360_check.exe"; fi
+    if [ -f "target/_t360_check" ]; then exe="target/_t360_check"; else exe="target/_t360_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3553,9 +3553,9 @@ t359_fn_pointer_type() {
     # didn't recognize `fn` as a type-starter and cascaded into 26+
     # parse errors. Post: parsed as i64 (Nucleor fn-ptr ABI).
     "$BIN" build "tests/fixtures/t359_fn_pointer_type.nr" -o "_t359_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t359_check" ] || [ -x "target/_t359_check.exe" ] || return 1
+    [ -f "target/_t359_check" ] || [ -f "target/_t359_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t359_check" ]; then exe="target/_t359_check"; else exe="target/_t359_check.exe"; fi
+    if [ -f "target/_t359_check" ]; then exe="target/_t359_check"; else exe="target/_t359_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3570,9 +3570,9 @@ t358_trait_default_methods() {
     # defaults dispatch correctly, including Self substitution for
     # nested self.method() calls.
     "$BIN" build "tests/fixtures/t358_trait_default_methods.nr" -o "_t358_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t358_check" ] || [ -x "target/_t358_check.exe" ] || return 1
+    [ -f "target/_t358_check" ] || [ -f "target/_t358_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t358_check" ]; then exe="target/_t358_check"; else exe="target/_t358_check.exe"; fi
+    if [ -f "target/_t358_check" ]; then exe="target/_t358_check"; else exe="target/_t358_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3608,9 +3608,9 @@ t354_match_arm_return() {
     # so `Status::Ok => return 42,` produced cascading parse errors.
     # Pins enum-no-data, enum-with-data, wildcard, all with return arms.
     "$BIN" build "tests/fixtures/t354_match_arm_return.nr" -o "_t354_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t354_check" ] || [ -x "target/_t354_check.exe" ] || return 1
+    [ -f "target/_t354_check" ] || [ -f "target/_t354_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t354_check" ]; then exe="target/_t354_check"; else exe="target/_t354_check.exe"; fi
+    if [ -f "target/_t354_check" ]; then exe="target/_t354_check"; else exe="target/_t354_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3627,9 +3627,9 @@ t353_inline_closure_capture() {
     # full capture support since v0.3.72). Pins five shapes; expected
     # exit 0 (non-zero = which check failed).
     "$BIN" build "tests/fixtures/t353_inline_closure_capture.nr" -o "_t353_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t353_check" ] || [ -x "target/_t353_check.exe" ] || return 1
+    [ -f "target/_t353_check" ] || [ -f "target/_t353_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t353_check" ]; then exe="target/_t353_check"; else exe="target/_t353_check.exe"; fi
+    if [ -f "target/_t353_check" ]; then exe="target/_t353_check"; else exe="target/_t353_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
@@ -3644,9 +3644,9 @@ t352_compound_assignment() {
     # `LHS = LHS op RHS`. Pins all five forms (+=/-=/*=//=/%=) on bare
     # var and struct-field LHS. Expected exit 3.
     "$BIN" build "tests/fixtures/t352_compound_assignment.nr" -o "_t352_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t352_check" ] || [ -x "target/_t352_check.exe" ] || return 1
+    [ -f "target/_t352_check" ] || [ -f "target/_t352_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t352_check" ]; then exe="target/_t352_check"; else exe="target/_t352_check.exe"; fi
+    if [ -f "target/_t352_check" ]; then exe="target/_t352_check"; else exe="target/_t352_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 3 ] || return 1
@@ -3662,9 +3662,9 @@ t351_shadowing() {
     # / inline-arith / no-old-use). Returns 1+2+4+8+16=31 if every
     # shadow resolves correctly.
     "$BIN" build "tests/fixtures/t351_shadowing.nr" -o "_t351_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t351_check" ] || [ -x "target/_t351_check.exe" ] || return 1
+    [ -f "target/_t351_check" ] || [ -f "target/_t351_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t351_check" ]; then exe="target/_t351_check"; else exe="target/_t351_check.exe"; fi
+    if [ -f "target/_t351_check" ]; then exe="target/_t351_check"; else exe="target/_t351_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 31 ] || return 1
@@ -3689,9 +3689,9 @@ t349_trait_method_vec_index() {
     # method returns Vec<f64> dispatched to integer add on packed
     # f64 bit patterns. Pins compile + run + value (1.0+2.0+3.0=6).
     "$BIN" build "tests/fixtures/t349_trait_method_vec_index.nr" -o "_t349_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t349_check" ] || [ -x "target/_t349_check.exe" ] || return 1
+    [ -f "target/_t349_check" ] || [ -f "target/_t349_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t349_check" ]; then exe="target/_t349_check"; else exe="target/_t349_check.exe"; fi
+    if [ -f "target/_t349_check" ]; then exe="target/_t349_check"; else exe="target/_t349_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 6 ] || return 1
@@ -3724,9 +3724,9 @@ t347_closure_capture() {
     # multiple distinct closures (slot non-aliasing).
     # Expected exit code 15 (1+2+4+8).
     "$BIN" build "tests/fixtures/t347_closure_capture.nr" -o "_t347_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t347_check" ] || [ -x "target/_t347_check.exe" ] || return 1
+    [ -f "target/_t347_check" ] || [ -f "target/_t347_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t347_check" ]; then exe="target/_t347_check"; else exe="target/_t347_check.exe"; fi
+    if [ -f "target/_t347_check" ]; then exe="target/_t347_check"; else exe="target/_t347_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 15 ] || return 1
@@ -3741,9 +3741,9 @@ t346_assoc_fn_collections() {
     # (HashMap/HashSet/BTreeMap/BTreeSet) plus the lowercase form
     # baseline. Expected exit code 31 (1+2+4+8+16).
     "$BIN" build "tests/fixtures/t346_assoc_fn_collections.nr" -o "_t346_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t346_check" ] || [ -x "target/_t346_check.exe" ] || return 1
+    [ -f "target/_t346_check" ] || [ -f "target/_t346_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t346_check" ]; then exe="target/_t346_check"; else exe="target/_t346_check.exe"; fi
+    if [ -f "target/_t346_check" ]; then exe="target/_t346_check"; else exe="target/_t346_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 31 ] || return 1
@@ -3757,9 +3757,9 @@ t345_kalman_synthesis() {
     # Vec<V3> trajectory, struct trait method, and cast inline,
     # then asserts all six output values are mathematically correct.
     "$BIN" build "examples/24_rt_kalman_step.nr" -o "_t345_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t345_check" ] || [ -x "target/_t345_check.exe" ] || return 1
+    [ -f "target/_t345_check" ] || [ -f "target/_t345_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t345_check" ]; then exe="target/_t345_check"; else exe="target/_t345_check.exe"; fi
+    if [ -f "target/_t345_check" ]; then exe="target/_t345_check"; else exe="target/_t345_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^7\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
@@ -3776,9 +3776,9 @@ t344_method_returning_struct() {
     # (`v.rotated().x`). Asserts var/fn-call/inline-binop
     # receivers all resolve correctly.
     "$BIN" build "tests/fixtures/t344_method_returning_struct.nr" -o "_t344_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t344_check" ] || [ -x "target/_t344_check.exe" ] || return 1
+    [ -f "target/_t344_check" ] || [ -f "target/_t344_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t344_check" ]; then exe="target/_t344_check"; else exe="target/_t344_check.exe"; fi
+    if [ -f "target/_t344_check" ]; then exe="target/_t344_check"; else exe="target/_t344_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count_2
     count_2=$(grep -cE '^2\.0+$' $NUC_VERIFY_STEP_LOG)
@@ -3792,9 +3792,9 @@ t343_nested_indexing() {
     # (`grid[i][j]`) inline f64 binops. Closes the kind 10
     # operand cell of the composition matrix in BOTH resolvers.
     "$BIN" build "tests/fixtures/t343_nested_indexing.nr" -o "_t343_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t343_check" ] || [ -x "target/_t343_check.exe" ] || return 1
+    [ -f "target/_t343_check" ] || [ -f "target/_t343_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t343_check" ]; then exe="target/_t343_check"; else exe="target/_t343_check.exe"; fi
+    if [ -f "target/_t343_check" ]; then exe="target/_t343_check"; else exe="target/_t343_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^1\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3810,9 +3810,9 @@ t342_fncall_indexing() {
     #   make_vec()[0] * make_vec()[2] = 15
     #   make_vstruct()[0].x + make_vstruct()[1].y = 5 (cross-resolver)
     "$BIN" build "tests/fixtures/t342_fncall_indexing.nr" -o "_t342_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t342_check" ] || [ -x "target/_t342_check.exe" ] || return 1
+    [ -f "target/_t342_check" ] || [ -f "target/_t342_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t342_check" ]; then exe="target/_t342_check"; else exe="target/_t342_check.exe"; fi
+    if [ -f "target/_t342_check" ]; then exe="target/_t342_check"; else exe="target/_t342_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^7\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^15\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3826,9 +3826,9 @@ t341_method_on_indexed_field() {
     # Mirrors v0.3.65 in expr_struct_type. Asserts both
     # method × scalar and method × method patterns compute.
     "$BIN" build "tests/fixtures/t341_method_on_indexed_field.nr" -o "_t341_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t341_check" ] || [ -x "target/_t341_check.exe" ] || return 1
+    [ -f "target/_t341_check" ] || [ -f "target/_t341_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t341_check" ]; then exe="target/_t341_check"; else exe="target/_t341_check.exe"; fi
+    if [ -f "target/_t341_check" ]; then exe="target/_t341_check"; else exe="target/_t341_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^6\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^22\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3841,9 +3841,9 @@ t340_nested_index_field() {
     # field) inside inline f64 binops. Asserts trait method bodies
     # compute correctly for both Vec<f64> and [f64;N] fields.
     "$BIN" build "tests/fixtures/t340_nested_index_field.nr" -o "_t340_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t340_check" ] || [ -x "target/_t340_check.exe" ] || return 1
+    [ -f "target/_t340_check" ] || [ -f "target/_t340_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t340_check" ]; then exe="target/_t340_check"; else exe="target/_t340_check.exe"; fi
+    if [ -f "target/_t340_check" ]; then exe="target/_t340_check"; else exe="target/_t340_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^4\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^2\.50+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3859,9 +3859,9 @@ t339_sensor_fusion_synthesis() {
     # mathematically correct. Catches any regression that breaks
     # the cross-shape composition.
     "$BIN" build "examples/23_rt_sensor_fusion.nr" -o "_t339_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t339_check" ] || [ -x "target/_t339_check.exe" ] || return 1
+    [ -f "target/_t339_check" ] || [ -f "target/_t339_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t339_check" ]; then exe="target/_t339_check"; else exe="target/_t339_check.exe"; fi
+    if [ -f "target/_t339_check" ]; then exe="target/_t339_check"; else exe="target/_t339_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^25\.0+$'      $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^3\.50+$'      $NUC_VERIFY_STEP_LOG || return 1
@@ -3875,9 +3875,9 @@ t338_fixed_array_of_struct() {
     # field access (`arr[0].x` where arr: [V; N]). Mirrors v0.3.59
     # for Vec<struct>. Asserts three patterns compile + compute.
     "$BIN" build "tests/fixtures/t338_fixed_array_of_struct.nr" -o "_t338_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t338_check" ] || [ -x "target/_t338_check.exe" ] || return 1
+    [ -f "target/_t338_check" ] || [ -f "target/_t338_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t338_check" ]; then exe="target/_t338_check"; else exe="target/_t338_check.exe"; fi
+    if [ -f "target/_t338_check" ]; then exe="target/_t338_check"; else exe="target/_t338_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^1\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3891,9 +3891,9 @@ t337_fixed_array_fp_ops() {
     # kind==10 branch in binop_float_type to also handle
     # `[T; N]` (not just `Vec<T>`).
     "$BIN" build "tests/fixtures/t337_fixed_array_fp_ops.nr" -o "_t337_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t337_check" ] || [ -x "target/_t337_check.exe" ] || return 1
+    [ -f "target/_t337_check" ] || [ -f "target/_t337_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t337_check" ]; then exe="target/_t337_check"; else exe="target/_t337_check.exe"; fi
+    if [ -f "target/_t337_check" ]; then exe="target/_t337_check"; else exe="target/_t337_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^-3\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
@@ -3914,9 +3914,9 @@ t336_cast_fp_ops() {
     #   (i as f64) * make_two()   = 8    (cast × fn-call)
     #   (m() as f64) + (m() as f64) = 14 (cast × cast same — original bug)
     "$BIN" build "tests/fixtures/t336_cast_fp_ops.nr" -o "_t336_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t336_check" ] || [ -x "target/_t336_check.exe" ] || return 1
+    [ -f "target/_t336_check" ] || [ -f "target/_t336_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t336_check" ]; then exe="target/_t336_check"; else exe="target/_t336_check.exe"; fi
+    if [ -f "target/_t336_check" ]; then exe="target/_t336_check"; else exe="target/_t336_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count_8
     count_8=$(grep -cE '^8\.0+$' $NUC_VERIFY_STEP_LOG)
@@ -3937,9 +3937,9 @@ t335_trait_method_fp_ops() {
     #   r1.area() * 2.0         = 24.0
     #   r1.area() * r2.area()   = 120.0
     "$BIN" build "tests/fixtures/t335_trait_method_fp_ops.nr" -o "_t335_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t335_check" ] || [ -x "target/_t335_check.exe" ] || return 1
+    [ -f "target/_t335_check" ] || [ -f "target/_t335_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t335_check" ]; then exe="target/_t335_check"; else exe="target/_t335_check.exe"; fi
+    if [ -f "target/_t335_check" ]; then exe="target/_t335_check"; else exe="target/_t335_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^22\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^24\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -3953,9 +3953,9 @@ t334_vec_of_struct_field() {
     # to expr_struct_type. Asserts path[i].x patterns compile
     # AND compute correctly.
     "$BIN" build "tests/fixtures/t334_vec_of_struct_field.nr" -o "_t334_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t334_check" ] || [ -x "target/_t334_check.exe" ] || return 1
+    [ -f "target/_t334_check" ] || [ -f "target/_t334_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t334_check" ]; then exe="target/_t334_check"; else exe="target/_t334_check.exe"; fi
+    if [ -f "target/_t334_check" ]; then exe="target/_t334_check"; else exe="target/_t334_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^1\.0+$' $NUC_VERIFY_STEP_LOG || return 1
     local count
@@ -3970,9 +3970,9 @@ t333_chained_field_on_fn_call() {
     # expr_struct_type. Asserts builder/factory pattern
     # `make_v().x + make_v().y` compiles AND computes correctly.
     "$BIN" build "tests/fixtures/t333_chained_field_on_fn_call.nr" -o "_t333_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t333_check" ] || [ -x "target/_t333_check.exe" ] || return 1
+    [ -f "target/_t333_check" ] || [ -f "target/_t333_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t333_check" ]; then exe="target/_t333_check"; else exe="target/_t333_check.exe"; fi
+    if [ -f "target/_t333_check" ]; then exe="target/_t333_check"; else exe="target/_t333_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count
     count=$(grep -cE '^4\.0+$' $NUC_VERIFY_STEP_LOG)
@@ -3987,9 +3987,9 @@ t332_unary_minus_f64() {
     # operand kinds produces correct values:
     #   var: -3   field: -3   vec[i]: -2.5   fn-call: -5
     "$BIN" build "tests/fixtures/t332_unary_minus_f64.nr" -o "_t332_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t332_check" ] || [ -x "target/_t332_check.exe" ] || return 1
+    [ -f "target/_t332_check" ] || [ -f "target/_t332_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t332_check" ]; then exe="target/_t332_check"; else exe="target/_t332_check.exe"; fi
+    if [ -f "target/_t332_check" ]; then exe="target/_t332_check"; else exe="target/_t332_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count
     count=$(grep -cE '^-3\.0+$' $NUC_VERIFY_STEP_LOG)
@@ -4007,9 +4007,9 @@ t331_mixed_fp_ops() {
     #   field × vec[i]  → 6    (cast) × vec[i] → 20
     #   fn-call × vec[i] → 5
     "$BIN" build "tests/fixtures/t331_mixed_fp_ops.nr" -o "_t331_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t331_check" ] || [ -x "target/_t331_check.exe" ] || return 1
+    [ -f "target/_t331_check" ] || [ -f "target/_t331_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t331_check" ]; then exe="target/_t331_check"; else exe="target/_t331_check.exe"; fi
+    if [ -f "target/_t331_check" ]; then exe="target/_t331_check"; else exe="target/_t331_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^6\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -4026,9 +4026,9 @@ t330_vec_index_fp_ops() {
     #   add: 1+4=5    sub: 1-4=-3   mul: 1*4=4   div: 8/4=2
     #   nested: v[0]*v[1] + v[2]*v[5] + v[4]*v[6] = 32
     "$BIN" build "tests/fixtures/t330_vec_index_fp_ops.nr" -o "_t330_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t330_check" ] || [ -x "target/_t330_check.exe" ] || return 1
+    [ -f "target/_t330_check" ] || [ -f "target/_t330_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t330_check" ]; then exe="target/_t330_check"; else exe="target/_t330_check.exe"; fi
+    if [ -f "target/_t330_check" ]; then exe="target/_t330_check"; else exe="target/_t330_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -4045,9 +4045,9 @@ t329_fn_call_fp_ops() {
     #   add: 1+4=5    sub: 1-4=-3   mul: 1*4=4   div: 8/4=2
     #   nested: 1*4 + 2*5 + 3*6 = 32
     "$BIN" build "tests/fixtures/t329_fn_call_fp_ops.nr" -o "_t329_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t329_check" ] || [ -x "target/_t329_check.exe" ] || return 1
+    [ -f "target/_t329_check" ] || [ -f "target/_t329_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t329_check" ]; then exe="target/_t329_check"; else exe="target/_t329_check.exe"; fi
+    if [ -f "target/_t329_check" ]; then exe="target/_t329_check"; else exe="target/_t329_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -4066,9 +4066,9 @@ t328_struct_field_fp_ops() {
     #   add: 1+4 = 5     mul: 1*4 = 4     dot: 1*4+2*5+3*6 = 32
     #   sub: 1-4 = -3    div: 8/4 = 2
     "$BIN" build "tests/fixtures/t328_struct_field_fp_ops.nr" -o "_t328_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t328_check" ] || [ -x "target/_t328_check.exe" ] || return 1
+    [ -f "target/_t328_check" ] || [ -f "target/_t328_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t328_check" ]; then exe="target/_t328_check"; else exe="target/_t328_check.exe"; fi
+    if [ -f "target/_t328_check" ]; then exe="target/_t328_check"; else exe="target/_t328_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
@@ -4091,9 +4091,9 @@ t327_export_workaround_dot() {
     # is later fixed (v0.4 AST codegen), this test still
     # passes because the workaround pattern remains correct.
     "$BIN" build "examples/22_rt_export.nr" -o "_t327_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ -x "target/_t327_check" ] || [ -x "target/_t327_check.exe" ] || return 1
+    [ -f "target/_t327_check" ] || [ -f "target/_t327_check.exe" ] || return 1
     local exe
-    if [ -x "target/_t327_check" ]; then exe="target/_t327_check"; else exe="target/_t327_check.exe"; fi
+    if [ -f "target/_t327_check" ]; then exe="target/_t327_check"; else exe="target/_t327_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE '32\.0+' $NUC_VERIFY_STEP_LOG || return 1
     return 0
@@ -4660,11 +4660,11 @@ tools_rebuild() {
     # cli_explain_full_smoke step would fail spuriously (or, worse,
     # pass against the stale binary while the new code was broken).
     "$BIN" build "compiler/nucleor_tools_suite.nr" -o "nucleor_tools" >$NUC_VERIFY_STEP_LOG 2>&1
-    if [ -x "target/nucleor_tools" ]; then
+    if [ -f "target/nucleor_tools" ]; then
         cp "target/nucleor_tools" "$ROOT/bin/nucleor_tools" 2>/dev/null
         return 0
     fi
-    if [ -x "target/nucleor_tools.exe" ]; then
+    if [ -f "target/nucleor_tools.exe" ]; then
         cp "target/nucleor_tools.exe" "$ROOT/bin/nucleor_tools.exe" 2>/dev/null
         return 0
     fi
@@ -4673,10 +4673,10 @@ tools_rebuild() {
 
 registry_remote_cli_smoke() {
     local tools_bin="$ROOT/target/nucleor_tools"
-    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/target/nucleor_tools.exe"; fi
-    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools"; fi
-    if [ ! -x "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools.exe"; fi
-    if [ ! -x "$tools_bin" ]; then tools_bin="$BIN"; fi
+    if [ ! -f "$tools_bin" ]; then tools_bin="$ROOT/target/nucleor_tools.exe"; fi
+    if [ ! -f "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools"; fi
+    if [ ! -f "$tools_bin" ]; then tools_bin="$ROOT/bin/nucleor_tools.exe"; fi
+    if [ ! -f "$tools_bin" ]; then tools_bin="$BIN"; fi
     local tmp
     tmp="$(verify_tmp_dir "_r12_registry_remote")" || return 1
     (
@@ -4867,9 +4867,9 @@ rfc0007_atomic_ir_smoke() {
     "$BIN" build "tests/features/rfc0007_atomic_basic.nr" -o "_rfc0007_atomic_basic" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local ll="target/_rfc0007_atomic_basic.ll"
     local exe="target/_rfc0007_atomic_basic"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe.exe" ] && exe="$exe.exe"
     [ -f "$ll" ] || return 1
-    [ -x "$exe" ] || return 1
+    [ -f "$exe" ] || return 1
     grep -q "load atomic i64" "$ll" || return 1
     grep -q "store atomic i64" "$ll" || return 1
     grep -q "cmpxchg ptr" "$ll" || return 1
@@ -4887,8 +4887,8 @@ rfc0007_queue_smoke() {
     for fixture in rfc0007_queue_spsc rfc0007_queue_mpsc rfc0007_queue_capacity rfc0007_queue_bench; do
         "$BIN" build "tests/features/$fixture.nr" -o "_$fixture" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
         exe="target/_$fixture"
-        [ -x "$exe.exe" ] && exe="$exe.exe"
-        [ -x "$exe" ] || return 1
+        [ -f "$exe.exe" ] && exe="$exe.exe"
+        [ -f "$exe" ] || return 1
         out=$("$exe" 2>&1)
         printf '%s\n' "$out" >$NUC_VERIFY_RUN_LOG
         printf '%s\n' "$out" | grep -q "OK $fixture" || return 1

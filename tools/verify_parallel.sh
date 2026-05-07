@@ -94,8 +94,8 @@ run_step() {
     if [ "$kind" = "test" ]; then
         "$BIN" build "tests/$dir/$tname.nr" -o "$tname" > "$steplog" 2>&1
         local exe="target/$tname"
-        [ -x "$exe.exe" ] && exe="$exe.exe"
-        if [ ! -x "$exe" ]; then
+        [ -f "$exe.exe" ] && exe="$exe.exe"
+        if [ ! -f "$exe" ]; then
             t1=$(date +%s.%N); dt=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')
             echo "FAIL|$label|$dt|build_failed" > "$result"
             return
