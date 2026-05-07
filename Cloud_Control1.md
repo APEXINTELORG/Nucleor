@@ -514,3 +514,19 @@ This is transitive handoff — similar shape to existing `#[manual_drop]` propag
 
 **Done = `bash tools/verify.sh` + `bash tools/verify_strict.sh` both report PASS=1487/SKIP=2/FAIL=0 (or close — allow ±1 SKIP for Windows-only fixtures) on a fresh-clone Linux runner. Push the patched experiment branch; integrator fast-forwards to main.**
 
+## [2026-05-07 23:24 UTC] Queue Cloud-DFLIP-VALIDATE — DONE (NOT CLEAN — do NOT fast-forward)
+Branch: claude/verify-round-3-tests-RnTlO @ <committed below> (rebased onto fix/default-flip-experiment-v0846 @ bf097e07)
+Base: fix/default-flip-experiment-v0846 @ bf097e07b3a83ec6 (parent: e5081625 default-flip structural fix)
+Origin/main at run time: 62172cbf
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 + 4 logs (findings/inbox/cloud_claude_dflip_validate_bf097e07_2026-05-07.md; findings/inbox/dflip_artifacts/{bootstrap,build_tools,verify_default,verify_strict}.log)
+Validation: COMPLETE but **NOT CLEAN.** Bootstrap fixed-point md5 matches Windows exactly: `target/nucleor_s2.ll` and `bootstrap/nucleor_s1_seed.ll` both md5 to `603891a9ec0a46fc1c6e41a2854317ce` ✓ (queue spec stamp). Stage-1 + stage-2 both link green. `bash tools/verify.sh` (default + NUC_VERIFY_PROBE=1) → PASS=1436 / SKIP=1 / FAIL=52 across 1489 steps. `bash tools/verify_strict.sh` (cache-cold + NUC_VERIFY_STRICT=1) → PASS=1437 / SKIP=1 / FAIL=51 across 1489 steps. Zero non-ML failures in either run. PROBE-1 step at index 1489/1489 PASSED in 1.15s. Phase-4 drift gate did not surface a parser-fn parity FAIL.
+
+**Per-host parity:** integrator's Windows transcript reported PASS=1487 / SKIP=2 / FAIL=0 on the same `bf097e07`. Today's Linux runs are NOT at parity — 80 distinct ML fixtures fail across the two modes (52 default + 51 strict, only 23 in common). Spot-confirmed `ml_ai_facade_smoke` still panics with `len is -864398211` (different garbage value than fccef882's `-893742413`, same uninitialized-memory signature). **Bootstrap parity is exact, but runtime handoff machinery has Linux-specific gaps** — exactly the "missing handoff cases in `auto_drop_mark_constructor_handoffs` that Linux exercises but Windows didn't" outcome the integrator anticipated in the queue spec.
+
+**Recommendation: do NOT fast-forward `fix/default-flip-experiment-v0846` to `origin/main` based on this Linux run.** The structural default-flip is architecturally correct (bootstrap md5 confirms IR parity; non-ML steps 100% green; PROBE-1 passes), but the Linux-side runtime gaps mean fast-forward would re-regress the non-Windows hosts. Partner-Compiler should trace `auto_drop_mark_constructor_handoffs` against one minimal repro (e.g. `ml_recover_sigmoid_f64` from the common-23 list) and identify which call shape isn't being recognized as a handoff. Once that fix lands, re-fire DFLIP-VALIDATE on the next loop tick.
+Report: findings/inbox/cloud_claude_dflip_validate_bf097e07_2026-05-07.md
+Residuals: 80 distinct ML fixtures still fail on Linux post-default-flip — full common-23 list in the report; default-only and strict-only sets in the artifact logs. The integrator's prediction in the queue spec ("missing handoff cases in `auto_drop_mark_constructor_handoffs`") is exactly correct. Cache-state flakiness across runs (only 23 of 80 fail in BOTH modes) further corroborates t21's recommendation #1 (ship `--no-cache` for verify-gate step bodies). Honesty rule honored: stop-and-investigate filed; no patches; no fast-forward signal.
+
+
