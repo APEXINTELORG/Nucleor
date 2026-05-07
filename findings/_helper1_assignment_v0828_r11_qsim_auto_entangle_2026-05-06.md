@@ -1457,3 +1457,120 @@ Whether main needs drift/self-host/perf/full verify:
 
 Do not run full verify by default. This is a compiler diagnostic lane, so use
 focused fixtures, drift, and perf only if the hot path materially changes.
+
+## Queue 11 Continuation v0841 - ROBO-7 Stdlib Frame Migration Pack
+
+Status before this queue: Helper1 repair landed and main integrated it as
+`74303c3d`, then Helper2 Wave 5 landed as `34d12338`. Fetch first and start
+fresh from current `origin/main`.
+
+Branch:
+
+```text
+fix/helper1-robo7-stdlib-frame-migration-v0841
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/helper1-robo7-stdlib-frame-migration-v0841 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Move ROBO-7 from compiler diagnostic coverage into adopter-facing stdlib
+  readiness.
+- Prefer real low-risk stdlib signature migration and fixtures over another
+  report-only pass.
+- If a signature migration is not clean, stop the implementation portion and
+  write a precise blocker ledger. Do not fake coverage.
+
+Primary files to inspect:
+
+```text
+stdlib/rods/kinematics.nr
+stdlib/rods/tf.nr
+stdlib/rods/se3.nr
+tests/features/robo7_frame_positive_smoke.nr
+tests/err/err_robo7_frame_*.nr
+docs/rfcs/v1_PUNCHLIST.md
+docs/spec/Nucleor_Error_Codes.md
+```
+
+Scope AM - stdlib frame-signature migration:
+
+- Survey public `Pose` / transform / frame-bearing signatures in
+  `kinematics.nr`, `tf.nr`, and `se3.nr`.
+- Where the migration is obviously local and backwards-compatible, annotate
+  public surfaces with `Pose<Frame_Unknown>` or explicit `Pose<Frame_X>` style
+  phantom tags.
+- Preserve existing untagged compatibility where adopters have not opted in.
+- Do not break existing robotics feature fixtures.
+- Add focused positive fixtures proving migrated signatures still build and
+  run.
+- Add focused negative fixtures only where the compiler now rejects a real
+  frame mismatch through a migrated stdlib-facing API.
+
+Scope AN - migration blocker ledger:
+
+Create or update:
+
+```text
+findings/inbox/helper1_robo7_stdlib_migration_ledger_v0841_2026-05-06.md
+```
+
+The ledger must include:
+
+- every public candidate signature reviewed;
+- whether it was migrated, deferred, or left intentionally untagged;
+- exact reason for every deferral;
+- what fixture proves each migrated surface;
+- remaining work needed before ROBO-7 Phase 4 hard-error promotion.
+
+Boundaries:
+
+- Do not touch RFC-0063 tools-suite deduplication.
+- Do not touch R05 effects enforcement.
+- Do not change Linux package/R06 tooling.
+- Do not change `bin/` or `bootstrap/` unless compiler source changes. This
+  queue should normally be stdlib/docs/tests only.
+- No Python helpers.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build tests\features\robo7_frame_positive_smoke.nr -o _robo7_frame_positive_v0841 --no-cache
+.\target\_robo7_frame_positive_v0841.exe
+```
+
+Run every new positive fixture and confirm exit code 0. Run every new negative
+fixture and confirm it fails with `error[FRAME-001]`.
+
+Also run:
+
+```bash
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Run compiler drift only if compiler/tooling metadata changes:
+
+```bash
+bash tools/check_compiler_drift.sh
+```
+
+Run perf only if compiler source or hot toolchain code changes:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Deliverable:
+
+- Push the branch.
+- Include branch, HEAD, base, merge-base, changed files, completed scopes,
+  skipped scopes/blockers, validation, and report path.
+- Report whether main needs drift/self-host/perf/full verify.
