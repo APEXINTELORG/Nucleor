@@ -40,8 +40,8 @@ fn main() -> i32 {
 
     // Env: set + get + unset
     env_set("NUCLEOR_TEST_VAR", "hello");
-    let v: i64 = env_get("NUCLEOR_TEST_VAR");
-    if v == 0 { fail = fail + 1; print("FAIL: env_get returned NULL\n"); };
+    let v: str = env_get("NUCLEOR_TEST_VAR");
+    if str_eq(v, "hello") == 0 { fail = fail + 1; print("FAIL: env_get value mismatch\n"); };
     env_unset("NUCLEOR_TEST_VAR");
 
     if fail == 0 { print("OK time_env_os\n"); return 0; };
