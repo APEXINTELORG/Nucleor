@@ -1274,8 +1274,17 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 45, trait_name, type_name, mk_list(pool, methods)));
 }
 
+#[manual_drop]
 fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos is after 'match', at the expression
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_match_stmt. Without it
+    // the local `arms: Vec<i32>` accumulator (and intermediate per-arm
+    // `stmts: Vec<i32>`) get auto-dropped before mk_list iterates them,
+    // which surfaces as the latent T2.1-class panic ("node_field node OOB:
+    // index 3, len 3" / "index out of bounds: len 1 / index 1") on
+    // fixtures with 3+ match arms. Same dangling-Vec bug class as the
+    // T2.5 / parse_struct_decl / parse_enum_decl / parse_trait_decl /
+    // parse_impl_block fixes.
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = expect_tok(tokens, pr_pos(er), 52); // {
     let mut arms: Vec<i32> = Vec::new();

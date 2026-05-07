@@ -232,6 +232,7 @@ fi
 host_kernel="$(uname -s 2>/dev/null || echo unknown)"
 case "$host_kernel" in
     Linux|Darwin|FreeBSD|OpenBSD|NetBSD)
+        # POSIX: prefer native, exec bit is reliable, use -x.
         if [ -x "$ROOT/bin/nucleor" ]; then
             BIN="$ROOT/bin/nucleor"
         else
@@ -239,7 +240,11 @@ case "$host_kernel" in
         fi
         ;;
     *)
-        if [ -x "$ROOT/bin/nucleor.exe" ]; then
+        # Git-Bash on Windows: NTFS-mounted .exe files often have an
+        # unreliable POSIX exec bit, so use -f (file exists) for the
+        # presence check. Same shape fix as tools/verify.sh's 208-site
+        # sweep at commit 74a251f6.
+        if [ -f "$ROOT/bin/nucleor.exe" ]; then
             BIN="$ROOT/bin/nucleor.exe"
         else
             BIN="$ROOT/bin/nucleor"
@@ -247,7 +252,11 @@ case "$host_kernel" in
         ;;
 esac
 
-if [ ! -x "$BIN" ]; then
+# Same Git-Bash exec-bit caveat: use -f for the binary-present
+# guard. Drift only runs the binary via "$BIN" --version, which
+# delegates to the OS's spawn path (Windows resolves .exe regardless
+# of POSIX exec bit) — so file-exists is the right precondition.
+if [ ! -f "$BIN" ]; then
     echo "FAIL: promoted compiler binary missing: expected bin/nucleor.exe or bin/nucleor"
     exit 1
 fi

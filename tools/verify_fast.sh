@@ -44,7 +44,10 @@ set -uo pipefail
 # test fails fast. Healthy compiles are sub-1 GB; the prior blowups
 # we hunted hit ~20 GB, so 2 GB is the right "alarm" threshold.
 # Override via NUCLEOR_MEM_CAP_KB env var (units: KB; "0" = no cap).
-: "${NUCLEOR_MEM_CAP_KB:=2097152}"
+# 2026-05-07: aligned with verify.sh's 4GB cap (was 2GB; gen_helper_manifest
+# under drift script trips malloc(333k) failure inside the smaller cap when
+# the cumulative pool/runtime allocations push virtual mem near 2GB).
+: "${NUCLEOR_MEM_CAP_KB:=4194304}"
 if [ "${NUCLEOR_MEM_CAP_KB}" != "0" ]; then
     ulimit -v "${NUCLEOR_MEM_CAP_KB}" 2>/dev/null || true
 fi
@@ -433,7 +436,10 @@ TEST_DIRS=(lang attrs runtime rods features)
 # Files matching this pattern are auxiliary helpers imported by another
 # test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
 # them keeps the gate from treating them as duplicate-main failures.
-TEST_SKIP_REGEX='_aux\.nr$'
+# 2026-05-07: aligned with verify.sh's regex (was missing import_dedupe_lib.nr$,
+# which has no fn main() so the parallel-fixture build emits "subsystem must
+# be defined" and the gate flags a build_failed).
+TEST_SKIP_REGEX='_aux\.nr$|import_dedupe_lib\.nr$'
 ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$|err_t4_strict_inference\.nr$|err_numg2_math_abs_imin\.nr$|err_numg2_math_gcd_imin\.nr$|err_numg2_math_pow_int_overflow\.nr$'
 TEST_COUNT=0
 for d in "${TEST_DIRS[@]}"; do
@@ -667,14 +673,29 @@ cli_utility_smoke() {
 err_tests_have_expect_smoke() {
     # v0.2.118 — every tests/err/*.nr file must carry an
     # `// EXPECT: <code> <text>` header on its first comment line.
-    # FAST: single grep pass over all files (was per-file head+grep loop —
-    # 238 process spawns on Windows = ~18s).
-    local missing
-    missing=$(grep -L "^// EXPECT:" "$ROOT"/tests/err/*.nr 2>/dev/null)
-    if [ -n "$missing" ]; then
+    # Locks down the v0.2.117 bulk-add (33/33 tests headerized).
+    # Going forward, contributors adding a new negative test must
+    # also document what diagnostic it fires.
+    # v0.5.31: replaced per-file `head -3 | grep` (2 forks per file × ~100
+    # files ≈ 200 spawns, 10-24s wall on Windows) with bash builtin scan.
+    # Reads first 3 lines without forking; matches via case/glob.
+    local missing=()
+    local f line1 line2 line3
+    for f in "$ROOT"/tests/err/*.nr; do
+        case "$f" in
+            *_aux.nr|*import_dedupe_lib.nr) continue ;;
+        esac
+        line1=""; line2=""; line3=""
+        { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$f" 2>/dev/null
+        case "$line1$line2$line3" in
+            *"// EXPECT:"*) ;;
+            *) missing+=("$(basename "$f")") ;;
+        esac
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
         echo "       err tests missing EXPECT header:"
-        echo "$missing" | while read -r f; do
-            [ -n "$f" ] && echo "         - $(basename "$f")"
+        for m in "${missing[@]}"; do
+            echo "         - $m"
         done
         return 1
     fi
@@ -1400,9 +1421,9 @@ tools_suite_memory_budget() {
 
 t33_wcet_estimator() {
     "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE 'warning\[RT-004\]: heuristic deadline estimate [0-9]+ us' $NUC_VERIFY_STEP_LOG || return 1
     grep -q 'exceeds #\[deadline = 1 us\]' $NUC_VERIFY_STEP_LOG || return 1
-    grep -q 'v1 estimator' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'default loop multiplier 100x' $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t35_rt007_unguarded_deadline() {
@@ -2101,17 +2122,18 @@ t443_recursive_debug() {
 t441_var_div_zero_runtime_panic() {
     # v0.4.95 — variable-divisor zero now panics with clean message
     # (was silent SIGFPE / exit 127).
-    "$BIN" build "tests/fixtures/repro_v95_var_div_by_zero_runtime_panic.nr" -o "_t441_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    local rc=$?
-    [ "$rc" = "0" ] || return 1
-    local exe="target/_t441_check"
-    [ -f "$exe.exe" ] && exe="$exe.exe"
-    [ -f "$exe" ] || return 1
+    # v0.6.53 NUM-021 gap 3 + v0.6.50 gap 4: when the divisor is a
+    # const-tracked let-binding (`let z: i64 = 0; let q: i64 = 10 / z;`),
+    # the const-fold path catches the div-by-zero at COMPILE time with
+    # NUM-021 (strictly better than the v0.4.95 runtime panic — catches
+    # earlier). The v0.4.95 runtime path still fires for non-trackable
+    # divisors (e.g. read from input). Test updated to verify the new
+    # compile-time catch.
     local out
-    out=$("$exe" 2>&1)
-    local rt_rc=$?
-    [ "$rt_rc" != "0" ] || return 1
-    echo "$out" | grep -q "i64 division by zero" || return 1
+    out=$("$BIN" build "tests/fixtures/repro_v95_var_div_by_zero_runtime_panic.nr" -o "_t441_check" --no-cache 2>&1)
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    echo "$out" | grep -q "NUM-021" || return 1
     return 0
 }
 
@@ -3149,13 +3171,14 @@ t386_print_multiarg_panic() {
 }
 
 t383_let_tuple_destructure_panic() {
-    # T3.83 (v0.4.33a): `let (a, b) = ...` printed ERROR but emitted
-    # placeholder let-stmt and continued. Adopter's bindings never
-    # came into scope. Now panics. NEGATIVE test.
+    # T3.83 (v0.4.33a): `let (a, b) = ...` used to silently drop
+    # bindings. It is now a supported positive path; assert runtime value.
     "$BIN" build "tests/fixtures/repro_v33a_let_tuple_panic.nr" -o "_t383_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ "$?" -ne 0 ] || return 1
-    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "PANIC: nucleor: tuple destructuring in" $NUC_VERIFY_STEP_LOG || return 1
+    local exe
+    if [ -f "target/_t383_check" ]; then exe="target/_t383_check"; else exe="target/_t383_check.exe"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG.run 2>&1
+    [ "$?" -eq 12 ] || return 1
     return 0
 }
 
@@ -3580,10 +3603,13 @@ t358_trait_default_methods() {
 }
 
 t357_tuple_let_diagnostic() {
-    # T3.57 (v0.3.81): negative regression — `let (a, b) = ...;`
-    # pre-v0.3.81 segfaulted the compiler. Post: clean diagnostic.
+    # T3.57 (v0.3.81): negative regression. Typed tuple-let patterns
+    # remain unsupported, but must fail as a parser diagnostic, not crash.
     "$BIN" build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    local code=$?
+    [ "$code" -ne 139 ] && [ "$code" -ne 134 ] && [ "$code" -ne -1073741819 ] || return 1
+    [ "$code" -ne 0 ] || return 1
+    grep -q "error\\[NR020\\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
