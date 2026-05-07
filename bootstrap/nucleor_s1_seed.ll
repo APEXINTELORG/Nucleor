@@ -6321,7 +6321,7 @@ declare i64 @nuc_list_get(i64, i64, i64)
 @.str.5415 = private unnamed_addr constant [4 x i8] c"#[i\00"
 @.str.5416 = private unnamed_addr constant [4 x i8] c"sr]\00"
 @.str.5417 = private unnamed_addr constant [61 x i8] c"info[RT-G135]: real-time/determinism annotations in source: \00"
-@.str.5418 = private unnamed_addr constant [1363 x i8] c"  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to the scanner limit whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \22...\22` reach is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot \E2\80\94 #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.\00"
+@.str.5418 = private unnamed_addr constant [1469 x i8] c"  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \22...\22` reach is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot \E2\80\94 #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.\00"
 @.str.5419 = private unnamed_addr constant [12 x i8] c"concurrency\00"
 @.str.5420 = private unnamed_addr constant [8 x i8] c"cancel_\00"
 @.str.5421 = private unnamed_addr constant [6 x i8] c"token\00"
@@ -139926,7 +139926,7 @@ L2:
   store i64 %r.18, ptr %r.16
   %r.20 = load i64, ptr %r.2
   %r.21 = load i64, ptr %r.16
-  %r.22 = add i64 4, 0
+  %r.22 = add i64 8, 0
   %r.23 = call i64 @collect_same_file_callers_closure(i64 %r.20, i64 %r.21, i64 %r.22)
   store i64 %r.23, ptr %r.19
   %r.25 = add i64 0, 0
@@ -141863,7 +141863,7 @@ L2:
   store i64 %r.18, ptr %r.16
   %r.20 = load i64, ptr %r.2
   %r.21 = load i64, ptr %r.16
-  %r.22 = add i64 4, 0
+  %r.22 = add i64 8, 0
   %r.23 = call i64 @collect_same_file_callers_closure(i64 %r.20, i64 %r.21, i64 %r.22)
   store i64 %r.23, ptr %r.19
   %r.25 = add i64 0, 0

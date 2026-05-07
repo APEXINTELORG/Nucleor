@@ -15451,7 +15451,15 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     if vec_len(no_alloc_fns) == 0 { return diags; };
     let alloc_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Alloc");
     let alloc_body_fns: Vec<i32> = collect_allocating_same_file_fns(source);
-    let alloc_reachable_fns: Vec<i32> = collect_same_file_callers_closure(source, alloc_body_fns, 4);
+    // v0845 Lane 3 / Queue 3C: bump caller-closure depth from 4 to 8
+    // to match `restricts_transitive_check` and the v0845 lane 2
+    // requires-row depth. `collect_same_file_callers_closure` uses
+    // BFS with `rt_string_vec_append_unique` dedup, so termination is
+    // O(N) per chain (each fn added at most once). The wider hop
+    // budget closes the silent fall-through where 5..=7-hop chains
+    // through the resolved-source path (cross-module or same-file)
+    // reached an allocating leaf without an RT-001.
+    let alloc_reachable_fns: Vec<i32> = collect_same_file_callers_closure(source, alloc_body_fns, 8);
     let mut i: i64 = 0;
     while i < vec_len(no_alloc_fns) {
         let fn_name: str = vec_get(no_alloc_fns, i);
@@ -15702,7 +15710,10 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     if vec_len(no_panic_fns) == 0 { return diags; };
     let panic_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Panic");
     let panic_body_fns: Vec<i32> = collect_panicking_same_file_fns(source);
-    let panic_reachable_fns: Vec<i32> = collect_same_file_callers_closure(source, panic_body_fns, 4);
+    // v0845 Lane 3 / Queue 3C: same depth bump as `enforce_no_alloc`.
+    // 4 → 8 hops via the same BFS+dedup machinery; closes the
+    // 5..=7-hop silent fall-through on the panic-reachability scan.
+    let panic_reachable_fns: Vec<i32> = collect_same_file_callers_closure(source, panic_body_fns, 8);
     let mut i: i64 = 0;
     while i < vec_len(no_panic_fns) {
         let fn_name: str = vec_get(no_panic_fns, i);
@@ -32348,7 +32359,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0854_total: i64 = v0854_deadline + v0854_no_alloc + v0854_no_panic + v0854_isr;
         if v0854_total > 0 {
             print(str_concat("info[RT-G135]: real-time/determinism annotations in source: ", str_from_int(v0854_total)));
-            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to the scanner limit whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \"...\"` reach is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \"...\"` reach is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
     // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
