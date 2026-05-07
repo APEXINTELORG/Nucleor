@@ -2824,3 +2824,66 @@ fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
     sb_append(sb, ";\n}\n\n");
     return sb_to_str(sb);
 }
+
+// RFC-0063 Wave 11 shared SIG_MATCH_BODY_DIFFERS reviewed batch.
+#[manual_drop]
+fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
+    let mut t: Vec<i32> = Vec::with_capacity(3); t.push(tt); t.push(v); t.push(p); return t;
+}
+
+#[manual_drop]
+fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(2); n.push(k); n.push(a); return node_add(pool, n); }
+
+#[manual_drop]
+fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(3); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
+
+#[manual_drop]
+fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(4); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
+
+#[manual_drop]
+fn mk5(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(5); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); return node_add(pool, n); }
+
+#[manual_drop]
+fn mk6(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(6); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); n.push(e); return node_add(pool, n); }
+
+#[manual_drop]
+fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
+    let mut n: Vec<i32> = Vec::with_capacity(vec_len(items) + 1); n.push(40);
+    let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
+    return node_add(pool, n);
+}
+
+#[manual_drop]
+fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::with_capacity(2); r.push(p); r.push(v); return r; }
+
+#[manual_drop]
+fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
+    let mut ii: Vec<i32> = Vec::with_capacity(6); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
+}
+
+#[manual_drop]
+fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
+    ii.push(19); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
+    return ii;
+}
+
+#[manual_drop]
+fn ir_fn_ptr(d: i64, fn_name: str) -> Vec<i32> {
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
+    ii.push(29); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(0); ii.push(0);
+    return ii;
+}
+
+#[manual_drop]
+fn ir_indirect_call(d: i64, closure_reg: i64, args: Vec<i32>) -> Vec<i32> {
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
+    ii.push(30); ii.push(d); ii.push(0); ii.push(closure_reg); ii.push(vec_len(args)); ii.push(args);
+    return ii;
+}
+
+#[manual_drop]
+fn ir_block_new(lbl: i64) -> Vec<i32> {
+    let mut b: Vec<i32> = Vec::with_capacity(2); b.push(lbl);
+    let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
+}

@@ -58,9 +58,6 @@ fn str_to_int(s: str) -> i64 {
 // =====================================================
 // LEXER (from T29, unchanged)
 // =====================================================
-fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
-    let mut t: Vec<i32> = Vec::new(); t.push(tt); t.push(v); t.push(p); return t;
-}
 fn lex(src: str) -> Vec<i32> {
     let mut tokens: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
@@ -279,18 +276,6 @@ extern fn nuc_node_kind(pool: Vec<i32>, nid: i64) -> i64;
 extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
 extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
 extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
-
-fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); return node_add(pool, n); }
-fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
-fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
-fn mk5(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); return node_add(pool, n); }
-fn mk6(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); n.push(e); return node_add(pool, n); }
-fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
-    let mut n: Vec<i32> = Vec::new(); n.push(40);
-    let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
-    return node_add(pool, n);
-}
-fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::new(); r.push(p); r.push(v); return r; }
 
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
@@ -1548,31 +1533,8 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
 // =====================================================
 // IR DATA STRUCTURES (from T29, extended)
 // =====================================================
-fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new(); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
-}
 fn ir_select(d: i64, cond: i64, tv: i64, fv: i64) -> Vec<i32> { return ir_inst(28, d, 0, cond, tv, fv); }
-fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
-    ii.push(19); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
-    return ii;
-}
 
-fn ir_fn_ptr(d: i64, fn_name: str) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
-    ii.push(29); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(0); ii.push(0);
-    return ii;
-}
-fn ir_indirect_call(d: i64, closure_reg: i64, args: Vec<i32>) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
-    ii.push(30); ii.push(d); ii.push(0); ii.push(closure_reg); ii.push(vec_len(args)); ii.push(args);
-    return ii;
-}
-
-fn ir_block_new(lbl: i64) -> Vec<i32> {
-    let mut b: Vec<i32> = Vec::new(); b.push(lbl);
-    let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
-}
 fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
     let mut f: Vec<i32> = Vec::new(); f.push(name); f.push(pc); f.push(0);
     let mut blocks: Vec<i32> = Vec::new(); f.push(blocks); return f;
