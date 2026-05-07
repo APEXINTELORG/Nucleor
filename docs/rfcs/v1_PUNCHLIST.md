@@ -292,9 +292,11 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
 - **Severity:** SAFETY (Mars Climate Orbiter failure mode — was live pre-v0838)
-- **Status:** PARTIAL — Phase B step-2 let-binding slice shipped v0838
-  (FRAME-001 fires for `Pose<Frame_X>` mismatches at let-binding sites);
-  struct-init / function-call / binop expansion still queued.
+- **Status:** PARTIAL — Phase B step-3 diagnostic broadening is live in
+  the v0840 repair branch (FRAME-001 fires for `Pose<Frame_X>`
+  mismatches at let-binding, call-argument, struct/tuple init,
+  assignment, return, and binop sites); stdlib migration to typed
+  robotics signatures remains queued.
 - **Phase 1:** DONE — `stdlib/rods/kinematics_frame.nr` ships zero-cost
   `Frame_*` marker structs + numeric ID surface + runtime check helpers
   (`kinematics_frame_compatible_strict`, `_assert`, `_require`,
@@ -315,14 +317,16 @@ launch. After memory safety completes, these are next-priority.
   same-frame, Frame_Unknown left/right migration sentinel, untagged
   → tagged opt-in flow, chain preservation). Negative coverage:
   `tests/err/err_robo7_frame_mismatch.nr` (FRAME-001 fires).
-- **Phase B step-3 (broaden enforcement):** OPEN — extend the
-  rejection from let-binding sites to struct-init field types,
-  function-call argument positions, and binop operand types so a
-  mismatch fires even without an intermediate let. The
-  `frame_mismatch_visible` helper is already wired into the global
-  `types_compatible`, so most of these sites will reject
-  automatically once the diagnostics at each site are upgraded from
-  generic TYP-008 to FRAME-001 with the canonical framing.
+- **Phase B step-3 (broaden diagnostics):** DONE in v0840 repair —
+  shared `frame_mismatch_diag_message` keeps the canonical
+  Mars-Climate-Orbiter framing and upgrades call arguments, named
+  struct fields, tuple-struct fields, assignments, indexed
+  assignments, field assignments, explicit returns, tail-expression
+  returns, and binary/operator operands from generic `TYP-*`
+  surfaces to `error[FRAME-001]` only when
+  `frame_mismatch_visible(expected, actual)` confirms a true
+  frame-tag mismatch. Non-frame mismatches retain their original
+  diagnostics.
 - **Phase 4 (v1.0 hard-error promotion):** OPEN — migrate
   `stdlib/rods/kinematics.nr`, `tf.nr`, `se3.nr` signatures from
   bare `Pose` to `Pose<Frame_Unknown>` with explicit transform

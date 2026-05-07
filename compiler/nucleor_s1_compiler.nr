@@ -10105,6 +10105,7 @@ fn type_first_arg(t: str) -> str {
 // Hot-path note: skipped instantly when the type has no `<` (the
 // dominant case in type-check); the inner work runs only on
 // generic-shaped types.
+#[manual_drop]
 fn type_frame_tag(t: str) -> str {
     let arg: str = type_first_arg(t);
     if str_len(arg) == 0 { return ""; };
@@ -10128,6 +10129,7 @@ fn type_frame_tag(t: str) -> str {
 // possible compiler-visible enforcement — Mars-Climate-Orbiter
 // frame-confusion class only — without disturbing any other
 // generic compatibility rule.
+#[manual_drop]
 fn frame_mismatch_visible(expected: str, actual: str) -> i64 {
     let etag: str = type_frame_tag(expected);
     if str_len(etag) == 0 { return 0; };
@@ -10138,6 +10140,16 @@ fn frame_mismatch_visible(expected: str, actual: str) -> i64 {
     if str_eq(etag, atag) == 1 { return 0; };
     if str_eq(type_base_name(expected), type_base_name(actual)) == 0 { return 0; };
     return 1;
+}
+
+#[manual_drop]
+fn frame_mismatch_diag_message(action: str, expected: str, actual: str) -> str {
+    let etag: str = type_frame_tag(expected);
+    let atag: str = type_frame_tag(actual);
+    let f1_p1: str = str_concat(action, ": declared frame `");
+    let f1_p2: str = str_concat(etag, str_concat("` does not match value frame `", str_concat(atag, "` (declared type `")));
+    let f1_p3: str = str_concat(expected, str_concat("` vs value type `", str_concat(actual, "`). Mixing coordinate frames at runtime is the Mars-Climate-Orbiter failure mode — apply the explicit transform (e.g. `kinematics_transform` from stdlib/rods/kinematics.nr) or annotate the binding with the source frame, and re-check.")));
+    return str_concat(f1_p1, str_concat(f1_p2, f1_p3));
 }
 
 // v0.5.13: gparam-binding extraction + substitution for generic-fn
@@ -19285,6 +19297,15 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let val_kind: i64 = node_kind(pool, val_nid);
                     let f_param: i64 = list_get(pool, s_flist, f_idx);
                     let f_type: str = node_field(pool, f_param, 2);
+                    if val_kind == 3 {
+                        let val_name_v840: str = node_field(pool, val_nid, 1);
+                        let val_type_v840: str = own_get_type(own, val_name_v840);
+                        if str_len(val_type_v840) > 0 && frame_mismatch_visible(f_type, val_type_v840) == 1 {
+                            let f_action_struct_v840: str = str_concat("cannot initialize field '", str_concat(struct_name, str_concat(".", str_concat(fname, "'"))));
+                            diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "FRAME-001", frame_mismatch_diag_message(f_action_struct_v840, f_type, val_type_v840), fn_name, "");
+                            warns = warns + 1;
+                        };
+                    };
                     let mut mismatch: i64 = 0;
                     let mut got_kind: str = "";
                     if val_kind == 1 && str_eq(f_type, "str") == 1 { mismatch = 1; got_kind = "int literal"; };
@@ -21385,6 +21406,14 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in comparison: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`.")))));
             };
         };
+        let frame_op_checked_v840: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 { 1 } else { 0 };
+        if frame_op_checked_v840 == 1 && str_index_of(lt, "Frame_") >= 0 && str_index_of(rt, "Frame_") >= 0 {
+            if frame_mismatch_visible(lt, rt) == 1 {
+                let frame_op_text_v840: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else if op == 24 { "%" } else if op == 30 { "==" } else if op == 31 { "!=" } else if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
+                let frame_op_action_v840: str = str_concat("cannot use operator '", str_concat(frame_op_text_v840, "' with frame-mismatched operands"));
+                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(frame_op_action_v840, lt, rt));
+            };
+        };
         // v0.4.137: NUM-022 — integer vs float cross in comparison binop.
         // Pre-fix `5 == 5.0` (i64 vs f64) silently compared the i64 bit
         // pattern of 5 (`0x5`) against the f64 bit pattern of 5.0
@@ -22031,7 +22060,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let compat_ok: i64 = types_compatible_context(pool, prog, expected_t, actual_t);
                 tprof_mark(tprof, 7, 8, compat_start);
                 if compat_ok == 0 {
-                    type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
+                    if frame_mismatch_visible(expected_t, actual_t) == 1 {
+                        let f_action_v840: str = str_concat("cannot pass argument ", str_concat(str_from_int(ai), str_concat(" to '", str_concat(callee, "'"))));
+                        type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action_v840, expected_t, actual_t));
+                    } else {
+                        type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
+                    };
                 };
                 // v0.5 (v0.4.228 integration) phase 3c.1 — cross-width
                 // call-site audit. Compatibility passes for i64-into-iN-
@@ -22399,8 +22433,13 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         let exp_t_v074: str = node_field(pool, s_fnid_v074, 2);
                         if str_len(arg_t_v074) > 0 && str_len(exp_t_v074) > 0 {
                             if types_compatible_context(pool, prog, exp_t_v074, arg_t_v074) == 0 {
-                                let mismatch_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` field `__", str_concat(str_from_int(tup_ai_v074), str_concat("` expects type `", str_concat(exp_t_v074, str_concat("` but argument has type `", str_concat(arg_t_v074, "`."))))))));
-                                type_diag(diags, source, fn_name, callee, "TYP-008", mismatch_a);
+                                if frame_mismatch_visible(exp_t_v074, arg_t_v074) == 1 {
+                                    let f_action_tup_v840: str = str_concat("cannot initialize tuple-struct '", str_concat(callee, str_concat("' field '__", str_concat(str_from_int(tup_ai_v074), "'"))));
+                                    type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action_tup_v840, exp_t_v074, arg_t_v074));
+                                } else {
+                                    let mismatch_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` field `__", str_concat(str_from_int(tup_ai_v074), str_concat("` expects type `", str_concat(exp_t_v074, str_concat("` but argument has type `", str_concat(arg_t_v074, "`."))))))));
+                                    type_diag(diags, source, fn_name, callee, "TYP-008", mismatch_a);
+                                };
                             };
                         };
                         tup_ai_v074 = tup_ai_v074 + 1;
@@ -22952,12 +22991,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     // generic TYP-008 binding-mismatch diag. Adopters
                     // run `nuc explain FRAME-001` for fix guidance.
                     if frame_mismatch_visible(tstr, init_t) == 1 {
-                        let etag_v838: str = type_frame_tag(tstr);
-                        let atag_v838: str = type_frame_tag(init_t);
-                        let f1_p1: str = str_concat("cannot initialize binding '", str_concat(vname, "': declared frame `"));
-                        let f1_p2: str = str_concat(etag_v838, str_concat("` does not match value frame `", str_concat(atag_v838, "` (declared type `")));
-                        let f1_p3: str = str_concat(tstr, str_concat("` vs value type `", str_concat(init_t, "`). Mixing coordinate frames at runtime is the Mars-Climate-Orbiter failure mode — apply the explicit transform (e.g. `kinematics_transform` from stdlib/rods/kinematics.nr) or annotate the binding with the source frame, and re-check.")));
-                        type_diag_at(diags, source, pool, nid, fn_name, vname, "FRAME-001", str_concat(f1_p1, str_concat(f1_p2, f1_p3)));
+                        let f1_action_v840: str = str_concat("cannot initialize binding '", str_concat(vname, "'"));
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "FRAME-001", frame_mismatch_diag_message(f1_action_v840, tstr, init_t));
                     } else {
                         type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
                     };
@@ -23283,7 +23318,15 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let compat_start: i64 = tprof_start(tprof);
             let compat_ok: i64 = types_compatible_context(pool, prog, lhs_t, rhs_t);
             tprof_mark(tprof, 7, 8, compat_start);
-            if compat_ok == 0 { type_diag(diags, source, fn_name, node_field(pool, lhs, 1), "TYP-009", "assignment type mismatch"); };
+            if compat_ok == 0 {
+                let lhs_name_assign_v840: str = node_field(pool, lhs, 1);
+                if frame_mismatch_visible(lhs_t, rhs_t) == 1 {
+                    let f_action_assign_v840: str = str_concat("cannot assign to '", str_concat(lhs_name_assign_v840, "'"));
+                    type_diag(diags, source, fn_name, lhs_name_assign_v840, "FRAME-001", frame_mismatch_diag_message(f_action_assign_v840, lhs_t, rhs_t));
+                } else {
+                    type_diag(diags, source, fn_name, lhs_name_assign_v840, "TYP-009", "assignment type mismatch");
+                };
+            };
             let lhs_name_v146: str = node_field(pool, lhs, 1);
             let rhs_const_v146: Vec<i32> = const_i64_expr(pool, rhs, env);
             if vec_get(rhs_const_v146, 0) == 1 { tenv_set_const_i64(env, lhs_name_v146, vec_get(rhs_const_v146, 1)); }
@@ -23306,9 +23349,14 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     if str_len(elem_t) > 0 && str_len(rhs_t) > 0 {
                         let compat_idx: i64 = types_compatible_context(pool, prog, elem_t, rhs_t);
                         if compat_idx == 0 {
-                            let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
-                            let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
-                            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat(pa, pb));
+                            if frame_mismatch_visible(elem_t, rhs_t) == 1 {
+                                let f_action_idx_v840: str = str_concat("cannot assign indexed element of '", str_concat(vname, "'"));
+                                type_diag(diags, source, fn_name, vname, "FRAME-001", frame_mismatch_diag_message(f_action_idx_v840, elem_t, rhs_t));
+                            } else {
+                                let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
+                                let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
+                                type_diag(diags, source, fn_name, vname, "TYP-009", str_concat(pa, pb));
+                            };
                         };
                     };
                 };
@@ -23348,9 +23396,14 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     if str_len(f_t) > 0 && str_len(rhs_t) > 0 {
                         let compat_fld: i64 = types_compatible_context(pool, prog, f_t, rhs_t);
                         if compat_fld == 0 {
-                            let pa2: str = str_concat("field assignment type mismatch on `", str_concat(recv_name, str_concat(".", str_concat(fname, str_concat("`: field type `", str_concat(f_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))))));
-                            let pb2: str = " Pre-v0.4.65 the i64-everywhere ABI silently coerced any RHS to fit.";
-                            type_diag(diags, source, fn_name, recv_name, "TYP-009", str_concat(pa2, pb2));
+                            if frame_mismatch_visible(f_t, rhs_t) == 1 {
+                                let f_action_field_v840: str = str_concat("cannot assign field '", str_concat(recv_name, str_concat(".", str_concat(fname, "'"))));
+                                type_diag(diags, source, fn_name, recv_name, "FRAME-001", frame_mismatch_diag_message(f_action_field_v840, f_t, rhs_t));
+                            } else {
+                                let pa2: str = str_concat("field assignment type mismatch on `", str_concat(recv_name, str_concat(".", str_concat(fname, str_concat("`: field type `", str_concat(f_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))))));
+                                let pb2: str = " Pre-v0.4.65 the i64-everywhere ABI silently coerced any RHS to fit.";
+                                type_diag(diags, source, fn_name, recv_name, "TYP-009", str_concat(pa2, pb2));
+                            };
                         };
                     };
                 };
@@ -23366,7 +23419,12 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let compat_ok: i64 = types_compatible_context(pool, prog, rtype, val_t);
             tprof_mark(tprof, 7, 8, compat_start);
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
-                type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
+                if frame_mismatch_visible(rtype, val_t) == 1 {
+                    let f_action_return_v840: str = str_concat("cannot return from fn '", str_concat(fn_name, "'"));
+                    type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_return_v840, rtype, val_t));
+                } else {
+                    type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
+                };
             };
             // v0.4.142: TYP-010 ext — return-with-value in void/unit/
             // implicit-void fn. Pre-fix `fn f() { return 42; }`
@@ -23676,9 +23734,14 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                         let tail_expr: i64 = node_field(pool, last_stmt, 1);
                         let tail_t: str = type_expr(pool, prog, tail_expr, env, sigs, structs, fn_name, diags, source, tprof);
                         if str_len(tail_t) > 0 && types_compatible_context(pool, prog, rtype, tail_t) == 0 {
-                            let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
-                            let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
-                            type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));
+                            if frame_mismatch_visible(rtype, tail_t) == 1 {
+                                let f_action_tail_v840: str = str_concat("cannot use tail expression for fn '", str_concat(fn_name, "'"));
+                                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_tail_v840, rtype, tail_t));
+                            } else {
+                                let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
+                                let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
+                                type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));
+                            };
                         };
                     };
                     // v0.4.219 RFC-0023 sister TYP-026: missing tail
@@ -29997,6 +30060,13 @@ fn cache_v2_size_mb(ll: str) -> i64 {
 }
 
 #[manual_drop]
+fn cache_v2_file_size_mb(path: str) -> i64 {
+    let n: i64 = fs_size(path);
+    if n <= 0 { return 0; };
+    return (n + 1048575) / 1048576;
+}
+
+#[manual_drop]
 fn native_link_cache_dir(key: str) -> str {
     return sanitize(str_concat("target/.nuc_native_cache/", cache_v2_prefix(key)));
 }
@@ -30304,6 +30374,19 @@ fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
         return 1;
     };
     file_write_string(ll_path, ll);
+    return 1;
+}
+
+#[manual_drop]
+fn copy_ll_artifact_if_needed(src_ll_path: str, ll_path: str, cache_key: str) -> i64 {
+    if str_len(cache_key) > 0 {
+        let stamp_path: str = str_concat(ll_path, ".cachekey");
+        if fs_exists(ll_path) == 1 && str_eq(file_read_string(stamp_path), cache_key) == 1 { return 0; };
+        fs_copy_file(src_ll_path, ll_path);
+        file_write_string(stamp_path, cache_key);
+        return 1;
+    };
+    fs_copy_file(src_ll_path, ll_path);
     return 1;
 }
 
@@ -32079,10 +32162,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         cache_flags = cache_v2_canonical_flags(strict_mode);
         cache_key = build_cache_key(source, strict_mode);
         cache_ll_path = cache_v2_ll_path(cache_key);
-        let cached_ll: str = file_read_string(cache_ll_path);
-        if str_len(cached_ll) > 0 {
-            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
-            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, cache_key, link_native, time_passes);
+        if fs_exists(cache_ll_path) == 1 {
+            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_file_size_mb(cache_ll_path)), " MB)")))));
+            let cached_out_ll: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+            copy_ll_artifact_if_needed(cache_ll_path, cached_out_ll, cache_key);
+            print(str_concat("  emitted: ", str_concat(cached_out_ll, str_concat(" (", str_concat(str_from_int(fs_size(cached_out_ll)), " bytes)")))));
+            let mut rc_cached: i64 = 0;
+            if link_native == 0 {
+                let cached_exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(safe_out_name, host_exe_suffix())));
+                print(str_concat("  native link: skipped (use ", str_concat(cached_exe_path, " only after a linked build)")));
+            } else {
+                rc_cached = link_existing_native_module(cached_out_ll, safe_out_name, imported, cache_key, time_passes);
+            };
             cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;

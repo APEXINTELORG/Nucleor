@@ -196,7 +196,7 @@ own_restore,2,2,24,11,1,0,SIG_MATCH_BODY_DIFFERS
 own_merge_moved,3,3,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 enum_find,3,3,8,8,1,1,IDENTICAL
 is_copy_type,4,4,24,24,1,1,IDENTICAL
-check_expr,6,6,384,188,1,0,SIG_MATCH_BODY_DIFFERS
+check_expr,6,6,393,188,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmt,6,6,364,250,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmts,6,6,7,7,1,1,IDENTICAL
 check_fn,6,8,49,71,0,0,SIG_DIFFERS
@@ -231,10 +231,10 @@ unit_dim,1,1,8,8,1,1,IDENTICAL
 type_dynamic_helper,1,1,92,59,1,0,SIG_MATCH_BODY_DIFFERS
 type_stmt_value,2,2,5,5,1,1,IDENTICAL
 type_last_stmt,10,9,10,10,0,0,SIG_DIFFERS
-type_expr,10,9,1739,230,0,0,SIG_DIFFERS
-type_check_stmt,11,10,655,129,0,0,SIG_DIFFERS
+type_expr,10,9,1757,230,0,0,SIG_DIFFERS
+type_check_stmt,11,10,674,129,0,0,SIG_DIFFERS
 type_check_stmts,11,10,13,13,0,0,SIG_DIFFERS
-type_check_program,6,6,222,33,1,0,SIG_MATCH_BODY_DIFFERS
+type_check_program,6,6,227,33,1,0,SIG_MATCH_BODY_DIFFERS
 text_contains,2,2,12,12,1,0,SIG_MATCH_BODY_DIFFERS
 source_has_scope_escape_ref_binding,1,1,14,14,1,1,IDENTICAL
 preflight_source_check,1,1,15,9,1,0,SIG_MATCH_BODY_DIFFERS
@@ -271,7 +271,7 @@ resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source,3,3,4,4,1,1,IDENTICAL
 load_resolved_source_bundle,2,2,810,49,1,0,SIG_MATCH_BODY_DIFFERS
 extract_directives,2,2,85,80,1,0,SIG_MATCH_BODY_DIFFERS
-compile_file_mode,6,6,687,205,1,0,SIG_MATCH_BODY_DIFFERS
+compile_file_mode,6,6,695,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 dl_parse_fn_signature,3,3,117,96,1,0,SIG_MATCH_BODY_DIFFERS
