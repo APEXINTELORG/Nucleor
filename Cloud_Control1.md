@@ -230,3 +230,31 @@ Files: 2 (tests/features/rust_bridge_cross_platform_hash_transcript_smoke.nr —
 Validation: PASS — Linux pair-run produces byte-identical transcript to the committed Windows reference. `diff -u tests/features/rust_bridge_cross_platform_hash_transcript_windows.txt /tmp/transcript_linux.txt` exit 0, no diff output. **All 7 R06 hash values match across Windows + Linux** (empty -3750763034362895579, a -5808556873153909620, hello -6615550055289275125, world 5717881983045765875, null-byte -3750763034362895579, nucleor -1363505821375764433, "the quick brown fox" 6462304499243991330). The empty-string hash confirms the FNV-1a 64-bit offset_basis 0xcbf29ce484222325 reinterpreted as i64 — Rust bridge implementation matches the spec on both platforms. The intra-run "nucleor-r06" determinism check returns rc=0.
 Report: findings/inbox/cloud_claude_lane8_8N_v0845_2026-05-07.md
 Residuals: The pre-fix smoke fixture (with `print` instead of `print_raw`) produced doubled-newline framing on Linux (`\n\n` per row) because the shared C runtime's `__nucleor_print_str` always appends `\n`. The committed Windows reference used single-`\n` framing — meaning the Windows reference was either hand-curated or recaptured through a path that suppressed the runtime's appended `\n`. The 1-line print → print_raw edit makes the fixture deterministically produce single-`\n` framing on every host (print_raw uses `fputs(s, stdout)` without modification on both runtime branches), so future re-captures stay byte-identical without manual post-processing. Spike: Windows half should re-run the fixture with the new form to confirm the Windows binary still produces the same single-`\n` reference (it should — print_raw is platform-portable).
+
+## [2026-05-07 ~17:40 UTC] NEW QUEUE — Cloud-PROBE-1: pair-validate Windows-side real-world CLI probes on native Linux
+**Source:** Translate-team probe findings 2026-05-07 (Codex). Partner team is building ~30-LOC real-world drivers under `tests/probes/real_world/<NN>_<flow>.nr` covering `nuc init / build / test / clean / port / inspect / explain / check` (PROBE-1 in `docs/rfcs/v1_PUNCHLIST.md`). Each driver exercises control flow + multi-arg fns + struct/vec literals.
+
+Folded into PUNCHLIST as PROBE-1.
+
+**Cloud Queue PROBE-1L:**
+- Branch from current `origin/main` (post-partner-PROBE-1 merge) as `claude/cloud-probe-1-linux-pair-validate-v0846`.
+- Run `tools/verify.sh` with `NUC_VERIFY_PROBE=1` end-to-end on native Linux. ALL probe drivers must pass.
+- File `findings/inbox/cloud_claude_probe1L_<rev>_<DATE>.md` with: probe count, per-probe outcome, exit codes captured, on-disk artifact assertions. Surface any Linux-only divergence as a real defect (NOT a "spike").
+- If a probe surfaces a real Linux-only defect (path separators, missing POSIX bridges, link flags), patch the smallest delta and re-validate. Don't paper over.
+- After pair validation passes both hosts, the PROBE section in `tools/verify.sh` graduates from `NUC_VERIFY_PROBE=1` to default — coordinate this commit with partner team.
+- **Honesty rule:** if the partner's drivers don't compile on Linux, that's a real ROOT CAUSE (probably a Windows-only path expectation), not a fixture flake.
+
+**Done = Linux full PROBE pass committed to `Cloud_Control1.md` with byte-level evidence (exit codes, artifact assertions); promoted to default verify gate.**
+
+## [2026-05-07 ~17:42 UTC] NEW QUEUE — Cloud-PROBE-3: cloud-doc claim audit
+**Source:** Translate-team probe findings 2026-05-07 (Codex). README + PUNCHLIST + RFC closure docs may carry percentage / "DONE" claims without in-tree gate backing. Partner team is sweeping the static docs (PROBE-3); cloud agent should sweep the cloud-published evidence side.
+
+**Cloud Queue PROBE-3L:**
+- Branch from current `origin/main` as `claude/cloud-probe-3-evidence-audit-v0846`.
+- Sweep `Cloud_Control1.md` validation transcripts for claims like "1293 PASS / 6 SKIP / 0 FAIL" — verify each "Validation: PASS" entry can be reproduced with the documented command on the documented host. If a transcript says PASS but the documented command was never actually run end-to-end on a clean host, that's an evidence gap.
+- File `findings/inbox/cloud_claude_evidence_audit_v0846_<DATE>.md` with: per-queue claim → command → reproduced PASS/FAIL on a clean Linux host. Be honest — if a transcript can't be reproduced, say so.
+- Do NOT silently re-run gates and overwrite stale claims. Append a **NEW** validation row dated today; preserve the historical record. Only the new row is the authoritative current claim.
+- **Honesty rule:** if a previously-claimed PASS no longer reproduces, the fix is to file the regression, NOT silently re-paper.
+
+**Done = every "Validation: PASS" claim in `Cloud_Control1.md` either reproduces on a clean Linux host today, or has a dated regression note with ROOT CAUSE.**
+
