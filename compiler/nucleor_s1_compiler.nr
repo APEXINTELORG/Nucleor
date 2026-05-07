@@ -21255,6 +21255,82 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     return const_i64_result(0, 0);
 }
 #[manual_drop]
+fn char_guard_key(name: str) -> str {
+    return str_concat("__char_guard:", name);
+}
+#[manual_drop]
+fn tenv_set_char_guard(env: Vec<i32>, name: str) -> i64 {
+    return tenv_set(env, char_guard_key(name), "1");
+}
+#[manual_drop]
+fn tenv_has_char_guard(env: Vec<i32>, name: str) -> i64 {
+    if str_eq(tenv_get(env, char_guard_key(name)), "1") == 1 { return 1; };
+    return 0;
+}
+#[manual_drop]
+fn char_guard_var_name(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    if node_kind(pool, nid) != 4 { return ""; };
+    let op: i64 = node_field(pool, nid, 1);
+    if op == 36 {
+        let lv: str = char_guard_var_name(pool, node_field(pool, nid, 2), env);
+        if str_len(lv) > 0 { return lv; };
+        return char_guard_var_name(pool, node_field(pool, nid, 3), env);
+    };
+    if node_kind(pool, node_field(pool, nid, 2)) == 3 {
+        let rc: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 3), env);
+        if const_i64_overflow(rc) == 0 && vec_get(rc, 0) == 1 { return node_field(pool, node_field(pool, nid, 2), 1); };
+    };
+    if node_kind(pool, node_field(pool, nid, 3)) == 3 {
+        let lc: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 2), env);
+        if const_i64_overflow(lc) == 0 && vec_get(lc, 0) == 1 { return node_field(pool, node_field(pool, nid, 3), 1); };
+    };
+    return "";
+}
+#[manual_drop]
+fn char_guard_merge_flags(a: i64, b: i64) -> i64 {
+    let mut low: i64 = 0;
+    let mut high: i64 = 0;
+    if a == 1 || a == 3 || b == 1 || b == 3 { low = 1; };
+    if a == 2 || a == 3 || b == 2 || b == 3 { high = 1; };
+    return low + high * 2;
+}
+#[manual_drop]
+fn char_guard_flags(pool: Vec<i32>, nid: i64, env: Vec<i32>, name: str) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    if node_kind(pool, nid) != 4 { return 0; };
+    let op: i64 = node_field(pool, nid, 1);
+    if op == 36 {
+        return char_guard_merge_flags(char_guard_flags(pool, node_field(pool, nid, 2), env, name), char_guard_flags(pool, node_field(pool, nid, 3), env, name));
+    };
+    let lhs: i64 = node_field(pool, nid, 2);
+    let rhs: i64 = node_field(pool, nid, 3);
+    if node_kind(pool, lhs) == 3 && str_eq(node_field(pool, lhs, 1), name) == 1 {
+        let rc: Vec<i32> = const_i64_expr(pool, rhs, env);
+        if const_i64_overflow(rc) == 0 && vec_get(rc, 0) == 1 {
+            let v: i64 = vec_get(rc, 1);
+            if (op == 35 && v >= 0) || (op == 33 && v >= 0 - 1) { return 1; };
+            if (op == 34 && v < 55296) || (op == 32 && v <= 55296) { return 2; };
+        };
+    };
+    if node_kind(pool, rhs) == 3 && str_eq(node_field(pool, rhs, 1), name) == 1 {
+        let lc: Vec<i32> = const_i64_expr(pool, lhs, env);
+        if const_i64_overflow(lc) == 0 && vec_get(lc, 0) == 1 {
+            let v2: i64 = vec_get(lc, 1);
+            if (op == 34 && v2 >= 0) || (op == 32 && v2 >= 0 - 1) { return 1; };
+            if (op == 35 && v2 < 55296) || (op == 33 && v2 <= 55296) { return 2; };
+        };
+    };
+    return 0;
+}
+#[manual_drop]
+fn char_guard_proven_var(pool: Vec<i32>, cond: i64, env: Vec<i32>) -> str {
+    let name: str = char_guard_var_name(pool, cond, env);
+    if str_len(name) == 0 { return ""; };
+    if char_guard_flags(pool, cond, env, name) == 3 { return name; };
+    return "";
+}
+#[manual_drop]
 fn const_i64_out_of_declared_int_range(tstr: str, val: i64) -> i64 {
     if str_len(tstr) == 0 || type_is_int(tstr) == 0 { return 0; };
     let w: i64 = type_width(tstr);
@@ -21568,6 +21644,16 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 if ch_bad_v084 == 1 {
                     let ch_msg_v084: str = str_concat("`as char` codepoint ", str_concat(str_from_int(ch_cp_v084), " is not a valid Unicode scalar value. Valid range is 0..0x10FFFF excluding surrogate range 0xD800..0xDFFF. Pre-fix, this cast silently accepted invalid codepoints and could produce invalid UTF-8 at char_to_str use sites."));
                     diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_msg_v084, fn_name, "");
+                };
+            } else {
+                let ch_src_v0845: i64 = node_field(pool, nid, 1);
+                let mut ch_guarded_v0845: i64 = 0;
+                if node_kind(pool, ch_src_v0845) == 3 {
+                    if tenv_has_char_guard(env, node_field(pool, ch_src_v0845, 1)) == 1 { ch_guarded_v0845 = 1; };
+                };
+                if ch_guarded_v0845 == 0 {
+                    let ch_dyn_msg_v0845: str = "`as char` on a non-constant value is not proven to be a valid Unicode scalar value. Guard the exact binding with `v >= 0 && v < 0xD800` or another recognized scalar-range proof before casting. Pre-fix, dynamic casts could silently produce invalid UTF-8 at char_to_str use sites.";
+                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_dyn_msg_v0845, fn_name, "");
                 };
             };
         };
@@ -23845,6 +23931,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
     if kind == 23 {
         type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
+        let char_guard_v0845: str = char_guard_proven_var(pool, node_field(pool, nid, 1), env);
+        if str_len(char_guard_v0845) > 0 { tenv_set_char_guard(then_env, char_guard_v0845); };
         warns = warns + type_check_stmts(pool, prog, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
         vec_free(then_env);
         let enode: i64 = node_field(pool, nid, 3);
@@ -32325,7 +32413,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0846_count: i64 = simple_attribute_audit_count(after_async, str_concat(" as ", "char"));
         if v0846_count > 0 {
             print(str_concat("info[T-3-CAST]: `as char` casts in source: ", str_from_int(v0846_count)));
-            print("  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` now emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF). Non-constant casts and the i64-everywhere char ABI remain open until broader char distinctness lands. Adopter discipline today: validate dynamic codepoint range before casting (`if u >= 0x110000 || (u >= 0xD800 && u < 0xE000) { panic(...); }`). Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
+            print("  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF), and non-constant casts now fail closed unless the exact binding is guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800` in the same then-branch. The i64-everywhere char ABI remains open until broader char distinctness lands. Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
         };
     };
     // v0.8.66 NUM-G1 audit RETIRED per probe finding 2026-05-04
