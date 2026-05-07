@@ -166,3 +166,54 @@ fn tf_lookup_typed(h: i64, source_id: i64, target_id: i64,
     if tf_is_canonical_frame_id(target_id) == 0 { return 0; };
     return nuc_tf_lookup(h, source_id, target_id, t_out_ptr, q_out_ptr);
 }
+
+// === v0845 Lane 5 / Queue 5B — typed timestamped wrappers ===
+//
+// Mirrors the v0.8.268 typed wrappers above for the timestamped TF
+// surface (`tf_add_frame_at`, `tf_set_pose_at`, `tf_lookup_at`).
+// Each wrapper validates the frame IDs are in the canonical
+// kinematics_frame range (0..7 inclusive or -1 unknown) before
+// forwarding to the underlying nuc_tf_*_at. Returns 0 on validation
+// failure (does NOT call the raw API), or the raw API's result
+// on validation success.
+//
+// Adopter pattern (timestamped + typed):
+//
+//   import "stdlib/rods/tf.nr"
+//   import "stdlib/rods/kinematics_frame.nr"
+//
+//   let h: i64 = tf_new(16);
+//   let cam: i64 = kinematics_frame_id_camera();
+//   let base: i64 = kinematics_frame_id_base();
+//   let stamp1_b: i64 = f64_to_bits(1.0);
+//   let stamp2_b: i64 = f64_to_bits(2.0);
+//   let _ = tf_add_frame_at_typed(h, cam, base, stamp1_b, t_ptr, q_ptr);
+//   let _ = tf_set_pose_at_typed(h, cam, stamp2_b, t_ptr2, q_ptr2);
+//   let _ = tf_lookup_at_typed(h, base, cam, stamp1_b, t_out, q_out);
+//
+// Raw `tf_add_frame_at` / `tf_set_pose_at` / `tf_lookup_at` remain
+// available for adopters managing their own ID space; treat them
+// as migration surfaces and prefer the typed forms in new code.
+
+fn tf_add_frame_at_typed(h: i64, frame_id: i64, parent_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64
+{
+    if tf_is_canonical_frame_id(frame_id) == 0 { return 0; };
+    if tf_is_canonical_frame_id(parent_id) == 0 { return 0; };
+    return nuc_tf_add_frame_at(h, frame_id, parent_id, stamp_b, t_ptr, q_ptr);
+}
+
+fn tf_set_pose_at_typed(h: i64, frame_id: i64,
+    stamp_b: i64, t_ptr: i64, q_ptr: i64) -> i64
+{
+    if tf_is_canonical_frame_id(frame_id) == 0 { return 0; };
+    return nuc_tf_set_pose_at(h, frame_id, stamp_b, t_ptr, q_ptr);
+}
+
+fn tf_lookup_at_typed(h: i64, source_id: i64, target_id: i64,
+    stamp_b: i64, t_out_ptr: i64, q_out_ptr: i64) -> i64
+{
+    if tf_is_canonical_frame_id(source_id) == 0 { return 0; };
+    if tf_is_canonical_frame_id(target_id) == 0 { return 0; };
+    return nuc_tf_lookup_at(h, source_id, target_id, stamp_b, t_out_ptr, q_out_ptr);
+}
