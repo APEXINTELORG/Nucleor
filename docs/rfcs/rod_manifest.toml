@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 255
-# Total fn definitions: 3224
-# Total LOC: 14015
+# Total rods: 265
+# Total fn definitions: 3597
+# Total LOC: 20654
 
 [[rod]]
 name           = "activation2"
@@ -2305,3 +2305,93 @@ function_count = 10
 cfile_count    = 1
 loc            = 27
 imports        = ["zmp"]
+
+[[rod]]
+name           = "ai_facade"
+path           = "stdlib/rods/ml/ai_facade.nr"
+description    = "AI / transformer parity surface (attention, KV cache, RoPE, generation)"
+function_count = 37
+cfile_count    = 0
+loc            = 774
+imports        = ["ml/math_facade", "ml/nn_facade", "ml/tensor_facade"]
+
+[[rod]]
+name           = "boost_facade"
+path           = "stdlib/rods/ml/boost_facade.nr"
+description    = "Gradient boosting (XGBoost / LightGBM / CatBoost) parity rods"
+function_count = 45
+cfile_count    = 0
+loc            = 1051
+imports        = ["ml/math_facade", "ml/tensor_facade"]
+
+[[rod]]
+name           = "dtype_core"
+path           = "stdlib/rods/ml/dtype_core.nr"
+description    = "dtype_core.nr - initial dtype and numeric policy surface for Nucleor ML Suite."
+function_count = 31
+cfile_count    = 0
+loc            = 111
+imports        = []
+
+[[rod]]
+name           = "learn_facade"
+path           = "stdlib/rods/ml/learn_facade.nr"
+description    = "scikit-learn parity rods (linear, logistic, KNN, KMeans, PCA, NB, trees, SVM, encoders, splits, metrics)"
+function_count = 127
+cfile_count    = 0
+loc            = 2718
+imports        = ["ml/tensor_facade"]
+
+[[rod]]
+name           = "math_facade"
+path           = "stdlib/rods/ml/math_facade.nr"
+description    = "math_facade.nr - local naming shim over Nucleor f64 math builtins."
+function_count = 4
+cfile_count    = 0
+loc            = 15
+imports        = []
+
+[[rod]]
+name           = "nn_facade"
+path           = "stdlib/rods/ml/nn_facade.nr"
+description    = "PyTorch nn parity rods (Linear, ReLU, GELU, LayerNorm, RMSNorm, losses, SGD/AdamW)"
+function_count = 31
+cfile_count    = 0
+loc            = 704
+imports        = ["ml/math_facade", "ml/tensor_facade"]
+
+[[rod]]
+name           = "parity_manifest"
+path           = "stdlib/rods/ml/parity_manifest.nr"
+description    = "ML Suite parity-claim metadata (suite/case/surface/dtype/shape/policy/seed/tolerance)"
+function_count = 2
+cfile_count    = 0
+loc            = 57
+imports        = ["ml/dtype_core", "ml/shape_core"]
+
+[[rod]]
+name           = "shape_core"
+path           = "stdlib/rods/ml/shape_core.nr"
+description    = "shape_core.nr - minimal shape contracts for the first tensor facade."
+function_count = 7
+cfile_count    = 0
+loc            = 35
+imports        = []
+
+[[rod]]
+name           = "stats_facade"
+path           = "stdlib/rods/ml/stats_facade.nr"
+description    = "SciPy / statsmodels parity rods (mean, var, std, covariance, Pearson, quantile, histogram, normal, t-tests)"
+function_count = 29
+cfile_count    = 0
+loc            = 456
+imports        = ["math_typed_special", "ml/math_facade", "ml/tensor_facade"]
+
+[[rod]]
+name           = "tensor_facade"
+path           = "stdlib/rods/ml/tensor_facade.nr"
+description    = "Parity-flavored TensorF64/F32/I64 surface (matmul, broadcast, reductions, slicing, reshape)"
+function_count = 60
+cfile_count    = 0
+loc            = 718
+imports        = ["ml/dtype_core", "ml/shape_core"]
