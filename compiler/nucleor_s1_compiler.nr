@@ -11487,27 +11487,51 @@ fn rt_string_vec_append_unique(v: Vec<i32>, extra: Vec<i32>) -> i64 {
 }
 
 #[manual_drop]
-fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
-    if str_contains(header, "with") == 0 { return 0; };
+// v0842 R05 RFC-0033 row-subtyping bridge (local-claude). Pre-v0842
+// this was a whole-header word search that false-positived on any
+// occurrence of `effect_name` outside the `with [...]` row — e.g.
+// a parameter or type name `Alloc` made the fn look Alloc-effecting
+// even when it was declared `with [no_alloc]`. The shared
+// row-overlap helper `restricts_row_covers_effect` (used by the
+// requires/restricts pre-passes since v0840) now scopes the check
+// to the actual with-row contents and applies the symmetric family
+// covering rule (token == eff, or eff is sub of token, or token is
+// sub of eff). Edge cases preserved: zero `with` keyword in header
+// returns 0 immediately; multi-token rows still match per token;
+// case-sensitive comparison preserved.
+#[manual_drop]
+fn extract_with_row(header: str) -> str {
+    if str_contains(header, "with") == 0 { return ""; };
     let hlen: i64 = str_len(header);
-    let elen: i64 = str_len(effect_name);
-    if elen == 0 || hlen < elen { return 0; };
+    let kw: str = "with";
+    let klen: i64 = str_len(kw);
     let mut p: i64 = 0;
-    while p + elen <= hlen {
-        if str_eq_at(header, p, effect_name) == 1 {
+    while p + klen <= hlen {
+        if str_eq_at_len(header, p, kw, klen) == 1 {
             let before_ok: i64 = if p == 0 { 1 } else {
                 let b: i64 = str_char_at(header, p - 1);
                 if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
             };
-            let after_ok: i64 = if p + elen >= hlen { 1 } else {
-                let a: i64 = str_char_at(header, p + elen);
-                if is_alnum(a) == 0 && a != 95 { 1 } else { 0 }
+            let mut q: i64 = p + klen;
+            while q < hlen && is_ws(str_char_at(header, q)) == 1 { q = q + 1; };
+            if before_ok == 1 && q < hlen && str_char_at(header, q) == 91 {
+                let start: i64 = q + 1;
+                let mut end: i64 = start;
+                while end < hlen && str_char_at(header, end) != 93 { end = end + 1; };
+                if end < hlen { return str_substring(header, start, end); };
+                return "";
             };
-            if before_ok == 1 && after_ok == 1 { return 1; };
         };
         p = p + 1;
     };
-    return 0;
+    return "";
+}
+
+#[manual_drop]
+fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
+    let row: str = extract_with_row(header);
+    if str_len(row) == 0 { return 0; };
+    return restricts_row_covers_effect(row, effect_name);
 }
 
 #[manual_drop]
