@@ -1141,3 +1141,365 @@ fn line_has_unit_literal(source: str, fn_name: str, symbol: str) -> i64 {
     };
     return 0;
 }
+
+#[manual_drop]
+fn str_starts_with(s: str, prefix: str) -> i64 {
+    let mut i: i64 = 0;
+    while 1 == 1 {
+        let pc: i64 = str_char_at(prefix, i);
+        if pc == 0 { return 1; };
+        let sc: i64 = str_char_at(s, i);
+        if sc == 0 { return 0; };
+        if sc != pc { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+#[manual_drop]
+fn is_ws(c: i64) -> i64 { if c == 32 || c == 9 || c == 10 || c == 13 { return 1; }; return 0; }
+
+#[manual_drop]
+fn is_alpha(c: i64) -> i64 {
+    if c >= 65 && c <= 90 { return 1; }; if c >= 97 && c <= 122 { return 1; };
+    if c == 95 { return 1; }; return 0;
+}
+
+#[manual_drop]
+fn is_alnum(c: i64) -> i64 { if is_alpha(c) == 1 || is_digit(c) == 1 { return 1; }; return 0; }
+
+#[manual_drop]
+fn tprof_start(prof: Vec<i32>) -> i64 {
+    if tprof_enabled(prof) == 1 { return now_ms(); };
+    return 0;
+}
+
+#[manual_drop]
+fn tprof_mark(prof: Vec<i32>, count_idx: i64, time_idx: i64, start_ms: i64) -> i64 {
+    if tprof_enabled(prof) == 1 {
+        vec_set(prof, count_idx, vec_get(prof, count_idx) + 1);
+        vec_set(prof, time_idx, vec_get(prof, time_idx) + (now_ms() - start_ms));
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn tprof_dump(prof: Vec<i32>) -> i64 {
+    if tprof_enabled(prof) == 0 { return 0; };
+    print(str_concat("  type profile stmt: ", str_concat(str_from_int(vec_get(prof, 1)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 2)), " ms")))));
+    print(str_concat("  type profile env_lookup: ", str_concat(str_from_int(vec_get(prof, 3)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 4)), " ms")))));
+    print(str_concat("  type profile sig_lookup: ", str_concat(str_from_int(vec_get(prof, 5)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 6)), " ms")))));
+    print(str_concat("  type profile compat: ", str_concat(str_from_int(vec_get(prof, 7)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 8)), " ms")))));
+    print(str_concat("  type profile call_expr: ", str_concat(str_from_int(vec_get(prof, 9)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 10)), " ms")))));
+    print(str_concat("  type profile box_hint: ", str_concat(str_from_int(vec_get(prof, 11)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 12)), " ms")))));
+    return 0;
+}
+
+#[manual_drop]
+fn type_diag(diags: Vec<i32>, source: str, fn_name: str, symbol: str, code: str, message: str) -> i64 {
+    let loc: Vec<i32> = find_linecol_in_source(source, fn_name, symbol);
+    return diag_add_ex(diags, "error", "type", code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
+}
+
+#[manual_drop]
+fn tenv_set(env: Vec<i32>, name: str, tstr: str) -> i64 { env.push(name); env.push(tstr); return 0; }
+
+#[manual_drop]
+fn tenv_get(env: Vec<i32>, name: str) -> str {
+    let v: i64 = sym_get(env, name);
+    if v < 0 { return ""; };
+    return v;
+}
+
+#[manual_drop]
+fn unit_dim(t: str) -> str {
+    if type_is_unit(t) == 0 { return ""; };
+    let slen: i64 = str_len(t);
+    let mut i: i64 = 5;
+    while i < slen && str_char_at(t, i) != 44 { i = i + 1; };
+    if i >= slen { return ""; };
+    return strip_spaces(str_substring(t, i + 1, slen - 1));
+}
+
+#[manual_drop]
+fn type_stmt_value(pool: Vec<i32>, nid: i64) -> i64 {
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 25 || kind == 22 { return node_field(pool, nid, 1); };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn source_has_scope_escape_ref_binding(source: str) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let mut lp: i64 = p;
+        while lp < eol && (str_char_at(source, lp) == 32 || str_char_at(source, lp) == 9) { lp = lp + 1; };
+        let line: str = str_substring(source, lp, eol);
+        if str_starts_with(line, "let ") == 1 && text_contains(line, ": &") == 1 && text_contains(line, "= {") == 1 { return 1; };
+        p = eol + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn capture_has_name(caps: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(caps) {
+        if str_eq(vec_get(caps, i), name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn capture_param_has(pool: Vec<i32>, params: i64, name: str) -> i64 {
+    let pc: i64 = list_len(pool, params);
+    let mut i: i64 = 0;
+    while i < pc {
+        if str_eq(list_get(pool, params, i), name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn build_mode_name(strict_mode: i64) -> str {
+    if strict_mode == 1 { return "strict"; };
+    return "fast";
+}
+
+#[manual_drop]
+fn print_phase_time(enabled: i64, label: str, elapsed_ms: i64) {
+    if enabled == 1 {
+        print(str_concat("  time ", str_concat(label, str_concat(": ", str_concat(str_from_int(elapsed_ms), " ms")))));
+    };
+}
+
+#[manual_drop]
+fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
+    let mut all_links: i64 = sb_new();
+    let mut all_cfiles: i64 = sb_new();
+    let mut all_libpaths: i64 = sb_new();
+    let mut di: i64 = 0;
+    while di < vec_len(imported) {
+        let imp_path: str = vec_get(imported, di);
+        let imp_raw: str = file_read_string(imp_path);
+        let imp_dir: str = extract_dir(imp_path);
+        let imp_d: Vec<i32> = extract_directives(imp_raw, imp_dir);
+        sb_append(all_links, vec_get(imp_d, 0));
+        sb_append(all_cfiles, vec_get(imp_d, 1));
+        sb_append(all_libpaths, vec_get(imp_d, 2));
+        di = di + 1;
+    };
+    let mut out: Vec<i32> = Vec::new();
+    out.push(sb_to_str(all_links));
+    out.push(sb_to_str(all_cfiles));
+    out.push(sb_to_str(all_libpaths));
+    return out;
+}
+
+#[manual_drop]
+fn path_exists(path: str) -> i64 {
+    return fs_exists(sanitize(path));
+}
+
+#[manual_drop]
+fn module_record_add(records: Vec<i32>, path: str, raw: str) -> i64 {
+    records.push(path);
+    records.push(content_hash(raw));
+    return 0;
+}
+
+#[manual_drop]
+fn module_records_serialize(records: Vec<i32>) -> str {
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    while i < vec_len(records) {
+        sb_append(sb, vec_get(records, i));
+        sb_append(sb, "|");
+        sb_append(sb, vec_get(records, i + 1));
+        sb_append(sb, "\n");
+        i = i + 2;
+    };
+    return sb_to_str(sb);
+}
+
+#[manual_drop]
+fn module_records_validate(manifest: str) -> Vec<i32> {
+    let mut imported: Vec<i32> = Vec::new();
+    if str_len(manifest) == 0 {
+        let mut fail: Vec<i32> = Vec::new();
+        fail.push(0);
+        fail.push(imported);
+        return fail;
+    };
+    let slen: i64 = str_len(manifest);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(manifest, eol) != 10 { eol = eol + 1; };
+        if eol > p {
+            let line: str = str_substring(manifest, p, eol);
+            let llen: i64 = str_len(line);
+            let mut sep: i64 = 0;
+            while sep < llen && str_char_at(line, sep) != 124 { sep = sep + 1; };
+            if sep >= llen {
+                let mut fail2: Vec<i32> = Vec::new();
+                fail2.push(0);
+                fail2.push(imported);
+                return fail2;
+            };
+            let path: str = str_substring(line, 0, sep);
+            let expected_hash: str = str_substring(line, sep + 1, llen);
+            let raw: str = file_read_string(path);
+            if str_len(raw) == 0 || str_eq(content_hash(raw), expected_hash) == 0 {
+                let mut fail3: Vec<i32> = Vec::new();
+                fail3.push(0);
+                fail3.push(imported);
+                return fail3;
+            };
+            imported.push(path);
+        };
+        p = eol + 1;
+    };
+    let mut ok: Vec<i32> = Vec::new();
+    ok.push(1);
+    ok.push(imported);
+    return ok;
+}
+
+#[manual_drop]
+fn fmt_trim_ws(s: str) -> str {
+    let slen: i64 = str_len(s);
+    let mut start: i64 = 0;
+    let mut start_done: i64 = 0;
+    while start < slen && start_done == 0 {
+        let c: i64 = str_char_at(s, start);
+        if c == 32 || c == 9 || c == 10 || c == 13 { start = start + 1; }
+        else { start_done = 1; };
+    };
+    let mut end: i64 = slen;
+    let mut end_done: i64 = 0;
+    while end > start && end_done == 0 {
+        let c: i64 = str_char_at(s, end - 1);
+        if c == 32 || c == 9 || c == 10 || c == 13 { end = end - 1; }
+        else { end_done = 1; };
+    };
+    return str_substring(s, start, end);
+}
+
+#[manual_drop]
+fn fmt_strip_outer_quotes(s: str) -> str {
+    let slen: i64 = str_len(s);
+    if slen < 2 { return s; };
+    if str_char_at(s, 0) != 34 { return s; };
+    if str_char_at(s, slen - 1) != 34 { return s; };
+    return str_substring(s, 1, slen - 1);
+}
+
+#[manual_drop]
+fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
+    let n: i64 = vec_len(v);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(v, i), s) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
+    if priv_string_vec_contains(v, s) == 0 { v.push(s); };
+    return 0;
+}
+
+#[manual_drop]
+fn priv_lookup_origin(reg: Vec<i32>, name: str) -> str {
+    let n: i64 = vec_len(reg);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(reg, i), name) == 1 { return vec_get(reg, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn content_hash(s: str) -> str {
+    let slen: i64 = str_len(s);
+    let mut hash: i64 = 5381;
+    let mut i: i64 = 0;
+    while i < slen {
+        hash = hash * 33 + str_char_at(s, i);
+        hash = hash - (hash / 4294967296) * 4294967296;
+        i = i + 1;
+    };
+    let mut result: str = "";
+    let mut val: i64 = hash;
+    if val < 0 { val = 0 - val; };
+    let hex_chars: str = "0123456789abcdef";
+    let mut hi: i64 = 0;
+    while hi < 8 {
+        let digit: i64 = val - (val / 16) * 16;
+        result = str_concat(str_substring(hex_chars, digit, digit + 1), result);
+        val = val / 16;
+        hi = hi + 1;
+    };
+    return result;
+}
+
+#[manual_drop]
+fn compiler_backend_label() -> str {
+    return "llvm";
+}
+
+#[manual_drop]
+fn compiler_identity() -> str {
+    return str_concat("nucleor ", str_concat(compiler_version_label(), str_concat(" (self-hosted, ", str_concat(compiler_backend_label(), " backend)"))));
+}
+
+#[manual_drop]
+fn cli_is_flag(arg: str) -> i64 {
+    if str_len(arg) > 0 && str_char_at(arg, 0) == 45 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn run_zen_command() -> i64 {
+    print("The Zen of Nucleor");
+    print("");
+    print("Units are not optional. Ask the Mars Climate Orbiter.");
+    print("Effects are declared, not discovered in production.");
+    print("If it compiles, the dimensions are correct.");
+    print("Governance is not overhead. Governance is the product.");
+    print("Unsafe is a confession, not a feature.");
+    print("Trust is earned per-session, not granted per-binary.");
+    print("The audit trail is the only history that matters.");
+    print("Memory is borrowed. Responsibility is owned.");
+    print("A taint you can see is a taint you can fix.");
+    print("Correctness is faster than debugging.");
+    print("Criticality is not an accident. It is a design choice.");
+    print("Know your k-effective.");
+    return 0;
+}
+
+#[manual_drop]
+fn run_mco_command() -> i64 {
+    print("  +-----------------------------------------+");
+    print("  |  Mars Climate Orbiter - September 1999  |");
+    print("  |                                         |");
+    print("  |  Lockheed Martin: pound-force-seconds   |");
+    print("  |  NASA JPL:        newton-seconds        |");
+    print("  |                                         |");
+    print("  |  Cost: $327,600,000                     |");
+    print("  |  Root cause: unit mismatch              |");
+    print("  |  Nucleor status: PREVENTED AT COMPILE   |");
+    print("  |                                         |");
+    print("  |  \"This is why we exist.\"                |");
+    print("  +-----------------------------------------+");
+    return 0;
+}
