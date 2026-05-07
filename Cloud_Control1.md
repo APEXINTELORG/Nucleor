@@ -369,4 +369,29 @@ Cloud's `claude/verify-round-3-tests-RnTlO` evaluation reported `PASS=1432 / SKI
 - **No patches.** Validation only.
 
 **Done = post-86517547 fresh-clone Linux verify count + per-fixture residual list filed for ML agent.**
+## [2026-05-07 22:00 UTC] Queue Cloud-PROBE-1L — DONE
+Branch: claude/verify-round-3-tests-RnTlO @ 5ecb7888 (rebased onto origin/main @ a585dd0c — picks up partner PROBE-1 ship at 027e82fc)
+Base: origin/main @ a585dd0cf2c0a4c0eb3fa4824f100ec5fb8d6a78
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 (findings/inbox/cloud_claude_probe1L_v0846_2026-05-07.md)
+Validation: PASS — `bash tests/probes/real_world/probe_runner.sh` reports 8/8 PASS (PROBE-1.1 nuc build, PROBE-1.2 build-then-run, PROBE-1.3 nuc test, PROBE-1.4 nuc check, PROBE-1.5 nuc summary, PROBE-1.6 nuc explain, PROBE-1.7 nuc init, PROBE-1.8 nuc clean) and exits 0. `NUC_VERIFY_PROBE=1 bash tools/verify.sh` also OK on the PROBE-1 step at index 1489/1488 in 0.78s. PROBE-1 is Linux-clean — no platform-specific path expectations to patch. Ready to graduate from `NUC_VERIFY_PROBE=1` to default verify gate per the partner ship note.
+Report: findings/inbox/cloud_claude_probe1L_v0846_2026-05-07.md
+Residuals: none for PROBE-1 itself. The PROBE-1 step is green; the 56 ML failures in the same verify run are an unrelated pre-existing latent-panic class tracked under 8O / PROBE-3L / t21 findings.
+
+## [2026-05-07 22:00 UTC] Queue Cloud-8O — DONE (validation only, no patches per 8O charter)
+Branch: claude/verify-round-3-tests-RnTlO @ <committed below> (rebased onto origin/main @ a585dd0c — picks up b1241c92 verify_strict.sh + Phase 4 drift-gate + 1bf185d0 ML fix + fae89980 parse_let manual_drop)
+Base: origin/main @ a585dd0cf2c0a4c0eb3fa4824f100ec5fb8d6a78
+Host: Linux vm 6.18.5 (same as PROBE-1L)
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 + 2 logs (findings/inbox/cloud_claude_lane8_8O_v0846_2026-05-07.md; findings/inbox/8O_artifacts/{verify_default_with_probe,verify_strict}.log)
+Validation: COMPLETE — both transcripts captured. `bash tools/verify.sh` (default mode, with `NUC_VERIFY_PROBE=1`) → PASS=1432 / SKIP=1 / FAIL=56 across 1488 steps. `bash tools/verify_strict.sh` (cache-cold) → PASS=1437 / SKIP=1 / FAIL=50 across 1488 steps. Zero non-ML failures in either run. Phase-4 drift gate (`#[manual_drop]` parity between s1 and tools-suite parse_* fns) did NOT FAIL — Phase 3's per-fn manual_drop sweep (closing through fae89980 parse_let) appears to have brought parser-fn parity inside the gate's tolerance.
+
+**Per-host parity vs Windows:** integrator's `74a251f6` Windows transcript reported PASS=1485/SKIP=2/FAIL=0; today's Linux runs are not at parity — every Linux failure is a `tests/features/ml_*` fixture hitting the same NVec-int-len-from-uninitialized-memory class that PROBE-3L root-caused. Per integrator's own t21 finding, the Windows headline is "accurate for the state the cache is in; it is NOT accurate for a fresh clone" — today's fresh-clone Linux run is exactly the unmasked case.
+
+**ML residual extends integrator's `1bf185d0` fix:** the integrator's annotation of `#[manual_drop]` on the 3 leaf `tensor_*_from_vec` constructors cleared 2 of the original 58 failures (`ml_ai_facade_smoke`, `ml_numpy_csv_decimal_f64`). The remaining 56/50 still fail because every wrapper fn that itself builds a `Vec<T>` and packs it into a `Tensor*` return value also needs `#[manual_drop]`. Survey: 130 fns return `TensorF64` in `stdlib/rods/ml/*.nr`; only 1 has `#[manual_drop]` (the leaf constructor). Same proportion likely holds for TensorI64/TensorF32/Vec returns. Spot-confirmed by re-running `target/_pv_features_ml_torch_gelu_tanh_f64` — still panics with `len is -1341547874` (different garbage value than fccef882's `-893742413`, same uninitialized-memory signature). The fixture goes through `nn_gelu_tanh_f64` (line 225 of `stdlib/rods/ml/nn_facade.nr`) which lacks `#[manual_drop]`. Integrator's own anticipation in `a585dd0c`'s honest residual is exactly right ("if a sibling fn in nn_facade.nr or elsewhere has the same shape, apply manual_drop per the protocol") — cloud's measurement confirms scope is wider than the 3-fn spot-fix.
+
+**Cache-state flakiness:** per-failure list differs between default and strict runs (~30 in common, ~20 differ). Corroborates t21's recommendation #1 ("Add `--no-cache` to verify gates").
+Report: findings/inbox/cloud_claude_lane8_8O_v0846_2026-05-07.md
+Residuals: 56 ML fixtures fail default verify on a fresh Linux clone; 50 fail strict (cache-cold). All same root-cause class; out of 8O scope per "validation only, no patches" charter. Recommended follow-up shape: (A) partner-Compiler systematic `#[manual_drop]` sweep across the ~130 `-> TensorF64` fns + sibling shapes (tensor_facade.nr / nn_facade.nr / boost_facade.nr / etc.), or (B) compiler-side audit of s1's auto-drop logic for the "fn returns struct containing heap-allocated Vec field" shape (would eliminate the need for the annotation entirely), or (C) ship `tools/verify_no_cache.sh` per t21's recommendation so the latent class surfaces deterministically in CI. File as cloud_claude_lane8_8P_* if integrator wants cloud to take Option A on the next loop tick.
 
