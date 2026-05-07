@@ -300,9 +300,29 @@ launch. After memory safety completes, these are next-priority.
   `qasm2_status_unsupported_gate` (4) for any other name without
   mutating the program. Active fixtures:
   `qm7_openqasm2_emit_smoke.nr`, `qm7_openqasm2_unsupported_gate_smoke.nr`.
-- **Still open for Phase 2 closure:** OpenQASM2 *import/parser*
-  (round-trip) and a citation-backed external published
-  weight-enumerator parity row if the launch docs require one.
+- **Phase 2f OpenQASM 2.0 minimal parser:** DONE 2026-05-08 (v0843) —
+  `stdlib/rods/quantum.nr` ships `qasm2_parse(src)` plus
+  `qasm2_parse_result_status`, `qasm2_parse_result_program`,
+  `qasm2_program_eq`, and `qasm2_status_parse_explain`. The parser
+  accepts ONLY the deterministic emit dialect produced by
+  `qasm2_render` (fixed header lines + per-line H/X/Z/CX bodies
+  separated by `\n`); it has no whitespace tolerance, comment
+  handling, alternative spelling, parameterized rotations, or
+  classical control. Status codes 6–10 cover
+  `parse_empty_source`, `parse_unexpected_header`,
+  `parse_malformed_qreg`, `parse_unsupported_gate`,
+  `parse_malformed_gate`; out-of-range qubit references and
+  same-qubit CX in the source propagate the existing emit-side
+  codes (`qubit_out_of_range`, `same_qubit`,
+  `invalid_qubit_count`). Active fixture
+  `qm7_openqasm2_roundtrip_smoke.nr` locks 19 invariants including
+  exact byte round-trip on a 5-gate canonical program, an
+  empty-body program, and every documented failure mode.
+- **Still open for Phase 2 closure:** a citation-backed external
+  published weight-enumerator parity row if the launch docs
+  require one. General OpenQASM 2.0 importing of foreign sources
+  (whitespace, comments, parameterized gates, measurements,
+  classical control) remains future work.
 
 ### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard + positive API partial DONE
 
