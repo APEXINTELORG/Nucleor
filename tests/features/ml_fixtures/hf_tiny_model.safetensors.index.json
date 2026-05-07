@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "format": "safetensors",
+    "total_size": 384
+  },
+  "weight_map": {
+    "embed.weight": "hf_tiny_model-00001-of-00001.safetensors",
+    "decoder.layer.0.attn.q_proj.weight": "hf_tiny_model-00001-of-00001.safetensors",
+    "lm_head.weight": "hf_tiny_model-00001-of-00001.safetensors"
+  }
+}

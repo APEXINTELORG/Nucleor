@@ -1,0 +1,21 @@
+{
+  "manifest": {
+    "model_name": "tiny_onnx_encoder_fixture",
+    "opset_version": 17,
+    "input_count": 2,
+    "output_count": 1,
+    "initializer_count": 8,
+    "node_count": 11,
+    "shape_contract_count": 3,
+    "dtype_policy_count": 4,
+    "execution_provider_count": 2,
+    "external_runtime_count": 1
+  },
+  "claim_scope": "ONNX model-interchange metadata contract only; this is not a native ONNX graph executor.",
+  "roadmap": [
+    "native graph import",
+    "shape and dtype verifier",
+    "kernel dispatch lowering",
+    "runtime-free execution provider"
+  ]
+}

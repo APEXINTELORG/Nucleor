@@ -1,0 +1,21 @@
+{
+  "name": "tiny_orders_table",
+  "format": "arrow_schema",
+  "fields": [
+    {
+      "name": "order_id",
+      "dtype": "int64",
+      "nullable": false
+    },
+    {
+      "name": "group",
+      "dtype": "int64",
+      "nullable": false
+    },
+    {
+      "name": "value",
+      "dtype": "float64",
+      "nullable": false
+    }
+  ]
+}
