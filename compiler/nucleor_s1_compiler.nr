@@ -29062,8 +29062,24 @@ fn auto_drop_mark_constructor_handoffs(pool: Vec<i32>, expr_nid: i64, sym: Vec<i
         };
         return 0;
     };
-    if node_kind(pool, expr_nid) != 12 { return 0; };
-    let args_list: i64 = node_field(pool, expr_nid, 3);
+    // v0846 DFLIP-PATCH (cloud Linux validation 2026-05-07): also recognize
+    // kind-7 regular fn calls as handoff sites, not just kind-12 type-method
+    // calls. The wrapper pattern `fn nn_X(...) -> TensorF64 { let mut data:
+    // Vec<f64>; ...; return tensor_f64_from_vec(rows, cols, data); }` was
+    // failing on Linux because `tensor_f64_from_vec(...)` is kind-7 and the
+    // pre-fix `if != 12 return 0` bailed. The leaf `tensor_f64_from_vec`
+    // body itself works because its return is a kind-34 struct literal
+    // (handled above); the wrapper layer's missing case is exactly this
+    // kind-7-call-as-handoff shape.
+    let ek_call: i64 = node_kind(pool, expr_nid);
+    let mut args_list: i64 = 0 - 1;
+    if ek_call == 7 {
+        args_list = node_field(pool, expr_nid, 2);
+    } else if ek_call == 12 {
+        args_list = node_field(pool, expr_nid, 3);
+    } else {
+        return 0;
+    };
     let n: i64 = list_len(pool, args_list);
     let mut i: i64 = 0;
     while i < n {
@@ -29072,7 +29088,7 @@ fn auto_drop_mark_constructor_handoffs(pool: Vec<i32>, expr_nid: i64, sym: Vec<i
             let vname: str = node_field(pool, arg, 1);
             let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
             if idx >= 0 { auto_drop_mark_freed(sym, vname); };
-        } else if node_kind(pool, arg) == 12 {
+        } else if node_kind(pool, arg) == 7 || node_kind(pool, arg) == 12 {
             auto_drop_mark_constructor_handoffs(pool, arg, sym);
         };
         i = i + 1;

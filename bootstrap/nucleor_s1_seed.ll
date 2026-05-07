@@ -253580,12 +253580,14 @@ bb.entry:
   %r.34 = alloca i64
   %r.44 = alloca i64
   %r.49 = alloca i64
-  %r.74 = alloca i64
-  %r.79 = alloca i64
-  %r.83 = alloca i64
-  %r.88 = alloca i64
-  %r.98 = alloca i64
-  %r.103 = alloca i64
+  %r.68 = alloca i64
+  %r.72 = alloca i64
+  %r.91 = alloca i64
+  %r.95 = alloca i64
+  %r.100 = alloca i64
+  %r.110 = alloca i64
+  %r.115 = alloca i64
+  %r.131 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -253699,108 +253701,162 @@ L8:
   %r.67 = add i64 0, 0
   ret i64 %r.67
 L5:
-  %r.68 = load i64, ptr %r.0
-  %r.69 = load i64, ptr %r.2
-  %r.70 = call i64 @node_kind(i64 %r.68, i64 %r.69)
-  %r.71 = add i64 12, 0
-  %r.72.cmp = icmp ne i64 %r.70, %r.71
-  %r.72 = zext i1 %r.72.cmp to i64
-  %br.72.cond = icmp ne i64 %r.72, 0
-  br i1 %br.72.cond, label %L17, label %L19
-L17:
+  %r.69 = load i64, ptr %r.0
+  %r.70 = load i64, ptr %r.2
+  %r.71 = call i64 @node_kind(i64 %r.69, i64 %r.70)
+  store i64 %r.71, ptr %r.68
   %r.73 = add i64 0, 0
-  ret i64 %r.73
+  %r.74 = add i64 1, 0
+  %r.75.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.73, i64 %r.74)
+  %r.75 = extractvalue { i64, i1 } %r.75.ov, 0
+  %r.75.of = extractvalue { i64, i1 } %r.75.ov, 1
+  br i1 %r.75.of, label %L17, label %L18
+L17:
+  %r.75.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L18:
+  store i64 %r.75, ptr %r.72
+  %r.76 = load i64, ptr %r.68
+  %r.77 = add i64 7, 0
+  %r.78.cmp = icmp eq i64 %r.76, %r.77
+  %r.78 = zext i1 %r.78.cmp to i64
+  %br.78.cond = icmp ne i64 %r.78, 0
+  br i1 %br.78.cond, label %L19, label %L20
 L19:
-  %r.75 = load i64, ptr %r.0
-  %r.76 = load i64, ptr %r.2
-  %r.77 = add i64 3, 0
-  %r.78 = call i64 @node_field(i64 %r.75, i64 %r.76, i64 %r.77)
-  store i64 %r.78, ptr %r.74
-  %r.80 = load i64, ptr %r.0
-  %r.81 = load i64, ptr %r.74
-  %r.82 = call i64 @list_len(i64 %r.80, i64 %r.81)
-  store i64 %r.82, ptr %r.79
-  %r.84 = add i64 0, 0
-  store i64 %r.84, ptr %r.83
-  br label %L20
+  %r.79 = load i64, ptr %r.0
+  %r.80 = load i64, ptr %r.2
+  %r.81 = add i64 2, 0
+  %r.82 = call i64 @node_field(i64 %r.79, i64 %r.80, i64 %r.81)
+  store i64 %r.82, ptr %r.72
+  br label %L21
 L20:
-  %r.85 = load i64, ptr %r.83
-  %r.86 = load i64, ptr %r.79
-  %r.87.cmp = icmp slt i64 %r.85, %r.86
-  %r.87 = zext i1 %r.87.cmp to i64
-  %br.87.cond = icmp ne i64 %r.87, 0
-  br i1 %br.87.cond, label %L21, label %L22
-L21:
-  %r.89 = load i64, ptr %r.0
-  %r.90 = load i64, ptr %r.74
-  %r.91 = load i64, ptr %r.83
-  %r.92 = call i64 @list_get(i64 %r.89, i64 %r.90, i64 %r.91)
-  store i64 %r.92, ptr %r.88
-  %r.93 = load i64, ptr %r.0
-  %r.94 = load i64, ptr %r.88
-  %r.95 = call i64 @node_kind(i64 %r.93, i64 %r.94)
-  %r.96 = add i64 3, 0
-  %r.97.cmp = icmp eq i64 %r.95, %r.96
-  %r.97 = zext i1 %r.97.cmp to i64
-  %br.97.cond = icmp ne i64 %r.97, 0
-  br i1 %br.97.cond, label %L23, label %L24
+  %r.83 = load i64, ptr %r.68
+  %r.84 = add i64 12, 0
+  %r.85.cmp = icmp eq i64 %r.83, %r.84
+  %r.85 = zext i1 %r.85.cmp to i64
+  %br.85.cond = icmp ne i64 %r.85, 0
+  br i1 %br.85.cond, label %L22, label %L23
+L22:
+  %r.86 = load i64, ptr %r.0
+  %r.87 = load i64, ptr %r.2
+  %r.88 = add i64 3, 0
+  %r.89 = call i64 @node_field(i64 %r.86, i64 %r.87, i64 %r.88)
+  store i64 %r.89, ptr %r.72
+  br label %L24
 L23:
-  %r.99 = load i64, ptr %r.0
-  %r.100 = load i64, ptr %r.88
-  %r.101 = add i64 1, 0
-  %r.102 = call i64 @node_field(i64 %r.99, i64 %r.100, i64 %r.101)
-  store i64 %r.102, ptr %r.98
-  %r.104 = load i64, ptr %r.4
-  %r.105 = load i64, ptr %r.98
-  %r.106 = call i64 @auto_drop_index_key(i64 %r.105)
-  %r.107 = call i64 @sym_get(i64 %r.104, i64 %r.106)
-  store i64 %r.107, ptr %r.103
-  %r.108 = load i64, ptr %r.103
-  %r.109 = add i64 0, 0
-  %r.110.cmp = icmp sge i64 %r.108, %r.109
-  %r.110 = zext i1 %r.110.cmp to i64
-  %br.110.cond = icmp ne i64 %r.110, 0
-  br i1 %br.110.cond, label %L26, label %L28
-L26:
-  %r.111 = load i64, ptr %r.4
-  %r.112 = load i64, ptr %r.98
-  %r.113 = call i64 @auto_drop_mark_freed(i64 %r.111, i64 %r.112)
-  br label %L28
-L28:
-  br label %L25
+  %r.90 = add i64 0, 0
+  ret i64 %r.90
 L24:
-  %r.114 = load i64, ptr %r.0
-  %r.115 = load i64, ptr %r.88
-  %r.116 = call i64 @node_kind(i64 %r.114, i64 %r.115)
-  %r.117 = add i64 12, 0
-  %r.118.cmp = icmp eq i64 %r.116, %r.117
-  %r.118 = zext i1 %r.118.cmp to i64
-  %br.118.cond = icmp ne i64 %r.118, 0
-  br i1 %br.118.cond, label %L29, label %L31
-L29:
-  %r.119 = load i64, ptr %r.0
-  %r.120 = load i64, ptr %r.88
-  %r.121 = load i64, ptr %r.4
-  %r.122 = call i64 @auto_drop_mark_constructor_handoffs(i64 %r.119, i64 %r.120, i64 %r.121)
-  br label %L31
-L31:
+  br label %L21
+L21:
+  %r.92 = load i64, ptr %r.0
+  %r.93 = load i64, ptr %r.72
+  %r.94 = call i64 @list_len(i64 %r.92, i64 %r.93)
+  store i64 %r.94, ptr %r.91
+  %r.96 = add i64 0, 0
+  store i64 %r.96, ptr %r.95
   br label %L25
 L25:
-  %r.123 = load i64, ptr %r.83
-  %r.124 = add i64 1, 0
-  %r.125.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.123, i64 %r.124)
-  %r.125 = extractvalue { i64, i1 } %r.125.ov, 0
-  %r.125.of = extractvalue { i64, i1 } %r.125.ov, 1
-  br i1 %r.125.of, label %L32, label %L33
-L32:
-  %r.125.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
+  %r.97 = load i64, ptr %r.95
+  %r.98 = load i64, ptr %r.91
+  %r.99.cmp = icmp slt i64 %r.97, %r.98
+  %r.99 = zext i1 %r.99.cmp to i64
+  %br.99.cond = icmp ne i64 %r.99, 0
+  br i1 %br.99.cond, label %L26, label %L27
+L26:
+  %r.101 = load i64, ptr %r.0
+  %r.102 = load i64, ptr %r.72
+  %r.103 = load i64, ptr %r.95
+  %r.104 = call i64 @list_get(i64 %r.101, i64 %r.102, i64 %r.103)
+  store i64 %r.104, ptr %r.100
+  %r.105 = load i64, ptr %r.0
+  %r.106 = load i64, ptr %r.100
+  %r.107 = call i64 @node_kind(i64 %r.105, i64 %r.106)
+  %r.108 = add i64 3, 0
+  %r.109.cmp = icmp eq i64 %r.107, %r.108
+  %r.109 = zext i1 %r.109.cmp to i64
+  %br.109.cond = icmp ne i64 %r.109, 0
+  br i1 %br.109.cond, label %L28, label %L29
+L28:
+  %r.111 = load i64, ptr %r.0
+  %r.112 = load i64, ptr %r.100
+  %r.113 = add i64 1, 0
+  %r.114 = call i64 @node_field(i64 %r.111, i64 %r.112, i64 %r.113)
+  store i64 %r.114, ptr %r.110
+  %r.116 = load i64, ptr %r.4
+  %r.117 = load i64, ptr %r.110
+  %r.118 = call i64 @auto_drop_index_key(i64 %r.117)
+  %r.119 = call i64 @sym_get(i64 %r.116, i64 %r.118)
+  store i64 %r.119, ptr %r.115
+  %r.120 = load i64, ptr %r.115
+  %r.121 = add i64 0, 0
+  %r.122.cmp = icmp sge i64 %r.120, %r.121
+  %r.122 = zext i1 %r.122.cmp to i64
+  %br.122.cond = icmp ne i64 %r.122, 0
+  br i1 %br.122.cond, label %L31, label %L33
+L31:
+  %r.123 = load i64, ptr %r.4
+  %r.124 = load i64, ptr %r.110
+  %r.125 = call i64 @auto_drop_mark_freed(i64 %r.123, i64 %r.124)
+  br label %L33
 L33:
-  store i64 %r.125, ptr %r.83
-  br label %L20
-L22:
-  %r.126 = add i64 0, 0
-  ret i64 %r.126
+  br label %L30
+L29:
+  %r.126 = load i64, ptr %r.0
+  %r.127 = load i64, ptr %r.100
+  %r.128 = call i64 @node_kind(i64 %r.126, i64 %r.127)
+  %r.129 = add i64 7, 0
+  %r.130.cmp = icmp eq i64 %r.128, %r.129
+  %r.130 = zext i1 %r.130.cmp to i64
+  %r.132 = add i64 0, 0
+  %r.133.cmp = icmp ne i64 %r.130, %r.132
+  %r.133 = zext i1 %r.133.cmp to i64
+  %br.133.cond = icmp ne i64 %r.133, 0
+  br i1 %br.133.cond, label %L34, label %L35
+L34:
+  %r.134 = add i64 1, 0
+  store i64 %r.134, ptr %r.131
+  br label %L36
+L35:
+  %r.135 = load i64, ptr %r.0
+  %r.136 = load i64, ptr %r.100
+  %r.137 = call i64 @node_kind(i64 %r.135, i64 %r.136)
+  %r.138 = add i64 12, 0
+  %r.139.cmp = icmp eq i64 %r.137, %r.138
+  %r.139 = zext i1 %r.139.cmp to i64
+  %r.140 = add i64 0, 0
+  %r.141.cmp = icmp ne i64 %r.139, %r.140
+  %r.141 = zext i1 %r.141.cmp to i64
+  store i64 %r.141, ptr %r.131
+  br label %L36
+L36:
+  %r.142 = load i64, ptr %r.131
+  %br.142.cond = icmp ne i64 %r.142, 0
+  br i1 %br.142.cond, label %L37, label %L39
+L37:
+  %r.143 = load i64, ptr %r.0
+  %r.144 = load i64, ptr %r.100
+  %r.145 = load i64, ptr %r.4
+  %r.146 = call i64 @auto_drop_mark_constructor_handoffs(i64 %r.143, i64 %r.144, i64 %r.145)
+  br label %L39
+L39:
+  br label %L30
+L30:
+  %r.147 = load i64, ptr %r.95
+  %r.148 = add i64 1, 0
+  %r.149.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.147, i64 %r.148)
+  %r.149 = extractvalue { i64, i1 } %r.149.ov, 0
+  %r.149.of = extractvalue { i64, i1 } %r.149.ov, 1
+  br i1 %r.149.of, label %L40, label %L41
+L40:
+  %r.149.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L41:
+  store i64 %r.149, ptr %r.95
+  br label %L25
+L27:
+  %r.150 = add i64 0, 0
+  ret i64 %r.150
 }
 
 define i64 @auto_drop_return_skip_name(i64 %p.0, i64 %p.1, i64 %p.2) {
