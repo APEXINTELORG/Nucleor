@@ -331,8 +331,11 @@ check_manifest() {
                 gen_exe="$gen_exe.exe"
             fi
             chmod +x "$gen_exe" 2>/dev/null
-            (cd "$ROOT" && "$gen_exe") >/dev/null 2>&1 || {
-                echo "FAIL: $(basename "$gen_path") exec crashed."
+            (cd "$ROOT" && "$gen_exe") >"$TMP/$(basename "$gen_path").run.log" 2>&1 || {
+                echo "FAIL: $(basename "$gen_path") exec crashed (rc=$?)."
+                echo "---last-30-lines---"
+                tail -30 "$TMP/$(basename "$gen_path").run.log" 2>/dev/null | sed 's/^/  /'
+                echo "---end---"
                 cp "$snapshot" "$manifest_path"
                 return 1
             }
