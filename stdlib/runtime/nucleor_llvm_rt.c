@@ -17,6 +17,8 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <dbghelp.h>
+#else
+#include <sys/wait.h>
 #endif
 
 /* v0.3.234: shared OOM-aware allocator wrappers. The header is
@@ -2329,7 +2331,27 @@ void __nucleor_file_write_string(const char *path, const char *data) {
 // === Process ===
 long long __nucleor_system(const char *cmd) {
     if (!cmd) return -1;
-    return (long long)system(cmd);
+    int status = system(cmd);
+    if (status == -1) return -1;
+#ifdef _WIN32
+    /* Windows _wsystem returns the child's exit code directly, no shift. */
+    return (long long)status;
+#else
+    /* POSIX system() returns a wait status, not the exit code. The low
+     * 8 bits encode the signal number (and core dump bit) for terminated-
+     * by-signal; the next 8 bits hold the exit code for normal exits.
+     * Pre-fix this function returned the raw 16-bit status, so a child
+     * exiting with code 42 turned into 42<<8 = 10752 here, and any
+     * Nucleor program that returned that from main() got truncated to
+     * 0 by exit() (10752 % 256 == 0). That made `nuc test` report
+     * "rc=0" even when the test panicked, which made the verify gate's
+     * negative-test assertions silently mis-fire on Linux.
+     * Mask off the upper bits and return the exit code. */
+    if (WIFSIGNALED(status)) {
+        return (long long)(128 + WTERMSIG(status));
+    }
+    return (long long)WEXITSTATUS(status);
+#endif
 }
 
 // === Vec operations (flat array with length tracking) ===
