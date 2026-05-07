@@ -535,9 +535,28 @@ launch. After memory safety completes, these are next-priority.
   known allocating/panicking helper now fails. Helper1 v0842 deepens
   the same-file closure to a small bounded caller-chain pass, so
   caller -> helper -> helper -> known allocating/panicking helper also
-  fails. Remaining gap: cross-module callees, closures, fn-pointer
-  dispatch, and deeper-than-bound helper paths still require the
-  AST/IR traversal pass.
+  fails. **v0845 lane 3 / queue 3A — cross-module reach closed for
+  flat-namespace `import "..."`.** Empirically, the resolved-source
+  pre-pass already inlines imported module bodies into one combined
+  source string before `enforce_no_alloc` and `enforce_no_panic` run,
+  so `collect_allocating_same_file_fns` / `collect_panicking_same_file_fns`
+  pick up imported helpers' bodies and the bounded transitive scan
+  surfaces the same RT-001 / RT-002 it does on same-file chains. Locked
+  by: `tests/err/err_no_alloc_cross_module_aux.nr` +
+  `tests/err/err_no_alloc_cross_module_transitive.nr` (negative —
+  imported helper allocates Vec::new() under #[no_alloc]),
+  `tests/err/err_no_panic_cross_module_aux.nr` +
+  `tests/err/err_no_panic_cross_module_transitive.nr` (negative —
+  imported helper calls panic("...") under #[no_panic]), and
+  `tests/features/no_alloc_no_panic_cross_module_aux.nr` +
+  `tests/features/no_alloc_no_panic_cross_module_clean_smoke.nr`
+  (positive — clean imported helper compiles + runs). Remaining gap:
+  closures (probed in lane 2 queue 2C — closure bodies live textually
+  inline so most cases are covered accidentally; closure escape is
+  the residual), fn-pointer indirect dispatch (queue 2C finding for
+  AST-level resolution / Phase 4), and deeper-than-bound helper paths
+  (the same depth=4 budget is the queue 3C residual — bumping to
+  match `restricts` depth=8 is the Tier-A close).
 - **Still open:** `#[deadline]` numeric/certified-WCET backing and
   broader RT attribute enforcement audit.
 
