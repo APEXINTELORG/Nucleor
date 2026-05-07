@@ -65,12 +65,13 @@ fn add_saturating(a: i64, b: i64) -> i64 { ... }
 
 The shipped `--check-laws` slice generates bounded integer checks for
 `commutative`, `associative`, `identity`, `absorbing`, `idempotent`,
-`involution`, and `distributive_over`. Canonical but broader forms
-(`inverse`, `fusion`) and property-driver modifiers (`seed`, `cases`)
-fail closed with `LAW-001` until their checker ships. Float/approximate
-modifiers (`eps`, `approximate`) fail closed with `LAW-004` until the
-tolerance contract ships. A law that fails any generated check fails the
-whole `@law(...)` block.
+`involution`, `distributive_over`, and `inverse` (round-trip
+`f(g(a)) == a` AND `g(f(a)) == a` at four bounded sample integers).
+The remaining canonical form `fusion` and property-driver modifiers
+(`seed`, `cases`) fail closed with `LAW-001` until their checker ships.
+Float/approximate modifiers (`eps`, `approximate`) fail closed with
+`LAW-004` until the tolerance contract ships (RFC-0031 float phase).
+A law that fails any generated check fails the whole `@law(...)` block.
 
 ## 5. Schema-violation diagnostic codes
 
