@@ -236,18 +236,26 @@ fn toml_escape(s: str) -> str {
 
 // ---------- main ----------
 
-fn main() -> i64 {
-    let rods_dir: str = "stdlib/rods";
-    let out_path: str = "docs/rfcs/rod_manifest.toml";
-
-    let entries: Vec<str> = fs_list_dir(rods_dir);
+// Scan one directory under stdlib/rods/ for .nr files and append them to
+// the parallel arrays. `dir_prefix` is the relative path to the directory
+// (e.g. "stdlib/rods" or "stdlib/rods/ml") and is also the path emitted
+// into rod_manifest.toml's `path` field (joined with the bare filename).
+fn scan_rods_dir(
+    dir_prefix: str,
+    names: Vec<str>,
+    paths: Vec<str>,
+    descriptions: Vec<str>,
+    fn_counts: Vec<i32>,
+    cfile_counts: Vec<i32>,
+    locs: Vec<i32>,
+    imports_per_rod: Vec<str>,
+    no_desc_names: Vec<str>,
+    totals: Vec<i64>
+) -> i64 {
+    let entries: Vec<str> = fs_list_dir(dir_prefix);
     let n_entries: i64 = vec_len(entries);
-    if n_entries == 0 {
-        print(str_concat("ERROR: gen_rod_manifest: cannot list ", rods_dir));
-        return 1;
-    };
+    if n_entries == 0 { return 0; };
 
-    // Filter to .nr files only and sort.
     let nr_files: Vec<str> = vec_new();
     let mut i: i64 = 0;
     while i < n_entries {
@@ -260,26 +268,11 @@ fn main() -> i64 {
     sort_strs(nr_files);
     let n_rods: i64 = vec_len(nr_files);
 
-    // Per-rod parallel arrays.
-    let names: Vec<str> = vec_new();
-    let paths: Vec<str> = vec_new();
-    let descriptions: Vec<str> = vec_new();
-    let fn_counts: Vec<i32> = vec_new();
-    let cfile_counts: Vec<i32> = vec_new();
-    let locs: Vec<i32> = vec_new();
-    let imports_per_rod: Vec<str> = vec_new();   // packed CSV of import names per rod
-
-    let mut total_fn: i64 = 0;
-    let mut total_loc: i64 = 0;
-    let mut no_desc_count: i64 = 0;
-    let no_desc_names: Vec<str> = vec_new();
-
     let mut k: i64 = 0;
     while k < n_rods {
         let fname: str = vec_get(nr_files, k);
-        // bare name = strip ".nr"
         let bare: str = str_substring(fname, 0, str_len(fname) - 3);
-        let path: str = str_concat("stdlib/rods/", fname);
+        let path: str = str_concat(str_concat(dir_prefix, "/"), fname);
         let content: str = file_read_string(path);
 
         let desc: str = extract_description(content);
@@ -289,7 +282,6 @@ fn main() -> i64 {
         let imps: Vec<str> = vec_new();
         collect_imports(content, imps);
         sort_strs(imps);
-        // Pack imports into a single CSV string (avoids Vec<Vec<str>>)
         let mut imp_csv: str = "";
         let mut q: i64 = 0;
         let nq: i64 = vec_len(imps);
@@ -307,15 +299,63 @@ fn main() -> i64 {
         vec_push(locs, loc_n as i32);
         vec_push(imports_per_rod, imp_csv);
 
-        total_fn = total_fn + fn_n;
-        total_loc = total_loc + loc_n;
+        let cur_fn: i64 = vec_get(totals, 0);
+        let cur_loc: i64 = vec_get(totals, 1);
+        vec_set(totals, 0, cur_fn + fn_n);
+        vec_set(totals, 1, cur_loc + loc_n);
         if str_len(desc) == 0 {
-            no_desc_count = no_desc_count + 1;
             vec_push(no_desc_names, bare);
         };
 
         k = k + 1;
     };
+    return n_rods;
+}
+
+fn main() -> i64 {
+    let rods_dir: str = "stdlib/rods";
+    let out_path: str = "docs/rfcs/rod_manifest.toml";
+
+    // Per-rod parallel arrays.
+    let names: Vec<str> = vec_new();
+    let paths: Vec<str> = vec_new();
+    let descriptions: Vec<str> = vec_new();
+    let fn_counts: Vec<i32> = vec_new();
+    let cfile_counts: Vec<i32> = vec_new();
+    let locs: Vec<i32> = vec_new();
+    let imports_per_rod: Vec<str> = vec_new();
+    let no_desc_names: Vec<str> = vec_new();
+    let totals: Vec<i64> = vec_new();
+    vec_push(totals, 0);  // total_fn
+    vec_push(totals, 0);  // total_loc
+
+    // Scan the top-level stdlib/rods/.
+    let n_top: i64 = scan_rods_dir(
+        rods_dir, names, paths, descriptions,
+        fn_counts, cfile_counts, locs, imports_per_rod,
+        no_desc_names, totals
+    );
+    if n_top == 0 {
+        print(str_concat("ERROR: gen_rod_manifest: cannot list ", rods_dir));
+        return 1;
+    };
+
+    // RFC-0063 Phase 5.1+: also scan one level of named subdirectories.
+    // Currently only stdlib/rods/ml/ is recognized; new subdirs must be
+    // added here explicitly to keep the scanner's behavior auditable.
+    let ml_dir: str = "stdlib/rods/ml";
+    if fs_is_dir(ml_dir) == 1 {
+        let _n_ml: i64 = scan_rods_dir(
+            ml_dir, names, paths, descriptions,
+            fn_counts, cfile_counts, locs, imports_per_rod,
+            no_desc_names, totals
+        );
+    };
+
+    let n_rods: i64 = vec_len(names);
+    let total_fn: i64 = vec_get(totals, 0);
+    let total_loc: i64 = vec_get(totals, 1);
+    let no_desc_count: i64 = vec_len(no_desc_names);
 
     // Build output.
     let mut out: str = "";
