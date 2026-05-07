@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
-# Total fn definitions: 3832
-# Total LOC: 25890
+# Total fn definitions: 3862
+# Total LOC: 26811
 
 [[rod]]
 name           = "activation2"
@@ -2345,10 +2345,10 @@ imports        = ["ml/math_facade", "ml/tensor_facade"]
 [[rod]]
 name           = "capsule_facade"
 path           = "stdlib/rods/ml/capsule_facade.nr"
-description    = "Capsule manifest contract for reproducible-build evidence (source/data/model/compiler/rod-graph hashes)"
-function_count = 6
+description    = "Capsule manifest contract + 10 sub-aspect variants (artifact/device/input/output/rod_graph/source/suite/tolerance/toolchain/verifier)"
+function_count = 36
 cfile_count    = 0
-loc            = 102
+loc            = 1023
 imports        = ["jsonl", "ml/tensor_facade"]
 
 [[rod]]
