@@ -1503,3 +1503,725 @@ fn run_mco_command() -> i64 {
     print("  +-----------------------------------------+");
     return 0;
 }
+#[manual_drop]
+fn opt_cse_block(blk: Vec<i32>) -> i64 {
+    let insts: Vec<i32> = vec_get(blk, 1);
+    let ic: i64 = vec_len(insts);
+    if ic < 2 { return 0; };
+    let mut seen_op: Vec<i32> = Vec::new();
+    let mut seen_o1: Vec<i32> = Vec::new();
+    let mut seen_o2: Vec<i32> = Vec::new();
+    let mut seen_dst: Vec<i32> = Vec::new();
+    let mut rewrites: i64 = 0;
+    let mut i: i64 = 0;
+    while i < ic {
+        let inst: Vec<i32> = vec_get(insts, i);
+        let op: i64 = ir_op(inst);
+        let d: i64 = ir_dest(inst);
+        let o1: i64 = ir_op1(inst);
+        let o2: i64 = ir_op2(inst);
+        if op == 0 || (op >= 2 && op <= 14) || op == 27 {
+            let sc: i64 = vec_len(seen_op);
+            let mut found: i64 = 0 - 1;
+            let mut si: i64 = 0;
+            while si < sc {
+                if vec_get(seen_op, si) == op && vec_get(seen_o1, si) == o1 && vec_get(seen_o2, si) == o2 {
+                    found = vec_get(seen_dst, si); si = sc;
+                };
+                si = si + 1;
+            };
+            if found >= 0 {
+                // Rewrite all forward uses of d to found (opcode-aware)
+                let mut j: i64 = i + 1;
+                while j < ic {
+                    let jinst: Vec<i32> = vec_get(insts, j);
+                    let jop: i64 = ir_op(jinst);
+                    if jop == 19 {
+                        let args: Vec<i32> = vec_get(jinst, 5);
+                        let ac: i64 = vec_len(args);
+                        let mut ai: i64 = 0;
+                        while ai < ac {
+                            if vec_get(args, ai) == d { vec_set(args, ai, found); };
+                            ai = ai + 1;
+                        };
+                    }
+                    else if jop >= 2 && jop <= 14 {
+                        // arithmetic/cmp/logic: op1 and op2 are registers
+                        if ir_op1(jinst) == d { vec_set(jinst, 3, found); };
+                        if ir_op2(jinst) == d { vec_set(jinst, 4, found); };
+                    }
+                    else if jop == 17 { if ir_op1(jinst) == d { vec_set(jinst, 3, found); }; }
+                    else if jop == 18 {
+                        if ir_op1(jinst) == d { vec_set(jinst, 3, found); };
+                        if ir_op2(jinst) == d { vec_set(jinst, 4, found); };
+                    }
+                    else if jop == 20 { if ir_op1(jinst) == d { vec_set(jinst, 3, found); }; }
+                    else if jop == 22 { if ir_op1(jinst) == d { vec_set(jinst, 3, found); }; }
+                    else if jop == 28 {
+                        if ir_op1(jinst) == d { vec_set(jinst, 3, found); };
+                        if ir_op2(jinst) == d { vec_set(jinst, 4, found); };
+                        if ir_extra(jinst) == d { vec_set(jinst, 5, found); };
+                    }
+                    else if jop == 30 {
+                        if ir_op1(jinst) == d { vec_set(jinst, 3, found); };
+                        let jargs: Vec<i32> = vec_get(jinst, 5);
+                        let jac: i64 = vec_len(jargs);
+                        let mut jai: i64 = 0;
+                        while jai < jac {
+                            if vec_get(jargs, jai) == d { vec_set(jargs, jai, found); };
+                            jai = jai + 1;
+                        };
+                    };
+                    // ops 0, 16, 21, 26, 27, 29: no register operands to rewrite
+                    j = j + 1;
+                };
+                rewrites = rewrites + 1;
+            } else {
+                seen_op.push(op); seen_o1.push(o1); seen_o2.push(o2); seen_dst.push(d);
+            };
+        };
+        i = i + 1;
+    };
+    return rewrites;
+}
+
+#[manual_drop]
+fn hex_digit(v: i64) -> str {
+    if v == 0 { return "0"; }; if v == 1 { return "1"; }; if v == 2 { return "2"; };
+    if v == 3 { return "3"; }; if v == 4 { return "4"; }; if v == 5 { return "5"; };
+    if v == 6 { return "6"; }; if v == 7 { return "7"; }; if v == 8 { return "8"; };
+    if v == 9 { return "9"; }; if v == 10 { return "A"; }; if v == 11 { return "B"; };
+    if v == 12 { return "C"; }; if v == 13 { return "D"; }; if v == 14 { return "E"; };
+    if v == 15 { return "F"; }; return "0";
+}
+
+#[manual_drop]
+fn hex_byte(v: i64) -> str {
+    let hi: i64 = v / 16;
+    let lo: i64 = v - hi * 16;
+    return str_concat(hex_digit(hi), hex_digit(lo));
+}
+
+#[manual_drop]
+fn emit_arith(sb: i64, on: str, d: i64, a: i64, b: i64) -> i64 {
+    sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+    sb_append(sb, " = "); sb_append(sb, on);
+    sb_append(sb, " i64 %r."); sb_append(sb, str_from_int(a));
+    sb_append(sb, ", %r."); sb_append(sb, str_from_int(b));
+    sb_append(sb, "\n"); return 0;
+}
+
+#[manual_drop]
+fn find_extern_idx(pool: Vec<i32>, externs: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(externs) {
+        if str_eq(node_field(pool, vec_get(externs, i), 1), name) { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn emit_extern_call(sb: i64, pool: Vec<i32>, externs: Vec<i32>, ext_idx: i64, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let nid: i64 = vec_get(externs, ext_idx);
+    let name: str = node_field(pool, nid, 1);
+    let plist: i64 = node_field(pool, nid, 2);
+    let rtype: str = node_field(pool, nid, 3);
+    let ds: str = str_from_int(d);
+    let lr: str = nr_type_to_llvm(rtype);
+    // Step 1: convert args from i64 to target types
+    let mut ai: i64 = 0;
+    while ai < argc {
+        let pnid: i64 = list_get(pool, plist, ai);
+        let ptype: str = node_field(pool, pnid, 2);
+        let as2: str = str_from_int(ai);
+        if is_ptr_type(ptype) == 1 {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, as2);
+            sb_append(sb, " = inttoptr i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); sb_append(sb, " to ptr\n");
+        } else if str_eq(ptype, "i32") {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, as2);
+            sb_append(sb, " = trunc i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); sb_append(sb, " to i32\n");
+        } else if str_eq(ptype, "f64") {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, as2);
+            sb_append(sb, " = sitofp i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); sb_append(sb, " to double\n");
+        };
+        ai = ai + 1;
+    };
+    // Step 2: emit call
+    if str_eq(lr, "void") {
+        sb_append(sb, "  call void @"); sb_append(sb, name); sb_append(sb, "(");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".rv = call "); sb_append(sb, lr);
+        sb_append(sb, " @"); sb_append(sb, name); sb_append(sb, "(");
+    };
+    // Step 3: emit args with correct types
+    ai = 0;
+    while ai < argc {
+        if ai > 0 { sb_append(sb, ", "); };
+        let pnid: i64 = list_get(pool, plist, ai);
+        let ptype: str = node_field(pool, pnid, 2);
+        let lt: str = nr_type_to_llvm(ptype);
+        if is_ptr_type(ptype) == 1 || str_eq(ptype, "i32") || str_eq(ptype, "f64") {
+            sb_append(sb, lt); sb_append(sb, " %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, str_from_int(ai));
+        } else {
+            sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai)));
+        };
+        ai = ai + 1;
+    };
+    sb_append(sb, ")\n");
+    // Step 4: convert return from target type to i64
+    if str_eq(lr, "void") {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    } else if str_eq(lr, "ptr") {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = ptrtoint ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".rv to i64\n");
+    } else if str_eq(lr, "i32") {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = sext i32 %r.");
+        sb_append(sb, ds); sb_append(sb, ".rv to i64\n");
+    } else if str_eq(lr, "double") {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = fptosi double %r.");
+        sb_append(sb, ds); sb_append(sb, ".rv to i64\n");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".rv, 0\n");
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn emit_str_constants(strtab: Vec<i32>) -> str {
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    while i < vec_len(strtab) {
+        let s: str = vec_get(strtab, i);
+        sb_append(sb, "@.str."); sb_append(sb, str_from_int(i));
+        sb_append(sb, " = private unnamed_addr constant [");
+        sb_append(sb, str_from_int(str_len(s) + 1));
+        sb_append(sb, " x i8] c\"");
+        sb_append(sb, escape_llvm_str(s));
+        sb_append(sb, "\\00\"\n");
+        i = i + 1;
+    };
+    if vec_len(strtab) > 0 { sb_append(sb, "\n"); };
+    return sb_to_str(sb);
+}
+
+#[manual_drop]
+fn is_ptr_type(t: str) -> i64 {
+    if str_eq(t, "str") { return 1; };
+    if str_eq(t, "ptr") { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn tensor_builtin_method_name(mname: str) -> str {
+    if str_eq(mname, "rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "cols") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "len") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "get") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "set") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "matmul") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "transpose") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sum") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "mean") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "max") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "min") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "variance") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "stddev") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "l1") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "l2") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "normalize_l2") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "zscore") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "clip") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "softmax_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "argmax_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "argmin_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "greedy") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "exp") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sqrt") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "abs") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "log") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sigmoid") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "tanh") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "relu") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "dot") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "reshape") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "flatten") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "add") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sub") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "mul") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "div") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "square") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "pow") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sin") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "cos") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "concat_rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "concat_cols") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "trace") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "outer") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "layernorm") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sum_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "mean_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "logsumexp_axis") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sample_topk_temp") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sample_nucleus_temp") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sample_eps") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sample_rank") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "sample_gumbel") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "median") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "percentile") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "mad") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "entropy") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "top2_gap") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "tile") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "repeat_rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "take_rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "drop_rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "minmax") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "center") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    if str_eq(mname, "reverse_cols") == 1 { return str_concat("__nucleor_tensor_", mname); };
+    return "";
+}
+
+#[manual_drop]
+fn type_is_shared_ref(t: str) -> i64 {
+    let tlen: i64 = str_len(t);
+    if tlen >= 1 && str_char_at(t, 0) == 38 && type_is_mut_ref(t) == 0 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn type_is_ref(t: str) -> i64 {
+    if type_is_mut_ref(t) == 1 { return 1; };
+    if str_len(t) >= 1 && str_char_at(t, 0) == 38 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn sendable_source_has_actor_decl(src: str) -> i64 {
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        } else if c == 34 || c == 39 {
+            let quote: i64 = c;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != quote {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+        } else {
+            if str_len(sendable_actor_decl_name_at(src, p)) > 0 { return 1; };
+            p = p + 1;
+        };
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn sendable_source_has_spawn_call(src: str) -> i64 {
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        } else if c == 34 || c == 39 {
+            let quote: i64 = c;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != quote {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+        } else {
+            if str_eq_at(src, p, "async_spawn(") == 1 { return 1; };
+            if str_eq_at(src, p, "thread_spawn(") == 1 { return 1; };
+            if str_eq_at(src, p, "conc_spawn(") == 1 { return 1; };
+            p = p + 1;
+        };
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn sendable_is_bare_ident(text: str) -> i64 {
+    let t: str = str_trim(text);
+    let n: i64 = str_len(t);
+    if n == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < n {
+        let c: i64 = str_char_at(t, i);
+        if i == 0 {
+            if is_alpha(c) == 0 { if c != 95 { return 0; }; };
+        } else {
+            if is_alnum(c) == 0 { if c != 95 { return 0; }; };
+        };
+        i = i + 1;
+    };
+    return 1;
+}
+
+#[manual_drop]
+fn sendable_second_type(t: str) -> str {
+    let n: i64 = str_len(t);
+    let mut p: i64 = 0;
+    while p < n && str_char_at(t, p) != 60 { p = p + 1; };
+    if p >= n { return ""; };
+    p = p + 1;
+    let mut depth: i64 = 1;
+    let mut comma: i64 = 0 - 1;
+    while p < n && comma < 0 {
+        let c: i64 = str_char_at(t, p);
+        if c == 60 { depth = depth + 1; }
+        else if c == 62 { depth = depth - 1; }
+        else if c == 44 && depth == 1 { comma = p; };
+        p = p + 1;
+    };
+    if comma < 0 { return ""; };
+    let start: i64 = comma + 1;
+    let mut q: i64 = start;
+    depth = 1;
+    while q < n {
+        let c2: i64 = str_char_at(t, q);
+        if c2 == 60 { depth = depth + 1; }
+        else if c2 == 62 {
+            depth = depth - 1;
+            if depth == 0 { return str_trim(str_substring(t, start, q)); };
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn sendable_type_has_impl(source: str, typ: str) -> i64 {
+    let base: str = type_base_name(str_trim(typ));
+    if str_len(base) == 0 { return 0; };
+    let pat: str = str_concat("impl Sendable for ", base);
+    if str_index_of(source, pat) >= 0 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn sendable_binding_type(source: str, var_name: str) -> str {
+    let pat1: str = str_concat("let ", str_concat(var_name, ":"));
+    let pat2: str = str_concat("let mut ", str_concat(var_name, ":"));
+    let mut p: i64 = str_index_of(source, pat1);
+    let mut start: i64 = 0;
+    if p >= 0 { start = p + str_len(pat1); }
+    else {
+        p = str_index_of(source, pat2);
+        if p < 0 { return ""; };
+        start = p + str_len(pat2);
+    };
+    let slen: i64 = str_len(source);
+    let mut q: i64 = start;
+    while q < slen {
+        let c: i64 = str_char_at(source, q);
+        if c == 61 || c == 59 || c == 10 || c == 13 { return str_trim(str_substring(source, start, q)); };
+        q = q + 1;
+    };
+    return str_trim(str_substring(source, start, q));
+}
+
+#[manual_drop]
+fn sendable_find_matching_paren(text: str, open_pos: i64) -> i64 {
+    let n: i64 = str_len(text);
+    let mut depth: i64 = 1;
+    let mut p: i64 = open_pos + 1;
+    while p < n {
+        let c: i64 = str_char_at(text, p);
+        if c == 34 {
+            p = p + 1;
+            while p < n && str_char_at(text, p) != 34 {
+                if str_char_at(text, p) == 92 && p + 1 < n { p = p + 2; }
+                else { p = p + 1; };
+            };
+        } else if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn sendable_find_top_comma(text: str, start: i64, end: i64) -> i64 {
+    let mut depth: i64 = 0;
+    let mut p: i64 = start;
+    while p < end {
+        let c: i64 = str_char_at(text, p);
+        if c == 40 || c == 60 || c == 91 { depth = depth + 1; }
+        else if c == 41 || c == 62 || c == 93 { if depth > 0 { depth = depth - 1; }; }
+        else if c == 44 && depth == 0 { return p; };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn sendable_find_matching_brace(text: str, open_pos: i64) -> i64 {
+    let n: i64 = str_len(text);
+    let mut depth: i64 = 1;
+    let mut p: i64 = open_pos + 1;
+    while p < n {
+        let c: i64 = str_char_at(text, p);
+        if c == 123 { depth = depth + 1; }
+        else if c == 125 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn sendable_actor_fields(source: str, actor_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let pat: str = str_concat("struct ", str_concat(actor_name, " {"));
+    let p: i64 = str_index_of(source, pat);
+    if p < 0 { return out; };
+    let open_pos: i64 = p + str_len(pat) - 1;
+    let close_pos: i64 = sendable_find_matching_brace(source, open_pos);
+    if close_pos < 0 { return out; };
+    let mut q: i64 = open_pos + 1;
+    while q < close_pos {
+        while q < close_pos && (is_ws(str_char_at(source, q)) == 1 || str_char_at(source, q) == 44) { q = q + 1; };
+        let ns: i64 = q;
+        while q < close_pos && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+        if q > ns {
+            let name: str = str_substring(source, ns, q);
+            while q < close_pos && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+            if q < close_pos && str_char_at(source, q) == 58 { out.push(name); };
+        };
+        while q < close_pos && str_char_at(source, q) != 44 && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
+        q = q + 1;
+    };
+    return out;
+}
+
+#[manual_drop]
+fn enforce_sendable_actor_fields(diags: Vec<i32>, source: str) -> i64 {
+    let actors: Vec<i32> = sendable_collect_actor_names(source);
+    let mut added: i64 = 0;
+    let mut ai: i64 = 0;
+    while ai < vec_len(actors) {
+        let actor_name: str = vec_get(actors, ai);
+        let fields: Vec<i32> = sendable_actor_fields(source, actor_name);
+        let vars: Vec<i32> = sendable_actor_vars(source, actor_name);
+        let mut vi: i64 = 0;
+        while vi < vec_len(vars) {
+            let vname: str = vec_get(vars, vi);
+            let mut fi: i64 = 0;
+            while fi < vec_len(fields) {
+                let field: str = vec_get(fields, fi);
+                let pat: str = str_concat(vname, str_concat(".", field));
+                if str_index_of(source, pat) >= 0 {
+                    let msg: str = str_concat("actor `", str_concat(actor_name, str_concat("` field `", str_concat(field, "` cannot be accessed directly outside actor isolation"))));
+                    let mut lc: Vec<i32> = find_linecol_in_source(source, pat, pat);
+                    diag_add_ex(diags, "error", "race", "RACE-003", msg, actor_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    added = added + 1;
+                    fi = vec_len(fields);
+                };
+                fi = fi + 1;
+            };
+            vi = vi + 1;
+        };
+        ai = ai + 1;
+    };
+    return added;
+}
+
+#[manual_drop]
+fn enforce_sendable_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let has_spawn: i64 = sendable_source_has_spawn_call(source);
+    let has_actor: i64 = if str_index_of(source, "//__NUC35A:") >= 0 { 1 } else { 0 };
+    if has_spawn == 0 && has_actor == 0 { return diags; };
+    if has_spawn == 1 {
+        enforce_sendable_spawn_name(diags, source, "async_spawn");
+        enforce_sendable_spawn_name(diags, source, "thread_spawn");
+        enforce_sendable_spawn_name(diags, source, "conc_spawn");
+    };
+    if has_actor == 1 { enforce_sendable_actor_fields(diags, source); };
+    return diags;
+}
+
+#[manual_drop]
+fn expr_borrow_key(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        if type_is_ref(own_get_type(own, name)) == 1 {
+            let target: str = own_get_ref_target(own, name);
+            if str_len(target) > 0 { return target; };
+        };
+        return name;
+    };
+    if kind == 9 {
+        let base: str = expr_borrow_key(pool, node_field(pool, nid, 1), own);
+        if str_len(base) == 0 { return ""; };
+        return str_concat(base, str_concat(".", node_field(pool, nid, 2)));
+    };
+    if kind == 92 { return expr_borrow_key(pool, node_field(pool, nid, 1), own); };
+    return "";
+}
+
+#[manual_drop]
+fn expr_root_name(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        if type_is_ref(own_get_type(own, name)) == 1 {
+            let target: str = own_get_ref_target(own, name);
+            if str_len(target) > 0 {
+                let mut i: i64 = 0;
+                while i < str_len(target) {
+                    if str_char_at(target, i) == 46 { return str_substring(target, 0, i); };
+                    i = i + 1;
+                };
+                return target;
+            };
+        };
+        return name;
+    };
+    if kind == 9 || kind == 90 || kind == 91 || kind == 92 { return expr_root_name(pool, node_field(pool, nid, 1), own); };
+    return "";
+}
+
+#[manual_drop]
+fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 90 || kind == 91 {
+        let root: str = expr_root_name(pool, node_field(pool, nid, 1), own);
+        if own_get_param(own, root) == 0 { return root; };
+        return "";
+    };
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        if type_is_ref(own_get_type(own, name)) == 1 {
+            let target: str = own_get_ref_target(own, name);
+            if str_len(target) > 0 {
+                let root: str = target_root_name(target);
+                if own_get_param(own, root) == 0 { return root; };
+                return "";
+            };
+            if own_get_param(own, name) == 0 { return name; };
+        };
+        return "";
+    };
+    if kind == 52 {
+        let body: i64 = node_field(pool, nid, 2);
+        if body < 0 || body >= vec_len(pool) { return ""; };
+        let cnt: i64 = list_len(pool, body);
+        if cnt == 0 { return ""; };
+        let last_stmt: i64 = list_get(pool, body, cnt - 1);
+        let sk: i64 = node_kind(pool, last_stmt);
+        if sk == 22 || sk == 25 { return expr_escape_root(pool, node_field(pool, last_stmt, 1), own); };
+        if sk == 23 { return expr_escape_root(pool, last_stmt, own); };
+        return "";
+    };
+    if kind == 23 {
+        let mut root: str = expr_escape_root(pool, node_field(pool, nid, 2), own);
+        if str_len(root) > 0 { return root; };
+        let enode: i64 = node_field(pool, nid, 3);
+        if enode >= 0 { return expr_escape_root(pool, enode, own); };
+        return "";
+    };
+    return "";
+}
+
+#[manual_drop]
+fn check_stmts(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
+    if lid < 0 || lid >= vec_len(pool) { return 0; };
+    let cnt: i64 = list_len(pool, lid);
+    let mut i: i64 = 0; let mut warns: i64 = 0;
+    while i < cnt { warns = warns + check_stmt(pool, list_get(pool, lid, i), own, structs, enums, fn_name); i = i + 1; };
+    return warns;
+}
+
+#[manual_drop]
+fn builtin_rtype_format_string_i64(name: str) -> i64 {
+    if str_eq(name, "str_eq") == 1 { return 1; };
+    if str_eq(name, "str_starts_with") == 1 { return 1; };
+    if str_eq(name, "str_ends_with") == 1 { return 1; };
+    if str_eq(name, "str_index_of") == 1 { return 1; };
+    if str_eq(name, "str_contains") == 1 { return 1; };
+    if str_eq(name, "str_is_empty") == 1 { return 1; };
+    if str_eq(name, "str_count") == 1 { return 1; };
+    if str_eq(name, "str_to_i64") == 1 { return 1; };
+    if str_eq(name, "str_to_int") == 1 { return 1; };
+    if str_eq(name, "str_to_int_strict") == 1 { return 1; };
+    if str_eq(name, "str_to_bool") == 1 { return 1; };
+    if str_eq(name, "str_to_i64_radix") == 1 { return 1; };
+    if str_eq(name, "parse_hex") == 1 { return 1; };
+    if str_eq(name, "parse_bin") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn builtin_rtype_format_string_str(name: str) -> i64 {
+    if str_eq(name, "str_concat") == 1 { return 1; };
+    if str_eq(name, "str_to_lower") == 1 { return 1; };
+    if str_eq(name, "str_to_upper") == 1 { return 1; };
+    if str_eq(name, "str_replace") == 1 { return 1; };
+    if str_eq(name, "str_repeat") == 1 { return 1; };
+    if str_eq(name, "str_reverse") == 1 { return 1; };
+    if str_eq(name, "str_pad_left") == 1 { return 1; };
+    if str_eq(name, "str_pad_right") == 1 { return 1; };
+    if str_eq(name, "str_center") == 1 { return 1; };
+    if str_eq(name, "str_join") == 1 { return 1; };
+    if str_eq(name, "int_to_str") == 1 { return 1; };
+    if str_eq(name, "str_from_int") == 1 { return 1; };
+    if str_eq(name, "bool_to_str") == 1 { return 1; };
+    if str_eq(name, "int_to_hex") == 1 { return 1; };
+    if str_eq(name, "int_to_bin") == 1 { return 1; };
+    if str_eq(name, "int_to_oct") == 1 { return 1; };
+    if str_eq(name, "int_to_str_force_sign") == 1 { return 1; };
+    if str_eq(name, "int_to_hex_upper") == 1 { return 1; };
+    if str_eq(name, "f64_to_str") == 1 { return 1; };
+    if str_eq(name, "f32_to_str") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_prec") == 1 { return 1; };
+    if str_eq(name, "f32_to_str_prec") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_upper") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec") == 1 { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") == 1 { return 1; };
+    if str_eq(name, "format_i64") == 1 { return 1; };
+    if str_eq(name, "format_str") == 1 { return 1; };
+    if str_eq(name, "format_hex") == 1 { return 1; };
+    if str_eq(name, "format_bool") == 1 { return 1; };
+    if str_eq(name, "format_f64") == 1 { return 1; };
+    if str_eq(name, "format2_ii") == 1 { return 1; };
+    if str_eq(name, "format2_si") == 1 { return 1; };
+    if str_eq(name, "format2_ss") == 1 { return 1; };
+    if str_eq(name, "format2_is") == 1 { return 1; };
+    if str_eq(name, "format2_ff") == 1 { return 1; };
+    if str_eq(name, "format2_fi") == 1 { return 1; };
+    if str_eq(name, "format2_if") == 1 { return 1; };
+    if str_eq(name, "format3_fff") == 1 { return 1; };
+    if str_eq(name, "format3_iii") == 1 { return 1; };
+    if str_eq(name, "format3_sii") == 1 { return 1; };
+    if str_eq(name, "format3_iss") == 1 { return 1; };
+    if str_eq(name, "format3_sss") == 1 { return 1; };
+    if str_eq(name, "format3_ssi") == 1 { return 1; };
+    if str_eq(name, "format3_sis") == 1 { return 1; };
+    if str_eq(name, "format3_iis") == 1 { return 1; };
+    if str_eq(name, "format3_isi") == 1 { return 1; };
+    if str_eq(name, "format3_iif") == 1 { return 1; };
+    if str_eq(name, "format3_iff") == 1 { return 1; };
+    if str_eq(name, "format3_sff") == 1 { return 1; };
+    if str_eq(name, "format3_ssf") == 1 { return 1; };
+    if str_eq(name, "format3_sif") == 1 { return 1; };
+    if str_eq(name, "format3_isf") == 1 { return 1; };
+    return 0;
+}
