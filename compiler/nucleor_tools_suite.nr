@@ -861,7 +861,14 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(cp, params);
 }
 
+#[manual_drop]
 fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_let. Closes one of the
+    // 28 still-divergent parse_* fns flagged by Phase 4's drift gate.
+    // tools-suite's body uses two scoped `Vec<i32>` locals (`tr`, `er`)
+    // that are consumed by `pr_pos`/`pr_val` immediately, so the
+    // dangling-Vec class doesn't apply here in the same shape as
+    // parse_match_stmt — but the s1-parity discipline is the goal.
     let mut is_mut: i64 = 0; let mut cp: i64 = pos;
     if pk(tokens, cp) == 12 { is_mut = 1; cp = cp + 1; };
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
