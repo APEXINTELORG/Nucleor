@@ -506,7 +506,26 @@ launch. After memory safety completes, these are next-priority.
   basis-amplitude window without raising the full-state cap; active fixture
   `mps_statevector_range_smoke.nr` locks high-qubit product-state range
   extraction, Bell-window extraction, and fail-closed invalid/cap behavior.
-  Remaining gap: true external-sink/callback streaming is not yet exposed.
+- **QM-6 streaming-range fold helpers:** DONE for Phase 2e on
+  2026-05-07 (v0842) — `mps_statevector_range_prob_sum(h, start, count)`
+  and `mps_statevector_range_nonzero_count(h, start, count)` fold an
+  arbitrary basis range into a single scalar without allocating a
+  per-amplitude `Vec<complex>`; memory stays `O(MPS_MAX_BOND)`
+  regardless of `count`. The fold cap
+  `mps_statevector_range_max_fold_count()` is `1<<20` (1,048,576),
+  higher than the materializing cap because no per-state allocation
+  is needed. Stable error sentinels (`prob_sum` = `_mf2i(-1.0)`,
+  `nonzero_count` = `-1`) cover invalid handle / out-of-range /
+  over-cap; a valid empty range (`count=0`) folds to `0`. The same
+  `1e-15` zero-clamp the materializing path uses is applied here so
+  fold values are numerically consistent with a fold over the
+  materialized vec. Active fixture
+  `mps_statevector_range_fold_smoke.nr` locks Bell + GHZ
+  full-range / sub-range / single-state probabilities, empty-range,
+  and every error-sentinel path.
+  Remaining gap: true external-sink / callback streaming (per-state
+  user callbacks across the FFI boundary) is QM-6 Phase 2f future
+  work.
 - **QM-2 qsim statevector checked init:** DONE for Phase 1+2b on
   2026-05-06 — `qsim_init_preflight(n)` returns stable status codes
   (`0=ok`, `1=invalid_qubit_count`, `2=over_capacity`) and

@@ -881,6 +881,127 @@ long long nuc_mps_statevector_range(long long handle, long long start_basis_, lo
     return (long long)out;
 }
 
+// =====================================================
+// QM-6 Phase 2e bounded streaming-range folds (v0842)
+// =====================================================
+//
+// These fold a basis-range scan into a single scalar without
+// materializing the per-amplitude Vec<complex>. Memory stays
+// O(MPS_MAX_BOND) regardless of `count`. The fold cap is higher
+// than the materializing cap because there is no per-state
+// allocation; only the bounded amplitude scratch buffers + a
+// single accumulator. Real callback-style streaming (per-state
+// user callbacks across the FFI boundary) remains future work
+// per QM-6 Phase 2f.
+
+#define MPS_RANGE_FOLD_MAX_COUNT (1LL << 20) // 1,048,576
+
+long long nuc_mps_statevector_range_max_fold_count(void) {
+    return MPS_RANGE_FOLD_MAX_COUNT;
+}
+
+// Sum of |amp|^2 over [start_basis, start_basis + count). Returns
+// _mf2i(prob_sum) on success (prob_sum in [0.0, 1.0]). On invalid
+// handle / out-of-range / over-cap inputs returns _mf2i(-1.0); a
+// valid empty range (count == 0) returns _mf2i(0.0). The same
+// 1e-15 zero-clamp used by nuc_mps_statevector_range is applied to
+// the per-state amplitude before squaring, so the fold value is
+// numerically consistent with a fold over the materialized vec.
+long long nuc_mps_statevector_range_prob_sum(long long handle,
+                                             long long start_basis_,
+                                             long long count_) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > 62) return _mf2i(-1.0);
+    if (start_basis_ < 0 || count_ < 0) return _mf2i(-1.0);
+    if (count_ > MPS_RANGE_FOLD_MAX_COUNT) return _mf2i(-1.0);
+
+    unsigned long long start_basis = (unsigned long long)start_basis_;
+    unsigned long long count = (unsigned long long)count_;
+    unsigned long long total = 1ULL << mps->nq;
+    if (start_basis > total) return _mf2i(-1.0);
+    if (count > total - start_basis) return _mf2i(-1.0);
+    if (count == 0) return _mf2i(0.0);
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return _mf2i(-1.0);
+    }
+
+    double sum = 0.0;
+    for (unsigned long long i = 0; i < count; i++) {
+        double amp_re = 0.0;
+        double amp_im = 0.0;
+        int ok = mps_basis_amplitude(mps, start_basis + i,
+                                     vec_re, vec_im, next_re, next_im,
+                                     &amp_re, &amp_im);
+        if (!ok) {
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return _mf2i(-1.0);
+        }
+        if (amp_re > -1e-15 && amp_re < 1e-15) amp_re = 0.0;
+        if (amp_im > -1e-15 && amp_im < 1e-15) amp_im = 0.0;
+        sum += amp_re * amp_re + amp_im * amp_im;
+    }
+
+    free(vec_re); free(vec_im); free(next_re); free(next_im);
+    if (sum > 1.0 && sum < 1.0 + 1e-9) sum = 1.0;
+    return _mf2i(sum);
+}
+
+// Count of basis states in [start_basis, start_basis + count) whose
+// |amp|^2 exceeds the same 1e-15 zero-clamp threshold the
+// materializing range path applies. Returns -1 on invalid handle /
+// out-of-range / over-cap inputs and 0..count on success. A valid
+// empty range returns 0.
+long long nuc_mps_statevector_range_nonzero_count(long long handle,
+                                                  long long start_basis_,
+                                                  long long count_) {
+    MPS *mps = (MPS *)(void *)handle;
+    if (!mps || mps->nq < 0 || mps->nq > 62) return -1;
+    if (start_basis_ < 0 || count_ < 0) return -1;
+    if (count_ > MPS_RANGE_FOLD_MAX_COUNT) return -1;
+
+    unsigned long long start_basis = (unsigned long long)start_basis_;
+    unsigned long long count = (unsigned long long)count_;
+    unsigned long long total = 1ULL << mps->nq;
+    if (start_basis > total) return -1;
+    if (count > total - start_basis) return -1;
+    if (count == 0) return 0;
+
+    double *vec_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *vec_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_re = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    double *next_im = (double *)calloc(MPS_MAX_BOND, sizeof(double));
+    if (!vec_re || !vec_im || !next_re || !next_im) {
+        free(vec_re); free(vec_im); free(next_re); free(next_im);
+        return -1;
+    }
+
+    long long nonzero = 0;
+    for (unsigned long long i = 0; i < count; i++) {
+        double amp_re = 0.0;
+        double amp_im = 0.0;
+        int ok = mps_basis_amplitude(mps, start_basis + i,
+                                     vec_re, vec_im, next_re, next_im,
+                                     &amp_re, &amp_im);
+        if (!ok) {
+            free(vec_re); free(vec_im); free(next_re); free(next_im);
+            return -1;
+        }
+        if (amp_re > -1e-15 && amp_re < 1e-15) amp_re = 0.0;
+        if (amp_im > -1e-15 && amp_im < 1e-15) amp_im = 0.0;
+        double prob = amp_re * amp_re + amp_im * amp_im;
+        if (prob > 1e-15) nonzero++;
+    }
+
+    free(vec_re); free(vec_im); free(next_re); free(next_im);
+    return nonzero;
+}
+
 // Materialize a qsim-compatible Vec<complex> statevector for small MPS states.
 // This is intentionally capped: MPS is useful because it avoids 2^n storage,
 // so large-state extraction must fail closed instead of becoming a memory footgun.
