@@ -125,3 +125,131 @@ findings/inbox/local_claude_r05_effects_compiler_v0840_2026-05-06.md
 The report must include branch, HEAD, merge-base, implemented slice, skipped
 surfaces, exact files changed, focused validation output, drift/ABI/diff/perf
 results, and remaining R05/RFC-0033 gaps.
+
+## Continuation v0841 - R05 Same-File Transitive Effect Slice
+
+Status before this queue: the first block-form `restricts [...] { ... }` slice
+landed on main as `218117d6`; Helper1 ROBO-7 repair landed as `74303c3d`;
+Helper2 Wave 5 landed as `34d12338`. Fetch first and start fresh from current
+`origin/main`.
+
+Branch:
+
+```text
+fix/local-claude-r05-transitive-effects-v0841
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/local-claude-r05-transitive-effects-v0841 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Implement the next real compiler-enforced R05/RFC-0033 slice.
+- Preferred target: bounded same-file transitive effect summaries for direct
+  user-function calls reached from a `restricts [...] { ... }` block.
+- The compiler should be able to reject a cleanly reachable shape where a
+  restricts block calls an unrowed same-file helper, and that helper directly
+  or transitively calls a rowed effectful function or known effectful builtin.
+
+Concrete target behavior:
+
+```text
+fn read_sensor() -> i64 requires [io.read] { return 1; }
+fn helper() -> i64 { return read_sensor(); }
+fn main() -> i64 {
+    restricts [io] {
+        return helper();
+    }
+}
+```
+
+The build should fail with `error[EFF-003]` on the restricts surface once the
+transitive summary is implemented. Today, related fixtures may still fail via
+`EFF-001` from the direct requires-row guard. That is acceptable as an interim
+guard but not the end-state for this queue.
+
+Required survey:
+
+- `enforce_restricts_block_effects`
+- `collect_requires_effect_rows`
+- `enforce_requires_direct_calls`
+- direct builtin effect mapping used by pure/restricts diagnostics
+- existing fixtures:
+
+```text
+tests/err/err_effect_inference.nr
+tests/err/err_effect_deep_chain.nr
+tests/err/err_restricts_block_builtin_io.nr
+tests/features/restricts_block_clean_smoke.nr
+tests/features/requires_row_clean_smoke.nr
+```
+
+Implementation boundaries:
+
+- Same file only.
+- Direct calls and bounded transitive user-function calls only.
+- No cross-module propagation.
+- No methods, closures, trait dispatch, higher-order functions, or async task
+  propagation.
+- No parser unification or tools-suite duplicate deletion.
+- No ROBO-7 or Linux package/R06 work.
+- No Python helpers.
+
+Fixtures:
+
+Add focused fixtures only for behavior actually implemented. Candidate names:
+
+```text
+tests/err/err_restricts_block_transitive_unrowed_io.nr
+tests/err/err_restricts_block_transitive_deep_chain.nr
+tests/features/restricts_block_transitive_clean_smoke.nr
+```
+
+If you update existing `err_effect_inference.nr` or
+`err_effect_deep_chain.nr` expectations, document exactly why the primary
+diagnostic moved from `EFF-001` to `EFF-003`.
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o _local_claude_r05_transitive_s1_v0841 --no-cache --no-link
+```
+
+Then build every new negative fixture and confirm the expected `EFF-*` code.
+Build every new positive fixture and run it when it emits an executable.
+
+Required gates:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Required because this is compiler hot-path work:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Watch cold compiler RSS carefully: after the ROBO-7 repair it was close to the
+350MB ceiling. Prefer one source walk or a small memoized table over repeated
+full-source scans.
+
+Deliverable:
+
+Create:
+
+```text
+findings/inbox/local_claude_r05_transitive_effects_v0841_2026-05-06.md
+```
+
+Include branch, HEAD, base, merge-base, implemented behavior, skipped surfaces,
+changed files, focused validation output, drift/ABI/diff/perf results, and
+remaining R05/RFC-0033 gaps.

@@ -2493,3 +2493,138 @@ Whether main needs drift/self-host/perf/full verify:
 
 Do not run full verify by default. Keep this lane focused on tools-suite
 deduplication, drift, dispatch smokes, void ABI, and perf.
+
+## Queue 16 Continuation v0841 - RFC-0063 Tools-Suite Wave 6
+
+Status before this queue: Wave 5 landed on main as `34d12338`. Fetch first and
+start fresh from current `origin/main`.
+
+Branch:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave6-v0841
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/helper2-rfc0063-tools-suite-wave6-v0841 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Continue RFC-0063 Phase 2.0 duplicate deletion/import.
+- Take a larger but still reviewable IDENTICAL-only batch, ideally 25 to 45
+  helpers.
+- Keep moving toward eliminating the tools-suite duplicate body surface without
+  touching parser functions or behavior-different helpers.
+
+Current audit target after Wave 5:
+
+```text
+314 duplicate names
+135 IDENTICAL safe-delete candidates
+163 SIG_MATCH_BODY_DIFFERS review/replace candidates
+16 SIG_DIFFERS per-function lift/adapter candidates
+```
+
+Preferred Wave 6 batches, in order:
+
+1. Dedicated `smap_*` batch:
+
+```text
+smap_hash
+smap_new_cap
+smap_slots
+smap_slot_used
+smap_slot_key
+smap_slot_val
+smap_find_slot
+smap_grow
+smap_set
+smap_get
+```
+
+`smap_grow` is growth-sensitive but byte-identical; include it only if the
+batch still validates cleanly and call it out in the report.
+
+2. Diagnostics / record helper batch:
+
+```text
+diag_new
+diag_add
+diag_count
+diag_get
+struct_find
+struct_find_type
+struct_field_idx
+struct_field_type
+enum_find
+is_copy_type
+sig_find
+sig_plist
+sig_rtype
+sig_is_extern
+```
+
+3. Source/string utility batch:
+
+```text
+byte_to_line
+find_in_source
+path_overlaps
+source_line
+line_has_unit_literal
+```
+
+Only move names that are confirmed `IDENTICAL` in the current
+`tools/audit_dup_fns_report.csv`. If a listed helper is no longer safe after
+main moves, skip it and explain why.
+
+Hard boundaries:
+
+- Do not touch parser functions: `parse_stmt`, `parse_expr`,
+  `parse_match_stmt`.
+- Do not touch `SIG_MATCH_BODY_DIFFERS` or `SIG_DIFFERS` helpers in this
+  implementation queue.
+- Do not touch R05 effects, ROBO-7, Linux package/R06 tooling, `bin/`,
+  `bootstrap/`, or perf baselines.
+- No Python helpers.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_tools_suite.nr -o nucleor_tools --no-cache
+.\bin\nucleor.exe check examples\01_hello.nr --no-cache
+.\bin\nucleor.exe build-strict examples\01_hello.nr -o _rfc0063_wave6_build_strict --no-cache
+.\bin\nucleor.exe abi examples\01_hello.nr
+.\bin\nucleor.exe publish tests\fixtures\t14_registry\foo\0.1.0\Nucleor.toml --registry "$env:TEMP\nucleor-rfc0063-wave6-registry" --dry-run
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Output wording can drift; validate command success and the current success
+signals, not stale exact prose.
+
+Deliverable:
+
+Create:
+
+```text
+findings/inbox/helper2_rfc0063_tools_suite_wave6_v0841_2026-05-06.md
+```
+
+Include:
+
+- branch, HEAD, base, merge-base;
+- before/after duplicate counts;
+- selected helper names and skipped candidates;
+- exact files changed;
+- validation output summary and perf numbers;
+- recommended Wave 7 candidates;
+- whether main needs drift/self-host/perf/full verify.
