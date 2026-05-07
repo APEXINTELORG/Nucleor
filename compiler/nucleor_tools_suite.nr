@@ -1579,23 +1579,6 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
 fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::new(); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
 }
-fn ir_op(ii: Vec<i32>) -> i64 { return vec_get(ii, 0); }
-fn ir_dest(ii: Vec<i32>) -> i64 { return vec_get(ii, 1); }
-fn ir_op1(ii: Vec<i32>) -> i64 { return vec_get(ii, 3); }
-fn ir_op2(ii: Vec<i32>) -> i64 { return vec_get(ii, 4); }
-fn ir_extra(ii: Vec<i32>) -> i64 { return vec_get(ii, 5); }
-
-fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
-fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
-fn ir_cmpop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
-fn ir_alloca(d: i64) -> Vec<i32> { return ir_inst(16, d, 0, 0, 0, 0); }
-fn ir_load(d: i64, ptr: i64) -> Vec<i32> { return ir_inst(17, d, 0, ptr, 0, 0); }
-fn ir_store(v: i64, ptr: i64) -> Vec<i32> { return ir_inst(18, 0, 0, v, ptr, 0); }
-fn ir_ret(v: i64) -> Vec<i32> { return ir_inst(20, 0, 0, v, 0, 0); }
-fn ir_br(lbl: i64) -> Vec<i32> { return ir_inst(21, 0, 0, lbl, 0, 0); }
-fn ir_br_cond(cond: i64, t: i64, f: i64) -> Vec<i32> { return ir_inst(22, 0, 0, cond, t, f); }
-fn ir_param_ref(d: i64, pidx: i64) -> Vec<i32> { return ir_inst(26, d, 0, pidx, 0, 0); }
-fn ir_const_str(d: i64, str_idx: i64) -> Vec<i32> { return ir_inst(27, d, 0, str_idx, 0, 0); }
 fn ir_select(d: i64, cond: i64, tv: i64, fv: i64) -> Vec<i32> { return ir_inst(28, d, 0, cond, tv, fv); }
 fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::new();
@@ -1731,30 +1714,10 @@ fn ir_block_new(lbl: i64) -> Vec<i32> {
     let mut b: Vec<i32> = Vec::new(); b.push(lbl);
     let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
 }
-#[manual_drop]
-fn ir_block_label(b: Vec<i32>) -> i64 { return vec_get(b, 0); }
-#[manual_drop]
-fn ir_block_add(b: Vec<i32>, inst: Vec<i32>) -> i64 { let mut insts: Vec<i32> = vec_get(b, 1); insts.push(inst); return 0; }
-#[manual_drop]
-fn ir_block_inst_count(b: Vec<i32>) -> i64 { let insts: Vec<i32> = vec_get(b, 1); return vec_len(insts); }
-#[manual_drop]
-fn ir_block_get_inst(b: Vec<i32>, idx: i64) -> Vec<i32> { let insts: Vec<i32> = vec_get(b, 1); return vec_get(insts, idx); }
-
 fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
     let mut f: Vec<i32> = Vec::new(); f.push(name); f.push(pc); f.push(0);
     let mut blocks: Vec<i32> = Vec::new(); f.push(blocks); return f;
 }
-#[manual_drop]
-fn ir_fn_name(f: Vec<i32>) -> str { return vec_get(f, 0); }
-#[manual_drop]
-fn ir_fn_param_count(f: Vec<i32>) -> i64 { return vec_get(f, 1); }
-#[manual_drop]
-fn ir_fn_add_block(f: Vec<i32>, blk: Vec<i32>) -> i64 { let mut b: Vec<i32> = vec_get(f, 3); b.push(blk); return 0; }
-#[manual_drop]
-fn ir_fn_block_count(f: Vec<i32>) -> i64 { let b: Vec<i32> = vec_get(f, 3); return vec_len(b); }
-#[manual_drop]
-fn ir_fn_get_block(f: Vec<i32>, idx: i64) -> Vec<i32> { let b: Vec<i32> = vec_get(f, 3); return vec_get(b, idx); }
-
 fn block_has_term(blk: Vec<i32>) -> i64 {
     let ic: i64 = ir_block_inst_count(blk);
     if ic == 0 { return 0; };
