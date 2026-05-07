@@ -1044,11 +1044,16 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
 }
 
+#[manual_drop]
 fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'struct', at the name
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     // Optional generic params: struct Name<T, U> { ... }
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_struct_decl. Sister of
+    // the T2.5 fix on parse_fn_decl — same dangling-Vec class. Without it,
+    // any struct with `<T>` / `<'a>` generic params can land a bogus pool
+    // index in `gparams` once `parse_generic_params`'s inner Vec is freed.
     let mut gparams: i64 = mk_list(pool, Vec::new());
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
