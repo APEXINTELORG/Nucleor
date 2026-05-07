@@ -6,6 +6,15 @@
 **Supporting roadmap:** `docs/rfcs/RFC-0063-production-readiness-roadmap.md`
 **Created from main:** `5d8d1bab4b4ee9fdefe362e732c899277c38e4cd`
 
+## GitHub Locations
+
+- **Repository web URL:** `https://github.com/APEXINTELORG/Nucleor`
+- **Clone URL:** `https://github.com/APEXINTELORG/Nucleor.git`
+- **Main branch URL:** `https://github.com/APEXINTELORG/Nucleor/tree/main`
+- **Canonical handoff path:** `docs/rfcs/v1_REMAINING_PUNCHLIST_AGENT_HANDOFF_v0845_2026-05-07.md`
+- **Canonical handoff URL:** `https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/v1_REMAINING_PUNCHLIST_AGENT_HANDOFF_v0845_2026-05-07.md`
+- **Live punchlist URL:** `https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/v1_PUNCHLIST.md`
+
 This document supersedes older dispatch packs for remaining-work routing.
 Older packs are useful for history, but many of their estimates and open
 items are stale after v0838-v0844 integration. Agents must start from
