@@ -946,6 +946,13 @@ proper analysis → Phase 4 hard error):
   `Nucleor_Translate` forward-commitment. These stay outside the ten core
   compiler/runtime lanes: ML Suite code remains external, and Translate is
   pull-in-gated on completion plus revalidation before any `nuc port` shim.
+- **2026-05-07**: v0845 remaining-work agent handoff added at
+  `docs/rfcs/v1_REMAINING_PUNCHLIST_AGENT_HANDOFF_v0845_2026-05-07.md`.
+  It refreshes the old v0834 cloud dispatch pack after the v0838-v0844
+  integrations, requires one isolated worktree per agent, and lays out
+  loop-safe queues for RFC-0063, effects, RT determinism, laws, ROBO-7,
+  T-3/T-4, UNIT-1, R06/FFI, Linux CI/proof, quantum, ML Suite, and
+  Translate visibility.
 - **2026-05-06**: T-4 strict inference Phase 2b partial advanced.
   Core runtime helper return types are now known in both compiler copies,
   and `tests/features/t4_strict_core_helper_rtypes.nr` locks the positive
