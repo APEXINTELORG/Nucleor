@@ -258,3 +258,28 @@ Folded into PUNCHLIST as PROBE-1.
 
 **Done = every "Validation: PASS" claim in `Cloud_Control1.md` either reproduces on a clean Linux host today, or has a dated regression note with ROOT CAUSE.**
 
+
+## [2026-05-07 ~16:30 UTC] NEW QUEUE — Cloud-8O: Linux validation of Phase 1/2/4 production-readiness work
+**Source:** Local-integrator main agent, today (2026-05-07). After cloud's last full-verify pass at `21135f09` (`1293 PASS / 6 SKIP / 0 FAIL`), Windows side landed substantial production-readiness work that needs Linux pair-validation:
+
+- T2.5 lifetime params + 4 sister manual_drop fixes (`a3203449`, `5a4b790a`, `cd4f01ae`)
+- T2.1 range patterns parse_match_stmt manual_drop (`cfb77c68`)
+- verify.sh + verify_fast.sh + verify_parallel.sh + check_compiler_drift.sh `-x → -f` sweep for Git-Bash NTFS exec-bit (`74a251f6`, `53ae652c`, `cfb77c68`)
+- verify_fast.sh body alignment with verify.sh (5 stale step bodies + skip-regex + 4GB mem cap)
+- New `tools/verify_strict.sh` wrapper (`<pending commit>`) — wipes build cache, forces NUC_VERIFY_STRICT=1
+- check_compiler_drift.sh Phase 4 — flags missing `#[manual_drop]` parity between s1 and tools-suite parse_* fns. WARN-by-default; FAIL when NUC_VERIFY_STRICT=1.
+
+**Cloud Queue 8O (validation only, no patches):**
+- Branch from current `origin/main` (post-pending commit) as `claude/cloud-8O-linux-pair-validate-v0846`.
+- Run TWO transcripts in sequence on a clean Linux runner:
+  1. `bash tools/verify.sh` (default mode) — expect `PASS=1485 SKIP=2 FAIL=0` parity with Windows. Allowed delta: 1-2 SKIPs that are Windows-only fixtures.
+  2. `bash tools/verify_strict.sh` — wipes cache, sets NUC_VERIFY_STRICT=1. Expected: drift gate FAILs with the per-fn `#[manual_drop]` parity list (28 fns last counted on Windows; should match exactly on Linux). The downstream verify steps then run cache-cold and surface any latent panic class. Capture per-step exit codes + log; do NOT patch.
+- File `findings/inbox/cloud_claude_lane8_8O_v0845_2026-05-07.md` with: pre-fix vs post-fix counts, per-host parity, list of any net-new failures introduced by main agent's commits (not expected), enumeration of strict-mode FAILs (separate ones that exist on Linux too vs Windows-only).
+- **Honesty rule:** if `tools/verify.sh` FAILs unexpectedly post-cfb77c68 on Linux, that's a real regression I introduced; report it as a stop-and-investigate, not a fixture flake. Same posture as 8C's R-bucket discipline.
+- **No patches.** This is read-only validation. If a real defect surfaces, file separately as `cloud_claude_lane8_8P_*` and we triage.
+
+**Done = both transcripts captured, findings filed, parity confirmed (or, if not, regressions enumerated with ROOT CAUSEs).**
+
+## Reminder: Cloud-PROBE-1L is BLOCKED on partner team's PROBE-1 not started yet
+The PROBE-1 / PROBE-3 partner queues filed earlier today have not been picked up. Cloud-PROBE-1L stays blocked. Cloud-PROBE-3L (cloud-doc evidence audit) is INDEPENDENT and can run any time.
+
