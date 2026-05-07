@@ -230,6 +230,13 @@ fixtures.
 | UNIT-004 | Unknown unit alias | [RFC-0005 §3.3](../rfcs/RFC-0005-units.md) |
 | UNIT-005 | Dimensional inconsistency in @law annotation | [RFC-0005](../rfcs/RFC-0005-units.md) |
 
+Current implementation note: the `UNIT-*` series remains the
+reserved semantic-diagnostic namespace for the future compiler-level
+`unit<T, dim>` algebra. The active fail-closed archive guards currently
+surface through `TYP-003`, `TYP-007`, and `TYP-008`, while
+`stdlib/rods/units.nr` provides a positive nominal `UnitDistance` /
+`UnitVelocity` API over f64 values plus stable unit IDs.
+
 ## CONTRACT series — RFC-0006 design by contract
 
 | Code | Title | RFC section |

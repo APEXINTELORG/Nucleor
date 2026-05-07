@@ -183,3 +183,118 @@ fn dim_check_or_panic(have: Vec<i64>, want: Vec<i64>, label: str) -> i64 {
     panic(str_concat("nucleor: dim_check failed at ", label));
     return 0;
 }
+
+// =====================================================
+// UNIT-1 positive typed-unit API surface.
+//
+// These nominal structs are a small stdlib surface over the
+// current storage/lowering contract: f64 value plus stable unit
+// IDs. They are not the future parser/type-checker `unit<T, dim>`
+// algebra; they give adopters concrete distance and velocity
+// constructors/accessors today while the compiler-level dimension
+// system remains queued.
+// =====================================================
+
+struct UnitDistance {
+    value: f64,
+    unit_id: i64,
+}
+
+struct UnitVelocity {
+    value: f64,
+    distance_unit_id: i64,
+    time_unit_id: i64,
+}
+
+fn unit_distance_m(value: f64) -> UnitDistance {
+    return UnitDistance { value: value, unit_id: unit_m() };
+}
+
+fn unit_distance_km(value: f64) -> UnitDistance {
+    return UnitDistance { value: value, unit_id: unit_km() };
+}
+
+fn unit_distance_cm(value: f64) -> UnitDistance {
+    return UnitDistance { value: value, unit_id: unit_cm() };
+}
+
+fn unit_distance_mm(value: f64) -> UnitDistance {
+    return UnitDistance { value: value, unit_id: unit_mm() };
+}
+
+fn unit_distance_value(d: &UnitDistance) -> f64 {
+    return d.value;
+}
+
+fn unit_distance_unit(d: &UnitDistance) -> i64 {
+    return d.unit_id;
+}
+
+fn unit_distance_dim() -> Vec<i64> {
+    return dim_m();
+}
+
+fn unit_distance_value_as(d: &UnitDistance, to_unit_id: i64) -> f64 {
+    return unit_convert_f64(d.value, d.unit_id, to_unit_id);
+}
+
+fn unit_distance_add(a: &UnitDistance, b: &UnitDistance) -> UnitDistance {
+    let bv: f64 = unit_distance_value_as(b, a.unit_id);
+    return UnitDistance { value: a.value + bv, unit_id: a.unit_id };
+}
+
+fn unit_distance_sub(a: &UnitDistance, b: &UnitDistance) -> UnitDistance {
+    let bv: f64 = unit_distance_value_as(b, a.unit_id);
+    return UnitDistance { value: a.value - bv, unit_id: a.unit_id };
+}
+
+fn unit_velocity_mps(value: f64) -> UnitVelocity {
+    return UnitVelocity { value: value, distance_unit_id: unit_m(), time_unit_id: unit_s() };
+}
+
+fn unit_velocity_km_per_hr(value: f64) -> UnitVelocity {
+    return UnitVelocity { value: value, distance_unit_id: unit_km(), time_unit_id: unit_hr() };
+}
+
+fn unit_velocity_from_distance_time(distance: &UnitDistance, elapsed: f64, time_unit_id: i64) -> UnitVelocity {
+    return UnitVelocity { value: distance.value / elapsed, distance_unit_id: distance.unit_id, time_unit_id: time_unit_id };
+}
+
+fn unit_velocity_value(v: &UnitVelocity) -> f64 {
+    return v.value;
+}
+
+fn unit_velocity_distance_unit(v: &UnitVelocity) -> i64 {
+    return v.distance_unit_id;
+}
+
+fn unit_velocity_time_unit(v: &UnitVelocity) -> i64 {
+    return v.time_unit_id;
+}
+
+fn unit_velocity_dim() -> Vec<i64> {
+    return dim_velocity();
+}
+
+fn unit_velocity_value_mps(v: &UnitVelocity) -> f64 {
+    let meters_per_time: f64 = unit_convert_f64(v.value, v.distance_unit_id, unit_m());
+    let seconds_per_time: f64 = unit_convert_f64(1.0, v.time_unit_id, unit_s());
+    return meters_per_time / seconds_per_time;
+}
+
+fn unit_velocity_value_as(v: &UnitVelocity, distance_unit_id: i64, time_unit_id: i64) -> f64 {
+    let mps: f64 = unit_velocity_value_mps(v);
+    let meters_per_target_distance: f64 = unit_convert_f64(1.0, distance_unit_id, unit_m());
+    let seconds_per_target_time: f64 = unit_convert_f64(1.0, time_unit_id, unit_s());
+    return (mps * seconds_per_target_time) / meters_per_target_distance;
+}
+
+fn unit_velocity_add(a: &UnitVelocity, b: &UnitVelocity) -> UnitVelocity {
+    let bv: f64 = unit_velocity_value_as(b, a.distance_unit_id, a.time_unit_id);
+    return UnitVelocity { value: a.value + bv, distance_unit_id: a.distance_unit_id, time_unit_id: a.time_unit_id };
+}
+
+fn unit_velocity_sub(a: &UnitVelocity, b: &UnitVelocity) -> UnitVelocity {
+    let bv: f64 = unit_velocity_value_as(b, a.distance_unit_id, a.time_unit_id);
+    return UnitVelocity { value: a.value - bv, distance_unit_id: a.distance_unit_id, time_unit_id: a.time_unit_id };
+}
