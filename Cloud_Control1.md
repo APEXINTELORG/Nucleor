@@ -53,6 +53,32 @@ For each round-2 fix branch:
 3. Re-run the 8C-failing verify step(s) under `bash tools/verify.sh --only "<step name>"`.
 4. Append a Round-2 completion entry below using the same format as 8A-8C.
 
+## Round 3 — Fresh-agent validation pass on current main
+
+The previous cloud agent (`claude/cloud-control-punchlist-bPLVn`) shipped 8 commits but kept building from a stale base (`5890c84` and earlier). The local integrator cherry-picked their work onto current main; the original branch is now significantly behind. **A fresh cloud agent should branch from current `origin/main` (post-Lane-2 + Lane-3-partial + R1-R5 + 8 partner branches).** Do not consult the old `claude/cloud-control-punchlist-*` branches as a base.
+
+The R1-R5 fixes from Round 2 (8D-8H) are already on main via commit `92f8efd8` (cherry-picked from the previous cloud agent's `ac810fa8`). Those queues do not need re-implementation; instead Round 3 focuses on **validating that they actually closed on current main** and on the un-closed residuals.
+
+- [ ] **8J / Round-3 verify transcript** — Run full `bash tools/verify.sh` on current `origin/main` (whatever the latest SHA is at spawn time) on native Linux. Expected: ≥30 failures resolved compared to the 8C baseline (1237 PASS / 6 SKIP / 30 FAIL on `5890c84`). Report: PASS / SKIP / FAIL counts; whether the 5 root-cause buckets (R1 libm, R2 RNG bridges, R3 nuc init mkdir, R4 nuc clean cache, R5 build-id) are now empty; any NEW failures introduced by the Lane 2 / Lane 3 / partner integrations. Branch `probe/cloud-round3-verify-transcript-v0845`. Append a Round-3 DONE entry citing exact failure delta vs 8C.
+
+- [ ] **8K / 6B time-helper rc=6 investigation** — Local integrator noted `tests/features/t4_strict_time_helper_rtypes.nr` exits with rc=6 on the Windows host; partner reported rc=0 on a different host. Fixture asserts `mono_ns > 0 && mono_us > 0 && mono_ms > 0` at line 33. Run on Linux from current main, capture the exact value of each monotonic helper, classify: (a) genuine runtime miscompute, (b) Linux/Windows behavioral delta requiring fixture-side guard, (c) flake. Branch `probe/cloud-round3-time-helpers-investigation-v0845`. Report findings and propose smallest correct patch (or close as Linux-clean if rc=0 on Linux).
+
+- [ ] **8L / 8I path_utils Linux skip** — Sequence after 8J confirms the failure. Apply the smallest correct gate to `tests/runtime/path_utils.nr` so the Windows-only `path_is_absolute("C:/foo") == 1` assertion does not run on POSIX. Branch `fix/cloud-round3-path-utils-skip-v0845`. Validate via `bash tools/verify.sh --only "test runtime/path_utils"` showing PASS on Linux + Windows-only assertion still active on Windows builds. (Cloud earlier addressed this in `ac810fa8`; verify it actually landed cleanly on current main.)
+
+- [ ] **8M / partner 1B Linux rebase** — The local partner has a v0845 branch `fix/partner-rfc0063-tools-suite-wave11-v0845` (commit `49576c98`) that retires 13 `SIG_MATCH_BODY_DIFFERS` duplicates from `compiler/nucleor_tools_suite.nr`. The branch is based on `5890c846` and conflicts with the v0845 1A duplicate-removal already on main when cherry-picked locally. **Cloud's Linux env may resolve the conflict more cleanly** (the partner had a different Windows-line-ending heuristic). Rebase `49576c98` onto current `origin/main`, regenerate `tools/audit_dup_fns_report.csv` via `target/audit_dup_fns.exe`, push as `fix/cloud-round3-partner-1B-rebased-v0845`, append DONE entry. **If the conflict is genuinely structural (overlapping deletions) write a blocker — do not force a merge that drops legitimate retirement.**
+
+- [ ] **8N / 7A POSIX side R06 hash transcript** — Windows side has not yet landed; this remains optional follow-on. Wait for `fix/r06-cross-platform-hash-transcript-v0845` Windows-half before starting POSIX side. Handoff §Lane 7 / Queue 7A.
+
+## Round 3 round-trip discipline
+
+Each Round-3 entry must:
+1. Branch from current `origin/main` (run `git fetch && git checkout -B <branch> origin/main`).
+2. Use the existing operating rules above (native Linux, no WSL/Wine, `_aux.nr$` skip regex, no Python helpers).
+3. Push the named branch.
+4. Append a Round-3 completion entry to the log section using the existing template.
+
+If the local integrator merges to main while you are working, rebase onto fresh `origin/main` before pushing — do not force a merge that overwrites concurrent work.
+
 ## Optional follow-on (lower priority)
 
 - [ ] **7A-Linux-side** — Pair the POSIX side of R06 hash transcripts (Handoff §Lane 7 / Queue 7A) when Windows-side patch lands. Wait for Windows half on `fix/r06-cross-platform-hash-transcript-v0845` before working this side.
