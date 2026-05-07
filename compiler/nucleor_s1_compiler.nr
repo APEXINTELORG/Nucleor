@@ -11639,41 +11639,59 @@ fn effect_row_first_missing(caller_row: str, callee_row: str) -> str {
 }
 
 #[manual_drop]
-fn collect_requires_effect_rows(source: str) -> Vec<i32> {
-    let mut rows: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(source);
-    let mut p: i64 = 0;
-    while p < slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
-        let line: str = str_substring(source, p, eol);
-        let info: Vec<i32> = priv_extract_fn_decl_info(line);
-        let fn_name: str = vec_get(info, 0);
-        if str_len(fn_name) > 0 {
-            let compact_line: str = strip_spaces(line);
-            let is_pure_decl: i64 = if str_starts_with(compact_line, "purefn") == 1 { 1 } else { if str_starts_with(compact_line, "pubpurefn") == 1 { 1 } else { 0 } };
-            let mut h: i64 = p;
-            while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
-            let header: str = str_substring(source, p, h);
-            let effects: str = effect_row_from_header(header);
-            if str_len(effects) > 0 && is_pure_decl == 0 {
-                rows.push(fn_name);
-                rows.push(effects);
-            };
-            if h > eol { p = h; }
-            else { p = eol + 1; };
-        } else {
-            p = eol + 1;
-        };
+fn requires_body_direct_missing(row: str, body: str) -> str {
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        let eff: str = restricts_builtin_effect(callee);
+        if str_len(eff) > 0 && effect_row_allows_effect(row, eff) == 0 { return eff; };
+        ci = ci + 1;
     };
-    return rows;
+    let stripped: str = strip_strings_and_line_comments(body);
+    if effect_row_allows_effect(row, "alloc") == 0 {
+        if str_index_of(stripped, "Vec::new") >= 0 { return "alloc"; };
+        if str_index_of(stripped, "Box::new") >= 0 { return "alloc"; };
+    };
+    return "";
+}
+
+#[manual_drop]
+fn requires_transitive_missing(row: str, body: str, table: Vec<i32>, depth_remaining: i64, visited: Vec<i32>) -> str {
+    let direct: str = requires_body_direct_missing(row, body);
+    if str_len(direct) > 0 { return direct; };
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        if name_in_vec(visited, callee) == 0 {
+            let callee_row: str = lookup_fn_row_in_table(table, callee);
+            if str_len(callee_row) > 0 {
+                let missing: str = effect_row_first_missing(row, callee_row);
+                if str_len(missing) > 0 { return missing; };
+            } else {
+                if depth_remaining > 0 {
+                    let callee_body: str = lookup_fn_body_in_table(table, callee);
+                    if str_len(callee_body) > 0 {
+                        visited.push(callee);
+                        let nested: str = requires_transitive_missing(row, callee_body, table, depth_remaining - 1, visited);
+                        if str_len(nested) > 0 { return nested; };
+                    };
+                };
+            };
+        };
+        ci = ci + 1;
+    };
+    return "";
 }
 
 #[manual_drop]
 fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
     if source_has_requires_row_code(source) == 0 { return diags; };
-    let rows: Vec<i32> = collect_requires_effect_rows(source);
-    if vec_len(rows) == 0 { return diags; };
+    let table: Vec<i32> = collect_fn_table(source);
+    if vec_len(table) == 0 { return diags; };
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
     while p < slen {
@@ -11699,21 +11717,44 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                 };
                 let body_raw: str = str_substring(source, body_start, q - 1);
                 let body: str = strip_strings_and_line_comments(body_raw);
-                let mut ri: i64 = 0;
-                while ri + 1 < vec_len(rows) {
-                    let callee: str = vec_get(rows, ri);
-                    if str_eq(callee, fn_name) == 0 {
+                let mut emitted: i64 = 0;
+                if str_len(caller_row) > 0 {
+                    let direct_missing: str = requires_body_direct_missing(caller_row, body);
+                    if str_len(direct_missing) > 0 {
+                        let msg0: str = str_concat("body of `", str_concat(fn_name, str_concat("()` uses effect `", str_concat(direct_missing, "` but its `requires [...]` row does not declare that effect (audit R05-D6 v0844)"))));
+                        let lc0: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "error", "effect", "EFF-001", msg0, fn_name, vec_get(lc0, 0), vec_get(lc0, 1), "");
+                        emitted = 1;
+                    };
+                };
+                let tn: i64 = vec_len(table);
+                let mut ti: i64 = 0;
+                while ti + 2 < tn && emitted == 0 {
+                    let callee: str = vec_get(table, ti);
+                    let callee_row: str = vec_get(table, ti + 1);
+                    if str_eq(callee, fn_name) == 0 && str_len(callee_row) > 0 {
                         let pat: str = str_concat(callee, "(");
                         if str_contains(body, pat) == 1 {
-                            let missing: str = effect_row_first_missing(caller_row, vec_get(rows, ri + 1));
+                            let missing: str = effect_row_first_missing(caller_row, callee_row);
                             if str_len(missing) > 0 {
                                 let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(missing, str_concat("` but `", str_concat(fn_name, "` does not declare that effect in `requires [...]` (audit R05-D3 v0.8.323)"))))));
                                 let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                                 diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                                emitted = 1;
                             };
                         };
                     };
-                    ri = ri + 2;
+                    ti = ti + 3;
+                };
+                if emitted == 0 && str_len(caller_row) > 0 {
+                    let mut visited: Vec<i32> = Vec::new();
+                    visited.push(fn_name);
+                    let trans_missing: str = requires_transitive_missing(caller_row, body, table, 3, visited);
+                    if str_len(trans_missing) > 0 {
+                        let msg2: str = str_concat("call chain from `", str_concat(fn_name, str_concat("()` reaches effect `", str_concat(trans_missing, "` but its `requires [...]` row does not declare that effect (audit R05-D6 v0844 transitive)"))));
+                        let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+                        diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
+                    };
                 };
                 p = q;
             } else {
@@ -32167,7 +32208,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=3 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841). Clean blocks and clean transitive chains compile and run normally. The remaining open surface is beyond depth=3 chains, cross-module propagation, method/closure/higher-order effects, effect-aware closure capture, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. The remaining open surface is beyond depth=8 chains, cross-module propagation, method/closure/higher-order effects, effect-aware closure capture, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
