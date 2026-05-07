@@ -123,7 +123,8 @@ launch. After memory safety completes, these are next-priority.
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
 - **Block-form `restricts [...] { ... }`:** DONE Phase 2b first
-  slice plus bounded transitive follow-up (local-claude v0840/v0841)
+  slice plus bounded transitive follow-up (local-claude
+  v0840/v0841/v0843)
   — block-form parses cleanly and the
   same-file source pre-pass `enforce_restricts_block_effects` emits
   `error[EFF-003]` when a direct call inside the block targets a
@@ -132,6 +133,12 @@ launch. After memory safety completes, these are next-priority.
   row overlaps the deny row. v0841 also walks un-rowed same-file user
   fn callees up to depth=3 and emits EFF-003 when the reachable chain
   hits a builtin or rowed callee whose effect overlaps the deny row.
+  v0843 consolidates the row extractor for `requires [...]` and
+  `with [...]`, reuses a unified same-file function table for
+  restricts transitive scans, raises the bounded same-file restricts
+  chain cap to 8 hops, and threads the actual matching sub-effect
+  token into diagnostics (`Alloc.heap` in the `Alloc` family instead
+  of only `Alloc`).
   Clean blocks and clean transitive helper chains compile and run normally.
   Active fixtures: `err_restricts_block_builtin_io.nr` (negative —
   direct `putchar` under `restricts [io.write]`),
@@ -157,7 +164,7 @@ launch. After memory safety completes, these are next-priority.
   un-rowed intermediate helpers.
 - **Still open:** full standalone `requires [...]` row enforcement
   beyond bounded same-file/direct-wrapper calls, restricts chains
-  beyond depth=3, deeper transitive `requires [...]` row propagation,
+  beyond depth=8, deeper transitive `requires [...]` row propagation,
   cross-module propagation, method/closure/higher-order effects, and
   broader RFC-0033 effect-row subtyping.
 - **Phase 2b:** effect-row enforcement in the main build path.
