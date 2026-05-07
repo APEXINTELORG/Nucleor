@@ -1196,3 +1196,40 @@ gating. Defer until v1 cuts.
   call-site comparisons. PROBE-3 audits README + PUNCHLIST percentage
   / "DONE" claims for in-tree gate backing. PROBE-4 (external
   Aurora/MNST/MGN/NS_Sage) deferred until v1 cuts.
+- **2026-05-07**: Codex QA orchestrator audit FULLY CLOSED. All three
+  flagged blockers cleared:
+  - **Finding #1** (`tools/verify.sh` `-x` exec-bit pattern). Audit
+    enumerated 5 sites; full sweep found 208 sites of the same pattern
+    class. Surgical `-x` → `-f` swap on every verify-script-built
+    target check (variables `$exe`, `$nexe`, `$pexe`, `$rexec`, plus
+    `target/_t<NN>_check`, `_pv_*`, `v0*`, `showcase_*`, `verify_compiler`,
+    `nucleor_tools` literals). System-binary probes (`$ROOT/bin/nucleor.exe`,
+    `$NUCLEOR_CLANG_PATH`, LLVM/clang PATH probes) intentionally kept
+    as `-x` to verify pre-existing binaries are runnable. Validation:
+    full Windows/Git-Bash verify run on post-fix main shows
+    `PASS=1485 SKIP=2 FAIL=0` out of 1487 steps (was `PASS=1190 SKIP=2 FAIL=295`
+    pre-fix). Commit `74a251f6`.
+  - **Finding #2** (T2.5 lifetime `nuc test` heap corruption,
+    `-1073740940` / `PANIC: node_kind pool OOB: index 2287092358768`).
+    Root cause: `compiler/nucleor_tools_suite.nr::parse_generic_params`
+    + `parse_fn_decl` lacked `#[manual_drop]` while their s1 counterparts
+    carry it. Without the annotation, auto-drop frees the inner
+    `params: Vec<i32>` at end-of-scope before mk_list iterates through
+    the returned `pr` wrapper — dangling pointer surfaces as an OOB
+    panic on Windows (allocator reuses freed memory with pointer-shaped
+    values) or `realloc(2^64-N)` on Linux. Cloud's earlier `5a263b02`
+    reshape was correct but insufficient — the inner Vec lifetime
+    issue dominates. Fix in `a3203449`. Sister sweep on the gparams-
+    pattern siblings (`parse_struct_decl`, `parse_enum_decl`,
+    `parse_trait_decl`, `parse_impl_block`) shipped in `5a4b790a` +
+    `cd4f01ae`. Negative-result note in `08508d33`: blanket
+    `#[manual_drop]` apply to all 33 divergent parse_* fns regressed
+    T2.5 itself; only the 5 gparams sisters get the annotation
+    (remaining 28 fns need careful per-fn investigation if a fixture
+    surfaces them).
+  - **Finding #3** (`Cloud_Control1.md` `git diff --check` whitespace
+    failure). Trailing blank-line strip in `2b30e63b`.
+  Net result: full Windows/Git-Bash verify gate is green for the first
+  time on this branch lineage. Linux cloud verify previously reported
+  `1293 PASS / 6 SKIP / 0 FAIL`; Windows now matches the same posture.
+  Two-host green confirmed.
