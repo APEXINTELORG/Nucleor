@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
-# Total fn definitions: 3708
-# Total LOC: 23190
+# Total fn definitions: 3832
+# Total LOC: 25890
 
 [[rod]]
 name           = "activation2"
@@ -2381,10 +2381,10 @@ imports        = ["jsonl", "ml/tensor_facade"]
 [[rod]]
 name           = "data_facade"
 path           = "stdlib/rods/ml/data_facade.nr"
-description    = "pandas-style FrameI64F64 + nullable variant (typed CSV ingest, groupby, inner-join, filter, dropna/fillna)"
-function_count = 20
+description    = "pandas-style FrameI64F64 + nullable variant + 100+ pandas-deep parity helpers (cumsum/cumprod/cummax/cummin/diff/abs/clip/expanding/groupby/sort/describe/rank)"
+function_count = 144
 cfile_count    = 0
-loc            = 290
+loc            = 2990
 imports        = ["ml/dtype_core", "ml/tensor_facade"]
 
 [[rod]]
