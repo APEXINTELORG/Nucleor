@@ -952,6 +952,96 @@ proper analysis → Phase 4 hard error):
 - All Phase 4 promotions land together
 - Adopter migration window 30 days
 
+## PROBE — Real-world program coverage gates (added 2026-05-07 from external Translate-team probe)
+
+Three flavors of test-discipline gap surfaced by Codex's Translate
+investigation. Flavor 1 (Translate IR variants) is owned by the
+Translate partner team and not in `Nucleor_OSS` scope. Flavors 2 and 3
+are generalizable and apply to this repo and the external rod suites
+we ship reference content from.
+
+### PROBE-1 — Real-world Nucleor program probe (~30-line drivers across `nuc build`/`test`/`init`/`clean`)
+
+**Risk:** the `tools/verify.sh` corpus is dominated by 5–10-line
+fixture shapes (`add(a, b) { return a + b; }` shape). The R1–R5 cloud
+fixes (-lm link, POSIX RNG bridges, `nuc init` mkdir, `nuc clean`
+no-op, build-id non-determinism) all passed fixture-level gates while
+breaking real CLI flows. Same risk class is still latent.
+
+**Scope:**
+- Add `tests/probes/real_world/<NN>_<flow>.nr` (~30 LOC each, exercises
+  control flow + multi-arg fns + at least one struct or vec literal +
+  std-rod call), one per CLI sub-command in `nuc init / build / test /
+  clean / port / inspect / explain / check`.
+- Each driver: `bin/nucleor.exe <subcmd> <inputs>` exit-code +
+  on-disk artifact assertion (NOT a fixture-shape compile-only gate).
+- New verify section `tools/verify.sh` "PROBE / real-world drivers"
+  gated by `NUC_VERIFY_PROBE=1` until stable, then promoted to default.
+
+**Owner:** integrator (this lane) for scaffolding; partner Compiler
+team for any tools-suite gaps the probes surface.
+
+**Validation:** all probes pass on Windows/Git-Bash AND Linux native;
+any failure is a stop-and-investigate, not a defer.
+
+### PROBE-2 — ML_Suite parity probe (multi-stage pipeline, not one-shot calls)
+
+**Risk:** `Nucleor_ML_Suite` advertises 120/120 Python parity but the
+parity model is "Nucleor backend produces same number as numpy/sklearn
+for one specific call shape" — narrower than "an arbitrary Python ML
+script ports cleanly". A pipeline that loads CSV → split → fit → predict
+→ emit JSON has not been validated.
+
+**Scope:**
+- Owner: ML agent (queue ML-PROBE-1 — see `ML_Control1.md`).
+- Add `stdlib/rods/ml/probes/pipeline_<NN>.nr` covering one full
+  ML script per probe (CSV ingest, split, fit, predict, JSON dump,
+  determinism check).
+- Compare against numpy/sklearn reference in `tests/reference/ml/`
+  (Python script staged READ-ONLY for parity reference; not a runtime
+  dep).
+- Failures: file `findings/inbox/ml_agent_probe_<NN>_v<rev>_<DATE>.md`
+  per the existing rod-integration discipline.
+
+**Owner:** ML agent.
+
+**Validation:** end-to-end pipeline runs on current `bin/nucleor.exe`
+and produces JSON byte-equal to the staged reference (modulo
+documented numeric tolerance per rod parity manifest).
+
+### PROBE-3 — README + PUNCHLIST claim audit (any percentage / "DONE" claim must be backed by an in-tree gate)
+
+**Risk:** Translate's README claimed "≥85% per-function in auto mode"
+with no in-tree benchmark; Codex's probe showed 0%. The same risk
+applies to any public-facing percentage or "DONE" line in this repo
+that is not enforced by a verify-gated fixture.
+
+**Scope:**
+- Sweep `README.md`, `docs/rfcs/v1_PUNCHLIST.md`, `docs/rfcs/v1_REMAINING_PUNCHLIST_AGENT_HANDOFF_v0845_2026-05-07.md`,
+  and any RFC-0033..RFC-0064 closure doc for percentage / coverage /
+  "Phase X DONE" claims.
+- Each claim must either (a) be backed by a named verify step or
+  fixture, or (b) be reworded to scope the actual evidence
+  ("DONE for unique-name-method calls; ambiguous-name still fails open"
+  is the right shape — see R05 effects current text).
+- Surface the audit as `findings/inbox/main_doc_claim_audit_v0846_<DATE>.md`
+  with claim-by-claim verdict.
+
+**Owner:** integrator (this lane); cloud agent for cloud-doc claims.
+
+**Validation:** every `DONE` / percentage claim either has a named
+verify hook or is scoped down. No "Phase 2c done" lines without a
+fixture path.
+
+### PROBE-4 — Aurora / MNST / MGN / NS_Sage external-project probe (deferred)
+
+External project verify discipline is out of `Nucleor_OSS` scope but
+the same risk class applies. Per CLAUDE.md, NS_Sage is broken and
+not a downstream consumer; Aurora is on AKS with its own phase
+gating. Defer until v1 cuts.
+
+---
+
 ## Deferred tail (do not preempt active lanes)
 
 - **TOOLCHAIN-PY-1 — Remove Python from self-host compiler reproducibility compare:** DONE 2026-05-06. Python interop (`stdlib/rods/python.nr` + `python_rt.c`) remains intentional and is not part of this item. Maintenance generators under `tools/*.py` can stay for now. The product/toolchain path no longer shells out to `python -c "import filecmp"` inside `verify-reproducible`; Windows uses `fc /B`, POSIX keeps `cmp -s`, and the compiler/seed artifacts were rebuilt and promoted through the normal md5/drift/perf validation lane. Helper2 Queue 4 reclassified the residual Python references as intentional interop, maintenance-only, optional doctor, or test/reference material; see `findings/inbox/helper2_release_tooling_closure_v0830_2026-05-06.md`.
@@ -1084,3 +1174,25 @@ proper analysis → Phase 4 hard error):
   Direct numeric/f64 runtime helper return types are now known in both
   compiler copies, and `tests/features/t4_strict_remaining_helper_rtypes.nr`
   locks the positive strict-mode assignment path.
+- **2026-05-07**: Codex QA orchestrator audit absorbed
+  (`findings/inbox/codex_qa_orchestrator_audit_v0846_2026-05-07.md`).
+  Two production-readiness blockers fixed in
+  `fix/qa-audit-windows-verify-v0846`: (a) `tools/verify.sh` portable
+  target runner replaces 5 sites of the
+  `[ -x target/X.exe ] && target/X.exe || target/X` pattern that broke
+  on Windows/Git-Bash where the POSIX exec bit is unreliable
+  (regression class: T3.146 + t434/t435/t436 string-method dispatch);
+  (b) `Cloud_Control1.md` EOF blank-line strip restores
+  `git diff --check` cleanliness. T2.5 lifetime-params `nuc test`
+  heap corruption (`-1073740940`) tracked separately as a tools-suite
+  parser/auto-drop bug.
+- **2026-05-07**: External Translate-team probe findings absorbed
+  as new PROBE-1/PROBE-2/PROBE-3 lane (real-world program coverage
+  gates). PROBE-1 covers `nuc init / build / test / clean / port /
+  inspect / explain / check` with ~30 LOC drivers exercising control
+  flow + multi-arg fns + struct/vec literals — not the existing
+  fixture-shape corpus. PROBE-2 hands ML_Suite a multi-stage parity
+  probe (CSV → split → fit → predict → JSON) instead of one-shot
+  call-site comparisons. PROBE-3 audits README + PUNCHLIST percentage
+  / "DONE" claims for in-tree gate backing. PROBE-4 (external
+  Aurora/MNST/MGN/NS_Sage) deferred until v1 cuts.
