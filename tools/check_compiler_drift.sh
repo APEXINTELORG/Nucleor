@@ -223,10 +223,29 @@ if [ "$s1_version" != "$tools_version" ]; then
     exit 1
 fi
 
-BIN="$ROOT/bin/nucleor"
-if [ -x "$ROOT/bin/nucleor.exe" ]; then
-    BIN="$ROOT/bin/nucleor.exe"
-fi
+# v0.8.323 PKG-1/R06 fix: pick the binary that matches the host. On
+# POSIX, bin/nucleor.exe (a checked-in Windows artifact) carries the
+# executable bit but cannot run — the previous unconditional .exe
+# preference made the drift gate fail with empty `--version` output
+# on Linux. Prefer the native binary first, fall back only if it is
+# missing.
+host_kernel="$(uname -s 2>/dev/null || echo unknown)"
+case "$host_kernel" in
+    Linux|Darwin|FreeBSD|OpenBSD|NetBSD)
+        if [ -x "$ROOT/bin/nucleor" ]; then
+            BIN="$ROOT/bin/nucleor"
+        else
+            BIN="$ROOT/bin/nucleor.exe"
+        fi
+        ;;
+    *)
+        if [ -x "$ROOT/bin/nucleor.exe" ]; then
+            BIN="$ROOT/bin/nucleor.exe"
+        else
+            BIN="$ROOT/bin/nucleor"
+        fi
+        ;;
+esac
 
 if [ ! -x "$BIN" ]; then
     echo "FAIL: promoted compiler binary missing: expected bin/nucleor.exe or bin/nucleor"

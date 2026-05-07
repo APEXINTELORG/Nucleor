@@ -11,10 +11,16 @@
 
 #libpath "rust_bridge/target/release"
 #link "nucleor_rust_bridge"
-#link "ws2_32"
-#link "userenv"
-#link "ntdll"
-#link "bcrypt"
+// v0.8.323 PKG-1/R06 fix: Rust's Windows std pulls in
+// ws2_32/userenv/ntdll/bcrypt at link time. POSIX targets resolve
+// those Windows-only system libs through libc/libpthread already
+// pulled in by the Nucleor runtime, so emitting -lws2_32 etc. there
+// breaks linking with "cannot find -lws2_32". The new
+// #link_windows directive scopes them to a Windows host.
+#link_windows "ws2_32"
+#link_windows "userenv"
+#link_windows "ntdll"
+#link_windows "bcrypt"
 
 extern fn rust_regex_is_match(pattern: str, text: str) -> i64;
 extern fn rust_regex_find(pattern: str, text: str) -> str;

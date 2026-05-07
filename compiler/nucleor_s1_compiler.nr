@@ -31713,7 +31713,34 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
         while lp < eol && (str_char_at(raw_source, lp) == 32 || str_char_at(raw_source, lp) == 9) { lp = lp + 1; };
         let line_len: i64 = eol - lp;
         if line_len >= 6 && str_char_at(raw_source, lp) == 35 {
-            if line_len >= 7 && str_eq_at(raw_source, lp, "#link ") == 1 {
+            if line_len >= 15 && str_eq_at(raw_source, lp, "#link_windows ") == 1 {
+                // v0.8.323 PKG-1/R06 fix: Windows-only system library
+                // dependency. Emitted only when targeting Windows so
+                // POSIX hosts don't try to resolve -lws2_32 etc.
+                let mut qp: i64 = lp + 14;
+                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
+                if qp < eol && str_char_at(raw_source, qp) == 34 {
+                    let ps: i64 = qp + 1;
+                    let mut pe: i64 = ps;
+                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
+                    if host_is_windows() == 1 {
+                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
+                    };
+                };
+            } else if line_len >= 13 && str_eq_at(raw_source, lp, "#link_posix ") == 1 {
+                // v0.8.323 PKG-1/R06 fix: POSIX-only system library
+                // dependency. Symmetric counterpart to #link_windows.
+                let mut qp: i64 = lp + 12;
+                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
+                if qp < eol && str_char_at(raw_source, qp) == 34 {
+                    let ps: i64 = qp + 1;
+                    let mut pe: i64 = ps;
+                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
+                    if host_is_windows() == 0 {
+                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
+                    };
+                };
+            } else if line_len >= 7 && str_eq_at(raw_source, lp, "#link ") == 1 {
                 let mut qp: i64 = lp + 6;
                 while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
                 if qp < eol && str_char_at(raw_source, qp) == 34 {
