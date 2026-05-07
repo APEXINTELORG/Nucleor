@@ -694,6 +694,9 @@ err_tests_have_expect_smoke() {
     local missing=()
     local f line1 line2 line3
     for f in "$ROOT"/tests/err/*.nr; do
+        case "$f" in
+            *_aux.nr|*import_dedupe_lib.nr) continue ;;
+        esac
         line1=""; line2=""; line3=""
         { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$f" 2>/dev/null
         case "$line1$line2$line3" in
