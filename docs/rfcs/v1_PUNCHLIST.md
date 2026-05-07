@@ -126,11 +126,16 @@ launch. After memory safety completes, these are next-priority.
   slice (local-claude v0840) — block-form parses cleanly and the
   same-file source pre-pass `enforce_restricts_block_effects` emits
   `error[EFF-003]` when a direct call inside the block targets a
-  builtin in the print-family / channel effect map or a same-file
-  user fn whose declared `requires [...]` row overlaps the deny row.
+  builtin in the print-family / channel / namespaced alloc-constructor
+  effect map or a same-file user fn whose declared `requires [...]`
+  row overlaps the deny row.
   Clean blocks (no calls / no overlap) compile and run normally.
   Active fixtures: `err_restricts_block_builtin_io.nr` (negative —
-  direct `putchar` under `restricts [io.write]`) and
+  direct `putchar` under `restricts [io.write]`),
+  `err_restricts_block_alloc.nr` (negative — direct `Vec::new` under
+  `restricts [alloc]`), `restricts_block_disjoint_call.nr` (positive
+  — call to a disjoint-family `requires [io.read]` callee under
+  `restricts [net]`), and
   `restricts_block_clean_smoke.nr` (positive — pure-arithmetic
   clean block builds and exits 0). Pre-existing fail-closed
   companions still halt the build via the new pre-pass or via
