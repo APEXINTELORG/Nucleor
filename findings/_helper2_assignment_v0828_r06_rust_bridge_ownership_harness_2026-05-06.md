@@ -2200,8 +2200,9 @@ void ABI, diff check, and perf.
 Status update from main: Queue 11 landed on main through integration commit
 `a380268d`. It added `compiler/nucleor_rfc0063_shared_wave1.nr`, imported it
 from `compiler/nucleor_tools_suite.nr`, and retired 12 IDENTICAL duplicate
-helper names. Current main is `a380268d`. Start fresh from current
-`origin/main`.
+helper names. Current origin/main at refresh is `a437f6a6`. Start fresh from
+current `origin/main`; use the fetched current `origin/main` if it has advanced
+again.
 
 Branch:
 
