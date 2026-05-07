@@ -847,3 +847,297 @@ fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     };
     return "";
 }
+
+#[manual_drop]
+fn smap_hash(key: str, cap: i64) -> i64 {
+    let mut hash: i64 = 5381;
+    let slen: i64 = str_len(key);
+    let mut i: i64 = 0;
+    while i < slen {
+        hash = hash * 33 + str_char_at(key, i);
+        if cap > 0 {
+            hash = hash - (hash / cap) * cap;
+            if hash < 0 { hash = 0 - hash; };
+        };
+        i = i + 1;
+    };
+    return hash;
+}
+
+#[manual_drop]
+fn smap_new_cap(cap: i64) -> Vec<i32> {
+    let mut keys: Vec<i32> = Vec::new();
+    let mut vals: Vec<i32> = Vec::new();
+    let mut occ: Vec<i32> = Vec::new();
+    let mut i: i64 = 0;
+    while i < cap {
+        keys.push("");
+        vals.push(0 - 1);
+        occ.push(0);
+        i = i + 1;
+    };
+    let mut m: Vec<i32> = Vec::new();
+    m.push(keys);
+    m.push(vals);
+    m.push(occ);
+    m.push(0);
+    m.push(cap);
+    return m;
+}
+
+#[manual_drop]
+fn smap_slots(m: Vec<i32>) -> i64 {
+    return vec_get(m, 4);
+}
+
+#[manual_drop]
+fn smap_slot_used(m: Vec<i32>, slot: i64) -> i64 {
+    return vec_get(vec_get(m, 2), slot);
+}
+
+#[manual_drop]
+fn smap_slot_key(m: Vec<i32>, slot: i64) -> str {
+    return vec_get(vec_get(m, 0), slot);
+}
+
+#[manual_drop]
+fn smap_slot_val(m: Vec<i32>, slot: i64) -> i64 {
+    return vec_get(vec_get(m, 1), slot);
+}
+
+#[manual_drop]
+fn smap_find_slot(m: Vec<i32>, key: str) -> i64 {
+    let cap: i64 = smap_slots(m);
+    let mut slot: i64 = smap_hash(key, cap);
+    let mut probes: i64 = 0;
+    while probes < cap {
+        if smap_slot_used(m, slot) == 0 { return 0 - slot - 1; };
+        if str_eq(smap_slot_key(m, slot), key) == 1 { return slot; };
+        slot = slot + 1;
+        if slot >= cap { slot = 0; };
+        probes = probes + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn smap_grow(m: Vec<i32>) -> i64 {
+    let old_cap: i64 = smap_slots(m);
+    let grown: Vec<i32> = smap_new_cap(old_cap * 2);
+    let mut i: i64 = 0;
+    while i < old_cap {
+        if smap_slot_used(m, i) == 1 {
+            smap_set(grown, smap_slot_key(m, i), smap_slot_val(m, i));
+        };
+        i = i + 1;
+    };
+    vec_set(m, 0, vec_get(grown, 0));
+    vec_set(m, 1, vec_get(grown, 1));
+    vec_set(m, 2, vec_get(grown, 2));
+    vec_set(m, 3, vec_get(grown, 3));
+    vec_set(m, 4, vec_get(grown, 4));
+    return 0;
+}
+
+#[manual_drop]
+fn smap_set(m: Vec<i32>, key: str, value: i64) -> i64 {
+    let count: i64 = vec_get(m, 3);
+    let cap: i64 = smap_slots(m);
+    if count * 2 >= cap { smap_grow(m); };
+    let slot: i64 = smap_find_slot(m, key);
+    if slot >= 0 {
+        vec_set(vec_get(m, 1), slot, value);
+        return 0;
+    };
+    let ins: i64 = 0 - slot - 1;
+    vec_set(vec_get(m, 0), ins, str_concat("", key));
+    vec_set(vec_get(m, 1), ins, value);
+    vec_set(vec_get(m, 2), ins, 1);
+    vec_set(m, 3, vec_get(m, 3) + 1);
+    return 0;
+}
+
+#[manual_drop]
+fn smap_get(m: Vec<i32>, key: str) -> i64 {
+    let slot: i64 = smap_find_slot(m, key);
+    if slot >= 0 { return smap_slot_val(m, slot); };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn struct_find(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(structs) {
+        if str_eq(node_field(pool, vec_get(structs, i), 1), name) { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn struct_find_type(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
+    return struct_find(pool, structs, type_base_name(name));
+}
+
+#[manual_drop]
+fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
+    let flist: i64 = node_field(pool, struct_nid, 2);
+    let cnt: i64 = list_len(pool, flist);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let fn_nid: i64 = list_get(pool, flist, i);
+        if str_eq(node_field(pool, fn_nid, 1), fname) { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
+    let flist: i64 = node_field(pool, struct_nid, 2);
+    let cnt: i64 = list_len(pool, flist);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let fn_nid: i64 = list_get(pool, flist, i);
+        if str_eq(node_field(pool, fn_nid, 1), fname) { return node_field(pool, fn_nid, 2); };
+        i = i + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn diag_new() -> Vec<i32> { return Vec::new(); }
+
+#[manual_drop]
+fn diag_add(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64) -> i64 {
+    return diag_add_ex(diags, severity, checker, code, message, fn_name, line, 0, "");
+}
+
+#[manual_drop]
+fn diag_count(diags: Vec<i32>) -> i64 { return vec_len(diags); }
+
+#[manual_drop]
+fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
+
+#[manual_drop]
+fn byte_to_line(source: str, byte_off: i64) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut line: i64 = 1;
+    let mut i: i64 = 0;
+    let limit: i64 = byte_off;
+    if limit > slen { return 0; };
+    while i < limit {
+        if str_char_at(source, i) == 10 { line = line + 1; };
+        i = i + 1;
+    };
+    return line;
+}
+
+#[manual_drop]
+fn find_in_source(source: str, fn_name: str, var_name: str) -> i64 {
+    return vec_get(find_linecol_in_source(source, fn_name, var_name), 0);
+}
+
+#[manual_drop]
+fn path_overlaps(a: str, b: str) -> i64 {
+    if str_len(a) == 0 || str_len(b) == 0 { return 0; };
+    if str_eq(a, b) == 1 { return 1; };
+    let ap: str = str_concat(a, ".");
+    let bp: str = str_concat(b, ".");
+    if str_starts_with(b, ap) == 1 { return 1; };
+    if str_starts_with(a, bp) == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(enums) {
+        if str_eq(node_field(pool, vec_get(enums, i), 1), name) { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if str_len(tstr) == 0 { return 1; };
+    if type_is_mut_ref(tstr) == 1 { return 0; };
+    if type_is_shared_ref(tstr) == 1 { return 1; };
+    if str_starts_with(tstr, "Box<") == 1 { return 0; };
+    let base: str = type_base_name(tstr);
+    if str_eq(base, "i64") { return 1; }; if str_eq(base, "i32") { return 1; };
+    if str_eq(base, "str") { return 1; }; if str_eq(base, "bool") { return 1; };
+    if str_eq(base, "f64") { return 1; }; if str_eq(base, "ptr") { return 1; };
+    if str_eq(base, "void") { return 1; };
+    if str_eq(base, "Vec") { return 1; }; if str_eq(base, "HashMap") { return 1; };
+    if str_eq(base, "StringBuilder") { return 1; };
+    if str_eq(base, "Box") { return 0; };
+    if str_eq(base, "Option") { return 0; };
+    if str_eq(base, "Result") { return 0; };
+    if str_eq(base, "Arena") { return 1; };
+    if str_eq(base, "DeviceBuffer") { return 0; };
+    if str_eq(base, "RandomCap") { return 1; };
+    if str_eq(base, "Tensor") { return 0; };
+    // User-defined struct or enum is Move
+    if struct_find(pool, structs, base) >= 0 { return 0; };
+    if enum_find(pool, enums, base) >= 0 { return 0; };
+    return 1; // unknown types default to Copy
+}
+
+#[manual_drop]
+fn sig_find(sigs: Vec<i32>, name: str) -> i64 {
+    return smap_get(sigs, name);
+}
+
+#[manual_drop]
+fn sig_plist(sigs: Vec<i32>, name: str) -> i64 {
+    let entry: i64 = sig_find(sigs, name);
+    if entry < 0 { return 0 - 1; };
+    return vec_get(entry, 0);
+}
+
+#[manual_drop]
+fn sig_rtype(sigs: Vec<i32>, name: str) -> str {
+    let entry: i64 = sig_find(sigs, name);
+    if entry < 0 { return ""; };
+    return vec_get(entry, 1);
+}
+
+#[manual_drop]
+fn sig_is_extern(sigs: Vec<i32>, name: str) -> i64 {
+    let entry: i64 = sig_find(sigs, name);
+    if entry < 0 { return 0; };
+    return vec_get(entry, 2);
+}
+
+#[manual_drop]
+fn source_line(source: str, line: i64) -> str {
+    let slen: i64 = str_len(source);
+    let mut cur: i64 = 1;
+    let mut start: i64 = 0;
+    let mut i: i64 = 0;
+    while i < slen {
+        if cur == line {
+            let mut end: i64 = i;
+            while end < slen && str_char_at(source, end) != 10 { end = end + 1; };
+            return str_substring(source, start, end);
+        };
+        if str_char_at(source, i) == 10 { cur = cur + 1; start = i + 1; };
+        i = i + 1;
+    };
+    if cur == line { return str_substring(source, start, slen); };
+    return "";
+}
+
+#[manual_drop]
+fn line_has_unit_literal(source: str, fn_name: str, symbol: str) -> i64 {
+    let line: i64 = find_in_source(source, fn_name, symbol);
+    let txt: str = source_line(source, line);
+    let mut i: i64 = 0;
+    while i < str_len(txt) {
+        if str_char_at(txt, i) == 123 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
