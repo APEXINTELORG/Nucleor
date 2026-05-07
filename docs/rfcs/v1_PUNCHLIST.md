@@ -383,9 +383,12 @@ launch. After memory safety completes, these are next-priority.
 - Source: `gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md`
 - **RT-G1/RT-G3 Phase 2b:** helper1 v0838 adds bounded same-file
   closure for `#[no_alloc]` and `#[no_panic]`: caller -> helper ->
-  known allocating/panicking helper now fails. Remaining gap: deeper
-  transitive calls, cross-module callees, closures, and fn-pointer
-  dispatch still require the AST/IR traversal pass.
+  known allocating/panicking helper now fails. Helper1 v0842 deepens
+  the same-file closure to a small bounded caller-chain pass, so
+  caller -> helper -> helper -> known allocating/panicking helper also
+  fails. Remaining gap: cross-module callees, closures, fn-pointer
+  dispatch, and deeper-than-bound helper paths still require the
+  AST/IR traversal pass.
 - **Still open:** `#[deadline]` numeric/certified-WCET backing and
   broader RT attribute enforcement audit.
 

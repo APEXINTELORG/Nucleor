@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 254
-# Total fn definitions: 3106
-# Total LOC: 13393
+# Total fn definitions: 3159
+# Total LOC: 13617
 
 [[rod]]
 name           = "activation2"
@@ -1041,10 +1041,10 @@ imports        = ["kdtree"]
 name           = "kinematics"
 path           = "stdlib/rods/kinematics.nr"
 description    = "3D math primitives for robotics."
-function_count = 42
+function_count = 49
 cfile_count    = 1
-loc            = 84
-imports        = []
+loc            = 117
+imports        = ["kinematics_frame"]
 
 [[rod]]
 name           = "kinematics_frame"
@@ -1257,9 +1257,9 @@ imports        = ["mppi"]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
 description    = "Matrix Product States (efficient quantum simulation)"
-function_count = 38
+function_count = 41
 cfile_count    = 1
-loc            = 76
+loc            = 86
 imports        = []
 
 [[rod]]
@@ -1617,9 +1617,9 @@ imports        = []
 name           = "quantum"
 path           = "stdlib/rods/quantum.nr"
 description    = "Quantum circuit simulator"
-function_count = 69
+function_count = 91
 cfile_count    = 1
-loc            = 473
+loc            = 573
 imports        = ["quantum"]
 
 [[rod]]
@@ -2193,9 +2193,9 @@ imports        = []
 name           = "units"
 path           = "stdlib/rods/units.nr"
 description    = "SI Unit Conversion"
-function_count = 68
+function_count = 89
 cfile_count    = 1
-loc            = 119
+loc            = 200
 imports        = ["units"]
 
 [[rod]]
