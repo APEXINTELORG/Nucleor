@@ -5150,8 +5150,27 @@ posix_perf_regression_monitor() {
     local out
     local rc
     [ -f "$check" ] || return 1
+    # No explicit --baseline by default: tools/check_perf_regression.sh
+    # now picks tools/perf_baseline_linux.json on true Linux (non-WSL),
+    # falling back to tools/perf_baseline.json elsewhere. Setting
+    # NUC_VERIFY_POSIX_PERF_BASELINE pins a specific baseline.
+    if [ -n "${NUC_VERIFY_POSIX_PERF_BASELINE:-}" ]; then
+        out=$(bash "$check" \
+            --baseline "$NUC_VERIFY_POSIX_PERF_BASELINE" \
+            --cold-samples "${NUC_VERIFY_POSIX_PERF_COLD_SAMPLES:-3}" \
+            --hot-samples "${NUC_VERIFY_POSIX_PERF_HOT_SAMPLES:-3}" \
+            --budget-mb "${NUC_VERIFY_POSIX_PERF_BUDGET_MB:-1000}" \
+            --warning-mb "${NUC_VERIFY_POSIX_PERF_WARNING_MB:-800}" \
+            --timeout-sec "${NUC_VERIFY_POSIX_PERF_TIMEOUT_SEC:-180}" \
+            --sample-ms "${NUC_VERIFY_POSIX_PERF_SAMPLE_MS:-100}" 2>&1)
+        rc=$?
+        echo "$out" | sed 's/^/       /'
+        if [ "$rc" -eq 96 ]; then
+            return 2
+        fi
+        return "$rc"
+    fi
     out=$(bash "$check" \
-        --baseline "$ROOT/tools/perf_baseline.json" \
         --cold-samples "${NUC_VERIFY_POSIX_PERF_COLD_SAMPLES:-3}" \
         --hot-samples "${NUC_VERIFY_POSIX_PERF_HOT_SAMPLES:-3}" \
         --budget-mb "${NUC_VERIFY_POSIX_PERF_BUDGET_MB:-1000}" \

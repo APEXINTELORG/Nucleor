@@ -17,7 +17,7 @@ Spawned cloud agents look here first, take the next pending queue, work it in th
 
 ## Assigned queues (in order)
 
-- [ ] **8A** — Platform-aware POSIX perf baseline selection. Branch `fix/cloud-linux-perf-platform-baseline-select-v0845`. Ensure `tools/check_perf_regression.sh` selects `tools/perf_baseline_linux.json` by default on true Linux; continue refusing WSL/Wine/Windows `.exe` evidence. Validate:
+- [x] **8A** — Platform-aware POSIX perf baseline selection. Branch `fix/cloud-linux-perf-platform-baseline-select-v0845`. Ensure `tools/check_perf_regression.sh` selects `tools/perf_baseline_linux.json` by default on true Linux; continue refusing WSL/Wine/Windows `.exe` evidence. Validate:
   ```
   uname -a
   bash tools/check_perf_regression.sh
@@ -69,3 +69,14 @@ Notes: <any blockers / suggestions>
 ---
 
 ## Append-only log starts below this line
+
+## [2026-05-07 11:05 UTC] Queue 8A — DONE
+Branch: claude/cloud-control-punchlist-bPLVn @ <committed below>
+Base: origin/main @ 5890c84603bd46fc6d86b9500b2ef7cd4ae4d63c
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 pwsh=missing cargo=1.94.1 rustc=1.94.1 ssh-keygen=missing
+Files: 3 (tools/check_perf_regression.sh, tools/verify.sh, findings/inbox/cloud_claude_lane8_8A_v0845_2026-05-07.md)
+Validation: PASS — `bash tools/check_perf_regression.sh` (auto-selected `tools/perf_baseline_linux.json`) cold p50 6.04s ≤ 10.0s, hot p50 0.66s ≤ 1.0s, cold tree 323/350 MB, hot tree 57/64 MB; `bash tools/verify.sh --only "T1.8 POSIX perf + memory regression monitor"` → 1 PASS / 0 FAIL.
+Report: findings/inbox/cloud_claude_lane8_8A_v0845_2026-05-07.md
+Residuals: (1) punchlist's `--only "POSIX cold/hot perf regression"` does not match any registered verify step — actual name is `T1.8 POSIX perf + memory regression monitor`. (2) Used the harness-pinned branch `claude/cloud-control-punchlist-bPLVn` instead of `fix/cloud-linux-perf-platform-baseline-select-v0845`; commits are scoped per-queue for clean cherry-pick. (3) `pwsh`/`ssh-keygen` absent on this runner — relevant to Queue 8B.
+

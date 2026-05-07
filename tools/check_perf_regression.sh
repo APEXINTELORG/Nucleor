@@ -50,7 +50,27 @@ unsupported() {
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$script_dir/.." && pwd)"
 
-baseline="$root/tools/perf_baseline.json"
+is_wsl() {
+    grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease /proc/version 2>/dev/null
+}
+
+# Pick the platform-default baseline when --baseline is not supplied.
+# True Linux (non-WSL) prefers tools/perf_baseline_linux.json when present;
+# otherwise we fall back to the legacy tools/perf_baseline.json (Windows).
+default_baseline_for_host() {
+    local uname_s
+    uname_s="$(uname -s 2>/dev/null || echo unknown)"
+    if [ "$uname_s" = "Linux" ] && ! is_wsl && [ -f "$root/tools/perf_baseline_linux.json" ]; then
+        printf '%s\n' "$root/tools/perf_baseline_linux.json"
+    else
+        printf '%s\n' "$root/tools/perf_baseline.json"
+    fi
+}
+
+# baseline left empty as a sentinel so platform-aware default selection
+# below can distinguish "user did not pass --baseline" from "user picked
+# the Windows baseline explicitly". A user-supplied --baseline always wins.
+baseline=""
 bin="$root/bin/nucleor"
 src="$root/compiler/nucleor_s1_compiler.nr"
 cold_samples=3
@@ -149,9 +169,9 @@ require_uint "--sample-ms" "$sample_ms"
 
 [ "$warning_mb" -lt "$budget_mb" ] || warning_mb=$((budget_mb - 1))
 
-is_wsl() {
-    grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease /proc/version 2>/dev/null
-}
+if [ -z "$baseline" ]; then
+    baseline="$(default_baseline_for_host)"
+fi
 
 run_capped="$root/tools/run_capped.sh"
 
@@ -223,7 +243,11 @@ run_doctor() {
     [ -f "$baseline" ] || baseline_src_missing="${baseline_src_missing}${baseline_src_missing:+, }baseline missing: $baseline"
     [ -f "$src" ] || baseline_src_missing="${baseline_src_missing}${baseline_src_missing:+, }source missing: $src"
     if [ -z "$baseline_src_missing" ]; then
-        doctor_ok "baseline-and-source" "baseline=$baseline source=$src"
+        case "$baseline" in
+            */perf_baseline_linux.json) doctor_ok "baseline-and-source" "baseline=$baseline (linux platform default) source=$src" ;;
+            */perf_baseline.json) doctor_ok "baseline-and-source" "baseline=$baseline (windows/legacy default) source=$src" ;;
+            *) doctor_ok "baseline-and-source" "baseline=$baseline source=$src" ;;
+        esac
     else
         doctor_bad "baseline-and-source" "$baseline_src_missing"
     fi
