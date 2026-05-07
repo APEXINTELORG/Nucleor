@@ -2192,3 +2192,129 @@ Whether main needs drift/self-host/perf/full verify:
 
 Do not run full verify by default. Use focused tools-suite commands, drift,
 void ABI, diff check, and perf.
+
+---
+
+## Queue 12 Continuation: RFC-0063 Tools-Suite Wave 2
+
+Status update from main: Queue 11 landed on main through integration commit
+`a380268d`. It added `compiler/nucleor_rfc0063_shared_wave1.nr`, imported it
+from `compiler/nucleor_tools_suite.nr`, and retired 12 IDENTICAL duplicate
+helper names. Current main is `a380268d`. Start fresh from current
+`origin/main`.
+
+Branch:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave2-v0839
+```
+
+### Scope BB: next safe duplicate-deletion batch
+
+Continue RFC-0063 Phase 2.0 duplicate deletion/import in a larger but still
+bisectable batch. Stay inside safe IDENTICAL duplicates unless you can prove a
+candidate has no behavior delta and no CLI-dispatch ownership issue.
+
+Primary targets:
+
+```text
+compiler/nucleor_tools_suite.nr
+compiler/nucleor_rfc0063_shared_wave1.nr
+tools/audit_dup_fns_report.csv
+docs/rfcs/RFC-0063-production-readiness-roadmap.md
+docs/rfcs/v1_PUNCHLIST.md
+findings/inbox/helper2_rfc0063_tools_suite_wave2_v0839_2026-05-06.md
+```
+
+Rules:
+
+- Prefer 20 to 40 additional IDENTICAL duplicate helper names if they cluster
+  cleanly.
+- Do not touch parser functions (`parse_stmt`, `parse_expr`,
+  `parse_match_stmt`) in this queue.
+- Do not touch `SIG_MATCH_BODY_DIFFERS` or `SIG_DIFFERS` candidates unless the
+  report makes a strong case and the batch remains easy to review.
+- Do not import all of `nucleor_s1_compiler.nr` into the tools suite.
+- Do not change `bin/`, `bootstrap/`, or perf baselines.
+- If a helper depends on private surrounding state and is not cleanly movable,
+  skip it and document why.
+
+### Scope BC: tools-suite dispatch proof matrix
+
+After Wave 2, prove the tools-suite still runs the command families touched by
+the moved helpers. At minimum:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_tools_suite.nr -o nucleor_tools --no-cache
+.\bin\nucleor.exe check examples\01_hello.nr --no-cache
+.\bin\nucleor.exe build-strict examples\01_hello.nr -o _rfc0063_wave2_build_strict --no-cache
+.\bin\nucleor.exe abi examples\01_hello.nr
+.\bin\nucleor.exe publish tests\fixtures\t14_registry\foo\0.1.0\Nucleor.toml --registry "$env:TEMP\nucleor-rfc0063-registry" --dry-run
+```
+
+Use equivalent current CLI spellings if needed and record exact output.
+
+### Scope BD: drift, ABI, and perf gate
+
+Required:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Required because this is a toolchain-source lane:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Targets remain sub-4s cold and below the existing memory ceilings. If hot
+compiler RSS misses by 1 to 2 MB, rerun once before calling regression; if it
+repeats, stop and report.
+
+### Scope BE: Wave 2 ledger
+
+Create:
+
+```text
+findings/inbox/helper2_rfc0063_tools_suite_wave2_v0839_2026-05-06.md
+```
+
+Include:
+
+- starting counts from `tools/audit_dup_fns_report.csv`;
+- selected candidate list and why each is safe;
+- functions moved/imported or skipped;
+- updated counts after regeneration;
+- command output summary for Scope BC;
+- drift/ABI/perf results;
+- recommended Wave 3, including which remaining category should be targeted.
+
+## Helper2 Deliverable For Queue 12
+
+Push:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave2-v0839
+```
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Perf result:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify by default. Keep this lane focused on tools-suite
+deduplication, drift, dispatch smokes, void ABI, and perf.

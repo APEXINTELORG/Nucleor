@@ -1256,3 +1256,123 @@ Whether main needs drift/self-host/perf/full verify:
 
 Do not run full verify by default. Use focused gates plus perf only when the
 compiler hot path is materially changed.
+
+---
+
+## Queue 9 Continuation: ROBO-7 FRAME-001 Diagnostic Broadening
+
+Status update from main: helper1 Queue 8 landed on main through integration
+commit `9b7bf6ec`, and Claude ROBO-7 Phase B step-2 landed on main as
+`c161d937`. Current main is `a380268d`. Start fresh from current
+`origin/main`; do not continue from the old v0838 branch unless it is rebased
+cleanly first.
+
+Branch:
+
+```text
+fix/helper1-robo7-frame-diagnostics-wave2-v0839
+```
+
+### Scope AK: broaden FRAME-001 diagnostic sites
+
+`frame_mismatch_visible(expected, actual)` is now wired into
+`types_compatible`, so mismatches outside let-bindings are already rejected.
+The remaining ROBO-7 Phase B step-3 gap is diagnostic quality: call arguments,
+struct/aggregate init fields, return sites, and binary/operator sites can still
+surface generic type errors instead of `FRAME-001`.
+
+Primary target:
+
+```text
+compiler/nucleor_s1_compiler.nr
+tests/err/err_robo7_frame_*_mismatch.nr
+tests/features/robo7_frame_positive_smoke.nr
+docs/rfcs/v1_PUNCHLIST.md
+docs/spec/Nucleor_Error_Codes.md
+findings/inbox/helper1_robo7_frame_diagnostics_wave2_v0839_2026-05-06.md
+```
+
+Required work:
+
+- Locate every direct `types_compatible` / `types_compatible_context` failure
+  site that emits a user-facing diagnostic for function-call arguments,
+  struct/aggregate initialization, return type checks, and binary/operator
+  operands.
+- For sites that have both expected and actual type strings available, add a
+  narrow `frame_mismatch_visible(expected, actual)` pre-check that emits
+  `FRAME-001` with the same canonical framing used by the let-binding site.
+- Preserve existing generic diagnostics for non-frame mismatches.
+- Add focused negative fixtures for every new firing site that can be reached
+  cleanly. If a site is not cleanly reachable, document the exact blocker and
+  do not fake the fixture.
+- Keep `Frame_Unknown` and one-sided untagged `Pose` compatibility unchanged.
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o _helper1_robo7_s1_v0839 --no-cache
+.\target\_helper1_robo7_s1_v0839.exe build tests\err\err_robo7_frame_mismatch.nr -o _robo7_let_probe --no-cache
+.\target\_helper1_robo7_s1_v0839.exe build tests\features\robo7_frame_positive_smoke.nr -o _robo7_positive_probe --no-cache
+.\target\_robo7_positive_probe.exe
+```
+
+Also run focused negative fixtures added by this queue and confirm they emit
+`error[FRAME-001]`. Re-run at least one existing non-frame type mismatch and
+confirm it still emits its original `TYP-*` code.
+
+Required gates:
+
+```bash
+bash tools/check_compiler_drift.sh
+git diff --check
+```
+
+Run the Windows perf gate if the change adds broad hot-path work beyond narrow
+diagnostic branches:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+### Scope AL: optional ROBO-7 stdlib migration blocker ledger
+
+If Scope AK is completed with time left, create a short blocker ledger for the
+stdlib migration from bare `Pose` signatures to `Pose<Frame_Unknown>` /
+explicit transform surfaces. This is a report-only add unless the migration is
+obviously local and low-risk.
+
+Ledger path:
+
+```text
+findings/inbox/helper1_robo7_stdlib_migration_ledger_v0839_2026-05-06.md
+```
+
+Rows should cover `stdlib/rods/kinematics.nr`, `tf.nr`, `se3.nr`, and any
+typed robotics fixtures that would need update.
+
+## Helper1 Deliverable For Queue 9
+
+Push:
+
+```text
+fix/helper1-robo7-frame-diagnostics-wave2-v0839
+```
+
+Final handoff must include:
+
+```text
+Branch:
+HEAD:
+Base:
+Merge-base:
+Completed scopes:
+Skipped scopes and exact blockers:
+Changed files:
+Validation:
+Perf result if run:
+Report paths:
+Whether main needs drift/self-host/perf/full verify:
+```
+
+Do not run full verify by default. This is a compiler diagnostic lane, so use
+focused fixtures, drift, and perf only if the hot path materially changes.
