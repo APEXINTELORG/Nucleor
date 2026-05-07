@@ -15,6 +15,38 @@
 - **Canonical handoff URL:** `https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/v1_REMAINING_PUNCHLIST_AGENT_HANDOFF_v0845_2026-05-07.md`
 - **Live punchlist URL:** `https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/v1_PUNCHLIST.md`
 
+## Detailed RFC / Source Map
+
+Agents should use the live punchlist first, then open the lane-specific RFCs
+below before editing. GitHub URLs use `main`; if an agent works from a
+different base branch, it should read the same paths at that branch/ref.
+
+| Lane | Required detail docs |
+|---|---|
+| Global v1.0 punchlist | `docs/rfcs/v1_PUNCHLIST.md` (`https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/v1_PUNCHLIST.md`) |
+| RFC-0062 memory safety | `docs/rfcs/gap-analyses/Nucleor_Memory_Safety_Borrow_Ownership_Gap_Analysis_and_RFC_2026-05-04.md` (`https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/gap-analyses/Nucleor_Memory_Safety_Borrow_Ownership_Gap_Analysis_and_RFC_2026-05-04.md`) |
+| RFC-0063 parser/tools-suite | `docs/rfcs/RFC-0063-production-readiness-roadmap.md` (`https://github.com/APEXINTELORG/Nucleor/blob/main/docs/rfcs/RFC-0063-production-readiness-roadmap.md`) |
+| Effects/capabilities | `docs/rfcs/RFC-0032-effects.md`, `docs/rfcs/RFC-0033-effects-in-function-types.md`, `docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Real-time/determinism | `docs/rfcs/RFC-0001-rt-attributes.md`, `docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Algebraic laws | `docs/rfcs/RFC-0042-algebraic-laws.md`, `docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md` |
+| ROBO-7 frame typing | `docs/rfcs/RFC-0003-typed-frames.md`, `docs/rfcs/gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md` |
+| T-3/T-4 strict types | `docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md` |
+| UNIT-1 typed units | `docs/rfcs/RFC-0005-units.md`, `docs/rfcs/RFC-0005-units-PHASE-PLAN.md`, `docs/rfcs/RFC-0047-typed-units-7vector.md` |
+| R06 / FFI | `docs/rfcs/gap-analyses/Nucleor_Interop_FFI_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Linux packaging/perf/CI | `docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md`, `docs/rfcs/gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Quantum | `docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Tensor / ML / Autodiff | `docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md`, `docs/rfcs/RFC_v1_FORWARD_ROADMAP.md`, `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` |
+| Numeric tail | `docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Concurrency tail | `docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md` |
+| Older cloud dispatch context | `docs/rfcs/v1_REMAINING_PUNCHLIST_CLOUD_DISPATCH_v0834_2026-05-06.md` |
+
+For any path in this table that is not shown with an explicit URL, build the
+GitHub URL by appending the path to:
+
+```text
+https://github.com/APEXINTELORG/Nucleor/blob/main/
+```
+
 This document supersedes older dispatch packs for remaining-work routing.
 Older packs are useful for history, but many of their estimates and open
 items are stale after v0838-v0844 integration. Agents must start from
