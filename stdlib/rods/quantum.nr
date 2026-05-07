@@ -23,6 +23,7 @@ import "complex.nr"
 import "bitwise.nr"
 import "qsim_graph.nr"
 import "rod_helpers.nr"
+import "strings.nr"
 
 #cfile "quantum_rt.c"
 
@@ -789,5 +790,219 @@ fn qasm2_render(p: i64) -> str {
 }
 
 fn qasm2_limitations() -> str {
-    return "qsim OpenQASM 2.0 emitter (QM-7 v0842, 2026-05-07): (1) EMIT-ONLY. There is no in-tree OpenQASM2 parser/importer; round-trip import is explicitly out of scope for this surface. (2) Supported gate subset is H/X/Z/CX. Name-dispatched emit (qasm2_emit_named_1q / qasm2_emit_named_2q) returns qasm2_status_unsupported_gate (4) for any other gate without mutating the program. (3) Header is fixed: 'OPENQASM 2.0;', 'include \"qelib1.inc\";', 'qreg q[N];'. No creg, no measurement, no classical control, no parameterized rotations, no barrier/reset. (4) HARD CAP at qasm2_max_qubits() = 1024 qubits. qasm2_program_new returns 0 above the cap or for n<1; emit calls return qasm2_status_qubit_out_of_range (2) or qasm2_status_same_qubit (3) on invalid args. Status codes: 0=ok, 1=invalid_program, 2=qubit_out_of_range, 3=same_qubit, 4=unsupported_gate, 5=invalid_qubit_count.";
+    return "qsim OpenQASM 2.0 emit + minimal parser (QM-7 v0842 emit + v0843 parser): (1) Round-trip is closed for the H/X/Z/CX subset emitted by qasm2_render. The parser qasm2_parse(src) accepts ONLY the deterministic emit dialect: exact header lines 'OPENQASM 2.0;' + 'include \"qelib1.inc\";' + 'qreg q[N];', then per-line gates 'h q[N];' / 'x q[N];' / 'z q[N];' / 'cx q[A],q[B];' separated by '\\n'. There is intentionally no whitespace tolerance, no comment handling, no alternative spelling, no creg, no measurement, no classical control, no parameterized rotations, and no barrier/reset. Real importing of foreign OpenQASM2 sources remains future work. (2) Supported gate subset is H/X/Z/CX. Name-dispatched emit (qasm2_emit_named_1q / qasm2_emit_named_2q) returns qasm2_status_unsupported_gate (4) for any other gate without mutating the program. The parser returns qasm2_status_parse_unsupported_gate (9) for any gate name outside {h,x,z,cx} and propagates the existing emit-side qasm2_status_qubit_out_of_range / same_qubit / invalid_qubit_count codes when the source references invalid qubits. (3) Header is fixed: 'OPENQASM 2.0;', 'include \"qelib1.inc\";', 'qreg q[N];'. (4) HARD CAP at qasm2_max_qubits() = 1024 qubits, enforced by both emit and parse. (5) Status codes: 0=ok, 1=invalid_program, 2=qubit_out_of_range, 3=same_qubit, 4=unsupported_gate, 5=invalid_qubit_count, 6=parse_empty_source, 7=parse_unexpected_header, 8=parse_malformed_qreg, 9=parse_unsupported_gate, 10=parse_malformed_gate. (6) Parse result is a 2-slot Vec<i64> handle: slot 0 = status, slot 1 = program handle on success or 0 on failure. Use qasm2_parse_result_status / qasm2_parse_result_program to decode.";
+}
+
+// =====================================================
+// QM-7 OpenQASM 2.0 minimal parser (v0843, 2026-05-08)
+// =====================================================
+//
+// Closes the round-trip story opened by qasm2_render. The parser
+// accepts ONLY the exact deterministic dialect that qasm2_render
+// emits: fixed header, then per-line H/X/Z/CX gate forms separated
+// by '\n'. This is intentionally not a general OpenQASM2 importer.
+
+fn qasm2_status_parse_empty_source() -> i64       { return 6; }
+fn qasm2_status_parse_unexpected_header() -> i64  { return 7; }
+fn qasm2_status_parse_malformed_qreg() -> i64     { return 8; }
+fn qasm2_status_parse_unsupported_gate() -> i64   { return 9; }
+fn qasm2_status_parse_malformed_gate() -> i64     { return 10; }
+
+fn qasm2_status_parse_explain(status: i64) -> str {
+    if status == qasm2_status_parse_empty_source()      { return "parse_empty_source"; };
+    if status == qasm2_status_parse_unexpected_header() { return "parse_unexpected_header"; };
+    if status == qasm2_status_parse_malformed_qreg()    { return "parse_malformed_qreg"; };
+    if status == qasm2_status_parse_unsupported_gate()  { return "parse_unsupported_gate"; };
+    if status == qasm2_status_parse_malformed_gate()    { return "parse_malformed_gate"; };
+    return qasm2_status_explain(status);
+}
+
+// Parse a non-negative decimal integer from an entire string slice.
+// Rejects empty, negative, and non-digit input. Caps at
+// qasm2_max_qubits()+1 so the parser cannot accumulate past a
+// reasonable bound on the qreg-size-style integers it sees.
+fn _qasm2_parse_uint(s: str) -> i64 {
+    let n: i64 = str_len(s);
+    if n == 0 { return 0 - 1; };
+    let mut acc: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        let c: i64 = str_char_at(s, i);
+        if c < 48 { return 0 - 1; };
+        if c > 57 { return 0 - 1; };
+        acc = acc * 10 + (c - 48);
+        if acc > qasm2_max_qubits() + 1 { return 0 - 1; };
+        i = i + 1;
+    };
+    return acc;
+}
+
+// Parse the qubit operand of a "<name> q[N];" 1q gate line. Returns
+// the qubit index, or -1 on parse failure (wrong prefix, missing
+// "];" suffix, malformed integer).
+fn _qasm2_parse_1q_arg(line: str, name: str) -> i64 {
+    let prefix: str = str_concat(name, " q[");
+    if strings_starts_with(line, prefix) != 1 { return 0 - 1; };
+    if strings_ends_with(line, "];") != 1 { return 0 - 1; };
+    let plen: i64 = str_len(prefix);
+    let llen: i64 = str_len(line);
+    if llen < plen + 3 { return 0 - 1; };
+    let inner: str = str_substring(line, plen, llen - 2);
+    return _qasm2_parse_uint(inner);
+}
+
+// Parse "cx q[A],q[B];" into a 2-slot Vec<i64> [ctrl, tgt]. Either
+// slot is -1 on parse failure.
+fn _qasm2_parse_cx_args(line: str) -> i64 {
+    let result: i64 = vec_new();
+    vec_push(result, 0 - 1);
+    vec_push(result, 0 - 1);
+
+    if strings_starts_with(line, "cx q[") != 1 { return result; };
+    if strings_ends_with(line, "];") != 1 { return result; };
+    let llen: i64 = str_len(line);
+    if llen < 11 { return result; };
+    let inner: str = str_substring(line, 5, llen - 2);
+    let mid: i64 = strings_index_of(inner, "],q[");
+    if mid < 0 { return result; };
+    let ctrl_str: str = str_substring(inner, 0, mid);
+    let tgt_str: str = str_substring(inner, mid + 4, str_len(inner));
+    let ctrl: i64 = _qasm2_parse_uint(ctrl_str);
+    let tgt: i64 = _qasm2_parse_uint(tgt_str);
+    if ctrl < 0 { return result; };
+    if tgt < 0 { return result; };
+    vec_set(result, 0, ctrl);
+    vec_set(result, 1, tgt);
+    return result;
+}
+
+// Dispatch one body line to the right emit_* call. Returns the emit
+// status code, or qasm2_status_parse_malformed_gate /
+// qasm2_status_parse_unsupported_gate on parser-level failure.
+fn _qasm2_parse_gate_into(p: i64, line: str) -> i64 {
+    if strings_starts_with(line, "h q[") == 1 {
+        let q: i64 = _qasm2_parse_1q_arg(line, "h");
+        if q < 0 { return qasm2_status_parse_malformed_gate(); };
+        return qasm2_emit_h(p, q);
+    };
+    if strings_starts_with(line, "x q[") == 1 {
+        let q: i64 = _qasm2_parse_1q_arg(line, "x");
+        if q < 0 { return qasm2_status_parse_malformed_gate(); };
+        return qasm2_emit_x(p, q);
+    };
+    if strings_starts_with(line, "z q[") == 1 {
+        let q: i64 = _qasm2_parse_1q_arg(line, "z");
+        if q < 0 { return qasm2_status_parse_malformed_gate(); };
+        return qasm2_emit_z(p, q);
+    };
+    if strings_starts_with(line, "cx q[") == 1 {
+        let args: i64 = _qasm2_parse_cx_args(line);
+        let ctrl: i64 = vec_get(args, 0);
+        let tgt: i64 = vec_get(args, 1);
+        if ctrl < 0 { return qasm2_status_parse_malformed_gate(); };
+        if tgt < 0 { return qasm2_status_parse_malformed_gate(); };
+        return qasm2_emit_cx(p, ctrl, tgt);
+    };
+    return qasm2_status_parse_unsupported_gate();
+}
+
+fn _qasm2_parse_result_new(status: i64, program: i64) -> i64 {
+    let r: i64 = vec_new();
+    vec_push(r, status);
+    vec_push(r, program);
+    return r;
+}
+
+// Parse `src` as the deterministic emit dialect. Returns a 2-slot
+// Vec<i64> result handle: slot 0 = status, slot 1 = program handle
+// (0 on failure). Decode with qasm2_parse_result_status /
+// qasm2_parse_result_program.
+fn qasm2_parse(src: str) -> i64 {
+    if str_len(src) == 0 {
+        return _qasm2_parse_result_new(qasm2_status_parse_empty_source(), 0);
+    };
+
+    let parts: Vec<i32> = strings_split(src, "\n");
+    let nparts: i64 = parts.len();
+
+    // Render appends a trailing '\n' after each body line, so split
+    // produces a final empty element. Treat empty trailing parts as
+    // benign rather than as malformed gate lines.
+    if nparts < 3 {
+        return _qasm2_parse_result_new(qasm2_status_parse_unexpected_header(), 0);
+    };
+
+    if str_eq(parts.get(0), "OPENQASM 2.0;") != 1 {
+        return _qasm2_parse_result_new(qasm2_status_parse_unexpected_header(), 0);
+    };
+    if str_eq(parts.get(1), "include \"qelib1.inc\";") != 1 {
+        return _qasm2_parse_result_new(qasm2_status_parse_unexpected_header(), 0);
+    };
+
+    let qreg_line: str = parts.get(2);
+    if strings_starts_with(qreg_line, "qreg q[") != 1 {
+        return _qasm2_parse_result_new(qasm2_status_parse_malformed_qreg(), 0);
+    };
+    if strings_ends_with(qreg_line, "];") != 1 {
+        return _qasm2_parse_result_new(qasm2_status_parse_malformed_qreg(), 0);
+    };
+    let qreg_inner: str = str_substring(qreg_line, 7, str_len(qreg_line) - 2);
+    let n: i64 = _qasm2_parse_uint(qreg_inner);
+    if n < 1 {
+        return _qasm2_parse_result_new(qasm2_status_parse_malformed_qreg(), 0);
+    };
+    if n > qasm2_max_qubits() {
+        return _qasm2_parse_result_new(qasm2_status_invalid_qubit_count(), 0);
+    };
+
+    let p: i64 = qasm2_program_new(n);
+    if p == 0 {
+        return _qasm2_parse_result_new(qasm2_status_invalid_qubit_count(), 0);
+    };
+
+    let mut i: i64 = 3;
+    while i < nparts {
+        let line: str = parts.get(i);
+        // Skip the trailing empty element that strings_split produces
+        // when src ends with '\n'.
+        if str_len(line) == 0 {
+            i = i + 1;
+        } else {
+            let st: i64 = _qasm2_parse_gate_into(p, line);
+            if st != qasm2_status_ok() {
+                return _qasm2_parse_result_new(st, 0);
+            };
+            i = i + 1;
+        };
+    };
+
+    return _qasm2_parse_result_new(qasm2_status_ok(), p);
+}
+
+fn qasm2_parse_result_status(r: i64) -> i64 {
+    if r == 0 { return qasm2_status_invalid_program(); };
+    return vec_get(r, 0);
+}
+
+fn qasm2_parse_result_program(r: i64) -> i64 {
+    if r == 0 { return 0; };
+    return vec_get(r, 1);
+}
+
+// Returns 1 iff two program handles describe the same n_qubits and
+// the same body line sequence. Used by round-trip tests:
+// qasm2_program_eq(p, qasm2_parse_result_program(qasm2_parse(qasm2_render(p)))).
+fn qasm2_program_eq(a: i64, b: i64) -> i64 {
+    if a == 0 { return 0; };
+    if b == 0 { return 0; };
+    if vec_get(a, 0) != vec_get(b, 0) { return 0; };
+    let la: i64 = vec_len(a);
+    let lb: i64 = vec_len(b);
+    if la != lb { return 0; };
+    let mut i: i64 = 1;
+    while i < la {
+        if str_eq(vec_str_get(a, i), vec_str_get(b, i)) != 1 { return 0; };
+        i = i + 1;
+    };
+    return 1;
 }
