@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 265
-# Total fn definitions: 3597
-# Total LOC: 20654
+# Total rods: 275
+# Total fn definitions: 3640
+# Total LOC: 21602
 
 [[rod]]
 name           = "activation2"
@@ -2316,6 +2316,15 @@ loc            = 774
 imports        = ["ml/math_facade", "ml/nn_facade", "ml/tensor_facade"]
 
 [[rod]]
+name           = "backend_facade"
+path           = "stdlib/rods/ml/backend_facade.nr"
+description    = "Backend dispatch accounting contract (scalar fallback / CPU / GPU / fused / external backend counts)"
+function_count = 4
+cfile_count    = 0
+loc            = 94
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "boost_facade"
 path           = "stdlib/rods/ml/boost_facade.nr"
 description    = "Gradient boosting (XGBoost / LightGBM / CatBoost) parity rods"
@@ -2325,6 +2334,42 @@ loc            = 1051
 imports        = ["ml/math_facade", "ml/tensor_facade"]
 
 [[rod]]
+name           = "capsule_facade"
+path           = "stdlib/rods/ml/capsule_facade.nr"
+description    = "Capsule manifest contract for reproducible-build evidence (source/data/model/compiler/rod-graph hashes)"
+function_count = 6
+cfile_count    = 0
+loc            = 102
+imports        = ["jsonl", "ml/tensor_facade"]
+
+[[rod]]
+name           = "cert_facade"
+path           = "stdlib/rods/ml/cert_facade.nr"
+description    = "Unsigned cert profile manifest (source / compiler / backend / agent-trace / reproducible-build evidence requirements)"
+function_count = 4
+cfile_count    = 0
+loc            = 94
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "cli_facade"
+path           = "stdlib/rods/ml/cli_facade.nr"
+description    = "nuc CLI front-door command contract (new, add, lab, bench, port, capsule, serve, ship)"
+function_count = 4
+cfile_count    = 0
+loc            = 95
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "contract_facade"
+path           = "stdlib/rods/ml/contract_facade.nr"
+description    = "Runtime shape/dtype contract (compile_time_shape_assertion_count = 0 boundary)"
+function_count = 4
+cfile_count    = 0
+loc            = 95
+imports        = ["jsonl", "ml/tensor_facade"]
+
+[[rod]]
 name           = "dtype_core"
 path           = "stdlib/rods/ml/dtype_core.nr"
 description    = "dtype_core.nr - initial dtype and numeric policy surface for Nucleor ML Suite."
@@ -2332,6 +2377,15 @@ function_count = 31
 cfile_count    = 0
 loc            = 111
 imports        = []
+
+[[rod]]
+name           = "lab_facade"
+path           = "stdlib/rods/ml/lab_facade.nr"
+description    = "nuc lab workbench manifest (deterministic cell graph, viewer counts, agent mounts, port)"
+function_count = 5
+cfile_count    = 0
+loc            = 104
+imports        = ["jsonl"]
 
 [[rod]]
 name           = "learn_facade"
@@ -2352,6 +2406,24 @@ loc            = 15
 imports        = []
 
 [[rod]]
+name           = "model_io_facade"
+path           = "stdlib/rods/ml/model_io_facade.nr"
+description    = "nuc serve model-loader contract (.ncap, GGUF, safetensors, ONNX, tokenizer, quantization formats)"
+function_count = 4
+cfile_count    = 0
+loc            = 94
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "ncap_facade"
+path           = "stdlib/rods/ml/ncap_facade.nr"
+description    = ".ncap package manifest contract (route count, evidence count, source hashes, signature state)"
+function_count = 4
+cfile_count    = 0
+loc            = 77
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "nn_facade"
 path           = "stdlib/rods/ml/nn_facade.nr"
 description    = "PyTorch nn parity rods (Linear, ReLU, GELU, LayerNorm, RMSNorm, losses, SGD/AdamW)"
@@ -2370,6 +2442,15 @@ loc            = 57
 imports        = ["ml/dtype_core", "ml/shape_core"]
 
 [[rod]]
+name           = "serve_facade"
+path           = "stdlib/rods/ml/serve_facade.nr"
+description    = "nuc serve package contract (model format, quantization, tokenizer, backend, context window, batch size)"
+function_count = 4
+cfile_count    = 0
+loc            = 82
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "shape_core"
 path           = "stdlib/rods/ml/shape_core.nr"
 description    = "shape_core.nr - minimal shape contracts for the first tensor facade."
@@ -2377,6 +2458,15 @@ function_count = 7
 cfile_count    = 0
 loc            = 35
 imports        = []
+
+[[rod]]
+name           = "ship_facade"
+path           = "stdlib/rods/ml/ship_facade.nr"
+description    = "nuc ship packaging contract (source/compiler/rod-lock/artifact-contract/agent-trace requirements)"
+function_count = 4
+cfile_count    = 0
+loc            = 111
+imports        = ["jsonl"]
 
 [[rod]]
 name           = "stats_facade"
