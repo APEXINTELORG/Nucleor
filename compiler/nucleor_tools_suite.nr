@@ -1100,11 +1100,14 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk3(pool, 34, name, mk_list(pool, inits)));
 }
 
+#[manual_drop]
 fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'enum', at the name
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     // Optional generic params: enum Name<T> { ... }
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_enum_decl. Sister 2 of
+    // the T2.5 fix — same dangling-Vec class on the gparams construction.
     let mut gparams: i64 = mk_list(pool, Vec::new());
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
@@ -1149,8 +1152,10 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 36, name, mk_list(pool, variants), gparams));
 }
 
+#[manual_drop]
 fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'trait', at the name
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_trait_decl. Sister 3 of T2.5.
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     let mut gparams: i64 = mk_list(pool, Vec::new());
@@ -1198,7 +1203,10 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 43, name, mk_list(pool, methods), gparams));
 }
 
+#[manual_drop]
 fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_impl_block. Sister 4 of T2.5
+    // (gparams pattern at line 1232 inside the per-method parse).
     // Supports both `impl Trait for Type { ... }` and `impl Type { ... }`
     let mut first_name: str = pkv(tokens, pos);
     let mut trait_name: str = "";
