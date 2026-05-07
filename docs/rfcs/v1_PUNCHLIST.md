@@ -367,6 +367,20 @@ launch. After memory safety completes, these are next-priority.
   same Surface-17 stabilizer set. The fixture verifies internal exhaustive
   counts by weight; external published weight-enumerator value citations remain
   an advisory documentation gap, not a missing runtime surface.
+- **Phase 2c citation row:** DONE 2026-05-07 (v0845) —
+  `qm7_clifford_weight_enumerator_smoke.nr` now carries an explicit
+  citation chain in its header tying the asserted stabilizer/logical
+  weight-count distribution to the generator set in
+  `qm7_clifford_surface_d3_smoke.nr`, which itself cites
+  Tomita and Svore, "Low-distance surface codes under realistic
+  quantum noise," Phys. Rev. A 90, 062320 (2014), Table II.
+  The asserted counts are exhaustive deterministic consequences of the
+  cited generator set, not a separately published enumerator value.
+  This closes the advisory documentation gap for the in-tree counts;
+  separate citation-backed external enumerator-VALUE parity (cross-
+  validating the same numbers against a third-party enumerator computed
+  in another framework) remains optional future work, only required if
+  a launch artifact specifically demands it.
 - **Phase 2d bounded property micro-suite:** DONE 2026-05-06 —
   `qm7_clifford_property_micro_suite.nr` locks clone/reset isolation,
   small gate-sequence identities, repeatable [[5,1,3]] rebuilds, logical
