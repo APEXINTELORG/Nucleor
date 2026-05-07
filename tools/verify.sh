@@ -1696,6 +1696,42 @@ t333_effects_with_alloc_call() {
     grep -q "may_alloc" $NUC_VERIFY_STEP_LOG || return 1
 }
 
+r05_requires_body_builtin() {
+    "$BIN" build "tests/err/err_requires_row_builtin_io_mismatch.nr" -o "_r05_requires_body_builtin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[EFF-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "body of" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "io.write" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+r05_requires_transitive_builtin() {
+    "$BIN" build "tests/err/err_requires_row_transitive_builtin_io.nr" -o "_r05_requires_transitive_builtin" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[EFF-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "call chain" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "io.write" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+r05_requires_transitive_builtin_ok() {
+    "$BIN" build "tests/features/requires_row_transitive_builtin_ok.nr" -o "_r05_requires_transitive_builtin_ok" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_r05_requires_transitive_builtin_ok"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+}
+
+r05_restricts_depth8_chain() {
+    "$BIN" build "tests/err/err_restricts_block_transitive_depth8_chain.nr" -o "_r05_restricts_depth8_chain" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[EFF-003\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "net.connect" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+r05_restricts_depth8_clean() {
+    "$BIN" build "tests/features/restricts_block_transitive_depth8_clean_smoke.nr" -o "_r05_restricts_depth8_clean" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_r05_restricts_depth8_clean"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+}
+
 t333_effects_with_ffi() {
     "$BIN" build "tests/fixtures/t333_effects_with_ffi.nr" -o "_t333_effects_ffi" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" $NUC_VERIFY_STEP_LOG || return 1
@@ -5807,6 +5843,11 @@ step "T3.33 RFC-0033 with [no_alloc] maps to RT-001" t333_effects_with_no_alloc
 step "T3.33 RFC-0033 with [no_panic] maps to RT-002" t333_effects_with_no_panic
 step "T3.33 RFC-0033 with [no_dyn] maps to RT-003" t333_effects_with_no_dyn
 step "T3.33 RFC-0033 Alloc call rejected from no_alloc" t333_effects_with_alloc_call
+step "R05 requires row rejects builtin body effects" r05_requires_body_builtin
+step "R05 requires row rejects transitive builtin helper effects" r05_requires_transitive_builtin
+step "R05 requires row permits declared transitive builtin family" r05_requires_transitive_builtin_ok
+step "R05 restricts block rejects depth-8 helper chain" r05_restricts_depth8_chain
+step "R05 restricts block permits clean depth-8 helper chain" r05_restricts_depth8_clean
 step "T3.33 RFC-0033 extern with [no_alloc] feeds RT-005" t333_effects_with_ffi
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion

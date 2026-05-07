@@ -108,17 +108,24 @@ launch. After memory safety completes, these are next-priority.
 - **E-2 `pure fn` + `requires [...]` contradiction:** DONE for
   Phase 1 — `nuc build` emits `EFF-002`; active fixture
   `err_pure_requires.nr` locks this.
-- **Standalone `requires [...]` direct calls:** DONE for Phase 1 —
-  `nuc build` emits `EFF-001` when a same-file caller invokes a fn
-  with a `requires [...]` row but does not declare the required
-  effect; active fixtures `err_effect_requires_direct.nr` (empty
-  caller row) and `err_requires_row_direct_call.nr` (caller row
-  declares a different family — `net` vs callee `io.read`) lock
-  the negative path; `effect_requires_direct_ok.nr` and
-  `requires_row_clean_smoke.nr` (single-hop caller declares the
-  family root `io`, callee declares the sub-effect `io.read`) lock
-  the positive path. Cloud Claude lane 2 v0839 added the
-  family-root and disjoint-family fixtures on 2026-05-06.
+- **Standalone `requires [...]` direct/body/helper calls:** DONE for
+  Phase 1 — `nuc build` emits `EFF-001` when a same-file caller
+  invokes a fn with a `requires [...]` row but does not declare the
+  required effect, when a fn's own `requires [...]` row omits a known
+  builtin body effect, or when a bounded same-file un-rowed helper
+  chain reaches such a builtin effect. Active fixtures
+  `err_effect_requires_direct.nr` (empty caller row),
+  `err_requires_row_direct_call.nr` (caller row declares a different
+  family — `net` vs callee `io.read`),
+  `err_requires_row_builtin_io_mismatch.nr` (own body uses
+  `print_int` / `io.write` under `requires [net]`), and
+  `err_requires_row_transitive_builtin_io.nr` (un-rowed helper reaches
+  `print_int`) lock the negative path; `effect_requires_direct_ok.nr`,
+  `requires_row_clean_smoke.nr`, and
+  `requires_row_transitive_builtin_ok.nr` lock the positive path.
+  Cloud Claude lane 2 v0839 added the family-root and
+  disjoint-family fixtures on 2026-05-06; helper1 v0844 added the
+  body/helper builtin enforcement.
 - **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
@@ -150,8 +157,12 @@ launch. After memory safety completes, these are next-priority.
   one-hop helper reaching `requires [io.read]`),
   `err_restricts_block_transitive_deep_chain.nr` (negative —
   un-rowed depth=3 helper chain reaching `requires [net.connect]`),
+  `err_restricts_block_transitive_depth8_chain.nr` (negative —
+  deeper helper ladder still caught within the depth=8 budget),
   `restricts_block_transitive_clean_smoke.nr` (positive — clean
-  un-rowed helper chain), and
+  un-rowed helper chain),
+  `restricts_block_transitive_depth8_clean_smoke.nr` (positive —
+  deeper clean helper ladder), and
   `restricts_block_clean_smoke.nr` (positive — pure-arithmetic
   clean block builds and exits 0). Pre-existing fail-closed
   companions still halt the build via the new pre-pass or via
@@ -163,7 +174,7 @@ launch. After memory safety completes, these are next-priority.
   surface while retaining the independent EFF-001 signal for the
   un-rowed intermediate helpers.
 - **Still open:** full standalone `requires [...]` row enforcement
-  beyond bounded same-file/direct-wrapper calls, restricts chains
+  beyond bounded same-file direct/body/helper calls, restricts chains
   beyond depth=8, deeper transitive `requires [...]` row propagation,
   cross-module propagation, method/closure/higher-order effects, and
   broader RFC-0033 effect-row subtyping.
