@@ -36,6 +36,7 @@ struct TensorI64 {
     data: Vec<i64>
 }
 
+#[manual_drop]
 fn tensor_f64_from_vec(rows: i64, cols: i64, data: Vec<f64>) -> TensorF64 {
     return TensorF64 {
         shape: shape2(rows, cols),
@@ -119,6 +120,7 @@ fn tensor_f64_from_csv_f64(path: str, rows: i64, cols: i64, has_header: i64) -> 
     return tensor_f64_from_csv_f64_text(raw, rows, cols, has_header);
 }
 
+#[manual_drop]
 fn tensor_f32_from_vec(rows: i64, cols: i64, data: Vec<i64>) -> TensorF32 {
     return TensorF32 {
         shape: shape2(rows, cols),
@@ -129,6 +131,7 @@ fn tensor_f32_from_vec(rows: i64, cols: i64, data: Vec<i64>) -> TensorF32 {
     };
 }
 
+#[manual_drop]
 fn tensor_i64_from_vec(rows: i64, cols: i64, data: Vec<i64>) -> TensorI64 {
     return TensorI64 {
         shape: shape2(rows, cols),

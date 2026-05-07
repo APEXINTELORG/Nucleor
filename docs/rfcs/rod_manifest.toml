@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
 # Total fn definitions: 3862
-# Total LOC: 26811
+# Total LOC: 26814
 
 [[rod]]
 name           = "activation2"
@@ -2582,7 +2582,7 @@ path           = "stdlib/rods/ml/tensor_facade.nr"
 description    = "Parity-flavored TensorF64/F32/I64 surface (matmul, broadcast, reductions, slicing, reshape)"
 function_count = 60
 cfile_count    = 0
-loc            = 718
+loc            = 721
 imports        = ["ml/dtype_core", "ml/shape_core"]
 
 [[rod]]
