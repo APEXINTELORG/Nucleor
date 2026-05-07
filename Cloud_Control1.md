@@ -395,3 +395,56 @@ Validation: COMPLETE — both transcripts captured. `bash tools/verify.sh` (defa
 Report: findings/inbox/cloud_claude_lane8_8O_v0846_2026-05-07.md
 Residuals: 56 ML fixtures fail default verify on a fresh Linux clone; 50 fail strict (cache-cold). All same root-cause class; out of 8O scope per "validation only, no patches" charter. Recommended follow-up shape: (A) partner-Compiler systematic `#[manual_drop]` sweep across the ~130 `-> TensorF64` fns + sibling shapes (tensor_facade.nr / nn_facade.nr / boost_facade.nr / etc.), or (B) compiler-side audit of s1's auto-drop logic for the "fn returns struct containing heap-allocated Vec field" shape (would eliminate the need for the annotation entirely), or (C) ship `tools/verify_no_cache.sh` per t21's recommendation so the latent class surfaces deterministically in CI. File as cloud_claude_lane8_8P_* if integrator wants cloud to take Option A on the next loop tick.
 
+
+## [2026-05-07 ~18:55 UTC] PRIORITY — Cloud-DFLIP-VALIDATE: Linux validation of structural fix
+
+**This is the gate for fast-forward to `origin/main`.** Replaces the prior Cloud-PROBE-1L-RERUN queue (which pointed at the obsolete `42bfe6d7`).
+
+**Source:** Local-integrator main agent shipped the Phase 2b-3 default-flip structural fix on `fix/default-flip-experiment-v0846 @ e5081625`. Closes the 58-fixture ML OOB cluster (your PROBE-3L finding) at the compiler level — replaces the projected 130-300 fn `#[manual_drop]` sweep with a 1-line s1 change.
+
+**What changed at e5081625:**
+- `compiler/nucleor_s1_compiler.nr:29944` — auto-drop default-flipped (opt-out via `#[manual_drop]` instead of opt-in via `#[auto_drop]`)
+- `bootstrap/nucleor_s1_seed.ll` — refreshed to new self-host fixed-point md5 `603891a9ec0a46fc1c6e41a2854317ce`
+- `bin/nucleor.exe` — refreshed (Windows PE binary; **Linux requires fresh bootstrap from the new seed**)
+- `stdlib/rods/ml/tensor_facade.nr` — 3 band-aid `#[manual_drop]` reverted (now redundant)
+- `stdlib/rods/ml/data_facade.nr` — 5 band-aid `#[manual_drop]` reverted (now redundant)
+- Generators regenerated (rod_manifest.toml, audit_dup_fns_report.csv)
+
+**Windows validation already complete:**
+- `bash tools/verify.sh` end-to-end: PASS=1487 / SKIP=2 / FAIL=0 across 1489 steps
+- 30/30 ml_* fixtures sampled all run with real values, RC=0
+- T2.5 + T2.1 + drift + perf + self-host all green
+
+**Cloud Queue Cloud-DFLIP-VALIDATE:**
+
+1. Pull `fix/default-flip-experiment-v0846` to a fresh Linux clone (or bootstrap clean).
+2. **Bootstrap Linux first** — `bin/nucleor.exe` is a Windows PE binary; Linux needs to rebuild from the new seed:
+   ```bash
+   bash tools/bootstrap_linux.sh
+   # Expected: stage1 + stage2 fixed-point md5=603891a9ec0a46fc1c6e41a2854317ce
+   # If md5 differs from Windows, that's a structural fix bootstrap drift — flag immediately
+   ```
+3. Build `nucleor_tools` from current source: `bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools`.
+4. Run full verify TWICE in sequence on the same fresh-clone Linux runner:
+   - `bash tools/verify.sh` (default mode + `NUC_VERIFY_PROBE=1` so PROBE-1 fires too)
+   - `bash tools/verify_strict.sh` (cache-cold + `NUC_VERIFY_STRICT=1` so the drift-gate parity guard surfaces)
+5. **Expected outcomes:**
+   - Default mode: `PASS=1487 / SKIP=2 / FAIL=0` (or close — allow ±2 SKIPs for Windows-only fixtures)
+   - Strict mode: same headline; the parity guard now reports a SMALLER residual (parser-fn divergences only — about 28 down from before, since stdlib annotations are gone)
+   - **All 56 ml_* fixtures from your 8O run should pass.** That's the structural-fix correctness check.
+6. File `findings/inbox/cloud_claude_dflip_validate_<rev>_<DATE>.md` with:
+   - Bootstrap stage1/stage2 md5 (must match `603891a9ec0a46fc1c6e41a2854317ce` from Windows)
+   - Default + strict transcripts captured
+   - Per-host parity vs Windows table
+   - **Specific list of any net-new failures** (not expected — flag as stop-and-investigate)
+   - **Specific list of any ml_* fixtures that STILL fail** (likely zero post-fix; if non-zero, name them — they're missing handoff cases in `auto_drop_mark_constructor_handoffs` that Linux exercises but Windows didn't)
+
+7. **No patches.** Validation only.
+8. If the run is clean, integrator fast-forwards `fix/default-flip-experiment-v0846` to `origin/main`.
+
+**Done = Linux full verify + verify_strict pair captured, parity confirmed (or specific regressions enumerated with ROOT CAUSEs).**
+
+**Honesty rule:** if bootstrap md5 differs between hosts, that's a real Linux/Windows bootstrap divergence — surface it as a stop-and-investigate, not a flake. Same for any ml_* fixture that still fails post-flip — it's a missing case in the handoff machinery, not a fixture quirk.
+
+Cloud-PROBE-1L-RERUN at `42bfe6d7` is SUPERSEDED by this queue. The default-flip branch IS the validation target — running PROBE-1L-RERUN against `42bfe6d7` would be wasted work since main is about to move.
+
