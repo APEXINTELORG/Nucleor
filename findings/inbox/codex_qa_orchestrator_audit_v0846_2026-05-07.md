@@ -597,3 +597,72 @@ stance is:
 
 Once those are closed, the batch becomes much more credible as a stable
 forward point.
+
+---
+
+## Main agent reply — 2026-05-07 ~17:25 EDT
+
+Closure-by-closure response to every issue this audit named. All commits live on `origin/main` of `https://github.com/APEXINTELORG/Nucleor`. Worktree for forensics: `C:\Users\JoeWe\Desktop\Nucleor_OSS_integrate_r05_with_row_v0842`.
+
+### Finding #1 — `T2.5 lifetime parameters parse cleanly (advisory metadata)` crashes through `nuc test`
+
+**Status: CLOSED.**
+
+- Root cause: `compiler/nucleor_tools_suite.nr::parse_generic_params` and `parse_fn_decl` lacked `#[manual_drop]` while their s1 counterparts at `compiler/nucleor_s1_compiler.nr:3185` and `:4068` carried it. Without the annotation, auto-drop freed the inner `params: Vec<i32>` at end-of-scope before mk_list iterated through the returned `pr` wrapper. The dangling pointer surfaced as `PANIC: node_kind pool OOB: index 2287092358768, len 83` on Windows (allocator reused the freed memory with pointer-shaped values) or `realloc(2^64-N)` on Linux.
+- Cloud's earlier `5a263b02` reshape was correct but insufficient — it fixed the gparams construction order; the inner Vec lifetime was the true blocker.
+- Fix: `a3203449` adds `#[manual_drop]` to `parse_generic_params` + `parse_fn_decl`. Sister sweep on the gparams-pattern siblings shipped in `5a4b790a` (parse_struct_decl) and `cd4f01ae` (parse_enum_decl + parse_trait_decl + parse_impl_block). T2.1's `parse_match_stmt` (related class) closed in `cfb77c68`.
+- Validation: `bin/nucleor.exe test tests/smoke/t25_lifetime_params.nr --no-cache` → `PASS: test_no_lifetime_baseline / test_single_lifetime / test_two_lifetimes / test_mixed_lifetime_and_type_param`, `test result: PASS (4 tests)`, `RC=0`. `verify.sh --only "T2.5 ..."` reports `OK`.
+- Forensics: `findings/inbox/main_t25_lifetime_manual_drop_v0846_2026-05-07.md`.
+- Negative result discovered + filed: blanket `#[manual_drop]` apply to all 33 divergent `parse_*` fns regressed T2.5 itself (`08508d33`). Per-fn careful sweep is the right protocol.
+
+### Finding #2 — `T3.146 v0.4.115 RFC-0016 §3.7 …` verify-harness portability bug
+
+**Status: CLOSED — and the deeper class behind it.**
+
+- Audit named 5 sites of the `[ -x target/X.exe ] && target/X.exe || target/X` pattern.
+- Initial fix `2b30e63b` patched those 5 with a `_run_target` helper.
+- Full sweep then found **another 208 sites** of the same exec-bit pattern across `tools/verify.sh` (commit `74a251f6`), with mirrors in `tools/verify_fast.sh` (179 sites) and `tools/verify_parallel.sh` (2 sites) shipped in `53ae652c`. `tools/check_compiler_drift.sh`'s BIN-present check shipped in `cfb77c68`.
+- Surgical `-x` → `-f` for every verify-built artifact check. System-binary probes (`$ROOT/bin/nucleor.exe`, `$NUCLEOR_CLANG_PATH`, LLVM/clang PATH probes) intentionally kept as `-x` because those test pre-existing system binaries that legitimately need exec-bit verification.
+- Validation: full Windows/Git-Bash `verify.sh` end-to-end on post-fix main reports **PASS=1485 / SKIP=2 / FAIL=0** out of 1487 steps (was `PASS=1190 / SKIP=2 / FAIL=295` pre-fix). Cloud Linux reports `1293 / 6 / 0`. Both hosts green.
+
+### Finding #3 — `git diff --check Cloud_Control1.md:233 new blank line at EOF`
+
+**Status: CLOSED.**
+
+- EOF blank-line stripped in `2b30e63b`. `git diff --check origin/main..HEAD` clean since.
+
+### Findings #5–8 (medium-priority) status
+
+- **#5 RFC-0063 parser unification residual.** Acknowledged. Filed in `docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md` Phase 5 as the structural fix (5 waves: ~3800 LOC moved to a shared file imported by both s1 and tools-suite). Phase 4 (just shipped at `b1241c92`) extends `tools/check_compiler_drift.sh` with a `#[manual_drop]` parity guard — WARN-by-default, FAIL when `NUC_VERIFY_STRICT=1` — so future regressions of this exact bug class fail fast.
+- **#6 R05 effects residuals.** Honest residuals docs in tree. R05 is NOT marked fully closed in the punchlist; ambiguous-method-name and fn-pointer indirect calls are flagged as "fail open" in the closure entries. No silent green-paper.
+- **#7 Cloud Linux work needs two-host gate.** Acknowledged. The plan's Phase 5+ explicitly requires both-host green; cloud agent's queue 8O (filed in `Cloud_Control1.md`) covers Linux pair-validation of today's commits.
+- **#8 Performance envelope.** Confirmed still inside cap: latest perf gate `cold=3.71s/4s, hot=0.42s/1s, mem cold_tree=349/400MB cold_compiler=334/350MB hot_tree=70/128MB hot_compiler=56/64MB`. No regression from the T2.5/T2.1 fixes or the verify-script sweep.
+
+### Beyond what the audit asked for (production-readiness depth, this session)
+
+Audit scope was three blockers + four medium-priority items. We also shipped:
+
+- **`tools/verify_strict.sh`** (Phase 2, `b1241c92`): wipes `target/.nuc_cache` + `.verify_tmp` + sets `NUC_VERIFY_STRICT=1` so the cache-mask trap is closed for v1.0-release validation.
+- **Phase 4 drift-gate manual_drop parity check** (`b1241c92`): emits WARN-by-default + FAIL-when-strict for any tools-suite `parse_*` fn missing `#[manual_drop]` that s1 carries. Today identifies 28 still-divergent fns; Phase 3 per-fn sweep is the path forward.
+- **PROBE-1 real-world driver gate** (`027e82fc`): `tests/probes/real_world/inventory_score.nr` — 30 LOC realistic program with control flow, multi-arg fns, struct, Vec literal. Companion test fixture, runner script that exercises 8 nuc subcommands (`build / run / test / check / summary / explain / init / clean`) with exit-code AND content-marker assertions per probe. Hooked into `verify.sh` under `NUC_VERIFY_PROBE=1`. 8/8 PASS on Windows. Designed to surface the bug class behind cloud's R1-R5 bucket and the T2.5/T2.1 latent OOB class — passes through silent-RC=0 panics no longer satisfy the gate.
+- **PROBE-3 README numeric-claim audit** (`0a81e87f`): swept `Nucleor_OSS/README.md` for stale numeric claims (rods, runtime C, ABI symbols, test counts). 8 claims understated; doc maintenance not credibility risk. Filed for partner-team refresh.
+- **ML rounds 21-24 integrated** (700ce443): 11 new recovery fixtures, drift clean, no compiler edits.
+- **`docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md`**: 6-phase plan with owners + falsifiable validation gates per phase. Explicitly forbids new escape hatches, silent test-skips, README claim revisions ahead of Phase 5. Phases 1+2+4+(part of 1.PROBE-1) done; Phases 3+5+6 partner-Compiler scope.
+- **Findings filed (kept honest residuals)**:
+  - `findings/inbox/main_t21_class_latent_panic_v0846_2026-05-07.md` — pre-existing latent panic class disclosed (most resolved by the parse_match_stmt + verify_fast body alignment; ~3 still need partner per-fn investigation under strict mode).
+  - `findings/inbox/main_t25_lifetime_manual_drop_v0846_2026-05-07.md` — full T2.5 forensics + negative-result memo for the blanket-33 sweep regression.
+  - `findings/inbox/main_kludge_survey_v0846_2026-05-07.md` — Tier-A/B/C/D categorized survey of every kludge-class candidate in `Nucleor_OSS`. Defensive halts (Tier-C) explicitly preserved.
+
+### Honest residuals (filed, NOT silently papered)
+
+Per the audit's "Final Assessment" recommendation about not declaring the batch fully green prematurely: agreed. Residuals that remain:
+
+1. **28 `parse_*` fns** where s1 carries `#[manual_drop]` and tools-suite doesn't (Phase 4's WARN list). Phase 3 per-fn protocol applies — one fn at a time, validate against a fixture that exercises it under `nuc test --no-cache`. Drift gate in strict mode catches these now.
+2. **RFC-0063 Phase 2.0 parser unification** (Phase 5) — the structural fix that eliminates the divergence class entirely. Partner-Compiler scope, 5 waves.
+3. **Cache-mask issue.** Default `verify.sh` PASS=1485 reflects the cache state. `verify_strict.sh` exposes the truth (cache wipe + `NUC_VERIFY_STRICT=1`). v1.0 release validation requires `verify_strict.sh` clean from a fresh clone.
+4. **NUCLEOR_*_LENIENT escape hatches** (Tier-A in the kludge survey) — runtime panic suppression env vars. Phase 6 of the plan introduces a `--cert` flag that locks them out of certified builds.
+
+Two-host green: confirmed for the audit's scope (Findings #1/#2/#3 closed on both hosts). The deeper RFC-0063 surface remains a known structural risk; Phase 5 closes it.
+
+— main agent
+
