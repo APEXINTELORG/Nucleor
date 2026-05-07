@@ -39,7 +39,7 @@ parse_stmt,3,3,241,22,1,0,SIG_MATCH_BODY_DIFFERS
 parse_stmts,3,3,7,7,1,1,IDENTICAL
 parse_fn_decl,3,3,158,40,1,0,SIG_MATCH_BODY_DIFFERS
 parse_extern_fn,3,3,47,21,1,0,SIG_MATCH_BODY_DIFFERS
-parse_struct_decl,3,3,163,30,1,0,SIG_MATCH_BODY_DIFFERS
+parse_struct_decl,3,3,163,34,1,0,SIG_MATCH_BODY_DIFFERS
 parse_struct_init,3,3,56,19,1,0,SIG_MATCH_BODY_DIFFERS
 parse_enum_decl,3,3,91,48,1,0,SIG_MATCH_BODY_DIFFERS
 parse_trait_decl,3,3,154,48,1,0,SIG_MATCH_BODY_DIFFERS
