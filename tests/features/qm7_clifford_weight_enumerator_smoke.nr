@@ -5,6 +5,18 @@
 // consistency counts over the explicit generator set below; they are not
 // marketed as external published enumerator parity.
 //
+// Citation chain (v0845): the Surface-17 stabilizer set used here is the
+// SAME set carried by qm7_clifford_surface_d3_smoke.nr, whose generators
+// are taken from Tomita and Svore, "Low-distance surface codes under
+// realistic quantum noise," Phys. Rev. A 90, 062320 (2014), Table II.
+// The weight-enumerator counts asserted by check_surface17_stabilizer_counts
+// and check_surface17_logical_counts are exhaustive deterministic
+// consequences of that cited generator set, computed by
+// cliff_stabilizer_weight_count / cliff_logical_weight_count over all 2^k
+// stabilizer / logical-coset elements respectively. No separate external
+// published enumerator value is asserted here; the citation is for the
+// generator set, and the runtime math is the source of truth for the counts.
+//
 // Pauli Vec layout is [x0, z0, x1, z1, ...]. Expected rc=0.
 
 import "stdlib/rods/clifford.nr"
