@@ -9051,8 +9051,17 @@ fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
     // thread stack to 16 MiB so deep recursion in the compiler works.
-    if host_is_windows() == 1 { return " -Wl,/STACK:16777216"; };
-    return " -Wl,-z,stacksize=16777216";
+    //
+    // POSIX additions:
+    //   -Wl,--build-id=none keeps two builds of byte-identical IR
+    //   byte-identical at the EXE level (R5: by default GNU ld embeds a
+    //   per-link build-id that breaks RFC-NRT-003 verify-reproducible
+    //   on Linux).
+    //   -lm / -lpthread are needed because the C runtime
+    //   (stdlib/runtime/nucleor_llvm_rt.c) calls libm (sqrt/log/exp/...)
+    //   and libpthread on the POSIX side.
+    if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
+    return " -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread";
 }
 
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
@@ -12254,7 +12263,14 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
     file_write_string(temp_src, harness_source);
     let rc: i64 = compile_file_mode(temp_src, out_name, 1, use_cache, time_passes, 1);
     if rc != 0 { return rc; };
-    let exe: str = sanitize(str_concat("target\\", str_concat(out_name, ".exe")));
+    // Platform-aware exe path. Pre-fix this hardcoded `target\name.exe`
+    // (Windows backslash + .exe), so on Linux `system("target\name.exe")`
+    // sh-collapsed the backslash and looked up `targetname.exe` (not
+    // found). Mirror the cross-platform path-construction used by
+    // s1::run/cli (see nucleor_s1_compiler.nr "v0.8.323 platform-aware
+    // exe path").
+    let exe_dir_t: str = if host_is_windows() == 1 { "target\\" } else { "./target/" };
+    let exe: str = str_concat(exe_dir_t, str_concat(out_name, host_exe_suffix()));
     if isolation_process == 0 {
         // Default: single process, all tests inline.
         return system(exe);
@@ -12291,8 +12307,11 @@ fn run_bench_command(src_path: str, out_name: str, use_cache: i64, time_passes: 
     };
     let rc: i64 = compile_file_mode(src_path, out_name, 1, use_cache, time_passes, 1);
     if rc != 0 { return rc; };
-    let exe: str = sanitize(str_concat("target\\", str_concat(out_name, ".exe")));
-    let run_cmd: str = str_concat("\"", str_concat(exe, "\" >NUL 2>&1"));
+    // Platform-aware exe path + null redirect (mirror of run_test_command).
+    let exe_dir_b: str = if host_is_windows() == 1 { "target\\" } else { "./target/" };
+    let exe: str = str_concat(exe_dir_b, str_concat(out_name, host_exe_suffix()));
+    let null_b: str = if host_is_windows() == 1 { ">NUL 2>&1" } else { ">/dev/null 2>&1" };
+    let run_cmd: str = str_concat("\"", str_concat(exe, str_concat("\" ", null_b)));
     let mut wi: i64 = 0;
     while wi < warmup {
         let warm_rc: i64 = system(run_cmd);
@@ -17865,16 +17884,14 @@ fn run_clean_command(argc: i64) -> i64 {
     };
     if cache_only == 1 {
         print(str_concat("clean: removing compilation cache in ", cwd));
-        system("rmdir /S /Q target\\.nuc_cache_v2 2>nul");
-        system("rmdir /S /Q .nuc_cache 2>nul");
+        host_remove_dir_quiet(str_concat("target", str_concat(host_target_path_sep(), ".nuc_cache_v2")));
+        host_remove_dir_quiet(".nuc_cache");
         print("clean: done");
         return 0;
     };
     print(str_concat("clean: removing build artifacts in ", cwd));
-    // Windows: `rmdir /S /Q` does the recursive delete; ignore errors so we
-    // can still try the other path if one is missing.
-    system("rmdir /S /Q target 2>nul");
-    system("rmdir /S /Q .nuc_cache 2>nul");
+    host_remove_dir_quiet("target");
+    host_remove_dir_quiet(".nuc_cache");
     print("clean: done");
     return 0;
 }
