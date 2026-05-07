@@ -305,3 +305,28 @@ The PROBE-1 / PROBE-3 partner queues filed earlier today have not been picked up
 
 This also unblocks the CLOUD-8O queue's `verify_strict.sh` half — that wrapper now exercises PROBE-1 in cache-cold strict mode, which is where production-readiness regressions surface.
 
+## [2026-05-07 21:31 UTC] Queue Cloud-PROBE-1L — BLOCKED on partner fixtures
+Branch: claude/verify-round-3-tests-RnTlO (rebased onto origin/main @ fccef882)
+Base: origin/main @ fccef88275a691db7ca4249dccb7dd7f58c305c4
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1 (pwsh/ssh-keygen missing — not exercised)
+Files: 1 (findings/inbox/cloud_claude_probe1L_blocker_v0846_2026-05-07.md)
+Validation: BLOCKER — Partner-team prerequisites are not on `origin/main @ fccef882`. (1) `tests/probes/` directory does not exist (`bfs: error: tests/probes: No such file or directory`). (2) No `tests/probes/real_world/<NN>_<flow>.nr` drivers committed. (3) `tools/verify.sh` does not reference `NUC_VERIFY_PROBE` — `grep -rE "NUC_VERIFY_PROBE" tools/` returns 0 matches. The Cloud_Control1.md PROBE-1 queue (line 235) explicitly says "Partner team is building" the drivers — that build has not landed. Cloud is **ready to start PROBE-1L** the moment the partner ship lands; this is a sequencing dependency, not a Linux-side issue.
+Report: findings/inbox/cloud_claude_probe1L_blocker_v0846_2026-05-07.md
+Residuals: Re-fire PROBE-1L on the next loop tick after partner team commits `tests/probes/real_world/<NN>_<flow>.nr` + the `NUC_VERIFY_PROBE=1` gate to `origin/main`.
+
+## [2026-05-07 21:31 UTC] Queue Cloud-PROBE-3L — DONE
+Branch: claude/verify-round-3-tests-RnTlO @ <committed below> (rebased onto origin/main @ fccef882)
+Base: origin/main @ fccef88275a691db7ca4249dccb7dd7f58c305c4
+Host: Linux vm 6.18.5 (same as PROBE-1L)
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 + 9 logs (findings/inbox/cloud_claude_evidence_audit_v0846_2026-05-07.md; findings/inbox/probe3L_artifacts/{8A_check_perf,8A_verify_only,8B_release_doctor,8K_runs,8M_audit,8M_drift,8N_diff,8C_8J_full_verify}.log + bootstrap/build sub-logs)
+Validation: COMPLETE — re-reproduced every "Validation: PASS" claim from 8A through 8N on a clean Linux host with bin/nucleor freshly bootstrapped from current main's seed (`75968e63a12a41dc3318f098d4a08d5c90c89ea53336cf14ac4be7dc6394b53b`). All Round-1 / Round-2 / Round-3 closures reproduce: R1-R10 buckets remain closed, 8J's `_aux.nr` skip is in place, 8L's path_utils Linux gate is present, 8M's drift gate is green (180/30/131/19 unchanged with s1=854→855 unique-name drift), 8N's R06 hash transcript byte-matches Windows (diff exit 0).
+
+**HOWEVER — full verify on `fccef882` shows PASS=1428 / SKIP=1 / FAIL=58 across 1487 steps.** All 58 failures are `tests/features/ml_*` fixtures crashing with SIGSEGV or `PANIC: index out of bounds: the len is <NEGATIVE> but the index is 0` (different garbage value per run, classic uninitialized-memory signature). Per integrator's `findings/inbox/main_t21_class_latent_panic_v0846_2026-05-07.md`, this is a **pre-existing latent panic class** — bisect against `35cfb465` (pre-T2.5) reproduces. The integrator's recent `PASS=1485 SKIP=2 FAIL=0` claim from commit `74a251f6` is "accurate for the state the cache is in; it is NOT accurate for a fresh clone" (his own words in the t21 finding). Today's fresh-clone Linux run is exactly the unmasked case.
+
+**Mechanical root cause:** `stdlib/runtime/nucleor_llvm_rt.c:2358-2363` defines NVec with 32-bit `int len; int cap;` fields. The panic format `(long long)v->len` sign-extends garbage 32-bit memory like `0xCAA22773` to `-893742413`. Either the struct ABI for TensorF64/TensorI64 (containing inline `Vec<f64>`/`Vec<i64>`) is misaligned, or the Vec lifecycle through struct-return-by-value leaves the inner Vec's length field reading freed/uninitialized memory. **NOT introduced by my Round-3 work** (8D-8N) and **NOT by recent T2.5 manual_drop sweeps** (per integrator's own bisect). Out of integrator scope; partner-Compiler team follow-up needed.
+Report: findings/inbox/cloud_claude_evidence_audit_v0846_2026-05-07.md
+Residuals: 58 ML fixtures fail the verify gate on a fresh Linux clone today. The buckets I closed are intact (zero non-ML failures). Production-readiness messaging needs to either (a) add `--no-cache` to the affected verify steps (or a `tools/verify_no_cache.sh` driver) so the latent class surfaces in CI, (b) wire `NUCLEOR_VEC_OOB` to print caller fn name on panic per t21's recommendation, and (c) drive the NVec / struct-return-with-Vec ABI bisect to closure. Cloud agent honored the PROBE-3L charter ("if a previously-claimed PASS no longer reproduces, the fix is to file the regression, NOT silently re-paper") — surfaced honestly, not papered over.
+
+
