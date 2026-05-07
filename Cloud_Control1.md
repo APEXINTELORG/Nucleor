@@ -448,3 +448,69 @@ Residuals: 56 ML fixtures fail default verify on a fresh Linux clone; 50 fail st
 
 Cloud-PROBE-1L-RERUN at `42bfe6d7` is SUPERSEDED by this queue. The default-flip branch IS the validation target — running PROBE-1L-RERUN against `42bfe6d7` would be wasted work since main is about to move.
 
+
+## [2026-05-07 ~20:30 UTC] AUTHORIZED — Cloud-DFLIP-PATCH: extend auto_drop_mark_constructor_handoffs for transitive wrapper handoff
+
+**Source:** Cloud's DFLIP-VALIDATE finding (`findings/inbox/cloud_claude_dflip_handoff_plan_v0846_2026-05-07.md`) + integrator confirmation that this is a single host-agnostic compiler fix.
+
+**Authorization:** Cloud-DFLIP-PATCH charter — explicit *patch* scope (supersedes the validation-only DFLIP-VALIDATE charter). Cloud writes the s1 patch + iterates against Linux validation. Same fix closes Windows class as side effect (Windows just hides the bug via MSVC allocator pattern; Linux glibc surfaces it; the fix is at IR-emit time so both hosts get it from one rebuild).
+
+**Scope:** patch `compiler/nucleor_s1_compiler.nr::auto_drop_mark_constructor_handoffs` (line 29045) to recognize the **wrapper-fn pattern** in addition to the existing leaf-constructor pattern.
+
+**Bug shape (cloud's own diagnosis, restated):**
+
+Leaf pattern — currently RECOGNIZED:
+```nucleor
+fn tensor_f64_from_vec(rows, cols, data: Vec<f64>) -> TensorF64 {
+    return TensorF64 { ..., data: data };  // ← handoff RECOGNIZED — auto-drop skipped on `data`
+}
+```
+
+Wrapper pattern — currently MISSED:
+```nucleor
+fn nn_gelu_tanh_f64(input: &TensorF64) -> TensorF64 {
+    let mut data: Vec<f64> = Vec::new();
+    ... data.push(...) ...
+    return tensor_f64_from_vec(rows, cols, data);  // ← handoff NOT recognized — auto-drop fires on `data` after the call
+}
+```
+
+**Required inference rule (from cloud's plan):**
+
+For a fn body whose return expression is a `CALL(args)`:
+- If `CALL`'s return type contains a `Vec<T>` field, AND
+- `args` includes a local `Vec<T>` value `v` passed by value, AND
+- The analysis can show `v` ends up in the returned struct's `Vec<T>` field,
+- Then mark `v` as handed-off (skip auto-drop).
+
+This is transitive handoff — similar shape to existing `#[manual_drop]` propagation but auto-discovered through the constructor call chain.
+
+**Iteration loop (cloud's own validation playbook):**
+
+1. Cloud writes a candidate patch on `fix/default-flip-experiment-v0846` (currently at `bf097e07`).
+2. `bash tools/bootstrap_linux.sh` — confirm self-host fixed-point holds. New md5 OK if shifted; capture it.
+3. Build `nucleor_tools` from current source.
+4. `NUC_VERIFY_PROBE=1 bash tools/verify.sh > /tmp/v_default.log` — ~10 min.
+5. `bash tools/verify_strict.sh > /tmp/v_strict.log` — ~15 min.
+6. Per-fixture diff vs the prior 80-list — name what closed, what survived.
+7. If FAIL=0 in both modes: signal "ready to fast-forward"; integrator merges.
+8. If non-zero: name the surviving fixtures + their wrapper-shape so the rule can be extended for second-order cases (e.g. nested constructor calls, conditional returns, multi-arg moves).
+
+**Minimal repro to drive against** (per cloud's plan): `ml_recover_sigmoid_f64` from the common-23 list. Fails in both default-mode and strict-mode runs — most stable repro.
+
+**Acceptance:**
+- `target/_pv_features_ml_recover_sigmoid_f64` runs RC=0 with real numeric output (post-fix).
+- All 80 fixtures in the original DFLIP-VALIDATE Linux fail-list collapse to 0.
+- Self-host fixed-point holds (md5 may shift; that's OK — capture new stamp).
+- T2.5 + T2.1 + drift + perf + PROBE-1 all stay green.
+
+**Time budget per cloud's estimate:** 3-6 iterations × ~35 min validation per = ~2-3.5 hours. Less if the rule generalizes on iteration 1-2.
+
+**Honesty rule:** if the wrapper-pattern fix introduces NEW failures elsewhere (parser fns, runtime helpers, anywhere outside ml_*), STOP — that's a second-order issue with the inference rule. File the regression specifically with the calling fn name + the shape that broke. Don't paper over.
+
+**Production-readiness framing:** this is the proper structural fix. No band-aid annotations on the wrapper layer if this lands clean. ml-retrofit-1b becomes obsolete (revert per its own triage notes). Default-flip + transitive-handoff = host-agnostic correctness for the entire move-into-struct class.
+
+**ml-retrofit-1b status during this work:** stays pushed but unmerged. If cloud's patch lands clean, ml-retrofit-1b reverts. If cloud's patch stalls or regresses, ml-retrofit-1b is the safety-net merge.
+
+**Done = `bash tools/verify.sh` + `bash tools/verify_strict.sh` both report PASS=1487/SKIP=2/FAIL=0 (or close — allow ±1 SKIP for Windows-only fixtures) on a fresh-clone Linux runner. Push the patched experiment branch; integrator fast-forwards to main.**
+
