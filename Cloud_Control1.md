@@ -173,3 +173,44 @@ Validation: COMPLETE — `bash tools/verify.sh` ran end-to-end (1273 steps in ~1
 Report: findings/inbox/cloud_claude_lane8_8C_v0845_2026-05-07.md
 Residuals (bucket totals — full per-step matrix in the report): Windows-only fixture: 1 (tests/runtime/path_utils — asserts `C:/foo` is absolute). Missing Linux prerequisite: 0 (clang/cargo/bin-nucleor/bin-nucleor-tools all present; doctor confirmed). Real compiler/runtime bug: 29 across 5 root causes — R1 `nuc test` link doesn't pass `-lm` (21 failures, dominant), R2 POSIX `#else` of `stdlib/runtime/nucleor_llvm_rt.c` missing 9 RNG bridges (4 failures), R3 `nuc init` no `mkdir -p src/` (2 failures), R4 `nuc clean --cache` doesn't remove `target/.nuc_cache_v2/` (1 failure), R5 Linux ELF build-id varies — needs `-Wl,--build-id=none` (2 failures). Performance-only drift: 0 (T1.8 perf gate PASSED in 20.27s under auto-selected Linux baseline). Side-effect: a Windows-only fixture leaked a `nul` file via `cmd.exe`-style `2>nul` redirection — removed manually; Bucket = Windows-only fixture leak. Per the 8C ground rule "do not patch unrelated failures unless small + deterministic", no fixes were attempted in this branch; the report enumerates 7 candidate follow-on branches under the existing handoff naming convention.
 
+## [2026-05-07 13:21 UTC] Queue 8J — DONE
+Branch: claude/verify-round-3-tests-RnTlO @ 82f183d4 (3-line verify.sh fix on top of post-rebase main)
+Base: origin/main @ 21135f09c78f10f4d898a07e7001e27bcd4d3824 (post-2ceb91f1 + c1eea2e + 21135f09)
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1 pwsh=missing ssh-keygen=missing (not exercised by verify)
+Files: 2 (tools/verify.sh — 3-line `_aux.nr|import_dedupe_lib.nr` skip in `err_tests_have_expect_smoke`; findings/inbox/cloud_claude_lane8_8J_v0845_2026-05-07.md). Bootstrap was needed first: fresh clone shipped only Windows `bin/nucleor.exe`, so ran `bash tools/bootstrap_linux.sh` (stage-1 + stage-2 fixed-point sha256=4169548… matched seed) and built `bin/nucleor_tools` from `compiler/nucleor_tools_suite.nr` before verify could run.
+Validation: PASS — full `bash tools/verify.sh` end-to-end on this Linux runner: pre-fix 1292 PASS / 6 SKIP / 1 FAIL (the single FAIL was `tests/err/*.nr have EXPECT headers` flagging 5 `_aux.nr` Lane-3 cross-module fixtures); post-fix 1293 PASS / 6 SKIP / 0 FAIL across all 1299 steps (vs 8C baseline 1237/6/30 over 1273 steps). All 5 R-buckets from 8C are now empty: R1 libm, R2 RNG bridges, R3 mkdir, R4 cache rm, R5 build-id all CLEARED on main via the c1eea2e cherry-pick. Path-utils Windows-only fixture (R10) also CLEARED on main (8L confirmation). Drift gate (`tools/check_compiler_drift.sh`) green; bootstrap fixed-point T1.7+T1.8 green. Verify logs: `findings/inbox/8J_artifacts/verify_full_v2.log` (post-bootstrap, pre-fix) and `findings/inbox/8J_artifacts/verify_full_v3_post_8M.log` (post-fix and post-8M Wave 11 rebase).
+Report: findings/inbox/cloud_claude_lane8_8J_v0845_2026-05-07.md
+Residuals: Pre-existing `WARN: parser fn '...' diverges` lines from drift remain (RFC-0063 Phase 2.0 parser unification, out of Round-3 scope). 26 new verify steps appeared between 8C and 8J (1273→1299) from the post-8C Lane 2 effects, Lane 3 RT, partner Lane 6, and #[deadline] integrations; all green.
+
+## [2026-05-07 13:21 UTC] Queue 8K — DONE
+Branch: claude/verify-round-3-tests-RnTlO (no code patch — investigation report only)
+Base: origin/main @ 21135f09 (same as 8J)
+Host: Linux vm 6.18.5 (same as 8J)
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 (findings/inbox/cloud_claude_lane8_8K_v0845_2026-05-07.md)
+Validation: COMPLETE — `bin/nucleor build tests/features/t4_strict_time_helper_rtypes.nr -o t4_time` exits 0; `target/t4_time` returns rc=0 on 5 consecutive runs. Confirms partner's report. Classification: (c) host-specific. The fixture's `mono_ns > 0 && mono_us > 0 && mono_ms > 0` assertion (line 33, the rc=6 branch) holds on POSIX `clock_gettime(CLOCK_MONOTONIC, ...)` which is strictly positive. Windows rc=6 is likely QPC warm-up edge — Windows-side investigation, not a Linux patch. As part of 8J's full-verify run the same fixture also PASSED in the parallel-fixtures bucket.
+Report: findings/inbox/cloud_claude_lane8_8K_v0845_2026-05-07.md
+Residuals: If the rc=6 still reproduces on Windows under the verify gate, the smallest correct fix is to relax the strict-positivity assertion to `>= 0` for the monotonic helpers (a zero from QPC at t=0 is a valid Windows return). Out of scope for the Linux side.
+
+## [2026-05-07 13:21 UTC] Queue 8L — DONE (already on main)
+Branch: claude/verify-round-3-tests-RnTlO (no code patch — verification only)
+Base: origin/main @ 21135f09 (same as 8J)
+Host: Linux vm 6.18.5 (same as 8J)
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 1 (findings/inbox/cloud_claude_lane8_8L_v0845_2026-05-07.md)
+Validation: PASS — `tests/runtime/path_utils.nr` lines 22-28 already gate the Windows-only `path_is_absolute("C:/foo") == 1` assertion via `path_separator() == "\\"` (Wave-A R10 fix in c1eea2e). 8J's full-verify run shows the fixture passing without cascade in the parallel-fixtures bucket. No further Linux work needed.
+Report: findings/inbox/cloud_claude_lane8_8L_v0845_2026-05-07.md
+Residuals: none.
+
+## [2026-05-07 13:21 UTC] Queue 8M — DONE
+Branch: claude/verify-round-3-tests-RnTlO @ 675f18cb (Wave 11 rebase commit)
+Base: origin/main @ 21135f09c78f10f4d898a07e7001e27bcd4d3824
+Partner source: fix/partner-rfc0063-tools-suite-wave11-v0845 @ 49576c98 (based on 5890c84, pre-Wave-10)
+Host: Linux vm 6.18.5 (same as 8J)
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 7 (compiler/nucleor_tools_suite.nr — 13 helpers deleted; compiler/nucleor_rfc0063_shared_wave1.nr — 13 #[manual_drop] helpers appended after Wave 10 batch; docs/rfcs/RFC-0063-production-readiness-roadmap.md — Phase 2.0.3a/b/c rows merged to credit Wave 10 + Wave 11; docs/rfcs/v1_PUNCHLIST.md — status badge to WAVE 11 PARTIAL DONE + counts updated; tools/audit_dup_fns_report.csv — regenerated by target/audit_dup_fns; findings/inbox/partner_lane1_1B_v0845_2026-05-07.md — verbatim from partner; findings/inbox/cloud_claude_lane8_8M_v0845_2026-05-07.md)
+Validation: PASS — `bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools` EXIT=0; `bash tools/check_compiler_drift.sh` all OK including `audit_dup_fns_report.csv` is up to date; full `bash tools/verify.sh` end-to-end PASS=1293 / SKIP=6 / FAIL=0 across 1299 steps. Audit CSV summary post-rebase: 180 duplicates / 30 IDENTICAL / 131 SIG_MATCH_BODY_DIFFERS / 19 SIG_DIFFERS.
+Report: findings/inbox/cloud_claude_lane8_8M_v0845_2026-05-07.md
+Residuals: NOT a structural blocker. Wave 10 (HEAD, 18 helpers retired) and Wave 11 (partner, 13 helpers retired) target DISJOINT sets — empty intersection — so the cherry-pick conflict was textual structure, not overlapping deletion of legitimate retirement work. The +3 SIG_DIFFERS delta vs the partner's pre-rebase audit (16→19) reflects the 9-fn s1 growth from Lane 2/3/partner Round-2 integrations between `5890c84` and `21135f09`; 3 of those new s1 fns happen to share names with tools-suite copies whose signatures don't exactly match. Tracked under RFC-0063 Phase 2.0.3d, out of 8M scope.
+
