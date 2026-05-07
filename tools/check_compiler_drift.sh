@@ -187,6 +187,95 @@ check_parser_fn_drift parse_match_stmt
 check_parser_fn_drift parse_stmt
 check_parser_fn_drift parse_expr
 
+# 2026-05-07: Phase 4 of v1_PRODUCTION_READINESS_PLAN_v0846 — guard against
+# silent regression of the s1 ↔ tools-suite parser-fn `#[manual_drop]`
+# parity. Without this check, a future edit can re-introduce the latent
+# dangling-Vec bug class that drove T2.5 (lifetime params) and T2.1
+# (range patterns / 3+ match arms) by removing #[manual_drop] from a
+# tools-suite parse fn while s1's still carries it (or by adding a new
+# parse fn to tools-suite that lacks the annotation).
+#
+# If s1 carries #[manual_drop] on a parse_X fn and tools-suite's parse_X
+# does NOT, FAIL fast. Surgical fix: copy the annotation. The annotation
+# itself is a real Nucleor language attribute (mirrors s1's lifetime
+# discipline), not a kludge.
+extract_manual_drop_parse_fns() {
+    # $1 = file. Print every parse_* fn name where the line above is
+    # `#[manual_drop]`. Output one fn-name per line, sorted unique.
+    awk '
+        /^#\[manual_drop\][ \t]*$/ { md = 1; next }
+        /^fn parse_[A-Za-z0-9_]+\(/ {
+            if (md == 1) {
+                # Extract just the fn name between "fn " and "(".
+                if (match($0, /^fn (parse_[A-Za-z0-9_]+)/, m)) {
+                    print m[1]
+                } else {
+                    # POSIX awk fallback (no 3-arg match): split + index.
+                    s = $0
+                    p = index(s, "fn ")
+                    if (p > 0) {
+                        rest = substr(s, p + 3)
+                        q = index(rest, "(")
+                        if (q > 0) {
+                            print substr(rest, 1, q - 1)
+                        }
+                    }
+                }
+            }
+            md = 0
+            next
+        }
+        /^[^[:space:]]/ { md = 0 }
+    ' "$1" | sort -u
+}
+
+s1_md_fns=$(extract_manual_drop_parse_fns "$S1")
+tools_md_fns=$(extract_manual_drop_parse_fns "$TOOLS")
+md_drift_count=0
+echo "$s1_md_fns" > "$TMP/s1_manual_drop_parse_fns.txt"
+echo "$tools_md_fns" > "$TMP/tools_manual_drop_parse_fns.txt"
+# Find s1-only entries: parse fns where s1 has #[manual_drop] but tools-suite
+# does NOT. These are the ACTIVE risk class. (tools-suite-only is unusual
+# but harmless; we only flag the s1-has-but-tools-suite-missing direction.)
+# WARN-by-default vs FAIL-strict: today's main has ~28 known divergent
+# parse fns. Listing each would dominate the drift output. WARN mode
+# emits a single summary line with a count; STRICT mode (set
+# NUC_VERIFY_STRICT=1, or invoked via tools/verify_strict.sh) emits the
+# full per-fn list AND fails the gate. Phase 5 (RFC-0063 Phase 2.0
+# parser unification) collapses this entire residual class to zero.
+strict="${NUC_VERIFY_STRICT:-0}"
+md_missing_list=""
+while IFS= read -r fn; do
+    [ -z "$fn" ] && continue
+    if ! grep -q "^fn $fn(" "$TOOLS"; then continue; fi
+    if ! echo "$tools_md_fns" | grep -qx "$fn"; then
+        md_missing_list="${md_missing_list}${fn}\n"
+        md_drift_count=$((md_drift_count + 1))
+    fi
+done <<< "$s1_md_fns"
+
+if [ "$md_drift_count" -gt 0 ]; then
+    if [ "$strict" = "1" ]; then
+        echo "FAIL: $md_drift_count tools-suite parse fn(s) missing #[manual_drop] (s1 has it):"
+        printf "$md_missing_list" | sed 's/^/      - /'
+        echo ""
+        echo "      Per Phase 4 of docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md:"
+        echo "      tools-suite parse_* fns must mirror s1's #[manual_drop] attribute pattern."
+        echo "      Each fn above carries a latent dangling-Vec / Vec OOB panic class on"
+        echo "      tools-suite-routed commands (nuc test / bench / check / audit / policy)."
+        echo "      Fix per fn: prepend #[manual_drop] to compiler/nucleor_tools_suite.nr::<fn>"
+        echo "      and validate with bin/nucleor.exe test on a fixture that exercises it"
+        echo "      under nuc test --no-cache. Phase 3's per-fn protocol applies."
+        echo "      Phase 5 (RFC-0063 Phase 2.0 parser unification) eliminates this class."
+        exit 1
+    else
+        echo "WARN: $md_drift_count tools-suite parse fn(s) missing #[manual_drop] (s1 has it)."
+        echo "      Set NUC_VERIFY_STRICT=1 (or run tools/verify_strict.sh) for the full list"
+        echo "      and a hard FAIL. Tracked under Phase 4 of"
+        echo "      docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md."
+    fi
+fi
+
 if [ "$drift_count" -gt 0 ]; then
     echo ""
     echo "FAIL: $drift_count total entries drifted."
