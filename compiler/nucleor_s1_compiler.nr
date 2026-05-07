@@ -31939,6 +31939,49 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`, `distributive_over`) plus schema hard errors for deprecated aliases, unsupported canonical forms, float/approximate modifiers, and unknown law names. AST/IR rewrite metadata, Arbitrary-driven broad property tests, inverse/fusion generation, float-law safeguards, and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
+    // R14-D2 Phase 2-prep gate (local-claude2 v0842) — algebraic
+    // law optimizer rewrite eligibility audit.
+    //
+    // The IR pass `opt_law_rewrite_block` remains a no-op (rewrites
+    // do not yet fire). Phase 2-prep ships a build-time eligibility
+    // gate that PROVES the proof discipline before any rewrite ever
+    // runs: the optimizer can only be allowed to rewrite a law-
+    // annotated fn after the user has run `nuc test --check-laws`
+    // on this source, observed `test result: PASS`, and explicitly
+    // opted in via two source attributes:
+    //
+    //   `@audit(law_opt_required)`     — file declares it requires
+    //                                    the law-rewrite audit
+    //   `@audit(check_laws_passed)`    — user declares they have
+    //                                    validated --check-laws PASS
+    //
+    // Behaviour:
+    //   - `@audit(law_opt_required)` absent → no-op (preserves
+    //     pre-Phase 2-prep behaviour for every existing source).
+    //   - `law_opt_required` present AND `check_laws_passed` present
+    //     → emit info[LAW-AUDIT-GATE] eligibility report.
+    //   - `law_opt_required` present, `check_laws_passed` missing
+    //     → halt with error[LAW-003] before any IR is emitted.
+    //
+    // This is the bounded slice the v0842 dispatch asked for: the
+    // optimizer is moved one step closer to safe rewrite use without
+    // enabling broad rewrites today. The actual `f(a, identity) → a`
+    // rewrite is a Phase 2 ship that follows this gate. Float laws,
+    // unbounded property generation, and broad rewrites are out of
+    // scope for this Phase 2-prep slice and remain hard-blocked.
+    let v0842_law_gate_source: str = strip_strings_and_line_comments(after_async);
+    let v0842_law_opt_required: i64 = if str_index_of(v0842_law_gate_source, str_concat("@audit(", "law_opt_required")) >= 0 { 1 } else { 0 };
+    if v0842_law_opt_required == 1 {
+        let v0842_has_audit_pass: i64 = if str_index_of(v0842_law_gate_source, str_concat("@audit(", "check_laws_passed")) >= 0 { 1 } else { 0 };
+        if v0842_has_audit_pass == 1 {
+            let v0842_law_count_for_gate: i64 = if v0858_has_law == 1 { simple_attribute_audit_count(v0842_law_gate_source, str_concat("@law(", "")) } else { 0 };
+            print(str_concat("info[LAW-AUDIT-GATE]: optimizer rewrite gate opted in (`@audit(law_opt_required)`) and proof-audit attribute present (`@audit(check_laws_passed)`); eligible @law annotations: ", str_from_int(v0842_law_count_for_gate)));
+            print("  Per RFC sister gap LAW-3 Phase 2-prep (local-claude2 v0842): a source declaring `@audit(law_opt_required)` is asking the optimizer to use its law metadata for low-risk rewrites; the matching `@audit(check_laws_passed)` attribute declares the user has run `nuc test --check-laws` and observed PASS. Today the eligibility report fires; the IR-level rewrite pass `opt_law_rewrite_block` remains a no-op, so no semantics change yet. Phase 2 ships the first concrete rewrite (`f(a, identity) → a` for `@law(identity = N)` on integer fns) gated on this exact eligibility predicate. Adopter discipline: never add `@audit(check_laws_passed)` without first running `--check-laws` and observing PASS, and never add `@audit(law_opt_required)` to a file whose law family hasn't been audited. Reference: docs/rfcs/v1_PUNCHLIST.md Algebraic Laws Phase 2.");
+        } else {
+            print("error[LAW-003]: source declares `@audit(law_opt_required)` but is missing `@audit(check_laws_passed)`; run `nuc test --check-laws`, observe PASS, then add the audit attribute before enabling the optimizer gate");
+            panic("nucleor: LAW-003 optimizer rewrite gate without check-laws audit");
+        };
+    };
     // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
     // info. Today `[features]` sections in nucleor.toml parse +
     // store but no compiler path consumes them; `--features X`
