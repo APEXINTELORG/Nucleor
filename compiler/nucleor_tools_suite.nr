@@ -54,17 +54,6 @@ fn str_to_int(s: str) -> i64 {
     if neg == 1 { return 0 - result; };
     return result;
 }
-fn str_is_digits(s: str) -> i64 {
-    let slen: i64 = str_len(s);
-    if slen == 0 { return 0; };
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(s, i);
-        if c < 48 || c > 57 { return 0; };
-        i = i + 1;
-    };
-    return 1;
-}
 
 // =====================================================
 // LEXER (from T29, unchanged)
@@ -72,9 +61,6 @@ fn str_is_digits(s: str) -> i64 {
 fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
     let mut t: Vec<i32> = Vec::new(); t.push(tt); t.push(v); t.push(p); return t;
 }
-fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
-fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
-fn is_digit(c: i64) -> i64 { if c >= 48 && c <= 57 { return 1; }; return 0; }
 fn lex(src: str) -> Vec<i32> {
     let mut tokens: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
@@ -238,11 +224,6 @@ fn lex(src: str) -> Vec<i32> {
     tokens.push(tok_new(0, 0, slen));
     return tokens;
 }
-fn tok_at(tokens: Vec<i32>, idx: i64) -> Vec<i32> {
-    if idx >= vec_len(tokens) { return tok_new(0, 0, 0); }; return vec_get(tokens, idx);
-}
-fn tok_type_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_type(tok_at(tokens, idx)); }
-fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens, idx)); }
 
 // =====================================================
 // PARSER (from T29, unchanged)
@@ -252,9 +233,6 @@ extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
 extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
 extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
 
-fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
-fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
-fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
 fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); return node_add(pool, n); }
 fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
 fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
@@ -265,14 +243,8 @@ fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
-fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
-fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { return nuc_list_get(pool, lid, idx); }
 fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::new(); r.push(p); r.push(v); return r; }
-fn pr_pos(r: Vec<i32>) -> i64 { return vec_get(r, 0); }
-fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
 
-fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
-fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
         // v0.4.82: mirror s1's v0.4.78 NR020 close — was print +
@@ -10303,10 +10275,6 @@ fn explain_error_render(code: str, json_mode: i64) -> str {
     };
     return sb_to_str(sb2);
 }
-fn resolve_source(src: str, base_dir: str, imported: Vec<i32>) -> str {
-    let mut module_records: Vec<i32> = Vec::new();
-    return resolve_source_with_records(src, base_dir, imported, module_records);
-}
 fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let manifest_path: str = module_graph_manifest_path(src_path);
@@ -12662,24 +12630,6 @@ fn close_is_arg_position_char(c: i64) -> i64 {
     return 0;
 }
 
-fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
-    let mut sb: i64 = sb_new();
-    sb_append(sb, "fn ");
-    sb_append(sb, name);
-    sb_append(sb, "(");
-    let na: i64 = vec_len(args);
-    let mut i: i64 = 0;
-    while i < na {
-        if i > 0 { sb_append(sb, ", "); };
-        sb_append(sb, vec_get(args, i));
-        sb_append(sb, ": i64");
-        i = i + 1;
-    };
-    sb_append(sb, ") -> i64 {\n    return ");
-    sb_append(sb, body_text);
-    sb_append(sb, ";\n}\n\n");
-    return sb_to_str(sb);
-}
 
 fn expand_closures(src: str) -> str {
     return src;
