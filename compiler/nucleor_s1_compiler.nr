@@ -30645,6 +30645,20 @@ fn host_remove_file_quiet(path: str) -> i64 {
 }
 
 #[manual_drop]
+fn host_remove_dir_quiet(path: str) -> i64 {
+    // Recursive directory remove that respects the host shell. Pre-fix
+    // the clean command shelled out to `rmdir /S /Q ... 2>nul` on every
+    // platform: on Linux that left target/.nuc_cache_v2/ untouched
+    // (R4 in the 8C transcript) and leaked a literal file named `nul`
+    // into the working directory because `2>nul` is cmd.exe-only
+    // syntax.
+    if host_is_windows() == 1 {
+        return system(str_concat("rmdir /S /Q ", str_concat(path, " 2>NUL")));
+    };
+    return system(str_concat("rm -rf ", str_concat(path, " 2>/dev/null")));
+}
+
+#[manual_drop]
 fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
@@ -30658,12 +30672,15 @@ fn host_stack_link_flag() -> str {
     // lld-link to write a deterministic content-hash instead of a
     // timestamp, matching the SOURCE_DATE_EPOCH spirit.
     //
-    // ELF: clang/lld already produce deterministic output by default
-    // (no timestamp in ELF header equivalent). No analogous flag
-    // needed; -Wl,--build-id=none could go further but isn't required
-    // for byte-reproducibility of two builds on the same machine.
+    // ELF: clang's lld can be deterministic, but the GNU `ld` that
+    // ships on stock Debian/Ubuntu embeds a per-link build-id in the
+    // ELF .note.gnu.build-id section by default. Two builds of
+    // byte-identical IR therefore produce byte-different EXEs and
+    // RFC-NRT-003 verify-reproducible (which compares EXE bytes)
+    // fails. -Wl,--build-id=none drops the section entirely so the
+    // EXE stays byte-deterministic across runs on the same machine.
     if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
-    return " -Wl,-z,stacksize=16777216 -lm -lpthread";
+    return " -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread";
 }
 
 #[manual_drop]
@@ -32375,7 +32392,9 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let after_derive_clone: str = expand_derive_clone(after_derive_eq);
     let source: str = expand_actor_decl_keyword(expand_closures(after_derive_clone));
     if use_cache == 1 && is_compiler_src == 0 {
-        system("mkdir .nuc_cache 2>NUL");
+        // Use the cross-platform builtin instead of `mkdir ... 2>NUL`,
+        // which on Linux silently creates a literal file named `NUL`.
+        fs_create_dir_all(".nuc_cache");
         file_write_string(manifest_path, module_records_serialize(module_records));
         file_write_string(source_path, source);
         if has_md == 1 { file_write_string(max_depth_path, expand_actor_decl_keyword(after_deadline)); }
@@ -38892,14 +38911,14 @@ fn run_clean_command(argc: i64) -> i64 {
     };
     if cache_only == 1 {
         print("clean: removing compilation cache (target/.nuc_cache_v2/, .nuc_cache/)");
-        system("rmdir /S /Q target\\.nuc_cache_v2 2>nul");
-        system("rmdir /S /Q .nuc_cache 2>nul");
+        host_remove_dir_quiet(str_concat("target", str_concat(host_target_path_sep(), ".nuc_cache_v2")));
+        host_remove_dir_quiet(".nuc_cache");
         print("clean: done");
         return 0;
     };
     print("clean: removing build artifacts (target/, .nuc_cache/)");
-    system("rmdir /S /Q target 2>nul");
-    system("rmdir /S /Q .nuc_cache 2>nul");
+    host_remove_dir_quiet("target");
+    host_remove_dir_quiet(".nuc_cache");
     print("clean: done");
     return 0;
 }
@@ -39102,12 +39121,17 @@ fn main() -> i64 {
         return run_clean_command(argc);
     };
     if str_eq(cmd, "init") {
-        // nuc init [name] — scaffold a new project
+        // nuc init [name] — scaffold a new project. Use the
+        // cross-platform fs_create_dir_all builtin instead of
+        // shell-out so the Windows-only backslash separator
+        // doesn't silently no-op on Linux/macOS (was R3 in the
+        // 8C transcript: file_write_string for src/main.nr
+        // panicked because src/ never got created on POSIX).
         let mut proj_name: str = "myproject";
         if argc >= 3 { proj_name = args_get(2); };
-        system(str_concat("mkdir ", proj_name));
-        system(str_concat("mkdir ", str_concat(proj_name, "\\src")));
-        system(str_concat("mkdir ", str_concat(proj_name, "\\target")));
+        fs_create_dir_all(proj_name);
+        fs_create_dir_all(str_concat(proj_name, "/src"));
+        fs_create_dir_all(str_concat(proj_name, "/target"));
         // Write Nucleor.toml
         let toml: str = str_concat("[package]\nname = \"", str_concat(proj_name, "\"\nversion = \"0.1.0\"\n\n[build]\nentry = \"src/main.nr\"\n"));
         file_write_string(str_concat(proj_name, "/Nucleor.toml"), toml);
@@ -39324,8 +39348,12 @@ fn main() -> i64 {
         };
         let ll_a: str = str_concat("target/", str_concat(out_a, ".ll"));
         let ll_b: str = str_concat("target/", str_concat(out_b, ".ll"));
-        let exe_a: str = str_concat("target/", str_concat(out_a, ".exe"));
-        let exe_b: str = str_concat("target/", str_concat(out_b, ".exe"));
+        // Platform-aware exe suffix: empty on POSIX, ".exe" on Windows.
+        // Pre-fix this hardcoded ".exe", so verify-reproducible's EXE
+        // diff always reported "DIFFER" on Linux because it compared
+        // two non-existent .exe paths instead of the real ELF outputs.
+        let exe_a: str = str_concat("target/", str_concat(out_a, host_exe_suffix()));
+        let exe_b: str = str_concat("target/", str_concat(out_b, host_exe_suffix()));
         let ll_bytes_a: str = file_read_string(ll_a);
         let ll_bytes_b: str = file_read_string(ll_b);
         if str_len(ll_bytes_a) == 0 || str_len(ll_bytes_b) == 0 {

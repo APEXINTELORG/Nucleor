@@ -155,13 +155,13 @@ cache_v2_canonical_flags,1,1,14,10,1,0,SIG_MATCH_BODY_DIFFERS
 cache_v2_store,5,4,17,11,0,0,SIG_DIFFERS
 build_cache_key,2,2,11,10,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_toolchain_path,1,1,20,13,1,0,SIG_MATCH_BODY_DIFFERS
-host_stack_link_flag,0,0,20,7,1,0,SIG_MATCH_BODY_DIFFERS
+host_stack_link_flag,0,0,23,16,1,0,SIG_MATCH_BODY_DIFFERS
 link_native_module,6,6,229,49,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_import_path,2,2,52,13,1,0,SIG_MATCH_BODY_DIFFERS
 module_graph_cache_id,1,1,8,3,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source,3,3,4,4,1,1,IDENTICAL
-load_resolved_source_bundle,2,2,853,49,1,0,SIG_MATCH_BODY_DIFFERS
+load_resolved_source_bundle,2,2,855,49,1,0,SIG_MATCH_BODY_DIFFERS
 extract_directives,2,2,85,80,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file_mode,6,6,695,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
@@ -200,6 +200,6 @@ run_graph_command,3,3,1,14,1,0,SIG_MATCH_BODY_DIFFERS
 run_profile_command,1,1,1,75,1,0,SIG_MATCH_BODY_DIFFERS
 run_sage_command,1,1,1,82,1,0,SIG_MATCH_BODY_DIFFERS
 run_perf_command,3,3,1,211,1,0,SIG_MATCH_BODY_DIFFERS
-run_clean_command,1,1,20,30,1,0,SIG_MATCH_BODY_DIFFERS
+run_clean_command,1,1,20,28,1,0,SIG_MATCH_BODY_DIFFERS
 print_help,0,0,100,98,1,0,SIG_MATCH_BODY_DIFFERS
-main,0,0,376,785,1,0,SIG_MATCH_BODY_DIFFERS
+main,0,0,385,785,1,0,SIG_MATCH_BODY_DIFFERS

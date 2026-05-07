@@ -532,6 +532,20 @@ fn host_remove_file_quiet(path: str) -> i64 {
 }
 
 #[manual_drop]
+fn host_remove_dir_quiet(path: str) -> i64 {
+    // Recursive directory remove that respects the host shell. Pre-fix
+    // the clean command shelled out to `rmdir /S /Q ... 2>nul` on every
+    // platform: on Linux that left target/.nuc_cache_v2/ untouched
+    // (R4 in the 8C transcript) and leaked a literal file named `nul`
+    // into the working directory because `2>nul` is cmd.exe-only
+    // syntax.
+    if host_is_windows() == 1 {
+        return system(str_concat("rmdir /S /Q ", str_concat(path, " 2>NUL")));
+    };
+    return system(str_concat("rm -rf ", str_concat(path, " 2>/dev/null")));
+}
+
+#[manual_drop]
 fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
     if str_len(cache_key) > 0 {
         let stamp_path: str = str_concat(ll_path, ".cachekey");

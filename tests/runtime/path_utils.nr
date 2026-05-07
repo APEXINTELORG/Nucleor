@@ -17,7 +17,15 @@ fn main() -> i64 {
     // path_is_absolute
     if path_is_absolute("foo/bar") != 0  { fail = fail + 1; print("FAIL is_abs rel"); };
     if path_is_absolute("/foo/bar") != 1 { fail = fail + 1; print("FAIL is_abs root"); };
-    if path_is_absolute("C:/foo") != 1   { fail = fail + 1; print("FAIL is_abs drive"); };
+    // Drive-letter roots (C:/foo) are only absolute on Windows. POSIX
+    // hosts treat C:/foo as a relative path whose first component is
+    // the literal directory "C:". Gate on path_separator() == "\\".
+    let on_windows: i64 = if str_eq(sep, "\\") == 1 { 1 } else { 0 };
+    if on_windows == 1 {
+        if path_is_absolute("C:/foo") != 1 { fail = fail + 1; print("FAIL is_abs drive (windows)"); };
+    } else {
+        if path_is_absolute("C:/foo") != 0 { fail = fail + 1; print("FAIL is_abs drive (posix)"); };
+    };
     if path_is_absolute("") != 0          { fail = fail + 1; print("FAIL is_abs empty"); };
 
     // path_normalize: collapse . and ..

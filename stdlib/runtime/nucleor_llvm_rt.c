@@ -4010,7 +4010,25 @@ long long __nucleor_mutex_lock_value(long long handle) { __nucleor_mutex_lock(ha
 void __nucleor_mutex_unlock_value(long long handle) { __nucleor_mutex_unlock(handle); }
 void __nucleor_mutex_free_value(long long handle) { __nucleor_mutex_free(handle); }
 extern void nuc_rng_seed(long long seed);
+extern long long nuc_rng_uniform(void);
+extern long long nuc_rng_int(long long lo, long long hi);
+extern long long nuc_rng_normal(void);
+extern long long nuc_rng_bernoulli(long long p_bits);
+extern long long nuc_rng_exponential(long long lambda_bits);
 long long __nucleor_rng_seed(long long seed, long long reserved) { (void)reserved; nuc_rng_seed(seed); return 0; }
+// POSIX RNG bridges — mirror the _WIN32 side. The Windows branch defined
+// these inside its #ifdef block; the POSIX side previously stopped at
+// __nucleor_rng_seed, so any program touching the random/rng surface
+// link-failed on Linux with undefined references.
+long long __nucleor_random_uniform(long long _reserved) { (void)_reserved; return nuc_rng_uniform(); }
+long long __nucleor_random_normal(long long _reserved) { (void)_reserved; return nuc_rng_normal(); }
+long long __nucleor_rng_int(long long lo, long long hi) { return nuc_rng_int(lo, hi); }
+long long __nucleor_rng_uniform(void) { return nuc_rng_uniform(); }
+long long __nucleor_rng_normal(void) { return nuc_rng_normal(); }
+long long __nucleor_rng_bernoulli(long long p_bits) { return nuc_rng_bernoulli(p_bits); }
+long long __nucleor_rng_exponential(long long lambda_bits) { return nuc_rng_exponential(lambda_bits); }
+long long __nucleor_random_int(long long lo, long long hi) { return nuc_rng_int(lo, hi); }
+long long __nucleor_random_bool(void) { return nuc_rng_int(0, 1); }
 // v0.8.85 RFC C-2 Phase 1 — real POSIX bounded-FIFO channel.
 // Pre-fix: four no-op stubs returning 0. channel_new returned
 // NULL; channel_send dropped messages; channel_recv returned 0
