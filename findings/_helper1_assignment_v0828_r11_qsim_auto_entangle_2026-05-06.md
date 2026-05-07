@@ -1273,6 +1273,87 @@ Branch:
 fix/helper1-robo7-frame-diagnostics-wave2-v0839
 ```
 
+## Queue 10 Repair: ROBO-7 FRAME-001 Branch Did Not Enforce
+
+Main integration review found Queue 9 is not ready for main. Do not start new
+feature scope yet. Repair the ROBO-7 diagnostics branch so the fixtures prove
+real compiler behavior.
+
+Current main after integration through Cloud PKG/R06 is `dc61411a`. Fetch first
+and branch fresh from current `origin/main`.
+
+Branch:
+
+```text
+fix/helper1-robo7-frame-diagnostics-wave2-repair-v0840
+```
+
+Failure evidence from main-agent review on 2026-05-06:
+
+```powershell
+.\bin\nucleor.exe build tests\err\err_robo7_frame_mismatch.nr -o _err_robo7_frame_mismatch_review --no-cache
+```
+
+Observed `EXIT=0`. The existing let-binding negative built successfully.
+
+The nine new Queue 9 negatives also built successfully and did not emit
+`error[FRAME-001]`:
+
+```text
+err_robo7_frame_call_arg_mismatch
+err_robo7_frame_struct_init_mismatch
+err_robo7_frame_tuple_struct_mismatch
+err_robo7_frame_assignment_mismatch
+err_robo7_frame_index_assignment_mismatch
+err_robo7_frame_field_assignment_mismatch
+err_robo7_frame_return_mismatch
+err_robo7_frame_tail_return_mismatch
+err_robo7_frame_binop_mismatch
+```
+
+Repair target:
+
+- Fix the root cause so `Pose<Frame_Base>` and `Pose<Frame_Camera>` are visible
+  to the relevant type-check paths. Do not only reword diagnostics.
+- Keep `Frame_Unknown` as the migration sentinel that does not mismatch.
+- Preserve generic `TYP-*` behavior for non-frame mismatches.
+- Do not add more coverage-only fixtures. A fixture must fail/pass because the
+  compiler behavior actually changed.
+- Keep the patch narrowly in compiler/diagnostic/fixture/docs territory. Do not
+  touch Linux package tooling, RFC-0063 parser dedup, or helper2 work.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o _helper1_robo7_repair_s1_v0840 --no-cache --no-link
+.\bin\nucleor.exe build tests\err\err_robo7_frame_mismatch.nr -o _err_robo7_frame_mismatch_repair --no-cache
+```
+
+The second command must fail with `error[FRAME-001]`. Then run all Queue 9
+negative fixtures and confirm each fails with `error[FRAME-001]`.
+
+Also run:
+
+```powershell
+.\bin\nucleor.exe build tests\features\robo7_frame_positive_smoke.nr -o _robo7_frame_positive_repair --no-cache
+.\target\_robo7_frame_positive_repair.exe
+.\bin\nucleor.exe build tests\err\err_if_branches_diff_types.nr -o _err_if_branches_diff_types_repair --no-cache
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+For `err_if_branches_diff_types.nr`, confirm the diagnostic remains
+`error[TYP-024]` and does not contain `FRAME-001`.
+
+Deliverable:
+
+- Push the repair branch.
+- Write or update a report under `findings/inbox/`.
+- Report branch, commit, merge-base with current `origin/main`, exact files
+  changed, and the validation output.
+
 ### Scope AK: broaden FRAME-001 diagnostic sites
 
 `frame_mismatch_visible(expected, actual)` is now wired into
