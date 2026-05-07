@@ -7163,14 +7163,6 @@ fn taint_check_expr(pool: Vec<i32>, nid: i64, taint: Vec<i32>, fn_name: str, dia
     };
     return 0;
 }
-fn target_root_name(target: str) -> str {
-    let mut i: i64 = 0;
-    while i < str_len(target) {
-        if str_char_at(target, i) == 46 { return str_substring(target, 0, i); };
-        i = i + 1;
-    };
-    return target;
-}
 fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -10402,18 +10394,6 @@ fn cache_v2_json_escape(s: str) -> str {
     return sb_to_str(sb);
 }
 
-fn cache_v2_strict_intrin_flag() -> str {
-    let raw: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
-    if str_eq(raw, "0") == 1 { return "0"; };
-    return "1";
-}
-
-fn cache_v2_dbc_flag() -> str {
-    let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
-    if str_len(raw) == 0 { return "debug"; };
-    return raw;
-}
-
 fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "dbc-mode=");
@@ -10422,54 +10402,6 @@ fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     sb_append(sb, cache_v2_strict_intrin_flag());
     sb_append(sb, ";strict-mode=");
     sb_append(sb, build_mode_name(strict_mode));
-    return sb_to_str(sb);
-}
-
-fn cache_v2_prefix(key: str) -> str {
-    if str_len(key) > 12 { return str_substring(key, 0, 12); };
-    return key;
-}
-
-fn cache_v2_dir(key: str) -> str {
-    return sanitize(str_concat("target/.nuc_cache_v2/", cache_v2_prefix(key)));
-}
-
-fn cache_v2_ll_path(key: str) -> str {
-    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", str_concat(key, ".ll"))));
-}
-
-fn cache_v2_meta_dir(key: str) -> str {
-    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
-}
-
-fn cache_v2_size_mb(ll: str) -> i64 {
-    let n: i64 = str_len(ll);
-    if n <= 0 { return 0; };
-    return (n + 1048575) / 1048576;
-}
-
-fn cache_v2_stats_enabled() -> i64 {
-    if str_eq(env_get_or("NUCLEOR_CACHE_STATS", "0"), "1") == 1 { return 1; };
-    return 0;
-}
-
-fn cache_v2_print_stats(hits: i64, misses: i64) {
-    if cache_v2_stats_enabled() == 1 {
-        print(str_concat("cache stats: hits=", str_concat(str_from_int(hits), str_concat(" misses=", str_from_int(misses)))));
-    };
-}
-
-fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, key: str, ll: str) -> str {
-    let mut sb: i64 = sb_new();
-    sb_append(sb, "{\n");
-    sb_append(sb, "  \"schema\": \"nuc-cache-v2\",\n");
-    sb_append(sb, "  \"input_filename\": \""); sb_append(sb, cache_v2_json_escape(input_filename)); sb_append(sb, "\",\n");
-    sb_append(sb, "  \"flags\": \""); sb_append(sb, cache_v2_json_escape(flags)); sb_append(sb, "\",\n");
-    sb_append(sb, "  \"compiler_version\": \""); sb_append(sb, cache_v2_json_escape(compiler_version)); sb_append(sb, "\",\n");
-    sb_append(sb, "  \"sha256\": \""); sb_append(sb, key); sb_append(sb, "\",\n");
-    sb_append(sb, "  \"timestamp\": \""); sb_append(sb, cache_v2_json_escape(time_iso_now())); sb_append(sb, "\",\n");
-    sb_append(sb, "  \"ll_bytes\": "); sb_append(sb, str_from_int(str_len(ll))); sb_append(sb, "\n");
-    sb_append(sb, "}\n");
     return sb_to_str(sb);
 }
 
@@ -10549,55 +10481,12 @@ fn llvm_clang_path() -> str {
     return "clang";
 }
 
-fn host_is_windows() -> i64 {
-    // Detects host OS via the path separator returned by the runtime.
-    // Used by link_native_module to choose Windows-only flags (/STACK: linker
-    // syntax, .exe suffix, 2>NUL stderr redirect) vs POSIX equivalents.
-    let sep: str = path_separator();
-    if str_len(sep) >= 1 && str_char_at(sep, 0) == 92 { return 1; };
-    return 0;
-}
-
-fn host_exe_suffix() -> str {
-    if host_is_windows() == 1 { return ".exe"; };
-    return "";
-}
-
-fn host_target_path_sep() -> str {
-    if host_is_windows() == 1 { return "\\"; };
-    return "/";
-}
-
-fn host_null_redirect() -> str {
-    if host_is_windows() == 1 { return " 2>NUL"; };
-    return " 2>/dev/null";
-}
-
-fn host_remove_file_quiet(path: str) -> i64 {
-    if host_is_windows() == 1 {
-        return system(str_concat("del /F /Q ", str_concat(path, " 2>NUL")));
-    };
-    return system(str_concat("rm -f ", str_concat(path, " 2>/dev/null")));
-}
-
 fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
     // thread stack to 16 MiB so deep recursion in the compiler works.
     if host_is_windows() == 1 { return " -Wl,/STACK:16777216"; };
     return " -Wl,-z,stacksize=16777216";
-}
-
-fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
-    if str_len(cache_key) > 0 {
-        let stamp_path: str = str_concat(ll_path, ".cachekey");
-        if fs_exists(ll_path) == 1 && str_eq(file_read_string(stamp_path), cache_key) == 1 { return 0; };
-        file_write_string(ll_path, ll);
-        file_write_string(stamp_path, cache_key);
-        return 1;
-    };
-    file_write_string(ll_path, ll);
-    return 1;
 }
 
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
@@ -10804,45 +10693,6 @@ fn pipeline(source: str, name: str) -> i64 {
 // =====================================================
 // MODULE SYSTEM (imports)
 // =====================================================
-fn extract_dir(path: str) -> str {
-    let slen: i64 = str_len(path);
-    let mut last_sep: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(path, i);
-        if c == 47 || c == 92 { last_sep = i; };
-        i = i + 1;
-    };
-    if last_sep >= 0 { return str_substring(path, 0, last_sep + 1); };
-    return "";
-}
-
-fn path_is_absolute(path: str) -> i64 {
-    let slen: i64 = str_len(path);
-    if slen >= 1 {
-        let c0: i64 = str_char_at(path, 0);
-        if c0 == 47 || c0 == 92 { return 1; };
-    };
-    if slen >= 2 && str_char_at(path, 1) == 58 { return 1; };
-    return 0;
-}
-
-fn trim_trailing_sep(path: str) -> str {
-    let mut end: i64 = str_len(path);
-    while end > 0 {
-        let c: i64 = str_char_at(path, end - 1);
-        if c == 47 || c == 92 { end = end - 1; }
-        else { return str_substring(path, 0, end); };
-    };
-    return "";
-}
-
-fn parent_dir(path: str) -> str {
-    let trimmed: str = trim_trailing_sep(path);
-    if str_len(trimmed) == 0 { return ""; };
-    return extract_dir(trimmed);
-}
-
 fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     if path_is_absolute(raw_path) == 1 { return sanitize(raw_path); };
     let mut search_dir: str = base_dir;
@@ -13918,49 +13768,6 @@ fn run_bench_command(src_path: str, out_name: str, use_cache: i64, time_passes: 
     print(str_concat("  min: ", str_concat(str_from_int(best_ms), " ms")));
     print(str_concat("  max: ", str_concat(str_from_int(worst_ms), " ms")));
     return 0;
-}
-
-fn strip_ext(path: str) -> str {
-    let slen: i64 = str_len(path);
-    let mut last_dot: i64 = 0 - 1;
-    let mut last_sep: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(path, i);
-        if c == 46 { last_dot = i; };
-        if c == 47 || c == 92 { last_sep = i; };
-        i = i + 1;
-    };
-    if last_dot > last_sep + 1 { return str_substring(path, 0, last_dot); };
-    return path;
-}
-
-fn basename(path: str) -> str {
-    let slen: i64 = str_len(path);
-    let mut last_sep: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(path, i);
-        if c == 47 || c == 92 { last_sep = i; };
-        i = i + 1;
-    };
-    if last_sep >= 0 { return str_substring(path, last_sep + 1, slen); };
-    return path;
-}
-fn is_output_name_char(ch: i64) -> i64 {
-    if is_alnum(ch) == 1 || ch == 95 || ch == 45 { return 1; };
-    return 0;
-}
-fn normalize_output_name(raw: str) -> str {
-    let base: str = strip_ext(basename(raw));
-    let blen: i64 = str_len(base);
-    if blen == 0 { return ""; };
-    let mut i: i64 = 0;
-    while i < blen {
-        if is_output_name_char(str_char_at(base, i)) == 0 { return ""; };
-        i = i + 1;
-    };
-    return sanitize(base);
 }
 
 fn content_hash(s: str) -> str {

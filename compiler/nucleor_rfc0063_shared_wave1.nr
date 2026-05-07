@@ -414,3 +414,224 @@ fn ir_fn_block_count(f: Vec<i32>) -> i64 { let b: Vec<i32> = vec_get(f, 3); retu
 
 #[manual_drop]
 fn ir_fn_get_block(f: Vec<i32>, idx: i64) -> Vec<i32> { let b: Vec<i32> = vec_get(f, 3); return vec_get(b, idx); }
+
+#[manual_drop]
+fn target_root_name(target: str) -> str {
+    let mut i: i64 = 0;
+    while i < str_len(target) {
+        if str_char_at(target, i) == 46 { return str_substring(target, 0, i); };
+        i = i + 1;
+    };
+    return target;
+}
+
+#[manual_drop]
+fn cache_v2_strict_intrin_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
+    if str_eq(raw, "0") == 1 { return "0"; };
+    return "1";
+}
+
+#[manual_drop]
+fn cache_v2_dbc_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    if str_len(raw) == 0 { return "debug"; };
+    return raw;
+}
+
+#[manual_drop]
+fn cache_v2_prefix(key: str) -> str {
+    if str_len(key) > 12 { return str_substring(key, 0, 12); };
+    return key;
+}
+
+#[manual_drop]
+fn cache_v2_dir(key: str) -> str {
+    return sanitize(str_concat("target/.nuc_cache_v2/", cache_v2_prefix(key)));
+}
+
+#[manual_drop]
+fn cache_v2_ll_path(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", str_concat(key, ".ll"))));
+}
+
+#[manual_drop]
+fn cache_v2_meta_dir(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
+}
+
+#[manual_drop]
+fn cache_v2_size_mb(ll: str) -> i64 {
+    let n: i64 = str_len(ll);
+    if n <= 0 { return 0; };
+    return (n + 1048575) / 1048576;
+}
+
+#[manual_drop]
+fn cache_v2_stats_enabled() -> i64 {
+    if str_eq(env_get_or("NUCLEOR_CACHE_STATS", "0"), "1") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn cache_v2_print_stats(hits: i64, misses: i64) {
+    if cache_v2_stats_enabled() == 1 {
+        print(str_concat("cache stats: hits=", str_concat(str_from_int(hits), str_concat(" misses=", str_from_int(misses)))));
+    };
+}
+
+#[manual_drop]
+fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, key: str, ll: str) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "{\n");
+    sb_append(sb, "  \"schema\": \"nuc-cache-v2\",\n");
+    sb_append(sb, "  \"input_filename\": \""); sb_append(sb, cache_v2_json_escape(input_filename)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"flags\": \""); sb_append(sb, cache_v2_json_escape(flags)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"compiler_version\": \""); sb_append(sb, cache_v2_json_escape(compiler_version)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"sha256\": \""); sb_append(sb, key); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"timestamp\": \""); sb_append(sb, cache_v2_json_escape(time_iso_now())); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"ll_bytes\": "); sb_append(sb, str_from_int(str_len(ll))); sb_append(sb, "\n");
+    sb_append(sb, "}\n");
+    return sb_to_str(sb);
+}
+
+#[manual_drop]
+fn host_is_windows() -> i64 {
+    // Detects host OS via the path separator returned by the runtime.
+    // Used by link_native_module to choose Windows-only flags (/STACK: linker
+    // syntax, .exe suffix, 2>NUL stderr redirect) vs POSIX equivalents.
+    let sep: str = path_separator();
+    if str_len(sep) >= 1 && str_char_at(sep, 0) == 92 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn host_exe_suffix() -> str {
+    if host_is_windows() == 1 { return ".exe"; };
+    return "";
+}
+
+#[manual_drop]
+fn host_target_path_sep() -> str {
+    if host_is_windows() == 1 { return "\\"; };
+    return "/";
+}
+
+#[manual_drop]
+fn host_null_redirect() -> str {
+    if host_is_windows() == 1 { return " 2>NUL"; };
+    return " 2>/dev/null";
+}
+
+#[manual_drop]
+fn host_remove_file_quiet(path: str) -> i64 {
+    if host_is_windows() == 1 {
+        return system(str_concat("del /F /Q ", str_concat(path, " 2>NUL")));
+    };
+    return system(str_concat("rm -f ", str_concat(path, " 2>/dev/null")));
+}
+
+#[manual_drop]
+fn write_ll_artifact_if_needed(ll_path: str, ll: str, cache_key: str) -> i64 {
+    if str_len(cache_key) > 0 {
+        let stamp_path: str = str_concat(ll_path, ".cachekey");
+        if fs_exists(ll_path) == 1 && str_eq(file_read_string(stamp_path), cache_key) == 1 { return 0; };
+        file_write_string(ll_path, ll);
+        file_write_string(stamp_path, cache_key);
+        return 1;
+    };
+    file_write_string(ll_path, ll);
+    return 1;
+}
+
+#[manual_drop]
+fn extract_dir(path: str) -> str {
+    let slen: i64 = str_len(path);
+    let mut last_sep: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(path, i);
+        if c == 47 || c == 92 { last_sep = i; };
+        i = i + 1;
+    };
+    if last_sep >= 0 { return str_substring(path, 0, last_sep + 1); };
+    return "";
+}
+
+#[manual_drop]
+fn path_is_absolute(path: str) -> i64 {
+    let slen: i64 = str_len(path);
+    if slen >= 1 {
+        let c0: i64 = str_char_at(path, 0);
+        if c0 == 47 || c0 == 92 { return 1; };
+    };
+    if slen >= 2 && str_char_at(path, 1) == 58 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn trim_trailing_sep(path: str) -> str {
+    let mut end: i64 = str_len(path);
+    while end > 0 {
+        let c: i64 = str_char_at(path, end - 1);
+        if c == 47 || c == 92 { end = end - 1; }
+        else { return str_substring(path, 0, end); };
+    };
+    return "";
+}
+
+#[manual_drop]
+fn parent_dir(path: str) -> str {
+    let trimmed: str = trim_trailing_sep(path);
+    if str_len(trimmed) == 0 { return ""; };
+    return extract_dir(trimmed);
+}
+
+#[manual_drop]
+fn strip_ext(path: str) -> str {
+    let slen: i64 = str_len(path);
+    let mut last_dot: i64 = 0 - 1;
+    let mut last_sep: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(path, i);
+        if c == 46 { last_dot = i; };
+        if c == 47 || c == 92 { last_sep = i; };
+        i = i + 1;
+    };
+    if last_dot > last_sep + 1 { return str_substring(path, 0, last_dot); };
+    return path;
+}
+
+#[manual_drop]
+fn basename(path: str) -> str {
+    let slen: i64 = str_len(path);
+    let mut last_sep: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(path, i);
+        if c == 47 || c == 92 { last_sep = i; };
+        i = i + 1;
+    };
+    if last_sep >= 0 { return str_substring(path, last_sep + 1, slen); };
+    return path;
+}
+
+#[manual_drop]
+fn is_output_name_char(ch: i64) -> i64 {
+    if is_alnum(ch) == 1 || ch == 95 || ch == 45 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn normalize_output_name(raw: str) -> str {
+    let base: str = strip_ext(basename(raw));
+    let blen: i64 = str_len(base);
+    if blen == 0 { return ""; };
+    let mut i: i64 = 0;
+    while i < blen {
+        if is_output_name_char(str_char_at(base, i)) == 0 { return ""; };
+        i = i + 1;
+    };
+    return sanitize(base);
+}
