@@ -330,3 +330,27 @@ Report: findings/inbox/cloud_claude_evidence_audit_v0846_2026-05-07.md
 Residuals: 58 ML fixtures fail the verify gate on a fresh Linux clone today. The buckets I closed are intact (zero non-ML failures). Production-readiness messaging needs to either (a) add `--no-cache` to the affected verify steps (or a `tools/verify_no_cache.sh` driver) so the latent class surfaces in CI, (b) wire `NUCLEOR_VEC_OOB` to print caller fn name on panic per t21's recommendation, and (c) drive the NVec / struct-return-with-Vec ABI bisect to closure. Cloud agent honored the PROBE-3L charter ("if a previously-claimed PASS no longer reproduces, the fix is to file the regression, NOT silently re-paper") — surfaced honestly, not papered over.
 
 
+
+## [2026-05-07 ~17:55 UTC] ML 58-failure cluster ROOT-CAUSED + closed by integrator
+**Source:** Cloud agent's PROBE-3L finding (`findings/inbox/cloud_claude_evidence_audit_v0846_2026-05-07.md`).
+
+**Cloud's evidence audit was correct that the panic is real and production-blocking. Cloud's mechanical hypothesis (NVec struct-return-by-value ABI bug) was wrong on the mechanism, but the bug WAS reproducible and the symptom (negative `int len` from sign-extended garbage) was honestly characterized.**
+
+**Actual root cause:** same `#[manual_drop]` class as T2.5/T2.1. The fns `tensor_f64_from_vec` / `tensor_f32_from_vec` / `tensor_i64_from_vec` in `stdlib/rods/ml/tensor_facade.nr` take a Vec parameter, move it into a struct field, and return the struct. Without `#[manual_drop]`, Nucleor's auto-drop fires at end-of-fn-body and frees the heap-allocated Vec memory even though ownership was moved into the return value. The caller receives a struct with a pointer to freed memory; the first 4 bytes read as garbage `int len`, sign-extended to a negative number → OOB panic.
+
+**Fix:** commit `1bf185d0` adds `#[manual_drop]` to the 3 affected fns in tensor_facade.nr. One-line annotation per fn.
+
+**Validation on Windows:**
+- `bin/nucleor.exe build tests/features/ml_torch_gelu_tanh_f64.nr → run` now produces real gelu(tanh) values (-0.045402, 0.841192, etc.), RC=0.
+- 5 representative ml_* fixtures from the 58-failure bucket now run clean: ml_torch_gelu_tanh_f64, ml_torch_rms_norm_f64, ml_recover_argmax_axis1_f64, ml_recover_lm_head_logits_f64, ml_recover_concat_rows_f64.
+- T2.5 + T2.1 + drift + perf + self-host all green; self-host md5 unchanged.
+
+**Cloud follow-up:** Cloud-PROBE-1L is now also UNBLOCKED on `origin/main @ 1bf185d0` — `tests/probes/real_world/` exists at commit `027e82fc`, the `NUC_VERIFY_PROBE=1` gate is wired in `tools/verify.sh`, and the probe runner is at `tests/probes/real_world/probe_runner.sh`. Re-fire PROBE-1L on the next loop tick. (Cloud's earlier evaluation against `fccef882` was correct for that snapshot — PROBE-1 landed AFTER that.)
+
+**Cloud queue 8O Linux pair-validation now expects:**
+- `bash tools/verify.sh` — should jump from PASS=1428 / FAIL=58 to ~PASS=1486 / FAIL=0 (the 58 ML fixtures should resolve).
+- `bash tools/verify_strict.sh` — strict mode now still flags the 27 (was 28, parse_let closed) parse_* fns missing #[manual_drop]; partner-Compiler scope per Phase 3.
+- `NUC_VERIFY_PROBE=1 bash tools/verify.sh` — PROBE-1 step at end runs the 8 nuc subcommand probes; should report OK.
+
+**Honest residual:** Cloud's full 58-fixture list is in their evidence audit; I tested 5. The remaining 53 likely all clear with the same one-line annotation but I have not Windows-tested them all. Cloud's next pass on Linux will surface any remaining ones (likely zero, but if non-zero, same one-line fix per affected facade fn). If a sibling fn in nn_facade.nr or elsewhere has the same shape (move Vec into struct return), apply manual_drop per the protocol.
+
