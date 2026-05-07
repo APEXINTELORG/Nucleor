@@ -29,7 +29,31 @@ Spawned cloud agents look here first, take the next pending queue, work it in th
 
 - [x] **8C** — Full native Linux verify transcript. Branch `probe/cloud-linux-full-verify-transcript-v0845`. Run full `bash tools/verify.sh` on native Linux from current `origin/main`. If it fails, file one report with exact failures classified as: Windows-only fixture / missing Linux prerequisite / real compiler/runtime bug / performance-only drift. Do not patch unrelated failures in this transcript branch unless small + deterministic. Handoff §Lane 8 / Queue 8C.
 
-## Optional follow-on (if 8A-8C close cleanly)
+## Round 2 — Linux compiler/runtime bug fixes (from 8C report)
+
+8C surfaced 30 real failures across 5 root causes. Each gets its own branch + queue. All require native Linux to validate. The 8C report at `findings/inbox/cloud_claude_lane8_8C_v0845_2026-05-07.md` has the per-step failure → root-cause map.
+
+- [ ] **8D / R1** — `nuc test` link path missing `-lm`. Branch `fix/cloud-linux-nuc-test-libm-v0845`. Symptom: every libm symbol (sqrt/log/exp/pow/floor/ceil/round/trunc/fmod/hypot/erf/erfc/lgamma/tgamma) undefined in `nuc test` builds. Reproduces with a trivial `t.nr` containing only `#[test] fn ...` that calls any `f64.*` libm dispatcher. Root cause: `bin/nucleor build` correctly emits `-lm -lpthread`, but `bin/nucleor test` reuses a different link path that omits `-lm`. **Dominant root cause — 21 of 30 failures.** Fix: bring the test link path through the same link-args builder. Validate by running the previously-failing T-prefixed steps from 8C report under `--only "<step name>"` and confirming PASS.
+
+- [ ] **8E / R2** — POSIX `#else` of `stdlib/runtime/nucleor_llvm_rt.c` is missing 9 RNG/random bridges. Branch `fix/cloud-linux-posix-rng-bridges-v0845`. Windows side defines `__nucleor_random_uniform`, `__nucleor_random_normal`, `__nucleor_rng_int`, `__nucleor_rng_uniform`, `__nucleor_rng_normal`, `__nucleor_rng_bernoulli`, `__nucleor_rng_exponential`, `__nucleor_random_int`, `__nucleor_random_bool`. Linux `#else` (lines ~3888-4111) only defines `__nucleor_rng_seed`. Confirmed via `nm` on the compiled object: only `__nucleor_random_choice`, `__nucleor_random_fill` (outside the ifdef) and `nuc_rng_int` (from `rng_rt.c`) export on Linux. Fix: add the missing 9 bridges to the POSIX branch with semantically-equivalent implementations (use the existing `xoroshiro128**` state machine from `rng_rt.c` plus `<math.h>` for normal/exp transforms). Validate by re-running `tests/runtime/random_extras` and `tests/runtime/rng` under `verify.sh --only`.
+
+- [ ] **8F / R3** — `nuc init` doesn't `mkdir -p src/` before writing `src/main.nr`. Branch `fix/cloud-linux-nuc-init-mkdir-v0845`. Reproduces: `nuc init smokeproj` writes `Nucleor.toml` then panics with `PANIC: file_write_string: cannot open 'smokeproj/src/main.nr' for writing (No such file or directory)`. Fix: insert `mkdir_p(<proj>/src)` (or equivalent) before the `file_write_string` for `src/main.nr`. Validate: `nuc init smokeproj && [ -f smokeproj/src/main.nr ] && nuc build smokeproj/src/main.nr`. Affects 2 verify steps (R3 dominant + downstream `nuc lock`).
+
+- [ ] **8G / R4** — `nuc clean --cache` reports success but does not actually remove `target/.nuc_cache_v2/`. Branch `fix/cloud-linux-nuc-clean-cache-v0845`. Reproduces: command prints `clean: removing compilation cache (target/.nuc_cache_v2/, .nuc_cache/) … clean: done` then `ls target/.nuc_cache_v2/` still shows entries. Fix: align the actual rm path to the announced one (almost certainly a string mismatch between message text and the path passed to the rm helper). Validate: `nuc clean --cache && [ ! -d target/.nuc_cache_v2 ]`.
+
+- [ ] **8H / R5** — Linux ELF build-IDs vary across two builds of byte-identical IR. Branch `fix/cloud-linux-build-id-none-v0845`. Symptom: `verify-reproducible` step's own hint is the fix — pass `-Wl,--build-id=none` (or `--build-id=0x...`) when linking on Linux. Apply at the link-args builder (same place R1 lives). Validate: two consecutive `nuc build` invocations of the same IR produce byte-identical EXEs. Affects `compiler ABI tables synced` and `RFC-NRT-003 nuc verify-reproducible passes on sample fixture`.
+
+- [ ] **8I / Windows-only fixture** — `tests/runtime/path_utils` asserts `path_is_absolute("C:/foo") == 1`, which is false on POSIX. Branch `fix/cloud-linux-path-utils-windows-skip-v0845`. Either gate the fixture by host OS or split into platform-specific assertions. Smallest fix: add a `// SKIP_LINUX` directive (if the harness honors one) or a runtime `cfg!(target_os)` guard. **Lowest-priority** of the round (1 failure, cosmetic) — sequence after R1-R5.
+
+## Round 2 round-trip discipline
+
+For each round-2 fix branch:
+1. Reproduce the failure manually first (steps in the 8C report).
+2. Apply the smallest correct patch.
+3. Re-run the 8C-failing verify step(s) under `bash tools/verify.sh --only "<step name>"`.
+4. Append a Round-2 completion entry below using the same format as 8A-8C.
+
+## Optional follow-on (lower priority)
 
 - [ ] **7A-Linux-side** — Pair the POSIX side of R06 hash transcripts (Handoff §Lane 7 / Queue 7A) when Windows-side patch lands. Wait for Windows half on `fix/r06-cross-platform-hash-transcript-v0845` before working this side.
 
