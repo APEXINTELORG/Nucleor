@@ -221,8 +221,13 @@ launch. After memory safety completes, these are next-priority.
   for direct string predicates, format helpers, integer parse/format
   helpers, and core string utility helpers; `t4_strict_format_string_helper_rtypes.nr`
   locks the positive strict-mode assignment path.
+- **T-4 Phase 2b partial:** DONE 2026-05-07 for direct numeric/f64 helper
+  return typing. Strict inference now knows scalar return types for
+  direct elementary f64 helpers, f64 bit reinterpret helpers, and
+  `f64_to_i32` in both compiler copies; `t4_strict_remaining_helper_rtypes.nr`
+  locks the positive strict-mode assignment path.
 - **Phase 2b still open:** T-4 strict empty-type compatibility beyond
-  covered core/IO/path/format/string helper returns, broader T-3 char
+  covered core/IO/path/format/string/numeric helper returns, broader T-3 char
   distinctness, and non-constant char-cast proof.
   The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
@@ -900,4 +905,8 @@ proper analysis → Phase 4 hard error):
 - **2026-05-06**: T-4 strict inference Phase 2b partial advanced again.
   Direct IO/env/path runtime helper return types are now known in both
   compiler copies, and `tests/features/t4_strict_io_path_helper_rtypes.nr`
+  locks the positive strict-mode assignment path.
+- **2026-05-07**: T-4 strict inference Phase 2b partial advanced.
+  Direct numeric/f64 runtime helper return types are now known in both
+  compiler copies, and `tests/features/t4_strict_remaining_helper_rtypes.nr`
   locks the positive strict-mode assignment path.
