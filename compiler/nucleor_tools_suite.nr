@@ -12054,9 +12054,9 @@ fn law_append_distributive_over_checks(sb: i64, fn_name: str, over_fn: str) {
     sb_append(sb, "    };\n");
 }
 
-// R14 Phase 3b broad property pack — bounded integer inverse-law
-// check generation. For a unary fn `f` annotated with
-// `@law(inverse = g)`, generate both `f(g(a)) == a` and
+// R14 Phase 3b broad property pack (local-claude2 v0842) — bounded
+// integer inverse-law check generation. For a unary fn `f` annotated
+// with `@law(inverse = g)`, generate both `f(g(a)) == a` and
 // `g(f(a)) == a` round-trips at four sample integers covering
 // positive, negative, small-magnitude, and zero-adjacent values.
 // Arity gate at the call site keeps this bounded to unary fns.

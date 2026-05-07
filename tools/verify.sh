@@ -1071,6 +1071,26 @@ cli_check_laws_smoke() {
     }
     echo "$out" | grep -q "error\\[LAW-001\\]" || return 1
 
+    # R14 Phase 3b broad property pack (local-claude2 v0842) — bounded
+    # `@law(inverse = g)` is generated under --check-laws. Positive
+    # smoke must PASS and emit __nucleor_law_check_*; malformed
+    # `inverse =` (no partner) must FAIL closed with LAW-001 + the
+    # partner-fn-name diagnostic.
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_inverse_bounded_smoke.nr")" --check-laws --no-cache 2>&1) || {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "info\\[CHECK-LAWS\\]" || return 1
+    echo "$out" | grep -q "__nucleor_law_check_" || return 1
+    echo "$out" | grep -q "test result: PASS" || return 1
+
+    out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_malformed_inverse_smoke.nr")" --check-laws --no-cache 2>&1) && {
+        printf '%s\n' "$out" | tail -20
+        return 1
+    }
+    echo "$out" | grep -q "error\\[LAW-001\\]" || return 1
+    echo "$out" | grep -q "partner function name" || return 1
+
     out=$("$BIN" test "$(verify_bin_path "tests/features/law_schema_approximate_unsupported_smoke.nr")" --check-laws --no-cache 2>&1) && {
         printf '%s\n' "$out" | tail -20
         return 1
