@@ -130,6 +130,13 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-026 | Function with non-void return type reaches the end with no tail expression | type-check, v0.4.219 | error |
 | TYP-027 | Type inference failed; explicit annotation required | strict inference type-check, v0.8 E3 | error |
 
+`TYP-027` is suppressed only when strict inference can prove the
+initializer's concrete type. The current positive helper-return table
+covers core string helpers, direct IO/env/path helpers, format/string
+conversion helpers, and direct numeric/f64 runtime helpers. Unknown
+helpers still require an explicit user function signature or a concrete
+type annotation at the call boundary.
+
 ### FMT series — format macro expansion
 
 | Code | Title | Source | Notes |
