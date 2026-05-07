@@ -7,7 +7,6 @@ tok_new,3,3,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 tok_type,1,1,1,1,1,1,IDENTICAL
 tok_val,1,1,1,1,1,1,IDENTICAL
 is_digit,1,1,1,1,1,1,IDENTICAL
-classify_kw,1,1,111,35,1,0,SIG_MATCH_BODY_DIFFERS
 lex,1,1,790,163,1,0,SIG_MATCH_BODY_DIFFERS
 tok_at,2,2,3,3,1,1,IDENTICAL
 tok_type_at,2,2,1,1,1,1,IDENTICAL
@@ -34,7 +33,6 @@ skip_bracket_list,2,2,10,10,1,1,IDENTICAL
 skip_compile_time_param_default,2,2,31,31,1,1,IDENTICAL
 ct_param_type_is_unsigned,1,1,8,8,1,1,IDENTICAL
 ct_param_default_is_negative_literal,2,2,4,4,1,1,IDENTICAL
-skip_compile_time_params,2,2,32,30,1,0,SIG_MATCH_BODY_DIFFERS
 skip_angle_group,2,2,18,18,1,1,IDENTICAL
 skip_where_clause,2,2,10,10,1,1,IDENTICAL
 parse_match_binding_block,2,2,21,21,1,1,IDENTICAL
@@ -89,9 +87,7 @@ get_rt_name,1,1,931,870,1,0,SIG_MATCH_BODY_DIFFERS
 is_void_ret,1,1,42,58,1,0,SIG_MATCH_BODY_DIFFERS
 is_ptr_ret,1,1,142,140,1,0,SIG_MATCH_BODY_DIFFERS
 is_ptr_arg,2,2,214,212,1,0,SIG_MATCH_BODY_DIFFERS
-emit_builtin_call,6,6,63,57,1,0,SIG_MATCH_BODY_DIFFERS
 escape_llvm_str,1,1,18,18,1,0,SIG_MATCH_BODY_DIFFERS
-emit_cmp,5,5,17,9,1,0,SIG_MATCH_BODY_DIFFERS
 emit_inst,4,4,176,97,1,0,SIG_MATCH_BODY_DIFFERS
 emit_fn,3,3,35,29,1,0,SIG_MATCH_BODY_DIFFERS
 emit_externs,0,0,931,925,1,0,SIG_MATCH_BODY_DIFFERS
@@ -120,10 +116,8 @@ diag_emit_text,1,1,3,22,1,0,SIG_MATCH_BODY_DIFFERS
 own_put_i,3,3,19,12,1,0,SIG_MATCH_BODY_DIFFERS
 own_put_s,3,3,18,12,1,0,SIG_MATCH_BODY_DIFFERS
 own_get_mutable,2,2,13,1,1,0,SIG_MATCH_BODY_DIFFERS
-str_eq_at,3,3,16,9,1,0,SIG_MATCH_BODY_DIFFERS
 own_snapshot,1,1,6,6,1,0,SIG_MATCH_BODY_DIFFERS
 own_restore,2,2,24,11,1,0,SIG_MATCH_BODY_DIFFERS
-own_merge_moved,3,3,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 check_expr,6,6,393,188,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmt,6,6,364,250,1,0,SIG_MATCH_BODY_DIFFERS
 check_fn,6,8,49,71,0,0,SIG_DIFFERS
@@ -153,7 +147,6 @@ closure_collect_capture_expr,5,5,125,101,1,0,SIG_MATCH_BODY_DIFFERS
 closure_collect_capture_stmt,5,5,45,22,1,0,SIG_MATCH_BODY_DIFFERS
 lower_if_expr_branch,13,13,23,23,1,1,IDENTICAL
 lower_expr,13,13,3079,724,1,0,SIG_MATCH_BODY_DIFFERS
-narrow_via_as,5,5,27,20,1,0,SIG_MATCH_BODY_DIFFERS
 lower_stmt,13,13,803,344,1,0,SIG_MATCH_BODY_DIFFERS
 lower_stmts,13,13,5,5,1,1,IDENTICAL
 lower_fn,18,8,477,75,0,0,SIG_DIFFERS
@@ -162,7 +155,6 @@ cache_v2_canonical_flags,1,1,14,10,1,0,SIG_MATCH_BODY_DIFFERS
 cache_v2_store,5,4,17,11,0,0,SIG_DIFFERS
 build_cache_key,2,2,11,10,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_toolchain_path,1,1,20,13,1,0,SIG_MATCH_BODY_DIFFERS
-llvm_clang_path,0,0,36,13,1,0,SIG_MATCH_BODY_DIFFERS
 host_stack_link_flag,0,0,20,7,1,0,SIG_MATCH_BODY_DIFFERS
 link_native_module,6,6,229,49,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_import_path,2,2,52,13,1,0,SIG_MATCH_BODY_DIFFERS
@@ -177,24 +169,13 @@ dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 dl_parse_fn_signature,3,3,117,96,1,0,SIG_MATCH_BODY_DIFFERS
 expand_deadline,1,1,141,110,1,0,SIG_MATCH_BODY_DIFFERS
 expand_async_strip_keyword,1,1,148,53,1,0,SIG_MATCH_BODY_DIFFERS
-expand_async_await,1,1,59,52,1,0,SIG_MATCH_BODY_DIFFERS
 close_is_arg_position_char,1,1,24,9,1,0,SIG_MATCH_BODY_DIFFERS
-close_parse_arg_list,3,3,44,39,1,0,SIG_MATCH_BODY_DIFFERS
-close_parse_body_end,3,3,32,29,1,0,SIG_MATCH_BODY_DIFFERS
 close_synthesize_fn,3,3,18,18,1,1,IDENTICAL
 expand_closures,1,1,93,89,1,0,SIG_MATCH_BODY_DIFFERS
-fmt_split_args,1,1,33,31,1,0,SIG_MATCH_BODY_DIFFERS
 fmt_conversion_for_spec,3,3,930,157,1,0,SIG_MATCH_BODY_DIFFERS
-fmt_build_concat_chain,2,2,20,17,1,0,SIG_MATCH_BODY_DIFFERS
 fmt_build_expansion,3,3,184,69,1,0,SIG_MATCH_BODY_DIFFERS
-expand_format_macros,1,1,5,3,1,0,SIG_MATCH_BODY_DIFFERS
 expand_format_macros_with_src,2,2,489,121,1,0,SIG_MATCH_BODY_DIFFERS
-priv_extract_fn_decl_info,1,1,35,27,1,0,SIG_MATCH_BODY_DIFFERS
-priv_collect_private_fn_names,1,1,39,31,1,0,SIG_MATCH_BODY_DIFFERS
 priv_string_vec_contains_at,4,4,11,11,1,0,SIG_MATCH_BODY_DIFFERS
-priv_build_global_registry,1,1,29,22,1,0,SIG_MATCH_BODY_DIFFERS
-priv_lift_link_errors,2,2,40,34,1,0,SIG_MATCH_BODY_DIFFERS
-priv_apply_if_opted_in,2,2,12,6,1,0,SIG_MATCH_BODY_DIFFERS
 priv_mangle_private_fns,3,3,80,64,1,0,SIG_MATCH_BODY_DIFFERS
 compiler_version_label,0,0,13,8,1,0,SIG_MATCH_BODY_DIFFERS
 cmd_accepts_source,1,1,6,6,1,0,SIG_MATCH_BODY_DIFFERS
