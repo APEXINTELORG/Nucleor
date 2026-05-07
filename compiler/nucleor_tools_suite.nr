@@ -990,11 +990,18 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     // Optional generic params: fn name<T, U>(...)
-    let mut gparams: i64 = mk_list(pool, Vec::new());
+    // Track gparams as Vec<i32> (mirrors s1::parse_fn_decl) and only
+    // call mk_list once at the end; pre-fix this path was
+    // `gparams = mk_list(pool, pr_val(gr))` which on Linux drove a
+    // realloc(2^64 - small) panic in build-strict for any fn with a
+    // generic param (T2.5 lifetime fixture being one). The
+    // equivalence is preserved because mk_list iterates `items` once
+    // and the s1 form does the same.
+    let mut gparams_vec: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
         cp = pr_pos(gr);
-        gparams = mk_list(pool, pr_val(gr));
+        gparams_vec = pr_val(gr);
     };
     if pk(tokens, cp) == 54 { cp = skip_compile_time_params(tokens, cp); };
     cp = expect_tok(tokens, cp, 50); // (
@@ -1013,6 +1020,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(br), 53);
+    let gparams: i64 = mk_list(pool, gparams_vec);
     return pr(cp, mk6(pool, 30, name, mk_list(pool, params), rtype, pr_val(br), gparams));
 }
 
