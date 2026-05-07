@@ -198,11 +198,43 @@ launch. After memory safety completes, these are next-priority.
   and `tests/features/requires_cross_module_aux.nr` +
   `tests/features/requires_cross_module_clean_smoke.nr` (positive —
   matching cross-module rows compile + run).
+- **v0845 lane 2 (Queue 2B) — same-file `impl` method effect
+  enforcement closed for the unique-name case.** The substring-search
+  call-site check in `enforce_requires_direct_calls` accidentally
+  covers `obj.method(...)` because `.method(` contains `method(`, so
+  with the resolved-source pre-pass already inlining methods'
+  declarations and bodies, every same-file method effect mismatch
+  surfaces the same EFF-001 / EFF-003 the free-fn surface does. The
+  one regression risk that made this surface stay listed as open was
+  same-name methods on different `impl` blocks: with two methods named
+  `emit` and conflicting rows, the substring search couldn't pick
+  which receiver-typed call site resolved to which impl, so the row
+  check would false-positive on the un-rowed call. v0845 adds
+  `name_has_distinct_rows_in_table` and routes `enforce_requires_direct_calls`,
+  `requires_transitive_missing`, and `restricts_transitive_check`
+  through it: when the table has two entries sharing a name with
+  textually-distinct rows, the row check is skipped (fail-open) and
+  the body walk continues. Receiver-type-aware resolution for the
+  ambiguous-name path is Phase 4 / RFC-0033 broader effect-row
+  subtyping. Locked by:
+  `tests/err/err_method_requires_direct.nr` (negative — direct method
+  row mismatch),
+  `tests/err/err_method_body_builtin_transitive.nr` (negative — method
+  body reaches builtin io.write under incompatible caller row),
+  `tests/err/err_restricts_block_method_io.nr` (negative — restricts
+  block reaches method-internal io.write),
+  `tests/features/method_requires_clean_smoke.nr` (positive — matching
+  rows compile + run), and
+  `tests/features/method_ambiguous_name_fail_open_smoke.nr` (positive —
+  same-name methods with distinct rows compile cleanly via the
+  fail-open path; pre-v0845 this fixture's source false-positived
+  EFF-001).
 - **Still open:** full standalone `requires [...]` row enforcement
-  beyond depth=8 helper chains, methods/impl effect rows, closures and
-  function-pointer effect capture, broader RFC-0033 effect-row
-  subtyping, and selective `use path::{a, b}` / glob `use path::*`
-  import surfaces (resolver phase 2).
+  beyond depth=8 helper chains, ambiguous-name method receiver
+  resolution (fail-open since v0845; full type-aware lookup is Phase 4),
+  closures and function-pointer effect capture, broader RFC-0033
+  effect-row subtyping, and selective `use path::{a, b}` / glob
+  `use path::*` import surfaces (resolver phase 2).
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 

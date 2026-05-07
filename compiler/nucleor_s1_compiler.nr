@@ -11668,7 +11668,12 @@ fn requires_transitive_missing(row: str, body: str, table: Vec<i32>, depth_remai
         let callee: str = vec_get(calls, ci);
         if name_in_vec(visited, callee) == 0 {
             let callee_row: str = lookup_fn_row_in_table(table, callee);
-            if str_len(callee_row) > 0 {
+            // v0845 Lane 2 / Queue 2B: same ambiguity fail-open as in
+            // `restricts_transitive_check` and `enforce_requires_direct_calls`.
+            // For shared method names with distinct rows, skip the row check
+            // and fall through to the body walk (when depth allows).
+            let callee_ambig: i64 = name_has_distinct_rows_in_table(table, callee);
+            if str_len(callee_row) > 0 && callee_ambig == 0 {
                 let missing: str = effect_row_first_missing(row, callee_row);
                 if str_len(missing) > 0 { return missing; };
             } else {
@@ -11732,7 +11737,13 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                 while ti + 2 < tn && emitted == 0 {
                     let callee: str = vec_get(table, ti);
                     let callee_row: str = vec_get(table, ti + 1);
-                    if str_eq(callee, fn_name) == 0 && str_len(callee_row) > 0 {
+                    // v0845 Lane 2 / Queue 2B: skip ambiguous-name callees.
+                    // Source-text substring search can't pick which impl a
+                    // receiver-typed call resolves to; failing open here
+                    // avoids false-positive EFF-001 on the un-rowed impl
+                    // when an unrelated rowed impl shares the name. See
+                    // `name_has_distinct_rows_in_table` for the rationale.
+                    if str_eq(callee, fn_name) == 0 && str_len(callee_row) > 0 && name_has_distinct_rows_in_table(table, callee) == 0 {
                         let pat: str = str_concat(callee, "(");
                         if str_contains(body, pat) == 1 {
                             let missing: str = effect_row_first_missing(caller_row, callee_row);
@@ -11970,6 +11981,62 @@ fn lookup_fn_row_in_table(table: Vec<i32>, name: str) -> str {
     return "";
 }
 
+// v0845 Lane 2 / Queue 2B: returns 1 iff multiple table entries share
+// `name` AND have distinct `requires [...]` rows. Source-text effect
+// enforcement walks the resolved single source via substring match
+// (`callee(`), which catches `obj.method(...)` call sites accidentally
+// because `.method(` contains `method(`. That accidental coverage made
+// same-file method/impl effect enforcement empirically work for the
+// unique-method-name cases (Queue 2B handoff §minimum-fixture set:
+// row mismatch, body builtin transitive, restricts block reaching
+// method I/O — all already fire EFF-001/EFF-003).
+//
+// The accidental coverage breaks down when two `impl` blocks define
+// methods with the SAME unqualified name and DIFFERENT rows: the
+// substring search matches every same-name body call regardless of
+// receiver type, and the row check uses whichever row was iterated
+// first (or the broadest in the loop). Without AST-level receiver
+// resolution, the source-text path cannot pick the correct impl.
+// Two outcomes are possible:
+//   - keep current behavior → false-positive EFF-001 on the un-rowed
+//     impl when an unrelated rowed impl shares the name (blocks valid
+//     adopter code);
+//   - skip enforcement when names collide on rows → false-negative on
+//     the genuinely-violating call (silent fall-through, but only for
+//     this narrow ambiguity surface).
+// Per project posture (`feedback_nucleor_launch_quality.md`) blocking
+// valid adopter code is the worse failure mode; receiver-type-aware
+// resolution is Phase 4 / RFC-0033 broader effect-row subtyping. This
+// helper lets callers fail-OPEN cleanly: enforcement skips ambiguous
+// names, and the EFF-G123 banner discloses the surface so adopters
+// have a knob (rename methods, or wait for Phase 4).
+//
+// Returns 0 (no ambiguity) when:
+//   - the name appears once,
+//   - the name appears multiple times but every entry has the same row.
+// Returns 1 only when at least two entries share the name AND have
+// requires-rows whose textual contents differ.
+#[manual_drop]
+fn name_has_distinct_rows_in_table(table: Vec<i32>, name: str) -> i64 {
+    let n: i64 = vec_len(table);
+    let mut first_row: str = "";
+    let mut found_first: i64 = 0;
+    let mut i: i64 = 0;
+    while i + 2 < n {
+        if str_eq(vec_get(table, i), name) == 1 {
+            let row: str = vec_get(table, i + 1);
+            if found_first == 0 {
+                first_row = row;
+                found_first = 1;
+            } else {
+                if str_eq(first_row, row) == 0 { return 1; };
+            };
+        };
+        i = i + 3;
+    };
+    return 0;
+}
+
 #[manual_drop]
 fn lookup_fn_body_in_table(table: Vec<i32>, name: str) -> str {
     let n: i64 = vec_len(table);
@@ -12030,7 +12097,15 @@ fn restricts_transitive_check(deny_row: str, body: str, table: Vec<i32>, depth_r
                 ri = ri + 3;
             };
             if callee_in_table == 1 {
-                if str_len(callee_row) > 0 {
+                // v0845 Lane 2 / Queue 2B: when the callee name is shared by
+                // multiple impls/fns with distinct rows, the substring-search
+                // approach can't pick which impl a receiver-typed call site
+                // resolves to. Fail-open on the row check (skip the
+                // intersect) but still walk the body transitively when an
+                // un-rowed entry was picked first — preserves restricts
+                // depth=8 reach while avoiding false-positive EFF-003.
+                let callee_ambig: i64 = name_has_distinct_rows_in_table(table, callee);
+                if str_len(callee_row) > 0 && callee_ambig == 0 {
                     let h: str = effect_row_intersect_first(deny_row, callee_row);
                     if str_len(h) > 0 {
                         return str_concat(h, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
@@ -32234,7 +32309,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains up to depth=8 (v0845 lane 2 raised the requires bound from 3 to match the restricts path), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. Cross-module flat-namespace `import \"...\"` requires + restricts direct and bounded transitive enforcement is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_requires_direct_calls` and `enforce_restricts_block_effects` run, so the same diagnostics fire whether the rowed/builtin callee lives in the entry source or an imported sibling rod (v0845 lane 2 probe). The remaining open surface is beyond depth=8 chains, methods/impl effect rows, closures and function-pointer effect capture, broader RFC-0033 effect-row subtyping, and selective `use path::{a, b}` / glob `use path::*` import surfaces (resolver phase 2). Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains up to depth=8 (v0845 lane 2 raised the requires bound from 3 to match the restricts path), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. Cross-module flat-namespace `import \"...\"` requires + restricts direct and bounded transitive enforcement is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_requires_direct_calls` and `enforce_restricts_block_effects` run, so the same diagnostics fire whether the rowed/builtin callee lives in the entry source or an imported sibling rod (v0845 lane 2 probe). Same-file `impl` method effect enforcement also lands via the same path: substring-search on `callee(` accidentally covers `obj.method(...)` call sites, so a method declared with `requires [...]` mismatched against its same-file caller's row, a method whose body reaches a builtin under an incompatible caller row, and a `restricts [...] { obj.method(); }` block reaching method-internal I/O all surface EFF-001/EFF-003 (v0845 lane 2 / queue 2B). The substring approach cannot disambiguate same-name methods on different `impl` blocks; when the source declares a method name twice with distinct rows, enforcement fails open at that name (skipping the row check and falling through to the body walk) so adopter code does not false-positive on the un-rowed impl. Receiver-type-aware resolution for the ambiguous-name case is Phase 4 / RFC-0033 broader effect-row subtyping. The remaining open surface is beyond depth=8 chains, ambiguous-name same-file methods (fail-open since v0845), closures and function-pointer effect capture, broader RFC-0033 effect-row subtyping, and selective `use path::{a, b}` / glob `use path::*` import surfaces (resolver phase 2). Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
