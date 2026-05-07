@@ -436,6 +436,16 @@ launch. After memory safety completes, these are next-priority.
   add/sub helpers, and distance-over-time velocity construction over
   the existing f64 + unit-ID storage contract. Active fixtures:
   `unit_distance_positive_smoke.nr`, `unit_velocity_positive_smoke.nr`.
+- **Positive API expansion (v0845):** PARTIAL DONE 2026-05-07
+  (v0845) — `units.nr` adds nominal `UnitTime`, `UnitMass`, and
+  `UnitAcceleration` structs with the same nominal-storage contract,
+  parallel constructor / accessor / `value_as` / same-dimension `add` /
+  `sub` helpers, plus the dimension-safe
+  `unit_acceleration_from_velocity_time` construction (canonical
+  mps^2 normalization). New active fixtures:
+  `unit_time_positive_smoke.nr`, `unit_mass_positive_smoke.nr`,
+  `unit_acceleration_positive_smoke.nr`. No parser/type-algebra
+  changes; this is library-level expansion only.
 - **Still open:** full parser/type-checker dimension algebra for
   `unit<T, dim>`, UNIT-001..005 semantic diagnostics, 7-vector lowering,
   literal suffix support, and broader positive typed-unit API coverage.

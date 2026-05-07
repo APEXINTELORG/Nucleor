@@ -298,3 +298,181 @@ fn unit_velocity_sub(a: &UnitVelocity, b: &UnitVelocity) -> UnitVelocity {
     let bv: f64 = unit_velocity_value_as(b, a.distance_unit_id, a.time_unit_id);
     return UnitVelocity { value: a.value - bv, distance_unit_id: a.distance_unit_id, time_unit_id: a.time_unit_id };
 }
+
+// =====================================================
+// UNIT-1 v0845 expansion: typed UnitTime, UnitMass, UnitAcceleration
+// =====================================================
+// Same nominal-storage contract as UnitDistance / UnitVelocity above:
+// {f64 magnitude, unit-ID(s)}. Same-dimension add/sub via canonical-unit
+// conversion. dim_*() accessors return the canonical SI dimension vector
+// for cross-checking via dim_eq. Construction and arithmetic are
+// dimension-safe by construction; cross-dimension coercion still requires
+// an explicit conversion call. No parser-level `unit<T, dim>` algebra is
+// implied by this expansion — that remains UNIT-1 Phase 2 work.
+
+struct UnitTime {
+    value: f64,
+    unit_id: i64,
+}
+
+struct UnitMass {
+    value: f64,
+    unit_id: i64,
+}
+
+struct UnitAcceleration {
+    value: f64,
+    distance_unit_id: i64,
+    time_unit_id: i64,
+}
+
+// --- UnitTime constructors ---
+fn unit_time_s(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_s() };
+}
+
+fn unit_time_ms(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_ms() };
+}
+
+fn unit_time_us(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_us() };
+}
+
+fn unit_time_min(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_min() };
+}
+
+fn unit_time_hr(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_hr() };
+}
+
+fn unit_time_day(value: f64) -> UnitTime {
+    return UnitTime { value: value, unit_id: unit_day() };
+}
+
+// --- UnitTime accessors ---
+fn unit_time_value(t: &UnitTime) -> f64 {
+    return t.value;
+}
+
+fn unit_time_unit(t: &UnitTime) -> i64 {
+    return t.unit_id;
+}
+
+fn unit_time_dim() -> Vec<i64> {
+    return dim_s();
+}
+
+fn unit_time_value_as(t: &UnitTime, to_unit_id: i64) -> f64 {
+    return unit_convert_f64(t.value, t.unit_id, to_unit_id);
+}
+
+fn unit_time_add(a: &UnitTime, b: &UnitTime) -> UnitTime {
+    let bv: f64 = unit_time_value_as(b, a.unit_id);
+    return UnitTime { value: a.value + bv, unit_id: a.unit_id };
+}
+
+fn unit_time_sub(a: &UnitTime, b: &UnitTime) -> UnitTime {
+    let bv: f64 = unit_time_value_as(b, a.unit_id);
+    return UnitTime { value: a.value - bv, unit_id: a.unit_id };
+}
+
+// --- UnitMass constructors ---
+fn unit_mass_kg(value: f64) -> UnitMass {
+    return UnitMass { value: value, unit_id: unit_kg() };
+}
+
+fn unit_mass_g(value: f64) -> UnitMass {
+    return UnitMass { value: value, unit_id: unit_g() };
+}
+
+fn unit_mass_lb(value: f64) -> UnitMass {
+    return UnitMass { value: value, unit_id: unit_lb() };
+}
+
+fn unit_mass_oz(value: f64) -> UnitMass {
+    return UnitMass { value: value, unit_id: unit_oz() };
+}
+
+// --- UnitMass accessors ---
+fn unit_mass_value(m: &UnitMass) -> f64 {
+    return m.value;
+}
+
+fn unit_mass_unit(m: &UnitMass) -> i64 {
+    return m.unit_id;
+}
+
+fn unit_mass_dim() -> Vec<i64> {
+    return dim_kg();
+}
+
+fn unit_mass_value_as(m: &UnitMass, to_unit_id: i64) -> f64 {
+    return unit_convert_f64(m.value, m.unit_id, to_unit_id);
+}
+
+fn unit_mass_add(a: &UnitMass, b: &UnitMass) -> UnitMass {
+    let bv: f64 = unit_mass_value_as(b, a.unit_id);
+    return UnitMass { value: a.value + bv, unit_id: a.unit_id };
+}
+
+fn unit_mass_sub(a: &UnitMass, b: &UnitMass) -> UnitMass {
+    let bv: f64 = unit_mass_value_as(b, a.unit_id);
+    return UnitMass { value: a.value - bv, unit_id: a.unit_id };
+}
+
+// --- UnitAcceleration constructors ---
+fn unit_acceleration_mps2(value: f64) -> UnitAcceleration {
+    return UnitAcceleration { value: value, distance_unit_id: unit_m(), time_unit_id: unit_s() };
+}
+
+fn unit_acceleration_from_velocity_time(v: &UnitVelocity, elapsed: f64, time_unit_id: i64) -> UnitAcceleration {
+    // Reduce to canonical mps then divide by elapsed in canonical seconds. The
+    // returned UnitAcceleration is normalized to (m, s) so all subsequent
+    // arithmetic / accessors use the canonical pair; explicit value_as is
+    // available if the caller wants a non-canonical view.
+    let mps: f64 = unit_velocity_value_mps(v);
+    let elapsed_s: f64 = unit_convert_f64(elapsed, time_unit_id, unit_s());
+    return UnitAcceleration { value: mps / elapsed_s, distance_unit_id: unit_m(), time_unit_id: unit_s() };
+}
+
+// --- UnitAcceleration accessors ---
+fn unit_acceleration_value(a: &UnitAcceleration) -> f64 {
+    return a.value;
+}
+
+fn unit_acceleration_distance_unit(a: &UnitAcceleration) -> i64 {
+    return a.distance_unit_id;
+}
+
+fn unit_acceleration_time_unit(a: &UnitAcceleration) -> i64 {
+    return a.time_unit_id;
+}
+
+fn unit_acceleration_dim() -> Vec<i64> {
+    return dim_acceleration();
+}
+
+fn unit_acceleration_value_mps2(a: &UnitAcceleration) -> f64 {
+    let meters_per_distance: f64 = unit_convert_f64(a.value, a.distance_unit_id, unit_m());
+    let seconds_per_time: f64 = unit_convert_f64(1.0, a.time_unit_id, unit_s());
+    return meters_per_distance / (seconds_per_time * seconds_per_time);
+}
+
+fn unit_acceleration_value_as(a: &UnitAcceleration, distance_unit_id: i64, time_unit_id: i64) -> f64 {
+    let mps2: f64 = unit_acceleration_value_mps2(a);
+    let meters_per_target_distance: f64 = unit_convert_f64(1.0, distance_unit_id, unit_m());
+    let seconds_per_target_time: f64 = unit_convert_f64(1.0, time_unit_id, unit_s());
+    return (mps2 * (seconds_per_target_time * seconds_per_target_time)) / meters_per_target_distance;
+}
+
+fn unit_acceleration_add(a: &UnitAcceleration, b: &UnitAcceleration) -> UnitAcceleration {
+    let bv: f64 = unit_acceleration_value_as(b, a.distance_unit_id, a.time_unit_id);
+    return UnitAcceleration { value: a.value + bv, distance_unit_id: a.distance_unit_id, time_unit_id: a.time_unit_id };
+}
+
+fn unit_acceleration_sub(a: &UnitAcceleration, b: &UnitAcceleration) -> UnitAcceleration {
+    let bv: f64 = unit_acceleration_value_as(b, a.distance_unit_id, a.time_unit_id);
+    return UnitAcceleration { value: a.value - bv, distance_unit_id: a.distance_unit_id, time_unit_id: a.time_unit_id };
+}
