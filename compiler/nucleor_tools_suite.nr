@@ -128,35 +128,82 @@ fn lex(src: str) -> Vec<i32> {
         }
         else if is_digit(c) == 1 {
             let st: i64 = p;
-            while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
-            // Check for f64 literal: digits DOT digits
-            if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
-                // f64 literal — parse integer.fraction, encode as bitcast i64
-                let int_part: i64 = str_to_int(str_substring(src, st, p));
-                p = p + 1; // skip dot
-                let frac_st: i64 = p;
-                while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
-                let frac_str: str = str_substring(src, frac_st, p);
-                let frac_val: i64 = str_to_int(frac_str);
-                let frac_len: i64 = str_len(frac_str);
-                // Compute frac_divisor = 10^frac_len
-                let mut frac_div: i64 = 1;
-                let mut fi: i64 = 0;
-                while fi < frac_len { frac_div = frac_div * 10; fi = fi + 1; };
-                // Encode: store int_part and frac as token type 70 (f64 literal)
-                // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
-                let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
-                tokens.push(tok_new(70, encoded, st));
+            let mut int_value: i64 = 0;
+            let mut handled_radix: i64 = 0;
+            if c == 48 && p + 1 < slen {
+                let nx: i64 = str_char_at(src, p + 1);
+                if nx == 120 || nx == 88 {
+                    p = p + 2;
+                    while p < slen {
+                        let hc: i64 = str_char_at(src, p);
+                        if hc == 95 { p = p + 1; }
+                        else if hc >= 48 && hc <= 57 { int_value = int_value * 16 + hc - 48; p = p + 1; }
+                        else if hc >= 97 && hc <= 102 { int_value = int_value * 16 + hc - 87; p = p + 1; }
+                        else if hc >= 65 && hc <= 70 { int_value = int_value * 16 + hc - 55; p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
+                } else if nx == 111 || nx == 79 {
+                    p = p + 2;
+                    while p < slen {
+                        let oc: i64 = str_char_at(src, p);
+                        if oc == 95 { p = p + 1; }
+                        else if oc >= 48 && oc <= 55 { int_value = int_value * 8 + oc - 48; p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
+                } else if nx == 98 || nx == 66 {
+                    p = p + 2;
+                    while p < slen {
+                        let bc: i64 = str_char_at(src, p);
+                        if bc == 95 { p = p + 1; }
+                        else if bc == 48 { int_value = int_value * 2; p = p + 1; }
+                        else if bc == 49 { int_value = int_value * 2 + 1; p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
+                };
+            };
+            if handled_radix == 1 {
+                tokens.push(tok_new(2, int_value, st));
+                if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
+                    while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
+                };
                 if p < slen && str_char_at(src, p) == 123 {
                     tokens.push(tok_new(83, 0, p));
                     p = p + 1;
-                }
+                };
             } else {
-                tokens.push(tok_new(2, str_to_int(str_substring(src, st, p)), st));
-                if p < slen && str_char_at(src, p) == 123 {
-                    tokens.push(tok_new(83, 0, p));
-                    p = p + 1;
-                }
+                while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
+                // Check for f64 literal: digits DOT digits
+                if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
+                    // f64 literal — parse integer.fraction, encode as bitcast i64
+                    let int_part: i64 = str_to_int(str_substring(src, st, p));
+                    p = p + 1; // skip dot
+                    let frac_st: i64 = p;
+                    while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
+                    let frac_str: str = str_substring(src, frac_st, p);
+                    let frac_val: i64 = str_to_int(frac_str);
+                    let frac_len: i64 = str_len(frac_str);
+                    // Compute frac_divisor = 10^frac_len
+                    let mut frac_div: i64 = 1;
+                    let mut fi: i64 = 0;
+                    while fi < frac_len { frac_div = frac_div * 10; fi = fi + 1; };
+                    // Encode: store int_part and frac as token type 70 (f64 literal)
+                    // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
+                    let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
+                    tokens.push(tok_new(70, encoded, st));
+                    if p < slen && str_char_at(src, p) == 123 {
+                        tokens.push(tok_new(83, 0, p));
+                        p = p + 1;
+                    }
+                } else {
+                    tokens.push(tok_new(2, str_to_int(str_substring(src, st, p)), st));
+                    if p < slen && str_char_at(src, p) == 123 {
+                        tokens.push(tok_new(83, 0, p));
+                        p = p + 1;
+                    }
+                };
             };
         }
         else if c == 34 {
@@ -603,7 +650,24 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if is_mut == 1 { return pr(pr_pos(r), mk2(pool, 91, pr_val(r))); };
         return pr(pr_pos(r), mk2(pool, 90, pr_val(r)));
     };
-    return parse_postfix(tokens, pos, pool);
+    let mut base: Vec<i32> = parse_postfix(tokens, pos, pool);
+    let mut cp: i64 = pr_pos(base);
+    let mut node: i64 = pr_val(base);
+    let mut as_match: i64 = 0;
+    if pk(tokens, cp) == 1 {
+        if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
+    };
+    while as_match == 1 {
+        cp = cp + 1;
+        let mut tr: Vec<i32> = parse_type(tokens, cp);
+        cp = pr_pos(tr);
+        node = mk3(pool, 99, node, pr_val(tr));
+        as_match = 0;
+        if pk(tokens, cp) == 1 {
+            if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
+        };
+    };
+    return pr(cp, node);
 }
 
 fn parse_mul(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -6329,6 +6393,96 @@ fn type_dynamic_helper(name: str) -> i64 {
     if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
     return 0;
 }
+fn char_guard_key(name: str) -> str {
+    return str_concat("__char_guard:", name);
+}
+fn tenv_set_char_guard(env: Vec<i32>, name: str) -> i64 {
+    return tenv_set(env, char_guard_key(name), "1");
+}
+fn tenv_has_char_guard(env: Vec<i32>, name: str) -> i64 {
+    if str_eq(tenv_get(env, char_guard_key(name)), "1") == 1 { return 1; };
+    return 0;
+}
+fn char_guard_const_expr(pool: Vec<i32>, nid: i64) -> Vec<i32> {
+    let mut r: Vec<i32> = Vec::new();
+    r.push(0);
+    r.push(0);
+    if nid < 0 || nid >= vec_len(pool) { return r; };
+    let k: i64 = node_kind(pool, nid);
+    if k == 1 {
+        vec_set(r, 0, 1);
+        vec_set(r, 1, node_field(pool, nid, 1));
+        return r;
+    };
+    if k == 5 {
+        let inner: Vec<i32> = char_guard_const_expr(pool, node_field(pool, nid, 1));
+        if vec_get(inner, 0) == 1 {
+            vec_set(r, 0, 1);
+            vec_set(r, 1, 0 - vec_get(inner, 1));
+        };
+        return r;
+    };
+    return r;
+}
+fn char_guard_var_name(pool: Vec<i32>, nid: i64) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    if node_kind(pool, nid) != 4 { return ""; };
+    let op: i64 = node_field(pool, nid, 1);
+    if op == 36 {
+        let lv: str = char_guard_var_name(pool, node_field(pool, nid, 2));
+        if str_len(lv) > 0 { return lv; };
+        return char_guard_var_name(pool, node_field(pool, nid, 3));
+    };
+    if node_kind(pool, node_field(pool, nid, 2)) == 3 {
+        let rc: Vec<i32> = char_guard_const_expr(pool, node_field(pool, nid, 3));
+        if vec_get(rc, 0) == 1 { return node_field(pool, node_field(pool, nid, 2), 1); };
+    };
+    if node_kind(pool, node_field(pool, nid, 3)) == 3 {
+        let lc: Vec<i32> = char_guard_const_expr(pool, node_field(pool, nid, 2));
+        if vec_get(lc, 0) == 1 { return node_field(pool, node_field(pool, nid, 3), 1); };
+    };
+    return "";
+}
+fn char_guard_merge_flags(a: i64, b: i64) -> i64 {
+    let mut low: i64 = 0;
+    let mut high: i64 = 0;
+    if a == 1 || a == 3 || b == 1 || b == 3 { low = 1; };
+    if a == 2 || a == 3 || b == 2 || b == 3 { high = 1; };
+    return low + high * 2;
+}
+fn char_guard_flags(pool: Vec<i32>, nid: i64, name: str) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    if node_kind(pool, nid) != 4 { return 0; };
+    let op: i64 = node_field(pool, nid, 1);
+    if op == 36 {
+        return char_guard_merge_flags(char_guard_flags(pool, node_field(pool, nid, 2), name), char_guard_flags(pool, node_field(pool, nid, 3), name));
+    };
+    let lhs: i64 = node_field(pool, nid, 2);
+    let rhs: i64 = node_field(pool, nid, 3);
+    if node_kind(pool, lhs) == 3 && str_eq(node_field(pool, lhs, 1), name) == 1 {
+        let rc: Vec<i32> = char_guard_const_expr(pool, rhs);
+        if vec_get(rc, 0) == 1 {
+            let v: i64 = vec_get(rc, 1);
+            if (op == 35 && v >= 0) || (op == 33 && v >= 0 - 1) { return 1; };
+            if (op == 34 && v < 55296) || (op == 32 && v <= 55296) { return 2; };
+        };
+    };
+    if node_kind(pool, rhs) == 3 && str_eq(node_field(pool, rhs, 1), name) == 1 {
+        let lc: Vec<i32> = char_guard_const_expr(pool, lhs);
+        if vec_get(lc, 0) == 1 {
+            let v2: i64 = vec_get(lc, 1);
+            if (op == 34 && v2 >= 0) || (op == 32 && v2 >= 0 - 1) { return 1; };
+            if (op == 35 && v2 < 55296) || (op == 33 && v2 <= 55296) { return 2; };
+        };
+    };
+    return 0;
+}
+fn char_guard_proven_var(pool: Vec<i32>, cond: i64) -> str {
+    let name: str = char_guard_var_name(pool, cond);
+    if str_len(name) == 0 { return ""; };
+    if char_guard_flags(pool, cond, name) == 3 { return name; };
+    return "";
+}
 fn type_last_stmt(pool: Vec<i32>, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if lid < 0 || lid >= vec_len(pool) { return ""; };
     let cnt: i64 = list_len(pool, lid);
@@ -6528,6 +6682,33 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
         return "";
     };
+    if kind == 99 {
+        let target_type: str = node_field(pool, nid, 2);
+        type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        if str_eq(target_type, "char") == 1 {
+            let src: i64 = node_field(pool, nid, 1);
+            let cc: Vec<i32> = char_guard_const_expr(pool, src);
+            if vec_get(cc, 0) == 1 {
+                let cp: i64 = vec_get(cc, 1);
+                let mut bad: i64 = 0;
+                if cp < 0 { bad = 1; };
+                if cp > 1114111 { bad = 1; };
+                if cp >= 55296 && cp <= 57343 { bad = 1; };
+                if bad == 1 {
+                    type_diag(diags, source, fn_name, "as", "TYP-026", str_concat("`as char` codepoint ", str_concat(str_from_int(cp), " is not a valid Unicode scalar value. Valid range is 0..0x10FFFF excluding surrogate range 0xD800..0xDFFF.")));
+                };
+            } else {
+                let mut guarded: i64 = 0;
+                if node_kind(pool, src) == 3 {
+                    if tenv_has_char_guard(env, node_field(pool, src, 1)) == 1 { guarded = 1; };
+                };
+                if guarded == 0 {
+                    type_diag(diags, source, fn_name, "as", "TYP-026", "`as char` on a non-constant value is not proven to be a valid Unicode scalar value. Guard the exact binding with `v >= 0 && v < 0xD800` before casting.");
+                };
+            };
+        };
+        return target_type;
+    };
     if kind == 12 {
         let tname: str = node_field(pool, nid, 1);
         let args: i64 = node_field(pool, nid, 3);
@@ -6672,6 +6853,8 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     if kind == 23 {
         type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
+        let char_guard_v0845: str = char_guard_proven_var(pool, node_field(pool, nid, 1));
+        if str_len(char_guard_v0845) > 0 { tenv_set_char_guard(then_env, char_guard_v0845); };
         warns = warns + type_check_stmts(pool, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
@@ -7539,6 +7722,33 @@ fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>,
 #[manual_drop]
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
+    if kind == 99 {
+        let inner_nid: i64 = node_field(pool, nid, 1);
+        let inner_lx: Vec<i32> = lower_expr(pool, inner_nid, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let inner_blk: Vec<i32> = lx_blk(inner_lx);
+        let inner_r: i64 = lx_reg(inner_lx);
+        let target_type: str = node_field(pool, nid, 2);
+        let mut helper: str = "";
+        if str_eq(target_type, "i8") == 1 { helper = "as_i8"; };
+        if str_eq(target_type, "i16") == 1 { helper = "as_i16"; };
+        if str_eq(target_type, "i32") == 1 { helper = "as_i32"; };
+        if str_eq(target_type, "i64") == 1 { helper = "as_i64"; };
+        if str_eq(target_type, "isize") == 1 { helper = "as_i64"; };
+        if str_eq(target_type, "u8") == 1 { helper = "as_u8"; };
+        if str_eq(target_type, "u16") == 1 { helper = "as_u16"; };
+        if str_eq(target_type, "u32") == 1 { helper = "as_u32"; };
+        if str_eq(target_type, "u64") == 1 { helper = "as_u64"; };
+        if str_eq(target_type, "usize") == 1 { helper = "as_u64"; };
+        if str_eq(target_type, "f32") == 1 { helper = "as_f32"; };
+        if str_eq(target_type, "f64") == 1 { helper = "as_f64"; };
+        if str_eq(target_type, "char") == 1 { helper = "as_u32"; };
+        if str_len(helper) == 0 { return inner_lx; };
+        let mut args: Vec<i32> = Vec::new();
+        args.push(inner_r);
+        let r: i64 = ctr_next(regs);
+        ir_block_add(inner_blk, ir_call_ex(r, helper, args));
+        return lx_new(r, inner_blk);
+    };
     if kind == 1 {
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_const_int(r, node_field(pool, nid, 1)));
@@ -9539,7 +9749,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` not supported (would silently segfault)"; };
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
-    if str_eq(code, "TYP-026") { return "Non-void function reaches the end without returning a value"; };
+    if str_eq(code, "TYP-026") { return "Invalid or unproven `as char`, or non-void function reaches the end without returning a value"; };
     if str_eq(code, "TYP-027") { return "Type inference failed"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
     if str_eq(code, "FMT-003") { return "Format string has more arguments than `{}` placeholders (extras would be silently dropped)"; };
@@ -9788,7 +9998,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` (and longer chains like `\"a\" + \"b\" + \"c\"`) silently SIGSEGVed pre-v0.4.51 because the binop lowered to i64_add on the string pointers, producing a garbage pointer that crashed in print_str. Use `str_concat(a, b)` to concatenate strings."; };
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
-    if str_eq(code, "TYP-026") { return "A function declared to return a value has a path that can fall through without an explicit return or tail expression. Add the missing return value, or change the function to return void."; };
+    if str_eq(code, "TYP-026") { return "`as char` requires a valid Unicode scalar value. Constant casts must be within 0..0x10FFFF and outside 0xD800..0xDFFF; non-constant casts must be guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800`. This code also covers non-void functions that can fall through without an explicit return or tail expression."; };
     if str_eq(code, "TYP-027") { return "Strict inference mode found an expression whose type checker returned the empty-type sentinel. The compiler rejects it instead of treating the unknown type as compatible with every annotated type."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
     if str_eq(code, "FMT-003") { return "`format!(\"{}\", 1, 2, 3)` (more args than placeholders) silently dropped the extras pre-v0.5.11 — including any side effects in the dropped argument expressions. Either add `{}` placeholders for each extra arg or remove the unused args from the call. Mirrors the v0.4.70 placeholder>args check (the loud-direction asymmetry that left this case silent)."; };
@@ -10014,7 +10224,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-011") { return "Nucleor's i64-everywhere ABI lowers `+` to integer addition. For `str + str` that meant adding two string pointers as i64, producing a garbage pointer that SIGSEGVed when later passed to a string helper (e.g. `print_str`). Pre-v0.4.51 this was silent at compile time. v0.4.51 promotes the pattern to a hard error pointing at `str_concat(a, b)`. Reasoning: the canonical Rust idiom `&str + &str` doesn't compile in Rust either, so adopters expected a compile error and got runtime garbage instead."; };
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
-    if str_eq(code, "TYP-026") { return "Audit every control-flow path and make the returned value explicit. For side-effect-only functions, declare `-> void` or omit the return type."; };
+    if str_eq(code, "TYP-026") { return "For `as char`, keep invalid constants out of the cast and guard dynamic codepoints before casting. For missing returns, audit every control-flow path and make the returned value explicit; side-effect-only functions should return void."; };
     if str_eq(code, "TYP-027") { return "Add a concrete type annotation or route the expression through a helper whose return type is known to the type checker. For collection helpers, prefer typed methods or explicit wrappers until strict inference becomes the default."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
     if str_eq(code, "FMT-003") { return "Pre-v0.5.11 `format!(\"just {}\", 1, 2, 3)` silently dropped args 2 and 3 — the format expander walked the placeholders and stopped at the first arg, leaving the rest unevaluated/unreferenced. Adopter typos (left an arg after removing a placeholder) and refactor mistakes (renamed a placeholder, kept the arg) hit silently. v0.5.11 mirrors the v0.4.70 placeholder>args check direction so both asymmetries halt cleanly. Side-effecting expressions in dropped args (e.g. `format!(\"{}\", 1, expensive_call())`) no longer evaluate-then-discard."; };

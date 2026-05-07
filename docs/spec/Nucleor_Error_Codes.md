@@ -127,7 +127,7 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-011 | `str + str` not supported (would silently segfault) | binop type-check, v0.4.51 | error |
 | TYP-012 | Missing field(s) in struct initialization (would silently default to 0/empty) | struct-init type-check, v0.4.62 | error |
 | TYP-013 | Unknown field in struct initialization (would silently drop the extra field) | struct-init type-check, v0.4.63 | error |
-| TYP-026 | Function with non-void return type reaches the end with no tail expression | type-check, v0.4.219 | error |
+| TYP-026 | Invalid or unproven `as char`, or a non-void function reaches the end with no tail expression | type-check, v0.4.219/v0.8.45 | error |
 | TYP-027 | Type inference failed; explicit annotation required | strict inference type-check, v0.8 E3 | error |
 
 `TYP-027` is suppressed only when strict inference can prove the
