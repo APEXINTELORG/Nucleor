@@ -1574,3 +1574,114 @@ Deliverable:
 - Include branch, HEAD, base, merge-base, changed files, completed scopes,
   skipped scopes/blockers, validation, and report path.
 - Report whether main needs drift/self-host/perf/full verify.
+
+## Queue 12 Continuation v0842 - RT Determinism Attribute Closure Pack
+
+Start this only after Queue 11 is pushed or explicitly blocked. Fetch first and
+start fresh from current `origin/main`; do not stack on an unintegrated ROBO-7
+branch unless main already contains it.
+
+Branch:
+
+```text
+fix/helper1-rt-determinism-closure-v0842
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/helper1-rt-determinism-closure-v0842 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Advance Real-Time / Determinism beyond the current bounded same-file
+  `#[no_alloc]` / `#[no_panic]` helper checks.
+- Prefer one real compiler-enforced behavior plus fixtures over a broad report.
+- Keep the implementation small enough that cold compiler RSS stays under the
+  current 350MB compiler budget.
+
+Preferred implementation, in order:
+
+1. Bounded deeper same-file chain detection for `#[no_alloc]` and
+   `#[no_panic]`:
+
+```text
+#[no_alloc] fn a() { b(); }
+fn b() { c(); }
+fn c() { let v: Vec<i64> = Vec::new(); }
+```
+
+The build should fail on the annotated surface with the existing RT diagnostic
+class. Bound recursion depth to a small constant. Same-file direct calls only.
+
+2. If deeper chain detection is already present or too risky, implement
+   `#[deadline(ms = N)]` syntax audit/enforcement for malformed or unsupported
+   deadline declarations. The first slice may be fail-closed validation of
+   numeric literal shape and docs, not certified WCET.
+
+Primary files to inspect:
+
+```text
+compiler/nucleor_s1_compiler.nr
+tests/err/err_no_alloc_*.nr
+tests/err/err_no_panic_*.nr
+tests/features/no_alloc_clean.nr
+docs/rfcs/v1_PUNCHLIST.md
+docs/spec/Nucleor_Error_Codes.md
+```
+
+Candidate fixtures:
+
+```text
+tests/err/err_no_alloc_deep_helper_alloc.nr
+tests/err/err_no_panic_deep_helper_panic.nr
+tests/features/rt_attr_deep_clean_smoke.nr
+```
+
+Boundaries:
+
+- No R05 effects work.
+- No ROBO-7 frame work.
+- No RFC-0063 tools-suite duplicate deletion.
+- No Linux package/R06 proof work.
+- No parser rewrite unless absolutely required for a deadline syntax slice.
+- No Python helpers.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o _helper1_rt_s1_v0842 --no-link --no-cache
+```
+
+Run every new negative fixture and confirm the expected RT diagnostic. Run every
+new positive fixture and confirm exit code 0.
+
+Required gates:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Required because this is compiler hot-path work:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Deliverable:
+
+Create:
+
+```text
+findings/inbox/helper1_rt_determinism_closure_v0842_2026-05-07.md
+```
+
+Include branch, HEAD, base, merge-base, completed behavior, skipped surfaces,
+changed files, focused validation, drift/ABI/diff/perf results, and whether
+main needs self-host/full verify.

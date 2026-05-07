@@ -2628,3 +2628,90 @@ Include:
 - validation output summary and perf numbers;
 - recommended Wave 7 candidates;
 - whether main needs drift/self-host/perf/full verify.
+
+## Queue 17 Continuation v0842 - RFC-0063 Tools-Suite Wave 7
+
+Start this only after Queue 16 is pushed or explicitly blocked. Fetch first and
+start fresh from current `origin/main`; do not stack on an unintegrated Wave 6
+branch unless main already contains it.
+
+Branch:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave7-v0842
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/helper2-rfc0063-tools-suite-wave7-v0842 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Continue RFC-0063 duplicate deletion after Wave 6.
+- Take another IDENTICAL-only batch. Target 25 to 45 helpers if the audit
+  report still supports it.
+- Prefer utility/helper islands with low behavioral coupling.
+
+Candidate pools:
+
+```text
+source_line
+find_in_source
+byte_to_line
+line_has_unit_literal
+path_overlaps
+str_trim
+str_ltrim
+str_rtrim
+str_starts_with
+str_ends_with
+str_contains
+str_index_of
+is_ws
+is_alpha
+is_alnum
+```
+
+Also consider any remaining diagnostics/record helpers that Queue 16 did not
+take, but only if the current `tools/audit_dup_fns_report.csv` marks them
+`IDENTICAL`.
+
+Hard boundaries:
+
+- No parser functions: `parse_stmt`, `parse_expr`, `parse_match_stmt`.
+- No `SIG_MATCH_BODY_DIFFERS` or `SIG_DIFFERS` implementation in this queue.
+- No R05, ROBO-7, RT, quantum, package/R06, `bin/`, `bootstrap/`, or perf
+  baseline edits.
+- No Python helpers.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_tools_suite.nr -o nucleor_tools --no-cache
+.\bin\nucleor.exe check examples\01_hello.nr --no-cache
+.\bin\nucleor.exe build-strict examples\01_hello.nr -o _rfc0063_wave7_build_strict --no-cache
+.\bin\nucleor.exe abi examples\01_hello.nr
+.\bin\nucleor.exe publish tests\fixtures\t14_registry\foo\0.1.0\Nucleor.toml --registry "$env:TEMP\nucleor-rfc0063-wave7-registry" --dry-run
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Deliverable:
+
+Create:
+
+```text
+findings/inbox/helper2_rfc0063_tools_suite_wave7_v0842_2026-05-07.md
+```
+
+Include branch, HEAD, base, merge-base, before/after duplicate counts, moved
+helper names, skipped candidates, validation summary, perf numbers, and a
+recommendation for the first `SIG_MATCH_BODY_DIFFERS` review wave once the
+IDENTICAL pool is drained.
