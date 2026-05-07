@@ -2220,6 +2220,65 @@ Branch:
 fix/helper2-rfc0063-tools-suite-wave3-v0840
 ```
 
+## Queue 14 Continuation: RFC-0063 Tools-Suite Wave 4
+
+Queue 13 has landed on main as `4d78c4b2`. Fetch first and branch fresh from
+current `origin/main`.
+
+Branch:
+
+```text
+fix/helper2-rfc0063-tools-suite-wave4-v0840
+```
+
+Scope:
+
+- Continue RFC-0063 Phase 2.0 duplicate deletion/import after Wave 3.
+- Select another coherent batch of remaining `IDENTICAL` duplicate helper
+  functions. A 20-40 helper batch is preferred, but a smaller batch is fine if
+  the next coherent cluster is smaller.
+- Preferred candidates:
+  - cache/path helpers: `cache_v2_*`, `host_*`, `target_root_name`,
+    `write_ll_artifact_if_needed`, if the duplicate audit confirms they are
+    truly `IDENTICAL`;
+  - small map helpers, excluding growth-sensitive internals first;
+  - small atomic-ordering helpers, if they remain `IDENTICAL` and the proof
+    matrix covers them.
+- If `smap_grow` or another growth-sensitive helper is selected, keep it in a
+  dedicated small batch and explicitly explain why the move is safe.
+
+Hard boundaries:
+
+- Do not touch parser functions: `parse_stmt`, `parse_expr`,
+  `parse_match_stmt`.
+- Do not touch `SIG_MATCH_BODY_DIFFERS` or `SIG_DIFFERS` helpers unless this
+  becomes a report-only blocker.
+- Do not touch Cloud Linux package/R06 tooling, R05 effects, or Helper1 ROBO-7
+  repair.
+- Do not change `bin/`, `bootstrap/`, or performance baselines.
+- No Python helpers.
+
+Required validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_tools_suite.nr -o nucleor_tools --no-cache
+.\bin\nucleor.exe check examples\01_hello.nr --no-cache
+.\bin\nucleor.exe build-strict examples\01_hello.nr -o _rfc0063_wave4_build_strict --no-cache
+.\bin\nucleor.exe abi examples\01_hello.nr
+.\bin\nucleor.exe publish tests\fixtures\t14_registry\foo\0.1.0\Nucleor.toml --registry "$env:TEMP\nucleor-rfc0063-wave4-registry" --dry-run
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Deliverable:
+
+- Push the Wave 4 branch.
+- Write `findings/inbox/helper2_rfc0063_tools_suite_wave4_v0840_2026-05-06.md`.
+- Include before/after duplicate counts, selected helper names, exact files
+  changed, validation output, perf result, and recommended Wave 5 candidates.
+
 Scope:
 
 - Continue RFC-0063 Phase 2.0 duplicate deletion/import after Wave 2.
