@@ -210,6 +210,14 @@ Negative coverage: `tests/err/err_robo7_frame_mismatch.nr` plus
 the `tests/err/err_robo7_frame_*_mismatch.nr` site-specific
 fixtures.
 
+v0841 stdlib migration coverage: `stdlib/rods/kinematics.nr` exposes
+an adopter-facing `Pose<Frame_*>` facade and explicit
+`kinematics_transform*` helpers over the existing pose math handles.
+Positive coverage:
+`tests/features/robo7_kinematics_typed_pose_smoke.nr`. Negative
+coverage:
+`tests/err/err_robo7_kinematics_transform_call_mismatch.nr`.
+
 ## ASSUME series — RFC-0004 assume!
 
 | Code | Title | RFC section |

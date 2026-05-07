@@ -17,6 +17,7 @@
 //
 // See `stdlib/runtime/kinematics_rt.c`.
 #cfile "../runtime/kinematics_rt.c"
+import "stdlib/rods/kinematics_frame.nr"
 
 extern fn nuc_vec3_new(x_bits: i64, y_bits: i64, z_bits: i64) -> i64;
 extern fn nuc_vec3_get_x(h: i64) -> i64;
@@ -49,6 +50,11 @@ extern fn nuc_pose_compose(a: i64, b: i64) -> i64;
 extern fn nuc_pose_inverse(h: i64) -> i64;
 extern fn nuc_pose_apply(p: i64, v: i64) -> i64;
 extern fn nuc_pose_free(h: i64);
+
+// Phantom-frame facade over the existing pose math handles. The
+// translation and rotation fields are the existing Vec3 / Quat
+// handles; the frame parameter is compile-time only.
+struct Pose { translation: i64, rotation: i64 }
 
 // === Vec3 ===
 fn vec3(x_bits: i64, y_bits: i64, z_bits: i64) -> i64 { return nuc_vec3_new(x_bits, y_bits, z_bits); }
@@ -92,6 +98,49 @@ fn pose_compose(a: i64, b: i64) -> i64 { return nuc_pose_compose(a, b); }
 fn pose_inverse(p: i64) -> i64 { return nuc_pose_inverse(p); }
 fn pose_apply(p: i64, v: i64) -> i64 { return nuc_pose_apply(p, v); }
 fn pose_free(p: i64) { nuc_pose_free(p); }
+
+// === Typed Pose facade ===
+//
+// Existing handle-level pose APIs remain unchanged. These helpers let
+// adopters opt into ROBO-7 / RFC-0046 frame diagnostics at public
+// stdlib call sites while preserving the Frame_Unknown migration path.
+fn kinematics_pose(pos: i64, quat: i64) -> Pose<Frame_Unknown> {
+    return Pose { translation: pos, rotation: quat };
+}
+
+fn kinematics_pose_pos(p: Pose<Frame_Unknown>) -> i64 {
+    return p.translation;
+}
+
+fn kinematics_pose_quat(p: Pose<Frame_Unknown>) -> i64 {
+    return p.rotation;
+}
+
+fn kinematics_pose_compose(a: Pose<Frame_Unknown>, b: Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
+    let ah: i64 = nuc_pose_new(a.translation, a.rotation);
+    let bh: i64 = nuc_pose_new(b.translation, b.rotation);
+    let ch: i64 = nuc_pose_compose(ah, bh);
+    let pos: i64 = nuc_pose_get_pos(ch);
+    let rot: i64 = nuc_pose_get_quat(ch);
+    nuc_pose_free(ah);
+    nuc_pose_free(bh);
+    nuc_pose_free(ch);
+    return Pose { translation: pos, rotation: rot };
+}
+
+fn kinematics_transform(p: Pose<Frame_Unknown>, transform: Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
+    return kinematics_pose_compose(transform, p);
+}
+
+fn kinematics_transform_camera_to_base(p: Pose<Frame_Camera>, camera_to_base: Pose<Frame_Unknown>) -> Pose<Frame_Base> {
+    let out: Pose<Frame_Unknown> = kinematics_pose_compose(camera_to_base, p);
+    return out;
+}
+
+fn kinematics_transform_base_to_camera(p: Pose<Frame_Base>, base_to_camera: Pose<Frame_Unknown>) -> Pose<Frame_Camera> {
+    let out: Pose<Frame_Unknown> = kinematics_pose_compose(base_to_camera, p);
+    return out;
+}
 
 // === Ergonomic f64 wrappers (v0.4.261) ===
 //
