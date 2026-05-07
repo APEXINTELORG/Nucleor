@@ -27,7 +27,7 @@ Spawned cloud agents look here first, take the next pending queue, work it in th
 
 - [x] **8B** — Linux release prerequisite doctor. Branch `fix/cloud-linux-release-prereq-doctor-v0845`. Small shell/PowerShell doctor or docs section for `pwsh`, `ssh-keygen`, `clang`, `cargo`, `bin/nucleor`, `bin/nucleor_tools`. No Python helper. Handoff §Lane 8 / Queue 8B.
 
-- [ ] **8C** — Full native Linux verify transcript. Branch `probe/cloud-linux-full-verify-transcript-v0845`. Run full `bash tools/verify.sh` on native Linux from current `origin/main`. If it fails, file one report with exact failures classified as: Windows-only fixture / missing Linux prerequisite / real compiler/runtime bug / performance-only drift. Do not patch unrelated failures in this transcript branch unless small + deterministic. Handoff §Lane 8 / Queue 8C.
+- [x] **8C** — Full native Linux verify transcript. Branch `probe/cloud-linux-full-verify-transcript-v0845`. Run full `bash tools/verify.sh` on native Linux from current `origin/main`. If it fails, file one report with exact failures classified as: Windows-only fixture / missing Linux prerequisite / real compiler/runtime bug / performance-only drift. Do not patch unrelated failures in this transcript branch unless small + deterministic. Handoff §Lane 8 / Queue 8C.
 
 ## Optional follow-on (if 8A-8C close cleanly)
 
@@ -89,4 +89,14 @@ Files: 3 (tools/release_doctor.sh [new, +x], docs/process/semver-and-release.md 
 Validation: PASS — `bash tools/release_doctor.sh` reports OK for native-linux/clang/cargo/bin-nucleor/bin-nucleor-tools; FAIL with actionable install hints for the genuinely-missing pwsh and ssh-keygen on this runner. JSON mode validates with `python3 -c json.load`. Quiet mode emits only the summary line. No Python in the doctor itself (`#!/usr/bin/env bash` + awk/grep/sed/file/tr).
 Report: findings/inbox/cloud_claude_lane8_8B_v0845_2026-05-07.md
 Residuals: (1) `pwsh` and `ssh-keygen` are genuinely absent on this runner — the doctor's docs install-hint table is the smallest tooling/docs patch. (2) No POSIX `tools/native_release.sh` exists yet (PKG-1 P2 future work per the gap-analysis RFC); when it lands, `pwsh` may move from `required` to optional in the doctor.
+
+## [2026-05-07 11:25 UTC] Queue 8C — DONE
+Branch: claude/cloud-control-punchlist-bPLVn @ <committed below>
+Base: origin/main @ 5890c84603bd46fc6d86b9500b2ef7cd4ae4d63c (working state: base + 8A + 8B)
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 pwsh=missing cargo=1.94.1 rustc=1.94.1 ssh-keygen=missing (pwsh/ssh-keygen not exercised by verify)
+Files: 1 (findings/inbox/cloud_claude_lane8_8C_v0845_2026-05-07.md). Verify log at findings/inbox/8C_artifacts/verify_full.log is gitignored (*.log).
+Validation: COMPLETE — `bash tools/verify.sh` ran end-to-end (1273 steps in ~17 minutes wall): PASS=1237, SKIP=6, FAIL=30, exit 1. Every failure classified per the handoff buckets in the report.
+Report: findings/inbox/cloud_claude_lane8_8C_v0845_2026-05-07.md
+Residuals (bucket totals — full per-step matrix in the report): Windows-only fixture: 1 (tests/runtime/path_utils — asserts `C:/foo` is absolute). Missing Linux prerequisite: 0 (clang/cargo/bin-nucleor/bin-nucleor-tools all present; doctor confirmed). Real compiler/runtime bug: 29 across 5 root causes — R1 `nuc test` link doesn't pass `-lm` (21 failures, dominant), R2 POSIX `#else` of `stdlib/runtime/nucleor_llvm_rt.c` missing 9 RNG bridges (4 failures), R3 `nuc init` no `mkdir -p src/` (2 failures), R4 `nuc clean --cache` doesn't remove `target/.nuc_cache_v2/` (1 failure), R5 Linux ELF build-id varies — needs `-Wl,--build-id=none` (2 failures). Performance-only drift: 0 (T1.8 perf gate PASSED in 20.27s under auto-selected Linux baseline). Side-effect: a Windows-only fixture leaked a `nul` file via `cmd.exe`-style `2>nul` redirection — removed manually; Bucket = Windows-only fixture leak. Per the 8C ground rule "do not patch unrelated failures unless small + deterministic", no fixes were attempted in this branch; the report enumerates 7 candidate follow-on branches under the existing handoff naming convention.
 
