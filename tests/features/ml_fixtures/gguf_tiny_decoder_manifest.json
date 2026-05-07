@@ -1,0 +1,19 @@
+{
+  "manifest": {
+    "model_name": "tiny_decoder_gguf_fixture",
+    "architecture": "llama",
+    "tensor_count": 24,
+    "metadata_field_count": 9,
+    "quantization_family_count": 3,
+    "tokenizer_field_count": 6,
+    "context_window": 4096,
+    "external_loader_count": 1
+  },
+  "claim_scope": "GGUF model-interchange metadata contract only; this is not a native GGUF tensor parser or mmap loader.",
+  "roadmap": [
+    "native tensor metadata parser",
+    "quantized tensor loading",
+    "mmap-backed weight access",
+    "vLLM-style paged KV cache accounting"
+  ]
+}

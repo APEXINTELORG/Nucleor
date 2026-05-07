@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "model_name": "tiny_vllm_scheduler_fixture",
+    "scheduler_policy": "continuous_batching_contract",
+    "kv_cache_policy": "paged_kv_cache_contract",
+    "dtype_policy": "fp16_kv_f32_logits",
+    "max_sequence_count": 8,
+    "max_batched_token_count": 512,
+    "block_size": 16,
+    "kv_cache_block_count": 64,
+    "waiting_queue_count": 1,
+    "admission_policy_count": 2,
+    "preemption_policy_count": 1,
+    "block_table_count": 8,
+    "kv_eviction_policy_count": 1,
+    "prefill_route_count": 1,
+    "decode_route_count": 1,
+    "paged_attention_count": 1,
+    "external_runtime_count": 1
+  },
+  "claim_scope": "vLLM-style serving metadata plus scheduler/KV-cache contract evidence only; this is not a native paged-attention engine or OpenAI-compatible serving stack.",
+  "roadmap": [
+    "native continuous batching implementation",
+    "paged KV-cache allocator",
+    "prefill and decode execution split",
+    "OpenAI-compatible route manifest",
+    "backend kernel dispatch accounting"
+  ]
+}

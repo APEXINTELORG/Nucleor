@@ -1,0 +1,14 @@
+{
+  "builder_name": "nuc_tiny_text",
+  "config_name": "default",
+  "features": {
+    "text": {
+      "dtype": "string"
+    }
+  },
+  "splits": {
+    "train": {
+      "num_examples": 2
+    }
+  }
+}

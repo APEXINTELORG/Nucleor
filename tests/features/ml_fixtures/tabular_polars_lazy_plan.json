@@ -1,0 +1,17 @@
+{
+  "engine": "polars_lazy_compatible",
+  "operations": [
+    "scan_csv",
+    "filter",
+    "select",
+    "group_by",
+    "agg_sum",
+    "sort"
+  ],
+  "optimizations": {
+    "predicate_pushdown": true,
+    "projection_pushdown": true,
+    "streaming": true
+  },
+  "plan_node_count": 7
+}
