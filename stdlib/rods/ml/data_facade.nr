@@ -185,7 +185,6 @@ struct DescribeF64 {
     max: f64
 }
 
-#[manual_drop]
 fn frame_i64_f64_from_vec(key_name: str, value_name: str, keys: Vec<i64>, values: Vec<f64>) -> FrameI64F64 {
     return FrameI64F64 {
         key_name: key_name,
@@ -196,7 +195,6 @@ fn frame_i64_f64_from_vec(key_name: str, value_name: str, keys: Vec<i64>, values
     };
 }
 
-#[manual_drop]
 fn frame_i64_nullable_f64_from_vec(
     key_name: str,
     value_name: str,
@@ -214,7 +212,6 @@ fn frame_i64_nullable_f64_from_vec(
     };
 }
 
-#[manual_drop]
 fn frame_str_f64_from_vec(key_name: str, value_name: str, keys: Vec<str>, values: Vec<f64>) -> FrameStrF64 {
     return FrameStrF64 {
         key_name: key_name,
@@ -225,7 +222,6 @@ fn frame_str_f64_from_vec(key_name: str, value_name: str, keys: Vec<str>, values
     };
 }
 
-#[manual_drop]
 fn frame_str_nullable_f64_from_vec(
     key_name: str,
     value_name: str,
@@ -243,7 +239,6 @@ fn frame_str_nullable_f64_from_vec(
     };
 }
 
-#[manual_drop]
 fn frame_i64_f64_f64_from_vec(
     key_name: str,
     value0_name: str,

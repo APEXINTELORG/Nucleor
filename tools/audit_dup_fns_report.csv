@@ -127,7 +127,7 @@ lower_if_expr_branch,13,13,23,23,1,1,IDENTICAL
 lower_expr,13,13,3079,751,1,0,SIG_MATCH_BODY_DIFFERS
 lower_stmt,13,13,803,344,1,0,SIG_MATCH_BODY_DIFFERS
 lower_stmts,13,13,5,5,1,1,IDENTICAL
-lower_fn,18,8,477,75,0,0,SIG_DIFFERS
+lower_fn,18,8,490,75,0,0,SIG_DIFFERS
 cache_v2_json_escape,1,1,23,23,1,0,SIG_MATCH_BODY_DIFFERS
 cache_v2_canonical_flags,1,1,14,10,1,0,SIG_MATCH_BODY_DIFFERS
 cache_v2_store,5,4,17,11,0,0,SIG_DIFFERS
