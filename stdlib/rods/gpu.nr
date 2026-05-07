@@ -5,8 +5,15 @@
 
 // Check if GPU compute is available
 fn gpu_available() -> i64 {
-    // Check for Vulkan by attempting to load the library
-    let rc: i64 = system("where vulkaninfo >/dev/null 2>nul");
+    // Cross-platform vulkaninfo probe. The earlier shape used `where ...
+    // 2>nul` which is cmd.exe-only — on POSIX `where` is missing so the
+    // sh error went to a file literally named `nul` in CWD.
+    let probe: str = if str_eq(path_separator(), "\\") == 1 {
+        "where vulkaninfo >NUL 2>NUL"
+    } else {
+        "command -v vulkaninfo >/dev/null 2>/dev/null"
+    };
+    let rc: i64 = system(probe);
     if rc == 0 { return 1; };
     return 0;
 }
