@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 254
-# Total fn definitions: 3206
-# Total LOC: 13907
+# Total rods: 255
+# Total fn definitions: 3213
+# Total LOC: 13958
 
 [[rod]]
 name           = "activation2"
@@ -1054,6 +1054,15 @@ function_count = 15
 cfile_count    = 0
 loc            = 51
 imports        = ["kinematics_frame"]
+
+[[rod]]
+name           = "kinematics_transform"
+path           = "stdlib/rods/kinematics_transform.nr"
+description    = "RFC-0046 Phase B / ROBO-7 v0845"
+function_count = 7
+cfile_count    = 0
+loc            = 51
+imports        = ["kinematics", "kinematics_frame"]
 
 [[rod]]
 name           = "klt"
