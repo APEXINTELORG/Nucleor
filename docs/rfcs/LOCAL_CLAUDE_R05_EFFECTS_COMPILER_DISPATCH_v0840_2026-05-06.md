@@ -253,3 +253,110 @@ findings/inbox/local_claude_r05_transitive_effects_v0841_2026-05-06.md
 Include branch, HEAD, base, merge-base, implemented behavior, skipped surfaces,
 changed files, focused validation output, drift/ABI/diff/perf results, and
 remaining R05/RFC-0033 gaps.
+
+## Continuation v0842 - R05 RFC-0033 Row Subtyping / `with` Bridge
+
+Start this only after the v0841 transitive-effects queue is pushed or explicitly
+blocked. Fetch first and start fresh from current `origin/main`.
+
+Branch:
+
+```text
+fix/local-claude-r05-with-row-subtyping-v0842
+```
+
+Start:
+
+```powershell
+git fetch origin
+git checkout -B fix/local-claude-r05-with-row-subtyping-v0842 origin/main
+git status --short --branch
+git merge-base HEAD origin/main
+```
+
+Goal:
+
+- Connect the existing RFC-0033 `with [...]` enforcement subset to the same
+  row-family overlap semantics used by `requires [...]` and block-form
+  `restricts [...]`.
+- Prefer one or two real compiler-enforced cases with fixtures over broad
+  theory.
+
+Preferred target behavior:
+
+```text
+fn allocs() -> i32 with [Alloc] {
+    let v: Vec<i64> = Vec::new();
+    0
+}
+
+fn main() -> i32 with [no_alloc] {
+    allocs()
+}
+```
+
+This should continue to fail, but the row-family handling should also catch
+sub-effect/family variants where the syntax allows them. If the current syntax
+does not support a richer row, document that precisely and instead add the
+smallest valid bridge from `with [no_alloc]` to the shared row-overlap helper.
+
+Primary files:
+
+```text
+compiler/nucleor_s1_compiler.nr
+tests/err/err_effects_with_alloc_call.nr
+tests/features/requires_row_clean_smoke.nr
+docs/rfcs/v1_PUNCHLIST.md
+docs/spec/Nucleor_Error_Codes.md
+```
+
+Candidate fixtures:
+
+```text
+tests/err/err_effects_with_alloc_family_call.nr
+tests/features/effects_with_clean_smoke.nr
+```
+
+Boundaries:
+
+- Same-file direct calls only unless the v0841 transitive implementation is
+  already on main and can be reused safely.
+- No cross-module effects.
+- No methods, closures, traits, async propagation, or parser unification.
+- No ROBO-7, RT, RFC-0063, package/R06, Linux-only, or quantum work.
+- No Python helpers.
+
+Validation:
+
+```powershell
+.\bin\nucleor.exe build compiler\nucleor_s1_compiler.nr -o _local_claude_r05_with_s1_v0842 --no-link --no-cache
+```
+
+Run every new negative fixture and confirm the expected `EFF-*` code. Build and
+run every new positive fixture.
+
+Required gates:
+
+```bash
+bash tools/check_compiler_drift.sh
+bash tools/check_rod_void_abi.sh
+git diff --check
+```
+
+Required because this is compiler hot-path work:
+
+```powershell
+pwsh -NoProfile -File tools\check_perf_regression.ps1
+```
+
+Deliverable:
+
+Create:
+
+```text
+findings/inbox/local_claude_r05_with_row_subtyping_v0842_2026-05-07.md
+```
+
+Include branch, HEAD, base, merge-base, implemented behavior, exact skipped
+syntax/surfaces, changed files, validation, perf numbers, and remaining R05
+hardening plan.
