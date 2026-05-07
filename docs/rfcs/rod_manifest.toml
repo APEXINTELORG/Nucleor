@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 255
-# Total fn definitions: 3213
-# Total LOC: 13958
+# Total fn definitions: 3224
+# Total LOC: 14015
 
 [[rod]]
 name           = "activation2"
@@ -1842,10 +1842,10 @@ imports        = ["sdf"]
 name           = "se3"
 path           = "stdlib/rods/se3.nr"
 description    = "Pointer-based SE(3) operations on raw `(t ∈ ℝ³,"
-function_count = 8
+function_count = 16
 cfile_count    = 1
-loc            = 39
-imports        = ["se3"]
+loc            = 76
+imports        = ["kinematics_frame", "se3"]
 
 [[rod]]
 name           = "serial"
@@ -2076,9 +2076,9 @@ imports        = ["fmt", "test"]
 name           = "tf"
 path           = "stdlib/rods/tf.nr"
 description    = "Hierarchical coordinate-frame transform tree."
-function_count = 12
+function_count = 15
 cfile_count    = 1
-loc            = 63
+loc            = 83
 imports        = ["kinematics_frame", "tf"]
 
 [[rod]]
