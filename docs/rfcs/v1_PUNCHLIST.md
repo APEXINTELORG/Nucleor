@@ -249,14 +249,18 @@ launch. After memory safety completes, these are next-priority.
 
 ### PKG-1, PKG-3 — Packaging
 
-- **PKG-1 (Linux `nuc publish --sign`):** OPEN — needs native
-  Linux runner evidence for the signed publish path. Branch-ready
-  helper2 v0831 adds non-mutating `nuc publish --dry-run` target
-  reporting plus `tools/native_release.ps1 package-sign-preflight`;
-  neither path copies packages, writes registry metadata, creates
-  keys, or writes signatures. Remaining closure is a native Linux
-  transcript against a throwaway registry/key and signature verify.
-  See `findings/inbox/helper2_pkg1_release_dryrun_preflight_v0831_2026-05-06.md`.
+- **PKG-1 (Linux `nuc publish --sign`):** DONE 2026-05-07
+  (v0842) — native Linux proof on kernel 6.18.5 bootstraps
+  `bin/nucleor` from `bootstrap/nucleor_s1_seed.ll`, builds
+  `bin/nucleor_tools`, creates a throwaway ed25519 key, runs
+  dry-run signed publish with no registry artifacts, then performs
+  real `nuc publish --sign --key-id throwaway-ci` to a throwaway
+  registry and verifies the resulting package signature with
+  `tools/native_release.ps1 package-verify`. Evidence:
+  `findings/inbox/cloud_linux_pkg1_signed_publish_v0842_2026-05-07.md`.
+  Fresh Linux runners still need documented prereqs (`pwsh`,
+  `openssh-client`/`ssh-keygen`, clang, and a locally built
+  `bin/nucleor_tools`), but no PKG-1 publish-path blocker remains.
 - **PKG-3 (semver resolver) — DONE for v1.0 syntax surface:**
   - caret `^X.Y.Z` v0.8.89
   - tilde `~X.Y.Z` v0.8.90
@@ -451,21 +455,22 @@ launch. After memory safety completes, these are next-priority.
 ### Interop / FFI
 - Source: `gap-analyses/Nucleor_Interop_FFI_Gap_Analysis_and_RFC_2026-05-04.md`
 - Already partially closed by RFC-0062 G-5/G-7/G-9 Phase 1+2a. Cross-reference pending.
-- **R06 Phase 2/3 rust_bridge ownership harness:** BRANCH-READY on helper2
-  v0828 (`fix/helper2-r06-rust-bridge-ownership-harness-v0828`) — adds
-  standalone PowerShell and POSIX opt-in harnesses for `rust_free_str`
-  ownership evidence. Windows prerequisites are available and the harness
-  ran repeated ownership cycles through the focused smoke fixture. The
-  broader repeat fixture covers all seven Rust string-returning bridge
-  functions. The continuation adds a deterministic `rust_hash_string_fnv1a`
-  fixture, `all` fixture selectors, and opt-in machine-readable JSON output
-  for future release scripts without wiring the harness into normal verify
-  or perf gates. Queue 2 adds no-build self-test mode, fail-closed
-  prerequisite simulations for cargo/compiler/artifact, JSON stability
-  transcript, future CI allowlist/denylist notes, and a residual blocker
-  reduction plan. Remaining R06 work: native POSIX compiler/artifact
-  evidence, optional ASAN/valgrind-style leak-signal evidence, and the
-  broader cross-boundary ownership contract for Python/shared-library FFI.
+- **R06 Phase 2/3 rust_bridge ownership harness:** POSIX ownership
+  proof CLOSED 2026-05-07 (v0842) — helper2 v0828 added standalone
+  PowerShell and POSIX opt-in harnesses for `rust_free_str` ownership
+  evidence; the native Linux proof runs the POSIX harness on kernel
+  6.18.5 with native cargo/rustc/clang, covers all seven Rust
+  string-returning bridge functions, exercises 70,000 alloc/free
+  cycles through `rust_free_str`, emits the JSON harness transcript,
+  and strengthens the result with valgrind 3.22.0 memcheck showing
+  0 definite/indirect leaks for the string-free, string-free-repeat,
+  and hash-control fixtures. Evidence:
+  `findings/inbox/cloud_linux_r06_rust_bridge_proof_v0842_2026-05-07.md`.
+  Remaining R06 future work: cross-platform hash byte transcript
+  pairing Windows + POSIX, RFC-0062 Phase 2b/4 `unsafe` /
+  `#[allow(direct_ffi)]` enforcement for direct FFI calls, concurrent
+  ownership stress, and the broader cross-boundary ownership contract
+  for Python/shared-library FFI.
 
 ### Performance Envelope (beyond PERF-11)
 - Source: `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`
