@@ -167,27 +167,12 @@ fn check_unsupported_gate() -> i64 {
 }
 
 fn check_malformed_gate_line() -> i64 {
-    // Missing closing "];" on an h gate.
+    // The h-prefix matches but the "];" suffix is missing, so
+    // _qasm2_parse_1q_arg returns -1 and the parser surfaces
+    // qasm2_status_parse_malformed_gate (not parse_unsupported_gate).
     let src: str = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0\n";
     let r: i64 = qasm2_parse(src);
-    if qasm2_parse_result_status(r) != qasm2_status_parse_unsupported_gate() { return 130; };
-    // Note: prefix "h q[" still matches, but the trailing form does
-    // not, so we expect parse_malformed_gate from 1q_arg if the
-    // prefix matches but the suffix does not. The prefix matcher in
-    // _qasm2_parse_gate_into requires "h q[" exactly; a missing "];"
-    // suffix falls through 1q_arg's -1 return into
-    // qasm2_status_parse_malformed_gate. The src above does NOT
-    // start with "h q[" because line includes the trailing
-    // newline-... actually: parts.get(3) here is "h q[0", which
-    // DOES start with "h q[", so we hit malformed_gate. Adjust:
-    return 0;
-}
-
-fn check_malformed_gate_line_real() -> i64 {
-    let src: str = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0\n";
-    let r: i64 = qasm2_parse(src);
-    let st: i64 = qasm2_parse_result_status(r);
-    if st != qasm2_status_parse_malformed_gate() { return 140; };
+    if qasm2_parse_result_status(r) != qasm2_status_parse_malformed_gate() { return 140; };
     return 0;
 }
 
@@ -251,7 +236,7 @@ fn main() -> i64 {
     fails = fails + check_malformed_qreg_zero();
     fails = fails + check_qreg_above_cap();
     fails = fails + check_unsupported_gate();
-    fails = fails + check_malformed_gate_line_real();
+    fails = fails + check_malformed_gate_line();
     fails = fails + check_cx_malformed_args();
     fails = fails + check_qubit_out_of_range_propagates();
     fails = fails + check_same_qubit_propagates();
