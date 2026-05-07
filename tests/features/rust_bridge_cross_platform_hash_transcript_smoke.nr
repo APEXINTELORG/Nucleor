@@ -26,7 +26,13 @@
 import "stdlib/rods/rust.nr"
 
 fn print_row(label: str, h: i64) {
-    print(str_concat(label, str_concat(" ", str_concat(int_to_str(h), "\n"))));
+    // print_raw, not print: print() appends \n via the shared C runtime
+    // (__nucleor_print_str does printf("%s\n", s) unconditionally), so
+    // combining it with an embedded \n produces \n\n per row on both
+    // platforms. The Q7A reference transcript is the single-\n-per-row
+    // canonical form, so this fixture uses the raw variant + an explicit
+    // \n to keep the byte-compare green.
+    print_raw(str_concat(label, str_concat(" ", str_concat(int_to_str(h), "\n"))));
 }
 
 fn main() -> i32 {
