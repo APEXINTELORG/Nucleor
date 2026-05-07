@@ -2258,13 +2258,28 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool, tok_pos_at(tokens, pos)); return r; };
-    // v0.8.321 R05-D3: block-form `restricts [...] { ... }` is a
-    // trust-gap surface until full effect-row enforcement lands. Halt
-    // on the syntactic block form instead of accepting, misparsing, or
-    // implying that s1 enforces the compile-time guarantee.
+    // v0.8.321 R05-D3: block-form `restricts [...] { ... }` was a
+    // parse-time fail-closed halt while no real enforcement existed.
+    // v0.8.323 R05 Phase 2b first slice (local-claude v0840): the
+    // block form now parses as a passthrough block expression and the
+    // source-level pre-pass `enforce_restricts_block_effects`
+    // (registered alongside `enforce_requires_direct_calls` in the
+    // build pipeline) emits `error[EFF-003]` when a direct call inside
+    // the block uses an effect named in the deny row. Two surfaces
+    // are enforced in this slice: builtin print-family I/O and the
+    // `channel` constructor (mapped via `restricts_builtin_effect`),
+    // and same-file user fns whose declared `requires [...]` row
+    // overlaps the deny row (via `effect_row_intersect_first`).
+    // Clean blocks (no calls / no overlap) compile and run normally.
+    // Out-of-scope per dispatch boundaries: whole-program effect
+    // inference, cross-module propagation, methods/closures/higher-
+    // order effects, RFC-0033 broader subtyping. The same-file
+    // `requires [...]` check (`enforce_requires_direct_calls`) keeps
+    // the transitive-callee class trapped on the requires-row surface
+    // for un-rowed user fns reached from the block.
     if tt == 1 && str_eq(pkv(tokens, pos), "restricts") == 1 && pk(tokens, pos + 1) == 54 {
-        print("error[EFF-003]: block-form `restricts [...] { ... }` is not yet enforced by s1 and must not be relied on as a compile-time guarantee. Remove the block or rewrite the code without depending on `restricts` until full effect-row enforcement lands.");
-        panic("nucleor: block-form `restricts [...]` not yet enforced by s1 (see error[EFF-003] above)");
+        let after_brackets: i64 = skip_bracket_list(tokens, pos + 1);
+        return parse_passthrough_block_expr(tokens, after_brackets, pool);
     };
     // v0.3.140: removed dead `tt == 76` branch (restricts) — see
     // classify_kw notes. The old token-kind branch had zero usage for
@@ -11676,6 +11691,244 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
         } else {
             p = eol + 1;
         };
+    };
+    return diags;
+}
+
+// v0.8.323 R05 Phase 2b first slice (local-claude v0840). Minimum
+// builtin → effect map for direct restricts-block enforcement.
+// Covers the print-family I/O surface (io.write), the byte input
+// builtin (io.read), and the channel constructor (sync). Returns
+// the empty string for any other identifier so the caller can fall
+// through to the requires-row table or treat the call as outside
+// the enforced subset. Future expansion (file/network builtins,
+// thread spawn, ambient time/random) is a Phase 2b table grow.
+#[manual_drop]
+fn restricts_builtin_effect(name: str) -> str {
+    if str_eq(name, "print") == 1 { return "io.write"; };
+    if str_eq(name, "println") == 1 { return "io.write"; };
+    if str_eq(name, "print_int") == 1 { return "io.write"; };
+    if str_eq(name, "print_str") == 1 { return "io.write"; };
+    if str_eq(name, "print_int64") == 1 { return "io.write"; };
+    if str_eq(name, "putchar") == 1 { return "io.write"; };
+    if str_eq(name, "getchar") == 1 { return "io.read"; };
+    if str_eq(name, "channel") == 1 { return "sync"; };
+    return "";
+}
+
+// True iff any token in `row` overlaps `eff`. "Overlap" is symmetric
+// covering: row_token == eff, or eff is a sub-effect of row_token
+// (`row_token + "." + ...` prefix), or row_token is a sub-effect of
+// eff. The third arm matters for restricts: deny [io.read] must trap
+// a callee declared `requires [io]` because the broader callee row
+// could exercise io.read.
+#[manual_drop]
+fn restricts_row_covers_effect(row: str, eff: str) -> i64 {
+    let rlen: i64 = str_len(row);
+    let elen: i64 = str_len(eff);
+    if rlen == 0 || elen == 0 { return 0; };
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    while p <= rlen {
+        let at_end: i64 = if p == rlen { 1 } else { 0 };
+        let at_comma: i64 = if at_end == 0 && str_char_at(row, p) == 44 { 1 } else { 0 };
+        if at_end == 1 || at_comma == 1 {
+            let tok: str = strip_spaces(str_substring(row, start, p));
+            let tlen: i64 = str_len(tok);
+            if tlen > 0 {
+                if str_eq(tok, eff) == 1 { return 1; };
+                if elen > tlen && str_starts_with(eff, str_concat(tok, ".")) == 1 { return 1; };
+                if tlen > elen && str_starts_with(tok, str_concat(eff, ".")) == 1 { return 1; };
+            };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+// Returns the first effect named in `callee_row` that overlaps the
+// `deny_row`, or "" if none. Symmetric to `effect_row_first_missing`
+// (used for requires propagation) but inverted: requires asks "what
+// did the caller forget to declare?", restricts asks "what does the
+// callee touch that the deny list forbids?"
+#[manual_drop]
+fn effect_row_intersect_first(deny_row: str, callee_row: str) -> str {
+    let clen: i64 = str_len(callee_row);
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    while p <= clen {
+        let at_end: i64 = if p == clen { 1 } else { 0 };
+        let at_comma: i64 = if at_end == 0 && str_char_at(callee_row, p) == 44 { 1 } else { 0 };
+        if at_end == 1 || at_comma == 1 {
+            let eff: str = strip_spaces(str_substring(callee_row, start, p));
+            if str_len(eff) > 0 && restricts_row_covers_effect(deny_row, eff) == 1 { return eff; };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+// Walks `body` once and returns the list of identifiers that appear
+// in call position (`IDENT(`). Strings and `//` line comments are
+// stripped first to avoid matching identifiers inside string literals
+// or commented-out code. Every appearance is recorded — the caller
+// is responsible for de-duplication if needed. Identifier tokens
+// followed only by whitespace before the open paren still count.
+#[manual_drop]
+fn restricts_extract_call_names(body: str) -> Vec<i32> {
+    let mut names: Vec<i32> = Vec::new();
+    let stripped: str = strip_strings_and_line_comments(body);
+    let slen: i64 = str_len(stripped);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(stripped, p);
+        let at_word_start: i64 = if is_alpha(c) == 1 || c == 95 {
+            if p == 0 { 1 } else {
+                let b: i64 = str_char_at(stripped, p - 1);
+                if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
+            }
+        } else { 0 };
+        if at_word_start == 1 {
+            let name_start: i64 = p;
+            let mut q: i64 = p;
+            while q < slen && (is_alnum(str_char_at(stripped, q)) == 1 || str_char_at(stripped, q) == 95) { q = q + 1; };
+            let mut r: i64 = q;
+            while r < slen && is_ws(str_char_at(stripped, r)) == 1 { r = r + 1; };
+            if r < slen && str_char_at(stripped, r) == 40 {
+                names.push(str_substring(stripped, name_start, q));
+            };
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return names;
+}
+
+// Source-level pre-pass for block-form `restricts [...] { ... }`
+// real enforcement (R05 Phase 2b first slice, local-claude v0840).
+// For every `restricts [DENY] { BODY }` site in `source`, walk the
+// direct call sites inside BODY and emit `error[EFF-003]` whenever
+// a callee's effect overlaps DENY. Two callee classes are checked:
+//   1. Builtins listed in `restricts_builtin_effect` — print-family
+//      I/O, char-level I/O, and `channel`.
+//   2. Same-file user fns declared with a `requires [...]` row,
+//      via `collect_requires_effect_rows` and the symmetric
+//      `restricts_row_covers_effect` overlap.
+// User fns without a declared row are NOT flagged here — the
+// existing `enforce_requires_direct_calls` already traps the
+// transitive class on the requires-row surface, and conservative
+// "fail every un-rowed callee" would block legitimate clean helpers.
+// Whole-program inference, cross-module propagation, methods,
+// closures, and higher-order effects stay queued for Phase 2b.
+#[manual_drop]
+fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
+    if str_index_of(source, "restricts") < 0 { return diags; };
+    let rows: Vec<i32> = collect_requires_effect_rows(source);
+    let slen: i64 = str_len(source);
+    let kw: str = "restricts";
+    let klen: i64 = str_len(kw);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(source, p);
+        if c == 47 && p + 1 < slen && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c == 39 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 39 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if p + klen <= slen && str_eq_at_len(source, p, kw, klen) == 1 {
+            let before_ok: i64 = if p == 0 { 1 } else {
+                let b: i64 = str_char_at(source, p - 1);
+                if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
+            };
+            let mut q: i64 = p + klen;
+            while q < slen && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+            if before_ok == 1 && q < slen && str_char_at(source, q) == 91 {
+                let deny_start: i64 = q + 1;
+                let mut deny_end: i64 = deny_start;
+                let mut bd: i64 = 1;
+                while deny_end < slen && bd > 0 {
+                    let cc: i64 = str_char_at(source, deny_end);
+                    if cc == 91 { bd = bd + 1; }
+                    else if cc == 93 { bd = bd - 1; };
+                    if bd > 0 { deny_end = deny_end + 1; };
+                };
+                if deny_end < slen {
+                    let deny_row: str = strip_spaces(str_substring(source, deny_start, deny_end));
+                    let mut bp: i64 = deny_end + 1;
+                    while bp < slen && is_ws(str_char_at(source, bp)) == 1 { bp = bp + 1; };
+                    if bp < slen && str_char_at(source, bp) == 123 {
+                        let body_start: i64 = bp + 1;
+                        let mut be: i64 = bp + 1;
+                        let mut bdepth: i64 = 1;
+                        while be < slen && bdepth > 0 {
+                            let cc: i64 = str_char_at(source, be);
+                            if cc == 123 { bdepth = bdepth + 1; }
+                            else if cc == 125 { bdepth = bdepth - 1; };
+                            if bdepth > 0 { be = be + 1; };
+                        };
+                        if be < slen {
+                            let body: str = str_substring(source, body_start, be);
+                            let calls: Vec<i32> = restricts_extract_call_names(body);
+                            let cn: i64 = vec_len(calls);
+                            let mut emitted: i64 = 0;
+                            let mut ci: i64 = 0;
+                            while ci < cn && emitted == 0 {
+                                let callee: str = vec_get(calls, ci);
+                                let b_eff: str = restricts_builtin_effect(callee);
+                                if str_len(b_eff) > 0 {
+                                    if restricts_row_covers_effect(deny_row, b_eff) == 1 {
+                                        let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` uses effect `", str_concat(b_eff, str_concat("` denied by `restricts [", str_concat(deny_row, "]` (audit R05-D4 v0.8.323)"))))));
+                                        let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
+                                        diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
+                                        emitted = 1;
+                                    };
+                                } else {
+                                    let mut ri: i64 = 0;
+                                    while ri + 1 < vec_len(rows) && emitted == 0 {
+                                        if str_eq(vec_get(rows, ri), callee) == 1 {
+                                            let row: str = vec_get(rows, ri + 1);
+                                            let hit: str = effect_row_intersect_first(deny_row, row);
+                                            if str_len(hit) > 0 {
+                                                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` uses effect `", str_concat(hit, str_concat("` denied by `restricts [", str_concat(deny_row, "]` (audit R05-D4 v0.8.323)"))))));
+                                                let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
+                                                diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
+                                                emitted = 1;
+                                            };
+                                        };
+                                        ri = ri + 2;
+                                    };
+                                };
+                                ci = ci + 1;
+                            };
+                            p = be + 1;
+                            continue;
+                        };
+                    };
+                };
+            };
+        };
+        p = p + 1;
     };
     return diags;
 }
@@ -31527,7 +31780,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now fails closed with EFF-003 instead of implying an unenforced guarantee. The remaining open surface is effect-row completeness beyond bounded same-file calls: real restricts-block enforcement, deeper transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel calls and direct calls to user fns whose declared `requires [...]` row overlaps the deny row (R05 Phase 2b first slice, local-claude v0840). Clean blocks compile and run normally. The remaining open surface is effect-row completeness beyond bounded same-file calls: deeper transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
@@ -32194,6 +32447,15 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // intentionally one-hop only; transitive propagation and
     // cross-module rows stay queued for Phase 2b.
     diags = enforce_requires_direct_calls(diags, max_depth_source);
+    // R05-D4 v0.8.323 (local-claude v0840): block-form
+    // `restricts [...] { ... }` real enforcement first slice. Emits
+    // `error[EFF-003]` when a direct call inside the block targets a
+    // builtin or a same-file user fn whose declared `requires [...]`
+    // row overlaps the deny row. Replaces the prior parse-time fail-
+    // closed panic at parse_primary. Whole-program inference, cross-
+    // module propagation, methods/closures/higher-order effects, and
+    // broader RFC-0033 subtyping stay queued for Phase 2b.
+    diags = enforce_restricts_block_effects(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.

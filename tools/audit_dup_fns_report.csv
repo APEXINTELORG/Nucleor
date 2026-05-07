@@ -44,7 +44,7 @@ parse_match_binding_block,2,2,21,21,1,1,IDENTICAL
 mk_passthrough_block_expr,2,2,3,3,1,1,IDENTICAL
 parse_passthrough_block_expr,3,3,6,6,1,1,IDENTICAL
 parse_wrapped_block_expr,4,4,6,6,1,1,IDENTICAL
-parse_primary,3,3,646,138,1,0,SIG_MATCH_BODY_DIFFERS
+parse_primary,3,3,661,138,1,0,SIG_MATCH_BODY_DIFFERS
 parse_postfix,3,3,127,49,1,0,SIG_MATCH_BODY_DIFFERS
 parse_unary,3,3,55,17,1,0,SIG_MATCH_BODY_DIFFERS
 parse_mul,3,3,8,8,1,1,IDENTICAL
@@ -271,7 +271,7 @@ resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source,3,3,4,4,1,1,IDENTICAL
 load_resolved_source_bundle,2,2,810,49,1,0,SIG_MATCH_BODY_DIFFERS
 extract_directives,2,2,85,80,1,0,SIG_MATCH_BODY_DIFFERS
-compile_file_mode,6,6,678,205,1,0,SIG_MATCH_BODY_DIFFERS
+compile_file_mode,6,6,687,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 dl_parse_fn_signature,3,3,117,96,1,0,SIG_MATCH_BODY_DIFFERS
