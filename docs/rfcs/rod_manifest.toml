@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 275
-# Total fn definitions: 3640
-# Total LOC: 21602
+# Total rods: 287
+# Total fn definitions: 3688
+# Total LOC: 22900
 
 [[rod]]
 name           = "activation2"
@@ -2325,6 +2325,15 @@ loc            = 94
 imports        = ["jsonl"]
 
 [[rod]]
+name           = "bench_facade"
+path           = "stdlib/rods/ml/bench_facade.nr"
+description    = "nuc bench telemetry contract (wall time, peak RSS, binary size, dependency count; speed_claim_enabled=0)"
+function_count = 4
+cfile_count    = 0
+loc            = 95
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "boost_facade"
 path           = "stdlib/rods/ml/boost_facade.nr"
 description    = "Gradient boosting (XGBoost / LightGBM / CatBoost) parity rods"
@@ -2379,6 +2388,33 @@ loc            = 111
 imports        = []
 
 [[rod]]
+name           = "experiment_facade"
+path           = "stdlib/rods/ml/experiment_facade.nr"
+description    = "Experiment tracking manifest contract (run metadata, hyperparameters, checkpoint references)"
+function_count = 4
+cfile_count    = 0
+loc            = 87
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "gguf_facade"
+path           = "stdlib/rods/ml/gguf_facade.nr"
+description    = "GGUF model loader manifest contract (quantization, tensor metadata, mmap support)"
+function_count = 4
+cfile_count    = 0
+loc            = 99
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "hf_facade"
+path           = "stdlib/rods/ml/hf_facade.nr"
+description    = "Hugging Face local-first frontend contract (transformers, tokenizers, datasets, safetensors, no Python runtime)"
+function_count = 4
+cfile_count    = 0
+loc            = 145
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "lab_facade"
 path           = "stdlib/rods/ml/lab_facade.nr"
 description    = "nuc lab workbench manifest (deterministic cell graph, viewer counts, agent mounts, port)"
@@ -2404,6 +2440,15 @@ function_count = 4
 cfile_count    = 0
 loc            = 15
 imports        = []
+
+[[rod]]
+name           = "ml_health_facade"
+path           = "stdlib/rods/ml/ml_health_facade.nr"
+description    = "ML Suite preflight / health check contract (compiler, LLVM, parity summary, NCAP verification)"
+function_count = 4
+cfile_count    = 0
+loc            = 96
+imports        = ["jsonl"]
 
 [[rod]]
 name           = "model_io_facade"
@@ -2433,6 +2478,15 @@ loc            = 704
 imports        = ["ml/math_facade", "ml/tensor_facade"]
 
 [[rod]]
+name           = "onnx_facade"
+path           = "stdlib/rods/ml/onnx_facade.nr"
+description    = "ONNX model loader manifest contract (graph format, opset, external runtime accounting)"
+function_count = 4
+cfile_count    = 0
+loc            = 112
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "parity_manifest"
 path           = "stdlib/rods/ml/parity_manifest.nr"
 description    = "ML Suite parity-claim metadata (suite/case/surface/dtype/shape/policy/seed/tolerance)"
@@ -2440,6 +2494,33 @@ function_count = 2
 cfile_count    = 0
 loc            = 57
 imports        = ["ml/dtype_core", "ml/shape_core"]
+
+[[rod]]
+name           = "port_facade"
+path           = "stdlib/rods/ml/port_facade.nr"
+description    = "nuc port migration planner contract (scaffold path, blocker count, capsule attachability)"
+function_count = 4
+cfile_count    = 0
+loc            = 111
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "rod_registry_facade"
+path           = "stdlib/rods/ml/rod_registry_facade.nr"
+description    = "nuc add lockfile contract (pinned rod count, transitive deps, registry count, offline replay)"
+function_count = 4
+cfile_count    = 0
+loc            = 101
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "sbom_facade"
+path           = "stdlib/rods/ml/sbom_facade.nr"
+description    = "Supply-chain inventory contract (sources, toolchain, dependencies, packages, no Python product runtime)"
+function_count = 4
+cfile_count    = 0
+loc            = 95
+imports        = ["jsonl"]
 
 [[rod]]
 name           = "serve_facade"
@@ -2478,6 +2559,15 @@ loc            = 456
 imports        = ["math_typed_special", "ml/math_facade", "ml/tensor_facade"]
 
 [[rod]]
+name           = "tabular_facade"
+path           = "stdlib/rods/ml/tabular_facade.nr"
+description    = "Arrow / Polars / DuckDB table-engine contract (schema, lazy plan, SQL pushdown, zero-copy buffers)"
+function_count = 4
+cfile_count    = 0
+loc            = 135
+imports        = ["jsonl"]
+
+[[rod]]
 name           = "tensor_facade"
 path           = "stdlib/rods/ml/tensor_facade.nr"
 description    = "Parity-flavored TensorF64/F32/I64 surface (matmul, broadcast, reductions, slicing, reshape)"
@@ -2485,3 +2575,21 @@ function_count = 60
 cfile_count    = 0
 loc            = 718
 imports        = ["ml/dtype_core", "ml/shape_core"]
+
+[[rod]]
+name           = "tune_facade"
+path           = "stdlib/rods/ml/tune_facade.nr"
+description    = "Hyperparameter tuning manifest contract (search strategy, parameter space, trial accounting)"
+function_count = 4
+cfile_count    = 0
+loc            = 88
+imports        = ["jsonl"]
+
+[[rod]]
+name           = "vllm_facade"
+path           = "stdlib/rods/ml/vllm_facade.nr"
+description    = "vLLM-style serving contract (scheduler policy, paged KV cache, block table, eviction policy)"
+function_count = 4
+cfile_count    = 0
+loc            = 134
+imports        = ["jsonl"]
