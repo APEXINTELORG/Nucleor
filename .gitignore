@@ -52,6 +52,11 @@ _test_*.exe
 # via tools/bootstrap_linux.sh. Not committed; bin/nucleor.exe is the canonical
 # cross-platform bootstrap binary per NUCLEOR_BOOTSTRAP_CONTRACT.md.
 bin/nucleor
+# Linux-native tools-suite binary (symmetric counterpart to
+# bin/nucleor_tools.exe above). Reproducible via
+# `./bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools`
+# and staged into bin/ so the in-process resolver finds it.
+bin/nucleor_tools
 
 # Windows null-redirect artifact (2>NUL creates a literal file on POSIX)
 NUL

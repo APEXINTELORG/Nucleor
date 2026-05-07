@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "host_family": "posix",
+  "mode": "self-test",
+  "fixture_selector": "string-free",
+  "iterations_requested": 100,
+  "fixture_executions_completed": 0,
+  "cargo": {"present": true, "native": true, "path": "/root/.cargo/bin/cargo"},
+  "bridge_artifact": {"present": false, "path": "/home/user/Nucleor/stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a"},
+  "compiler": {"present": true, "path": "/home/user/Nucleor/bin/nucleor"},
+  "result_status": "passed",
+  "failure_reason": "",
+  "simulated_missing": "none",
+  "fixtures": [
+    {"key": "string-free", "path": "/home/user/Nucleor/tests/features/rust_bridge_string_free_smoke.nr", "present": true, "rust_owned_free_cycles_per_execution": 100}
+  ],
+  "self_test_checks": ["selector:string-free", "selector:hash", "selector:all", "selector:invalid", "json:required-keys", "fail-closed:cargo", "json:fail-closed:cargo", "fail-closed:compiler", "json:fail-closed:compiler", "fail-closed:bridge-artifact", "json:fail-closed:bridge-artifact"]
+}

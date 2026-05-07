@@ -12042,7 +12042,29 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
         while lp < eol && (str_char_at(raw_source, lp) == 32 || str_char_at(raw_source, lp) == 9) { lp = lp + 1; };
         let line_len: i64 = eol - lp;
         if line_len >= 6 && str_char_at(raw_source, lp) == 35 {
-            if line_len >= 7 && str_eq(str_substring(raw_source, lp, lp + 6), "#link ") {
+            if line_len >= 15 && str_eq(str_substring(raw_source, lp, lp + 14), "#link_windows ") {
+                let mut qp: i64 = lp + 14;
+                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
+                if qp < eol && str_char_at(raw_source, qp) == 34 {
+                    let ps: i64 = qp + 1;
+                    let mut pe: i64 = ps;
+                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
+                    if host_is_windows() == 1 {
+                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
+                    };
+                };
+            } else if line_len >= 13 && str_eq(str_substring(raw_source, lp, lp + 12), "#link_posix ") {
+                let mut qp: i64 = lp + 12;
+                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
+                if qp < eol && str_char_at(raw_source, qp) == 34 {
+                    let ps: i64 = qp + 1;
+                    let mut pe: i64 = ps;
+                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
+                    if host_is_windows() == 0 {
+                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
+                    };
+                };
+            } else if line_len >= 7 && str_eq(str_substring(raw_source, lp, lp + 6), "#link ") {
                 let mut qp: i64 = lp + 6;
                 while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
                 if qp < eol && str_char_at(raw_source, qp) == 34 {
@@ -15941,6 +15963,14 @@ fn path_normalize_slashes(path: str) -> str {
 }
 
 fn path_shell_native(path: str) -> str {
+    // v0.8.323 PKG-1 fix: only rewrite forward-slashes to backslashes on
+    // Windows. On POSIX hosts the unconditional rewrite mangled paths
+    // passed to pwsh (e.g. tools/native_release.ps1 became
+    // tools\native_release.ps1, which pwsh treated as a relative path
+    // and Join-Path'd onto -Root, producing
+    // /home/.../Nucleor/tmp/.../Nucleor.publish.json and a "missing
+    // package signing input" failure during signed publish).
+    if host_is_windows() == 0 { return path; };
     let plen: i64 = str_len(path);
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;

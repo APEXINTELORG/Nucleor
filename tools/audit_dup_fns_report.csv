@@ -316,7 +316,7 @@ module_graph_cache_id,1,1,8,3,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source,3,3,4,4,1,1,IDENTICAL
 load_resolved_source_bundle,2,2,810,49,1,0,SIG_MATCH_BODY_DIFFERS
-extract_directives,2,2,58,58,1,0,SIG_MATCH_BODY_DIFFERS
+extract_directives,2,2,85,80,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file_mode,6,6,678,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 strip_ext,1,1,14,14,1,1,IDENTICAL
