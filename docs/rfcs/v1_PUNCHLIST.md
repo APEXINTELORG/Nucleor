@@ -174,7 +174,7 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `RFC-0063-production-readiness-roadmap.md`
 - **Severity:** TOOLCHAIN CORRECTNESS / PERF / MAINTAINABILITY
-- **Status:** WAVE 8 PARTIAL DONE; BROAD DELETION OPEN. `tools/audit_dup_fns.nr`
+- **Status:** WAVE 9 PARTIAL DONE; BROAD DELETION OPEN. `tools/audit_dup_fns.nr`
   and `tools/audit_dup_fns_report.csv` now map the duplicate
   function surface between `compiler/nucleor_s1_compiler.nr` and
   `compiler/nucleor_tools_suite.nr`.
@@ -186,21 +186,22 @@ launch. After memory safety completes, these are next-priority.
   20 byte-identical atomic-ordering/map/container helpers, v0841 Wave 6
   retired 29 byte-identical smap/diagnostic/record/source helpers, and
   v0842 Wave 7 retired 33 byte-identical string/classifier/profiling/
-  type-env/module/format/privacy/CLI helpers, and v0842 Wave 8 retired
-  29 byte-identical codegen/type-ref/sendable/ownership-format helpers
-  by moving them into
+  type-env/module/format/privacy/CLI helpers, v0842 Wave 8 retired
+  29 byte-identical codegen/type-ref/sendable/ownership-format helpers,
+  and v0844 Wave 9 retired 19 normalized-identical same-signature
+  body-diff helpers by moving them into
   `compiler/nucleor_rfc0063_shared_wave1.nr` and importing that module
   from `compiler/nucleor_tools_suite.nr`. The s1 compiler remains the
   raw canonical copy for these batches. The broad s1-to-tools import is
   still open because the remaining duplicate names would collide unless
   they are deleted/renamed in the same ship.
-- **Current audit counts after v0842 Wave 8 refresh:** 223
+- **Current audit counts after v0844 Wave 9 refresh:** 204
   duplicate function names: 44 `IDENTICAL` safe-delete candidates,
-  163 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
+  144 `SIG_MATCH_BODY_DIFFERS` review/replace candidates, and 16
   `SIG_DIFFERS` per-function lift/adapter candidates.
 - **Next build item:** delete or import the remaining 44 identical duplicates
   through the RFC-0063 parser/tools-suite unification strategy, then
-  handle the 163 same-signature body-diff candidates and 16
+  continue the 144 same-signature body-diff candidates and 16
   signature-diff candidates in follow-on waves.
 - **Required gates for any deletion wave:** `bash tools/check_compiler_drift.sh`,
   focused `nuc check` / `nuc build-strict` / `nuc abi inspect` smoke,
