@@ -1,14 +1,16 @@
-// EXPECT: error[EFF-001]
-// R05-D4 Phase 2b first slice (local-claude v0840): block-form
-// restricts is now really enforced for direct builtin/declared-row
-// violations only. The deep transitive chain here (level4→level3→
-// level2→leaf where leaf declares `requires [net.connect]` and the
-// intermediates omit the row) is not in the restricts-block direct
-// check, but `enforce_requires_direct_calls` traps `level2()`
-// calling `leaf()` without declaring net.connect, so the build still
-// halts loudly. Whole-program effect inference stays queued for
-// Phase 2b — when it lands this fixture moves back to EFF-003 with
-// restricts-block deep-chain coverage.
+// EXPECT: error[EFF-003]
+// R05-D5 v0841 transitive restricts ship: the bounded same-file
+// transitive check now walks `restricts [net] { ... }` →
+// `level4 → level3 → level2 → leaf` (depth-3 budget covers the
+// four-fn chain) and reaches `leaf` (requires [net.connect]) —
+// `net.connect` overlaps `net`, so EFF-003 fires on the restricts
+// surface. `enforce_requires_direct_calls` still independently
+// surfaces EFF-001 on `level2` for calling `leaf()` without
+// declaring net.connect; both diagnostics are expected. Pre-v0841
+// this fixture only emitted EFF-001 (v0840 confined the restricts-
+// block check to direct builtin/declared-row violations); the
+// EXPECT moved back to EFF-003 with the arrival of the transitive
+// summary.
 
 fn leaf() -> i32 requires [net.connect] { 1 }
 fn level2() -> i32 { leaf() + 1 }

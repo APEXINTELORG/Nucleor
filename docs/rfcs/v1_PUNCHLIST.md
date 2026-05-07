@@ -123,19 +123,28 @@ launch. After memory safety completes, these are next-priority.
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
 - **Block-form `restricts [...] { ... }`:** DONE Phase 2b first
-  slice (local-claude v0840) — block-form parses cleanly and the
+  slice plus bounded transitive follow-up (local-claude v0840/v0841)
+  — block-form parses cleanly and the
   same-file source pre-pass `enforce_restricts_block_effects` emits
   `error[EFF-003]` when a direct call inside the block targets a
   builtin in the print-family / channel / namespaced alloc-constructor
   effect map or a same-file user fn whose declared `requires [...]`
-  row overlaps the deny row.
-  Clean blocks (no calls / no overlap) compile and run normally.
+  row overlaps the deny row. v0841 also walks un-rowed same-file user
+  fn callees up to depth=3 and emits EFF-003 when the reachable chain
+  hits a builtin or rowed callee whose effect overlaps the deny row.
+  Clean blocks and clean transitive helper chains compile and run normally.
   Active fixtures: `err_restricts_block_builtin_io.nr` (negative —
   direct `putchar` under `restricts [io.write]`),
   `err_restricts_block_alloc.nr` (negative — direct `Vec::new` under
   `restricts [alloc]`), `restricts_block_disjoint_call.nr` (positive
   — call to a disjoint-family `requires [io.read]` callee under
-  `restricts [net]`), and
+  `restricts [net]`),
+  `err_restricts_block_transitive_unrowed_io.nr` (negative — un-rowed
+  one-hop helper reaching `requires [io.read]`),
+  `err_restricts_block_transitive_deep_chain.nr` (negative —
+  un-rowed depth=3 helper chain reaching `requires [net.connect]`),
+  `restricts_block_transitive_clean_smoke.nr` (positive — clean
+  un-rowed helper chain), and
   `restricts_block_clean_smoke.nr` (positive — pure-arithmetic
   clean block builds and exits 0). Pre-existing fail-closed
   companions still halt the build via the new pre-pass or via
@@ -143,18 +152,14 @@ launch. After memory safety completes, these are next-priority.
   `err_restricts_violation.nr`, `err_restricts_specific.nr`,
   `err_restricts_channel_effect.nr`, and `err_effect_transitive.nr`
   emit EFF-003; `err_effect_inference.nr` and
-  `err_effect_deep_chain.nr` (un-rowed intermediate user fns — out
-  of scope for the direct check) now surface EFF-001 from
-  `enforce_requires_direct_calls` instead of the prior parse-time
-  EFF-003 panic, and their EXPECT headers were updated to reflect
-  this. They will move back to EFF-003 once Phase 2b adds whole-
-  program effect inference for restricts blocks.
+  `err_effect_deep_chain.nr` now also emit EFF-003 on the restricts
+  surface while retaining the independent EFF-001 signal for the
+  un-rowed intermediate helpers.
 - **Still open:** full standalone `requires [...]` row enforcement
-  beyond bounded same-file/direct-wrapper calls, deeper transitive
-  restricts-block effect inference for un-rowed user fns,
-  deeper transitive `requires [...]` row
-  propagation, cross-module propagation, method/closure/higher-order
-  effects, and broader RFC-0033 effect-row subtyping.
+  beyond bounded same-file/direct-wrapper calls, restricts chains
+  beyond depth=3, deeper transitive `requires [...]` row propagation,
+  cross-module propagation, method/closure/higher-order effects, and
+  broader RFC-0033 effect-row subtyping.
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 

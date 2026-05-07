@@ -11834,27 +11834,159 @@ fn restricts_extract_call_names(body: str) -> Vec<i32> {
     return names;
 }
 
+// Walks `source` once and returns a flat [name, body, name, body, ...]
+// table of every same-file user fn whose decl line carries a real
+// `fn IDENT` (per `priv_extract_fn_decl_info`) AND a `{` body. Used by
+// the bounded same-file transitive restricts-block check to look up a
+// callee's body without re-scanning the source per hop. The compiler
+// self-source pays this cost only when a code-position `restricts [`
+// is actually found; the lazy build sits inside
+// `enforce_restricts_block_effects`.
+#[manual_drop]
+fn collect_fn_bodies(source: str) -> Vec<i32> {
+    let mut bodies: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let fn_name: str = vec_get(info, 0);
+        if str_len(fn_name) > 0 {
+            let mut h: i64 = p;
+            while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+            if h < slen && str_char_at(source, h) == 123 {
+                let body_start: i64 = h + 1;
+                let mut q: i64 = h + 1;
+                let mut depth: i64 = 1;
+                while q < slen && depth > 0 {
+                    let cc: i64 = str_char_at(source, q);
+                    if cc == 123 { depth = depth + 1; };
+                    if cc == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body: str = str_substring(source, body_start, q - 1);
+                bodies.push(fn_name);
+                bodies.push(body);
+                p = q;
+            } else {
+                p = eol + 1;
+            };
+        } else {
+            p = eol + 1;
+        };
+    };
+    return bodies;
+}
+
+#[manual_drop]
+fn lookup_fn_body(bodies: Vec<i32>, name: str) -> str {
+    let n: i64 = vec_len(bodies);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(bodies, i), name) == 1 { return vec_get(bodies, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn name_in_vec(haystack: Vec<i32>, needle: str) -> i64 {
+    let n: i64 = vec_len(haystack);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(haystack, i), needle) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+// Bounded same-file transitive scan: returns the first effect found
+// in `body` (directly or via a same-file user-fn body within
+// `depth_remaining` hops) that overlaps `deny_row`, or "" if none.
+// Visited-by-name dedup prevents cycles and re-walks. At depth 0 the
+// scan still checks builtin and direct user-row hits — the depth
+// budget controls only whether un-rowed user fn callees are walked
+// further. This is the v0841 transitive ship; depth 3 (4 bodies
+// total — block + 3 hops) closes the existing
+// err_effect_deep_chain.nr 4-fn chain. Matches per-callee
+// `restricts_builtin_effect` (print-family / channel) and any
+// requires-row overlap via `effect_row_intersect_first`.
+#[manual_drop]
+fn restricts_transitive_check(deny_row: str, body: str, rows: Vec<i32>, bodies: Vec<i32>, depth_remaining: i64, visited: Vec<i32>) -> str {
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        let b_eff: str = restricts_builtin_effect(callee);
+        if str_len(b_eff) > 0 {
+            if restricts_row_covers_effect(deny_row, b_eff) == 1 {
+                return str_concat(b_eff, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
+            };
+        } else {
+            let mut found_user: i64 = 0;
+            let mut hit_str: str = "";
+            let mut ri: i64 = 0;
+            while ri + 1 < vec_len(rows) && found_user == 0 {
+                if str_eq(vec_get(rows, ri), callee) == 1 {
+                    found_user = 1;
+                    let row: str = vec_get(rows, ri + 1);
+                    let h: str = effect_row_intersect_first(deny_row, row);
+                    if str_len(h) > 0 {
+                        hit_str = str_concat(h, str_concat("` via call chain ending in `", str_concat(callee, "()`")));
+                    };
+                };
+                ri = ri + 2;
+            };
+            if str_len(hit_str) > 0 { return hit_str; };
+            if found_user == 0 && depth_remaining > 0 && name_in_vec(visited, callee) == 0 {
+                let callee_body: str = lookup_fn_body(bodies, callee);
+                if str_len(callee_body) > 0 {
+                    visited.push(callee);
+                    let nested: str = restricts_transitive_check(deny_row, callee_body, rows, bodies, depth_remaining - 1, visited);
+                    if str_len(nested) > 0 { return nested; };
+                };
+            };
+        };
+        ci = ci + 1;
+    };
+    return "";
+}
+
 // Source-level pre-pass for block-form `restricts [...] { ... }`
-// real enforcement (R05 Phase 2b first slice, local-claude v0840).
-// For every `restricts [DENY] { BODY }` site in `source`, walk the
-// direct call sites inside BODY and emit `error[EFF-003]` whenever
-// a callee's effect overlaps DENY. Two callee classes are checked:
-//   1. Builtins listed in `restricts_builtin_effect` or
-//      `restricts_body_builtin_effect` — print-family I/O,
-//      char-level I/O, `channel`, and fixture-backed alloc constructors.
-//   2. Same-file user fns declared with a `requires [...]` row,
-//      via `collect_requires_effect_rows` and the symmetric
-//      `restricts_row_covers_effect` overlap.
-// User fns without a declared row are NOT flagged here — the
-// existing `enforce_requires_direct_calls` already traps the
-// transitive class on the requires-row surface, and conservative
-// "fail every un-rowed callee" would block legitimate clean helpers.
+// real enforcement. v0840 (R05 Phase 2b first slice) handled direct
+// builtin / direct user-row violations only. v0841 adds bounded
+// same-file transitive enforcement: for each direct call inside a
+// `restricts [DENY] { BODY }` whose callee is an un-rowed user fn,
+// the scanner walks the callee's body up to depth=3 hops and
+// emits `error[EFF-003]` if any reachable call hits a builtin
+// effect or rowed user-fn whose row overlaps DENY. The existing
+// substring-level `restricts_body_builtin_effect` (Vec::new /
+// Box::new alloc detection) still runs first.
+//
+// Two callee classes are checked at every depth:
+//   1. Builtins listed in `restricts_builtin_effect` — print-family
+//      I/O, char-level I/O, and `channel`.
+//   2. Same-file user fns declared with a `requires [...]` row, via
+//      `collect_requires_effect_rows` + `effect_row_intersect_first`.
+// Un-rowed user fn callees are walked one hop deeper subject to the
+// depth budget. Whole-program inference across module boundaries,
+// methods, closures, and higher-order effects stay queued.
+//
+// Performance shape: the bodies table is built lazily only when an
+// actual code-position `restricts [` is found, so the compiler
+// self-build (where all `restricts` mentions live in strings or
+// comments) pays nothing extra over v0840.
 // Whole-program inference, cross-module propagation, methods,
 // closures, and higher-order effects stay queued for Phase 2b.
 #[manual_drop]
 fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     if str_index_of(source, "restricts") < 0 { return diags; };
     let rows: Vec<i32> = collect_requires_effect_rows(source);
+    let mut bodies: Vec<i32> = Vec::new();
+    let mut bodies_built: i64 = 0;
     let slen: i64 = str_len(source);
     let kw: str = "restricts";
     let klen: i64 = str_len(kw);
@@ -11926,36 +12058,17 @@ fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                                 emitted = 1;
                             };
                             if emitted == 0 {
-                                let calls: Vec<i32> = restricts_extract_call_names(body);
-                                let cn: i64 = vec_len(calls);
-                                let mut ci: i64 = 0;
-                                while ci < cn && emitted == 0 {
-                                    let callee: str = vec_get(calls, ci);
-                                    let b_eff: str = restricts_builtin_effect(callee);
-                                    if str_len(b_eff) > 0 {
-                                        if restricts_row_covers_effect(deny_row, b_eff) == 1 {
-                                            let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` uses effect `", str_concat(b_eff, str_concat("` denied by `restricts [", str_concat(deny_row, "]` (audit R05-D4 v0.8.323)"))))));
-                                            let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
-                                            diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
-                                            emitted = 1;
-                                        };
-                                    } else {
-                                        let mut ri: i64 = 0;
-                                        while ri + 1 < vec_len(rows) && emitted == 0 {
-                                            if str_eq(vec_get(rows, ri), callee) == 1 {
-                                                let row: str = vec_get(rows, ri + 1);
-                                                let hit: str = effect_row_intersect_first(deny_row, row);
-                                                if str_len(hit) > 0 {
-                                                    let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` uses effect `", str_concat(hit, str_concat("` denied by `restricts [", str_concat(deny_row, "]` (audit R05-D4 v0.8.323)"))))));
-                                                    let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
-                                                    diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
-                                                    emitted = 1;
-                                                };
-                                            };
-                                            ri = ri + 2;
-                                        };
-                                    };
-                                    ci = ci + 1;
+                                if bodies_built == 0 {
+                                    bodies = collect_fn_bodies(source);
+                                    bodies_built = 1;
+                                };
+                                let mut visited: Vec<i32> = Vec::new();
+                                let trans_hit: str = restricts_transitive_check(deny_row, body, rows, bodies, 3, visited);
+                                if str_len(trans_hit) > 0 {
+                                    let msg: str = str_concat("block uses effect `", str_concat(trans_hit, str_concat(" denied by `restricts [", str_concat(deny_row, "]` (audit R05-D5 v0.8.323 transitive)"))));
+                                    let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
+                                    diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
+                                    emitted = 1;
                                 };
                             };
                             p = be + 1;
@@ -31888,7 +32001,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls and direct calls to user fns whose declared `requires [...]` row overlaps the deny row (R05 Phase 2b first slice, local-claude v0840 + cloud2 delta v0841). Clean blocks compile and run normally. The remaining open surface is effect-row completeness beyond bounded same-file calls: deeper transitive requires-row propagation, cross-module propagation, method/closure/higher-order effects, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, direct same-file `requires [...]` callers can emit EFF-001, and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=3 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841). Clean blocks and clean transitive chains compile and run normally. The remaining open surface is beyond depth=3 chains, cross-module propagation, method/closure/higher-order effects, effect-aware closure capture, and broader effect-row subtyping. Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
         };
     };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
