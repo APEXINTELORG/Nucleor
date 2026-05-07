@@ -283,8 +283,19 @@ launch. After memory safety completes, these are next-priority.
   small gate-sequence identities, repeatable [[5,1,3]] rebuilds, logical
   non-detectability, single-error detectability, and five-qubit
   stabilizer/logical weight-count consistency.
-- **Still open for Phase 2 closure:** QASM/OpenQASM2 interop and a citation-backed
-  external published weight-enumerator parity row if the launch docs require one.
+- **Phase 2e OpenQASM 2.0 emit-only:** DONE 2026-05-07 (v0842) —
+  `stdlib/rods/quantum.nr` ships a minimal emit-only OpenQASM 2.0
+  surface (`qasm2_program_new`, `qasm2_emit_h/x/z/cx`,
+  `qasm2_emit_named_1q/2q`, `qasm2_render`, `qasm2_supported_gate`,
+  `qasm2_status_*`, `qasm2_limitations`). Header is fixed to
+  `OPENQASM 2.0;` + `include "qelib1.inc";` + `qreg q[N];`. Supported
+  subset is H/X/Z/CX. Name-dispatched emit returns
+  `qasm2_status_unsupported_gate` (4) for any other name without
+  mutating the program. Active fixtures:
+  `qm7_openqasm2_emit_smoke.nr`, `qm7_openqasm2_unsupported_gate_smoke.nr`.
+- **Still open for Phase 2 closure:** OpenQASM2 *import/parser*
+  (round-trip) and a citation-backed external published
+  weight-enumerator parity row if the launch docs require one.
 
 ### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard + positive API partial DONE
 
@@ -777,8 +788,17 @@ proper analysis → Phase 4 hard error):
 - **2026-05-06**: QM-7 Phase 2d adds a bounded Clifford property
   micro-suite over clone/reset isolation, small gate-sequence identities,
   and repeatable [[5,1,3]] code invariants.
-  Remaining open items are QASM/OpenQASM2 interop and optional external
-  citation-backed published enumerator parity.
+- **2026-05-07** (v0842): QM-7 Phase 2e closes the OpenQASM 2.0 emit
+  tail with a minimal emit-only stdlib surface in
+  `stdlib/rods/quantum.nr` (qasm2_program_new / emit_h/x/z/cx /
+  emit_named_1q/2q / render / supported_gate / status_* /
+  limitations). Active fixtures `qm7_openqasm2_emit_smoke.nr` and
+  `qm7_openqasm2_unsupported_gate_smoke.nr` lock supported emits,
+  unsupported-gate refusal at status code 4 without mutation, fixed
+  header preamble, qubit-out-of-range and same-qubit CX rejections,
+  and limitations text. Remaining open items are OpenQASM 2.0
+  *import/parser* round-trip and optional external citation-backed
+  published weight-enumerator parity.
 - **2026-05-05**: Effect/capability Phase 1 advanced again.
   Block-form `restricts [...] { ... }` now emits `EFF-003` during
   `nuc build` instead of accepting or misparsing an unenforced

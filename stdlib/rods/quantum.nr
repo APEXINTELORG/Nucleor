@@ -22,6 +22,7 @@
 import "complex.nr"
 import "bitwise.nr"
 import "qsim_graph.nr"
+import "rod_helpers.nr"
 
 #cfile "quantum_rt.c"
 
@@ -648,4 +649,145 @@ fn qsim_status_explain(status: i64) -> str {
 
 fn qsim_limitations() -> str {
     return "qsim (statevec) rod limitations (QM-1/QM-2/QM-16/QM-17, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains Phase B. (4) TRAJECTORY NOISE: qsim_noise_bit_flip, qsim_noise_dephase, and qsim_noise_depolarizing expose explicit per-gate stochastic trajectory noise with probability preflight. This is not a full density-matrix/Kraus backend. (5) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+}
+
+// =====================================================
+// QM-7 OpenQASM2 minimal emitter (v0842, 2026-05-07)
+// =====================================================
+//
+// Emit-only surface. Imports OpenQASM2 source remain explicitly out of
+// scope; the limitations text below names the gap. Supported gates:
+// H, X, Z, CX. Header is fixed:
+//
+//     OPENQASM 2.0;
+//     include "qelib1.inc";
+//     qreg q[N];
+//
+// A program handle is a Vec<i64>: slot 0 holds n_qubits as a raw i64,
+// slots 1..len hold body lines as str pointers (vec_str_push). The
+// builder never materializes unsupported gates — emit_named_* returns
+// qasm2_status_unsupported_gate without mutating the program.
+
+fn qasm2_max_qubits() -> i64 { return 1024; }
+
+fn qasm2_status_ok() -> i64                  { return 0; }
+fn qasm2_status_invalid_program() -> i64     { return 1; }
+fn qasm2_status_qubit_out_of_range() -> i64  { return 2; }
+fn qasm2_status_same_qubit() -> i64          { return 3; }
+fn qasm2_status_unsupported_gate() -> i64    { return 4; }
+fn qasm2_status_invalid_qubit_count() -> i64 { return 5; }
+
+fn qasm2_status_explain(status: i64) -> str {
+    if status == qasm2_status_ok()                  { return "ok"; };
+    if status == qasm2_status_invalid_program()     { return "invalid_program"; };
+    if status == qasm2_status_qubit_out_of_range()  { return "qubit_out_of_range"; };
+    if status == qasm2_status_same_qubit()          { return "same_qubit"; };
+    if status == qasm2_status_unsupported_gate()    { return "unsupported_gate"; };
+    if status == qasm2_status_invalid_qubit_count() { return "invalid_qubit_count"; };
+    return "unknown";
+}
+
+fn qasm2_program_new(n: i64) -> i64 {
+    if n < 1 { return 0; };
+    if n > qasm2_max_qubits() { return 0; };
+    let p: i64 = vec_new();
+    vec_push(p, n);
+    return p;
+}
+
+fn qasm2_program_qubits(p: i64) -> i64 {
+    if p == 0 { return 0; };
+    return vec_get(p, 0);
+}
+
+fn qasm2_program_line_count(p: i64) -> i64 {
+    if p == 0 { return 0; };
+    return vec_len(p) - 1;
+}
+
+fn qasm2_qubit_in_range(p: i64, q: i64) -> i64 {
+    if p == 0 { return 0; };
+    if q < 0 { return 0; };
+    if q >= vec_get(p, 0) { return 0; };
+    return 1;
+}
+
+fn _qasm2_push_1q(p: i64, name: str, q: i64) -> i64 {
+    if p == 0 { return qasm2_status_invalid_program(); };
+    if qasm2_qubit_in_range(p, q) == 0 { return qasm2_status_qubit_out_of_range(); };
+    let line: str = str_concat(str_concat(str_concat(name, " q["), int_to_str(q)), "];");
+    vec_str_push(p, line);
+    return qasm2_status_ok();
+}
+
+fn qasm2_emit_h(p: i64, q: i64) -> i64 { return _qasm2_push_1q(p, "h", q); }
+fn qasm2_emit_x(p: i64, q: i64) -> i64 { return _qasm2_push_1q(p, "x", q); }
+fn qasm2_emit_z(p: i64, q: i64) -> i64 { return _qasm2_push_1q(p, "z", q); }
+
+fn qasm2_emit_cx(p: i64, ctrl: i64, tgt: i64) -> i64 {
+    if p == 0 { return qasm2_status_invalid_program(); };
+    if qasm2_qubit_in_range(p, ctrl) == 0 { return qasm2_status_qubit_out_of_range(); };
+    if qasm2_qubit_in_range(p, tgt)  == 0 { return qasm2_status_qubit_out_of_range(); };
+    if ctrl == tgt { return qasm2_status_same_qubit(); };
+    let line: str = str_concat(
+        str_concat(
+            str_concat(
+                str_concat(
+                    str_concat("cx q[", int_to_str(ctrl)),
+                    "],q["),
+                int_to_str(tgt)),
+            "];"),
+        "");
+    vec_str_push(p, line);
+    return qasm2_status_ok();
+}
+
+// Returns 1 if `name` names one of the supported emit gates ("h", "x",
+// "z", "cx"), else 0. Use BEFORE qasm2_emit_named_* if you want to
+// branch without a status code.
+fn qasm2_supported_gate(name: str) -> i64 {
+    if str_eq(name, "h")  == 1 { return 1; };
+    if str_eq(name, "x")  == 1 { return 1; };
+    if str_eq(name, "z")  == 1 { return 1; };
+    if str_eq(name, "cx") == 1 { return 1; };
+    return 0;
+}
+
+// Name-dispatched 1-qubit emit. Returns qasm2_status_unsupported_gate
+// for any name outside {h, x, z}.
+fn qasm2_emit_named_1q(p: i64, name: str, q: i64) -> i64 {
+    if str_eq(name, "h") == 1 { return qasm2_emit_h(p, q); };
+    if str_eq(name, "x") == 1 { return qasm2_emit_x(p, q); };
+    if str_eq(name, "z") == 1 { return qasm2_emit_z(p, q); };
+    return qasm2_status_unsupported_gate();
+}
+
+// Name-dispatched 2-qubit emit. Returns qasm2_status_unsupported_gate
+// for any name other than "cx".
+fn qasm2_emit_named_2q(p: i64, name: str, ctrl: i64, tgt: i64) -> i64 {
+    if str_eq(name, "cx") == 1 { return qasm2_emit_cx(p, ctrl, tgt); };
+    return qasm2_status_unsupported_gate();
+}
+
+// Render the program as a deterministic OpenQASM 2.0 source string.
+// Header is always the fixed three-line preamble; body lines are joined
+// with a trailing newline each.
+fn qasm2_render(p: i64) -> str {
+    if p == 0 { return ""; };
+    let n: i64 = vec_get(p, 0);
+    let mut out: str = "OPENQASM 2.0;\n";
+    out = str_concat(out, "include \"qelib1.inc\";\n");
+    out = str_concat(out, str_concat(str_concat("qreg q[", int_to_str(n)), "];\n"));
+    let total: i64 = vec_len(p);
+    let mut i: i64 = 1;
+    while i < total {
+        out = str_concat(out, vec_str_get(p, i));
+        out = str_concat(out, "\n");
+        i = i + 1;
+    };
+    return out;
+}
+
+fn qasm2_limitations() -> str {
+    return "qsim OpenQASM 2.0 emitter (QM-7 v0842, 2026-05-07): (1) EMIT-ONLY. There is no in-tree OpenQASM2 parser/importer; round-trip import is explicitly out of scope for this surface. (2) Supported gate subset is H/X/Z/CX. Name-dispatched emit (qasm2_emit_named_1q / qasm2_emit_named_2q) returns qasm2_status_unsupported_gate (4) for any other gate without mutating the program. (3) Header is fixed: 'OPENQASM 2.0;', 'include \"qelib1.inc\";', 'qreg q[N];'. No creg, no measurement, no classical control, no parameterized rotations, no barrier/reset. (4) HARD CAP at qasm2_max_qubits() = 1024 qubits. qasm2_program_new returns 0 above the cap or for n<1; emit calls return qasm2_status_qubit_out_of_range (2) or qasm2_status_same_qubit (3) on invalid args. Status codes: 0=ok, 1=invalid_program, 2=qubit_out_of_range, 3=same_qubit, 4=unsupported_gate, 5=invalid_qubit_count.";
 }

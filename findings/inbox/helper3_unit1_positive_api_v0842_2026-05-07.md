@@ -93,3 +93,10 @@ Output: no findings.
 - `bash tools/check_compiler_drift.sh`: skipped because this queue did not change compiler/tooling metadata.
 - `pwsh -NoProfile -File tools\check_perf_regression.ps1`: skipped because this queue did not change compiler or hot toolchain code.
 - Self-host / full verify: not required for this isolated stdlib rod + fixture/doc change. Main does not need self-host for this branch; full verify can run at integration time if multiple lanes are batched.
+
+## Main integration note
+
+Cherry-picked onto `integrate/postbatch-v0842` after main had advanced to
+`af69b90e`. Integration validation repeated both new fixture builds/runs,
+`bash tools/check_rod_void_abi.sh`, and `git diff --check HEAD~1..HEAD`.
+All passed. No compiler, bootstrap, or hot toolchain files changed.
