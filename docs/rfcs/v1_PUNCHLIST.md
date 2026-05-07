@@ -173,11 +173,36 @@ launch. After memory safety completes, these are next-priority.
   `err_effect_deep_chain.nr` now also emit EFF-003 on the restricts
   surface while retaining the independent EFF-001 signal for the
   un-rowed intermediate helpers.
+- **v0845 lane 2 (Queue 2A) — cross-module propagation closed for the
+  flat-namespace `import "..."` surface.** The resolved-source pre-pass
+  inlines imported module bodies before `enforce_requires_direct_calls`
+  and `enforce_restricts_block_effects` run, so the same-file diagnostics
+  already covered the cross-module case for direct rowed-callee
+  mismatches and bounded-transitive un-rowed chains. Empirical probe
+  surfaced the only real residual: the `requires [...]` transitive
+  budget was 3 hops, while the `restricts` path used 8. A 4..=7-hop
+  un-rowed chain to a builtin/rowed leaf fell silently through the
+  bound (cross-module or same-file). v0845 raises the requires bound
+  to 8 to match `restricts_transitive_check`. Visited-set dedup keeps
+  termination O(N) per chain. Locked by:
+  `tests/err/err_requires_cross_module_aux.nr` (lib),
+  `tests/err/err_requires_cross_module_direct.nr` (negative — cross-
+  module direct rowed-callee mismatch),
+  `tests/err/err_requires_cross_module_transitive.nr` (negative — cross-
+  module un-rowed helper transitively reaching `print()`),
+  `tests/err/err_requires_cross_module_depth.nr` (negative — 4-deep
+  cross-module chain that previously silent-passed at depth=3),
+  `tests/err/err_restricts_cross_module_aux.nr` (lib) +
+  `tests/err/err_restricts_cross_module_transitive.nr` (negative —
+  `restricts [io.write] { ... }` block reaching imported `print()`),
+  and `tests/features/requires_cross_module_aux.nr` +
+  `tests/features/requires_cross_module_clean_smoke.nr` (positive —
+  matching cross-module rows compile + run).
 - **Still open:** full standalone `requires [...]` row enforcement
-  beyond bounded same-file direct/body/helper calls, restricts chains
-  beyond depth=8, deeper transitive `requires [...]` row propagation,
-  cross-module propagation, method/closure/higher-order effects, and
-  broader RFC-0033 effect-row subtyping.
+  beyond depth=8 helper chains, methods/impl effect rows, closures and
+  function-pointer effect capture, broader RFC-0033 effect-row
+  subtyping, and selective `use path::{a, b}` / glob `use path::*`
+  import surfaces (resolver phase 2).
 - **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
