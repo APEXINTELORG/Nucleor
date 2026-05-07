@@ -6232,10 +6232,35 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 //
 // Rollback: replace opt_fn's call to opt_law_rewrite_block with a
 // no-op (0) and keep this fn definition in place for future phases.
+
+// v0845 Lane 4 / Queue 4A: explicit Phase-2 proof sentinel. Future
+// rewrite logic in `opt_law_rewrite_block` MUST consult this before
+// applying any law metadata. Phase 1 returns 0 unconditionally so the
+// no-op contract is locked at the IR level too — even if a Phase-2
+// contributor adds rewrite logic without consulting the source-text
+// `@audit(law_opt_required)` + `@audit(check_laws_passed)` predicate
+// pair, this sentinel keeps the rewrite from firing. Phase 2 wires
+// this to consult per-fn validation metadata produced by
+// `nuc test --check-laws`.
+//
+// `fn_law_id` is reserved for Phase 2 use; today no metadata is
+// plumbed in, so the parameter is unused. Keeping it in the signature
+// now means Phase 2 doesn't need to update every call site.
+#[manual_drop]
+fn law_opt_phase2_proof_validated(fn_law_id: i64) -> i64 {
+    return 0;
+}
+
 #[manual_drop]
 fn opt_law_rewrite_block(blk: Vec<i32>) -> i64 {
+    // v0845 Lane 4 / Queue 4A: explicit IR-level fail-closed guard.
+    // Even though the body below is empty, future Phase 2 logic must
+    // pass through this guard. Until `law_opt_phase2_proof_validated`
+    // returns 1, no rewrites fire.
+    if law_opt_phase2_proof_validated(0) == 0 { return 0; };
     // Phase 1: observe-only pass slot. No metadata to consume yet,
-    // so no rewrites fire. Phase 2 populates the body.
+    // so no rewrites fire. Phase 2 populates the body BELOW this
+    // guard (never above it).
     return 0;
 }
 

@@ -54524,13 +54524,33 @@ L5:
   ret i64 %r.333
 }
 
-define i64 @opt_law_rewrite_block(i64 %p.0) {
+define i64 @law_opt_phase2_proof_validated(i64 %p.0) {
 bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = add i64 0, 0
   ret i64 %r.2
+}
+
+define i64 @opt_law_rewrite_block(i64 %p.0) {
+bb.entry:
+  %r.0 = alloca i64
+  %r.1 = add i64 %p.0, 0
+  store i64 %r.1, ptr %r.0
+  %r.2 = add i64 0, 0
+  %r.3 = call i64 @law_opt_phase2_proof_validated(i64 %r.2)
+  %r.4 = add i64 0, 0
+  %r.5.cmp = icmp eq i64 %r.3, %r.2
+  %r.5 = zext i1 %r.5.cmp to i64
+  %br.5.cond = icmp ne i64 %r.5, 0
+  br i1 %br.5.cond, label %L0, label %L2
+L0:
+  %r.6 = add i64 0, 0
+  ret i64 %r.6
+L2:
+  %r.7 = add i64 0, 0
+  ret i64 %r.7
 }
 
 define i64 @opt_fn(i64 %p.0) {
