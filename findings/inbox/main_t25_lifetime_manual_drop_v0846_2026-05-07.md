@@ -172,3 +172,35 @@ findings/inbox/main_t25_lifetime_manual_drop_v0846_2026-05-07.md  (this report)
 
 T2.5 closed; sister parse_struct_decl/parse_enum_decl audit deferred per the
 "T2.5 first, sweep sisters next" directive.
+
+---
+
+## 2026-05-07 follow-up: blanket-sweep regression negative result
+
+**Tried:** apply `#[manual_drop]` to all 33 parse_* fns in tools-suite that
+have the annotation in s1 but not in tools-suite. Hypothesis was that
+match-s1 was uniformly correct given the same source patterns.
+
+**Result:** T2.5 verify step FAILED after the sweep. Reverted.
+
+**Implication:** at least one of the 33 fns relies on auto-drop for
+correctness in tools-suite even though its s1 counterpart uses manual_drop.
+That means s1 and tools-suite diverged at the body level somewhere — either
+s1 has explicit drop calls that the tools-suite copy lacks (or vice versa),
+or one runtime-state convention shifted independently.
+
+**Next-rotation directive:** do NOT attempt a blanket sweep again. Instead:
+1. Target the obvious gparams-pattern sisters first: `parse_struct_decl`
+   (line 1043 retains the pre-5a263b02 `gparams = mk_list(pool, pr_val(gr))`
+   pattern), `parse_enum_decl`, `parse_impl_block`, `parse_trait_decl`.
+2. Apply `#[manual_drop]` to ONE fn at a time. Build, run T2.5 + a focused
+   sister fixture. Only ship the change if the verify step that previously
+   exercised that fn now passes AND T2.5 stays green.
+3. If a target fn cannot accept `#[manual_drop]` cleanly, the right fix is
+   often to also mirror s1's body (additional `vec_drop_*` calls or
+   ownership-transferring patterns), not just the annotation.
+
+**Conservative scope shipped today:** only the two parser fns that 5a263b02
+attempted to fix indirectly (`parse_generic_params` and `parse_fn_decl`).
+Those two are closed; the remaining 31 fns are queued as a careful
+sister-by-sister follow-on, NOT a blanket apply.
