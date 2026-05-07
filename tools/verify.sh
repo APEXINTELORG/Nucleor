@@ -5921,6 +5921,22 @@ step "v0.7.18 governance rod Phase 2a — AuthorRecord registry round-trip (RFC-
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 step "T1.8 self-host compiler IR fixed point" t18_self_host_compiler_fixed_point
 
+# PROBE-1 — real-world driver gate (PUNCHLIST PROBE-1).
+# Exercises 8 nuc subcommands (build / build-then-run / test / check /
+# summary / explain / init / clean) against a ~30 LOC real-world program
+# (control flow + multi-arg fns + struct + Vec literal) instead of the
+# 5-line `add(a, b) { return a + b; }` shapes that dominate the existing
+# fixture corpus. Designed to surface bug classes that hide behind
+# trivial fixtures (T2.5 / T2.1 latent OOB class, R1-R5 cloud bucket).
+# Gated by NUC_VERIFY_PROBE=1 during initial rollout; will graduate to
+# default once both Windows and Linux runs are clean.
+real_world_probes() {
+    bash "$ROOT/tests/probes/real_world/probe_runner.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+if [ "${NUC_VERIFY_PROBE:-0}" = "1" ]; then
+    step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/clean)" real_world_probes
+fi
+
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
 # CI semantics — fresh module-graph cache). Set KEEP_CACHE=1 in the env
