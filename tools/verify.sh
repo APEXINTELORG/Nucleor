@@ -37,11 +37,15 @@
 
 set -uo pipefail
 
-# T1.1 safety: cap virtual memory at 2 GB so a runaway compile or
-# test fails fast. Healthy compiles are sub-1 GB; the prior blowups
-# we hunted hit ~20 GB, so 2 GB is the right "alarm" threshold.
+# T1.1 safety: cap virtual memory at 4 GB so a runaway compile or
+# test fails fast. Healthy compiles are sub-2 GB; the prior blowups
+# we hunted hit ~20 GB, so 4 GB stays an "alarm" threshold while
+# leaving headroom for the native-ported drift generators (Track C
+# C2/C3/C6) — gen_helper_manifest in particular peaks > 1 GB on
+# Linux because of the O(n^2) str_concat pattern in its symbol
+# walker, and the prior 2 GB cap OOM'd it on a 326 KB malloc.
 # Override via NUCLEOR_MEM_CAP_KB env var (units: KB; "0" = no cap).
-: "${NUCLEOR_MEM_CAP_KB:=2097152}"
+: "${NUCLEOR_MEM_CAP_KB:=4194304}"
 if [ "${NUCLEOR_MEM_CAP_KB}" != "0" ]; then
     ulimit -v "${NUCLEOR_MEM_CAP_KB}" 2>/dev/null || true
 fi
@@ -2295,12 +2299,12 @@ t445_parse_primary_narrow_panic() {
 
 t460_question_from_conversion() {
     "$BIN" build "tests/fixtures/repro_question_from_conversion.nr" -o "_t460_question_from" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
-    target/_t460_question_from.exe >$NUC_VERIFY_STEP_LOG.run 2>&1
+    { [ -x target/_t460_question_from.exe ] && target/_t460_question_from.exe || target/_t460_question_from; } >$NUC_VERIFY_STEP_LOG.run 2>&1
     local rc1=$?
     if [ "$rc1" -ne 107 ]; then return 1; fi
 
     "$BIN" build "tests/fixtures/repro_into_explicit.nr" -o "_t460_into_explicit" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
-    target/_t460_into_explicit.exe >$NUC_VERIFY_STEP_LOG.run 2>&1
+    { [ -x target/_t460_into_explicit.exe ] && target/_t460_into_explicit.exe || target/_t460_into_explicit; } >$NUC_VERIFY_STEP_LOG.run 2>&1
     local rc2=$?
     if [ "$rc2" -ne 12 ]; then return 1; fi
 
@@ -3057,7 +3061,7 @@ t436_str_more_methods_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$("target/_t436_check.exe" 2>&1 || "target/_t436_check" 2>&1)
+    out=$({ [ -x target/_t436_check.exe ] && target/_t436_check.exe || target/_t436_check; } 2>&1)
     echo "$out" | head -1 | grep -q "^Hello, World$" || return 1
     echo "$out" | head -2 | tail -1 | grep -q "^HELLO, WORLD$" || return 1
     echo "$out" | head -3 | tail -1 | grep -q "^hello, world$" || return 1
@@ -3074,7 +3078,7 @@ t435_str_method_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$("target/_t435_check.exe" 2>&1 || "target/_t435_check" 2>&1)
+    out=$({ [ -x target/_t435_check.exe ] && target/_t435_check.exe || target/_t435_check; } 2>&1)
     echo "$out" | head -1 | grep -q "^12$" || return 1
     return 0
 }
@@ -3087,7 +3091,7 @@ t434_vec_insert_remove_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$("target/_t434_check.exe" 2>&1 || "target/_t434_check" 2>&1)
+    out=$({ [ -x target/_t434_check.exe ] && target/_t434_check.exe || target/_t434_check; } 2>&1)
     echo "$out" | head -1 | grep -q "^1$" || return 1
     echo "$out" | head -2 | tail -1 | grep -q "^99$" || return 1
     echo "$out" | head -3 | tail -1 | grep -q "^1$" || return 1
