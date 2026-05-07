@@ -201,6 +201,23 @@ cleanup_verify_tmpdir() {
     fi
 }
 trap cleanup_verify_tmpdir EXIT
+
+# _run_target <basename> [args...]
+# Runs target/<basename>.exe on Windows/Git-Bash (where the POSIX -x bit is
+# unreliable) or target/<basename> on native POSIX. Use this in step bodies
+# instead of the historical pattern
+#   { [ -x target/X.exe ] && target/X.exe || target/X; }
+# which fell through to the no-suffix path on Windows when -x was false even
+# though the .exe was perfectly runnable, breaking T3.146 and the t434/t435/
+# t436 string-method dispatch fixtures. Caller owns redirection.
+_run_target() {
+    local base="$1"; shift
+    if [ -f "target/${base}.exe" ]; then
+        "target/${base}.exe" "$@"
+    else
+        "target/${base}" "$@"
+    fi
+}
 case "$(uname -s)" in
     CYGWIN*|MINGW*|MSYS*)
         if [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
@@ -2302,12 +2319,12 @@ t445_parse_primary_narrow_panic() {
 
 t460_question_from_conversion() {
     "$BIN" build "tests/fixtures/repro_question_from_conversion.nr" -o "_t460_question_from" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
-    { [ -x target/_t460_question_from.exe ] && target/_t460_question_from.exe || target/_t460_question_from; } >$NUC_VERIFY_STEP_LOG.run 2>&1
+    _run_target _t460_question_from >$NUC_VERIFY_STEP_LOG.run 2>&1
     local rc1=$?
     if [ "$rc1" -ne 107 ]; then return 1; fi
 
     "$BIN" build "tests/fixtures/repro_into_explicit.nr" -o "_t460_into_explicit" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
-    { [ -x target/_t460_into_explicit.exe ] && target/_t460_into_explicit.exe || target/_t460_into_explicit; } >$NUC_VERIFY_STEP_LOG.run 2>&1
+    _run_target _t460_into_explicit >$NUC_VERIFY_STEP_LOG.run 2>&1
     local rc2=$?
     if [ "$rc2" -ne 12 ]; then return 1; fi
 
@@ -3064,7 +3081,7 @@ t436_str_more_methods_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$({ [ -x target/_t436_check.exe ] && target/_t436_check.exe || target/_t436_check; } 2>&1)
+    out=$(_run_target _t436_check 2>&1)
     echo "$out" | head -1 | grep -q "^Hello, World$" || return 1
     echo "$out" | head -2 | tail -1 | grep -q "^HELLO, WORLD$" || return 1
     echo "$out" | head -3 | tail -1 | grep -q "^hello, world$" || return 1
@@ -3081,7 +3098,7 @@ t435_str_method_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$({ [ -x target/_t435_check.exe ] && target/_t435_check.exe || target/_t435_check; } 2>&1)
+    out=$(_run_target _t435_check 2>&1)
     echo "$out" | head -1 | grep -q "^12$" || return 1
     return 0
 }
@@ -3094,7 +3111,7 @@ t434_vec_insert_remove_dispatch() {
     local rc=$?
     [ "$rc" = "0" ] || return 1
     local out
-    out=$({ [ -x target/_t434_check.exe ] && target/_t434_check.exe || target/_t434_check; } 2>&1)
+    out=$(_run_target _t434_check 2>&1)
     echo "$out" | head -1 | grep -q "^1$" || return 1
     echo "$out" | head -2 | tail -1 | grep -q "^99$" || return 1
     echo "$out" | head -3 | tail -1 | grep -q "^1$" || return 1
