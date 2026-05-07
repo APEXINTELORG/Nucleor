@@ -29942,13 +29942,26 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
     if suppress_auto_drop == 0
-       && name_in_auto_drop(auto_drop_fns, name) == 1
        && name_in_manual_drop(manual_drop_fns, name) == 0 {
-        // v0.8.32 G-1 Phase 2b-2: `#[manual_drop]` overrides
-        // `#[auto_drop]`. Useful when porting code that
-        // accidentally has both attributes — manual_drop wins,
-        // matching the future Phase 2b-3 default-flip semantics
-        // (every fn auto-drops unless `#[manual_drop]` opts out).
+        // 2026-05-07 Phase 2b-3 default-flip: every fn auto-drops by
+        // default; #[manual_drop] opts out. Pre-flip the gate also
+        // required `name_in_auto_drop(auto_drop_fns, name) == 1`,
+        // i.e. opt-IN via #[auto_drop]. That meant nearly every
+        // stdlib fn ran with NO drop semantics — Vec heap allocations
+        // leaked, and the "move-into-struct-field" tracking in
+        // auto_drop_mark_constructor_handoffs was dead code for fns
+        // outside the explicit auto_drop_fns whitelist.
+        //
+        // Flipping to opt-out activates the existing handoff machinery
+        // (line 29045 of this file) and closes the ML 58-failure
+        // cluster cloud surfaced via PROBE-3L without per-fn manual_drop
+        // annotations across stdlib/rods/ml/. The bug was: handoff
+        // recognition logic was correct but the gate that enabled it
+        // was inverted vs the comment's stated Phase 2b-3 intent.
+        //
+        // #[manual_drop] still wins for fns that explicitly opt out
+        // (parsers, low-level helpers, etc. — anywhere the body
+        // carries explicit Vec lifetime management).
         sym_set(sym, "__auto_drop_enabled", 1);
     };
     enum_populate_sym(pool, enums, sym);
