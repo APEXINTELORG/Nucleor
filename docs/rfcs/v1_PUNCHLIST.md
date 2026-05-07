@@ -111,7 +111,14 @@ launch. After memory safety completes, these are next-priority.
 - **Standalone `requires [...]` direct calls:** DONE for Phase 1 —
   `nuc build` emits `EFF-001` when a same-file caller invokes a fn
   with a `requires [...]` row but does not declare the required
-  effect; active fixture `err_effect_requires_direct.nr` locks this.
+  effect; active fixtures `err_effect_requires_direct.nr` (empty
+  caller row) and `err_requires_row_direct_call.nr` (caller row
+  declares a different family — `net` vs callee `io.read`) lock
+  the negative path; `effect_requires_direct_ok.nr` and
+  `requires_row_clean_smoke.nr` (single-hop caller declares the
+  family root `io`, callee declares the sub-effect `io.read`) lock
+  the positive path. Cloud Claude lane 2 v0839 added the
+  family-root and disjoint-family fixtures on 2026-05-06.
 - **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
   calling `with [Alloc]` emits `EFF-003`; active fixture
   `err_effects_with_alloc_call.nr` locks this.
