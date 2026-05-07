@@ -254,8 +254,8 @@ correct fix is single-source-of-truth.
 | 2.0.1 | Survey the surface tools_suite needs (parse + type-check + emit-summary; not full IR / link) | DONE v0.8.323 — see `findings/promoted/2026-05-06-parser-unification-survey-rfc-0063-phase-2-0-1.md` |
 | 2.0.2 | Confirm s1 + tools_suite have no `pub fn` markers (which would opt them into Nucleor's privatization mechanism, silently mangling every other fn to `__priv_<file_id>__<name>` and breaking cross-module imports). Drift gate added to enforce this until 2.0.3 ships. | DONE v0.8.323 — both files have 0 `pub fn` declarations; `tools/check_compiler_drift.sh` now blocks regressions. |
 | 2.0.3-prep | Fix `compile_error!` text-pre-pass detector to also exempt `nucleor_tools_suite.nr` (was only exempting s1; importing s1 into tools_suite tripped on s1's error-message string literals containing the pattern). | DONE v0.8.323 |
-| 2.0.3a | Signature-audit pass — write `tools/audit_dup_fns.nr`, enumerate all duplicate fn names, categorize, and refresh `tools/audit_dup_fns_report.csv` after helper/cloud integration. **Current result after v0838 Wave 1 refresh:** 424 duplicates: 245 IDENTICAL (safe-delete candidates), 163 SIG_MATCH_BODY_DIFFERS (same signature, body review/replace), 16 SIG_DIFFERS (per-fn lift/adapter work). | DONE v0.8.323 — see `findings/promoted/2026-05-06-phase-2-0-3a-dup-fn-audit-results.md`, `findings/inbox/helper2_rfc0063_tools_suite_wave1_v0838_2026-05-06.md`, and the current CSV. |
-| 2.0.3b | Wave 1 — delete/import the IDENTICAL dups from tools_suite through the parser/tools-suite unification strategy. Audit-driven: every fn in this wave is byte-identical between files, so semantics should be preserved. Caveat: avoid duplicate-name import collisions by either batching the remaining waves in the same ship or pre-renaming legacy tools-suite versions via the `_tools_legacy` strategy noted in the finding. | PARTIAL v0838 — 12 non-parser IDENTICAL helpers moved into `compiler/nucleor_rfc0063_shared_wave1.nr`, imported by `compiler/nucleor_tools_suite.nr`, and removed from the raw tools-suite file while s1 remains canonical. Remaining IDENTICAL candidates: 245. |
+| 2.0.3a | Signature-audit pass — write `tools/audit_dup_fns.nr`, enumerate all duplicate fn names, categorize, and refresh `tools/audit_dup_fns_report.csv` after helper/cloud integration. **Current result after v0839 Wave 2 refresh:** 384 duplicates: 205 IDENTICAL (safe-delete candidates), 163 SIG_MATCH_BODY_DIFFERS (same signature, body review/replace), 16 SIG_DIFFERS (per-fn lift/adapter work). | DONE v0.8.323 — see `findings/promoted/2026-05-06-phase-2-0-3a-dup-fn-audit-results.md`, `findings/inbox/helper2_rfc0063_tools_suite_wave1_v0838_2026-05-06.md`, `findings/inbox/helper2_rfc0063_tools_suite_wave2_v0839_2026-05-06.md`, and the current CSV. |
+| 2.0.3b | Wave 1/2 — delete/import IDENTICAL dups from tools_suite through the parser/tools-suite unification strategy. Audit-driven: every fn in this wave is byte-identical between files, so semantics should be preserved. Caveat: avoid duplicate-name import collisions by either batching the remaining waves in the same ship or pre-renaming legacy tools-suite versions via the `_tools_legacy` strategy noted in the finding. | PARTIAL v0838/v0839 — 52 non-parser IDENTICAL helpers moved into `compiler/nucleor_rfc0063_shared_wave1.nr`, imported by `compiler/nucleor_tools_suite.nr`, and removed from the raw tools-suite file while s1 remains canonical. Remaining IDENTICAL candidates: 205. |
 | 2.0.3c | Wave 2 — delete/import the 163 SIG_MATCH_BODY_DIFFERS dups (sigs match → call sites can target s1 bodies without signature edits). Verify any tools_suite-specific behavior in the deleted bodies is either intentionally retired or carried forward. | OPEN |
 | 2.0.3d | Wave 3 — handle the 16 SIG_DIFFERS candidates with per-function lift/adapter decisions. Split into s1-canonical, tools-suite-canonical, and true adapter cases before deleting anything. | OPEN |
 | 2.0.3e | Wave 4 — verify CLI dispatch stubs / tools-only surfaces after Wave 3. Lift any tools_suite-canonical implementations into s1 only when the s1 entrypoint genuinely needs to route that command. | OPEN |
@@ -263,11 +263,11 @@ correct fix is single-source-of-truth.
 | 2.0.5 | Remove `check_parser_fn_drift` from `tools/check_compiler_drift.sh` (gate becomes obsolete) | OPEN |
 
 **Survey 2.0.1 / 2.0.3a hard data (2026-05-06):**
-- tools_suite carries 702 fns; **424 are name-duplicates of s1**
-- s1 carries 817 fns; same 424 duplicate the other direction
-- duplicate categories after current refresh: 245 IDENTICAL, 163 SIG_MATCH_BODY_DIFFERS, 16 SIG_DIFFERS
-- 278 tools-only fns (CLI dispatch, JSON formatting, ABI analysis, profiling, cache mgmt)
-- 393 s1-only fns (codegen / lowering / IR emission / 30+ safety enforcements)
+- tools_suite raw file carries 663 fns; **384 are name-duplicates of s1**
+- s1 carries 825 fns; same 384 duplicate the other direction
+- duplicate categories after current refresh: 205 IDENTICAL, 163 SIG_MATCH_BODY_DIFFERS, 16 SIG_DIFFERS
+- 279 tools-only fns (CLI dispatch, JSON formatting, ABI analysis, profiling, cache mgmt)
+- 441 s1-only fns (codegen / lowering / IR emission / 30+ safety enforcements)
 - Worst parser drift: `parse_primary` 139 lines (tools) vs 648 (s1) — 79% smaller in tools
 - Estimated total scope: 5-9 ships (~2-3 weeks) **assuming 2.0.0 (cross-module import) is already viable**
 
