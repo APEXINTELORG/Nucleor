@@ -817,9 +817,18 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(p2, name);
 }
 
+#[manual_drop]
 fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // pos points at '<', returns (pos_after_>, list of param name strings).
     // T2.5 (v0.2.351): accept lifetime parameters (`'a`, etc.) — synced.
+    // 2026-05-07: #[manual_drop] mirrors s1::parse_generic_params (line 3185).
+    // Without it, auto-drop frees `params` at end-of-scope before pr_val(gr)
+    // can read it through the returned `pr` wrapper, leading to a dangling
+    // Vec<i32> pointer in `gparams_vec` and a wild OOB index when mk_list
+    // iterates ("PANIC: node_kind pool OOB: index 2287092358768, len 83").
+    // The 5a263b02 gparams_vec change is correct but insufficient on its
+    // own — the lifetime of the inner params Vec MUST be extended past
+    // the return for that change to actually take effect.
     let mut cp: i64 = pos + 1;
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 33 && pk(tokens, cp) != 0 {
@@ -971,6 +980,7 @@ fn parse_stmts(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk_list(pool, items));
 }
 
+#[manual_drop]
 fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
@@ -982,6 +992,9 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // generic param (T2.5 lifetime fixture being one). The
     // equivalence is preserved because mk_list iterates `items` once
     // and the s1 form does the same.
+    // 2026-05-07 sister fix: #[manual_drop] mirrors s1::parse_fn_decl
+    // (line 4068). Required so that `params` and the inner Vec returned
+    // by parse_generic_params are not auto-dropped before mk6 reads them.
     let mut gparams_vec: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
