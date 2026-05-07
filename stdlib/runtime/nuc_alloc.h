@@ -36,6 +36,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef _WIN32
+#include <execinfo.h>
+#endif
 
 /* Per-TU cache of the env lookup. The env value is read once on
    first call inside each TU and reused. The function is static so
@@ -62,6 +65,18 @@ static void *_nuc_alloc_xrealloc(void *p, size_t n) {
     void *r = realloc(p, n);
     if (!r && n > 0 && !_nuc_alloc_oom_lenient()) {
         fprintf(stderr, "PANIC: out of memory: realloc(%zu) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)\n", n);
+#ifndef _WIN32
+        if (getenv("NUCLEOR_TRACE_OOM")) {
+            void *bt[32];
+            int bt_n = backtrace(bt, 32);
+            char **bt_syms = backtrace_symbols(bt, bt_n);
+            fprintf(stderr, "  backtrace (top %d frames):\n", bt_n);
+            for (int i = 0; i < bt_n && bt_syms; i++) {
+                fprintf(stderr, "    %s\n", bt_syms[i]);
+            }
+            free(bt_syms);
+        }
+#endif
         fflush(stderr); exit(1);
     }
     return r;
