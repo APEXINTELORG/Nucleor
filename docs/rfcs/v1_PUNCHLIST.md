@@ -308,9 +308,15 @@ launch. After memory safety completes, these are next-priority.
   direct elementary f64 helpers, f64 bit reinterpret helpers, and
   `f64_to_i32` in both compiler copies; `t4_strict_remaining_helper_rtypes.nr`
   locks the positive strict-mode assignment path.
+- **T-4 Phase 2b partial:** DONE 2026-05-07 for direct scalar time/clock
+  helper return typing. Strict inference now knows i64 return types for
+  direct `now_ms`, `sleep_ms`/`sleep_us`, monotonic/wall-clock time,
+  timestamp decomposition, and elapsed-time helpers in both compiler
+  copies; `t4_strict_time_helper_rtypes.nr` locks the positive
+  strict-mode assignment path.
 - **Phase 2b still open:** T-4 strict empty-type compatibility beyond
-  covered core/IO/path/format/string/numeric helper returns, broader T-3 char
-  distinctness, and non-constant char-cast proof.
+  covered core/IO/path/format/string/numeric/time helper returns,
+  broader T-3 char distinctness, and non-constant char-cast proof.
   The earlier
   v0.8.79/v0.8.83 Windows-PE link-hang concern is no longer treated
   as a current blocker after v0.8.319 rebuilt/promoted

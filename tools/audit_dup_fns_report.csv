@@ -108,7 +108,7 @@ check_fn,6,8,49,71,0,0,SIG_DIFFERS
 is_tainted_type,1,1,5,5,1,0,SIG_MATCH_BODY_DIFFERS
 taint_inner_type,1,1,5,5,1,0,SIG_MATCH_BODY_DIFFERS
 types_compatible,2,2,199,42,1,0,SIG_MATCH_BODY_DIFFERS
-builtin_rtype,1,1,37,27,1,0,SIG_MATCH_BODY_DIFFERS
+builtin_rtype,1,1,38,28,1,0,SIG_MATCH_BODY_DIFFERS
 line_contains_text,4,4,13,13,1,0,SIG_MATCH_BODY_DIFFERS
 source_box_binding_type,3,3,15,15,1,0,SIG_MATCH_BODY_DIFFERS
 tprof_new,1,1,11,10,1,0,SIG_MATCH_BODY_DIFFERS
