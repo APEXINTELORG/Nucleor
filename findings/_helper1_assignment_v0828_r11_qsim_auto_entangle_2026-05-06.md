@@ -1263,9 +1263,9 @@ compiler hot path is materially changed.
 
 Status update from main: helper1 Queue 8 landed on main through integration
 commit `9b7bf6ec`, and Claude ROBO-7 Phase B step-2 landed on main as
-`c161d937`. Current origin/main at refresh is `a437f6a6`. Start fresh from
-current `origin/main`; do not continue from the old v0838 branch unless it is
-rebased cleanly first.
+`c161d937`. This queue was refreshed after main integration through
+`a437f6a6`; start fresh from the fetched current `origin/main`. Do not continue
+from the old v0838 branch unless it is rebased cleanly first.
 
 Branch:
 
