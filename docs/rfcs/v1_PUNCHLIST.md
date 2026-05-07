@@ -321,11 +321,12 @@ launch. After memory safety completes, these are next-priority.
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
 - **Severity:** SAFETY (Mars Climate Orbiter failure mode — was live pre-v0838)
-- **Status:** PARTIAL — Phase B step-3 diagnostic broadening is live in
-  the v0840 repair branch (FRAME-001 fires for `Pose<Frame_X>`
-  mismatches at let-binding, call-argument, struct/tuple init,
-  assignment, return, and binop sites); stdlib migration to typed
-  robotics signatures remains queued.
+- **Status:** PARTIAL — Phase B step-3 diagnostic broadening is live
+  (FRAME-001 fires for `Pose<Frame_X>` mismatches at let-binding,
+  call-argument, struct/tuple init, assignment, return, and binop
+  sites); v0841 adds the first adopter-facing stdlib typed-pose
+  migration in `kinematics.nr`. Full `tf` / `se3` transform typing
+  remains queued behind `Transform<From, To>` / FRAME-002/003.
 - **Phase 1:** DONE — `stdlib/rods/kinematics_frame.nr` ships zero-cost
   `Frame_*` marker structs + numeric ID surface + runtime check helpers
   (`kinematics_frame_compatible_strict`, `_assert`, `_require`,
@@ -356,11 +357,21 @@ launch. After memory safety completes, these are next-priority.
   `frame_mismatch_visible(expected, actual)` confirms a true
   frame-tag mismatch. Non-frame mismatches retain their original
   diagnostics.
+- **Phase B step-4 (stdlib migration prep):** PARTIAL v0841 —
+  `stdlib/rods/kinematics.nr` now exposes a zero-cost phantom-frame
+  `Pose` facade over the existing Vec3 / Quat handles plus typed
+  `kinematics_transform*` helpers. Existing handle-level `pose_*`
+  APIs remain unchanged for backwards compatibility. Positive
+  coverage: `tests/features/robo7_kinematics_typed_pose_smoke.nr`
+  proves Frame_Unknown migration, camera-to-base, and base-to-camera
+  transform paths. Negative coverage:
+  `tests/err/err_robo7_kinematics_transform_call_mismatch.nr`
+  proves a base-frame pose cannot be passed to the camera-to-base
+  stdlib API.
 - **Phase 4 (v1.0 hard-error promotion):** OPEN — migrate
-  `stdlib/rods/kinematics.nr`, `tf.nr`, `se3.nr` signatures from
-  bare `Pose` to `Pose<Frame_Unknown>` with explicit transform
-  call sites; deprecate `Frame_Unknown` and require explicit
-  frames everywhere by v1.0.
+  the remaining raw `tf.nr` / `se3.nr` surfaces from integer frame
+  IDs and pointer tuples to typed transform wrappers; deprecate
+  `Frame_Unknown` and require explicit frames everywhere by v1.0.
 
 ### PERF-11 — bisect_mem threshold — DONE
 
