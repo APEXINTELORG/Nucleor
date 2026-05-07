@@ -286,7 +286,7 @@ launch. After memory safety completes, these are next-priority.
 - **Still open for Phase 2 closure:** QASM/OpenQASM2 interop and a citation-backed
   external published weight-enumerator parity row if the launch docs require one.
 
-### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard DONE
+### UNIT-1 — Typed dimensional units archive guard — Phase 1 guard + positive API partial DONE
 
 - **Source:** `RFC-0005-units.md`, `RFC-0047-typed-units-7vector.md`
 - **Status:** FAIL-CLOSED ARCHIVE GUARD DONE 2026-05-06. The main
@@ -296,9 +296,15 @@ launch. After memory safety completes, these are next-priority.
   and assigning a velocity-shaped unit value into a distance binding
   (`TYP-008`). Active fixtures: `err_unit_bare_coercion.nr`,
   `err_unit_mismatch.nr`, `err_unit_assign.nr`.
+- **Positive API surface:** PARTIAL DONE 2026-05-07. `units.nr`
+  now exposes nominal `UnitDistance` and `UnitVelocity` structs with
+  explicit constructors, accessors, conversion helpers, same-dimension
+  add/sub helpers, and distance-over-time velocity construction over
+  the existing f64 + unit-ID storage contract. Active fixtures:
+  `unit_distance_positive_smoke.nr`, `unit_velocity_positive_smoke.nr`.
 - **Still open:** full parser/type-checker dimension algebra for
   `unit<T, dim>`, UNIT-001..005 semantic diagnostics, 7-vector lowering,
-  literal suffix support, and positive typed-unit API coverage.
+  literal suffix support, and broader positive typed-unit API coverage.
 
 ### ROBO-7 — Frame-typing safety
 
