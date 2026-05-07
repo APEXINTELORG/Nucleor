@@ -25,7 +25,7 @@ Spawned cloud agents look here first, take the next pending queue, work it in th
   ```
   Handoff §Lane 8 / Queue 8A.
 
-- [ ] **8B** — Linux release prerequisite doctor. Branch `fix/cloud-linux-release-prereq-doctor-v0845`. Small shell/PowerShell doctor or docs section for `pwsh`, `ssh-keygen`, `clang`, `cargo`, `bin/nucleor`, `bin/nucleor_tools`. No Python helper. Handoff §Lane 8 / Queue 8B.
+- [x] **8B** — Linux release prerequisite doctor. Branch `fix/cloud-linux-release-prereq-doctor-v0845`. Small shell/PowerShell doctor or docs section for `pwsh`, `ssh-keygen`, `clang`, `cargo`, `bin/nucleor`, `bin/nucleor_tools`. No Python helper. Handoff §Lane 8 / Queue 8B.
 
 - [ ] **8C** — Full native Linux verify transcript. Branch `probe/cloud-linux-full-verify-transcript-v0845`. Run full `bash tools/verify.sh` on native Linux from current `origin/main`. If it fails, file one report with exact failures classified as: Windows-only fixture / missing Linux prerequisite / real compiler/runtime bug / performance-only drift. Do not patch unrelated failures in this transcript branch unless small + deterministic. Handoff §Lane 8 / Queue 8C.
 
@@ -79,4 +79,14 @@ Files: 3 (tools/check_perf_regression.sh, tools/verify.sh, findings/inbox/cloud_
 Validation: PASS — `bash tools/check_perf_regression.sh` (auto-selected `tools/perf_baseline_linux.json`) cold p50 6.04s ≤ 10.0s, hot p50 0.66s ≤ 1.0s, cold tree 323/350 MB, hot tree 57/64 MB; `bash tools/verify.sh --only "T1.8 POSIX perf + memory regression monitor"` → 1 PASS / 0 FAIL.
 Report: findings/inbox/cloud_claude_lane8_8A_v0845_2026-05-07.md
 Residuals: (1) punchlist's `--only "POSIX cold/hot perf regression"` does not match any registered verify step — actual name is `T1.8 POSIX perf + memory regression monitor`. (2) Used the harness-pinned branch `claude/cloud-control-punchlist-bPLVn` instead of `fix/cloud-linux-perf-platform-baseline-select-v0845`; commits are scoped per-queue for clean cherry-pick. (3) `pwsh`/`ssh-keygen` absent on this runner — relevant to Queue 8B.
+
+## [2026-05-07 11:18 UTC] Queue 8B — DONE
+Branch: claude/cloud-control-punchlist-bPLVn @ <committed below>
+Base: origin/main @ 5890c84603bd46fc6d86b9500b2ef7cd4ae4d63c
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 pwsh=missing cargo=1.94.1 rustc=1.94.1 ssh-keygen=missing
+Files: 3 (tools/release_doctor.sh [new, +x], docs/process/semver-and-release.md [new §3.0 Linux release prerequisites], findings/inbox/cloud_claude_lane8_8B_v0845_2026-05-07.md)
+Validation: PASS — `bash tools/release_doctor.sh` reports OK for native-linux/clang/cargo/bin-nucleor/bin-nucleor-tools; FAIL with actionable install hints for the genuinely-missing pwsh and ssh-keygen on this runner. JSON mode validates with `python3 -c json.load`. Quiet mode emits only the summary line. No Python in the doctor itself (`#!/usr/bin/env bash` + awk/grep/sed/file/tr).
+Report: findings/inbox/cloud_claude_lane8_8B_v0845_2026-05-07.md
+Residuals: (1) `pwsh` and `ssh-keygen` are genuinely absent on this runner — the doctor's docs install-hint table is the smallest tooling/docs patch. (2) No POSIX `tools/native_release.sh` exists yet (PKG-1 P2 future work per the gap-analysis RFC); when it lands, `pwsh` may move from `required` to optional in the doctor.
 

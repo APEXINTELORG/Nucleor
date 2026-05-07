@@ -81,6 +81,40 @@ The v0.2.0 → v0.7.0 schedule (per `Nucleor_Decisions_2026-04-22.md`):
 
 ## 3. Release process
 
+### 3.0 Linux release prerequisites
+
+Before any of the steps below, run the prereq doctor on the native
+Linux release runner:
+
+```bash
+bash tools/release_doctor.sh           # human output
+bash tools/release_doctor.sh --json    # machine-readable
+```
+
+Required probes (all must report `OK` before a release run starts;
+exit `0` = ready, exit `96` = unsupported):
+
+| Probe                | Why it matters                                                   |
+| -------------------- | ---------------------------------------------------------------- |
+| `native-linux`       | uname -s = Linux and not WSL; release evidence must be native.   |
+| `clang`              | Used by `tools/bootstrap_linux.sh` and the LLVM backend.         |
+| `cargo`              | Needed for the Rust bridge crates and the bridge ownership check.|
+| `pwsh`               | `tools/native_release.ps1` (keygen/sign/verify) is PowerShell.   |
+| `ssh-keygen`         | Ed25519 release signing relies on `ssh-keygen -Y sign / verify`. |
+| `bin/nucleor`        | Native ELF; produce via `bash tools/bootstrap_linux.sh`.         |
+| `bin/nucleor_tools`  | Native ELF; build from `compiler/nucleor_tools_suite.nr`.        |
+
+The doctor is pure shell (no Python helpers in product/toolchain
+paths). Install hints for the typical Debian/Ubuntu cloud runner:
+
+- `pwsh` — see Microsoft's PowerShell-on-Linux install instructions
+  (the `powershell` package on supported releases, or the official tarball).
+- `ssh-keygen` — `apt install openssh-client`.
+- `clang` — `apt install clang`.
+- `cargo` / `rustc` — `rustup` (preferred) or distro `rust-all`.
+- `bin/nucleor` — `bash tools/bootstrap_linux.sh`.
+- `bin/nucleor_tools` — `./bin/nucleor build compiler/nucleor_tools_suite.nr -o nucleor_tools && cp target/nucleor_tools bin/nucleor_tools`.
+
 ### 3.1 Pre-release (the day before)
 
 1. Verify gate green on all Tier-1 platforms (Linux + macOS +
