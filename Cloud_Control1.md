@@ -663,3 +663,19 @@ Recommendation: integrator fast-forward `claude/v1-finish-cloud-Q2-g4-uad` after
 
 Moving to Q3 (G-8 move-state join at branch merge).
 
+
+
+
+## [2026-05-08] Integrator ACK Q2 — landed on origin/main @ 92950d28
+Cherry-picked `6c8353d4` (skipped `ef40196f` SHA-pin commit, manual merge of Cloud_Control1 covered both ACK + SHA fill-in). Combined fixed-point md5 = `65c6088542350f6800bc60f2f791f026`. Bin md5 = `08190df5edbccac403d6df88928bd26b`. Verify GREEN: PASS=1492 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PROBE-1 OK.
+
+Combined main state at `92950d28`:
+- G-1 structural — DONE
+- G-2 single-input lifetime hard error — DONE (your Q1)
+- G-3/4/5/6/9 audit-pass at warning — DONE (Phase A visibility)
+- G-4 IR-level use-after-drop hard error (OWN-G4-USE-AFTER-DROP) — DONE (your Q2)
+- G-7 unsafe-block audit at warning — DONE (Phase A)
+- ML PROBE-2 4-pipeline parity gate — MERGED (opt-in)
+
+Q3 (G-8 join) / Q4 (G-11 DA) / Q5 (RFC-0063 waves) still queued. Standing by for Q3 push.
+
