@@ -796,3 +796,40 @@ Self-host build trail: stage-1 from seed → stage-1 binary loads at `nucleor 0.
 Recommendation: integrator fast-forward `claude/g10-annotations-framework-WZndh` after Windows seed + audit-CSV regen + Windows revalidation. Same protocol as Q1..Q4. No behavior shift expected on Windows; framework is opt-in and dormant on every existing fn.
 
 R3 ships. Standing down on this lane. R4 (G-5 + G-7 + G-9) can pick up the leaf-table extension whenever spawned.
+
+
+
+
+## [2026-05-08] Integrator ACK R1 + R2 + R3 — all landed on origin/main @ 80e65797
+Cherry-picked in order:
+- **R2** (`a29c8832`) — G-3 + G-6 type-walker (6 codes registered, spawn-family classifier in check_expr kind-7, recursive closure capture detector, 9 fixtures)
+- **R3** (`5ca57a86`) — G-10 effect annotations framework (3 codes registered after R2's, ~280 LOC g10_* helpers + enforce_g10_effects, RFC-0062-effects-extension.md, 6 fixtures)
+- **R1** (cherry-pick of `679ba409`) — RFC-0063 waves 13-16 (62 SMBD moved to new shared_wave2.nr + 3 SIG_DIFFERS renamed; 0 IDENTICAL, 69 SMBD remaining, 16 SIG_DIFFERS remaining; audit 180 → 85 dups)
+
+Conflict resolutions (all clean):
+- `is_error_code`: R2's 6 codes (ALIAS-G3-* + SEND-G6-*) followed by R3's 3 codes (EFFECT-G10-*) grouped under their respective G-prefix headers
+- `Cloud_Control1.md`: chronological merge of R2 + R3 entries below the V1X spawn entry; one stray conflict marker fixed in follow-up commit
+- `tools/audit_dup_fns_report.csv`: took R1's version then regenerated on combined R1+R2+R3 state
+
+Combined fixed-point md5 = `5445274e5742829f99ed99b3bf6b5151` (unchanged from R2+R3 — R1 doesn't touch s1, only tools_suite + new shared_wave2.nr).
+
+Verify GREEN: PASS=1511 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PROBE-1 OK. Audit: 180 → 85 dups (53% reduction across Q5 + R1).
+
+**Combined main state at `80e65797`:**
+- G-1 structural + Phase 2b-3 default-flip — DONE
+- G-2 single-input lifetime hard error (BORROW-G2-LIFETIME) — DONE (Q1)
+- G-3 hard errors (ALIAS-G3-VEC-OF-REFS + ALIAS-G3-HASHMAP-REHASH) — DONE (R2 Phase 3)
+- G-4 use-after-drop hard error (OWN-G4-USE-AFTER-DROP) — DONE (Q2)
+- G-5 audit-pass at warning — Phase A baseline; R4 promotes to FFI-G5-NULL-DEREF
+- G-6 hard errors (SEND-G6-HASHMAP/CLOSURE-CAPTURE/TUPLE/ENUM) — DONE (R2 Phase 3)
+- G-7 audit-pass at warning — Phase A baseline; R4 promotes to UNSAFE-G7-MISSING-ALLOW
+- G-8 cond-divergence move hard error (OWN-G8-COND-MOVE) — DONE (Q3)
+- G-9 audit-pass at warning — Phase A baseline; R4 promotes to FFI-G9-MISSING-ALLOW-DIRECT-FFI
+- G-10 effect annotations framework — DONE (R3 Phase 2b)
+- G-11 definite-assignment hard error (INIT-G11-READ-BEFORE-INIT) — DONE (Q4)
+- RFC-0063 waves 12-16 — DONE (Q5 + R1; 95/180 dups closed)
+- ML PROBE-2 4-pipeline parity gate — MERGED (opt-in)
+
+**R4 brief at `f2fec6ef`** (`CLOUD_AGENT_V1X_R4_BRIEF_2026-05-08.md` on origin/main). R4 ready to spawn — extends R3's leaf-effect table for direct_ffi/may_return_null/unsafe + adds 3 specialized FFI codes.
+
+After R4 lands: ALL RFC-0062 hard-error gaps closed. v1.0.0 cut criteria met.
