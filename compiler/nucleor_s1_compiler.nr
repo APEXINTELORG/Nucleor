@@ -11142,6 +11142,12 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-013") == 1 { return 1; };
     if str_eq(code, "TYP-026") == 1 { return 1; };
     if str_eq(code, "TYP-027") == 1 { return 1; };
+    // RFC-0062 G-2 Phase 2b/3/4 — single-input lifetime check.
+    // Phase 2b adds the IR-level analysis in check_fn; Phase 4 promotes
+    // the diagnostic to a hard error. When a fn has exactly one
+    // ref-typed parameter and a ref return type, the returned region
+    // must equal the input's region.
+    if str_eq(code, "BORROW-G2-LIFETIME") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -20266,6 +20272,46 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                 if str_len(escape_root) > 0 && own_get_param(own, escape_root) == 0 {
                     own_diag(own, fn_name, "OWN-009", str_concat("cannot return reference to local value '", str_concat(escape_root, "'")), escape_root);
                 };
+                // RFC-0062 G-2 Phase 2b/3/4 — single-input lifetime
+                // check. When the fn signature has exactly one
+                // ref-typed parameter and the return type is a
+                // reference, the returned region must equal the
+                // input's region. The Phase 1 BR-7 audit-pass count
+                // (~line 32172) surfaces the presence of `<'a>`
+                // syntax; this is the structural check that enforces
+                // it. Phase 4 promotion: registered in is_error_code
+                // so own_diag halts compilation.
+                //
+                // Conservative against false positives: emits only
+                // when expr_param_root proves the return *does* trace
+                // back to a parameter, but to a different one than
+                // the single ref-typed input. If trace fails (returns
+                // ""), no diag — that case is either OWN-009
+                // (escape_root non-empty above) or an opaque return
+                // we can't reason about yet. Multi-input cases are
+                // skipped here; they're Phase 3 elision per the plan.
+                let mut g2_ref_param_count: i64 = 0;
+                let mut g2_single_ref_param: str = "";
+                let mut g2_pj: i64 = 0;
+                while g2_pj < pc {
+                    let g2_pjnid: i64 = list_get(pool, plist, g2_pj);
+                    let g2_pjtype: str = node_field(pool, g2_pjnid, 2);
+                    if type_is_ref(g2_pjtype) == 1 {
+                        g2_ref_param_count = g2_ref_param_count + 1;
+                        if g2_ref_param_count == 1 {
+                            g2_single_ref_param = node_field(pool, g2_pjnid, 1);
+                        };
+                    };
+                    g2_pj = g2_pj + 1;
+                };
+                if g2_ref_param_count == 1 && str_len(escape_root) == 0 {
+                    let mut g2_param_root: str = "";
+                    if last_kind == 25 { g2_param_root = expr_param_root(pool, node_field(pool, last_stmt, 1), own); }
+                    else { g2_param_root = expr_param_root(pool, last_stmt, own); };
+                    if str_len(g2_param_root) > 0 && str_eq(g2_param_root, g2_single_ref_param) == 0 {
+                        own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2_param_root, str_concat("' but the function's only ref-typed input is '", str_concat(g2_single_ref_param, "'. Per RFC-0062 G-2 (single-input lifetime check): the returned region must equal the input's region. Bind the return to the single ref input or restructure the signature.")))), g2_single_ref_param);
+                    };
+                };
             };
         };
     };
@@ -20658,6 +20704,63 @@ fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
         if str_len(root) > 0 { return root; };
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 { return expr_escape_root(pool, enode, own); };
+        return "";
+    };
+    return "";
+}
+
+// RFC-0062 G-2 Phase 2b — single-input lifetime check.
+// Mirror of expr_escape_root, but flips the param-vs-local test:
+// returns the *parameter* name a returned reference traces back to,
+// or "" if the trace cannot be proved (or the source is a non-param
+// local, which OWN-009 already handles). Used by check_fn to verify
+// that a fn with exactly one ref-typed input + ref return derives
+// the return from that single input.
+//
+// For if/else (kind 23), both arms must trace to the same param;
+// otherwise the join is inconclusive and we return "" (conservative
+// — no false positive).
+#[manual_drop]
+fn expr_param_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 90 || kind == 91 {
+        let root: str = expr_root_name(pool, node_field(pool, nid, 1), own);
+        if str_len(root) > 0 && own_get_param(own, root) == 1 { return root; };
+        return "";
+    };
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        if type_is_ref(own_get_type(own, name)) == 1 {
+            let target: str = own_get_ref_target(own, name);
+            if str_len(target) > 0 {
+                let root: str = target_root_name(target);
+                if str_len(root) > 0 && own_get_param(own, root) == 1 { return root; };
+                return "";
+            };
+        };
+        if str_len(name) > 0 && own_get_param(own, name) == 1 { return name; };
+        return "";
+    };
+    if kind == 52 {
+        let body: i64 = node_field(pool, nid, 2);
+        if body < 0 || body >= vec_len(pool) { return ""; };
+        let cnt: i64 = list_len(pool, body);
+        if cnt == 0 { return ""; };
+        let last_stmt: i64 = list_get(pool, body, cnt - 1);
+        let sk: i64 = node_kind(pool, last_stmt);
+        if sk == 22 || sk == 25 { return expr_param_root(pool, node_field(pool, last_stmt, 1), own); };
+        if sk == 23 { return expr_param_root(pool, last_stmt, own); };
+        return "";
+    };
+    if kind == 23 {
+        let then_root: str = expr_param_root(pool, node_field(pool, nid, 2), own);
+        let enode: i64 = node_field(pool, nid, 3);
+        if enode < 0 { return ""; };
+        let else_root: str = expr_param_root(pool, enode, own);
+        if str_len(then_root) > 0 && str_len(else_root) > 0 && str_eq(then_root, else_root) == 1 {
+            return then_root;
+        };
         return "";
     };
     return "";
