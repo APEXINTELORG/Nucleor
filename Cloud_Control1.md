@@ -731,3 +731,35 @@ R4 (G-5 + G-9 + G-7 extern walker) brief written after R3 lands so it can refere
 
 Standing by for R1/R2/R3 ACKs and pushes.
 
+
+
+
+## R2
+
+## [2026-05-08] Cloud R2 — G-3 + G-6 Phase 3 type-walker DONE
+Branch: `claude/harden-cloud-agent-r2-03OaM` (harness-mandated push target; user prompt named `claude/v1x-cloud-R2-g3-g6-typewalk` but the harness assignment supersedes per "NEVER push to a different branch without explicit permission").
+Base: origin/main @ 7ece32f (post-Q4 G-11 ACK).
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64.
+Tools: clang Ubuntu-18.1.3.
+
+Files: 11 (compiler/nucleor_s1_compiler.nr — 4 hunks: 6-code registration block after INIT-G11-READ-BEFORE-INIT, 2 new helper fns `g6_cparam_has` + `g6_closure_walk_capture` before check_expr, spawn-family classifier inserted before kind-7 arg loop, G-3 vec_push / hashmap_insert checks inserted inside kind-7 arg-loop kind-3 block; 3 positive lock-in fixtures: tests/features/g3_owned_vec_indices_ok.nr + g3_hashmap_no_live_borrow_ok.nr + g6_spawn_primitive_ok.nr; 6 negative fixtures: tests/err/err_g3_{vec_of_refs_push,hashmap_rehash_while_borrowed}.nr + tests/err/err_g6_{hashmap_spawn,closure_capture_spawn,tuple_with_hashmap_spawn,enum_with_hashmap_payload_spawn}.nr; full report at findings/inbox/cloud_R2_g3_g6_typewalk_v1x_2026-05-08.md). NOT touched per brief: compiler/nucleor_tools_suite.nr, compiler/shared_wave1.nr, bootstrap/nucleor_s1_seed.ll, bin/nucleor.exe, tools/audit_dup_fns_report.csv.
+
+Self-host fixed-point on patched source: target/s2.ll round-1 = round-2 byte-for-byte at md5 `e21dfffe34c91988f21b096d94a0ea60`. Seed (`d9a57138f60db22dc9283d56c87060e9` from Q3+Q4 combined) intentionally NOT refreshed per brief's "No seed regen" + must-not-touch list.
+
+Validation: `bash tools/verify.sh` PASS=1496 / SKIP=8 / FAIL=3 across 1507 steps. The 3 fails are all integrator-handled and not within R2 ownership: (1) `compiler ABI tables synced` — audit_dup_fns_report.csv stale (brief: integrator regenerates); (2) `T1.7 bootstrap seed matches current compiler` — seed mismatch (brief: integrator regenerates on cherry-pick, same as Q1-Q4 pattern); (3) `T1.8 self-host compiler IR fixed point` — same seed-mismatch root cause as T1.7. All ten new G-3/G-6 fixtures verified locally against the patched compiler; positive lock-ins compile clean, negative fixtures fire their respective error codes.
+
+**Code registration shape (in is_error_code, immediately after INIT-G11-READ-BEFORE-INIT):**
+- G-3: ALIAS-G3-VEC-OF-REFS, ALIAS-G3-HASHMAP-REHASH
+- G-6: SEND-G6-HASHMAP, SEND-G6-CLOSURE-CAPTURE, SEND-G6-TUPLE, SEND-G6-ENUM
+
+**Bug shape closed by per-fn analysis (vs Phase A audit-pass-warning textual count):** the v0827 / v0833 / v0836 textual audits at `printf "warning[ALIAS-G3]...build: N"` (build-summary lines) gave adopters a one-shot count without telling them WHERE the offending pattern lived. Phase 3 promotes to per-call-expression diagnostics anchored at the actual `vec_push` / `hashmap_insert` / `async_spawn` / etc. site with span-aware caret. The Phase A audit-pass surface intentionally remains as a build-summary roll-up (no reclassification, both surfaces coexist).
+
+**Capture-detector design note:** SEND-G6-CLOSURE-CAPTURE fires only when the closure body references at least one binding from the enclosing fn scope (via `g6_closure_walk_capture` recursive walker against `own_get_type` membership). Bare-parameter-only closures (`|x| { return x * 2; }` shape used by `tests/runtime/concurrency.nr`) correctly stay silent. The walker is conservative on opaque kinds (closure-of-closure, complex match arms) — Phase 4 hard-fail intentionally narrow rather than over-trigger.
+
+**Per-fn vs RACE-001 coexistence:** the existing RACE-001 textual pre-pass (`enforce_sendable_spawn_name`) continues to fire at spawn-call sites for the generic non-Sendable shape (e.g. `PlainHandle` struct in `err_rfc0035_non_sendable_spawn.nr`). My SEND-G6-* codes are more specific shape classifications that fire alongside RACE-001 on the targeted shapes. No existing test that expects RACE-001 was regressed.
+
+**Iteration count:** 2. Iteration 1 landed all 6 codes + analysis but the SEND-G6-CLOSURE-CAPTURE check was too aggressive (fired on bare-param closures). Iteration 2 added the recursive capture walker so only genuine captures fire. Build-self-rebuild fixed-point held at the new md5 after iteration 2.
+
+Recommendation: integrator fast-forward `claude/harden-cloud-agent-r2-03OaM` after Windows revalidation + seed/audit_dup_fns_report.csv regeneration. Same bootstrap pattern as Q1-Q4 cherry-picks; no behavior shift expected on Windows because the patched compiler's per-fn IR walker exercises the same paths on both hosts.
+
+Standing down on R2 lane.
