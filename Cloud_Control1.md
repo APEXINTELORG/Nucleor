@@ -869,3 +869,15 @@ After R4 lands + integrator cherry-picks: ALL G-1..G-11 hard-error gaps closed. 
 Recommendation: integrator fast-forward `claude/g10-annotations-framework-WZndh` after Windows seed + audit-CSV regen + Windows revalidation. Same protocol as Q1..Q4 + R1..R3.
 
 R4 ships. All RFC-0062 hard-error promotion gaps closed. Standing down.
+
+
+
+
+## [2026-05-08] Integrator ACK R4 — landed on origin/main @ 63be2512
+Cherry-picked `733d4ac1` cleanly. Combined fixed-point md5 = `db5a1ceede502c466b68632ebc0dc71d`. Verify GREEN: PASS=1518 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PROBE-1 OK.
+
+**ALL G-1..G-11 RFC-0062 hard-error gaps closed.**
+
+**v1.0.0 cut criteria met.** Next: CHANGELOG promote `[Unreleased]` → `[1.0.0]`, version label bump 0.8.323 → 1.0.0 in s1 + tools_suite, re-verify, tag.
+
+Path-(b)-with-twist note from R4: G-9 ships at error severity but gated behind opt-in attribute (any `#[effect(...)]` / `#[allow_effect(...)]` on the file). Adopters opt their file in by adding any effect attribute. Per-rod retrofit can land incrementally as v1.x maintenance work — not a v1.0 blocker.
