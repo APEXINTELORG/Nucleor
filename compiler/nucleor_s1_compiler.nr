@@ -11154,6 +11154,13 @@ fn is_known_diag_code(code: str) -> i64 {
     // ref-typed parameter and a ref return type, the returned region
     // must equal the input's region.
     if str_eq(code, "BORROW-G2-LIFETIME") == 1 { return 1; };
+    // RFC-0062 G-8 Phase 2b/3/4 — conditional-divergence move-state
+    // join. When a binding is moved on one arm of an if/else but
+    // not the other, the join state is "conditionally moved":
+    // subsequent reads emit this code at error severity. Distinct
+    // from OWN-001 (which fires when the binding is moved on every
+    // incoming path).
+    if str_eq(code, "OWN-G8-COND-MOVE") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -19402,17 +19409,37 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
-    // If a variable is moved in either branch, mark it moved.
+    // RFC-0062 G-8 Phase 2b/3/4 — move-state join at if/else merge.
+    // For state keys (prefix `__os_`):
+    //   both arms moved (va == vb == 2)         → state = 2 (OWN-001 catches subsequent read)
+    //   exactly one arm moved (va == 2 XOR vb == 2) → state stays at pre-arm
+    //     value (typically 1) and the cond-moved flag is set so
+    //     subsequent reads emit OWN-G8-COND-MOVE.
+    //   neither moved                           → preserve pre-arm state (no-op)
+    // For non-state keys (other tracker entries): preserve the
+    // legacy "if either arm has value 2, set value 2" semantic so
+    // any non-move tracker that piggy-backed on this loop is
+    // unaffected.
     // Both `a` and `b` are consumed (freed) — they are then/else
     // env snapshots that no caller references after merge.
     let mut i: i64 = 0;
     while i < vec_len(a) {
         let key: str = vec_get(a, i);
         let va: i64 = vec_get(a, i + 1);
-        if va == 2 { own_put_i(o, key, 2); }
-        else {
-            let vb: i64 = sym_get(b, key);
-            if vb == 2 { own_put_i(o, key, 2); };
+        let vb: i64 = sym_get(b, key);
+        if str_starts_with(key, "__os_") == 1 {
+            // State key — apply the G-8 lattice.
+            if va == 2 && vb == 2 {
+                own_put_i(o, key, 2);
+            } else {
+                if (va == 2 && vb != 2) || (va != 2 && vb == 2) {
+                    let bname: str = str_substring(key, 5, str_len(key));
+                    own_set_i_raw(o, str_concat("__g8_cond_moved_", bname), 1);
+                };
+            };
+        } else {
+            // Non-state key — preserve legacy semantics.
+            if va == 2 || vb == 2 { own_put_i(o, key, 2); };
         };
         i = i + 2;
     };
@@ -19471,7 +19498,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     let mut warns: i64 = 0;
     if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; }; // literals
     if kind == 3 {
-        // IDENT — check for use-after-move and use-after-drop
+        // IDENT — check for use-after-move, use-after-drop, and conditional-move
         let vname: str = node_field(pool, nid, 1);
         // RFC-0062 G-4 Phase 2b/3/4 — IR-level use-after-drop check.
         // `Vec<T>` / `HashMap<K,V>` / `String` etc. are treated as
@@ -19490,6 +19517,17 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4_msg, vname);
             return warns;
         };
+        // RFC-0062 G-8 Phase 2b/3/4 — conditional-divergence move
+        // detection. The cond-moved flag is set by `own_merge_moved`
+        // when a binding is moved on one arm of an if/else but not
+        // the other; subsequent reads on the post-join path are
+        // ambiguous (the binding may or may not still own its
+        // value, depending on which arm ran). Emit OWN-G8-COND-MOVE
+        // at error severity. Checked before the existing OWN-001
+        // path so the precise diagnostic fires instead of the more
+        // general "use of moved" classification.
+        if own_get_i_raw(own, str_concat("__g8_cond_moved_", vname)) == 1 {
+            warns = warns + own_diag(own, fn_name, "OWN-G8-COND-MOVE", str_concat("conditional move of '", str_concat(vname, "': value is moved on one arm of the preceding if/else but not the other. Subsequent reads are unsound because the binding may no longer own its value depending on which arm ran. Either move on every arm (so the value is definitely consumed) or move on no arm (so the value is preserved on every path).")), vname);
         let state: i64 = own_get(own, vname);
         if state == 2 {
             let source_text_move: str = own_source(own);
