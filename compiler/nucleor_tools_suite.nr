@@ -41,9 +41,6 @@ fn str_from_i64(n: i64) -> str {
 
 // v0.5 (v0.4.233 integration) — mirror of compiler-side cleanup.
 // Param widened i32 → i64 to match runtime ABI.
-fn str_from_int(n: i64) -> str {
-    return str_from_i64(n);
-}
 fn str_to_int(s: str) -> i64 {
     let slen: i64 = str_len(s);
     let mut result: i64 = 0;
@@ -288,148 +285,16 @@ fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     return pos + 1;
 }
 
-fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut args: Vec<i32> = Vec::new();
-    let mut cp: i64 = pos;
-    if pk(tokens, cp) != 51 {
-        let mut r: Vec<i32> = parse_expr(tokens, cp, pool);
-        args.push(pr_val(r)); cp = pr_pos(r);
-        while pk(tokens, cp) == 44 {
-            if pk(tokens, cp + 1) == 51 { cp = cp + 1; }
-            else {
-                r = parse_expr(tokens, cp + 1, pool); args.push(pr_val(r)); cp = pr_pos(r);
-            };
-        };
-    };
-    return pr(cp + 1, mk_list(pool, args));
-}
 
-fn skip_bracket_list(tokens: Vec<i32>, pos: i64) -> i64 {
-    let mut cp: i64 = expect_tok(tokens, pos, 54);
-    let mut depth: i64 = 1;
-    while depth > 0 && pk(tokens, cp) != 0 {
-        if pk(tokens, cp) == 54 { depth = depth + 1; }
-        else if pk(tokens, cp) == 55 { depth = depth - 1; };
-        cp = cp + 1;
-    };
-    return cp;
-}
 
-fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
-    let mut cp: i64 = pos;
-    let mut paren_depth: i64 = 0;
-    let mut bracket_depth: i64 = 0;
-    let mut angle_depth: i64 = 0;
-    while pk(tokens, cp) != 0 {
-        let tt: i64 = pk(tokens, cp);
-        if paren_depth == 0 {
-            if bracket_depth == 0 {
-                if angle_depth == 0 {
-                    if tt == 44 || tt == 55 { return cp; };
-                };
-            };
-        };
-        if tt == 50 { paren_depth = paren_depth + 1; }
-        else if tt == 51 {
-            if paren_depth > 0 { paren_depth = paren_depth - 1; };
-        } else if tt == 54 {
-            bracket_depth = bracket_depth + 1;
-        } else if tt == 55 {
-            if bracket_depth == 0 { return cp; };
-            bracket_depth = bracket_depth - 1;
-        } else if tt == 32 {
-            angle_depth = angle_depth + 1;
-        } else if tt == 33 {
-            if angle_depth > 0 { angle_depth = angle_depth - 1; };
-        };
-        cp = cp + 1;
-    };
-    return cp;
-}
 
-fn ct_param_type_is_unsigned(t: str) -> i64 {
-    if str_eq(t, "u8") == 1 { return 1; };
-    if str_eq(t, "u16") == 1 { return 1; };
-    if str_eq(t, "u32") == 1 { return 1; };
-    if str_eq(t, "u64") == 1 { return 1; };
-    if str_eq(t, "usize") == 1 { return 1; };
-    return 0;
-}
 
-fn ct_param_default_is_negative_literal(tokens: Vec<i32>, pos: i64) -> i64 {
-    if pk(tokens, pos) == 21 && pk(tokens, pos + 1) == 2 { return 1; };
-    return 0;
-}
 
-fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
-    if pk(tokens, pos) != 32 { return pos; };
-    let mut cp: i64 = pos + 1;
-    let mut depth: i64 = 1;
-    while depth > 0 && pk(tokens, cp) != 0 {
-        let tt: i64 = pk(tokens, cp);
-        if depth == 1 {
-            if tt == 2 || tt == 3 || tt == 40 || tt == 41 || tt == 43 || tt == 52 || tt == 53 || tt == 54 || tt == 55 || tt == 64 { return pos; };
-            if tt == 30 || tt == 31 || tt == 34 || tt == 35 || tt == 36 || tt == 37 || tt == 38 || tt == 39 { return pos; };
-        };
-        if tt == 32 { depth = depth + 1; }
-        else if tt == 33 { depth = depth - 1; };
-        cp = cp + 1;
-    };
-    if depth != 0 { return pos; };
-    if pk(tokens, cp) == 50 || pk(tokens, cp) == 52 || pk(tokens, cp) == 46 { return cp; };
-    return pos;
-}
 
-fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
-    let mut cp: i64 = pos;
-    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "where") == 1 {
-        cp = cp + 1;
-        while pk(tokens, cp) != 52 && pk(tokens, cp) != 43 && pk(tokens, cp) != 0 {
-            cp = cp + 1;
-        };
-    };
-    return cp;
-}
 
-fn parse_match_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
-    let mut cp: i64 = pos;
-    let mut binding: str = "";
-    while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-        if str_len(binding) > 0 {
-            cp = expect_tok(tokens, cp, 44);
-            if pk(tokens, cp) == 53 { break; };
-            binding = str_concat(binding, "|");
-        };
-        let mut name: str = pkv(tokens, cp);
-        cp = cp + 1;
-        if pk(tokens, cp) == 42 {
-            cp = cp + 1;
-            name = pkv(tokens, cp);
-            cp = cp + 1;
-        };
-        binding = str_concat(binding, name);
-    };
-    cp = expect_tok(tokens, cp, 53);
-    return pr(cp, binding);
-}
 
-fn mk_passthrough_block_expr(pool: Vec<i32>, body: i64) -> i64 {
-    return mk4(pool, 23, mk2(pool, 1, 1), body, 0 - 1);
-}
 
-fn parse_passthrough_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut cp: i64 = expect_tok(tokens, pos, 52);
-    let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
-    cp = expect_tok(tokens, pr_pos(br), 53);
-    return pr(cp, mk_passthrough_block_expr(pool, pr_val(br)));
-}
 
-fn parse_wrapped_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, mode: i64) -> Vec<i32> {
-    let mut cp: i64 = expect_tok(tokens, pos, 52);
-    let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
-    cp = expect_tok(tokens, pr_pos(br), 53);
-    return pr(cp, mk3(pool, 52, mode, pr_val(br)));
-}
 
 fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
@@ -655,22 +520,6 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
-fn parse_mul(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_unary(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 22 || pk(tokens, cp) == 23 || pk(tokens, cp) == 24 {
-        let op: i64 = pk(tokens, cp); r = parse_unary(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, op, node, pr_val(r));
-    };
-    return pr(cp, node);
-}
-fn parse_add(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_mul(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 20 || pk(tokens, cp) == 21 {
-        let op: i64 = pk(tokens, cp); r = parse_mul(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, op, node, pr_val(r));
-    };
-    return pr(cp, node);
-}
 fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_add(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -680,58 +529,8 @@ fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     return pr(cp, node);
 }
-fn parse_eq(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_cmp(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 30 || pk(tokens, cp) == 31 {
-        let op: i64 = pk(tokens, cp); r = parse_cmp(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, op, node, pr_val(r));
-    };
-    return pr(cp, node);
-}
-fn parse_and_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_eq(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 36 { r = parse_eq(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, 36, node, pr_val(r)); };
-    return pr(cp, node);
-}
-fn parse_or_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_and_expr(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 37 { r = parse_and_expr(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, 37, node, pr_val(r)); };
-    return pr(cp, node);
-}
 
-fn parse_pipe_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_or_expr(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r);
-    let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 65 && pk(tokens, cp + 1) == 33 {
-        let rp: i64 = cp + 2;
-        if pk(tokens, rp) != 1 { return pr(rp, node); };
-        let fname: str = pkv(tokens, rp);
-        let rp2: i64 = rp + 1;
-        let rp3: i64 = skip_angle_group(tokens, rp2);
-        let mut piped_args: Vec<i32> = Vec::new();
-        piped_args.push(node);
-        if pk(tokens, rp3) == 50 {
-            let mut ar: Vec<i32> = parse_args(tokens, rp3 + 1, pool);
-            let alist: i64 = pr_val(ar);
-            let ac: i64 = list_len(pool, alist);
-            let mut ai: i64 = 0;
-            while ai < ac {
-                piped_args.push(list_get(pool, alist, ai));
-                ai = ai + 1;
-            };
-            cp = pr_pos(ar);
-        } else {
-            cp = rp3;
-        };
-        node = mk3(pool, 7, fname, mk_list(pool, piped_args));
-    };
-    return pr(cp, node);
-}
 
-fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> { return parse_pipe_expr(tokens, pos, pool); }
 
 fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     if pk(tokens, pos) == 82 {
@@ -891,14 +690,6 @@ fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 50, name, pr_val(tr), pr_val(er)));
 }
 
-fn parse_type_alias_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let name: i64 = pkv(tokens, pos);
-    let mut cp: i64 = expect_tok(tokens, pos + 1, 40);
-    let mut tr: Vec<i32> = parse_type(tokens, cp);
-    cp = pr_pos(tr);
-    if pk(tokens, cp) == 43 { cp = cp + 1; };
-    return pr(cp, mk3(pool, 51, name, pr_val(tr)));
-}
 
 fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
@@ -948,13 +739,6 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 49, name, pr_val(sr), pr_val(br)));
 }
 
-fn parse_return_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    if pk(tokens, pos) == 43 { return pr(pos + 1, mk2(pool, 22, 0 - 1)); };
-    let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(er);
-    if pk(tokens, cp) == 43 { cp = cp + 1; };
-    return pr(cp, mk2(pool, 22, pr_val(er)));
-}
 
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
@@ -979,13 +763,6 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk2(pool, 25, pr_val(er)));
 }
 
-fn parse_stmts(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = pos;
-    while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-        let mut r: Vec<i32> = parse_stmt(tokens, cp, pool); items.push(pr_val(r)); cp = pr_pos(r);
-    };
-    return pr(cp, mk_list(pool, items));
-}
 
 #[manual_drop]
 fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -1472,29 +1249,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk3(pool, 38, pr_val(er), mk_list(pool, arms)));
 }
 
-fn has_main_decl(pool: Vec<i32>, items: Vec<i32>) -> i64 {
-    let mut i: i64 = 0;
-    while i < vec_len(items) {
-        let nid: i64 = vec_get(items, i);
-        if node_kind(pool, nid) == 30 && str_eq(node_field(pool, nid, 1), "main") { return 1; };
-        i = i + 1;
-    };
-    return 0;
-}
 
-fn remove_main_decl(pool: Vec<i32>, items: Vec<i32>) -> Vec<i32> {
-    let mut out: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    while i < vec_len(items) {
-        let nid: i64 = vec_get(items, i);
-        let mut keep: i64 = 1;
-        if node_kind(pool, nid) == 30 && str_eq(node_field(pool, nid, 1), "main") { keep = 0; };
-        if node_kind(pool, nid) == 46 && str_eq(node_field(pool, nid, 1), "main") { keep = 0; };
-        if keep == 1 { out.push(nid); };
-        i = i + 1;
-    };
-    return out;
-}
 
 fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = 0;
@@ -6405,16 +6160,6 @@ fn type_dynamic_helper(name: str) -> i64 {
     if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
     return 0;
 }
-fn char_guard_key(name: str) -> str {
-    return str_concat("__char_guard:", name);
-}
-fn tenv_set_char_guard(env: Vec<i32>, name: str) -> i64 {
-    return tenv_set(env, char_guard_key(name), "1");
-}
-fn tenv_has_char_guard(env: Vec<i32>, name: str) -> i64 {
-    if str_eq(tenv_get(env, char_guard_key(name)), "1") == 1 { return 1; };
-    return 0;
-}
 fn char_guard_const_expr(pool: Vec<i32>, nid: i64) -> Vec<i32> {
     let mut r: Vec<i32> = Vec::new();
     r.push(0);
@@ -6454,13 +6199,6 @@ fn char_guard_var_name(pool: Vec<i32>, nid: i64) -> str {
         if vec_get(lc, 0) == 1 { return node_field(pool, node_field(pool, nid, 3), 1); };
     };
     return "";
-}
-fn char_guard_merge_flags(a: i64, b: i64) -> i64 {
-    let mut low: i64 = 0;
-    let mut high: i64 = 0;
-    if a == 1 || a == 3 || b == 1 || b == 3 { low = 1; };
-    if a == 2 || a == 3 || b == 2 || b == 3 { high = 1; };
-    return low + high * 2;
 }
 fn char_guard_flags(pool: Vec<i32>, nid: i64, name: str) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
@@ -7707,29 +7445,6 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
     return 0;
 }
 
-fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
-    let cnt: i64 = list_len(pool, lid);
-    let mut i: i64 = 0;
-    let mut b: Vec<i32> = cur;
-    while i < cnt {
-        let stmt: i64 = list_get(pool, lid, i);
-        let sk: i64 = node_kind(pool, stmt);
-        if i == cnt - 1 {
-            if sk == 25 {
-                return lower_expr(pool, node_field(pool, stmt, 1), b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-            };
-            if sk == 23 {
-                return lower_expr(pool, stmt, b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-            };
-        };
-        b = lower_stmt(pool, stmt, b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-        if block_has_term(b) == 1 { return lx_new(0 - 1, b); };
-        i = i + 1;
-    };
-    let zr: i64 = ctr_next(regs);
-    ir_block_add(b, ir_const_int(zr, 0));
-    return lx_new(zr, b);
-}
 
 #[manual_drop]
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
@@ -8833,12 +8548,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     print(str_concat("ERROR: unknown stmt kind ", str_from_int(kind)));
     panic(str_concat("nucleor_tools: unknown stmt kind ", str_from_int(kind)));
     return cur;
-}
-#[manual_drop]
-fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
-    let cnt: i64 = list_len(pool, lid); let mut i: i64 = 0; let mut b: Vec<i32> = cur;
-    while i < cnt { b = lower_stmt(pool, list_get(pool, lid, i), b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls); i = i + 1; };
-    return b;
 }
 
 #[manual_drop]
