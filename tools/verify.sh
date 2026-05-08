@@ -5939,6 +5939,31 @@ real_world_probes() {
 }
 step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/clean)" real_world_probes
 
+# PROBE-2 — multi-stage ML pipeline parity gate (PUNCHLIST PROBE-2).
+# Exercises 4 end-to-end ML pipelines (DT classification, LinearRegression,
+# KMeans clustering, BernoulliNB text classification) against Python
+# references staged under tests/reference/ml/. Closes the credibility gap
+# the trivial-fixture audit (PROBE-3 self-audit + cloud PROBE-3L) flagged:
+# 120/120 ML parity claims were one-shot calls, not real-program-level
+# pipelines.
+#
+# Per the no-fit-API design correction
+# (findings/inbox/ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md):
+# Nucleor consumes pre-fitted parameters from the Python reference's
+# `params` section (Nucleor has no sklearn-compatible *_fit_* APIs);
+# parity boundary is on PREDICT-only.
+#
+# Graduation history:
+#   v0846 (2026-05-08): added under `NUC_VERIFY_ML_PROBE=1` opt-in.
+#       Pending Linux pair-validation before graduation to default.
+ml_pipeline_probes() {
+    if [ "${NUC_VERIFY_ML_PROBE:-0}" != "1" ]; then
+        return 2
+    fi
+    bash "$ROOT/tests/probes/pipeline_parity/probe_runner.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+step "PROBE-2 ML pipeline parity (DT + LR + KMeans + NB)  (NUC_VERIFY_ML_PROBE=1 to enable)" ml_pipeline_probes
+
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
 # CI semantics — fresh module-graph cache). Set KEEP_CACHE=1 in the env
