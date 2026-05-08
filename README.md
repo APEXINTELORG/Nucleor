@@ -17,7 +17,7 @@ target\hello.exe
 
 ## What it is
 
-Nucleor is what happens when you build a small programming language and refuse to stop at "hello world." The compiler is **self-hosted in ~50,000 lines of Nucleor source**, rebuilds itself from a committed `.ll` seed in a few seconds, and emits LLVM IR linked through `clang` to a native binary.
+Nucleor is what happens when you build a small programming language and refuse to stop at "hello world." The compiler is **self-hosted in ~50,000 lines of Nucleor source**, rebuilds itself from a committed `.ll` seed in a 3.5 seconds, and emits LLVM IR linked through `clang` to a native binary.
 
 The standard library is **~250 rods** (`stdlib/rods/*.nr` — modules you `import`) backed by **190 runtime C source files**. The full ABI surface — every helper the compiler can emit calls to — is **875 `__nucleor_*` symbols** organized into 17 effect-tagged classes (math, vectors, collections, IO, statistics, time, randomness, concurrency, tensor ops, FFT, autodiff, control flow, allocation, ADT, introspection, data codec, tooling). Catalog at [`docs/rfcs/helper_manifest.toml`](docs/rfcs/helper_manifest.toml). The whole repo fits in ~55 MB with no external runtime dependencies beyond LLVM 18.
 
