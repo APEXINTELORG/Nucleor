@@ -66,6 +66,17 @@ def main() -> None:
     y_pred = reg.predict(x_test)
     r2 = float(r2_score(y_test, y_pred))
 
+    # Per ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md:
+    # Nucleor has no LinearRegression fit API. Dump fitted params + holdout
+    # so the Nucleor probe can run predict-only.
+    params = {
+        "weights": [[float(c)] for c in reg.coef_],  # column vector for nn_linear-style consumption
+        "bias": float(reg.intercept_),
+    }
+    holdout = {
+        "x_test": [[float(v) for v in row] for row in x_test],
+    }
+
     result = {
         "case": "02_regression",
         "model": "sklearn.linear_model.LinearRegression",
@@ -78,6 +89,8 @@ def main() -> None:
         "y_test": [float(v) for v in y_test],
         "y_pred": [float(v) for v in y_pred],
         "r2_score": r2,
+        "params": params,
+        "holdout": holdout,
         "tolerance_abs": 1e-09,
     }
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
