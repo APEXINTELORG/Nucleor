@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Phase A toward v1.0
+
+**RFC-0062 Phase 3 promotion sweep + structural G-1 closure (today's prior commits).**
+
+This is the integrator-side Phase A batch toward the v1.0 cut. The cloud
+agent is in parallel on Q1..Q5 (G-2 / G-4 / G-8 / G-11 Phase 2b real
+analysis + RFC-0063 waves 12-16). v1.0.0 final ships once both lanes
+converge with fixed-point + verify GREEN on both hosts. This entry
+documents only the integrator-lane changes; the cloud-lane changes will
+roll into the same v1.0.0 entry when promoted.
+
+### Memory-safety / borrow / ownership (RFC-0062)
+
+- **G-1 Phase 2b-3 unconditional default-flip** (commits f69234d8 +
+  08eba3c4 + 8cdee78d, 2026-05-08): auto-drop is now ON by default for
+  every fn body. Heap-backed locals (`Vec<T>`, `HashMap<K,V>`, `Box<T>`,
+  `String`, `VecDeque<T>`) get auto-cleanup at fn exit unless the fn
+  carries `#[manual_drop]`. The transitive-handoff recognizer
+  (`auto_drop_mark_constructor_handoffs`) was extended to kind-7 fn
+  calls, closing the move-into-struct-field handoff class structurally
+  for the entire stdlib surface. PASS=1488 / SKIP=1 / FAIL=0 on both
+  Linux and Windows. Self-host fixed-point md5 =
+  `86b491ca2d056f6006f4545e0e29d706`. **Real structural fix — closes
+  the actual blocking bug class.**
+- **G-3 / G-4 / G-5 / G-6 / G-9 audit-pass visibility promotion**:
+  existing Phase 2a heuristic diagnostics (`info[ALIAS-G3]:` /
+  `info[OWN-012]:` / `info[FFI-NULL]:` / `info[SEND-G6]:` /
+  `info[SEND-G6-CLOSURE]:` / `info[FFI-DIRECT]:`) reclassified to
+  `warning[...]:` level so adopters see them in normal builds. **This
+  is a visibility change — the underlying heuristics are unchanged.**
+  The plan's true Phase 3 (real per-fn analysis: region-token
+  invalidation, IR-level use-after-drop, null-check inference,
+  Sendable closure, bounds-check lint) remains scheduled as
+  post-v1.0 hardening; this ship only raises the surface signal level
+  on the existing audit-pass detection. Diagnostic body text rewritten
+  to drop forward-references to "Phase 2b / Phase 4" and instead state
+  the v1.0 contract directly + flag remaining items as
+  "post-v1.0 hardening".
+- **G-7 audit-pass added (new, warning-level)**: `warning[UNSAFE-G7]:`
+  surfaces any `unsafe { }` block in adopter code at compile time. The
+  OSS compiler self-host source contains zero unsafe blocks, so this
+  warning never fires on a clean OSS build; adopter code introducing
+  `unsafe { }` gets a one-line review surface so reviewers can audit
+  each block. **Same shape as the other audit-pass diagnostics —
+  textual count, not real per-block invariant analysis.**
+
+### Residuals (cloud-lane — pending Q1..Q5 close)
+
+- G-2 single-input lifetime check (BORROW-G2-LIFETIME) — Q1
+- G-4 IR-level use-after-drop (OWN-G4-USE-AFTER-DROP) — Q2
+- G-8 move-state join at branch merge (OWN-G8-COND-MOVE) — Q3 (extends
+  today's transitive-handoff fix)
+- G-11 definite-assignment flow analysis
+  (INIT-G11-READ-BEFORE-INIT) — Q4
+- RFC-0063 waves 12-16: parser/tools-suite duplicate retirement
+  (30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19
+  SIG_DIFFERS reconcile) — Q5
+
+### Brief
+
+- `CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md` (root of repo) — full
+  Q1..Q5 mandate, coordination protocol, verify gates, hard rules.
+
+---
+
 ## [0.8.323] — 2026-05-06
 
 **Production readiness audit pass — RFC-0063 Phase 1 closed.**

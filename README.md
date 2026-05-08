@@ -41,7 +41,7 @@ target\hello.exe
 
 The bootstrap binary `bin/nucleor.exe` is committed to the repo, so you do not need to build the compiler from source on first use. The `nuc.bat` launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
 
-POSIX (Linux/macOS) support is planned for **v0.3.0** (see [`docs/milestones/v0.3.0.md`](docs/milestones/v0.3.0.md)) — phases 1, 2, and 4 of RFC-0022 already shipped in v0.2 (POSIX `tools/verify.sh` gate, `nuc` shell wrapper, runtime `_WIN32` audit). The v0.3 release adds the native Linux/macOS bootstrap binaries.
+POSIX (Linux) self-build is operational — `tools/bootstrap_linux.sh` builds the compiler from the seed; `tools/verify.sh` runs the full gate on Linux. Native Linux perf baseline captured at `tools/perf_baseline_linux.json`. macOS bootstrap is pending hardware availability for the CI gate.
 
 ## Standard library — by category
 

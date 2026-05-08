@@ -32201,8 +32201,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         str_concat("hashmap_", "free("));
     let v0824_total_free: i64 = v0824_vec_free_count + v0824_hashmap_free_count;
     if v0824_total_free > 0 {
-        print(str_concat("info[OWN-012]: explicit free calls present in build: ", str_from_int(v0824_total_free)));
-        print(str_concat("  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline today: do not access a vec/map after passing it to its free helper. Phase 2b adds IR-level use-after-drop tracking; Phase 4 promotes to OWN-012 hard error. Recommended: prefer `#[auto_", "drop]` (RFC-0042) which inserts cleanup automatically and disables generated drop on bindings that have an explicit free call."));
+        print(str_concat("warning[OWN-012]: explicit free calls present in build: ", str_from_int(v0824_total_free)));
+        print(str_concat("  Per RFC-0062 G-4 Phase 3 (v1.0): explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline: do not access a vec/map after passing it to its free helper. IR-level use-after-drop tracking is post-v1.0 hardening. Recommended: prefer auto-drop (default-on as of v0.8.x via RFC-0042/G-1 Phase 2b-3) which inserts cleanup automatically; mark fns `#[manual_", "drop]` only when explicit lifetime control is required."));
     };
     // v0.8.25: RFC-0062 G-5 Phase 2a — FFI null-return audit
     // info. Detects `*const c_void` and `*mut c_void` return
@@ -32214,8 +32214,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         str_concat("*const ", "c_void"), str_concat("*mut ", "c_void"),
         str_concat("-> *const ", "u8"));
     if v0825_extern_void_count > 0 {
-        print(str_concat("info[FFI-NULL]: raw-pointer return types in extern fn decls: ", str_from_int(v0825_extern_void_count)));
-        print("  Per RFC-0062 G-5 Phase 2a: extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline today: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Phase 2b adds per-fn null-check inference; Phase 4 promotes to lint warning. Reference: docs/ffi-conventions.md §1.");
+        print(str_concat("warning[FFI-NULL]: raw-pointer return types in extern fn decls: ", str_from_int(v0825_extern_void_count)));
+        print("  Per RFC-0062 G-5 Phase 3 (v1.0): extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Per-fn null-check inference is post-v1.0 hardening. Reference: docs/ffi-conventions.md §1.");
     };
     // v0.8.26: RFC-0062 G-9 Phase 2a — direct-FFI audit-pass
     // info. Counts `extern fn ` declarations to surface the FFI
@@ -32226,8 +32226,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v0826_extern_count: i64 = simple_attribute_audit_count(after_async,
         str_concat("extern ", "fn "));
     if v0826_extern_count > 0 {
-        print(str_concat("info[FFI-DIRECT]: `extern fn` declarations in build: ", str_from_int(v0826_extern_count)));
-        print("  Per RFC-0062 G-9 Phase 2a: direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline today: treat every `extern fn` call site as an unsafe surface. Phase 2b will require `#[allow(direct_ffi)]` on the calling fn or `unsafe { }` block; Phase 4 promotes to hard error if missing. Reference: docs/ffi-conventions.md §2.");
+        print(str_concat("warning[FFI-DIRECT]: `extern fn` declarations in build: ", str_from_int(v0826_extern_count)));
+        print("  Per RFC-0062 G-9 Phase 3 (v1.0): direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline: treat every `extern fn` call site as an unsafe surface. `#[allow(direct_ffi)]` enforcement and bounds-check insertion at call sites are post-v1.0 hardening. Reference: docs/ffi-conventions.md §2.");
     };
     // v0.8.27: RFC-0062 G-3 Phase 2a — heap-aliasing audit-pass
     // info. Detects `Vec<&` patterns (Vec-of-references), the
@@ -32240,8 +32240,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v0827_vof_count: i64 = simple_attribute_audit_count(after_async,
         str_concat("Vec", "<&"));
     if v0827_vof_count > 0 {
-        print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
-        print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
+        print(str_concat("warning[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
+        print("  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening. Reference: docs/heap-aliasing-evidence.md.");
     };
     // v0.8.62 QM-8/9 + ROBO-8 Phase 1 — Wave 3 final Tier C
     // closure. v0828 closes the high-level qsim wrapper half of
@@ -32530,8 +32530,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
                                   + simple_attribute_audit_count(after_async, str_concat("RefCell", "<"))
                                   + simple_attribute_audit_count(after_async, str_concat("Cell", "<"));
         if v0833_send_count > 0 {
-            print(str_concat("info[SEND-G6]: HashMap/Cell/RefCell types in build: ", str_from_int(v0833_send_count)));
-            print("  Per RFC-0062 G-6 Phase 2a: HashMap<K,V> Sendable propagation is unaudited in v0.x — Phase 2b adds the rule (Sendable iff K and V are Sendable AND hasher is Sendable). Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). Today the spawn-call check may silently accept these — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set until Phase 2b lands. Reference: docs/sendable-inventory.md §4.");
+            print(str_concat("warning[SEND-G6]: HashMap/Cell/RefCell types in build: ", str_from_int(v0833_send_count)));
+            print("  Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> Sendable propagation is not yet enforced — the v1.0 contract is Sendable iff K and V are Sendable AND hasher is Sendable. Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). spawn-call sites may silently accept these today — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set. Closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md §4.");
         };
     };
     // v0.8.36: RFC-0062 G-6 Phase 2a (closures) — `move |...|`
@@ -32544,9 +32544,21 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v0836_has_move_closure == 1 {
         let v0836_move_count: i64 = simple_attribute_audit_count(after_async, str_concat("move ", "|"));
         if v0836_move_count > 0 {
-            print(str_concat("info[SEND-G6-CLOSURE]: `move |...|` capture closures in build: ", str_from_int(v0836_move_count)));
-            print("  Per RFC-0062 G-6 Phase 2a (closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable; Phase 2b adds the per-closure capture-set audit at the closure decl site. Today spawn-call sites may silently accept closures with non-Sendable captures. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Reference: docs/sendable-inventory.md §4 case 2.");
+            print(str_concat("warning[SEND-G6-CLOSURE]: `move |...|` capture closures in build: ", str_from_int(v0836_move_count)));
+            print("  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md §4 case 2.");
         };
+    };
+    // v1.0 RFC-0062 G-7 Phase 3 — `unsafe { }` block audit. The
+    // OSS compiler self-host source contains zero unsafe blocks;
+    // adopter code introducing unsafe blocks gets surfaced here
+    // so reviewers can audit the surface. Phase 3 is a warning
+    // (not an error) — unsafe is a legitimate language feature.
+    // Phase 4 promotion (post-v1.0): require `#[allow(unsafe)]`
+    // attribute on the enclosing fn.
+    let v1000_unsafe_count: i64 = simple_attribute_audit_count(after_async, str_concat("unsafe ", "{"));
+    if v1000_unsafe_count > 0 {
+        print(str_concat("warning[UNSAFE-G7]: `unsafe { }` blocks in build: ", str_from_int(v1000_unsafe_count)));
+        print("  Per RFC-0062 G-7 Phase 3 (v1.0): the OSS compiler self-host source contains zero unsafe blocks; any unsafe block in adopter code is a manual-audit surface. Each unsafe block bypasses borrow-checking, lifetime-tracking, and bounds-check insertion within its body. Adopter discipline: justify each unsafe block in a comment naming the invariant being preserved. `#[allow(unsafe)]` attribute enforcement is post-v1.0 hardening. Reference: RFC-0003 §unsafe blocks.");
     };
     // v0.8.38 G-1 Phase 2b-3 — env-gated default-flip status
     // diagnostic. Reads NUC_AUTO_DROP_DEFAULT env var. When set
