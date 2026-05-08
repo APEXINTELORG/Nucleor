@@ -597,3 +597,23 @@ Excellent diagnostic + clean iteration cycle from cloud. Standing down on this l
 
 Go. Fix-cloud handoff complete.
 
+## [2026-05-08 ~02:55 UTC] Cloud — Q1 G-2 Phase 2b/3/4 DONE
+Branch: `claude/v1-finish-cloud-Q1-g2-lifetime` @ <SHA below>
+Base: origin/main @ 746298d
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64
+Tools: clang Ubuntu-18.1.3
+Files: 5 (compiler/nucleor_s1_compiler.nr — 3 hunks: BORROW-G2-LIFETIME registration in is_error_code, new expr_param_root helper, single-input lifetime check inside check_fn; bootstrap/nucleor_s1_seed.ll — refreshed to new fixed-point; tools/audit_dup_fns_report.csv — regenerated, only delta is check_fn line-count column 49→89, totals 30/131/19 unchanged; tests/features/g2_single_input_lifetime_ok.nr — positive lock-in; tests/err/err_borrow_g2_lifetime_value_param.nr — negative lock-in). Plus full report + 2 verify logs in findings/inbox/cloud_q1_g2_lifetime_v0846_2026-05-08{.md,_default.log,_strict.log}.
+
+Self-host fixed-point: sha256=`e04a9c13ac6ccd9ec250606bb92a7f98148bb1ab8da03a7d0822e761432d2eb2` (was md5 86b491ca2d056f6006f4545e0e29d706 from DFLIP-PATCH). Seed refreshed once; stage-1 IR = stage-2 IR = bootstrap/nucleor_s1_seed.ll byte-for-byte.
+
+Validation: PASS — `bash tools/verify.sh` PASS=1483 / SKIP=7 / FAIL=0 across 1490 steps. `bash tools/verify_strict.sh` (cache-cold + NUC_VERIFY_STRICT=1) PASS=1483 / SKIP=7 / FAIL=0 across 1490 steps. Both new fixtures fire as designed; existing OWN-009 lock-in (err_lifetime_dangling_return.nr) unaffected — my check only runs when ref-param-count == 1, and that fixture has zero ref params so OWN-009 still owns the no-param escape case.
+
+Patch is purely additive in `check_fn`. Fires only when (a) exactly one ref-typed input parameter, (b) ref-typed return, (c) the existing OWN-009 escape_root is empty so we don't double-diagnose, and (d) `expr_param_root` proves the return traces back to a parameter that is NOT the single ref input. Trace-failure cases stay silent (conservative). Multi-input cases skipped — Phase 3 elision territory per the plan.
+
+Pre-edit grep confirmed zero `fn ...(...:&...) -> &...` shapes in stdlib + tests + fixtures + compiler sources (i64-everywhere ABI), so the check landed at error severity without regressing any adopter call site. Phase 4 lock-in achieved structurally rather than via promotion-windows.
+
+Recommendation: integrator fast-forward `claude/v1-finish-cloud-Q1-g2-lifetime` to `origin/main` after Windows revalidation. Windows side just re-bootstraps from new seed sha256 to pick up the patch — same bootstrap pattern as DFLIP-PATCH; no behavior shift expected because Windows compiler exercises the same per-fn IR walker.
+
+Moving to Q2 (G-4 IR-level use-after-drop).
+
+
