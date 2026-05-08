@@ -703,7 +703,6 @@ Combined main state at `ea8147c1`:
 
 Only Q5 left from the cloud queue. Standing by for Q5 push (RFC-0063 waves 12-16: 30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19 SIG_DIFFERS reconcile).
 
-<<<<<<< HEAD
 
 
 
