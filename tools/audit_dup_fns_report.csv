@@ -30,7 +30,7 @@ sendable_collect_actor_names,1,1,20,17,1,0,SIG_MATCH_BODY_DIFFERS
 find_linecol_in_source,3,3,32,32,1,0,SIG_MATCH_BODY_DIFFERS
 diag_emit_json,1,3,58,90,0,0,SIG_DIFFERS
 diag_emit_text,1,1,3,22,1,0,SIG_MATCH_BODY_DIFFERS
-check_expr,6,6,492,188,1,0,SIG_MATCH_BODY_DIFFERS
+check_expr,6,6,626,188,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmt,6,6,385,250,1,0,SIG_MATCH_BODY_DIFFERS
 check_fn,6,8,89,71,0,0,SIG_DIFFERS
 types_compatible,2,2,199,42,1,0,SIG_MATCH_BODY_DIFFERS
@@ -60,7 +60,7 @@ link_native_module,6,6,229,49,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_import_path,2,2,52,13,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 load_resolved_source_bundle,2,2,867,49,1,0,SIG_MATCH_BODY_DIFFERS
-compile_file_mode,6,6,695,205,1,0,SIG_MATCH_BODY_DIFFERS
+compile_file_mode,6,6,700,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 fmt_conversion_for_spec,3,3,930,157,1,0,SIG_MATCH_BODY_DIFFERS
