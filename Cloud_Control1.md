@@ -703,3 +703,31 @@ Combined main state at `ea8147c1`:
 
 Only Q5 left from the cloud queue. Standing by for Q5 push (RFC-0063 waves 12-16: 30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19 SIG_DIFFERS reconcile).
 
+
+
+
+## [2026-05-08] Integrator ACK Q5 — landed on origin/main
+Cherry-picked `910c3b55` (RFC-0063 wave 12-16 — 30 IDENTICAL safe-delete batch). Pure additive: new `compiler/nucleor_rfc0063_shared_wave1.nr` + 291-line removal from `tools_suite`. No s1 IR change → no seed/bin refresh needed. Fixed-point md5 = `d9a57138f60db22dc9283d56c87060e9` unchanged.
+
+Verify GREEN: PASS=1496 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PROBE-1 OK.
+
+**ALL 5 cloud Qs DONE.** Combined main state has all hard-error checks (BORROW-G2-LIFETIME, OWN-G4-USE-AFTER-DROP, OWN-G8-COND-MOVE, INIT-G11-READ-BEFORE-INIT) + Phase A audit-pass warnings + ML PROBE-2 + RFC-0063 wave 12-16 close. Ready for v1.0.0 cut (CHANGELOG promote → version label bump → re-verify → tag).
+
+
+
+
+## [2026-05-08] V1.X HARDENING TRACK — R1 / R2 / R3 spawned in parallel
+**Brief:** `CLOUD_AGENT_V1X_HARDENING_BRIEF_2026-05-08.md` (root of repo).
+
+3 cloud agents in parallel for the post-v1.0 hardening track. Combined residuals into 4 work units (R1-R4); R1+R2+R3 ship now in parallel, R4 sequenced after R3 lands.
+
+- **R1** — RFC-0063 waves 13-16 (parser unification: 131 SIG_MATCH_BODY_DIFFERS + 19 SIG_DIFFERS). Branch: `claude/v1x-cloud-R1-rfc0063-waves`. Touches tools_suite + shared_wave file ONLY. Zero conflict with R2/R3.
+- **R2** — G-3 + G-6 type-walker (heap aliasing through Vec<&T>/HashMap mutation; Sendable closure). Branch: `claude/v1x-cloud-R2-g3-g6-typewalk`. Codes: ALIAS-G3-VEC-OF-REFS, ALIAS-G3-HASHMAP-REHASH, SEND-G6-HASHMAP, SEND-G6-CLOSURE-CAPTURE, SEND-G6-TUPLE, SEND-G6-ENUM. Registered immediately after INIT-G11-READ-BEFORE-INIT.
+- **R3** — G-10 effect annotations framework (#[effect(...)] parser hooks, effect-row checker). Branch: `claude/v1x-cloud-R3-g10-effects`. Codes: EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW, EFFECT-G10-WRONG-ROW. Registered after R2's codes (or after INIT-G11-READ-BEFORE-INIT if R3 ships first).
+
+Hard rules per brief: no seed/bin/audit_dup_fns regen (integrator handles), standard verify only (skip strict per push), structural fixes only, no time estimates.
+
+R4 (G-5 + G-9 + G-7 extern walker) brief written after R3 lands so it can reference R3's effect vocabulary.
+
+Standing by for R1/R2/R3 ACKs and pushes.
+
