@@ -11198,6 +11198,28 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "SEND-G6-CLOSURE-CAPTURE") == 1 { return 1; };
     if str_eq(code, "SEND-G6-TUPLE") == 1 { return 1; };
     if str_eq(code, "SEND-G6-ENUM") == 1 { return 1; };
+    // RFC-0062 G-10 Phase 2b — effect annotations framework.
+    // The `#[effect(E1, E2, ...)]` attribute declares the effects a
+    // fn produces; `#[allow_effect(E)]` silences the diagnostic for
+    // a single effect on a single fn. Initial vocabulary: `frees`,
+    // `borrows_mut`, `may_return_null`, `direct_ffi`. Three codes:
+    //   EFFECT-G10-UNDECLARED   — body produces effect E but the fn
+    //                              carries no `#[effect(...)]` row at all
+    //                              and no `#[allow_effect(E)]` opt-out.
+    //   EFFECT-G10-MISSING-ALLOW — fn HAS `#[effect(...)]` but body
+    //                              produces an extra effect E that is not
+    //                              in the row and not silenced.
+    //   EFFECT-G10-WRONG-ROW    — fn declares effect E in `#[effect(...)]`
+    //                              but the body produces no operation
+    //                              (leaf builtin or call to a declared-
+    //                              effect fn) that yields E (over-decl).
+    // Leaf inference is conservative: vec_free / hashmap_free / str_free
+    // → `frees`. Call-propagation reads other fns' `#[effect(...)]`
+    // declarations. R4 (G-5/G-7/G-9) extends leaf inference for
+    // `direct_ffi`, `may_return_null`, `borrows_mut`.
+    if str_eq(code, "EFFECT-G10-UNDECLARED") == 1 { return 1; };
+    if str_eq(code, "EFFECT-G10-MISSING-ALLOW") == 1 { return 1; };
+    if str_eq(code, "EFFECT-G10-WRONG-ROW") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -11864,6 +11886,314 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
         } else {
             p = eol + 1;
         };
+    };
+    return diags;
+}
+
+// =====================================================
+// RFC-0062 G-10 Phase 2b — #[effect(...)] / #[allow_effect(...)] framework
+// =====================================================
+// Source-text framework that lays the groundwork for richer effect-row
+// reasoning. The R05 `requires [...]` row is for adopter-defined effect
+// vocabulary; G-10 ships a fixed compiler-known vocabulary so the type
+// checker can reason about a small set of dangerous primitives without
+// adopters opting into the full requires/restricts machinery.
+//
+// Initial vocabulary (R3 ships, R4 extends leaf inference):
+//   frees           — fn (or its callees) frees a heap allocation
+//   borrows_mut     — fn (or its callees) takes a &mut borrow
+//   may_return_null — fn may return a null/None sentinel
+//   direct_ffi      — fn (or its callees) reaches a raw FFI surface
+//
+// Two attributes:
+//   #[effect(E1, E2, ...)]       declares the fn produces these effects
+//   #[allow_effect(E1, E2, ...)] silences EFFECT-G10-* on this fn for
+//                                the listed effects (escape hatch)
+//
+// Three diagnostics: EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW,
+// EFFECT-G10-WRONG-ROW. See is_error_code for the per-code rationale.
+//
+// Inference is conservative one-hop:
+//   Pass A — leaf builtins: vec_free / hashmap_free / str_free → frees
+//   Pass B — call propagation: callee with `#[effect(E)]` contributes E
+// R4 will extend Pass A for direct_ffi (extern "C" call sites),
+// may_return_null (raw-pointer return sites), borrows_mut (`&mut` arg
+// at the call site).
+
+#[manual_drop]
+fn g10_attr_known_effect(name: str) -> i64 {
+    if str_eq(name, "frees") == 1 { return 1; };
+    if str_eq(name, "borrows_mut") == 1 { return 1; };
+    if str_eq(name, "may_return_null") == 1 { return 1; };
+    if str_eq(name, "direct_ffi") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn g10_builtin_leaf_effect(callee: str) -> str {
+    if str_eq(callee, "vec_free") == 1 { return "frees"; };
+    if str_eq(callee, "hashmap_free") == 1 { return "frees"; };
+    if str_eq(callee, "str_free") == 1 { return "frees"; };
+    return "";
+}
+
+// Source-text scanner: find `#[<attr_name>(<args>)] [other-attrs/ws]* fn NAME`
+// pairs. Returns flat Vec of (fn_name, effect_name) entries — each declared
+// effect produces one entry, so `#[effect(frees, direct_ffi)]` on `fn foo`
+// yields {("foo","frees"),("foo","direct_ffi")}. Skips `// ...` line comments
+// and `"..."` string literals to avoid matching the attribute syntax inside
+// quoted strings or commented-out code.
+#[manual_drop]
+fn g10_collect_attr_pairs(source: str, attr_name: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let head: str = str_concat("#[", str_concat(attr_name, "("));
+    let hlen: i64 = str_len(head);
+    let mut p: i64 = 0;
+    while p + hlen <= slen {
+        let c0: i64 = str_char_at(source, p);
+        if c0 == 47 && p + 1 < slen && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c0 == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < hlen {
+            if str_char_at(source, p + k) != str_char_at(head, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 0 { p = p + 1; continue; };
+        let arg_start: i64 = p + hlen;
+        let mut arg_end: i64 = arg_start;
+        while arg_end < slen && str_char_at(source, arg_end) != 41 { arg_end = arg_end + 1; };
+        if arg_end >= slen { p = p + hlen; continue; };
+        let arg_text: str = str_substring(source, arg_start, arg_end);
+        let mut r: i64 = arg_end + 1;
+        if r < slen && str_char_at(source, r) == 93 { r = r + 1; };
+        // Walk forward past whitespace, line-comments, and other attributes
+        // until we land on the fn-decl token sequence.
+        let mut walking: i64 = 1;
+        while walking == 1 && r < slen {
+            let cc: i64 = str_char_at(source, r);
+            if cc == 32 || cc == 9 || cc == 10 || cc == 13 { r = r + 1; }
+            else if cc == 47 && r + 1 < slen && str_char_at(source, r + 1) == 47 {
+                while r < slen && str_char_at(source, r) != 10 { r = r + 1; };
+            }
+            else if cc == 35 && r + 1 < slen && str_char_at(source, r + 1) == 91 {
+                r = r + 2;
+                let mut depth: i64 = 1;
+                while r < slen && depth > 0 {
+                    let dc: i64 = str_char_at(source, r);
+                    if dc == 91 { depth = depth + 1; }
+                    else if dc == 93 { depth = depth - 1; };
+                    r = r + 1;
+                };
+            }
+            else { walking = 0; };
+        };
+        // Skip optional `pub `
+        if r + 4 <= slen && str_eq_at_len(source, r, "pub", 3) == 1 {
+            let after_pub: i64 = if r + 3 < slen { str_char_at(source, r + 3) } else { 0 };
+            if after_pub == 32 || after_pub == 9 || after_pub == 10 || after_pub == 13 {
+                r = r + 3;
+                while r < slen {
+                    let wc: i64 = str_char_at(source, r);
+                    if wc == 32 || wc == 9 || wc == 10 || wc == 13 { r = r + 1; }
+                    else { break; };
+                };
+            };
+        };
+        // Skip optional `pure `
+        if r + 5 <= slen && str_eq_at_len(source, r, "pure", 4) == 1 {
+            let after_pure: i64 = if r + 4 < slen { str_char_at(source, r + 4) } else { 0 };
+            if after_pure == 32 || after_pure == 9 || after_pure == 10 || after_pure == 13 {
+                r = r + 4;
+                while r < slen {
+                    let wc2: i64 = str_char_at(source, r);
+                    if wc2 == 32 || wc2 == 9 || wc2 == 10 || wc2 == 13 { r = r + 1; }
+                    else { break; };
+                };
+            };
+        };
+        if r + 3 <= slen && str_eq_at_len(source, r, "fn", 2) == 1 {
+            let after_fn: i64 = if r + 2 < slen { str_char_at(source, r + 2) } else { 0 };
+            if after_fn == 32 || after_fn == 9 || after_fn == 10 || after_fn == 13 {
+                r = r + 2;
+                while r < slen {
+                    let wc3: i64 = str_char_at(source, r);
+                    if wc3 == 32 || wc3 == 9 || wc3 == 10 || wc3 == 13 { r = r + 1; }
+                    else { break; };
+                };
+                let name_start: i64 = r;
+                while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                    r = r + 1;
+                };
+                if r > name_start {
+                    let fname: str = str_substring(source, name_start, r);
+                    let alen: i64 = str_len(arg_text);
+                    let mut s: i64 = 0;
+                    let mut q: i64 = 0;
+                    while q <= alen {
+                        let at_end: i64 = if q == alen { 1 } else { 0 };
+                        let at_comma: i64 = if at_end == 0 && str_char_at(arg_text, q) == 44 { 1 } else { 0 };
+                        if at_end == 1 || at_comma == 1 {
+                            let raw: str = str_substring(arg_text, s, q);
+                            let tok: str = strip_spaces(raw);
+                            if str_len(tok) > 0 {
+                                entries.push(fname);
+                                entries.push(tok);
+                            };
+                            s = q + 1;
+                        };
+                        q = q + 1;
+                    };
+                };
+            };
+        };
+        p = arg_end + 1;
+    };
+    return entries;
+}
+
+#[manual_drop]
+fn g10_pairs_has(pairs: Vec<i32>, fn_name: str, eff: str) -> i64 {
+    let n: i64 = vec_len(pairs);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(pairs, i), fn_name) == 1 && str_eq(vec_get(pairs, i + 1), eff) == 1 { return 1; };
+        i = i + 2;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn g10_fn_has_decl(pairs: Vec<i32>, fn_name: str) -> i64 {
+    let n: i64 = vec_len(pairs);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(pairs, i), fn_name) == 1 { return 1; };
+        i = i + 2;
+    };
+    return 0;
+}
+
+// Compute the set of G-10 effects this fn body produces. Pass A is leaf
+// builtins (fixed table); Pass B propagates declared effects of called
+// fns (one-hop; transitive enrichment is a follow-up). Returns a Vec
+// of unique effect-name strings.
+#[manual_drop]
+fn g10_compute_body_effects(body: str, decls: Vec<i32>) -> Vec<i32> {
+    let mut produced: Vec<i32> = Vec::new();
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        let leaf: str = g10_builtin_leaf_effect(callee);
+        if str_len(leaf) > 0 && name_in_vec(produced, leaf) == 0 {
+            produced.push(leaf);
+        };
+        let dn: i64 = vec_len(decls);
+        let mut di: i64 = 0;
+        while di + 1 < dn {
+            if str_eq(vec_get(decls, di), callee) == 1 {
+                let eff: str = vec_get(decls, di + 1);
+                if g10_attr_known_effect(eff) == 1 && name_in_vec(produced, eff) == 0 {
+                    produced.push(eff);
+                };
+            };
+            di = di + 2;
+        };
+        ci = ci + 1;
+    };
+    return produced;
+}
+
+#[manual_drop]
+fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Cheap textual gate: skip when neither attribute syntax appears
+    // anywhere in the source (comments + strings included). The
+    // dominant case is "no opt-in" so this keeps the existing verify
+    // budget intact.
+    if str_contains(source, "#[effect(") == 0 && str_contains(source, "#[allow_effect(") == 0 {
+        return diags;
+    };
+    let decls: Vec<i32> = g10_collect_attr_pairs(source, "effect");
+    let allows: Vec<i32> = g10_collect_attr_pairs(source, "allow_effect");
+    // Real-attribute gate: g10_collect_attr_pairs skips `// ...` line
+    // comments and `"..."` string literals. If both pair sets are empty
+    // the textual hits were comments / docs (the compiler self-source
+    // documents the attribute family in is_error_code) — bail out so
+    // unrelated fns don't trip on their leaf vec_free / hashmap_free
+    // calls.
+    if vec_len(decls) == 0 && vec_len(allows) == 0 { return diags; };
+    let table: Vec<i32> = collect_fn_table(source);
+    let tn: i64 = vec_len(table);
+    let mut ti: i64 = 0;
+    while ti + 2 < tn {
+        let fn_name: str = vec_get(table, ti);
+        let body_raw: str = vec_get(table, ti + 2);
+        let body: str = strip_strings_and_line_comments(body_raw);
+        let produced: Vec<i32> = g10_compute_body_effects(body, decls);
+        let has_decl: i64 = g10_fn_has_decl(decls, fn_name);
+        let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+        let lcl: i64 = vec_get(lc, 0);
+        let lcc: i64 = vec_get(lc, 1);
+        // Pass 1: every produced effect must be declared OR allowed
+        let pn: i64 = vec_len(produced);
+        let mut pi: i64 = 0;
+        while pi < pn {
+            let eff: str = vec_get(produced, pi);
+            if g10_attr_known_effect(eff) == 1 {
+                let declared: i64 = g10_pairs_has(decls, fn_name, eff);
+                let allowed: i64 = g10_pairs_has(allows, fn_name, eff);
+                if declared == 0 && allowed == 0 {
+                    if has_decl == 0 {
+                        let m1a: str = str_concat("function `", fn_name);
+                        let m1b: str = str_concat(m1a, "` produces effect `");
+                        let m1c: str = str_concat(m1b, eff);
+                        let m1: str = str_concat(m1c, "` (per RFC-0062 G-10) but carries no #[effect(...)] declaration. Declare the effect on the fn header, or add #[allow_effect(<E>)] when intentional.");
+                        diag_add_ex(diags, "error", "effect", "EFFECT-G10-UNDECLARED", m1, fn_name, lcl, lcc, "");
+                    } else {
+                        let m2a: str = str_concat("function `", fn_name);
+                        let m2b: str = str_concat(m2a, "` produces effect `");
+                        let m2c: str = str_concat(m2b, eff);
+                        let m2: str = str_concat(m2c, "` which is missing from the #[effect(...)] row (per RFC-0062 G-10). Add it to the row, or silence with #[allow_effect(<E>)] when intentional.");
+                        diag_add_ex(diags, "error", "effect", "EFFECT-G10-MISSING-ALLOW", m2, fn_name, lcl, lcc, "");
+                    };
+                };
+            };
+            pi = pi + 1;
+        };
+        // Pass 2: declared effects must be produced (over-decl detector)
+        if has_decl == 1 {
+            let dn: i64 = vec_len(decls);
+            let mut di: i64 = 0;
+            while di + 1 < dn {
+                if str_eq(vec_get(decls, di), fn_name) == 1 {
+                    let eff: str = vec_get(decls, di + 1);
+                    if g10_attr_known_effect(eff) == 1 && name_in_vec(produced, eff) == 0 {
+                        let m3a: str = str_concat("function `", fn_name);
+                        let m3b: str = str_concat(m3a, "` declares effect `");
+                        let m3c: str = str_concat(m3b, eff);
+                        let m3: str = str_concat(m3c, "` in #[effect(...)] but the body produces no operation that yields that effect (per RFC-0062 G-10 wrong-row check). Remove the effect from the row, or add the operation that justifies it.");
+                        diag_add_ex(diags, "error", "effect", "EFFECT-G10-WRONG-ROW", m3, fn_name, lcl, lcc, "");
+                    };
+                };
+                di = di + 2;
+            };
+        };
+        ti = ti + 3;
     };
     return diags;
 }
@@ -33708,6 +34038,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // intentionally one-hop only; transitive propagation and
     // cross-module rows stay queued for Phase 2b.
     diags = enforce_requires_direct_calls(diags, max_depth_source);
+    // RFC-0062 G-10 Phase 2b — `#[effect(...)]` annotations framework.
+    // Three diagnostics: EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW,
+    // EFFECT-G10-WRONG-ROW. Cheap-gated on the source containing the
+    // attribute syntax — no perf hit for the existing fixture corpus.
+    diags = enforce_g10_effects(diags, max_depth_source);
     // R05-D4 v0.8.323 (local-claude v0840): block-form
     // `restricts [...] { ... }` real enforcement first slice. Emits
     // `error[EFF-003]` when a direct call inside the block targets a
