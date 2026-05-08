@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.75,
+  "case": "01_tabular_classification",
+  "classes": [
+    0,
+    1,
+    2
+  ],
+  "model": "sklearn.tree.DecisionTreeClassifier",
+  "n_features": 4,
+  "n_test": 4,
+  "n_train": 8,
+  "random_state": 42,
+  "tolerance_abs": 1e-09,
+  "y_pred": [
+    2,
+    1,
+    0,
+    2
+  ],
+  "y_test": [
+    2,
+    2,
+    0,
+    2
+  ]
+}
