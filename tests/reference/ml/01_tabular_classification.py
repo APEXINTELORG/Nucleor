@@ -66,6 +66,26 @@ def main() -> None:
     y_pred = clf.predict(x_test).astype(np.int64)
     acc = float(accuracy_score(y_test, y_pred))
 
+    # Dump fitted tree structure so the Nucleor side can consume the
+    # pre-fitted params and run predict-only (Nucleor has no DT fit API).
+    # See findings/inbox/ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md.
+    tree = clf.tree_
+    params = {
+        "node_left_indices": [int(v) for v in tree.children_left],
+        "node_right_indices": [int(v) for v in tree.children_right],
+        "node_feature_indices": [int(v) for v in tree.feature],
+        "node_thresholds": [float(v) for v in tree.threshold],
+        # node_values: per-node class counts, shape (n_nodes, 1, n_classes).
+        # Nucleor's DecisionTreeClassifierF64 expects (n_nodes, n_classes).
+        "node_values": [[float(v) for v in row[0]] for row in tree.value],
+    }
+
+    # Holdout data Nucleor needs to ingest to reproduce the predict step
+    # without re-implementing sklearn's seeded permutation split.
+    holdout = {
+        "x_test": [[float(v) for v in row] for row in x_test],
+    }
+
     result = {
         "case": "01_tabular_classification",
         "model": "sklearn.tree.DecisionTreeClassifier",
@@ -77,6 +97,8 @@ def main() -> None:
         "y_test": [int(v) for v in y_test],
         "y_pred": [int(v) for v in y_pred],
         "accuracy": acc,
+        "params": params,
+        "holdout": holdout,
         "tolerance_abs": 1e-09,
     }
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
