@@ -833,3 +833,39 @@ Verify GREEN: PASS=1511 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PR
 **R4 brief at `f2fec6ef`** (`CLOUD_AGENT_V1X_R4_BRIEF_2026-05-08.md` on origin/main). R4 ready to spawn — extends R3's leaf-effect table for direct_ffi/may_return_null/unsafe + adds 3 specialized FFI codes.
 
 After R4 lands: ALL RFC-0062 hard-error gaps closed. v1.0.0 cut criteria met.
+
+
+
+
+## R4
+
+## [2026-05-08 04:59 UTC] Cloud — R4 G-5 + G-7 + G-9 extern-fn walker DONE
+Branch: `claude/g10-annotations-framework-WZndh` (harness-pinned; brief said `claude/v1x-cloud-R4-g5-g7-g9-extern` — same content, different name only)
+Base: origin/main @ f2fec6ef (post-R1+R2+R3 integration + R4 brief commit)
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64
+Tools: clang Ubuntu-18.1.3
+Files: 9 (compiler/nucleor_s1_compiler.nr — 5 hunks: R4 codes registered after EFFECT-G10-WRONG-ROW grouped under one R4 header, `unsafe` token added to g10_attr_known_effect, ~280 LOC of g10_* helpers (extern-fn registry + unsafe-block scanner + G-5 dataflow check), g10_compute_body_effects extended to take extern_table + emit direct_ffi/may_return_null/unsafe leaves, enforce_g10_effects extended with R4 specialization + Pass 3 G-5 dataflow; tests/features/{g9_direct_ffi_declared,g9_direct_ffi_allow,g7_unsafe_declared,g5_may_return_null_guarded}_ok.nr — positive lock-ins; tests/err/{err_g9_direct_ffi_undeclared,err_g7_unsafe_undeclared,err_g5_may_return_null_unguarded}.nr — negative lock-ins). Plus full report at findings/inbox/cloud_R4_g5_g7_g9_v0846_2026-05-08.md and verify log at findings/inbox/r4_artifacts/verify_full.log.
+
+**Path (a) vs path (b) decision: path (b)-with-twist.** Survey: 216 .nr files declare or call extern fn across stdlib/, 1786 total extern decls — path (a) (rod-wrapper retrofit) is multi-batch, far outside one R-unit envelope. Chose path (b) but at ERROR severity (not warning), gated behind R3's existing opt-in attribute. The cheap textual gate plus empty-pairs check keeps R4 dormant on every existing rod that doesn't opt in. Adopters opt their file in by adding any `#[effect(...)]` / `#[allow_effect(...)]` attribute. Per-rod retrofit can land incrementally.
+
+Validation: `bash tools/verify.sh` PASS=1510 / SKIP=8 / FAIL=2 across 1520 steps. The 2 failures are the brief's expected "no seed regen" consequence:
+  - `T1.7 bootstrap seed matches current compiler` — bootstrap/nucleor_s1_seed.ll in MUST-NOT-touch list; integrator regens on Windows.
+  - `T1.8 self-host compiler IR fixed point` — depends on T1.7.
+The 7 new R4 fixtures all enter the parallel-fixture pool clean (4 positive + 3 negative). Existing R3 G-10 fixtures and the entire tests/{features,err} corpora unaffected.
+
+Self-host build trail: stage-1 from seed → reports `nucleor 0.8.323`. Stage-2 self-rebuild against patched compiler source completes clean. Compiler self-source has 4 extern fn declarations (nuc_node_kind / nuc_node_field / nuc_list_len / nuc_list_get) but no `#[effect(...)]` opt-in, so the R4 specialization stays dormant on the self-source.
+
+**Nucleor-pragmatic G-5 design note:** the brief specifies G-5 as deref-after-call dataflow on extern fns returning `*const T` / `*mut T`. Today Nucleor's parser halts on raw ptr types outside extern decls (defensive halt, line 3012), so real Nucleor source uses `i64` for FFI handles. The extern-table builder sets the returns_ptr flag from EITHER `*const`/`*mut` in the decl text OR a preceding `#[may_return_null]` / `#[effect(may_return_null)]` attribute (the practical opt-in for current sources). The G-5 violation check fires on ANY use of the binding without a preceding `ptr_is_null(<binding>)` guard, not only `*<binding>` deref — matches the i64-handle convention. When raw-ptr substrate lands as a real type, the framework's helpers stay valid.
+
+**Vocabulary final:** frees, borrows_mut, may_return_null, direct_ffi, unsafe (R4 added).
+
+**Codes registered (all error severity):**
+  - FFI-G5-NULL-DEREF (deref dataflow)
+  - FFI-G9-MISSING-ALLOW-DIRECT-FFI (extern call without declaration/allow)
+  - UNSAFE-G7-MISSING-ALLOW (unsafe block without declaration/allow)
+
+After R4 lands + integrator cherry-picks: ALL G-1..G-11 hard-error gaps closed. v1.0.0 cut criteria met.
+
+Recommendation: integrator fast-forward `claude/g10-annotations-framework-WZndh` after Windows seed + audit-CSV regen + Windows revalidation. Same protocol as Q1..Q4 + R1..R3.
+
+R4 ships. All RFC-0062 hard-error promotion gaps closed. Standing down.
