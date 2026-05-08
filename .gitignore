@@ -73,3 +73,4 @@ tools/verify_timings.*.csv
 # Bootstrap iteration scratch (3-iter fixed-point check artifacts)
 out_v*.txt
 err_v*.txt
+audit_scratch_*/
