@@ -60,6 +60,20 @@ def main() -> None:
     centers = km.cluster_centers_
     inertia = float(km.inertia_)
 
+    # Per ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md:
+    # Nucleor has no KMeans fit API. Dump fitted centers so the Nucleor
+    # probe can run kmeans_f64_predict only (predict reproduces labels
+    # byte-equal once the centers match). Note: KMeans labels are
+    # permutation-invariant — the cluster IDs are arbitrary; the parity
+    # check accepts any permutation that produces the same cluster
+    # assignment partition.
+    params = {
+        "centers": [[float(v) for v in row] for row in centers],
+    }
+    holdout = {
+        "x": [[float(v) for v in row] for row in x],
+    }
+
     result = {
         "case": "03_clustering",
         "model": "sklearn.cluster.KMeans",
@@ -71,6 +85,8 @@ def main() -> None:
         "labels": [int(v) for v in labels],
         "centers": [[float(v) for v in row] for row in centers],
         "inertia": inertia,
+        "params": params,
+        "holdout": holdout,
         "tolerance_abs": 1e-09,
     }
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
