@@ -1,0 +1,42 @@
+{
+  "case": "03_clustering",
+  "centers": [
+    [
+      10.02,
+      10.0
+    ],
+    [
+      1.0199999999999996,
+      10.0
+    ],
+    [
+      1.0199999999999996,
+      1.0
+    ]
+  ],
+  "inertia": 0.5639999999999982,
+  "labels": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "model": "sklearn.cluster.KMeans",
+  "n_clusters": 3,
+  "n_features": 2,
+  "n_init": 10,
+  "n_samples": 15,
+  "random_state": 42,
+  "tolerance_abs": 1e-09
+}
