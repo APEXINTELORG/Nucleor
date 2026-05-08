@@ -183,7 +183,44 @@ positive smoke coverage above.
 
 ## Verify
 
-(Filled in at commit time once the gate completes.)
+`bash tools/verify.sh` ran clean on the final attempt:
+
+```
+PASS: 1519
+SKIP: 9
+FAIL: 0
+```
+
+All four Lane 6 negative tests fire the expected diagnostic at compile
+time:
+
+| Step | Test | Result |
+|---|---|---|
+| 1013 | `negative err_atomic_blocking_via_wrapper` | PASS (ATOMIC-001) |
+| 1113 | `negative err_isr_blocking_via_wrapper`    | PASS (ATOMIC-001 via ISR implication) |
+| 1147 | `negative err_no_alloc_box_new`            | PASS (RT-001) |
+| 1156 | `negative err_no_alloc_with_capacity`      | PASS (RT-001) |
+
+All four positive tests run and emit `OK ...` markers:
+
+| Step | Test | Result |
+|---|---|---|
+| 131  | `test runtime/lane6_str_substring_legit` | PASS |
+| 224  | `test rods/lane6_bitwise_legit`          | PASS |
+| 225  | `test rods/lane6_proc_run1_quote`        | PASS |
+| 226  | `test rods/lane6_units_legit`            | PASS |
+
+Self-host fixed point (T1.7 / T1.8) holds with the refreshed seed:
+`md5=f2bc080568ac721b241546f7b5a41946`.
+
+### First-run history
+
+The first verify pass surfaced T1.7 (bootstrap seed mismatch) and T1.8
+(self-host fixed-point mismatch) — both expected when compiler source
+changes per `bootstrap/README.md`'s "When to refresh" workflow. The
+seed was refreshed via `bin/nucleor.exe build compiler/nucleor_s1_compiler.nr -o nucleor_seed`
++ `cp target/nucleor_seed.ll bootstrap/nucleor_s1_seed.ll`. The
+retry passed cleanly.
 
 ## Outstanding deferrals
 
