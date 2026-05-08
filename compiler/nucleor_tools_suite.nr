@@ -13,258 +13,20 @@
 #[allow(PERF-3)]
 
 import "nucleor_rfc0063_shared_wave1.nr"
+import "nucleor_rfc0063_shared_wave2.nr"
 
 // T1.1 Phase 3c (v0.2.310): widened internal arithmetic to i64
 // (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
 // large IR constants format correctly under Phase 1's narrow-as
 // hook.
 // v0.4.72: doc-#2 §5 P1 mirror — see nucleor_s1_compiler.nr.
-fn str_from_i64(n: i64) -> str {
-    if n == 0 { return "0"; };
-    let neg_max_t: i64 = 0 - 9223372036854775807;
-    if n < neg_max_t { return "-9223372036854775808"; };
-    let mut val: i64 = n;
-    if val < 0 { val = 0 - val; };
-    let mut s: str = "";
-    while val > 0 {
-        let d: i64 = val - (val / 10) * 10;
-        let mut ch: str = "0";
-        if d == 1 { ch = "1"; } else if d == 2 { ch = "2"; } else if d == 3 { ch = "3"; }
-        else if d == 4 { ch = "4"; } else if d == 5 { ch = "5"; } else if d == 6 { ch = "6"; }
-        else if d == 7 { ch = "7"; } else if d == 8 { ch = "8"; } else if d == 9 { ch = "9"; };
-        s = str_concat(ch, s);
-        val = val / 10;
-    };
-    if n < 0 { s = str_concat("-", s); };
-    return s;
-}
 
 // v0.5 (v0.4.233 integration) — mirror of compiler-side cleanup.
 // Param widened i32 → i64 to match runtime ABI.
-fn str_to_int(s: str) -> i64 {
-    let slen: i64 = str_len(s);
-    let mut result: i64 = 0;
-    let mut i: i64 = 0;
-    let mut neg: i64 = 0;
-    if slen > 0 && str_char_at(s, 0) == 45 { neg = 1; i = 1; };
-    while i < slen { result = result * 10 + (str_char_at(s, i) - 48); i = i + 1; };
-    if neg == 1 { return 0 - result; };
-    return result;
-}
 
 // =====================================================
 // LEXER (from T29, unchanged)
 // =====================================================
-fn lex(src: str) -> Vec<i32> {
-    let mut tokens: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if is_ws(c) == 1 { p = p + 1; }
-        else if c == 64 {
-            // Skip attributes like @authored(...), @policy(...), @hot, @const_fn.
-            p = p + 1;
-            while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
-            if p < slen && str_char_at(src, p) == 40 {
-                let mut depth: i64 = 1;
-                p = p + 1;
-                while p < slen && depth > 0 {
-                    let ch: i64 = str_char_at(src, p);
-                    if ch == 34 {
-                        p = p + 1;
-                        while p < slen && str_char_at(src, p) != 34 {
-                            if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
-                            else { p = p + 1; };
-                        };
-                        if p < slen { p = p + 1; };
-                    } else {
-                        if ch == 40 { depth = depth + 1; }
-                        else if ch == 41 { depth = depth - 1; };
-                        p = p + 1;
-                    };
-                };
-            };
-        }
-        else if c == 35 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
-            // Rust-style outer attribute: #[test], #[no_panic],
-            // #[deadline=N], #[auto_drop], etc. Commands that care scan
-            // metadata from source text before parse.
-            p = p + 2;
-            let mut depth_hash_attr: i64 = 1;
-            while p < slen && depth_hash_attr > 0 {
-                let ch: i64 = str_char_at(src, p);
-                if ch == 34 {
-                    p = p + 1;
-                    while p < slen && str_char_at(src, p) != 34 {
-                        if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
-                        else { p = p + 1; };
-                    };
-                    if p < slen { p = p + 1; };
-                } else {
-                    if ch == 91 { depth_hash_attr = depth_hash_attr + 1; }
-                    else if ch == 93 { depth_hash_attr = depth_hash_attr - 1; };
-                    p = p + 1;
-                };
-            };
-        }
-        else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
-        }
-        else if c == 92 && p + 1 < slen && str_char_at(src, p + 1) == 32 {
-            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
-        }
-        else if is_alpha(c) == 1 {
-            let st: i64 = p;
-            while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
-            let w: str = str_substring(src, st, p);
-            tokens.push(tok_new(classify_kw(w), w, st));
-        }
-        else if is_digit(c) == 1 {
-            let st: i64 = p;
-            let mut int_value: i64 = 0;
-            let mut handled_radix: i64 = 0;
-            if c == 48 && p + 1 < slen {
-                let nx: i64 = str_char_at(src, p + 1);
-                if nx == 120 || nx == 88 {
-                    p = p + 2;
-                    while p < slen {
-                        let hc: i64 = str_char_at(src, p);
-                        if hc == 95 { p = p + 1; }
-                        else if hc >= 48 && hc <= 57 { int_value = int_value * 16 + hc - 48; p = p + 1; }
-                        else if hc >= 97 && hc <= 102 { int_value = int_value * 16 + hc - 87; p = p + 1; }
-                        else if hc >= 65 && hc <= 70 { int_value = int_value * 16 + hc - 55; p = p + 1; }
-                        else { break; };
-                    };
-                    handled_radix = 1;
-                } else if nx == 111 || nx == 79 {
-                    p = p + 2;
-                    while p < slen {
-                        let oc: i64 = str_char_at(src, p);
-                        if oc == 95 { p = p + 1; }
-                        else if oc >= 48 && oc <= 55 { int_value = int_value * 8 + oc - 48; p = p + 1; }
-                        else { break; };
-                    };
-                    handled_radix = 1;
-                } else if nx == 98 || nx == 66 {
-                    p = p + 2;
-                    while p < slen {
-                        let bc: i64 = str_char_at(src, p);
-                        if bc == 95 { p = p + 1; }
-                        else if bc == 48 { int_value = int_value * 2; p = p + 1; }
-                        else if bc == 49 { int_value = int_value * 2 + 1; p = p + 1; }
-                        else { break; };
-                    };
-                    handled_radix = 1;
-                };
-            };
-            if handled_radix == 1 {
-                tokens.push(tok_new(2, int_value, st));
-                if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
-                    while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
-                };
-                if p < slen && str_char_at(src, p) == 123 {
-                    tokens.push(tok_new(83, 0, p));
-                    p = p + 1;
-                };
-            } else {
-                while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
-                // Check for f64 literal: digits DOT digits
-                if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
-                    // f64 literal — parse integer.fraction, encode as bitcast i64
-                    let int_part: i64 = str_to_int(str_substring(src, st, p));
-                    p = p + 1; // skip dot
-                    let frac_st: i64 = p;
-                    while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
-                    let frac_str: str = str_substring(src, frac_st, p);
-                    let frac_val: i64 = str_to_int(frac_str);
-                    let frac_len: i64 = str_len(frac_str);
-                    // Compute frac_divisor = 10^frac_len
-                    let mut frac_div: i64 = 1;
-                    let mut fi: i64 = 0;
-                    while fi < frac_len { frac_div = frac_div * 10; fi = fi + 1; };
-                    // Encode: store int_part and frac as token type 70 (f64 literal)
-                    // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
-                    let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
-                    tokens.push(tok_new(70, encoded, st));
-                    if p < slen && str_char_at(src, p) == 123 {
-                        tokens.push(tok_new(83, 0, p));
-                        p = p + 1;
-                    }
-                } else {
-                    tokens.push(tok_new(2, str_to_int(str_substring(src, st, p)), st));
-                    if p < slen && str_char_at(src, p) == 123 {
-                        tokens.push(tok_new(83, 0, p));
-                        p = p + 1;
-                    }
-                };
-            };
-        }
-        else if c == 34 {
-            let st: i64 = p; p = p + 1;
-            let mut sb: i64 = sb_new();
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    let nc: i64 = str_char_at(src, p + 1);
-                    if nc == 110 { sb_append(sb, "\n"); } else if nc == 116 { sb_append(sb, "\t"); }
-                    else if nc == 34 { sb_append(sb, "\""); } else if nc == 92 { sb_append(sb, "\\"); }
-                    else { sb_append(sb, str_substring(src, p + 1, p + 2)); };
-                    p = p + 2;
-                } else { sb_append(sb, str_substring(src, p, p + 1)); p = p + 1; };
-            };
-            if p < slen { p = p + 1; };
-            tokens.push(tok_new(3, sb_to_str(sb), st));
-        }
-        else if c == 45 && p + 1 < slen && str_char_at(src, p + 1) == 62 { tokens.push(tok_new(41, 0, p)); p = p + 2; }
-        else if c == 61 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(30, 0, p)); p = p + 2; }
-        else if c == 61 && p + 1 < slen && str_char_at(src, p + 1) == 62 { tokens.push(tok_new(64, 0, p)); p = p + 2; }
-        else if c == 33 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(31, 0, p)); p = p + 2; }
-        else if c == 60 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(34, 0, p)); p = p + 2; }
-        else if c == 62 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(35, 0, p)); p = p + 2; }
-        else if c == 38 && p + 1 < slen && str_char_at(src, p + 1) == 38 { tokens.push(tok_new(36, 0, p)); p = p + 2; }
-        else if c == 38 { tokens.push(tok_new(82, 0, p)); p = p + 1; }
-        else if c == 124 && p + 1 < slen && str_char_at(src, p + 1) == 124 { tokens.push(tok_new(37, 0, p)); p = p + 2; }
-        else if c == 124 { tokens.push(tok_new(65, 0, p)); p = p + 1; }
-        else if c == 58 && p + 1 < slen && str_char_at(src, p + 1) == 58 { tokens.push(tok_new(46, 0, p)); p = p + 2; }
-        else if c == 43 { tokens.push(tok_new(20, 0, p)); p = p + 1; }
-        else if c == 45 { tokens.push(tok_new(21, 0, p)); p = p + 1; }
-        else if c == 42 { tokens.push(tok_new(22, 0, p)); p = p + 1; }
-        else if c == 47 { tokens.push(tok_new(23, 0, p)); p = p + 1; }
-        else if c == 37 { tokens.push(tok_new(24, 0, p)); p = p + 1; }
-        else if c == 61 { tokens.push(tok_new(40, 0, p)); p = p + 1; }
-        else if c == 60 { tokens.push(tok_new(32, 0, p)); p = p + 1; }
-        else if c == 62 { tokens.push(tok_new(33, 0, p)); p = p + 1; }
-        else if c == 33 { tokens.push(tok_new(38, 0, p)); p = p + 1; }
-        else if c == 58 { tokens.push(tok_new(42, 0, p)); p = p + 1; }
-        else if c == 59 { tokens.push(tok_new(43, 0, p)); p = p + 1; }
-        else if c == 44 { tokens.push(tok_new(44, 0, p)); p = p + 1; }
-        else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 && p + 2 < slen && str_char_at(src, p + 2) == 61 {
-            // T2.1 (v0.2.347): ..= inclusive range token (synced from s1)
-            tokens.push(tok_new(96, 0, p));
-            p = p + 3;
-        }
-        else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 { tokens.push(tok_new(58, 0, p)); p = p + 2; }
-        else if c == 46 { tokens.push(tok_new(45, 0, p)); p = p + 1; }
-        else if c == 40 { tokens.push(tok_new(50, 0, p)); p = p + 1; }
-        else if c == 41 { tokens.push(tok_new(51, 0, p)); p = p + 1; }
-        else if c == 123 { tokens.push(tok_new(52, 0, p)); p = p + 1; }
-        else if c == 125 { tokens.push(tok_new(53, 0, p)); p = p + 1; }
-        else if c == 91 { tokens.push(tok_new(54, 0, p)); p = p + 1; }
-        else if c == 93 { tokens.push(tok_new(55, 0, p)); p = p + 1; }
-        else if c == 39 {
-            // T2.5 (v0.2.351): lifetime token (kind 98) — synced from s1.
-            let st: i64 = p;
-            p = p + 1;
-            let id_st: i64 = p;
-            while p < slen && (is_alnum(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) { p = p + 1; };
-            let lt_name: str = str_substring(src, id_st, p);
-            tokens.push(tok_new(98, lt_name, st));
-        }
-        else { p = p + 1; };
-    };
-    tokens.push(tok_new(0, 0, slen));
-    return tokens;
-}
 
 // =====================================================
 // PARSER (from T29, unchanged)
@@ -435,55 +197,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(pos + 1, mk2(pool, 1, 0));
 }
 
-fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
-    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 {
-        if pk(tokens, cp) == 45 {
-            let mut fname: str = "";
-            if pk(tokens, cp + 1) == 2 { fname = str_from_int(pkv(tokens, cp + 1)); }
-            else { fname = pkv(tokens, cp + 1); };
-            let p2: i64 = cp + 2;
-            let mut tname: str = "";
-            let mut ctor_like: i64 = 0;
-            if node_kind(pool, node) == 3 {
-                tname = node_field(pool, node, 1);
-                if str_len(tname) > 0 && str_len(fname) > 0 && str_char_at(tname, 0) >= 65 && str_char_at(tname, 0) <= 90 && str_char_at(fname, 0) >= 65 && str_char_at(fname, 0) <= 90 {
-                    ctor_like = 1;
-                };
-            };
-            if ctor_like == 1 && pk(tokens, p2) == 52 {
-                let mut qp: i64 = p2 + 1;
-                let mut qargs: Vec<i32> = Vec::new();
-                while pk(tokens, qp) != 53 && pk(tokens, qp) != 0 {
-                    if vec_len(qargs) > 0 {
-                        qp = expect_tok(tokens, qp, 44);
-                        if pk(tokens, qp) == 53 { break; };
-                    };
-                    let _field_name: str = pkv(tokens, qp);
-                    qp = expect_tok(tokens, qp + 1, 42);
-                    let mut er: Vec<i32> = parse_expr(tokens, qp, pool);
-                    qargs.push(pr_val(er));
-                    qp = pr_pos(er);
-                };
-                qp = expect_tok(tokens, qp, 53);
-                cp = qp;
-                node = mk4(pool, 12, tname, fname, mk_list(pool, qargs));
-            } else if pk(tokens, p2) == 50 {
-                let mut ar: Vec<i32> = parse_args(tokens, p2 + 1, pool);
-                cp = pr_pos(ar); node = mk4(pool, 8, node, fname, pr_val(ar));
-            } else if ctor_like == 1 {
-                let mut empty: Vec<i32> = Vec::new();
-                cp = p2;
-                node = mk4(pool, 12, tname, fname, mk_list(pool, empty));
-            } else { cp = p2; node = mk3(pool, 9, node, fname); };
-        } else {
-            let mut ir: Vec<i32> = parse_expr(tokens, cp + 1, pool);
-            cp = expect_tok(tokens, pr_pos(ir), 55); node = mk3(pool, 10, node, pr_val(ir));
-        };
-    };
-    return pr(cp, node);
-}
 
 fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, pos) == 21 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 5, pr_val(r))); };
@@ -616,49 +329,6 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(p2, name);
 }
 
-#[manual_drop]
-fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
-    // pos points at '<', returns (pos_after_>, list of param name strings).
-    // T2.5 (v0.2.351): accept lifetime parameters (`'a`, etc.) — synced.
-    // 2026-05-07: #[manual_drop] mirrors s1::parse_generic_params (line 3185).
-    // Without it, auto-drop frees `params` at end-of-scope before pr_val(gr)
-    // can read it through the returned `pr` wrapper, leading to a dangling
-    // Vec<i32> pointer in `gparams_vec` and a wild OOB index when mk_list
-    // iterates ("PANIC: node_kind pool OOB: index 2287092358768, len 83").
-    // The 5a263b02 gparams_vec change is correct but insufficient on its
-    // own — the lifetime of the inner params Vec MUST be extended past
-    // the return for that change to actually take effect.
-    let mut cp: i64 = pos + 1;
-    let mut params: Vec<i32> = Vec::new();
-    while pk(tokens, cp) != 33 && pk(tokens, cp) != 0 {
-        if vec_len(params) > 0 {
-            cp = expect_tok(tokens, cp, 44);
-            if pk(tokens, cp) == 33 { break; };
-        };
-        if pk(tokens, cp) == 98 {
-            params.push(str_concat("'", pkv(tokens, cp)));
-        } else {
-            params.push(pkv(tokens, cp));
-        };
-        cp = cp + 1;
-        // v0.4.103: trait-bound clause `<T: Addable>` parse-skip. Mirror
-        // of nucleor_s1_compiler.nr — bounds are no-ops in monomorphic
-        // codegen so we discard the bound text. Audit §8.
-        if pk(tokens, cp) == 42 {
-            cp = cp + 1; // skip ':'
-            // v0.4.130 mirror: capture each bound trait name as `?<name>`.
-            while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
-                if pk(tokens, cp) == 1 {
-                    let bname: str = pkv(tokens, cp);
-                    if str_len(bname) > 0 { params.push(str_concat("?", bname)); };
-                };
-                cp = cp + 1;
-            };
-        };
-    };
-    cp = cp + 1; // skip >
-    return pr(cp, params);
-}
 
 #[manual_drop]
 fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -691,53 +361,8 @@ fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 }
 
 
-fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
-    let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
-    let mut tr: Vec<i32> = parse_stmts(tokens, cp, pool);
-    cp = expect_tok(tokens, pr_pos(tr), 53);
-    let mut else_id: i64 = 0 - 1;
-    if pk(tokens, cp) == 14 {
-        cp = cp + 1;
-        if pk(tokens, cp) == 13 { cp = cp + 1;
-            let mut elif: Vec<i32> = parse_if(tokens, cp, pool);
-            let mut els: Vec<i32> = Vec::new(); els.push(pr_val(elif));
-            else_id = mk_list(pool, els); cp = pr_pos(elif);
-        } else {
-            cp = expect_tok(tokens, cp, 52);
-            let mut er: Vec<i32> = parse_stmts(tokens, cp, pool);
-            cp = expect_tok(tokens, pr_pos(er), 53); else_id = pr_val(er);
-        };
-    };
-    return pr(cp, mk4(pool, 23, pr_val(cr), pr_val(tr), else_id));
-}
 
-fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
-    let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
-    let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
-    cp = expect_tok(tokens, pr_pos(br), 53);
-    return pr(cp, mk3(pool, 24, pr_val(cr), pr_val(br)));
-}
 
-fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    // pos is after 'for', pointing at variable name
-    let name: i64 = pkv(tokens, pos);
-    let mut cp: i64 = expect_tok(tokens, pos + 1, 57); // expect 'in'
-    let mut sr: Vec<i32> = parse_expr(tokens, cp, pool);
-    cp = pr_pos(sr);
-    if pk(tokens, cp) == 58 {
-        let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); // end expr
-        cp = expect_tok(tokens, pr_pos(er), 52); // expect '{'
-        let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
-        cp = expect_tok(tokens, pr_pos(br), 53); // expect '}'
-        return pr(cp, mk5(pool, 28, name, pr_val(sr), pr_val(er), pr_val(br)));
-    };
-    cp = expect_tok(tokens, cp, 52); // expect '{'
-    let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
-    cp = expect_tok(tokens, pr_pos(br), 53); // expect '}'
-    return pr(cp, mk4(pool, 49, name, pr_val(sr), pr_val(br)));
-}
 
 
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -828,41 +453,6 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
 }
 
-#[manual_drop]
-fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    // pos points after 'struct', at the name
-    let name: i64 = pkv(tokens, pos);
-    let mut cp: i64 = pos + 1;
-    // Optional generic params: struct Name<T, U> { ... }
-    // 2026-05-07: #[manual_drop] mirrors s1::parse_struct_decl. Sister of
-    // the T2.5 fix on parse_fn_decl — same dangling-Vec class. Without it,
-    // any struct with `<T>` / `<'a>` generic params can land a bogus pool
-    // index in `gparams` once `parse_generic_params`'s inner Vec is freed.
-    let mut gparams: i64 = mk_list(pool, Vec::new());
-    if pk(tokens, cp) == 32 {
-        let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
-        cp = pr_pos(gr);
-        gparams = mk_list(pool, pr_val(gr));
-    };
-    cp = expect_tok(tokens, cp, 52); // {
-    let mut fields: Vec<i32> = Vec::new();
-    while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-        if vec_len(fields) > 0 {
-            cp = expect_tok(tokens, cp, 44);
-            if pk(tokens, cp) == 53 { break; };
-        };
-        // v0.4.1 RFC-NRT-004 §D: optional `pub` field qualifier
-        // (sync from nucleor_s1_compiler.nr:parse_struct_decl).
-        if pk(tokens, cp) == 72 { cp = cp + 1; };
-        // v0.4.16: optional `mut` field qualifier (sync).
-        if pk(tokens, cp) == 12 { cp = cp + 1; };
-        let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
-        let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
-        fields.push(mk3(pool, 41, fn2, pr_val(tr)));
-    };
-    cp = cp + 1;
-    return pr(cp, mk4(pool, 33, name, mk_list(pool, fields), gparams));
-}
 
 fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points at name, next is {
@@ -884,57 +474,6 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk3(pool, 34, name, mk_list(pool, inits)));
 }
 
-#[manual_drop]
-fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    // pos points after 'enum', at the name
-    let name: i64 = pkv(tokens, pos);
-    let mut cp: i64 = pos + 1;
-    // Optional generic params: enum Name<T> { ... }
-    // 2026-05-07: #[manual_drop] mirrors s1::parse_enum_decl. Sister 2 of
-    // the T2.5 fix — same dangling-Vec class on the gparams construction.
-    let mut gparams: i64 = mk_list(pool, Vec::new());
-    if pk(tokens, cp) == 32 {
-        let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
-        cp = pr_pos(gr);
-        gparams = mk_list(pool, pr_val(gr));
-    };
-    cp = expect_tok(tokens, cp, 52); // {
-    let mut variants: Vec<i32> = Vec::new();
-    while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-        if vec_len(variants) > 0 && pk(tokens, cp) == 44 { cp = cp + 1; };
-        if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
-        let vname: i64 = pkv(tokens, cp); cp = cp + 1;
-        let mut ptypes: Vec<i32> = Vec::new();
-        if pk(tokens, cp) == 50 {
-            cp = cp + 1;
-            while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
-                if vec_len(ptypes) > 0 {
-                    cp = expect_tok(tokens, cp, 44);
-                    if pk(tokens, cp) == 51 { break; };
-                };
-                let mut tr: Vec<i32> = parse_type(tokens, cp); ptypes.push(pr_val(tr)); cp = pr_pos(tr);
-            };
-            cp = cp + 1;
-        } else if pk(tokens, cp) == 52 {
-            cp = cp + 1;
-            while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-                if vec_len(ptypes) > 0 {
-                    cp = expect_tok(tokens, cp, 44);
-                    if pk(tokens, cp) == 53 { break; };
-                };
-                let _fname: str = pkv(tokens, cp);
-                cp = expect_tok(tokens, cp + 1, 42);
-                let mut tr: Vec<i32> = parse_type(tokens, cp);
-                ptypes.push(pr_val(tr));
-                cp = pr_pos(tr);
-            };
-            cp = expect_tok(tokens, cp, 53);
-        };
-        variants.push(mk3(pool, 37, vname, mk_list(pool, ptypes)));
-    };
-    cp = cp + 1;
-    return pr(cp, mk4(pool, 36, name, mk_list(pool, variants), gparams));
-}
 
 #[manual_drop]
 fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -1251,91 +790,12 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 
 
-fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
-    let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = 0;
-    // T1.5b (v0.2.341): mirror of nucleor_s1_compiler.nr — track `pub`
-    // and emit a kind-76 marker node before each `pub`-prefixed
-    // top-level item. Lets `nuc summary` (which routes through
-    // tools-suite) display visibility, and sets up T1.5c's
-    // resolver-layer privatization to drive cross-module enforcement.
-    let mut pending_pub: i64 = 0;
-    while pk(tokens, cp) != 0 {
-        if pk(tokens, cp) == 72 {
-            pending_pub = 1;
-            cp = cp + 1;
-        }
-        else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 10 {
-            // extern fn — never carries `pub`.
-            let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 2, pool); items.push(pr_val(r)); cp = pr_pos(r);
-            pending_pub = 0;
-        }
-        else if pk(tokens, cp) == 73 {
-            let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
-            let nid: i64 = pr_val(r);
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
-            items.push(nid); cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 74 {
-            let mut r: Vec<i32> = parse_type_alias_decl(tokens, cp + 1, pool);
-            let nid: i64 = pr_val(r);
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
-            items.push(nid); cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 17 {
-            let mut r: Vec<i32> = parse_struct_decl(tokens, cp + 1, pool);
-            let nid: i64 = pr_val(r);
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
-            items.push(nid); cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 62 {
-            let mut r: Vec<i32> = parse_enum_decl(tokens, cp + 1, pool);
-            let nid: i64 = pr_val(r);
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
-            items.push(nid); cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 66 {
-            let mut r: Vec<i32> = parse_trait_decl(tokens, cp + 1, pool);
-            let nid: i64 = pr_val(r);
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
-            items.push(nid); cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 67 {
-            let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r);
-            pending_pub = 0;
-        }
-        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "pure") == 1 && pk(tokens, cp + 1) == 10 {
-            // pure fn — parse as fn_decl, mark name with __pure_ prefix internally
-            let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 2, pool);
-            let fn_nid: i64 = pr_val(r);
-            if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
-            // Tag function as pure by storing a marker node (kind 46)
-            items.push(mk2(pool, 46, node_field(pool, fn_nid, 1)));
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
-            items.push(fn_nid);
-            cp = pr_pos(r);
-        }
-        else if pk(tokens, cp) == 10 {
-            let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 1, pool);
-            let fn_nid: i64 = pr_val(r);
-            if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
-            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
-            items.push(fn_nid);
-            cp = pr_pos(r);
-        }
-        else { cp = cp + 1; pending_pub = 0; };
-    };
-    return pr(cp, mk_list(pool, items));
-}
 
 // =====================================================
 // IR DATA STRUCTURES (from T29, extended)
 // =====================================================
 fn ir_select(d: i64, cond: i64, tv: i64, fv: i64) -> Vec<i32> { return ir_inst(28, d, 0, cond, tv, fv); }
 
-fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
-    let mut f: Vec<i32> = Vec::new(); f.push(name); f.push(pc); f.push(0);
-    let mut blocks: Vec<i32> = Vec::new(); f.push(blocks); return f;
-}
 // =====================================================
 // OPTIMIZER PASSES (S6)
 // =====================================================
@@ -1344,256 +804,19 @@ fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
 // --- Pass 1: Constant Folding ---
 // Scans instructions in a block. When both operands of an arithmetic/comparison
 // op are known constants, replaces the instruction with a const_int.
-fn opt_fold_block(blk: Vec<i32>) -> i64 {
-    let mut cm: Vec<i32> = cmap_new();
-    let ic: i64 = ir_block_inst_count(blk);
-    let insts: Vec<i32> = vec_get(blk, 1);
-    let mut folded: i64 = 0;
-    let mut i: i64 = 0;
-    while i < ic {
-        let inst: Vec<i32> = vec_get(insts, i);
-        let op: i64 = ir_op(inst);
-        let d: i64 = ir_dest(inst);
-        // Track const_int values
-        if op == 0 {
-            cmap_set(cm, d, ir_op1(inst));
-        }
-        // Fold arithmetic: add(2), sub(3), mul(4), div(5), mod(6).
-        // v0.3.145: div/mod by zero must NOT fold. See nucleor_s1_compiler
-        // notes for the bug class -- pre-fix, vb == 0 branch pre-incremented
-        // i (skipping the next inst) and fell through to vec_set replacing
-        // the divide with const_int 0. Two compounding bugs.
-        else if op >= 2 && op <= 6 {
-            let a: i64 = ir_op1(inst);
-            let b: i64 = ir_op2(inst);
-            if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
-                let va: i64 = cmap_get(cm, a);
-                let vb: i64 = cmap_get(cm, b);
-                let mut do_fold: i64 = 1;
-                let mut result: i64 = 0;
-                if op == 2 { result = va + vb; }
-                else if op == 3 { result = va - vb; }
-                else if op == 4 { result = va * vb; }
-                else if op == 5 {
-                    if vb != 0 { result = va / vb; } else { do_fold = 0; };
-                }
-                else if op == 6 {
-                    if vb != 0 { result = va - (va / vb) * vb; } else { do_fold = 0; };
-                };
-                if do_fold == 1 {
-                    vec_set(inst, 0, 0);
-                    vec_set(inst, 3, result);
-                    vec_set(inst, 4, 0);
-                    vec_set(inst, 5, 0);
-                    cmap_set(cm, d, result);
-                    folded = folded + 1;
-                };
-            };
-        }
-        // Fold comparisons: eq(7), ne(8), slt(9), sgt(10), sle(11), sge(12)
-        else if op >= 7 && op <= 12 {
-            let a: i64 = ir_op1(inst);
-            let b: i64 = ir_op2(inst);
-            if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
-                let va: i64 = cmap_get(cm, a);
-                let vb: i64 = cmap_get(cm, b);
-                let mut result: i64 = 0;
-                if op == 7 { if va == vb { result = 1; }; }
-                else if op == 8 { if va != vb { result = 1; }; }
-                else if op == 9 { if va < vb { result = 1; }; }
-                else if op == 10 { if va > vb { result = 1; }; }
-                else if op == 11 { if va <= vb { result = 1; }; }
-                else if op == 12 { if va >= vb { result = 1; }; };
-                vec_set(inst, 0, 0);
-                vec_set(inst, 3, result);
-                vec_set(inst, 4, 0);
-                vec_set(inst, 5, 0);
-                cmap_set(cm, d, result);
-                folded = folded + 1;
-            };
-        }
-        // Fold logical: and(13), or(14)
-        else if op == 13 || op == 14 {
-            let a: i64 = ir_op1(inst);
-            let b: i64 = ir_op2(inst);
-            if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
-                let va: i64 = cmap_get(cm, a);
-                let vb: i64 = cmap_get(cm, b);
-                let mut result: i64 = 0;
-                if op == 13 { if va != 0 && vb != 0 { result = 1; }; }
-                else if op == 14 { if va != 0 || vb != 0 { result = 1; }; };
-                vec_set(inst, 0, 0);
-                vec_set(inst, 3, result);
-                vec_set(inst, 4, 0);
-                vec_set(inst, 5, 0);
-                cmap_set(cm, d, result);
-                folded = folded + 1;
-            };
-        };
-        i = i + 1;
-    };
-    return folded;
-}
 
 // --- Pass 2: Dead Code Elimination ---
 // Removes instructions whose dest register is never used by any later instruction.
 // Side-effecting ops (store, call, ret, br, br_cond, alloca) are never removed.
 // v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as compiler.nr.
-#[manual_drop]
-fn opt_dce_block(blk: Vec<i32>) -> i64 {
-    let insts: Vec<i32> = vec_get(blk, 1);
-    let ic: i64 = vec_len(insts);
-    if ic == 0 { return 0; };
-    let last_op: i64 = ir_op(vec_get(insts, ic - 1));
-    // This pass is block-local only. Once a block branches, its pure values may
-    // still be consumed in successor blocks, so intra-block liveness is unsafe.
-    if last_op == 21 || last_op == 22 { return 0; };
-    // Build used-register set: scan all instructions for operand references
-    let mut used: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    while i < ic {
-        let inst: Vec<i32> = vec_get(insts, i);
-        let op: i64 = ir_op(inst);
-        // Collect register operands that are used
-        if op >= 2 && op <= 14 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
-        else if op == 17 { used.push(ir_op1(inst)); }
-        else if op == 18 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
-        else if op == 20 { used.push(ir_op1(inst)); }
-        else if op == 22 { used.push(ir_op1(inst)); }
-        else if op == 28 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); used.push(ir_extra(inst)); }
-        else if op == 30 { used.push(ir_op1(inst)); let cargs: Vec<i32> = vec_get(inst, 5); let mut ci: i64 = 0; while ci < vec_len(cargs) { used.push(vec_get(cargs, ci)); ci = ci + 1; }; }
-        else if op == 19 {
-            // Call: args are in the args Vec (index 5)
-            let args: Vec<i32> = vec_get(inst, 5);
-            let ac: i64 = vec_len(args);
-            let mut ai: i64 = 0;
-            while ai < ac { used.push(vec_get(args, ai)); ai = ai + 1; };
-        };
-        i = i + 1;
-    };
-    // Now remove dead instructions (rebuild insts list)
-    let mut new_insts: Vec<i32> = Vec::new();
-    let mut removed: i64 = 0;
-    i = 0;
-    while i < ic {
-        let inst: Vec<i32> = vec_get(insts, i);
-        let op: i64 = ir_op(inst);
-        let d: i64 = ir_dest(inst);
-        let mut keep: i64 = 1;
-        // Only consider removing pure value-producing ops
-        if op == 0 || (op >= 2 && op <= 14) || op == 17 || op == 26 || op == 27 || op == 28 || op == 29 {
-            if d > 0 {
-                // Check if d is in used set
-                let mut found: i64 = 0;
-                let uc: i64 = vec_len(used);
-                let mut ui: i64 = 0;
-                while ui < uc {
-                    if vec_get(used, ui) == d { found = 1; ui = uc; };
-                    ui = ui + 1;
-                };
-                if found == 0 { keep = 0; };
-            };
-        };
-        if keep == 1 { new_insts.push(inst); }
-        else { removed = removed + 1; };
-        i = i + 1;
-    };
-    // Replace instruction list
-    if removed > 0 { vec_set(blk, 1, new_insts); };
-    return removed;
-}
 
 // --- Pass 3: Store-Load Constant Propagation ---
 // Propagates known constants through store/load chains within a block.
 // If a constant is stored to a slot and later loaded, replaces the load with const_int.
-fn opt_prop_block(blk: Vec<i32>) -> i64 {
-    let mut cm: Vec<i32> = cmap_new();
-    let mut sv: Vec<i32> = cmap_new();
-    let insts: Vec<i32> = vec_get(blk, 1);
-    let ic: i64 = vec_len(insts);
-    let mut count: i64 = 0;
-    let mut i: i64 = 0;
-    while i < ic {
-        let inst: Vec<i32> = vec_get(insts, i);
-        let op: i64 = ir_op(inst);
-        let d: i64 = ir_dest(inst);
-        if op == 0 { cmap_set(cm, d, ir_op1(inst)); }
-        else if op == 18 {
-            let val: i64 = ir_op1(inst);
-            let ptr: i64 = ir_op2(inst);
-            if cmap_has(cm, val) == 1 { cmap_set(sv, ptr, cmap_get(cm, val)); }
-            else { cmap_set(sv, ptr, 0 - 9999999); };
-        }
-        else if op == 17 {
-            let ptr: i64 = ir_op1(inst);
-            if cmap_has(sv, ptr) == 1 {
-                let cv: i64 = cmap_get(sv, ptr);
-                if cv != 0 - 9999999 {
-                    vec_set(inst, 0, 0);
-                    vec_set(inst, 3, cv);
-                    vec_set(inst, 4, 0);
-                    vec_set(inst, 5, 0);
-                    cmap_set(cm, d, cv);
-                    count = count + 1;
-                };
-            };
-        }
-        else if op == 19 || op == 30 { sv = cmap_new(); };
-        i = i + 1;
-    };
-    return count;
-}
 
 // --- Pass 4: Dead Store Elimination ---
 // Removes stores that are overwritten before being read within the same block.
 // v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
-#[manual_drop]
-fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
-    let insts: Vec<i32> = vec_get(blk, 1);
-    let ic: i64 = vec_len(insts);
-    if ic == 0 { return 0; };
-    let mut last_store: Vec<i32> = cmap_new();
-    let mut dead: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    while i < ic {
-        let inst: Vec<i32> = vec_get(insts, i);
-        let op: i64 = ir_op(inst);
-        if op == 18 {
-            let ptr: i64 = ir_op2(inst);
-            if cmap_has(last_store, ptr) == 1 {
-                let prev_idx: i64 = cmap_get(last_store, ptr);
-                if prev_idx >= 0 { dead.push(prev_idx); };
-            };
-            cmap_set(last_store, ptr, i);
-        }
-        else if op == 17 {
-            let ptr: i64 = ir_op1(inst);
-            cmap_set(last_store, ptr, 0 - 1);
-        }
-        else if op == 19 || op == 20 || op == 21 || op == 22 || op == 30 {
-            last_store = cmap_new();
-        };
-        i = i + 1;
-    };
-    if vec_len(dead) == 0 { return 0; };
-    let mut new_insts: Vec<i32> = Vec::new();
-    let mut removed: i64 = 0;
-    i = 0;
-    while i < ic {
-        let mut is_dead: i64 = 0;
-        let dc: i64 = vec_len(dead);
-        let mut di: i64 = 0;
-        while di < dc {
-            if vec_get(dead, di) == i { is_dead = 1; di = dc; };
-            di = di + 1;
-        };
-        if is_dead == 0 { new_insts.push(vec_get(insts, i)); }
-        else { removed = removed + 1; };
-        i = i + 1;
-    };
-    if removed > 0 { vec_set(blk, 1, new_insts); };
-    return removed;
-}
 
 // --- Pass 5: Common Subexpression Elimination ---
 // Deduplicates identical pure computations within a block.
@@ -2606,64 +1829,6 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "wrapping_sub_u8") { return "__nucleor_wrapping_sub_u8"; };
     return "";
 }
-fn is_void_ret(name: str) -> i64 {
-    if str_eq(name, "print") { return 1; };
-    if str_eq(name, "str_free") { return 1; };
-    if str_eq(name, "str_arena_free") { return 1; };
-    if str_eq(name, "print_raw") { return 1; };
-    if str_eq(name, "eprint_raw") { return 1; };
-    if str_eq(name, "file_write_string") { return 1; };
-    if str_eq(name, "sb_append") { return 1; };
-    if str_eq(name, "sb_append_char") { return 1; };
-    if str_eq(name, "sb_append_char_at") { return 1; };
-    if str_eq(name, "sb_append_range") { return 1; };
-    if str_eq(name, "sb_new_with_cap") { return 0; };
-    if str_eq(name, "vec_push") { return 1; };
-    if str_eq(name, "vec_pop") { return 1; };
-    if str_eq(name, "vec_free") { return 1; };
-    if str_eq(name, "vec_set") { return 1; };
-    if str_eq(name, "vec_swap") { return 1; };
-    if str_eq(name, "vec_extend") { return 1; };
-    if str_eq(name, "vec_remove_at") { return 1; };
-    if str_eq(name, "vec_insert_at") { return 1; };
-    // v0.4.90 mirror: Option<T> / Result<T,E> method helpers (existence).
-    if str_eq(name, "option_unwrap") { return 1; };
-    if str_eq(name, "option_unwrap_or") { return 1; };
-    if str_eq(name, "option_is_some") { return 1; };
-    if str_eq(name, "option_is_none") { return 1; };
-    if str_eq(name, "option_expect") { return 1; };
-    if str_eq(name, "result_unwrap") { return 1; };
-    if str_eq(name, "result_unwrap_or") { return 1; };
-    if str_eq(name, "result_is_ok") { return 1; };
-    if str_eq(name, "result_is_err") { return 1; };
-    if str_eq(name, "result_ok") { return 1; };
-    if str_eq(name, "result_err") { return 1; };
-    if str_eq(name, "result_expect") { return 1; };
-    // v0.4.92 mirror.
-    if str_eq(name, "option_map") { return 1; };
-    if str_eq(name, "option_and_then") { return 1; };
-    if str_eq(name, "option_unwrap_or_else") { return 1; };
-    if str_eq(name, "result_map") { return 1; };
-    if str_eq(name, "result_and_then") { return 1; };
-    if str_eq(name, "result_unwrap_or_else") { return 1; };
-    if str_eq(name, "result_or_else") { return 1; };
-    if str_eq(name, "vec_shuffle") { return 1; };
-    if str_eq(name, "random_fill") { return 1; };
-    if str_eq(name, "print_bool") { return 1; };
-    if str_eq(name, "print_f64") { return 1; };
-    if str_eq(name, "__nucleor_tensor_set") { return 1; };
-    if str_eq(name, "file_append_string") { return 1; };
-    if str_eq(name, "sb_free") { return 1; };
-    if str_eq(name, "pipe_write") { return 1; };
-    if str_eq(name, "pipe_close") { return 1; };
-    if str_eq(name, "thread_join") { return 1; };
-    if str_eq(name, "mutex_unlock") { return 1; };
-    if str_eq(name, "channel_send") { return 1; };
-    if str_eq(name, "chan_send") { return 1; };
-    if str_eq(name, "cancel_token_cancel") { return 1; };
-    if str_eq(name, "rwlock_unlock") { return 1; };
-    return 0;
-}
 fn is_ptr_ret(name: str) -> i64 {
     // v0.4.101 mirror: vec_chain_i64 returns NVec*.
     if str_eq(name, "vec_chain_i64") { return 1; };
@@ -3021,24 +2186,6 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
 // =====================================================
 // LLVM STRING ESCAPING (NEW in T30)
 // =====================================================
-fn escape_llvm_str(s: str) -> str {
-    let slen: i64 = str_len(s);
-    let mut esb: i64 = sb_new();
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(s, i);
-        if c == 92 { sb_append(esb, "\\5C"); }
-        else if c == 34 { sb_append(esb, "\\22"); }
-        else if c == 10 { sb_append(esb, "\\0A"); }
-        else if c == 13 { sb_append(esb, "\\0D"); }
-        else if c == 9 { sb_append(esb, "\\09"); }
-        else if c == 0 { sb_append(esb, "\\00"); }
-        else if c >= 32 && c <= 126 { sb_append(esb, str_substring(s, i, i + 1)); }
-        else { sb_append(esb, "\\"); sb_append(esb, hex_byte(c)); };
-        i = i + 1;
-    };
-    return sb_to_str(esb);
-}
 
 // =====================================================
 // EMISSION (from T29, extended for builtins + strings)
@@ -3141,35 +2288,6 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     return 0;
 }
 
-fn emit_fn(f: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>) -> str {
-    let mut sb: i64 = sb_new();
-    let fname: str = ir_fn_name(f);
-    let is_main: i64 = str_eq(fname, "main");
-    if is_main == 1 {
-        // main gets argc/argv and calls init_args before user body
-        sb_append(sb, "define i64 @main(i32 %__argc, ptr %__argv) {\n");
-        sb_append(sb, "bb.entry:\n");
-        sb_append(sb, "  call void @__nucleor_init_args(i32 %__argc, ptr %__argv)\n");
-    } else {
-        sb_append(sb, "define i64 @"); sb_append(sb, fname); sb_append(sb, "(");
-        let pc: i64 = ir_fn_param_count(f); let mut pi: i64 = 0;
-        while pi < pc { if pi > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %p."); sb_append(sb, str_from_int(pi)); pi = pi + 1; };
-        sb_append(sb, ") {\n");
-    };
-    let bc: i64 = ir_fn_block_count(f); let mut bi: i64 = 0;
-    while bi < bc {
-        let blk: Vec<i32> = ir_fn_get_block(f, bi);
-        if bi == 0 {
-            if is_main == 0 { sb_append(sb, "bb.entry:\n"); };
-            // For main, bb.entry was already emitted above with init_args
-        }
-        else { sb_append(sb, "L"); sb_append(sb, str_from_int(ir_block_label(blk))); sb_append(sb, ":\n"); };
-        let ic: i64 = ir_block_inst_count(blk); let mut jj: i64 = 0;
-        while jj < ic { emit_inst(ir_block_get_inst(blk, jj), sb, pool, externs); jj = jj + 1; };
-        bi = bi + 1;
-    };
-    sb_append(sb, "}\n"); return sb_to_str(sb);
-}
 
 fn emit_externs() -> str {
     let mut sb: i64 = sb_new();
@@ -4097,14 +3215,6 @@ fn emit_externs() -> str {
     return sb_to_str(sb);
 }
 
-fn nr_type_to_llvm(t: str) -> str {
-    if str_eq(t, "str") { return "ptr"; };
-    if str_eq(t, "ptr") { return "ptr"; };
-    if str_eq(t, "void") { return "void"; };
-    if str_eq(t, "i32") { return "i32"; };
-    if str_eq(t, "f64") { return "double"; };
-    return "i64";
-}
 fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;
@@ -4154,7 +3264,6 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
 // =====================================================
 // LOWERING (from T29, extended for STR_LIT, METHOD, QUAL_CALL)
 // =====================================================
-fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, vec_len(c) - 1); c.push(v + 1); return v; }
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = vec_len(s) - 2;
     while i >= 0 { if str_eq(vec_get(s, i), name) { return vec_get(s, i + 1); }; i = i - 2; };
@@ -4187,136 +3296,10 @@ fn smap_restore(dst: Vec<i32>, src: Vec<i32>) -> i64 {
 }
 fn lower_mark_error(sym: Vec<i32>) -> i64 { sym_set(sym, "__lower_error", 1); return 0 - 1; }
 fn lower_has_error(sym: Vec<i32>) -> i64 { if sym_get(sym, "__lower_error") >= 0 { return 1; }; return 0; }
-fn tok_to_ir(tok: i64) -> i64 {
-    if tok == 20 { return 2; }; if tok == 21 { return 3; }; if tok == 22 { return 4; };
-    if tok == 23 { return 5; }; if tok == 24 { return 6; }; if tok == 30 { return 7; };
-    if tok == 31 { return 8; }; if tok == 32 { return 9; }; if tok == 33 { return 10; };
-    if tok == 34 { return 11; }; if tok == 35 { return 12; };
-    if tok == 36 { return 13; }; if tok == 37 { return 14; }; return 0 - 1;
-}
 // Struct registry helpers
-fn iter_method_for_vec(mname: str) -> i64 {
-    // T2.2 (v0.2.348) synced from nucleor_s1_compiler.nr.
-    if str_eq(mname, "map") == 1 { return 1; };
-    if str_eq(mname, "filter") == 1 { return 1; };
-    if str_eq(mname, "fold") == 1 { return 1; };
-    if str_eq(mname, "each") == 1 { return 1; };
-    if str_eq(mname, "sum") == 1 { return 1; };
-    if str_eq(mname, "min") == 1 { return 1; };
-    if str_eq(mname, "max") == 1 { return 1; };
-    if str_eq(mname, "contains") == 1 { return 1; };
-    if str_eq(mname, "index_of") == 1 { return 1; };
-    if str_eq(mname, "reverse") == 1 { return 1; };
-    if str_eq(mname, "sort") == 1 { return 1; };
-    if str_eq(mname, "clone") == 1 { return 1; };
-    if str_eq(mname, "clear") == 1 { return 1; };
-    // v0.4.101 mirror.
-    if str_eq(mname, "chain") == 1 { return 1; };
-    return 0;
-}
 
-fn type_base_name(t: str) -> str {
-    let mut base: str = t;
-    let tlen: i64 = str_len(base);
-    if tlen >= 5 && str_eq(str_substring(base, 0, 5), "&mut ") == 1 { base = str_substring(base, 5, tlen); }
-    else if tlen >= 1 && str_char_at(base, 0) == 38 { base = str_substring(base, 1, tlen); };
-    let slen: i64 = str_len(base);
-    if slen >= 4 && str_eq(str_substring(base, 0, 4), "Box<") == 1 {
-        return type_base_name(str_substring(base, 4, slen - 1));
-    };
-    if slen >= 6 && str_eq(str_substring(base, 0, 6), "fixed<") == 1 { return "i64"; };
-    let mut i: i64 = 0;
-    while i < slen {
-        if str_char_at(base, i) == 60 { return str_substring(base, 0, i); };
-        i = i + 1;
-    };
-    return base;
-}
 
-fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
-    let slen: i64 = str_len(src);
-    if pos + 5 > slen { return ""; };
-    if str_eq_at(src, pos, "actor") == 0 { return ""; };
-    let prev_ok: i64 = if pos == 0 { 1 } else {
-        let pc: i64 = str_char_at(src, pos - 1);
-        if is_alnum(pc) == 0 { if pc != 95 { 1 } else { 0 } } else { 0 }
-    };
-    if prev_ok == 0 { return ""; };
-    let mut q: i64 = pos + 5;
-    if q >= slen || is_ws(str_char_at(src, q)) == 0 { return ""; };
-    while q < slen && is_ws(str_char_at(src, q)) == 1 { q = q + 1; };
-    let ns: i64 = q;
-    while q < slen && (is_alnum(str_char_at(src, q)) == 1 || str_char_at(src, q) == 95) { q = q + 1; };
-    if q <= ns { return ""; };
-    let name: str = str_substring(src, ns, q);
-    while q < slen && is_ws(str_char_at(src, q)) == 1 { q = q + 1; };
-    if q < slen && str_char_at(src, q) == 123 { return name; };
-    return "";
-}
 
-fn expand_actor_decl_keyword(src: str) -> str {
-    if sendable_source_has_actor_decl(src) == 0 { return src; };
-    let mut sb: i64 = sb_new();
-    let mut actors: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
-        } else if c == 34 {
-            sb_append(sb, "\"");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
-        } else if c == 39 {
-            sb_append(sb, "'");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 39 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "'"); p = p + 1; };
-        } else {
-            let actor_name: str = sendable_actor_decl_name_at(src, p);
-            if str_len(actor_name) > 0 {
-                sb_append(sb, "struct");
-                actors.push(actor_name);
-                p = p + 5;
-            } else {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
-        };
-    };
-    if vec_len(actors) > 0 {
-        sb_append(sb, "\n");
-        let mut i: i64 = 0;
-        while i < vec_len(actors) {
-            sb_append(sb, "//__NUC35A:");
-            sb_append(sb, vec_get(actors, i));
-            sb_append(sb, "\n");
-            i = i + 1;
-        };
-    };
-    return sb_to_str(sb);
-}
 
 fn sendable_first_type(t: str) -> str {
     let n: i64 = str_len(t);
@@ -4461,38 +3444,7 @@ fn sendable_collect_actor_names(source: str) -> Vec<i32> {
     return out;
 }
 
-fn sendable_actor_vars(source: str, actor_name: str) -> Vec<i32> {
-    let mut out: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(source);
-    let mut p: i64 = 0;
-    while p + 4 <= slen {
-        let rel: i64 = str_index_of(str_substring(source, p, slen), "let ");
-        if rel < 0 { return out; };
-        let mut q: i64 = p + rel + 4;
-        if q + 4 <= slen && str_eq_at(source, q, "mut ") == 1 { q = q + 4; };
-        let ns: i64 = q;
-        while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
-        if q > ns {
-            let vname: str = str_substring(source, ns, q);
-            while q < slen && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
-            if q < slen && str_char_at(source, q) == 58 {
-                q = q + 1;
-                let ts: i64 = q;
-                while q < slen && str_char_at(source, q) != 61 && str_char_at(source, q) != 59 && str_char_at(source, q) != 10 { q = q + 1; };
-                let ty: str = type_base_name(str_trim(str_substring(source, ts, q)));
-                if str_eq(ty, actor_name) == 1 { out.push(vname); };
-            };
-        };
-        p = q + 1;
-    };
-    return out;
-}
 
-fn type_is_mut_ref(t: str) -> i64 {
-    let tlen: i64 = str_len(t);
-    if tlen >= 5 && str_eq(str_substring(t, 0, 5), "&mut ") == 1 { return 1; };
-    return 0;
-}
 fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -4513,72 +3465,10 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
 }
 
 // Enum helpers: pre-populate sym with variant tags and arg counts
-fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
-    let mut ei: i64 = 0;
-    while ei < vec_len(enums) {
-        let e_nid: i64 = vec_get(enums, ei);
-        let ename: str = node_field(pool, e_nid, 1);
-        let vlist: i64 = node_field(pool, e_nid, 2);
-        let vcnt: i64 = list_len(pool, vlist);
-        let mut vi: i64 = 0;
-        while vi < vcnt {
-            let v_nid: i64 = list_get(pool, vlist, vi);
-            let vname: str = node_field(pool, v_nid, 1);
-            let ptypes: i64 = node_field(pool, v_nid, 2);
-            let pcount: i64 = list_len(pool, ptypes);
-            sym_set(sym, str_concat("__etag_", str_concat(ename, str_concat("_", vname))), vi);
-            sym_set(sym, str_concat("__eargs_", str_concat(ename, str_concat("_", vname))), pcount);
-            // v0.4.2 RFC-NRT-004 §G: sync payload-type storage from
-            // nucleor_s1_compiler.nr:6168-6175. Without this, match-arm
-            // bindings of struct-typed enum payloads were lowered with
-            // unknown type, so subsequent field access (e.message)
-            // produced %r.-1 invalid SSA register and clang link
-            // failed. Stored as __epayload<i>_<ename>_<vname> per
-            // index so multi-payload variants work too.
-            let mut pi: i64 = 0;
-            while pi < pcount {
-                let pt: str = list_get(pool, ptypes, pi);
-                if str_len(pt) > 0 {
-                    sym_set(sym, str_concat("__epayload", str_concat(str_from_int(pi), str_concat("_", str_concat(ename, str_concat("_", vname))))), pt);
-                };
-                pi = pi + 1;
-            };
-            vi = vi + 1;
-        };
-        ei = ei + 1;
-    };
-    sym_set(sym, "__etag_Option_Some", 0);
-    sym_set(sym, "__eargs_Option_Some", 1);
-    sym_set(sym, "__etag_Option_None", 1);
-    sym_set(sym, "__eargs_Option_None", 0);
-    sym_set(sym, "__etag_Result_Ok", 0);
-    sym_set(sym, "__eargs_Result_Ok", 1);
-    sym_set(sym, "__etag_Result_Err", 1);
-    sym_set(sym, "__eargs_Result_Err", 1);
-    return 0;
-}
 
 // =====================================================
 // S12a — STRUCTURED DIAGNOSTIC SURFACE
 // =====================================================
-fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64, col: i64, related_id: str) -> i64 {
-    let mut d: Vec<i32> = Vec::new();
-    d.push(severity); d.push(checker); d.push(code); d.push(message); d.push(fn_name); d.push(line);
-    d.push(col); d.push(related_id);
-    // Auto-generate suggestions based on error code
-    let mut sug_msg: str = "";
-    let mut sug_app: str = "Unspecified";
-    if str_eq(code, "OWN-001") { sug_msg = "Consider cloning the value before passing it, or restructure to avoid the second use"; sug_app = "MaybeIncorrect"; };
-    if str_eq(code, "TNT-001") { sug_msg = "Sanitize the tainted data before passing to the sensitive function: sanitize(value)"; sug_app = "HasPlaceholders"; };
-    if str_eq(code, "EFF-001") { sug_msg = "Remove the 'pure' annotation, or remove the side-effecting call"; sug_app = "MaybeIncorrect"; };
-    d.push(sug_msg); // index 8
-    d.push(sug_app); // index 9
-    // Child note (for ownership: "moved here")
-    d.push(""); // index 10: child_message
-    d.push(0);  // index 11: child_line
-    diags.push(d);
-    return vec_len(diags);
-}
 fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let fnlen: i64 = str_len(fn_name);
@@ -5033,51 +3923,9 @@ fn review_acc_taint_call(taint: Vec<i32>, fn_name: str, callee: str, tainted_arg
 // =====================================================
 // OWNERSHIP CHECKER (S11.5)
 // =====================================================
-fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
-    let mut slot: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < vec_len(o) {
-        if str_eq(vec_get(o, i), key) == 1 { slot = i + 1; };
-        i = i + 2;
-    };
-    if slot >= 0 { vec_set(o, slot, val); return 0; };
-    o.push(key);
-    o.push(val);
-    return 0;
-}
-fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
-    let mut slot: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < vec_len(o) {
-        if str_eq(vec_get(o, i), key) == 1 { slot = i + 1; };
-        i = i + 2;
-    };
-    if slot >= 0 { vec_set(o, slot, val); return 0; };
-    o.push(key);
-    o.push(val);
-    return 0;
-}
 #[manual_drop]
 fn own_revents_vec(o: Vec<i32>) -> Vec<i32> {
     return own_get_type(o, "__revents");
-}
-fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i_raw(o, str_concat("__oi_mutable_", name)); }
-fn own_snapshot(o: Vec<i32>) -> Vec<i32> {
-    let mut snap: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    while i < vec_len(o) { snap.push(vec_get(o, i)); i = i + 1; };
-    return snap;
-}
-fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
-    // Reset o to snap state: truncate and repopulate
-    // Clear by popping all, then push from snap
-    while vec_len(o) > 0 { o.pop(); };
-    let mut i: i64 = 0;
-    while i < vec_len(snap) {
-        o.push(vec_get(snap, i)); o.push(vec_get(snap, i + 1));
-        i = i + 2;
-    };
-    return 0;
 }
 fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if nid < 0 { return 0; };
@@ -5744,11 +4592,6 @@ fn taint_get(t: Vec<i32>, name: str) -> i64 {
     return 0; // untainted by default
 }
 
-fn is_tainted_type(tstr: str) -> i64 {
-    // Check if type annotation starts with "tainted"
-    if str_len(tstr) >= 7 && str_eq(str_substring(tstr, 0, 7), "tainted") { return 1; };
-    return 0;
-}
 fn is_taint_sanitizer(name: str) -> i64 {
     if str_eq(name, "sanitize") { return 1; };
     if str_eq(name, "normalize_output_name") { return 1; };
@@ -5959,20 +4802,6 @@ fn taint_check_fn(pool: Vec<i32>, fn_nid: i64, diags: Vec<i32>, source: str, rev
     return taint_check_fn_ex(pool, fn_nid, diags, source, review_path, review_filter, 0);
 }
 
-fn tprof_new(enabled: i64) -> Vec<i32> {
-    let mut prof: Vec<i32> = Vec::new();
-    let mut i: i64 = 0;
-    prof.push(enabled);
-    while i < 12 {
-        prof.push(0);
-        i = i + 1;
-    };
-    return prof;
-}
-fn tprof_enabled(prof: Vec<i32>) -> i64 {
-    if vec_len(prof) == 0 { return 0; };
-    return vec_get(prof, 0);
-}
 fn sig_entry_new(plist: i64, rtype: str, is_extern: i64) -> Vec<i32> {
     let mut entry: Vec<i32> = Vec::new();
     entry.push(plist);
@@ -5982,26 +4811,6 @@ fn sig_entry_new(plist: i64, rtype: str, is_extern: i64) -> Vec<i32> {
 }
 fn sig_add(sigs: Vec<i32>, name: str, plist: i64, rtype: str, is_extern: i64) -> i64 {
     return smap_set(sigs, name, sig_entry_new(plist, rtype, is_extern));
-}
-fn strip_spaces(s: str) -> str {
-    let mut sb: i64 = sb_new();
-    let mut i: i64 = 0;
-    while i < str_len(s) {
-        let c: i64 = str_char_at(s, i);
-        if c != 32 && c != 9 && c != 10 && c != 13 { sb_append(sb, str_substring(s, i, i + 1)); };
-        i = i + 1;
-    };
-    return sb_to_str(sb);
-}
-fn type_is_unit(t: str) -> i64 {
-    let slen: i64 = str_len(t);
-    if slen >= 5 && str_eq(str_substring(t, 0, 5), "unit<") == 1 { return 1; };
-    return 0;
-}
-fn taint_inner_type(t: str) -> str {
-    let slen: i64 = str_len(t);
-    if slen >= 9 && str_eq(str_substring(t, 0, 8), "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
-    return t;
 }
 fn types_compatible(expected: str, actual: str) -> i64 {
     if str_len(expected) == 0 || str_len(actual) == 0 { return 1; };
@@ -6045,34 +4854,6 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(ebase, abase) == 1 { return 1; };
     return 0;
 }
-fn builtin_rtype(name: str) -> str {
-    if str_eq(name, "str_len") == 1 || str_eq(name, "str_char_at") == 1 || str_eq(name, "str_char_at_strict") == 1 { return "i64"; };
-    if str_eq(name, "str_substring") == 1 || str_eq(name, "str_substring_strict") == 1 || str_eq(name, "str_trim") == 1 || str_eq(name, "str_trim_start") == 1 || str_eq(name, "str_trim_end") == 1 { return "str"; };
-    if str_eq(name, "args_get") == 1 || str_eq(name, "file_read_string") == 1 || str_eq(name, "file_read_string_or_panic") == 1 { return "str"; };
-    if str_eq(name, "args_count") == 1 || str_eq(name, "env_has") == 1 || str_eq(name, "process_id") == 1 || str_eq(name, "os_family") == 1 || str_eq(name, "os_pointer_width") == 1 || str_eq(name, "path_is_absolute") == 1 || str_eq(name, "fs_exists") == 1 || str_eq(name, "fs_is_file") == 1 || str_eq(name, "fs_is_dir") == 1 || str_eq(name, "fs_size") == 1 || str_eq(name, "fs_mtime") == 1 || str_eq(name, "file_bytes_equal") == 1 || str_eq(name, "system") == 1 { return "i64"; };
-    if str_eq(name, "env_get") == 1 || str_eq(name, "env_get_or") == 1 || str_eq(name, "getcwd") == 1 || str_eq(name, "getenv") == 1 || str_eq(name, "chr") == 1 || str_eq(name, "fs_join") == 1 || str_eq(name, "fs_basename") == 1 || str_eq(name, "fs_dirname") == 1 || str_eq(name, "fs_extension") == 1 || str_eq(name, "fs_temp_dir") == 1 || str_eq(name, "fs_current_dir") == 1 || str_eq(name, "fs_canonicalize") == 1 || str_eq(name, "path_separator") == 1 || str_eq(name, "path_normalize") == 1 || str_eq(name, "path_with_extension") == 1 || str_eq(name, "path_strip_extension") == 1 { return "str"; };
-    if str_eq(name, "sqrt") == 1 || str_eq(name, "sin") == 1 || str_eq(name, "cos") == 1 || str_eq(name, "pow") == 1 || str_eq(name, "floor") == 1 || str_eq(name, "ceil") == 1 || str_eq(name, "round") == 1 || str_eq(name, "exp") == 1 || str_eq(name, "log") == 1 || str_eq(name, "tanh") == 1 || str_eq(name, "tanh_act") == 1 || str_eq(name, "fabs") == 1 || str_eq(name, "fmod") == 1 || str_eq(name, "f64_from_bits") == 1 { return "f64"; };
-    if str_eq(name, "f64_to_bits") == 1 { return "i64"; };
-    if str_eq(name, "f64_to_i32") == 1 { return "i32"; };
-    if str_eq(name, "now_ms") == 1 || str_eq(name, "sleep_ms") == 1 || str_eq(name, "sleep_us") == 1 || str_eq(name, "time_monotonic_ms") == 1 || str_eq(name, "time_monotonic_ns") == 1 || str_eq(name, "time_monotonic_us") == 1 || str_eq(name, "time_wall_ms") == 1 || str_eq(name, "time_wall_ns") == 1 || str_eq(name, "time_wall_seconds") == 1 || str_eq(name, "time_wall_us") == 1 || str_eq(name, "time_year") == 1 || str_eq(name, "time_month") == 1 || str_eq(name, "time_day") == 1 || str_eq(name, "time_hour") == 1 || str_eq(name, "time_minute") == 1 || str_eq(name, "time_second") == 1 || str_eq(name, "time_weekday") == 1 || str_eq(name, "time_day_of_year") == 1 || str_eq(name, "time_elapsed_ms") == 1 { return "i64"; };
-    if str_eq(name, "ambient_scheduler") == 1 { return "SchedulerCap"; };
-    if str_eq(name, "ambient_random") == 1 { return "RandomCap"; };
-    if str_eq(name, "random_uniform") == 1 { return "f64"; };
-    if str_eq(name, "random_normal") == 1 { return "f64"; };
-    if str_eq(name, "arena_new") == 1 { return "Arena"; };
-    if str_eq(name, "arena_alloc") == 1 { return "&i64"; };
-    if str_eq(name, "device_alloc") == 1 { return "DeviceBuffer"; };
-    if str_eq(name, "device_transfer") == 1 { return "DeviceBuffer"; };
-    if str_eq(name, "tensor_view") == 1 { return "i64"; };
-    if str_eq(name, "max_depth_enter") == 1 || str_eq(name, "max_depth_exit") == 1 { return "i64"; };
-    if str_eq(name, "channel") == 1 { return "i64"; };
-    if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
-    if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
-    if is_atomic_ordered_builtin(name) == 1 { return "i64"; };
-    if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
-    if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
-    return "";
-}
 fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 {
     let line: i64 = find_in_source(source, fn_name, symbol);
     let txt: str = source_line(source, line);
@@ -6100,65 +4881,6 @@ fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
         i = i + 1;
     };
     return "";
-}
-fn type_dynamic_helper(name: str) -> i64 {
-    if str_eq(name, "tok_type") == 1 { return 1; };
-    if str_eq(name, "tok_val") == 1 { return 1; };
-    if str_eq(name, "node_field") == 1 { return 1; };
-    if str_eq(name, "list_get") == 1 { return 1; };
-    if str_eq(name, "vec_get") == 1 { return 1; };
-    if str_eq(name, "sym_get") == 1 { return 1; };
-    if str_eq(name, "sym_set") == 1 { return 1; };
-    if str_eq(name, "smap_get") == 1 { return 1; };
-    if str_eq(name, "smap_set") == 1 { return 1; };
-    if str_eq(name, "tenv_get") == 1 { return 1; };
-    if str_eq(name, "tenv_set") == 1 { return 1; };
-    if str_eq(name, "pr") == 1 { return 1; };
-    if str_eq(name, "pkv") == 1 { return 1; };
-    if str_eq(name, "pr_pos") == 1 { return 1; };
-    if str_eq(name, "pr_val") == 1 { return 1; };
-    if str_eq(name, "mk2") == 1 { return 1; };
-    if str_eq(name, "mk3") == 1 { return 1; };
-    if str_eq(name, "mk4") == 1 { return 1; };
-    if str_eq(name, "mk5") == 1 { return 1; };
-    if str_eq(name, "mk6") == 1 { return 1; };
-    if str_eq(name, "mk_list") == 1 { return 1; };
-    if str_eq(name, "diag_get") == 1 { return 1; };
-    if str_eq(name, "own_get_type") == 1 { return 1; };
-    if str_eq(name, "own_set_type") == 1 { return 1; };
-    if str_eq(name, "own_get_s") == 1 { return 1; };
-    if str_eq(name, "rev_get") == 1 { return 1; };
-    if str_eq(name, "trev_get") == 1 { return 1; };
-    if str_eq(name, "taint_get") == 1 { return 1; };
-    if str_eq(name, "taint_set") == 1 { return 1; };
-    if str_eq(name, "sig_plist") == 1 { return 1; };
-    if str_eq(name, "sig_add") == 1 { return 1; };
-    if str_eq(name, "sig_rtype") == 1 { return 1; };
-    if str_eq(name, "sig_is_extern") == 1 { return 1; };
-    if str_eq(name, "ir_op") == 1 { return 1; };
-    if str_eq(name, "ir_dest") == 1 { return 1; };
-    if str_eq(name, "ir_op1") == 1 { return 1; };
-    if str_eq(name, "ir_op2") == 1 { return 1; };
-    if str_eq(name, "ir_extra") == 1 { return 1; };
-    if str_eq(name, "ir_block_label") == 1 { return 1; };
-    if str_eq(name, "ir_block_get_inst") == 1 { return 1; };
-    if str_eq(name, "ir_fn_name") == 1 { return 1; };
-    if str_eq(name, "ir_fn_param_count") == 1 { return 1; };
-    if str_eq(name, "ir_fn_get_block") == 1 { return 1; };
-    if str_eq(name, "lx_reg") == 1 { return 1; };
-    if str_eq(name, "lx_blk") == 1 { return 1; };
-    if str_eq(name, "ir_const_int") == 1 { return 1; };
-    if str_starts_with(name, "json_") == 1 { return 1; };
-    if str_starts_with(name, "map_") == 1 { return 1; };
-    if str_starts_with(name, "vec_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_json_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_graph_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_bm25_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_hnsw_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_emb_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_sym_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
-    return 0;
 }
 fn char_guard_const_expr(pool: Vec<i32>, nid: i64) -> Vec<i32> {
     let mut r: Vec<i32> = Vec::new();
@@ -7320,130 +6042,7 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
     return cur;
 }
 
-fn closure_collect_capture_expr(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params: i64, caps: Vec<i32>) -> i64 {
-    if nid < 0 { return 0; };
-    let kind: i64 = node_kind(pool, nid);
-    if kind == 3 {
-        let name: str = node_field(pool, nid, 1);
-        if sym_get(sym, name) >= 0 && capture_param_has(pool, params, name) == 0 && capture_has_name(caps, name) == 0 {
-            caps.push(name);
-        };
-        return 0;
-    };
-    if kind == 4 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
-        closure_collect_capture_expr(pool, node_field(pool, nid, 3), sym, params, caps);
-        return 0;
-    };
-    if kind == 5 || kind == 6 || kind == 90 || kind == 91 || kind == 92 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        return 0;
-    };
-    if kind == 7 || kind == 12 {
-        let args: i64 = node_field(pool, nid, 2);
-        let ac: i64 = list_len(pool, args);
-        let mut ai: i64 = 0;
-        while ai < ac {
-            closure_collect_capture_expr(pool, list_get(pool, args, ai), sym, params, caps);
-            ai = ai + 1;
-        };
-        return 0;
-    };
-    if kind == 8 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        let args: i64 = node_field(pool, nid, 3);
-        let ac: i64 = list_len(pool, args);
-        let mut ai: i64 = 0;
-        while ai < ac {
-            closure_collect_capture_expr(pool, list_get(pool, args, ai), sym, params, caps);
-            ai = ai + 1;
-        };
-        return 0;
-    };
-    if kind == 9 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        return 0;
-    };
-    if kind == 10 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
-        return 0;
-    };
-    if kind == 23 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        let tb: i64 = node_field(pool, nid, 2);
-        let tc: i64 = list_len(pool, tb);
-        let mut ti: i64 = 0;
-        while ti < tc {
-            closure_collect_capture_stmt(pool, list_get(pool, tb, ti), sym, params, caps);
-            ti = ti + 1;
-        };
-        let eb: i64 = node_field(pool, nid, 3);
-        if eb >= 0 {
-            let ec: i64 = list_len(pool, eb);
-            let mut ei: i64 = 0;
-            while ei < ec {
-                closure_collect_capture_stmt(pool, list_get(pool, eb, ei), sym, params, caps);
-                ei = ei + 1;
-            };
-        };
-        return 0;
-    };
-    if kind == 47 || kind == 48 {
-        let items: i64 = node_field(pool, nid, 1);
-        let ic: i64 = list_len(pool, items);
-        let mut ii: i64 = 0;
-        while ii < ic {
-            closure_collect_capture_expr(pool, list_get(pool, items, ii), sym, params, caps);
-            ii = ii + 1;
-        };
-        return 0;
-    };
-    if kind == 34 {
-        let init_list: i64 = node_field(pool, nid, 2);
-        let ic: i64 = list_len(pool, init_list);
-        let mut ii: i64 = 0;
-        while ii < ic {
-            closure_collect_capture_expr(pool, node_field(pool, list_get(pool, init_list, ii), 2), sym, params, caps);
-            ii = ii + 1;
-        };
-        return 0;
-    };
-    if kind == 52 {
-        let body: i64 = node_field(pool, nid, 2);
-        let bc: i64 = list_len(pool, body);
-        let mut bi: i64 = 0;
-        while bi < bc {
-            closure_collect_capture_stmt(pool, list_get(pool, body, bi), sym, params, caps);
-            bi = bi + 1;
-        };
-        return 0;
-    };
-    return 0;
-}
 
-fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params: i64, caps: Vec<i32>) -> i64 {
-    if nid < 0 { return 0; };
-    let kind: i64 = node_kind(pool, nid);
-    if kind == 20 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 4), sym, params, caps);
-        return 0;
-    };
-    if kind == 21 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
-        return 0;
-    };
-    if kind == 22 || kind == 25 {
-        closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
-        return 0;
-    };
-    if kind == 23 {
-        closure_collect_capture_expr(pool, nid, sym, params, caps);
-        return 0;
-    };
-    return 0;
-}
 
 
 #[manual_drop]
@@ -8879,29 +7478,6 @@ fn depends_on(callees: str, target: str) -> i64 {
     return 0;
 }
 
-fn cache_v2_json_escape(s: str) -> str {
-    let mut sb: i64 = sb_new();
-    let slen: i64 = str_len(s);
-    let mut i: i64 = 0;
-    while i < slen {
-        let c: i64 = str_char_at(s, i);
-        if c == 34 {
-            sb_append(sb, "\\\"");
-        } else if c == 92 {
-            sb_append(sb, "\\\\");
-        } else if c == 10 {
-            sb_append(sb, "\\n");
-        } else if c == 13 {
-            sb_append(sb, "\\r");
-        } else if c == 9 {
-            sb_append(sb, "\\t");
-        } else {
-            sb_append(sb, str_substring(s, i, i + 1));
-        };
-        i = i + 1;
-    };
-    return sb_to_str(sb);
-}
 
 fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
@@ -8926,16 +7502,6 @@ fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
     return 0;
 }
 
-fn build_cache_key(source: str, strict_mode: i64) -> str {
-    let mut sb: i64 = sb_new();
-    sb_append(sb, "native-cache-v2|");
-    sb_append(sb, compiler_identity());
-    sb_append(sb, "|");
-    sb_append(sb, cache_v2_canonical_flags(strict_mode));
-    sb_append(sb, "|");
-    sb_append(sb, source);
-    return sha256_hex(sb_to_str(sb));
-}
 
 fn resolve_toolchain_path(raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
@@ -8951,22 +7517,6 @@ fn resolve_toolchain_path(raw_path: str) -> str {
     return from_cwd;
 }
 
-fn host_stack_link_flag() -> str {
-    // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
-    // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
-    // thread stack to 16 MiB so deep recursion in the compiler works.
-    //
-    // POSIX additions:
-    //   -Wl,--build-id=none keeps two builds of byte-identical IR
-    //   byte-identical at the EXE level (R5: by default GNU ld embeds a
-    //   per-link build-id that breaks RFC-NRT-003 verify-reproducible
-    //   on Linux).
-    //   -lm / -lpthread are needed because the C runtime
-    //   (stdlib/runtime/nucleor_llvm_rt.c) calls libm (sqrt/log/exp/...)
-    //   and libpthread on the POSIX side.
-    if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
-    return " -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread";
-}
 
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
@@ -9218,9 +7768,6 @@ fn collect_import_paths(src: str, base_dir: str) -> Vec<i32> {
     return paths;
 }
 
-fn module_graph_cache_id(src_path: str) -> str {
-    return content_hash(str_concat("module-graph-v1|", sanitize(src_path)));
-}
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
     // T1.5a (v0.2.340): tools-suite resolver brought to parity with the
     // s1 compiler resolver. Previously this only handled
@@ -10257,86 +8804,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     return out;
 }
 
-fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
-    // Returns vec: [0] = link flags string, [1] = cfile list string, [2] = libpath flags string
-    let mut links: i64 = sb_new();
-    let mut cfiles: i64 = sb_new();
-    let mut libpaths: i64 = sb_new();
-    let slen: i64 = str_len(raw_source);
-    let mut p: i64 = 0;
-    while p < slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(raw_source, eol) != 10 { eol = eol + 1; };
-        let mut lp: i64 = p;
-        while lp < eol && (str_char_at(raw_source, lp) == 32 || str_char_at(raw_source, lp) == 9) { lp = lp + 1; };
-        let line_len: i64 = eol - lp;
-        if line_len >= 6 && str_char_at(raw_source, lp) == 35 {
-            if line_len >= 15 && str_eq(str_substring(raw_source, lp, lp + 14), "#link_windows ") {
-                let mut qp: i64 = lp + 14;
-                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
-                if qp < eol && str_char_at(raw_source, qp) == 34 {
-                    let ps: i64 = qp + 1;
-                    let mut pe: i64 = ps;
-                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    if host_is_windows() == 1 {
-                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
-                    };
-                };
-            } else if line_len >= 13 && str_eq(str_substring(raw_source, lp, lp + 12), "#link_posix ") {
-                let mut qp: i64 = lp + 12;
-                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
-                if qp < eol && str_char_at(raw_source, qp) == 34 {
-                    let ps: i64 = qp + 1;
-                    let mut pe: i64 = ps;
-                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    if host_is_windows() == 0 {
-                        sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
-                    };
-                };
-            } else if line_len >= 7 && str_eq(str_substring(raw_source, lp, lp + 6), "#link ") {
-                let mut qp: i64 = lp + 6;
-                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
-                if qp < eol && str_char_at(raw_source, qp) == 34 {
-                    let ps: i64 = qp + 1;
-                    let mut pe: i64 = ps;
-                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
-                };
-            } else if line_len >= 8 && str_eq(str_substring(raw_source, lp, lp + 7), "#cfile ") {
-                let mut qp: i64 = lp + 7;
-                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
-                if qp < eol && str_char_at(raw_source, qp) == 34 {
-                    let ps: i64 = qp + 1;
-                    let mut pe: i64 = ps;
-                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    let cf_path: str = str_substring(raw_source, ps, pe);
-                    let cflen: i64 = str_len(cf_path);
-                    let mut cf_abs: i64 = 0;
-                    if cflen >= 1 && str_char_at(cf_path, 0) == 47 { cf_abs = 1; };
-                    if cflen >= 2 && str_char_at(cf_path, 1) == 58 { cf_abs = 1; };
-                    sb_append(cfiles, " ");
-                    if cf_abs == 1 { sb_append(cfiles, cf_path); }
-                    else { sb_append(cfiles, str_concat(base_dir, cf_path)); };
-                };
-            } else if line_len >= 10 && str_eq(str_substring(raw_source, lp, lp + 9), "#libpath ") {
-                let mut qp: i64 = lp + 9;
-                while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
-                if qp < eol && str_char_at(raw_source, qp) == 34 {
-                    let ps: i64 = qp + 1;
-                    let mut pe: i64 = ps;
-                    while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    sb_append(libpaths, " -L"); sb_append(libpaths, str_concat(base_dir, str_substring(raw_source, ps, pe)));
-                };
-            };
-        };
-        p = eol + 1;
-    };
-    let mut result: Vec<i32> = Vec::new();
-    result.push(sb_to_str(links));
-    result.push(sb_to_str(cfiles));
-    result.push(sb_to_str(libpaths));
-    return result;
-}
 
 // =====================================================
 // COMPILER DRIVER
@@ -11656,7 +10123,7 @@ fn run_doc_test_list_command(src_path: str) -> i64 {
     return 0;
 }
 
-fn run_doc_command(src_path: str, out_path: str) -> i64 {
+fn tools_run_doc_command(src_path: str, out_path: str) -> i64 {
     return run_doc_command_mode(src_path, out_path, 0);
 }
 
@@ -12073,7 +10540,7 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
     return 0;
 }
 
-fn run_fix_command(src_path: str, subcmd: str) -> i64 {
+fn tools_run_fix_command(src_path: str, subcmd: str) -> i64 {
     if str_eq(subcmd, "imports") == 0 && str_eq(subcmd, "numeric") == 0 {
         print("ERROR: nuc fix requires --imports or --numeric");
         print("Usage:");
@@ -12285,373 +10752,16 @@ fn dl_extract_int_value(line: str) -> i64 {
     return str_to_int(str_substring(line, num_start, p));
 }
 
-fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
-    let mut out: Vec<i32> = Vec::new();
-    let mut p: i64 = fn_pos + 3;
-    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
-    let name_start: i64 = p;
-    let mut name_done: i64 = 0;
-    while p < slen && name_done == 0 {
-        let c: i64 = str_char_at(src, p);
-        if is_alnum(c) == 1 || c == 95 { p = p + 1; }
-        else { name_done = 1; };
-    };
-    if p == name_start { return out; };
-    let fn_name: str = str_substring(src, name_start, p);
-    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
-    if p >= slen || str_char_at(src, p) != 40 { return out; };
-    let params_start: i64 = p + 1;
-    let mut depth: i64 = 1;
-    p = params_start;
-    while p < slen && depth > 0 {
-        let c: i64 = str_char_at(src, p);
-        if c == 40 { depth = depth + 1; }
-        else if c == 41 { depth = depth - 1; };
-        if depth > 0 { p = p + 1; };
-    };
-    if p >= slen { return out; };
-    let params_text: str = str_substring(src, params_start, p);
-    p = p + 1;
-    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
-    let mut ret_type: str = "";
-    if p + 1 < slen && str_char_at(src, p) == 45 && str_char_at(src, p + 1) == 62 {
-        p = p + 2;
-        while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
-        let rt_start: i64 = p;
-        while p < slen && str_char_at(src, p) != 32 && str_char_at(src, p) != 9 && str_char_at(src, p) != 123 { p = p + 1; };
-        ret_type = str_substring(src, rt_start, p);
-    };
-    while p < slen && str_char_at(src, p) != 123 { p = p + 1; };
-    if p >= slen { return out; };
-    let body_open: i64 = p;
-    let mut q: i64 = p + 1;
-    let mut body_depth: i64 = 1;
-    let mut in_dq: i64 = 0;
-    let mut in_sq: i64 = 0;
-    while q < slen && body_depth > 0 {
-        let c2: i64 = str_char_at(src, q);
-        if in_dq == 1 {
-            if c2 == 92 && q + 1 < slen { q = q + 1; }
-            else if c2 == 34 { in_dq = 0; };
-        } else if in_sq == 1 {
-            if c2 == 92 && q + 1 < slen { q = q + 1; }
-            else if c2 == 39 { in_sq = 0; };
-        } else if c2 == 47 && q + 1 < slen && str_char_at(src, q + 1) == 47 {
-            while q < slen && str_char_at(src, q) != 10 { q = q + 1; };
-        } else if c2 == 34 { in_dq = 1; }
-        else if c2 == 39 { in_sq = 1; }
-        else if c2 == 123 { body_depth = body_depth + 1; }
-        else if c2 == 125 { body_depth = body_depth - 1; };
-        q = q + 1;
-    };
-    if body_depth != 0 { return out; };
-    let mut arg_names: str = "";
-    let plen: i64 = str_len(params_text);
-    let mut sp: i64 = 0;
-    let mut first_arg: i64 = 1;
-    while sp < plen {
-        while sp < plen && (str_char_at(params_text, sp) == 32 || str_char_at(params_text, sp) == 9 || str_char_at(params_text, sp) == 44 || str_char_at(params_text, sp) == 10) { sp = sp + 1; };
-        if sp >= plen { sp = plen + 1; }
-        else {
-            let an_start: i64 = sp;
-            while sp < plen && (is_alnum(str_char_at(params_text, sp)) == 1 || str_char_at(params_text, sp) == 95) { sp = sp + 1; };
-            if sp == an_start { sp = sp + 1; }
-            else {
-                let arg_name: str = str_substring(params_text, an_start, sp);
-                if first_arg == 0 { arg_names = str_concat(arg_names, ", "); };
-                arg_names = str_concat(arg_names, arg_name);
-                first_arg = 0;
-                let mut adepth: i64 = 0;
-                let mut at_comma: i64 = 0;
-                while sp < plen && at_comma == 0 {
-                    let cc: i64 = str_char_at(params_text, sp);
-                    if cc == 40 || cc == 60 || cc == 91 { adepth = adepth + 1; sp = sp + 1; }
-                    else if cc == 41 || cc == 62 || cc == 93 { adepth = adepth - 1; sp = sp + 1; }
-                    else if cc == 44 && adepth == 0 { at_comma = 1; }
-                    else { sp = sp + 1; };
-                };
-            };
-        };
-    };
-    out.push(fn_name);
-    out.push(params_text);
-    out.push(ret_type);
-    out.push(arg_names);
-    out.push(body_open);
-    out.push(q);
-    return out;
-}
 
-fn expand_deadline(src: str) -> str {
-    let slen: i64 = str_len(src);
-    let mut sb: i64 = sb_new();
-    let mut p: i64 = 0;
-    let mut idx: i64 = 0;
-    while p < slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
-        let line: str = str_substring(src, p, eol);
-        let dl_value: i64 = dl_extract_int_value(line);
-        if dl_value >= 0 {
-            let mut probe: i64 = eol + 1;
-            let mut found_fn: i64 = 0 - 1;
-            while probe < slen && found_fn < 0 {
-                let mut peol: i64 = probe;
-                while peol < slen && str_char_at(src, peol) != 10 { peol = peol + 1; };
-                let pline: str = str_substring(src, probe, peol);
-                let trimmed: str = strip_spaces(pline);
-                let tlen: i64 = str_len(trimmed);
-                if tlen == 0 {
-                    probe = peol + 1;
-                } else if tlen >= 3 && str_eq(str_substring(trimmed, 0, 3), "///") == 1 {
-                    probe = peol + 1;
-                } else if tlen >= 1 && str_char_at(trimmed, 0) == 35 {
-                    probe = peol + 1;
-                } else if tlen >= 2 && str_eq(str_substring(trimmed, 0, 2), "fn") == 1 {
-                    let mut fnpos: i64 = probe;
-                    while fnpos < peol && (str_char_at(src, fnpos) == 32 || str_char_at(src, fnpos) == 9) { fnpos = fnpos + 1; };
-                    found_fn = fnpos;
-                } else if tlen >= 5 && str_eq(str_substring(trimmed, 0, 5), "pub f") == 1 {
-                    let mut fnpos: i64 = probe;
-                    while fnpos < peol && (str_char_at(src, fnpos) == 32 || str_char_at(src, fnpos) == 9) { fnpos = fnpos + 1; };
-                    if fnpos + 4 <= peol && str_eq(str_substring(src, fnpos, fnpos + 4), "pub ") == 1 {
-                        fnpos = fnpos + 4;
-                    };
-                    found_fn = fnpos;
-                } else {
-                    found_fn = 0 - 2;
-                };
-            };
-            if found_fn >= 0 {
-                let info: Vec<i32> = dl_parse_fn_signature(src, found_fn, slen);
-                if vec_len(info) > 0 {
-                    let fn_name: str = vec_get(info, 0);
-                    let params_text: str = vec_get(info, 1);
-                    let ret_type: str = vec_get(info, 2);
-                    let arg_names: str = vec_get(info, 3);
-                    let body_open: i64 = vec_get(info, 4);
-                    let body_end: i64 = vec_get(info, 5);
-                    let inner_name: str = str_concat("__nuc_dl_inner_", str_concat(content_hash(fn_name), str_concat("_", str_from_int(idx))));
-                    idx = idx + 1;
-                    sb_append(sb, str_substring(src, eol + 1, found_fn));
-                    sb_append(sb, "fn ");
-                    sb_append(sb, inner_name);
-                    sb_append(sb, "(");
-                    sb_append(sb, params_text);
-                    sb_append(sb, ") ");
-                    if str_len(ret_type) > 0 {
-                        sb_append(sb, "-> ");
-                        sb_append(sb, ret_type);
-                        sb_append(sb, " ");
-                    };
-                    sb_append(sb, str_substring(src, body_open, body_end));
-                    sb_append(sb, "\n\n");
-                    sb_append(sb, "fn ");
-                    sb_append(sb, fn_name);
-                    sb_append(sb, "(");
-                    sb_append(sb, params_text);
-                    sb_append(sb, ") ");
-                    if str_len(ret_type) > 0 {
-                        sb_append(sb, "-> ");
-                        sb_append(sb, ret_type);
-                        sb_append(sb, " ");
-                    };
-                    sb_append(sb, "{\n");
-                    sb_append(sb, "    let __nuc_dl_start: i64 = time_monotonic_us();\n");
-                    if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
-                        sb_append(sb, "    let __nuc_dl_r: ");
-                        sb_append(sb, ret_type);
-                        sb_append(sb, " = ");
-                        sb_append(sb, inner_name);
-                        sb_append(sb, "(");
-                        sb_append(sb, arg_names);
-                        sb_append(sb, ");\n");
-                        sb_append(sb, "    deadline_check(__nuc_dl_start, ");
-                        sb_append(sb, str_from_int(dl_value));
-                        sb_append(sb, ");\n");
-                        sb_append(sb, "    return __nuc_dl_r;\n");
-                    } else {
-                        sb_append(sb, "    ");
-                        sb_append(sb, inner_name);
-                        sb_append(sb, "(");
-                        sb_append(sb, arg_names);
-                        sb_append(sb, ");\n");
-                        sb_append(sb, "    deadline_check(__nuc_dl_start, ");
-                        sb_append(sb, str_from_int(dl_value));
-                        sb_append(sb, ");\n");
-                    };
-                    sb_append(sb, "}\n");
-                    p = body_end;
-                    continue;
-                };
-            };
-        };
-        sb_append(sb, str_substring(src, p, eol));
-        if eol < slen { sb_append(sb, "\n"); };
-        p = eol + 1;
-    };
-    return sb_to_str(sb);
-}
 
 // ===== T2.8 (v0.2.353): async syntax surface (synced from s1) =====
 
-fn expand_async_strip_keyword(src: str) -> str {
-    let mut sb: i64 = sb_new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            let comment_start: i64 = p;
-            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
-            sb_append_range(sb, src, comment_start, p);
-        } else if c == 34 {
-            let str_start: i64 = p;
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    p = p + 2;
-                } else {
-                    p = p + 1;
-                };
-            };
-            if p < slen { p = p + 1; };
-            sb_append_range(sb, src, str_start, p);
-        } else if is_alpha(c) == 1 || c == 95 {
-            let id_start: i64 = p;
-            let mut id_done: i64 = 0;
-            while p < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, p);
-                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
-                else { id_done = 1; };
-            };
-            let id_len: i64 = p - id_start;
-            if id_len == 5 && str_eq_at(src, id_start, "async") == 1 {
-                let mut peek: i64 = p;
-                while peek < slen && (str_char_at(src, peek) == 32 || str_char_at(src, peek) == 9) { peek = peek + 1; };
-                if peek + 2 <= slen && str_eq_at(src, peek, "fn") == 1 {
-                    let after_fn: i64 = peek + 2;
-                    let next_after_fn: i64 = if after_fn < slen { str_char_at(src, after_fn) } else { 0 };
-                    if next_after_fn == 32 || next_after_fn == 9 || next_after_fn == 10 {
-                        p = peek;
-                        continue;
-                    };
-                };
-                sb_append(sb, "async");
-            } else {
-                sb_append_range(sb, src, id_start, p);
-            };
-        } else {
-            sb_append_char_at(sb, src, p);
-            p = p + 1;
-        };
-    };
-    return sb_to_str(sb);
-}
 
 // ===== T2.3 (v0.2.349): closure literals (synced from s1) =====
 // See nucleor_s1_compiler.nr for the design rationale.
 
-fn close_is_arg_position_char(c: i64) -> i64 {
-    // Scoped to call-argument position only — see s1 version for
-    // the rationale. Other closure contexts (let RHS, return expr,
-    // etc.) go through the existing parser's kind-42 / kind-49
-    // closure infrastructure.
-    if c == 40 { return 1; };
-    if c == 44 { return 1; };
-    return 0;
-}
 
 
-fn expand_closures(src: str) -> str {
-    return src;
-    let mut prepend: i64 = sb_new();
-    let mut sb: i64 = sb_new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    let mut last_non_ws: i64 = 0;
-    let mut idx: i64 = 0;
-    let src_id: str = content_hash(src);
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
-            last_non_ws = 10;
-        } else if c == 34 {
-            sb_append(sb, "\"");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
-            last_non_ws = 34;
-        } else if c == 39 {
-            sb_append(sb, "'");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 39 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "'"); p = p + 1; };
-            last_non_ws = 39;
-        } else if c == 124 && close_is_arg_position_char(last_non_ws) == 1 {
-            let arg_parse: Vec<i32> = close_parse_arg_list(src, p + 1, slen);
-            let after_args: i64 = vec_get(arg_parse, 0);
-            if after_args >= 0 {
-                let mut args: Vec<i32> = Vec::new();
-                let mut ai: i64 = 1;
-                while ai < vec_len(arg_parse) {
-                    args.push(vec_get(arg_parse, ai));
-                    ai = ai + 1;
-                };
-                let mut bp: i64 = after_args;
-                while bp < slen && (str_char_at(src, bp) == 32 || str_char_at(src, bp) == 9) { bp = bp + 1; };
-                let body_end: i64 = close_parse_body_end(src, bp, slen);
-                let body_text: str = str_substring(src, bp, body_end);
-                let synth_name: str = str_concat("__closure_", str_concat(src_id, str_concat("_", str_from_int(idx))));
-                idx = idx + 1;
-                sb_append(prepend, close_synthesize_fn(synth_name, args, body_text));
-                sb_append(sb, synth_name);
-                p = body_end;
-                last_non_ws = if p > 0 { str_char_at(src, p - 1) } else { 0 };
-                continue;
-            };
-            sb_append(sb, "|");
-            p = p + 1;
-            last_non_ws = 124;
-        } else if is_alpha(c) == 1 || c == 95 {
-            let id_start: i64 = p;
-            let mut id_done: i64 = 0;
-            while p < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, p);
-                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
-                else { id_done = 1; };
-            };
-            let name: str = str_substring(src, id_start, p);
-            sb_append(sb, name);
-            last_non_ws = str_char_at(name, str_len(name) - 1);
-        } else {
-            sb_append(sb, str_substring(src, p, p + 1));
-            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
-            p = p + 1;
-        };
-    };
-    return str_concat(sb_to_str(prepend), sb_to_str(sb));
-}
 
 // ===== T2.6 (v0.2.346): format-string macro expansion (synced) =====
 // Mirror of helpers in nucleor_s1_compiler.nr — see that file for
@@ -12857,197 +10967,7 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     return str_concat("int_to_str(", str_concat(arg_expr, ")"));
 }
 
-fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
-    let parts: Vec<i32> = fmt_split_args(args_text);
-    if vec_len(parts) == 0 {
-        if mode == 0 { return "print(\"\")"; };
-        if mode == 1 { return "\"\""; };
-        if mode == 3 { return "eprint(\"\")"; };
-        if mode == 4 { return "eprint_raw(\"\")"; };
-        return "print_raw(\"\")";
-    };
-    let fmt_lit: str = vec_get(parts, 0);
-    let body: str = fmt_strip_outer_quotes(fmt_lit);
-    let blen: i64 = str_len(body);
-    let n_args: i64 = vec_len(parts) - 1;
-    let mut segments: Vec<i32> = Vec::new();
-    let mut parities: Vec<i32> = Vec::new();
-    let mut current: i64 = sb_new();
-    let mut i: i64 = 0;
-    let mut arg_idx: i64 = 0;
-    while i < blen {
-        let c: i64 = str_char_at(body, i);
-        if c == 123 && i + 1 < blen && str_char_at(body, i + 1) == 123 {
-            sb_append(current, "{");
-            i = i + 2;
-        } else if c == 125 && i + 1 < blen && str_char_at(body, i + 1) == 125 {
-            sb_append(current, "}");
-            i = i + 2;
-        } else if c == 123 {
-            let mut spec_end: i64 = i + 1;
-            while spec_end < blen && str_char_at(body, spec_end) != 125 { spec_end = spec_end + 1; };
-            if spec_end >= blen {
-                sb_append(current, str_substring(body, i, i + 1));
-                i = i + 1;
-            } else {
-                let spec: str = str_substring(body, i + 1, spec_end);
-                segments.push(sb_to_str(current));
-                parities.push(0);
-                current = sb_new();
-                if arg_idx < n_args {
-                    let arg_expr: str = vec_get(parts, arg_idx + 1);
-                    segments.push(fmt_conversion_for_spec(spec, arg_expr, src));
-                    parities.push(1);
-                    arg_idx = arg_idx + 1;
-                } else {
-                    segments.push("\"<MISSING>\"");
-                    parities.push(1);
-                };
-                i = spec_end + 1;
-            };
-        } else {
-            sb_append(current, str_substring(body, i, i + 1));
-            i = i + 1;
-        };
-    };
-    segments.push(sb_to_str(current));
-    parities.push(0);
-    // v0.5.11: FMT-003 — extra args silently dropped. Mirror of
-    // nucleor_s1_compiler.nr; drift gate enforces.
-    if arg_idx < n_args {
-        let dropped: i64 = n_args - arg_idx;
-        print(str_concat("ERROR: error[FMT-003]: format string has ", str_concat(str_from_int(arg_idx), str_concat(" `{}` placeholder(s) but ", str_concat(str_from_int(n_args), str_concat(" argument(s) supplied; ", str_concat(str_from_int(dropped), str_concat(" extra argument(s) would be silently dropped. Format body: `", str_concat(body, "`. Either add `{}` placeholders for the extras or remove them from the call.")))))))));
-        panic("nucleor: FMT-003 format args > placeholders (extras would be silently dropped)");
-    };
-    let chain: str = fmt_build_concat_chain(segments, parities);
-    if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
-    if mode == 1 { return chain; };
-    if mode == 3 { return str_concat("eprint(", str_concat(chain, ")")); };
-    if mode == 4 { return str_concat("eprint_raw(", str_concat(chain, ")")); };
-    return str_concat("print_raw(", str_concat(chain, ")"));
-}
 
-fn expand_format_macros_with_src(src: str, type_src: str) -> str {
-    let mut sb: i64 = sb_new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    let mut last_non_ws: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
-            last_non_ws = 10;
-        } else if c == 34 {
-            sb_append(sb, "\"");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
-            last_non_ws = 34;
-        } else if c == 39 {
-            sb_append(sb, "'");
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 39 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
-                    p = p + 2;
-                } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
-                    p = p + 1;
-                };
-            };
-            if p < slen { sb_append(sb, "'"); p = p + 1; };
-            last_non_ws = 39;
-        } else if is_alpha(c) == 1 || c == 95 {
-            let id_start: i64 = p;
-            let mut id_done: i64 = 0;
-            while p < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, p);
-                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
-                else { id_done = 1; };
-            };
-            let name: str = str_substring(src, id_start, p);
-            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            let mut handled: i64 = 0;
-            // v0.3.121: NUC-FEEDBACK-001 — mirror the v0.3.94 panic!/
-            // assert! strip from s1_compiler. Pre-v0.3.121 this branch
-            // was missing here, so the tools_suite path (`nuc test`,
-            // `nuc bench`) left `panic!(…)` literal — clang link
-            // failed with `@panic undefined`. Test harness builds
-            // diverged from `nuc run` for any test using panic/assert
-            // family macros — exactly the divergence reported.
-            if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
-                if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1
-                   || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
-                   || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
-                   || str_eq(name, "unimplemented") == 1 || str_eq(name, "unreachable") == 1 {
-                    sb_append(sb, name);
-                    p = p + 1;
-                    continue;
-                };
-            };
-            if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
-                let mut mode: i64 = 0 - 1;
-                if str_eq(name, "println") == 1 { mode = 0; };
-                if str_eq(name, "format") == 1 { mode = 1; };
-                if str_eq(name, "print") == 1 { mode = 2; };
-                if str_eq(name, "eprintln") == 1 { mode = 3; };
-                if str_eq(name, "eprint") == 1 { mode = 4; };
-                if mode >= 0 {
-                    p = p + 2;
-                    let args_start: i64 = p;
-                    let mut depth: i64 = 1;
-                    let mut q: i64 = args_start;
-                    let mut in_dq: i64 = 0;
-                    let mut in_sq: i64 = 0;
-                    while q < slen && depth > 0 {
-                        let ch: i64 = str_char_at(src, q);
-                        if in_dq == 1 {
-                            if ch == 92 && q + 1 < slen { q = q + 1; }
-                            else if ch == 34 { in_dq = 0; };
-                        } else if in_sq == 1 {
-                            if ch == 92 && q + 1 < slen { q = q + 1; }
-                            else if ch == 39 { in_sq = 0; };
-                        } else if ch == 34 { in_dq = 1; }
-                        else if ch == 39 { in_sq = 1; }
-                        else if ch == 40 { depth = depth + 1; }
-                        else if ch == 41 { depth = depth - 1; };
-                        q = q + 1;
-                    };
-                    if depth == 0 {
-                        let args_end: i64 = q - 1;
-                        let args_text: str = str_substring(src, args_start, args_end);
-                        let inner_expanded: str = expand_format_macros_with_src(args_text, type_src);
-                        let expansion: str = fmt_build_expansion(inner_expanded, mode, type_src);
-                        sb_append(sb, expansion);
-                        p = q;
-                        last_non_ws = 41;
-                        handled = 1;
-                    };
-                };
-            };
-            if handled == 0 {
-                sb_append(sb, name);
-                last_non_ws = str_char_at(name, str_len(name) - 1);
-            };
-        } else {
-            sb_append(sb, str_substring(src, p, p + 1));
-            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
-            p = p + 1;
-        };
-    };
-    return sb_to_str(sb);
-}
 
 // ===== T1.5c (v0.2.342): resolver-layer name privatization (synced) =====
 // Mirror of the helpers in nucleor_s1_compiler.nr — see that file for
@@ -13066,70 +10986,6 @@ fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i
     return 0;
 }
 
-fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> str {
-    let mut sb: i64 = sb_new();
-    let slen: i64 = str_len(src);
-    let mut p: i64 = 0;
-    let mut last_non_ws: i64 = 0;
-    while p < slen {
-        let c: i64 = str_char_at(src, p);
-        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            let comment_start: i64 = p;
-            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
-            sb_append_range(sb, src, comment_start, p);
-            last_non_ws = 10;
-        } else if c == 34 {
-            let str_start: i64 = p;
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 34 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    p = p + 2;
-                } else {
-                    p = p + 1;
-                };
-            };
-            if p < slen { p = p + 1; };
-            sb_append_range(sb, src, str_start, p);
-            last_non_ws = 34;
-        } else if c == 39 {
-            let char_start: i64 = p;
-            p = p + 1;
-            while p < slen && str_char_at(src, p) != 39 {
-                if str_char_at(src, p) == 92 && p + 1 < slen {
-                    p = p + 2;
-                } else {
-                    p = p + 1;
-                };
-            };
-            if p < slen { p = p + 1; };
-            sb_append_range(sb, src, char_start, p);
-            last_non_ws = 39;
-        } else if is_alpha(c) == 1 || c == 95 {
-            let start: i64 = p;
-            let mut id_done: i64 = 0;
-            while p < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, p);
-                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
-                else { id_done = 1; };
-            };
-            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, p) == 1 {
-                sb_append(sb, "__priv_");
-                sb_append(sb, file_id);
-                sb_append(sb, "__");
-                sb_append_range(sb, src, start, p);
-            } else {
-                sb_append_range(sb, src, start, p);
-            };
-            last_non_ws = str_char_at(src, p - 1);
-        } else {
-            sb_append_char_at(sb, src, p);
-            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
-            p = p + 1;
-        };
-    };
-    return sb_to_str(sb);
-}
 
 fn secure_hash(s: str) -> str {
     // Uses DJB2 fingerprint. SHA256 available via sha256() builtin after bootstrap.
@@ -13168,19 +11024,7 @@ fn abi_export_version_policy_label() -> str {
     return "semver-major-breaks-abi";
 }
 
-fn cmd_accepts_source(cmd: str) -> i64 {
-    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "summary") || str_eq(cmd, "impact") || str_eq(cmd, "query") || str_eq(cmd, "graph") || str_eq(cmd, "perf") || str_eq(cmd, "evidence") || str_eq(cmd, "abi") {
-        return 1;
-    };
-    return 0;
-}
 
-fn cmd_allows_output_name(cmd: str) -> i64 {
-    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "certify") || str_eq(cmd, "test") || str_eq(cmd, "bench") {
-        return 1;
-    };
-    return 0;
-}
 
 fn manifest_entry_path() -> str {
     let raw: str = file_read_string("Nucleor.toml");
@@ -16631,7 +14475,7 @@ fn run_abi_command(src_path: str, argc: i64, arg_start: i64) -> i64 {
     return 0;
 }
 
-fn run_build_shared_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, json_mode: i64) -> i64 {
+fn tools_run_build_shared_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, json_mode: i64) -> i64 {
     let raw_source: str = file_read_string(src_path);
     if str_len(raw_source) == 0 {
         print(str_concat("ERROR: cannot read ", src_path));
@@ -17749,133 +15593,7 @@ fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 {
     return 0;
 }
 
-fn run_clean_command(argc: i64) -> i64 {
-    // Remove target/ and .nuc_cache/ from the current working directory.
-    // Use `system` (rmdir on Windows / rm on POSIX). Refuse to run if the
-    // current directory is the filesystem root.
-    let cwd: str = getcwd();
-    if str_len(cwd) <= 3 {
-        print("clean: refusing to operate on filesystem root");
-        return 1;
-    };
-    let mut cache_only: i64 = 0;
-    let mut i: i64 = 2;
-    while i < argc {
-        if str_eq(args_get(i), "--cache") == 1 { cache_only = 1; };
-        i = i + 1;
-    };
-    if cache_only == 1 {
-        print(str_concat("clean: removing compilation cache in ", cwd));
-        host_remove_dir_quiet(str_concat("target", str_concat(host_target_path_sep(), ".nuc_cache_v2")));
-        host_remove_dir_quiet(".nuc_cache");
-        print("clean: done");
-        return 0;
-    };
-    print(str_concat("clean: removing build artifacts in ", cwd));
-    host_remove_dir_quiet("target");
-    host_remove_dir_quiet(".nuc_cache");
-    print("clean: done");
-    return 0;
-}
 
-fn print_help() -> i64 {
-    print(str_concat("Nucleor Compiler ", compiler_version_label()));
-    print("The governance-native programming language");
-    print("");
-    print("Usage: nuc <command> [source.nr] [options]");
-    print("");
-    print("Build commands:");
-    print("  init [name]            Scaffold a project with Nucleor.toml");
-    print("  build [file]           Compile to native binary (strict checks, cached)");
-    print("  build-fast [file]      Compile with ownership + type checks only");
-    print("  build-strict [file]    Compile with full strict checker stack");
-    print("  build-shared [file]    Compile a shared library (.dll/.lib) from `pub fn` exports");
-    print("  run [file]             Compile and run");
-    print("  emit [file]            Emit LLVM IR only (alias for --no-link)");
-    print("  build-wasm [file]      Compile to WebAssembly (.wasm)");
-    print("  build-ptx [file]       Compile to NVIDIA PTX (.ptx)");
-    print("    -o, --out <name>     Set output base name");
-    print("    --emit llvm          Keep the LLVM IR artifact");
-    print("    --no-link            Stop after writing target/<name>.ll");
-    print("    --time-passes        Print per-phase compile timings");
-    print("    --no-cache           Disable resolved-source and content-addressed LLVM caches");
-    print("    --cache-stats        Print cache hit/miss counters for this build");
-    print("");
-    print("Developer commands:");
-    print("  test [file]            Build and run @test / test_* functions");
-    print("    --list               List discovered tests without running them");
-    print("    --check-laws         Generate bounded checks for low-risk integer @law annotations");
-    print("    --isolation=process  Spawn a fresh child process per test (RFC-0021)");
-    print("  bench [file]           Build once and benchmark repeated runs");
-    print("    --iterations <n>     Number of measured runs (default 10)");
-    print("    --warmup <n>         Number of warmup runs before timing (default 1)");
-    print("  perf [file]            Compile-path performance analysis");
-    print("    --json               Output machine-readable perf data");
-    print("  bootstrap [subcmd]     Self-host bootstrap status / corpus report");
-    print("    status               Report example and runtime readiness");
-    print("    dump-corpus          List .nr corpus files");
-    print("    --json               Output machine-readable bootstrap data");
-    print("  stage-dump <stage>     Dump compiler stage summaries");
-    print("    tokens|ast|typed|ir|all");
-    print("  summary [file]         Compact module interface card");
-    print("    --json               Output summary lines as JSON");
-    print("  query [file]           Machine-readable module interface");
-    print("  abi [file]             Inspect import/export ABI for C / Rust interop");
-    print("    --exports            Inspect `pub fn` export ABI instead of imports");
-    print("    --json               Output machine-readable ABI data");
-    print("    --c-header           Emit C declarations for the selected ABI surface");
-    print("    --rust-extern        Emit Rust unsafe extern declarations for the selected ABI surface");
-    print("  evidence [file]        Governance evidence report");
-    print("  impact [file] <fn>     Reverse call impact for a function");
-    print("    --fn <name>          Specify the target function");
-    print("  graph [file]           Source-level call/effect graph");
-    print("    --json               Output machine-readable graph data");
-    print("  profile run <binary>   Timed binary execution profile");
-    print("    --iterations <n>     Repeat the profile run N times");
-    print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
-    print("    --json               Output machine-readable lock status");
-    print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
-    print("  fix --imports [file]   Rewrite import \"stdlib/rods/foo.nr\" to use std::foo (RFC-0018)");
-    print("  fix --numeric [file]   Lint mixed-width arithmetic, suggest `as` casts (RFC-0015)");
-    print("  doc <file> [--out f]   Emit Markdown reference for `pub fn` / `fn` decls (RFC-0029)");
-    print("  publish [manifest]     Copy a package into a local registry directory");
-    print("    --registry <dir>     Registry root (default: .nucleor/registry)");
-    print("    --dry-run            Validate publish inputs and print targets without writing");
-    print("    --sign [--key-id id] Sign package metadata after publishing");
-    print("  registry [subcmd]      Inspect local packages and configure registry remotes");
-    print("    list|search|versions|verify");
-    print("  sage <subcmd> <file>   Sage_NS prove / certificate / gap checks");
-    print("    prove|certificate|gaps");
-    print("");
-    print("Analysis commands:");
-    print("  check [file] [flags]   Run all checkers and report diagnostics");
-    print("    --json               Output JSONL diagnostics");
-    print("    --sarif              Output SARIF v2.1.0");
-    print("    --check=<checkers>   Run specific checkers (ownership,type,source,taint,effect)");
-    print("    --review             Enable review surface (nucleor_review.jsonl)");
-    print("    --review-filter=<f>  Filter: findings, function=<name>, <checker>");
-    print("  explain <NR031>        Explain a compiler error code");
-    print("    --json               Output a JSON explanation object");
-    print("");
-    print("Governance commands:");
-    print("  audit [file]           Provenance and governance report");
-    print("  policy [file] [level]  Policy compliance (default, no_extern, no_system, strict)");
-    print("  certify [file]         Compile + produce certification manifest");
-    print("  translate [file]       Parse, validate, and summarize source");
-    print("");
-    print("Project utilities:");
-    print("  clean                  Remove target/ and .nuc_cache/ from the project");
-    print("  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only");
-    print("  scram                  Alias for `clean` (emergency shutdown of build state)");
-    print("  zen                    The design principles of Nucleor");
-    print("  mco                    Mars Climate Orbiter — why we ship dimensional analysis");
-    print("");
-    print("Project mode:");
-    print("  If [file] is omitted and ./Nucleor.toml exists, [build].entry is used.");
-    print("");
-    print("Legacy: nuc <source.nr> <output_name>");
-    return 0;
-}
 
 // v0.8.42 RFC-0062 G-1: top-level entry point. Annotated as
 // safety guardrail before the unconditional default-flip.
@@ -17923,7 +15641,7 @@ fn main() -> i64 {
             else if cli_is_flag(a) == 0 && str_len(tgt) == 0 { tgt = a; };
             fi = fi + 1;
         };
-        return run_fix_command(tgt, sub);
+        return tools_run_fix_command(tgt, sub);
     };
     if str_eq(cmd, "doc") {
         // Parse: nuc doc <file> [--out <path>] [--html] [--test-list]
@@ -17957,7 +15675,7 @@ fn main() -> i64 {
             if opl >= 4 && str_eq(str_substring(out_path, opl - 4, opl), ".htm") == 1 { html_mode = 1; };
         };
         if html_mode == 1 { return run_doc_command_html(tgt, out_path); };
-        return run_doc_command(tgt, out_path);
+        return tools_run_doc_command(tgt, out_path);
     };
     if str_eq(cmd, "install") {
         return run_install_command(argc);
@@ -18143,7 +15861,7 @@ fn main() -> i64 {
     } else if str_eq(cmd, "build-strict") {
         return compile_file_mode(src_path, out_name, 1, use_cache, time_passes, link_native);
     } else if str_eq(cmd, "build-shared") {
-        return run_build_shared_command(src_path, out_name, use_cache, time_passes, cli_wants_json(argc, arg_start));
+        return tools_run_build_shared_command(src_path, out_name, use_cache, time_passes, cli_wants_json(argc, arg_start));
     } else if str_eq(cmd, "run") {
         let rc: i64 = compile_file_mode(src_path, out_name, 1, use_cache, time_passes, 1);
         if rc != 0 { return rc; };
