@@ -11220,6 +11220,17 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "EFFECT-G10-UNDECLARED") == 1 { return 1; };
     if str_eq(code, "EFFECT-G10-MISSING-ALLOW") == 1 { return 1; };
     if str_eq(code, "EFFECT-G10-WRONG-ROW") == 1 { return 1; };
+    // RFC-0062 G-5 + G-7 + G-9 Phase 4 — FFI surface specializations
+    // over R3's effect framework. These three codes supersede the
+    // generic EFFECT-G10-UNDECLARED when the unhandled effect is
+    // direct_ffi / may_return_null / unsafe. Specialized = better
+    // adopter message (names the extern fn or unsafe block) plus, for
+    // G-5, the actual sound deref-after-extern-call dataflow check.
+    // R4 also adds the `unsafe` token to the vocabulary in
+    // g10_attr_known_effect.
+    if str_eq(code, "FFI-G5-NULL-DEREF") == 1 { return 1; };
+    if str_eq(code, "FFI-G9-MISSING-ALLOW-DIRECT-FFI") == 1 { return 1; };
+    if str_eq(code, "UNSAFE-G7-MISSING-ALLOW") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -11926,6 +11937,8 @@ fn g10_attr_known_effect(name: str) -> i64 {
     if str_eq(name, "borrows_mut") == 1 { return 1; };
     if str_eq(name, "may_return_null") == 1 { return 1; };
     if str_eq(name, "direct_ffi") == 1 { return 1; };
+    // RFC-0062 G-7 (R4) — `unsafe` block usage in fn body.
+    if str_eq(name, "unsafe") == 1 { return 1; };
     return 0;
 }
 
@@ -12087,12 +12100,368 @@ fn g10_fn_has_decl(pairs: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
+// =====================================================
+// RFC-0062 G-5 + G-7 + G-9 Phase 4 — R4 FFI specializations
+// =====================================================
+// R4 extends R3's effect framework with three extra leaf-effect
+// sources and three specialized diagnostics:
+//   - extern fn call → `direct_ffi`. Specialized diag:
+//     `FFI-G9-MISSING-ALLOW-DIRECT-FFI` (better message than the
+//     generic EFFECT-G10-UNDECLARED — names the extern fn called).
+//   - extern fn returning *const T / *mut T → `may_return_null`.
+//     Specialized diag: `FFI-G5-NULL-DEREF`, fired only when the
+//     adopter actually DEREFERENCES the return without a
+//     `ptr_is_null(<vname>)` guard (real dataflow, not just a
+//     declaration scan).
+//   - `unsafe { }` block in fn body → `unsafe`. Specialized diag:
+//     `UNSAFE-G7-MISSING-ALLOW`.
+//
+// Severity: error (Phase 4 hard-fail). The opt-in gate (R3) keeps
+// existing rod surfaces — which call extern fns extensively without
+// any G-10 attribute — unaffected. Adopters opt their file in by
+// adding any `#[effect(...)]` or `#[allow_effect(...)]` attribute.
+
+// Source-text scanner: collect every `extern fn NAME(...) -> RTYPE;`
+// declaration. Returns flat Vec where each entry is a triple
+// (extern_name, returns_ptr_flag_str, return_type_for_message).
+// returns_ptr_flag_str = "1" if any of:
+//   - the declared return type contains `*const ` or `*mut `;
+//   - the decl is preceded (on prior lines, ignoring whitespace and
+//     other attributes) by `#[effect(may_return_null)]`,
+//     `#[effect(... , may_return_null , ...)]`, or `#[may_return_null]`.
+// The attribute form is the practical opt-in for current Nucleor
+// source: the `*const T` / `*mut T` syntax is gated behind a
+// defensive parser halt today, so adopters use `i64` return types
+// and annotate the decl with the null-return contract explicitly.
+#[manual_drop]
+fn g10_collect_extern_fn_table(source: str) -> Vec<i32> {
+    let mut table: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let head: str = "extern fn ";
+    let hlen: i64 = str_len(head);
+    let mut p: i64 = 0;
+    while p + hlen <= slen {
+        let c0: i64 = str_char_at(source, p);
+        if c0 == 47 && p + 1 < slen && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c0 == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < hlen {
+            if str_char_at(source, p + k) != str_char_at(head, k) { m = 0; break; };
+            k = k + 1;
+        };
+        let preceding_ok: i64 = if p == 0 { 1 } else {
+            let pc: i64 = str_char_at(source, p - 1);
+            if pc == 10 || pc == 32 || pc == 9 { 1 } else { 0 }
+        };
+        if m == 0 || preceding_ok == 0 { p = p + 1; continue; };
+        let name_start: i64 = p + hlen;
+        let mut r: i64 = name_start;
+        while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+            r = r + 1;
+        };
+        if r == name_start { p = p + 1; continue; };
+        let extern_name: str = str_substring(source, name_start, r);
+        let mut e: i64 = r;
+        while e < slen && str_char_at(source, e) != 59 && str_char_at(source, e) != 10 { e = e + 1; };
+        let decl: str = str_substring(source, r, e);
+        let mut returns_ptr: str = if str_contains(decl, "*const ") == 1 || str_contains(decl, "*mut ") == 1 { "1" } else { "0" };
+        // Attribute opt-in: scan backwards from the `extern` token
+        // (skipping whitespace and other attributes) and check for an
+        // `#[effect(...)]` / `#[may_return_null]` annotation that names
+        // the may_return_null effect.
+        if str_eq(returns_ptr, "0") == 1 {
+            let mut bp: i64 = p - 1;
+            while bp >= 0 {
+                let bc: i64 = str_char_at(source, bp);
+                if bc == 32 || bc == 9 || bc == 10 || bc == 13 { bp = bp - 1; }
+                else if bc == 93 {
+                    // close-bracket of an attribute — walk left to its `[`
+                    let attr_end: i64 = bp;
+                    let mut depth: i64 = 1;
+                    bp = bp - 1;
+                    while bp >= 0 && depth > 0 {
+                        let dc: i64 = str_char_at(source, bp);
+                        if dc == 93 { depth = depth + 1; }
+                        else if dc == 91 { depth = depth - 1; };
+                        if depth > 0 { bp = bp - 1; };
+                    };
+                    if bp >= 1 && str_char_at(source, bp - 1) == 35 {
+                        let attr_text: str = str_substring(source, bp + 1, attr_end);
+                        if str_contains(attr_text, "may_return_null") == 1 {
+                            returns_ptr = "1";
+                            bp = 0 - 1;
+                        } else {
+                            bp = bp - 2;
+                        };
+                    } else {
+                        bp = 0 - 1;
+                    };
+                }
+                else { bp = 0 - 1; };
+            };
+        };
+        let mut rtype: str = "";
+        let arrow_at: i64 = str_index_of(decl, "->");
+        if arrow_at >= 0 {
+            let dlen: i64 = str_len(decl);
+            let rt_raw: str = str_substring(decl, arrow_at + 2, dlen);
+            rtype = str_trim(rt_raw);
+        };
+        table.push(extern_name);
+        table.push(returns_ptr);
+        table.push(rtype);
+        p = e;
+    };
+    return table;
+}
+
+#[manual_drop]
+fn g10_extern_lookup_returns_ptr(table: Vec<i32>, name: str) -> i64 {
+    let n: i64 = vec_len(table);
+    let mut i: i64 = 0;
+    while i + 2 < n {
+        if str_eq(vec_get(table, i), name) == 1 {
+            if str_eq(vec_get(table, i + 1), "1") == 1 { return 1; };
+            return 0;
+        };
+        i = i + 3;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn g10_extern_is_known(table: Vec<i32>, name: str) -> i64 {
+    let n: i64 = vec_len(table);
+    let mut i: i64 = 0;
+    while i + 2 < n {
+        if str_eq(vec_get(table, i), name) == 1 { return 1; };
+        i = i + 3;
+    };
+    return 0;
+}
+
+// True when the body contains an `unsafe {` block (not the bare
+// keyword on its own — only the block prefix). Skip line comments
+// and string literals so commented-out `unsafe { }` markers don't
+// match.
+#[manual_drop]
+fn g10_body_has_unsafe_block(body: str) -> i64 {
+    let slen: i64 = str_len(body);
+    let pat: str = "unsafe ";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen + 1 <= slen {
+        let c0: i64 = str_char_at(body, p);
+        if c0 == 47 && p + 1 < slen && str_char_at(body, p + 1) == 47 {
+            while p < slen && str_char_at(body, p) != 10 { p = p + 1; };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c0 == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(body, p) != 34 {
+                if str_char_at(body, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(body, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let preceding_ok: i64 = if p == 0 { 1 } else {
+                let pc: i64 = str_char_at(body, p - 1);
+                if is_alnum(pc) == 0 && pc != 95 { 1 } else { 0 }
+            };
+            if preceding_ok == 1 {
+                let after: i64 = p + plen;
+                if after < slen && str_char_at(body, after) == 123 { return 1; };
+            };
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+// First extern fn the body calls (returning its name), or "" if
+// none. Used to name the offending callee in the diagnostic message.
+#[manual_drop]
+fn g10_body_first_extern_call(body: str, extern_table: Vec<i32>) -> str {
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        if g10_extern_is_known(extern_table, callee) == 1 { return callee; };
+        ci = ci + 1;
+    };
+    return "";
+}
+
+// First extern fn returning a raw ptr that the body calls. Used by
+// the G-5 deref dataflow check.
+#[manual_drop]
+fn g10_body_first_extern_ptr_call(body: str, extern_table: Vec<i32>) -> str {
+    let calls: Vec<i32> = restricts_extract_call_names(body);
+    let cn: i64 = vec_len(calls);
+    let mut ci: i64 = 0;
+    while ci < cn {
+        let callee: str = vec_get(calls, ci);
+        if g10_extern_lookup_returns_ptr(extern_table, callee) == 1 { return callee; };
+        ci = ci + 1;
+    };
+    return "";
+}
+
+// True when `name` appears as a standalone identifier token starting
+// at offset `pos` in `s` — preceded and followed by non-identifier
+// characters. Used by the G-5 violation walker to ignore substring
+// hits inside a longer identifier.
+#[manual_drop]
+fn g10_ident_at(s: str, pos: i64, name: str) -> i64 {
+    let slen: i64 = str_len(s);
+    let nlen: i64 = str_len(name);
+    if pos < 0 || pos + nlen > slen { return 0; };
+    let mut k: i64 = 0;
+    while k < nlen {
+        if str_char_at(s, pos + k) != str_char_at(name, k) { return 0; };
+        k = k + 1;
+    };
+    let before_ok: i64 = if pos == 0 { 1 } else {
+        let bc: i64 = str_char_at(s, pos - 1);
+        if is_alnum(bc) == 0 && bc != 95 { 1 } else { 0 }
+    };
+    if before_ok == 0 { return 0; };
+    let after_pos: i64 = pos + nlen;
+    if after_pos >= slen { return 1; };
+    let ac: i64 = str_char_at(s, after_pos);
+    if is_alnum(ac) == 1 || ac == 95 { return 0; };
+    return 1;
+}
+
+// Find the first standalone occurrence of identifier `name` in `s`
+// at or after `from`. Returns the byte offset, or -1 if none.
+#[manual_drop]
+fn g10_find_ident_from(s: str, from: i64, name: str) -> i64 {
+    let slen: i64 = str_len(s);
+    let nlen: i64 = str_len(name);
+    if nlen == 0 || from + nlen > slen { return 0 - 1; };
+    let mut p: i64 = if from < 0 { 0 } else { from };
+    while p + nlen <= slen {
+        if g10_ident_at(s, p, name) == 1 { return p; };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+// G-5 deref dataflow: source-text scan for the canonical pattern
+//
+//   let <vname>: ... = <extern_returning_ptr>(...);
+//
+// followed by ANY use of `<vname>` (deref, pass-through to another
+// FFI call, etc.) without a preceding `ptr_is_null(<vname>)` guard
+// in the same fn body. Returns the offending binding name, or "" if
+// the body is clean.
+//
+// Note on Nucleor pragmatics: raw-pointer deref syntax (`*p`) is not
+// currently a user-source feature (parser halts on `*const T` /
+// `*mut T` outside extern decls). The convention is i64 handles
+// returned by extern fns, then passed through to other extern fns.
+// "Use without guard" therefore covers both the canonical Rust
+// pattern (`*p` deref) AND the i64-handle pass-through pattern
+// (`other_extern(p)`). False negatives: deref reached via an alias
+// of <vname>. False positives: guard expressed via `<vname> != 0`
+// rather than `ptr_is_null(<vname>)`. Both forms are documented in
+// the diagnostic message so adopters can switch.
+#[manual_drop]
+fn g10_g5_first_violation(body: str, extern_table: Vec<i32>) -> str {
+    let stripped: str = strip_strings_and_line_comments(body);
+    let slen: i64 = str_len(stripped);
+    let mut p: i64 = 0;
+    while p < slen {
+        if p + 4 <= slen && str_eq_at_len(stripped, p, "let ", 4) == 1 {
+            let preceding_ok: i64 = if p == 0 { 1 } else {
+                let pc: i64 = str_char_at(stripped, p - 1);
+                if is_alnum(pc) == 0 && pc != 95 { 1 } else { 0 }
+            };
+            if preceding_ok == 1 {
+                let mut q: i64 = p + 4;
+                if q + 4 <= slen && str_eq_at_len(stripped, q, "mut ", 4) == 1 { q = q + 4; };
+                while q < slen && (str_char_at(stripped, q) == 32 || str_char_at(stripped, q) == 9) { q = q + 1; };
+                let name_start: i64 = q;
+                while q < slen && (is_alnum(str_char_at(stripped, q)) == 1 || str_char_at(stripped, q) == 95) { q = q + 1; };
+                if q > name_start {
+                    let vname: str = str_substring(stripped, name_start, q);
+                    let mut eq_p: i64 = q;
+                    while eq_p < slen && str_char_at(stripped, eq_p) != 61 && str_char_at(stripped, eq_p) != 59 && str_char_at(stripped, eq_p) != 10 { eq_p = eq_p + 1; };
+                    if eq_p < slen && str_char_at(stripped, eq_p) == 61 {
+                        let mut rhs: i64 = eq_p + 1;
+                        while rhs < slen && (str_char_at(stripped, rhs) == 32 || str_char_at(stripped, rhs) == 9) { rhs = rhs + 1; };
+                        let ce_start: i64 = rhs;
+                        while rhs < slen && (is_alnum(str_char_at(stripped, rhs)) == 1 || str_char_at(stripped, rhs) == 95) { rhs = rhs + 1; };
+                        if rhs > ce_start && rhs < slen && str_char_at(stripped, rhs) == 40 {
+                            let callee: str = str_substring(stripped, ce_start, rhs);
+                            if g10_extern_lookup_returns_ptr(extern_table, callee) == 1 {
+                                let mut stmt_end: i64 = rhs;
+                                while stmt_end < slen && str_char_at(stripped, stmt_end) != 59 { stmt_end = stmt_end + 1; };
+                                let remainder_start: i64 = stmt_end + 1;
+                                let guard_pat: str = str_concat("ptr_is_null(", vname);
+                                let mut scan: i64 = remainder_start;
+                                while scan < slen {
+                                    let use_at: i64 = g10_find_ident_from(stripped, scan, vname);
+                                    if use_at < 0 { scan = slen; }
+                                    else {
+                                        let pre_text: str = str_substring(stripped, remainder_start, use_at);
+                                        if str_contains(pre_text, guard_pat) == 1 {
+                                            scan = slen;
+                                        } else {
+                                            // Skip the use that's inside `ptr_is_null(<vname>)` itself
+                                            // (i.e. the guard's argument position). Detect that by
+                                            // checking the 12 chars preceding the use.
+                                            let look_back: i64 = if use_at - 12 < 0 { 0 } else { use_at - 12 };
+                                            let lb_text: str = str_substring(stripped, look_back, use_at);
+                                            if str_contains(lb_text, "ptr_is_null(") == 1 {
+                                                scan = use_at + str_len(vname);
+                                            } else {
+                                                return vname;
+                                            };
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
 // Compute the set of G-10 effects this fn body produces. Pass A is leaf
 // builtins (fixed table); Pass B propagates declared effects of called
 // fns (one-hop; transitive enrichment is a follow-up). Returns a Vec
 // of unique effect-name strings.
 #[manual_drop]
-fn g10_compute_body_effects(body: str, decls: Vec<i32>) -> Vec<i32> {
+fn g10_compute_body_effects(body: str, decls: Vec<i32>, extern_table: Vec<i32>) -> Vec<i32> {
     let mut produced: Vec<i32> = Vec::new();
     let calls: Vec<i32> = restricts_extract_call_names(body);
     let cn: i64 = vec_len(calls);
@@ -12102,6 +12471,15 @@ fn g10_compute_body_effects(body: str, decls: Vec<i32>) -> Vec<i32> {
         let leaf: str = g10_builtin_leaf_effect(callee);
         if str_len(leaf) > 0 && name_in_vec(produced, leaf) == 0 {
             produced.push(leaf);
+        };
+        // R4 leaf-effect extensions: extern fn calls produce
+        // `direct_ffi`, plus `may_return_null` if the callee returns
+        // a raw ptr.
+        if g10_extern_is_known(extern_table, callee) == 1 {
+            if name_in_vec(produced, "direct_ffi") == 0 { produced.push("direct_ffi"); };
+            if g10_extern_lookup_returns_ptr(extern_table, callee) == 1 {
+                if name_in_vec(produced, "may_return_null") == 0 { produced.push("may_return_null"); };
+            };
         };
         let dn: i64 = vec_len(decls);
         let mut di: i64 = 0;
@@ -12115,6 +12493,11 @@ fn g10_compute_body_effects(body: str, decls: Vec<i32>) -> Vec<i32> {
             di = di + 2;
         };
         ci = ci + 1;
+    };
+    // R4 leaf-effect extension: `unsafe { }` block in body produces
+    // `unsafe` effect.
+    if g10_body_has_unsafe_block(body) == 1 {
+        if name_in_vec(produced, "unsafe") == 0 { produced.push("unsafe"); };
     };
     return produced;
 }
@@ -12137,6 +12520,7 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // unrelated fns don't trip on their leaf vec_free / hashmap_free
     // calls.
     if vec_len(decls) == 0 && vec_len(allows) == 0 { return diags; };
+    let extern_table: Vec<i32> = g10_collect_extern_fn_table(source);
     let table: Vec<i32> = collect_fn_table(source);
     let tn: i64 = vec_len(table);
     let mut ti: i64 = 0;
@@ -12144,12 +12528,15 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
         let fn_name: str = vec_get(table, ti);
         let body_raw: str = vec_get(table, ti + 2);
         let body: str = strip_strings_and_line_comments(body_raw);
-        let produced: Vec<i32> = g10_compute_body_effects(body, decls);
+        let produced: Vec<i32> = g10_compute_body_effects(body, decls, extern_table);
         let has_decl: i64 = g10_fn_has_decl(decls, fn_name);
         let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
         let lcl: i64 = vec_get(lc, 0);
         let lcc: i64 = vec_get(lc, 1);
-        // Pass 1: every produced effect must be declared OR allowed
+        // Pass 1: every produced effect must be declared OR allowed.
+        // R4 specialization: when the unhandled effect is direct_ffi
+        // / unsafe / may_return_null, fire the specialized R4 code
+        // instead of the generic EFFECT-G10-UNDECLARED.
         let pn: i64 = vec_len(produced);
         let mut pi: i64 = 0;
         while pi < pn {
@@ -12158,7 +12545,28 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                 let declared: i64 = g10_pairs_has(decls, fn_name, eff);
                 let allowed: i64 = g10_pairs_has(allows, fn_name, eff);
                 if declared == 0 && allowed == 0 {
-                    if has_decl == 0 {
+                    let is_g9: i64 = if str_eq(eff, "direct_ffi") == 1 { 1 } else { 0 };
+                    let is_g7: i64 = if str_eq(eff, "unsafe") == 1 { 1 } else { 0 };
+                    let is_g5: i64 = if str_eq(eff, "may_return_null") == 1 { 1 } else { 0 };
+                    if is_g9 == 1 {
+                        let extern_called: str = g10_body_first_extern_call(body, extern_table);
+                        let g9_a: str = str_concat("function `", fn_name);
+                        let g9_b: str = str_concat(g9_a, "` calls extern fn `");
+                        let g9_c: str = str_concat(g9_b, extern_called);
+                        let g9: str = str_concat(g9_c, "` (direct FFI surface) but carries no #[effect(direct_ffi)] declaration and no #[allow_effect(direct_ffi)] silencer. Per RFC-0062 G-9 (Phase 4), every fn that crosses the FFI boundary must declare the `direct_ffi` effect or explicitly allow it.");
+                        diag_add_ex(diags, "error", "effect", "FFI-G9-MISSING-ALLOW-DIRECT-FFI", g9, fn_name, lcl, lcc, "");
+                    } else if is_g7 == 1 {
+                        let g7_a: str = str_concat("function `", fn_name);
+                        let g7: str = str_concat(g7_a, "` contains an `unsafe { }` block but carries no #[effect(unsafe)] declaration and no #[allow_effect(unsafe)] silencer. Per RFC-0062 G-7 (Phase 4), every fn with an unsafe block must declare the `unsafe` effect or explicitly allow it.");
+                        diag_add_ex(diags, "error", "effect", "UNSAFE-G7-MISSING-ALLOW", g7, fn_name, lcl, lcc, "");
+                    } else if is_g5 == 1 {
+                        // G-5 does not fire as missing-allow; instead
+                        // the deref-after-call dataflow (below)
+                        // emits FFI-G5-NULL-DEREF only on actual
+                        // unguarded deref. Skipping here also avoids
+                        // a noise emit from the generic EFFECT-G10-*
+                        // path.
+                    } else if has_decl == 0 {
                         let m1a: str = str_concat("function `", fn_name);
                         let m1b: str = str_concat(m1a, "` produces effect `");
                         let m1c: str = str_concat(m1b, eff);
@@ -12191,6 +12599,33 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                     };
                 };
                 di = di + 2;
+            };
+        };
+        // Pass 3 (R4): G-5 deref-after-extern-call dataflow check.
+        // Runs only when the fn body actually called an extern fn
+        // with a raw-ptr return type — otherwise nothing to check.
+        // The check fires regardless of whether the fn has an
+        // #[allow_effect(may_return_null)] silencer because the
+        // null-deref bug is a sound dataflow violation, not a
+        // declaration discipline issue. Adopters who genuinely want
+        // to bypass the guard for an audited unsafe-but-non-null
+        // path can use #[allow_effect(may_return_null)] on the fn
+        // PLUS structure the call so the deref happens inside an
+        // `unsafe { }` block (the unsafe check then asks for its own
+        // allow_effect). The check is limited to one violation per
+        // fn to avoid diagnostic-storm on repeated patterns.
+        let g5_vname: str = g10_g5_first_violation(body, extern_table);
+        if str_len(g5_vname) > 0 {
+            let g5_allow_g5: i64 = g10_pairs_has(allows, fn_name, "may_return_null");
+            if g5_allow_g5 == 0 {
+                let extern_called5: str = g10_body_first_extern_ptr_call(body, extern_table);
+                let g5_a: str = str_concat("function `", fn_name);
+                let g5_b: str = str_concat(g5_a, "` dereferences `");
+                let g5_c: str = str_concat(g5_b, g5_vname);
+                let g5_d: str = str_concat(g5_c, "` (returned from extern fn `");
+                let g5_e: str = str_concat(g5_d, extern_called5);
+                let g5: str = str_concat(g5_e, "`) without a dominating `ptr_is_null(<binding>)` guard. Per RFC-0062 G-5 (Phase 4), raw-pointer returns from extern fns may be NULL on failure; the deref must be preceded by `if ptr_is_null(p) { panic(...); }` on the same control-flow path.");
+                diag_add_ex(diags, "error", "effect", "FFI-G5-NULL-DEREF", g5, fn_name, lcl, lcc, "");
             };
         };
         ti = ti + 3;
