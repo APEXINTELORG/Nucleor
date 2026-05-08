@@ -11161,6 +11161,15 @@ fn is_known_diag_code(code: str) -> i64 {
     // from OWN-001 (which fires when the binding is moved on every
     // incoming path).
     if str_eq(code, "OWN-G8-COND-MOVE") == 1 { return 1; };
+    // RFC-0062 G-11 Phase 2b/3/4 — definite-assignment flow
+    // analysis. Phase 2b relaxes the unconditional TYP-008 rejection
+    // of `let mut x: T;` (no-init mutable bindings), allowing them
+    // when DA proves every read is dominated by an assignment.
+    // Reads on a path where the binding is not definitely assigned
+    // emit this code at error severity. Cooperates with the
+    // own_merge_moved lattice to intersect init state at if/else
+    // join points.
+    if str_eq(code, "INIT-G11-READ-BEFORE-INIT") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -19409,17 +19418,25 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
-    // RFC-0062 G-8 Phase 2b/3/4 — move-state join at if/else merge.
-    // For state keys (prefix `__os_`):
+    // RFC-0062 G-8 Phase 2b/3/4 + G-11 Phase 2b — combined merge
+    // semantics at if/else joins.
+    //
+    // For state keys (prefix `__os_`, G-8):
     //   both arms moved (va == vb == 2)         → state = 2 (OWN-001 catches subsequent read)
     //   exactly one arm moved (va == 2 XOR vb == 2) → state stays at pre-arm
     //     value (typically 1) and the cond-moved flag is set so
     //     subsequent reads emit OWN-G8-COND-MOVE.
     //   neither moved                           → preserve pre-arm state (no-op)
-    // For non-state keys (other tracker entries): preserve the
-    // legacy "if either arm has value 2, set value 2" semantic so
-    // any non-move tracker that piggy-backed on this loop is
-    // unaffected.
+    //
+    // For init-state keys (prefix `__init_`, excluding `__init_seen_`, G-11):
+    //   both arms definitely-assigned (va == 1 && vb == 1) → 1
+    //   either arm not assigned                            → 0 (subsequent
+    //     read emits INIT-G11-READ-BEFORE-INIT)
+    //
+    // For other tracker entries: preserve the legacy "if either arm
+    // has value 2, set value 2" semantic so any non-move tracker that
+    // piggy-backed on this loop is unaffected.
+    //
     // Both `a` and `b` are consumed (freed) — they are then/else
     // env snapshots that no caller references after merge.
     let mut i: i64 = 0;
@@ -19428,7 +19445,7 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         let va: i64 = vec_get(a, i + 1);
         let vb: i64 = sym_get(b, key);
         if str_starts_with(key, "__os_") == 1 {
-            // State key — apply the G-8 lattice.
+            // G-8 state-key lattice.
             if va == 2 && vb == 2 {
                 own_put_i(o, key, 2);
             } else {
@@ -19438,8 +19455,14 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
                 };
             };
         } else {
-            // Non-state key — preserve legacy semantics.
-            if va == 2 || vb == 2 { own_put_i(o, key, 2); };
+            if str_starts_with(key, "__init_") == 1 && str_starts_with(key, "__init_seen_") == 0 {
+                // G-11 init-state intersection.
+                if va == 1 && vb == 1 { own_put_i(o, key, 1); }
+                else { own_put_i(o, key, 0); };
+            } else {
+                // Non-state key — preserve legacy "either-moved → moved" semantic.
+                if va == 2 || vb == 2 { own_put_i(o, key, 2); };
+            };
         };
         i = i + 2;
     };
@@ -19498,8 +19521,64 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     let mut warns: i64 = 0;
     if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; }; // literals
     if kind == 3 {
-        // IDENT — check for use-after-move, use-after-drop, and conditional-move
+        // IDENT — check for use-after-move, use-after-drop,
+        // conditional-move, and read-before-init.
         let vname: str = node_field(pool, nid, 1);
+        // RFC-0062 G-11 Phase 2b/3/4 — definite-assignment flow.
+        // The init flag is 1 iff the binding has been definitely
+        // assigned on every incoming path (initializer at decl,
+        // subsequent assignment, or both arms of a join). 0 means
+        // declared without initializer and either never assigned or
+        // assigned on only some incoming paths. Reading the slot in
+        // that state is an MS-7 hazard (alloca's zero-init slot is
+        // returned silently). Emit INIT-G11-READ-BEFORE-INIT at
+        // error severity. The flag is per-name on the `own` env, so
+        // shadowing and scope exits behave like the rest of the
+        // tracker. Skip the check for `_` placeholder reads and
+        // self-method receivers (which the parser reroutes through
+        // a different binding name).
+        if str_len(vname) > 0 && str_eq(vname, "_") == 0 {
+            // own_get_i_raw returns 0 for keys that never existed.
+            // Only fire when the key was explicitly set to 0 by the
+            // let-no-init or never-assigned path; we distinguish
+            // "key absent" from "key=0" by checking that the
+            // binding type is registered in the env (which means
+            // check_stmt kind-20 ran for it).
+            let g11_init: i64 = own_get_i_raw(own, str_concat("__init_", vname));
+            if g11_init == 0 {
+                let g11_typ: str = own_get_type(own, vname);
+                if str_len(g11_typ) > 0 {
+                    // The binding is known to the env (declared
+                    // somewhere). Init flag 0 means at least one
+                    // incoming path didn't assign. own_get returns
+                    // 1 (live) for declared bindings; if the flag
+                    // is 0, that distinguishes uninit from already-
+                    // moved (state=2 path below).
+                    let g11_state: i64 = own_get(own, vname);
+                    if g11_state != 2 {
+                        // Confirm the binding was actually declared
+                        // without init by checking that the let-
+                        // decl path set the init flag explicitly.
+                        // Bindings declared by parameters / loop
+                        // vars / etc. don't go through the DA
+                        // path so their init key is absent (raw
+                        // returns 0). Differentiate by checking
+                        // own_get_param: parameters skip DA.
+                        if own_get_param(own, vname) == 0 {
+                            // Final guard: only fire if a let-decl
+                            // explicitly set the init key. Use a
+                            // sentinel `__init_seen_<vname>` marker
+                            // that check_stmt kind-20 sets on
+                            // every let-decl.
+                            if own_get_i_raw(own, str_concat("__init_seen_", vname)) == 1 {
+                                warns = warns + own_diag(own, fn_name, "INIT-G11-READ-BEFORE-INIT", str_concat("read of '", str_concat(vname, "' before it is definitely assigned. The binding was declared without an initializer (`let mut ", str_concat(vname, ": T;`) and either no assignment dominates this read, or only some arms of a preceding if/else assigned it. Either initialize at the declaration point (`let mut ", str_concat(vname, ": T = ...;`) or ensure every incoming control-flow path assigns the binding before this read.")))), vname);
+                                return warns;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         // RFC-0062 G-4 Phase 2b/3/4 — IR-level use-after-drop check.
         // `Vec<T>` / `HashMap<K,V>` / `String` etc. are treated as
         // Copy by the move-state tracker (i64-everywhere ABI: the
@@ -19528,6 +19607,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // general "use of moved" classification.
         if own_get_i_raw(own, str_concat("__g8_cond_moved_", vname)) == 1 {
             warns = warns + own_diag(own, fn_name, "OWN-G8-COND-MOVE", str_concat("conditional move of '", str_concat(vname, "': value is moved on one arm of the preceding if/else but not the other. Subsequent reads are unsound because the binding may no longer own its value depending on which arm ran. Either move on every arm (so the value is definitely consumed) or move on no arm (so the value is preserved on every path).")), vname);
+            return warns;
+        };
         let state: i64 = own_get(own, vname);
         if state == 2 {
             let source_text_move: str = own_source(own);
@@ -19990,8 +20071,24 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 };
             };
             own_set(own, vname, 1);
+            // RFC-0062 G-11 Phase 2b — DA flow analysis. let-with-
+            // initializer = definitely assigned at this program
+            // point. The seen sentinel records that this binding
+            // went through the DA path (so reads can distinguish
+            // params / loop vars / etc.).
+            own_set_i_raw(own, str_concat("__init_", vname), 1);
+            own_set_i_raw(own, str_concat("__init_seen_", vname), 1);
         } else {
             own_set(own, vname, 0);
+            // RFC-0062 G-11 Phase 2b — DA flow analysis. let-without-
+            // initializer = NOT yet assigned. Subsequent reads emit
+            // INIT-G11-READ-BEFORE-INIT unless an assignment domi-
+            // nates. Cooperates with own_merge_moved at if/else
+            // joins via __init_* key intersection. The seen
+            // sentinel scopes the diagnostic to bindings that
+            // actually went through the DA-aware let-decl path.
+            own_set_i_raw(own, str_concat("__init_", vname), 0);
+            own_set_i_raw(own, str_concat("__init_seen_", vname), 1);
         };
         own_set_type(own, vname, tstr);
         return warns;
@@ -20020,6 +20117,11 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             if own_get_mutable(own, lname) == 0 && own_get_param(own, lname) == 0 {
                 warns = warns + own_diag(own, fn_name, "OWN-008", str_concat("cannot assign to immutable binding '", str_concat(lname, "'")), lname);
             };
+            // RFC-0062 G-11 Phase 2b — DA flow analysis. Assignment
+            // to a var-ref LHS marks the binding as definitely
+            // assigned at this program point. Subsequent reads on
+            // this path no longer fire INIT-G11-READ-BEFORE-INIT.
+            own_set_i_raw(own, str_concat("__init_", lname), 1);
             own_release_ref(own, lname);
             if node_kind(pool, rhs) == 90 || node_kind(pool, rhs) == 91 {
                 warns = warns + own_register_borrow_expr(pool, rhs, own, fn_name, lname, scope_depth, 1);
@@ -23572,23 +23674,21 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
     let mut warns: i64 = 0;
     if kind == 20 {
         let vname: str = node_field(pool, nid, 1);
+        let is_mut_g11: i64 = node_field(pool, nid, 2);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
-        // v0.4.83 caught immutable no-init bindings. v0.4.155 extends
-        // to mutable: `let mut x: i64;` has the same zero-read hazard
-        // unless every reachable path assigns before use, and Nucleor
-        // has no flow-sensitive definite-assignment pass to verify
-        // that. Reject named no-init bindings uniformly. Accepted:
-        //   let x: i64 = 5;       — init present (OK)
-        //   let mut x: i64 = 5;   — init present (OK)
-        // Rejected (both forms now):
-        //   let x: i64;           — immutable, never settable
-        //   let mut x: i64;       — mutable, but no flow-tracking
-        if init < 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 {
+        // RFC-0062 G-11 Phase 2b/3/4 — TYP-008 narrowed for mutable
+        // no-init bindings.
+        //   let x: i64;       (immutable, never settable)  → still TYP-008.
+        //   let mut x: i64;   (mutable, DA-trackable)      → permitted.
+        //                     check_stmt sets the init flag; reads on
+        //                     paths that don't dominate the assignment
+        //                     fire INIT-G11-READ-BEFORE-INIT instead.
+        if init < 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 && is_mut_g11 == 0 {
             // Skip the special `__tuple_destructure_unsupported__`
             // placeholder name (already panics at parse time).
             if str_eq(vname, "__tuple_destructure_unsupported__") == 0 {
-                type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("binding `", str_concat(vname, "` declared without initializer (type-only). Nucleor has no flow-sensitive definite-assignment pass, so this would silently read as 0 from the alloca's zero-init slot on any path that reaches the read before an assignment. Assign at declaration, or introduce the binding where the value exists.")));
+                type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("binding `", str_concat(vname, "` declared without initializer (type-only). Immutable bindings are never settable so this is structurally unreachable — assign at declaration. (Mutable `let mut ", str_concat(vname, ": T;` is now permitted; reads before a definite assignment fire INIT-G11-READ-BEFORE-INIT instead, per RFC-0062 G-11 Phase 2b definite-assignment flow.)"))));
             };
         };
         // v0.3.180: NUC-FEEDBACK-002 -- promoted parse-time
