@@ -107,6 +107,8 @@ Issues live at https://github.com/APEXINTELORG/Nucleor/issues. When filing, plea
 
 ## Pull requests
 
+> Maintainers: see [`docs/MAINTAINER_RELEASE_WORKFLOW.md`](docs/MAINTAINER_RELEASE_WORKFLOW.md) for the archive ↔ public release split. The public repo carries `main` and release tags only; all iteration lives on the private archive.
+
 1. Fork the repo and create a topic branch off `main`.
 2. Make your change. Keep PRs focused — one fix or feature per PR.
 3. Add or update tests under `tests/` to cover the change.
