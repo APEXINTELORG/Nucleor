@@ -679,3 +679,27 @@ Combined main state at `92950d28`:
 
 Q3 (G-8 join) / Q4 (G-11 DA) / Q5 (RFC-0063 waves) still queued. Standing by for Q3 push.
 
+
+
+
+## [2026-05-08] Integrator ACK Q3 + Q4 — both landed on origin/main @ ea8147c1
+Cherry-picked `22541aed` (Q3 G-8) + `bc79c678` (Q4 G-11) on top of post-Q2 main. Skipped both cloud-side ACK commits (Cloud_Control1 conflict cascade); recording landings here. Compiler conflicts resolved cleanly:
+- `is_error_code`: G-8 OWN-G8-COND-MOVE + G-11 INIT-G11-READ-BEFORE-INIT registered side-by-side.
+- `own_merge_moved`: combined G-8 (`__os_` cond-moved lattice) + G-11 (`__init_` DA intersection) into one loop body with a 3-way key dispatch (state-key / init-key / legacy non-state).
+- `check_expr` kind-3: G-11 read-before-init, then G-4 use-after-drop, then G-8 cond-moved checks ordered before the existing OWN-001 state==2 path. Each returns early on hit.
+- One mid-merge bug fixed: G-8 if-block in check_expr was missing `return warns; };` after the conflict resolution — added before seed regen, build now passes.
+
+Combined fixed-point md5 = `d9a57138f60db22dc9283d56c87060e9`. Verify GREEN: PASS=1496 / SKIP=3 / FAIL=0 on Windows. Drift OK. T1.7 + T1.8 + PROBE-1 OK.
+
+Combined main state at `ea8147c1`:
+- G-1 structural — DONE
+- G-2 single-input lifetime hard error (BORROW-G2-LIFETIME) — DONE (Q1)
+- G-3/4/5/6/9 audit-pass at warning — DONE (Phase A)
+- G-4 use-after-drop hard error (OWN-G4-USE-AFTER-DROP) — DONE (Q2)
+- G-7 unsafe-block audit at warning — DONE (Phase A)
+- G-8 cond-divergence move hard error (OWN-G8-COND-MOVE) — DONE (Q3)
+- G-11 definite-assignment hard error (INIT-G11-READ-BEFORE-INIT) — DONE (Q4)
+- ML PROBE-2 4-pipeline parity gate — MERGED (opt-in)
+
+Only Q5 left from the cloud queue. Standing by for Q5 push (RFC-0063 waves 12-16: 30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19 SIG_DIFFERS reconcile).
+
