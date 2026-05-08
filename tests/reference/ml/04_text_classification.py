@@ -72,6 +72,19 @@ def main() -> None:
     y_pred = nb.predict(x_test).astype(np.int64)
     acc = float(accuracy_score(y_test, y_pred))
 
+    # Per ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md:
+    # Nucleor has no BernoulliNB fit API. Dump fitted feature_log_prob
+    # + class_log_prior + classes so the Nucleor probe can run
+    # predict-only (joint log-likelihood + argmax).
+    params = {
+        "feature_log_prob": [[float(v) for v in row] for row in nb.feature_log_prob_],
+        "class_log_prior": [float(v) for v in nb.class_log_prior_],
+        "classes": [int(c) for c in nb.classes_],
+    }
+    holdout = {
+        "x_test": [[int(v) for v in row] for row in x_test.astype(np.int64)],
+    }
+
     result = {
         "case": "04_text_classification",
         "model": "sklearn.naive_bayes.BernoulliNB",
@@ -85,6 +98,8 @@ def main() -> None:
         "y_test": [int(v) for v in y_test],
         "y_pred": [int(v) for v in y_pred],
         "accuracy": acc,
+        "params": params,
+        "holdout": holdout,
         "tolerance_abs": 1e-09,
     }
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
