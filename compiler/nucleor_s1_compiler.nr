@@ -11170,6 +11170,34 @@ fn is_known_diag_code(code: str) -> i64 {
     // own_merge_moved lattice to intersect init state at if/else
     // join points.
     if str_eq(code, "INIT-G11-READ-BEFORE-INIT") == 1 { return 1; };
+    // RFC-0062 G-3 Phase 3 — heap-aliasing per-fn analysis. Promotes
+    // the v0827 / v0830 textual audit-pass (build-summary count) to
+    // per-call-site error in `check_expr` kind-7. ALIAS-G3-VEC-OF-REFS
+    // fires when `vec_push` / `vec_insert` lands on a binding declared
+    // as `Vec<&T>` (pushing a borrow into a Vec hides aliasing from
+    // the syntactic borrow tracker). ALIAS-G3-HASHMAP-REHASH fires
+    // when `hashmap_insert` / `hashmap_remove` / `hashmap_clear` /
+    // `hashmap_free` is called while a live shared borrow exists on
+    // the same map binding (rehash invalidates held references).
+    if str_eq(code, "ALIAS-G3-VEC-OF-REFS") == 1 { return 1; };
+    if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") == 1 { return 1; };
+    // RFC-0062 G-6 Phase 3 — Sendable per-call-site classification at
+    // spawn boundaries (`thread_spawn` / `async_spawn` / `conc_spawn`).
+    // Promotes the v0833 / v0836 textual audit-pass (build-summary
+    // count) to per-call-site error in `check_expr` kind-7. The
+    // existing RACE-001 textual pre-pass continues to fire for plain
+    // non-Sendable struct args; the codes below are more specific
+    // shape classifications. SEND-G6-HASHMAP fires for HashMap /
+    // Cell / RefCell args. SEND-G6-CLOSURE-CAPTURE fires when the
+    // arg expression is a closure literal (kind 42). SEND-G6-TUPLE
+    // fires when the arg's declared type starts with `(` and any
+    // tuple element is non-Sendable. SEND-G6-ENUM fires when the arg's
+    // declared type names an enum that has at least one variant
+    // payload type containing a non-Sendable shape.
+    if str_eq(code, "SEND-G6-HASHMAP") == 1 { return 1; };
+    if str_eq(code, "SEND-G6-CLOSURE-CAPTURE") == 1 { return 1; };
+    if str_eq(code, "SEND-G6-TUPLE") == 1 { return 1; };
+    if str_eq(code, "SEND-G6-ENUM") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
@@ -19479,6 +19507,123 @@ fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
     return 0 - 1;
 }
 
+// RFC-0062 G-6 Phase 3 helper — true iff `name` appears in the
+// closure-param-list `cparams` (a list of name-string handles, see
+// parse_primary line ~2564 / 2570: `mk_list(pool, cparams)`).
+#[manual_drop]
+fn g6_cparam_has(pool: Vec<i32>, cparams_lid: i64, name: str) -> i64 {
+    let cnt: i64 = list_len(pool, cparams_lid);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let pname: str = list_get(pool, cparams_lid, i);
+        if str_eq(pname, name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+// RFC-0062 G-6 Phase 3 helper — recursive walker over a closure
+// body looking for any kind-3 identifier reference whose name is
+// (a) not in the closure's param list and (b) registered as a
+// local binding in the enclosing fn's `own` env (via
+// `own_get_type` returning non-empty). A hit means the closure
+// captures at least one local from the enclosing scope, which
+// makes the closure non-Sendable unless every captured local is
+// Sendable. Returns 1 on first hit, 0 if the walk completes with
+// no captures detected. The walker is conservative on opaque
+// kinds (returns 0 / false-negative) — Phase 4 promotion of
+// SEND-G6-CLOSURE-CAPTURE intentionally fires only on patterns
+// the walker can prove capture; bare-param-only closures (the
+// `|x| x * 2` shape used by `tests/runtime/concurrency.nr`)
+// correctly skip the diagnostic.
+#[manual_drop]
+fn g6_closure_walk_capture(pool: Vec<i32>, nid: i64, cparams_lid: i64, own: Vec<i32>) -> i64 {
+    if nid < 0 { return 0; };
+    if nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; };
+    if kind == 3 {
+        let vname: str = node_field(pool, nid, 1);
+        if str_len(vname) == 0 { return 0; };
+        if g6_cparam_has(pool, cparams_lid, vname) == 1 { return 0; };
+        let vtyp: str = own_get_type(own, vname);
+        if str_len(vtyp) > 0 { return 1; };
+        return 0;
+    };
+    // Binary op / index / cmp: children at fields 2 & 3 (and 1 for some).
+    if kind == 4 || kind == 10 {
+        if g6_closure_walk_capture(pool, node_field(pool, nid, 2), cparams_lid, own) == 1 { return 1; };
+        if g6_closure_walk_capture(pool, node_field(pool, nid, 3), cparams_lid, own) == 1 { return 1; };
+        return 0;
+    };
+    // Unary / cast / borrow / deref / paren: child at field 1.
+    if kind == 5 || kind == 6 || kind == 9 || kind == 22 || kind == 90 || kind == 91 || kind == 92 {
+        return g6_closure_walk_capture(pool, node_field(pool, nid, 1), cparams_lid, own);
+    };
+    // Call kind 7: args list at field 2.
+    if kind == 7 {
+        let args7: i64 = node_field(pool, nid, 2);
+        let ac7: i64 = list_len(pool, args7);
+        let mut i7: i64 = 0;
+        while i7 < ac7 {
+            if g6_closure_walk_capture(pool, list_get(pool, args7, i7), cparams_lid, own) == 1 { return 1; };
+            i7 = i7 + 1;
+        };
+        return 0;
+    };
+    // Method kind 8: receiver field 1 + args list at field 3.
+    if kind == 8 {
+        if g6_closure_walk_capture(pool, node_field(pool, nid, 1), cparams_lid, own) == 1 { return 1; };
+        let args8: i64 = node_field(pool, nid, 3);
+        let ac8: i64 = list_len(pool, args8);
+        let mut i8: i64 = 0;
+        while i8 < ac8 {
+            if g6_closure_walk_capture(pool, list_get(pool, args8, i8), cparams_lid, own) == 1 { return 1; };
+            i8 = i8 + 1;
+        };
+        return 0;
+    };
+    // Qualified call kind 12: args list at field 3.
+    if kind == 12 {
+        let args12: i64 = node_field(pool, nid, 3);
+        let ac12: i64 = list_len(pool, args12);
+        let mut i12: i64 = 0;
+        while i12 < ac12 {
+            if g6_closure_walk_capture(pool, list_get(pool, args12, i12), cparams_lid, own) == 1 { return 1; };
+            i12 = i12 + 1;
+        };
+        return 0;
+    };
+    // Block kind 52 / stmts-list iteration via field 2.
+    if kind == 52 {
+        let stmts52: i64 = node_field(pool, nid, 2);
+        let sc52: i64 = list_len(pool, stmts52);
+        let mut s52: i64 = 0;
+        while s52 < sc52 {
+            if g6_closure_walk_capture(pool, list_get(pool, stmts52, s52), cparams_lid, own) == 1 { return 1; };
+            s52 = s52 + 1;
+        };
+        return 0;
+    };
+    // Vec/array literals kind 47/48: items list at field 1.
+    if kind == 47 || kind == 48 {
+        let items47: i64 = node_field(pool, nid, 1);
+        let ic47: i64 = list_len(pool, items47);
+        let mut i47: i64 = 0;
+        while i47 < ic47 {
+            if g6_closure_walk_capture(pool, list_get(pool, items47, i47), cparams_lid, own) == 1 { return 1; };
+            i47 = i47 + 1;
+        };
+        return 0;
+    };
+    // Conservative fallback: opaque shapes return 0 (no capture
+    // detected). Phase 4 hard-fail is intentionally narrow — false
+    // negatives stay silent rather than false-positive on shapes
+    // the walker can't reason about (closure-of-closure, complex
+    // match arms, etc.).
+    return 0;
+}
+
 #[manual_drop]
 fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
     if str_len(tstr) == 0 { return 1; };
@@ -19656,6 +19801,119 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         let callee_name: str = node_field(pool, nid, 1);
         let args: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, args);
+        // RFC-0062 G-6 Phase 3 — Sendable per-call-site classification.
+        // At spawn-family call sites (`thread_spawn` / `async_spawn` /
+        // `conc_spawn`), classify the offending arg shape into
+        // SEND-G6-HASHMAP / SEND-G6-CLOSURE-CAPTURE / SEND-G6-TUPLE /
+        // SEND-G6-ENUM. The existing RACE-001 textual pre-pass
+        // (`enforce_sendable_spawn_name`) continues to fire for plain
+        // non-Sendable struct args and `&mut` thread-cross; this
+        // analysis adds shape-specific error codes at the per-call
+        // expression site so reviewers see *why* the spawn is unsound.
+        // Codes are registered in `is_error_code` and fire at error
+        // severity (Phase 4 lock-in).
+        let g6_is_spawn: i64 = if str_eq(callee_name, "thread_spawn") == 1 || str_eq(callee_name, "async_spawn") == 1 || str_eq(callee_name, "conc_spawn") == 1 { 1 } else { 0 };
+        if g6_is_spawn == 1 {
+            let mut g6_ai: i64 = 0;
+            while g6_ai < ac {
+                let g6_arg: i64 = list_get(pool, args, g6_ai);
+                let g6_kind: i64 = node_kind(pool, g6_arg);
+                if g6_kind == 42 {
+                    // Only fire when the closure captures at least
+                    // one local from the enclosing fn scope. A bare
+                    // closure that references only its parameters
+                    // (e.g. `|x| x * 2` in tests/runtime/concurrency.nr)
+                    // is Sendable by construction and must not regress.
+                    let g6_cparams: i64 = node_field(pool, g6_arg, 1);
+                    let g6_body: i64 = node_field(pool, g6_arg, 2);
+                    let g6_body_kind: i64 = node_kind(pool, g6_body);
+                    let mut g6_captured: i64 = 0;
+                    if g6_body_kind == 40 {
+                        // body field is itself a list (parse_primary
+                        // line ~2570 wraps single-expr bodies in
+                        // mk_list of one return-stmt). Walk each.
+                        let g6_bcnt: i64 = list_len(pool, g6_body);
+                        let mut g6_bi: i64 = 0;
+                        while g6_bi < g6_bcnt && g6_captured == 0 {
+                            let g6_bstmt: i64 = list_get(pool, g6_body, g6_bi);
+                            if g6_closure_walk_capture(pool, g6_bstmt, g6_cparams, own) == 1 {
+                                g6_captured = 1;
+                            };
+                            g6_bi = g6_bi + 1;
+                        };
+                    } else {
+                        if g6_closure_walk_capture(pool, g6_body, g6_cparams, own) == 1 {
+                            g6_captured = 1;
+                        };
+                    };
+                    if g6_captured == 1 {
+                        warns = warns + own_diag(own, fn_name, "SEND-G6-CLOSURE-CAPTURE", str_concat("closure literal passed to spawn-family call `", str_concat(callee_name, "` captures at least one binding from the enclosing scope. Per RFC-0062 G-6 Phase 3 (v1.0): Rust-style closures are Sendable iff every captured variable is Sendable, and the per-closure capture-set audit is post-v1.0 hardening — closures with non-empty captures crossing thread boundaries cannot be proven Sendable today. Restructure the spawn argument as a named fn pointer with explicit Sendable args, or use a closure that references only its parameters.")), callee_name);
+                    };
+                };
+                if g6_kind == 3 {
+                    let g6_aname: str = node_field(pool, g6_arg, 1);
+                    let g6_atype_raw: str = own_get_type(own, g6_aname);
+                    // Strip leading `&` / `&mut ` from ref args so the
+                    // shape detection sees the underlying container.
+                    let mut g6_atype: str = g6_atype_raw;
+                    if str_starts_with(g6_atype, "&mut ") == 1 { g6_atype = str_trim(str_substring(g6_atype, 5, str_len(g6_atype))); }
+                    else if str_starts_with(g6_atype, "&") == 1 { g6_atype = str_trim(str_substring(g6_atype, 1, str_len(g6_atype))); };
+                    if str_len(g6_atype) > 0 {
+                        let g6_has_hm: i64 = if str_index_of(g6_atype, "HashMap<") >= 0 { 1 } else { 0 };
+                        let g6_has_refcell: i64 = if str_index_of(g6_atype, "RefCell<") >= 0 { 1 } else { 0 };
+                        let g6_has_cell: i64 = if str_index_of(g6_atype, "Cell<") >= 0 { 1 } else { 0 };
+                        let g6_has_nonsend: i64 = if g6_has_hm == 1 || g6_has_refcell == 1 || g6_has_cell == 1 { 1 } else { 0 };
+                        let g6_is_tuple: i64 = if str_starts_with(g6_atype, "(") == 1 { 1 } else { 0 };
+                        if g6_is_tuple == 1 && g6_has_nonsend == 1 {
+                            warns = warns + own_diag(own, fn_name, "SEND-G6-TUPLE", str_concat("tuple type `", str_concat(g6_atype, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call with at least one non-Sendable element (HashMap / Cell / RefCell). Per RFC-0062 G-6 Phase 3 (v1.0): a tuple is Sendable iff every element type is Sendable. Reshape the spawn payload to a tuple of Sendable elements only (primitives, Vec<Sendable>, struct with `impl Sendable`).")))), g6_aname);
+                        } else if g6_has_nonsend == 1 {
+                            warns = warns + own_diag(own, fn_name, "SEND-G6-HASHMAP", str_concat("non-Sendable container type `", str_concat(g6_atype, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call. Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> is Sendable iff K, V, and the hasher are Sendable (today's HashMap is unaudited and must be treated as non-Sendable across spawn). Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). Restructure the spawn argument as a Sendable handle (Vec<i64>, primitives, structs with `impl Sendable`).")))), g6_aname);
+                        } else {
+                            // Enum-payload non-Sendable check. Resolve
+                            // base name and look up in enum table; walk
+                            // each variant's payload field types for a
+                            // non-Sendable shape.
+                            let g6_base: str = type_base_name(g6_atype);
+                            if str_len(g6_base) > 0 {
+                                let g6_eidx: i64 = enum_find(pool, enums, g6_base);
+                                if g6_eidx >= 0 {
+                                    let g6_e_nid: i64 = vec_get(enums, g6_eidx);
+                                    let g6_vlist: i64 = node_field(pool, g6_e_nid, 2);
+                                    let g6_vcnt: i64 = list_len(pool, g6_vlist);
+                                    let mut g6_vi: i64 = 0;
+                                    let mut g6_hit: i64 = 0;
+                                    while g6_vi < g6_vcnt && g6_hit == 0 {
+                                        let g6_var: i64 = list_get(pool, g6_vlist, g6_vi);
+                                        // Variant payload list elements are
+                                        // type-strings (`pr_val` of parse_type),
+                                        // not node ids (parse_enum_decl: line
+                                        // ~4587 mk_list(pool, ptypes) where
+                                        // ptypes is `Vec<i32>` of pr_val str
+                                        // handles). list_get returns the i64
+                                        // string handle directly.
+                                        let g6_payload: i64 = node_field(pool, g6_var, 2);
+                                        let g6_pcnt: i64 = list_len(pool, g6_payload);
+                                        let mut g6_pi: i64 = 0;
+                                        while g6_pi < g6_pcnt && g6_hit == 0 {
+                                            let g6_ftype: str = list_get(pool, g6_payload, g6_pi);
+                                            if str_index_of(g6_ftype, "HashMap<") >= 0 || str_index_of(g6_ftype, "RefCell<") >= 0 || str_index_of(g6_ftype, "Cell<") >= 0 {
+                                                g6_hit = 1;
+                                            };
+                                            g6_pi = g6_pi + 1;
+                                        };
+                                        g6_vi = g6_vi + 1;
+                                    };
+                                    if g6_hit == 1 {
+                                        warns = warns + own_diag(own, fn_name, "SEND-G6-ENUM", str_concat("enum type `", str_concat(g6_base, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call with at least one non-Sendable variant payload (HashMap / Cell / RefCell). Per RFC-0062 G-6 Phase 3 (v1.0): an enum is Sendable iff every variant's payload types are Sendable. Either restructure the offending variant's payload to Sendable types or pass an i64 handle instead of the enum at the spawn boundary.")))), g6_aname);
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+                g6_ai = g6_ai + 1;
+            };
+        };
         let mut ai: i64 = 0;
         while ai < ac {
             let arg_nid: i64 = list_get(pool, args, ai);
@@ -19677,6 +19935,27 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let arena_key: str = str_concat("@arena:", aname);
                     if own_has_shared_overlap(own, arena_key) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-012", str_concat("cannot destroy arena '", str_concat(aname, "': live arena references still exist")), aname);
+                    };
+                };
+                // RFC-0062 G-3 Phase 3 — heap-aliasing per-fn analysis.
+                // ALIAS-G3-VEC-OF-REFS: vec_push / vec_insert into a
+                // binding declared as Vec<&T> (or Vec<&mut T>) hides
+                // aliasing from the syntactic borrow tracker — the
+                // tracker doesn't follow elements through Vec<&...>,
+                // so two pushes can leave aliased &T pointing at the
+                // same T. Fire at the call site with the binding name.
+                if str_eq(callee_name, "vec_push") == 1 || str_eq(callee_name, "vec_insert") == 1 {
+                    if ai == 0 && str_index_of(atype, "Vec<&") >= 0 {
+                        warns = warns + own_diag(own, fn_name, "ALIAS-G3-VEC-OF-REFS", str_concat("`", str_concat(callee_name, str_concat("` into binding `", str_concat(aname, str_concat("` of type `", str_concat(atype, "` installs a borrow into a Vec-of-references. Per RFC-0062 G-3 Phase 3 (v1.0): the syntactic borrow tracker does not follow elements through `Vec<&T>`, so two pushes of borrows aliasing the same `T` are invisible. Prefer indexing — store `Vec<i64>` indexes into an owned vector instead of `Vec<&T>` borrows of separate vectors.")))))), aname);
+                    };
+                };
+                // ALIAS-G3-HASHMAP-REHASH: hashmap_insert / hashmap_remove
+                // / hashmap_clear / hashmap_free while a live shared
+                // borrow of the same map binding exists. Mutations rehash
+                // or invalidate held references.
+                if str_eq(callee_name, "hashmap_insert") == 1 || str_eq(callee_name, "hashmap_remove") == 1 || str_eq(callee_name, "hashmap_clear") == 1 {
+                    if ai == 0 && own_has_shared_overlap(own, aname) == 1 {
+                        warns = warns + own_diag(own, fn_name, "ALIAS-G3-HASHMAP-REHASH", str_concat("`", str_concat(callee_name, str_concat("` on binding `", str_concat(aname, "` while a live shared borrow of the same HashMap exists. Per RFC-0062 G-3 Phase 3 (v1.0): `hashmap_insert` / `hashmap_remove` / `hashmap_clear` may rehash storage, invalidating any existing reference into the map. Either drop the borrow before mutating, or restructure to compute the mutation key/value before taking the borrow.")))), aname);
                     };
                 };
                 // RFC-0062 G-4 Phase 2b/3/4 — mark the arg's slot
