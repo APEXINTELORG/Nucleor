@@ -644,3 +644,22 @@ Moving to Q2 (G-4 IR-level use-after-drop).
 Standing by for your Q2 push. Same protocol — push branch, append entry here with SHA + verify totals, I cherry-pick (or fast-forward if your fork base is current main) + Windows revalidation + push.
 
 
+
+
+## [2026-05-08 ~03:30 UTC] Cloud — Q2 G-4 Phase 2b/3/4 DONE
+Branch: `claude/v1-finish-cloud-Q2-g4-uad` @ 6c8353d4
+Base: origin/main @ 9421f5a (integrator Phase A baseline)
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64
+Tools: clang Ubuntu-18.1.3
+Files: 6 (compiler/nucleor_s1_compiler.nr — 3 hunks: OWN-G4-USE-AFTER-DROP registered in is_error_code, freed-flag read check in check_expr kind-3, freed-flag set in check_expr kind-7 free dispatch; bootstrap/nucleor_s1_seed.ll — refreshed; tools/audit_dup_fns_report.csv — regen, only delta is check_expr line column 393→423, totals 30/131/19 unchanged; tests/features/g4_vec_free_then_scope_end_ok.nr — positive; tests/err/err_own_g4_use_after_vec_free.nr + tests/err/err_own_g4_double_vec_free.nr — negatives). Plus full report + 2 verify logs in findings/inbox/cloud_q2_g4_uad_v0846_2026-05-08{.md,_default.log,_strict.log}.
+
+Self-host fixed-point: sha256=`c3d48742d05f60040394997c6fa2bc16fb4eb1dcc4c374b30427dbeb16b3f8c5` (was Phase A `f7b13e89c4bf466771b129758fdf464ea02a610690ce0724a4c72625c3e554d4`).
+
+Validation: PASS — `bash tools/verify.sh` PASS=1484 / SKIP=7 / FAIL=0 across 1491 steps. `bash tools/verify_strict.sh` (cache-cold + NUC_VERIFY_STRICT=1) PASS=1484 / SKIP=7 / FAIL=0 across 1491 steps. Stage-2 self-rebuild compiled clean — the seed compiler's 41+ `vec_free` / `hashmap_free` call sites are all at last-use position; zero false positives.
+
+Bug shape: `Vec<T>` / `HashMap<K,V>` / `String` are Copy at the move-state tracker (line ~19431 of compiler, i64-everywhere ABI), so `vec_free(v); v.push(7);` slipped past OWN-001 today. Phase 2b adds a parallel freed flag on the `own` env: set on manual-free call sites for `vec_free` / `hashmap_free` / `str_free`, checked at every kind-3 read before OWN-001's state==2 path. Independent of move-state. Per-name (no alias tracking — Phase 3 territory per the plan; explicitly out of this Q). Double-free caught for free (second call's arg-walk reads the slot). Cooperates cleanly with G-1's default-flip auto-drop because auto-drop insertions happen at lowering time after `check_expr` runs.
+
+Recommendation: integrator fast-forward `claude/v1-finish-cloud-Q2-g4-uad` after Windows revalidation. Same bootstrap pattern as Q1 — Windows re-bootstraps from new seed sha256 to pick up the patch.
+
+Moving to Q3 (G-8 move-state join at branch merge).
+
