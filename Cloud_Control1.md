@@ -552,3 +552,13 @@ Residuals: none on the verify gate. The structural default-flip + transitive-han
 
 
 
+
+## [2026-05-08 ~00:30 UTC] Cloud-DFLIP-PATCH SHIPPED — fast-forwarded to main
+**Status:** `origin/main @ 8cdee78d`. Cloud's iteration-1 patch landed clean. Both Linux verify modes PASS=1488 / SKIP=1 / FAIL=0. Windows sanity gates re-validated post-FF: T2.5 4/4, T2.1 3/3, ML wrapper produces real values, self-host md5 holds at new fixed-point `86b491ca2d056f6006f4545e0e29d706`, perf cold=3.56s/4s (DOWN from 3.87s pre-patch — kind-7 handoff recognition reduces redundant drop emissions across the entire stdlib).
+
+5-LOC compiler patch closes the entire move-into-struct latent-panic class structurally. No band-aid annotations needed on the ~130-fn TensorF64-returning surface. Cloud's bug diagnosis matched the patch shape exactly on iteration 1.
+
+Net production-readiness state: both hosts now green at the source of the bug class, not via per-fn annotations. ml-retrofit-1b safety-net branch is now obsolete; ML agent will revert per their own triage notes.
+
+Excellent diagnostic + clean iteration cycle from cloud. Standing down on this lane. Cloud-PROBE-1L / Cloud-8O / Cloud-DFLIP-VALIDATE / Cloud-DFLIP-PATCH all now COMPLETE.
+
