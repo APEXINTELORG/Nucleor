@@ -11110,6 +11110,12 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "OWN-011") == 1 { return 1; };
     if str_eq(code, "OWN-012") == 1 { return 1; };
     if str_eq(code, "OWN-013") == 1 { return 1; };
+    // RFC-0062 G-4 Phase 2b/3/4 — IR-level use-after-drop. Manual
+    // `vec_free` / `hashmap_free` / `str_free` mark the arg's slot
+    // freed; subsequent reads in the same CFG path emit this code at
+    // error severity (Phase 4 hard-fail). The Phase 2a OWN-012
+    // textual count remains as a build-summary line.
+    if str_eq(code, "OWN-G4-USE-AFTER-DROP") == 1 { return 1; };
     // RACE — RFC-0035 Sendable + actor isolation
     if str_eq(code, "RACE-001") == 1 { return 1; };
     if str_eq(code, "RACE-002") == 1 { return 1; };
@@ -19465,8 +19471,25 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     let mut warns: i64 = 0;
     if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; }; // literals
     if kind == 3 {
-        // IDENT — check for use-after-move
+        // IDENT — check for use-after-move and use-after-drop
         let vname: str = node_field(pool, nid, 1);
+        // RFC-0062 G-4 Phase 2b/3/4 — IR-level use-after-drop check.
+        // `Vec<T>` / `HashMap<K,V>` / `String` etc. are treated as
+        // Copy by the move-state tracker (i64-everywhere ABI: the
+        // binding is just an i64 handle). That means
+        // `vec_free(v); v.push(7);` slips past OWN-001 today. The
+        // freed flag below is set at the manual-free call site
+        // (kind-7 dispatch further down); reading the slot after
+        // the free emits OWN-G4-USE-AFTER-DROP at error severity.
+        if own_get_i_raw(own, str_concat("__g4_freed_", vname)) == 1 {
+            let freed_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", vname));
+            let mut g4_msg: str = str_concat("use of '", str_concat(vname, "' after manual free"));
+            if str_len(freed_by) > 0 {
+                g4_msg = str_concat(g4_msg, str_concat(" (freed by '", str_concat(freed_by, "'). The heap allocation is gone; reading the binding after `", str_concat(freed_by, "(", str_concat(vname, ")` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.")))));
+            };
+            warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4_msg, vname);
+            return warns;
+        };
         let state: i64 = own_get(own, vname);
         if state == 2 {
             let source_text_move: str = own_source(own);
@@ -19536,6 +19559,19 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if own_has_shared_overlap(own, arena_key) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-012", str_concat("cannot destroy arena '", str_concat(aname, "': live arena references still exist")), aname);
                     };
+                };
+                // RFC-0062 G-4 Phase 2b/3/4 — mark the arg's slot
+                // freed so subsequent reads emit OWN-G4-USE-AFTER-DROP.
+                // `Vec` / `HashMap` / `String` are Copy at the
+                // move-state tracker (line ~19431), so this manual
+                // tracking is independent of OWN-001's state == 2.
+                // Double-free (`vec_free(v); vec_free(v);`) is also
+                // caught: the second call's check_expr arg-walk hits
+                // the freed flag in the kind-3 path above and fires
+                // OWN-G4-USE-AFTER-DROP before this set runs again.
+                if str_eq(callee_name, "vec_free") == 1 || str_eq(callee_name, "hashmap_free") == 1 || str_eq(callee_name, "str_free") == 1 {
+                    own_set_i_raw(own, str_concat("__g4_freed_", aname), 1);
+                    own_set_s_raw(own, str_concat("__g4_freed_by_", aname), callee_name);
                 };
                 if is_copy_type(atype, pool, structs, enums) == 0 {
                     if own_has_shared_overlap(own, aname) == 1 || own_has_mut_overlap(own, aname) == 1 {
