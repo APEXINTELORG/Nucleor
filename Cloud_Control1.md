@@ -703,6 +703,7 @@ Combined main state at `ea8147c1`:
 
 Only Q5 left from the cloud queue. Standing by for Q5 push (RFC-0063 waves 12-16: 30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19 SIG_DIFFERS reconcile).
 
+<<<<<<< HEAD
 
 
 
@@ -763,3 +764,36 @@ Validation: `bash tools/verify.sh` PASS=1496 / SKIP=8 / FAIL=3 across 1507 steps
 Recommendation: integrator fast-forward `claude/harden-cloud-agent-r2-03OaM` after Windows revalidation + seed/audit_dup_fns_report.csv regeneration. Same bootstrap pattern as Q1-Q4 cherry-picks; no behavior shift expected on Windows because the patched compiler's per-fn IR walker exercises the same paths on both hosts.
 
 Standing down on R2 lane.
+
+
+
+
+## R3
+
+## [2026-05-08 03:57 UTC] Cloud — R3 G-10 effect annotations framework DONE
+Branch: `claude/g10-annotations-framework-WZndh` (harness-pinned name; brief said `claude/v1x-cloud-R3-g10-effects` — same content, different name only)
+Base: origin/main @ 7ece32f
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64
+Tools: clang Ubuntu-18.1.3
+Files: 8 (compiler/nucleor_s1_compiler.nr — 3 hunks: EFFECT-G10-* registration in is_error_code grouped after INIT-G11-READ-BEFORE-INIT, ~280 LOC of g10_* helpers + enforce_g10_effects after enforce_requires_direct_calls, wire-in in compile_file_mode; tests/features/g10_effect_{frees_declared,allow_silences,propagation}_ok.nr — positive lock-ins; tests/err/err_g10_effect_{undeclared,missing_allow,wrong_row}.nr — negative lock-ins; docs/rfcs/RFC-0062-effects-extension.md — new spec). Plus full report at findings/inbox/cloud_R3_g10_effects_v0846_2026-05-08.md and verify logs at findings/inbox/r3_artifacts/verify_full_v2.log.
+
+**Code-allocation note (per brief flag-in-commit instruction):** R2's gap was Q4 (G-11 INIT-G11-READ-BEFORE-INIT) which already shipped on main @ ea8147c1 — R2 is not a sibling in this batch. R3's three EFFECT-G10-* codes are registered immediately after the existing INIT-G11-READ-BEFORE-INIT block, grouped under one G-10 comment header.
+
+Validation: `bash tools/verify.sh` PASS=1493 / SKIP=8 / FAIL=3 across 1504 steps. The 3 failures are the expected consequences of the brief's "no seed regen" rule + the MUST-NOT-touch list:
+  - `compiler ABI tables synced` — tools/audit_dup_fns_report.csv is in the brief's MUST-NOT-touch list; integrator regens on Windows.
+  - `T1.7 bootstrap seed matches current compiler` — bootstrap/nucleor_s1_seed.ll is in the brief's MUST-NOT-touch list; the new 280 LOC moved the seed; integrator regens on Windows.
+  - `T1.8 self-host compiler IR fixed point` — depends on T1.7; same root cause.
+All 1496 non-seed-derived steps pass; the 6 new G-10 fixtures all enter the parallel-fixture pool clean. Existing G-1/G-2/G-4/G-8/G-11 fixtures and the entire tests/{features,err} corpora unaffected — the cheap textual gate plus the real-attr scanner (which skips `// ...` and `"..."`) keep the pass dormant for everything that doesn't opt in.
+
+Self-host build trail: stage-1 from seed → stage-1 binary loads at `nucleor 0.8.323`. Stage-2 self-rebuild against patched compiler source completes clean (target/s2.ll, 11.9 MB); stage-3 self-rebuild from the patched binary cache-hits (sha=7152e55e904a). The new compiler's own source compiles through the new compiler — framework is dormant on the compiler self-source because `g10_collect_attr_pairs` filters out the documentation hits inside `is_error_code`.
+
+**Inference design** (one-hop, conservative):
+  - Pass A — leaf builtins: vec_free / hashmap_free / str_free → frees.
+  - Pass B — call propagation: callee's #[effect(...)] row contributes to caller's produced set.
+  - R4 will extend the leaf table for direct_ffi / may_return_null / borrows_mut. Attribute syntax + diagnostic codes stay stable across R4.
+
+**Adopter ergonomics surfaced:** the G-1 default-flip auto-drop pass interacts with `frees` fixtures — a caller of a fn that does `vec_free(v)` will also try to auto-drop `v` at scope end (double-free, segfault). The kind-7 transitive-handoff recognition (DFLIP-PATCH) handles the wrapper-returns-handoff case; the fire-and-forget pass-by-move case still wants `#[manual_drop]` on the caller (canonical pattern from tests/err/err_own_g4_* corpus). All 3 positive fixtures use `#[manual_drop]` on every fn that touches the freed binding.
+
+Recommendation: integrator fast-forward `claude/g10-annotations-framework-WZndh` after Windows seed + audit-CSV regen + Windows revalidation. Same protocol as Q1..Q4. No behavior shift expected on Windows; framework is opt-in and dormant on every existing fn.
+
+R3 ships. Standing down on this lane. R4 (G-5 + G-7 + G-9) can pick up the leaf-table extension whenever spawned.
