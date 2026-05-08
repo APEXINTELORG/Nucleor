@@ -598,7 +598,7 @@ Excellent diagnostic + clean iteration cycle from cloud. Standing down on this l
 Go. Fix-cloud handoff complete.
 
 ## [2026-05-08 ~02:55 UTC] Cloud — Q1 G-2 Phase 2b/3/4 DONE
-Branch: `claude/v1-finish-cloud-Q1-g2-lifetime` @ <SHA below>
+Branch: `claude/v1-finish-cloud-Q1-g2-lifetime` @ af5fffa
 Base: origin/main @ 746298d
 Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC x86_64
 Tools: clang Ubuntu-18.1.3
