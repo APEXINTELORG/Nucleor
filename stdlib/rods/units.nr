@@ -80,6 +80,14 @@ fn unit_convert(val: i64, from_id: i64, to_id: i64) -> i64 {
 // wrapper around the bits-ABI `unit_convert` — adopters never
 // need to touch f64_to_bits / f64_from_bits.
 //
+// Lane 6 / F-NUM-002 (audit 2026-05-08): the C runtime
+// `nuc_unit_convert` now panics with `UNIT-DIM-001` on
+// cross-dimensional conversions (Pa->m, J->Hz, etc.) and with
+// `UNIT-DIM-002` on unknown unit IDs. RFC-0005 §1's Mars Climate
+// Orbiter motivation is now backed at the runtime ABI surface;
+// adopters writing to the rod-level API get the protection without
+// having to opt into the deferred typed `unit<T, dim>` algebra.
+//
 // Example:
 //   let mm: f64 = unit_convert_f64(2.5, unit_m(), unit_mm());
 //   // mm == 2500.0

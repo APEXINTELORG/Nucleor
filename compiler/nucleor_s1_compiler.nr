@@ -14418,6 +14418,12 @@ fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
         };
         check_no_alloc_violations(diags, source, fn_name);
         check_no_panic_violations(diags, source, fn_name);
+        // Lane 6 / F-CONC-005 (audit 2026-05-08): RFC-0008 §3.0 says
+        // `#[isr]` implies `#[atomic]`. Pre-fix the implication was
+        // enforced for alloc / panic / dyn but not for blocking. An
+        // ISR locking a mutex on an embedded target deadlocks the
+        // whole system; surface the diagnostic at compile time.
+        check_atomic_contract_violations(diags, source, fn_name);
         // v0.6.32 (probe finding 2026-05-02-isr-attr-validation-gaps,
         // gaps b/c/d): validate `prio = N` named attribute shape.
         diags = validate_isr_prio(diags, fn_name, attr_text, vec_get(lc, 0), vec_get(lc, 1));
@@ -16142,13 +16148,23 @@ fn no_alloc_check_list() -> Vec<i32> {
     let mut v: Vec<i32> = Vec::new();
     // Vec — constructor + method calls
     v.push("Vec::new");
+    // Lane 6 / F-CONC-004 (audit 2026-05-08): RFC-listed canonical
+    // patterns previously missed — capacity-form Vec construction
+    // and Box::new (heap allocation under any name).
+    v.push("Vec::with_capacity");
+    v.push(".with_capacity");
+    v.push("Box::new");
+    v.push("HashMap::new"); v.push("HashSet::new");
+    v.push("BTreeMap::new"); v.push("BTreeSet::new");
+    v.push("String::new"); v.push("String::with_capacity");
     v.push(".push");
     v.push(".pop");
     v.push(".extend");
     v.push(".insert_at");
     v.push(".remove_at");
     // Vec — builtin names (in case user reaches past the sugar)
-    v.push("vec_new"); v.push("vec_push"); v.push("vec_pop");
+    v.push("vec_new"); v.push("vec_with_capacity");
+    v.push("vec_push"); v.push("vec_pop");
     v.push("vec_extend"); v.push("vec_insert_at"); v.push("vec_remove_at");
     // String builder
     v.push("sb_new"); v.push("sb_append");
@@ -16170,6 +16186,12 @@ fn no_alloc_check_list() -> Vec<i32> {
     v.push("int_to_str"); v.push("f64_to_str"); v.push("bool_to_str");
     // Bare arena builtins (RFC-0002 phase 1) — also alloc
     v.push("arena_new"); v.push("arena_alloc");
+    // Lane 6 / F-CONC-004: Hashmap insert / btreemap insert allocate
+    // a new slot / node on grow.
+    v.push("hashmap_insert"); v.push("hashmap_new"); v.push("hashmap_with_capacity");
+    v.push("hashset_insert"); v.push("hashset_new");
+    v.push("btreemap_insert"); v.push("btreemap_new");
+    v.push("btreeset_insert"); v.push("btreeset_new");
     return v;
 }
 
@@ -16752,6 +16774,26 @@ fn atomic_blocking_check_list() -> Vec<i32> {
     v.push(".read"); v.push(".write"); v.push("channel_recv"); v.push(".recv");
     v.push("sleep_ms"); v.push("sleep_us"); v.push("system"); v.push("process_spawn");
     v.push("socket_accept"); v.push("file_read_string");
+    // Lane 6 / F-CONC-005 (audit 2026-05-08): friendly rod-level
+    // wrappers around the underlying blocking primitives. Pre-fix the
+    // single-hop substring check missed every call shape that went
+    // through a wrapper named differently from the underlying
+    // primitive. Adding the canonical wrapper names defends the
+    // common case without needing full transitive call-graph
+    // analysis. Remaining wrappers (user-defined, third-party rod)
+    // are still caught by the depth-bounded transitive scan in
+    // `enforce_no_alloc` / `enforce_no_panic` patterns when wired
+    // through Lane 2 / Phase 2 (full call-graph closure for blocking
+    // detection).
+    v.push("conc_lock"); v.push("conc_unlock");
+    v.push("conc_recv"); v.push("conc_send");
+    v.push("conc_try_recv"); v.push("conc_try_send");
+    v.push("conc_mutex_lock"); v.push("conc_mutex_unlock");
+    v.push("conc_channel_recv"); v.push("conc_channel_send");
+    v.push("thread_join"); v.push("thread_barrier_wait");
+    v.push("cond_wait");
+    v.push("proc_run"); v.push("proc_run1");
+    v.push("proc_capture_stdout"); v.push("proc_capture_with_status");
     return v;
 }
 

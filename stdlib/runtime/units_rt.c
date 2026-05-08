@@ -155,10 +155,80 @@ static double from_si(double si_val, int unit) {
     }
 }
 
+// Lane 6 / F-NUM-002 (audit 2026-05-08): wire SI dimensional check
+// into the conversion path. Pre-fix `nuc_unit_convert(100, Pa, m)`
+// silently returned 100. RFC-0005 §1 explicitly motivates catching
+// the Mars Climate Orbiter bug class — the runtime now does so by
+// rejecting cross-dimensional conversions with diagnostic
+// `UNIT-DIM-001`.
+//
+// `unit_category` returns the SI dimension category for each known
+// unit ID. Two units may be converted iff they share a category.
+// The integer ranges follow the U_* macros above (length=1..7,
+// mass=10..13, time=20..25, temperature=30..32, pressure=40..44,
+// energy=50..54, force=60..62, frequency=70..73, angle=80..81,
+// voltage=90..91, current=92..93). Ranges are mutually exclusive
+// (kept disjoint as the unit table grows).
+//
+// Categories:
+//   1 = length, 2 = mass, 3 = time, 4 = temperature, 5 = pressure,
+//   6 = energy, 7 = force, 8 = frequency, 9 = angle, 10 = voltage,
+//   11 = current, 0 = unknown.
+static int unit_category(int u) {
+    if (u >= 1 && u <= 7)   return 1;   // length
+    if (u >= 10 && u <= 13) return 2;   // mass
+    if (u >= 20 && u <= 25) return 3;   // time
+    if (u >= 30 && u <= 32) return 4;   // temperature
+    if (u >= 40 && u <= 44) return 5;   // pressure
+    if (u >= 50 && u <= 54) return 6;   // energy
+    if (u >= 60 && u <= 62) return 7;   // force
+    if (u >= 70 && u <= 73) return 8;   // frequency
+    if (u >= 80 && u <= 81) return 9;   // angle
+    if (u >= 90 && u <= 91) return 10;  // voltage
+    if (u >= 92 && u <= 93) return 11;  // current
+    return 0;
+}
+
+static const char *unit_category_name(int cat) {
+    switch (cat) {
+        case 1:  return "length";
+        case 2:  return "mass";
+        case 3:  return "time";
+        case 4:  return "temperature";
+        case 5:  return "pressure";
+        case 6:  return "energy";
+        case 7:  return "force";
+        case 8:  return "frequency";
+        case 9:  return "angle";
+        case 10: return "voltage";
+        case 11: return "current";
+        default: return "unknown";
+    }
+}
+
 long long nuc_unit_convert(long long val_bits, long long from, long long to) {
+    int from_id = (int)from;
+    int to_id = (int)to;
+    int cat_from = unit_category(from_id);
+    int cat_to = unit_category(to_id);
+    /* Reject unknown unit IDs early (F-NUM-012 stop-gap). */
+    if (cat_from == 0 || cat_to == 0) {
+        fprintf(stderr,
+            "PANIC: UNIT-DIM-002: unknown unit ID in unit_convert (from=%d to=%d)\n",
+            from_id, to_id);
+        fflush(stderr);
+        exit(1);
+    }
+    if (cat_from != cat_to) {
+        fprintf(stderr,
+            "PANIC: UNIT-DIM-001: incompatible dimensions <%s> -> <%s> in unit_convert\n",
+            unit_category_name(cat_from), unit_category_name(cat_to));
+        fflush(stderr);
+        exit(1);
+    }
     double val = _un_i2f(val_bits);
-    double si = to_si(val, (int)from);
-    double result = from_si(si, (int)to);
+    double si = to_si(val, from_id);
+    double result = from_si(si, to_id);
     return _un_f2i(result);
 }
 

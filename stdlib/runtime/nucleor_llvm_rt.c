@@ -1326,10 +1326,15 @@ const char *__nucleor_str_intern(const char *s) {
 }
 
 // Diagnostic: returns a stat-pair packed as (hits << 32) | misses
-// (truncated). For test inspection only; not promoted to a public
+// (low 32 bits). For test inspection only; not promoted to a public
 // CLI yet.
+//
+// Lane 6 / S5 (audit 2026-05-08): pre-fix the shift was `<< 24` and
+// the mask was `0xFFFFFFLL`, silently truncating misses at 16 M and
+// stomping the high bits of hits. Comment claimed `<< 32` — code
+// now matches the comment.
 long long __nucleor_str_intern_stats(void) {
-    return (g_intern_hits << 24) | (g_intern_misses & 0xFFFFFFLL);
+    return ((long long)g_intern_hits << 32) | ((long long)g_intern_misses & 0xFFFFFFFFLL);
 }
 
 // === RFC-0030 phase 1 — string arena (v0.2.165) ===
@@ -2002,22 +2007,58 @@ long long __nucleor_str_char_at_strict(const char *s, long long i) {
 // loop). Negative start still PANICs (cheap O(1) check). For full
 // strict mode use the new `str_substring_strict` helper which still
 // does the strlen check.
+// Lane 6 / V1 (audit 2026-05-08): widened range arithmetic to int64
+// and added explicit `end <= strlen(s)` validation in the default
+// helper. Pre-fix the panic message claimed "OOB" but only fired
+// for `start<0` or `end<start`, leaving the over-end heap-overread
+// silent (info-leak class). The int truncation at >2GB ranges is
+// also gone (size_t throughout). The opt-in `_strict` companion
+// kept its O(strlen(s)) bounds posture; this default helper now
+// pays one strlen(s) walk on the slow path so adopters get the
+// safety story documented in `docs/ffi-conventions.md` G-9.
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
     NUC_PROFILE_HOT(g_p_str_substring, str_substring);
-    if (!s) return "";
-    if (start < 0 || end < start) {
-        if (_vec_oob_lenient()) return "";
-        fprintf(stderr, "PANIC: str_substring OOB: start=%lld end=%lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-                start, end);
+    if (!s) {
+        /* Lane 6 / S1 const-char* sentinel: return malloc'd empty
+         * string so `__nucleor_str_free` is unconditionally safe. */
+        char *r = (char *)malloc(1);
+        if (r) r[0] = 0;
+        return r ? r : "";
+    }
+    long long slen = (long long)strlen(s);
+    if (start < 0 || end < start || end > slen) {
+        if (_vec_oob_lenient()) {
+            char *r = (char *)malloc(1);
+            if (r) r[0] = 0;
+            return r ? r : "";
+        }
+        fprintf(stderr,
+            "PANIC: str_substring OOB: start=%lld end=%lld len=%lld (STR-SUBSTR-OOB; set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+            start, end, slen);
         fflush(stderr);
         exit(1);
     }
-    int n = (int)(end - start);
+    long long n = end - start;
+    /* Defensive cap — malloc(size_t) is the C-side limit. On 64-bit
+     * platforms (the only ones Nucleor targets in v1.0) size_t is
+     * 64-bit so any non-negative int64 fits. Guard left in for the
+     * 32-bit-size_t portability question raised in V4. */
+    if (n < 0) {
+        fprintf(stderr,
+            "PANIC: str_substring negative length %lld (STR-SUBSTR-OOB)\n", n);
+        fflush(stderr); exit(1);
+    }
+    if (sizeof(size_t) < 8 && (unsigned long long)n > (unsigned long long)((size_t)-1) - 1) {
+        fprintf(stderr,
+            "PANIC: str_substring length %lld exceeds size_t (STR-SUBSTR-OOB)\n", n);
+        fflush(stderr); exit(1);
+    }
+    size_t un = (size_t)n;
     g_str_substring_count++;
-    g_str_substring_bytes += n + 1;
-    char *r = (char *)malloc(n + 1);
-    memcpy(r, s + (int)start, n);
-    r[n] = 0;
+    g_str_substring_bytes += (long long)(un + 1);
+    char *r = (char *)malloc(un + 1);
+    memcpy(r, s + (size_t)start, un);
+    r[un] = 0;
     return r;
 }
 
@@ -5824,6 +5865,20 @@ long long __nucleor_hashmap_contains(long long h, const char *key) {
 long long __nucleor_hashmap_contains_key(long long h, const char *key) {
     return __nucleor_hashmap_contains(h, key);
 }
+// Lane 6 / CO3 (audit 2026-05-08): pre-fix the rehash loop called
+// `__nucleor_hashmap_insert` recursively while iterating the
+// cluster — and that insert path can call `__nuc_hashmap_grow`,
+// which `realloc()`s the slot table. Once that fired, the outer
+// loop's `m->slots[next]` pointer became stale and the iteration
+// walked freed memory. Trigger requires the load factor to push
+// past the grow threshold during the rehash; rare in practice but
+// real.
+//
+// Fix: stash the entire follow-on cluster (key/val pairs) into a
+// local malloc'd buffer BEFORE doing any inserts, then re-insert
+// from the stash. Stash size is bounded by the cluster length
+// (worst case ~m->cap, but in practice the run-of-occupied
+// neighbours, which is the load-factor-bounded probe length).
 long long __nucleor_hashmap_remove(long long h, const char *key) {
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
@@ -5836,17 +5891,66 @@ long long __nucleor_hashmap_remove(long long h, const char *key) {
             m->slots[idx].occupied = 0;
             m->slots[idx].key = NULL;
             m->len--;
-            // Re-hash following cluster
+            /* Stash the follow-on cluster before re-inserting. */
+            long long stash_cap = 16;
+            long long stash_n = 0;
+            char **stash_keys = (char **)malloc((size_t)stash_cap * sizeof(char *));
+            long long *stash_vals = (long long *)malloc((size_t)stash_cap * sizeof(long long));
+            if (!stash_keys || !stash_vals) {
+                /* Best-effort: fall back to old in-loop reinsert. The
+                 * grow-during-rebuild hazard re-emerges on this path,
+                 * but the alloc-fail path was already broken by the
+                 * lenient OOM contract — adopters in lenient mode get
+                 * a documented degradation. */
+                free(stash_keys); free(stash_vals);
+                long long next = (idx + 1) & (m->cap - 1);
+                while (m->slots[next].occupied) {
+                    NHMSlot tmp = m->slots[next];
+                    m->slots[next].occupied = 0;
+                    m->slots[next].key = NULL;
+                    m->len--;
+                    __nucleor_hashmap_insert(h, tmp.key, tmp.val);
+                    free(tmp.key);
+                    next = (next + 1) & (m->cap - 1);
+                }
+                return 1;
+            }
             long long next = (idx + 1) & (m->cap - 1);
             while (m->slots[next].occupied) {
-                NHMSlot tmp = m->slots[next];
+                if (stash_n == stash_cap) {
+                    long long new_cap = stash_cap * 2;
+                    char **nk = (char **)realloc(stash_keys, (size_t)new_cap * sizeof(char *));
+                    long long *nv = (long long *)realloc(stash_vals, (size_t)new_cap * sizeof(long long));
+                    if (!nk || !nv) {
+                        /* Free what we have stashed; leave map in
+                         * the post-stash-so-far state (correct, just
+                         * with a partial stash that gets reinserted
+                         * below). */
+                        if (nk) stash_keys = nk;
+                        if (nv) stash_vals = nv;
+                        break;
+                    }
+                    stash_keys = nk;
+                    stash_vals = nv;
+                    stash_cap = new_cap;
+                }
+                stash_keys[stash_n] = m->slots[next].key; /* take ownership */
+                stash_vals[stash_n] = m->slots[next].val;
+                stash_n++;
                 m->slots[next].occupied = 0;
                 m->slots[next].key = NULL;
                 m->len--;
-                __nucleor_hashmap_insert(h, tmp.key, tmp.val);
-                free(tmp.key);
                 next = (next + 1) & (m->cap - 1);
             }
+            /* Re-insert from the stash. Now safe even if any insert
+             * grows the table — we no longer iterate the live slot
+             * array. */
+            for (long long si = 0; si < stash_n; si++) {
+                __nucleor_hashmap_insert(h, stash_keys[si], stash_vals[si]);
+                free(stash_keys[si]);
+            }
+            free(stash_keys);
+            free(stash_vals);
             return 1;
         }
         idx = (idx + 1) & (m->cap - 1);
