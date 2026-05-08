@@ -403,6 +403,29 @@ fn name_override(name: str, eff_out: Vec<str>, taint_out: Vec<str>, proof_out: V
         eff = "alloc"; taint = "passthrough"; proof = "none"; hit = 1;
     } else if str_eq(name, "dyn_box_data") == 1 || str_eq(name, "dyn_box_type") == 1 {
         eff = ""; taint = "passthrough"; proof = "none"; hit = 1;
+    }
+    // Lane 6 / EC1+V2 (audit 2026-05-08): VectorOps pure-read members
+    // get effects=[] (and stay on bounds_within_len). Pre-fix the
+    // class default `["alloc"]` was applied uniformly, masking the
+    // pure-read posture and breaking @hot / @const_fn analysis.
+    else if str_eq(name, "vec_get") == 1 || str_eq(name, "vec_len") == 1
+            || str_eq(name, "vec_capacity") == 1 || str_eq(name, "vec_at") == 1
+            || str_eq(name, "vec_is_empty") == 1 || str_eq(name, "vec_last") == 1
+            || str_eq(name, "vec_index_of_i64") == 1
+            || str_eq(name, "vec_contains") == 1 {
+        eff = ""; taint = "passthrough"; proof = "bounds_within_len"; hit = 1;
+    }
+    // Lane 6 / EC2+A7: `vec_free` / `vec_*_free` carry the allocation
+    // capability obligation, not bounds. Pre-fix `vec_free` shipped
+    // with `bounds_within_len` (a free has no bounds).
+    else if str_eq(name, "vec_free") == 1 || str_eq(name, "vec_u8_free") == 1
+            || str_eq(name, "vec_f32_free") == 1 || str_eq(name, "vec_f64_free") == 1 {
+        eff = "alloc"; taint = "passthrough"; proof = "alloc_capability_or_arena_owned"; hit = 1;
+    }
+    // Lane 6 / V3: `vec_pop` decrements length but does not allocate.
+    else if str_eq(name, "vec_pop") == 1 || str_eq(name, "vec_set") == 1
+            || str_eq(name, "vec_clear") == 1 {
+        eff = ""; taint = "passthrough"; proof = "bounds_within_len"; hit = 1;
     };
     vec_push(eff_out, eff);
     vec_push(taint_out, taint);
@@ -570,6 +593,55 @@ fn pattern_override(name: str, eff_out: Vec<str>, taint_out: Vec<str>, proof_out
     if hit == 0 && (str_eq(name, "tensor_zeros") == 1 || str_eq(name, "tensor_ones") == 1
             || str_eq(name, "tensor_transpose") == 1 || str_eq(name, "tensor_matmul") == 1) {
         eff = "alloc"; taint = "passthrough"; proof = "shape_compatible"; hit = 1;
+    };
+    vec_push(eff_out, eff);
+    vec_push(taint_out, taint);
+    vec_push(proof_out, proof);
+    return hit;
+}
+
+// Lane 6 / Manifest gaps: explicit ABI table for the manual extras
+// added in `main()`. Returns "" if the symbol is not in this list,
+// otherwise the IR-level signature string. Keep in sync with the
+// rod-side `extern fn` declarations in stdlib/rods/process.nr,
+// stdlib/rods/concurrency.nr.
+fn lane6_manual_abi(sym: str) -> str {
+    if str_eq(sym, "__nucleor_proc_run") == 1 { return "(ptr) -> i64"; };
+    if str_eq(sym, "__nucleor_proc_run1") == 1 { return "(ptr, ptr) -> i64"; };
+    if str_eq(sym, "__nucleor_proc_capture_stdout") == 1 { return "(ptr) -> ptr"; };
+    if str_eq(sym, "__nucleor_proc_capture_status") == 1 { return "() -> i64"; };
+    if str_eq(sym, "__nucleor_proc_capture_with_status") == 1 { return "(ptr) -> ptr"; };
+    if str_eq(sym, "__nucleor_mutex_free") == 1 { return "(i64) -> void"; };
+    if str_eq(sym, "__nucleor_mutex_free_value") == 1 { return "(i64) -> void"; };
+    if str_eq(sym, "__nucleor_channel_close") == 1 { return "(i64) -> void"; };
+    if str_eq(sym, "__nucleor_channel_is_closed") == 1 { return "(i64) -> i64"; };
+    if str_eq(sym, "__nucleor_vec_u8_extend_from_ptr") == 1 { return "(i64, ptr, i64) -> i64"; };
+    if str_eq(sym, "__nucleor_str_intern_stats") == 1 { return "() -> i64"; };
+    return "";
+}
+
+// Lane 6: name overrides for the manual extras so they emit the
+// correct effects/proof_obligation rather than falling to the (often
+// generic) class default. proc_* are IO; mutex_free / channel_*
+// are sync; vec_u8_extend_from_ptr is alloc; str_intern_stats is
+// pure observability.
+fn lane6_manual_name_override(name: str, eff_out: Vec<str>, taint_out: Vec<str>, proof_out: Vec<str>) -> i64 {
+    let mut eff: str = ""; let mut taint: str = ""; let mut proof: str = "";
+    let mut hit: i64 = 0;
+    if str_eq(name, "proc_run") == 1 || str_eq(name, "proc_run1") == 1
+            || str_eq(name, "proc_capture_stdout") == 1
+            || str_eq(name, "proc_capture_with_status") == 1 {
+        eff = "io,panic"; taint = "propagates"; proof = "io_capability_required"; hit = 1;
+    } else if str_eq(name, "proc_capture_status") == 1 {
+        eff = "io"; taint = "propagates"; proof = "io_capability_required"; hit = 1;
+    } else if str_eq(name, "mutex_free") == 1 || str_eq(name, "mutex_free_value") == 1 {
+        eff = "sync,alloc"; taint = "passthrough"; proof = "alloc_capability_or_arena_owned"; hit = 1;
+    } else if str_eq(name, "channel_close") == 1 || str_eq(name, "channel_is_closed") == 1 {
+        eff = "sync"; taint = "passthrough"; proof = "happens_before_release_acquire"; hit = 1;
+    } else if str_eq(name, "vec_u8_extend_from_ptr") == 1 {
+        eff = "alloc"; taint = "passthrough"; proof = "bounds_within_len"; hit = 1;
+    } else if str_eq(name, "str_intern_stats") == 1 {
+        eff = ""; taint = "passthrough"; proof = "none"; hit = 1;
     };
     vec_push(eff_out, eff);
     vec_push(taint_out, taint);
@@ -1077,6 +1149,50 @@ fn main() -> i64 {
         ki3 = ki3 + 1;
     };
 
+    // Lane 6 / Manifest gaps (audit 2026-05-08): public runtime
+    // surfaces called from rod-level via `extern fn` rather than
+    // through the `get_rt_name` ABI table or IR declares. Pre-fix the
+    // generator never saw them, so the manifest had no row for them
+    // even though the linker could resolve a call. The list is
+    // hand-maintained because the rod-level extern fn declarations
+    // are not parsed by this generator. New entries should be added
+    // here when a new `__nucleor_*` symbol is exported only via
+    // `stdlib/runtime/*.c` + a rod-level `extern fn`.
+    let mut manual_extras: Vec<str> = vec_new();
+    vec_push(manual_extras, "__nucleor_proc_run");
+    vec_push(manual_extras, "__nucleor_proc_run1");
+    vec_push(manual_extras, "__nucleor_proc_capture_stdout");
+    vec_push(manual_extras, "__nucleor_proc_capture_status");
+    vec_push(manual_extras, "__nucleor_proc_capture_with_status");
+    vec_push(manual_extras, "__nucleor_mutex_free");
+    vec_push(manual_extras, "__nucleor_mutex_free_value");
+    vec_push(manual_extras, "__nucleor_channel_close");
+    vec_push(manual_extras, "__nucleor_channel_is_closed");
+    vec_push(manual_extras, "__nucleor_vec_u8_extend_from_ptr");
+    vec_push(manual_extras, "__nucleor_str_intern_stats");
+    let mut me_i: i64 = 0;
+    while me_i < vec_len(manual_extras) {
+        let sym: str = vec_get(manual_extras, me_i);
+        if hashmap_contains(bs_seen, sym) == 0 {
+            hashmap_insert(bs_seen, sym, 1);
+            let short: str = str_substring(sym, 10, str_len(sym));
+            vec_push(bs_syms, sym);
+            vec_push(bs_names, short);
+        };
+        me_i = me_i + 1;
+    };
+    // Also feed these into the rt_def_set so they are tagged
+    // `stable` (definitions exist in stdlib/runtime/*.c) rather
+    // than `experimental` / REVIEW REQUIRED.
+    let mut me_i2: i64 = 0;
+    while me_i2 < vec_len(manual_extras) {
+        let sym2: str = vec_get(manual_extras, me_i2);
+        if hashmap_contains(rt_def_set, sym2) == 0 {
+            hashmap_insert(rt_def_set, sym2, 1);
+        };
+        me_i2 = me_i2 + 1;
+    };
+
     let n_helpers: i64 = vec_len(bs_syms);
 
     // Build per-row data via parallel arrays.
@@ -1122,6 +1238,7 @@ fn main() -> i64 {
         let proof_buf: Vec<str> = vec_new();
         let mut resolved: i64 = 0;
         if name_override(name, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; }
+        else if lane6_manual_name_override(name, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; }
         else if pattern_override(name, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; }
         else if class_default(cls, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; };
         let mut effects_field: str = "TODO";
@@ -1149,11 +1266,17 @@ fn main() -> i64 {
                 effects_field = str_concat(effects_field, "]");
             };
         };
-        // ABI
-        let abi: str = if hashmap_contains(ir_idx, sym) == 1 {
+        // ABI — Lane 6 manual_extras get explicit overrides since
+        // they are never declared in IR (they enter the helper set
+        // via `extern fn` in rod source).
+        let mut abi: str = if hashmap_contains(ir_idx, sym) == 1 {
             let idx: i64 = hashmap_get(ir_idx, sym);
             fmt_abi(vec_get(ir_rets, idx), vec_get(ir_args, idx))
         } else { "TODO" };
+        if str_eq(abi, "TODO") == 1 {
+            let m_abi: str = lane6_manual_abi(sym);
+            if str_len(m_abi) > 0 { abi = m_abi; };
+        };
         let since: str = since_for(name);
         vec_push(row_names, name);
         vec_push(row_classes, cls);

@@ -35,9 +35,14 @@ A function with this signature **cannot**:
 - use dynamic dispatch (no `Box<dyn Trait>`, no `&dyn Trait`),
 - exceed its declared deadline at runtime.
 
-The compiler enforces (1)–(3) statically. (4) is enforced at runtime
-by a hardware-timer trap; v0.5 adds a static WCET pass that can
-flag deadline overruns at compile time.
+The compiler enforces (1)–(3) statically. (4) ships in v1.0 as a
+**best-effort post-hoc detector** — the compiler injects a single
+elapsed-time compare at function exit and emits diagnostic `RT-004`
+(plus `exit(1)`) on overrun; there is **no** hardware-timer trap or
+mid-execution enforcement in v1.0. Mid-execution enforcement
+(SIGALRM / SysTick / per-back-edge poll) is deferred to a follow-on
+release. See §3.2.4 for the full v1.0 contract. v1.x adds a static
+WCET pass that can flag deadline overruns at compile time.
 
 This is **the headline feature of v0.3** and the centerpiece of the
 "safer than Rust at runtime" pitch.
@@ -237,10 +242,32 @@ holds boxed handlers).
 
 #### 3.2.4 `#[deadline = <duration>]`
 
-**Declares** a worst-case execution time budget. Two enforcement
-modes, picked by the build profile:
+**Declares** a worst-case execution time budget.
 
-| Profile | Enforcement |
+> **v1.0 enforcement semantics (Lane 6 / F-CONC-003 audit 2026-05-08).**
+> The v1.0 implementation is **best-effort post-hoc detection only**.
+> The compiler injects a single `__nucleor_deadline_check` call at
+> function exit; the call compares wall-clock elapsed against the
+> declared budget and emits diagnostic `RT-004` (and `exit(1)`) on
+> overrun. There is **no** mid-execution hardware-timer trap, no
+> SIGALRM-based interrupt, and no per-loop-back-edge poll today. A
+> `#[deadline = 100us]` function whose body does 38 ms of work runs
+> the full 38 ms before the diagnostic fires; an infinite-loop body
+> never returns, so the deadline never fires at all.
+>
+> Adopters writing hard real-time control loops MUST treat the
+> declared deadline as a developer-visible budget annotation that
+> the runtime checks at the function boundary, not as an enforced
+> hardware-timer trap. Mid-execution enforcement (the table below)
+> is **deferred** to a follow-on release. See "Future enforcement
+> profiles (deferred)" below.
+
+**Future enforcement profiles (deferred — not v1.0).** When the
+hardware-timer / SIGALRM trap path lands, the table below describes
+the per-profile shape. v1.0 ships the post-hoc compare on every
+profile.
+
+| Profile | Enforcement (v1.1+) |
 |---|---|
 | `--profile=debug` | Runtime check via hardware timer; trap on overrun, recover via `Result<T, DeadlineExceeded>` |
 | `--profile=release` | Runtime check via hardware timer; trap on overrun, behavior is `panic_handler`-defined |

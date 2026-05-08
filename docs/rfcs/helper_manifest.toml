@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 875
+# Total helpers: 886
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -1604,6 +1604,34 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "channel_close"
+class            = "Concurrency"
+symbol           = "__nucleor_channel_close"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = ["sync"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "channel_is_closed"
+class            = "Concurrency"
+symbol           = "__nucleor_channel_is_closed"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["sync"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "channel_len"
 class            = "Concurrency"
 symbol           = "__nucleor_channel_len"
@@ -1669,6 +1697,34 @@ effects          = ["sync"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "happens_before_release_acquire"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "mutex_free"
+class            = "Concurrency"
+symbol           = "__nucleor_mutex_free"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = ["sync", "alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "mutex_free_value"
+class            = "Concurrency"
+symbol           = "__nucleor_mutex_free_value"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = ["sync", "alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -3174,6 +3230,76 @@ dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = ["io"]
 taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "proc_capture_status"
+class            = "IO"
+symbol           = "__nucleor_proc_capture_status"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = ["io"]
+taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "proc_capture_stdout"
+class            = "IO"
+symbol           = "__nucleor_proc_capture_stdout"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["io", "panic"]
+taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "proc_capture_with_status"
+class            = "IO"
+symbol           = "__nucleor_proc_capture_with_status"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["io", "panic"]
+taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "proc_run"
+class            = "IO"
+symbol           = "__nucleor_proc_run"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = ["io", "panic"]
+taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "proc_run1"
+class            = "IO"
+symbol           = "__nucleor_proc_run1"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
+effects          = ["io", "panic"]
+taint            = "propagates"
 units            = "passthrough"
 proof_obligation = "io_capability_required"
 stability        = "stable"
@@ -8782,6 +8908,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "str_intern_stats"
+class            = "StringFormat"
+symbol           = "__nucleor_str_intern_stats"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "str_is_empty"
 class            = "StringFormat"
 symbol           = "__nucleor_str_is_empty"
@@ -11308,7 +11448,7 @@ abi              = "(i64) -> i64"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
-proof_obligation = "bounds_within_len"
+proof_obligation = "alloc_capability_or_arena_owned"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -11462,7 +11602,7 @@ abi              = "(ptr) -> void"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
-proof_obligation = "bounds_within_len"
+proof_obligation = "alloc_capability_or_arena_owned"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
@@ -11473,7 +11613,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_get"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> i64"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11487,7 +11627,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_index_of_i64"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> i64"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11515,7 +11655,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_is_empty"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11557,7 +11697,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_last"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11571,7 +11711,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_len"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11739,7 +11879,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_pop"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> void"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -11865,7 +12005,7 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_set"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64, i64) -> void"
-effects          = ["alloc"]
+effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "bounds_within_len"
@@ -12112,6 +12252,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "vec_u8_extend_from_ptr"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_u8_extend_from_ptr"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "vec_u8_free"
 class            = "VectorOps"
 symbol           = "__nucleor_vec_u8_free"
@@ -12120,7 +12274,7 @@ abi              = "(i64) -> i64"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
-proof_obligation = "bounds_within_len"
+proof_obligation = "alloc_capability_or_arena_owned"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
