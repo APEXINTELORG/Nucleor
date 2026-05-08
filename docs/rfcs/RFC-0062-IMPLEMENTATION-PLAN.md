@@ -43,6 +43,71 @@ Today, half of the surface is shape-only:
 
 ---
 
+## 2A. v1.0 ship status (2026-05-08, integrator lane Phase A)
+
+This section is the running v1.0 cut-line tracker. It is updated each
+ship; per-gap detail lives in §3.
+
+### Shipped — integrator lane (Phase A)
+
+- **G-1 Phase 2b-3 unconditional default-flip** + transitive-handoff
+  recognizer extended to kind-7 fn calls (commits f69234d8 + 08eba3c4
+  + 8cdee78d). The actual blocking bug class — silent
+  move-into-struct-field handoff — is closed structurally for the
+  entire stdlib surface. Self-host fixed-point md5 =
+  `86b491ca2d056f6006f4545e0e29d706`. PASS=1488 / SKIP=1 / FAIL=0
+  both Linux + Windows.
+- **G-3 / G-4 / G-5 / G-6 / G-9 audit-pass visibility raise** —
+  existing Phase 2a heuristic info diagnostics promoted to
+  `warning[...]:` level. **This is a visibility change on the
+  existing heuristic, NOT real Phase 3 per-fn analysis.** The
+  heuristic surface (textual count of `Vec<&`, `vec_free`,
+  `*const c_void`, `HashMap<`, `move |`, `extern fn`) remains
+  unchanged — the diagnostic now fires at warning tier so adopters
+  see it in normal builds. Proper Phase 3 (region-token
+  invalidation, IR-level use-after-drop, null-check inference,
+  Sendable closure, bounds-check lint) is post-v1.0 hardening.
+- **G-7 Phase 3 audit added** — `warning[UNSAFE-G7]:` surfaces any
+  `unsafe { }` block in adopter code at compile time. Same
+  audit-pass shape as the others (textual count). The OSS compiler
+  self-host source contains zero unsafe blocks, so this warning
+  never fires on a clean OSS build.
+
+### In flight — cloud lane (Phase B prereq)
+
+- Q1: G-2 single-input lifetime check — real per-fn analysis pass
+- Q2: G-4 IR-level use-after-drop tracking — real per-fn analysis
+- Q3: G-8 move-state join at branch merge — extends today's
+  transitive-handoff fix
+- Q4: G-11 definite-assignment flow analysis
+- Q5: RFC-0063 waves 12-16 (parser/tools-suite duplicate retirement)
+
+Brief: `CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md` (root of repo).
+
+### Residual past v1.0 cut
+
+- G-3 / G-5 / G-6 / G-9 real Phase 3 per-fn analysis (region tokens,
+  null-check inference, Sendable closure, bounds-check lint)
+- G-1 Phase 4 (remove `#[manual_drop]` entirely) — requires the 8
+  parser fns to migrate to lifetime annotations or `unsafe { }`
+  block bodies; not a v1.0 blocker because Phase 2b-3 default-flip
+  already closes the silent-leak gap
+- G-10 effect annotations (cross-fn ownership)
+
+### v1.0 cut criteria
+
+v1.0.0 tag ships when:
+1. All Q1..Q5 closed at Phase 2b-or-better with verify GREEN both hosts
+2. Self-host fixed-point md5 stable across the cumulative batch
+3. Per-step verify timings ≤ 1.3× baseline (`tools/verify_timings.csv`)
+4. CHANGELOG `[Unreleased]` entry promoted to `[1.0.0] — <date>`
+5. `compiler_version_label()` bumped to `"1.0.0"` in both
+   `compiler/nucleor_s1_compiler.nr` and `compiler/nucleor_tools_suite.nr`
+6. Drift gate clean (`tools/check_compiler_drift.sh`)
+7. Git tag `v1.0.0` pushed with release notes
+
+---
+
 ## 3. Per-gap implementation plan
 
 ### G-1 — `#[auto_drop]` default-on (CRITICAL)
@@ -88,9 +153,9 @@ Hypotheses to test:
 
 Each hypothesis requires a targeted debug print at the relevant site to
 confirm or rule out. Deferred to a focused future ship.
-| 2b-3 | Flip default-on with `#[manual_drop]` opt-out | Lower every fn body as if it had `#[auto_drop]`; respect explicit `#[manual_drop]` to suppress. | +0.05s (one extra AST walk per fn) |
-| 3 | Promote `#[manual_drop]` from required to opt-in for unsafe blocks only | Lint warning if `#[manual_drop]` on an unsafe-free fn body. | 0 |
-| 4 | Remove `#[manual_drop]` entirely; only `unsafe { }` blocks can skip drop | v1.0 cut. | 0 |
+| 2b-3 | Flip default-on with `#[manual_drop]` opt-out | Lower every fn body as if it had `#[auto_drop]`; respect explicit `#[manual_drop]` to suppress. **DONE 2026-05-08** (commits f69234d8 + 08eba3c4 + 8cdee78d). Transitive-handoff recognizer extended to kind-7 fn calls — closes the move-into-struct-field handoff class structurally. PASS=1488/SKIP=1/FAIL=0 both hosts. Self-host fixed-point md5 = `86b491ca2d056f6006f4545e0e29d706`. | +0.05s (measured: cold compile 3.56s — DOWN from 3.87s pre-patch because kind-7 handoff recognition reduces redundant drop emissions across stdlib) |
+| 3 | `#[manual_drop]` retained as first-class opt-out attribute through v1.0 | The 8 parser fns (`parse_generic_params`, `parse_fn_decl`, `parse_struct_decl`, `parse_enum_decl`, `parse_trait_decl`, `parse_impl_block`, `parse_match_stmt`, `parse_let`) carry `#[manual_drop]` and were validated as NOT redundant under default-flip via sub-experiment (see `findings/inbox/main_parser_revert_under_default_flip_v0846_2026-05-07.md`). The pr() Vec<i32>-wrapper handoff pattern is a distinct bug class still requiring the attribute. **manual_drop is a first-class language feature through v1.0.** | 0 |
+| 4 | Remove `#[manual_drop]` entirely; only `unsafe { }` blocks can skip drop | **POST-v1.0.** Requires the 8 parser fns to migrate to either lifetime annotations or `unsafe { }` block bodies. Not a v1.0 blocker — manual_drop with the structural Phase 2b-3 default-flip already closes the silent-leak gap. Re-evaluate after Q1 (lifetime enforcement) lands. | 0 |
 
 **Perf strategy:** the auto-drop lowering pass already exists for opt-in. Phase 2b just flips the default. The pass itself is O(N) over each fn AST and runs once per fn during lowering — adding it to all fns is +0.05s on the seed self-host. Acceptable.
 
