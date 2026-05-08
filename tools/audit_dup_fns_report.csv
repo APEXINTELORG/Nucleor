@@ -65,7 +65,7 @@ own_put_s,3,3,18,12,1,0,SIG_MATCH_BODY_DIFFERS
 own_get_mutable,2,2,13,1,1,0,SIG_MATCH_BODY_DIFFERS
 own_snapshot,1,1,6,6,1,0,SIG_MATCH_BODY_DIFFERS
 own_restore,2,2,24,11,1,0,SIG_MATCH_BODY_DIFFERS
-check_expr,6,6,492,188,1,0,SIG_MATCH_BODY_DIFFERS
+check_expr,6,6,626,188,1,0,SIG_MATCH_BODY_DIFFERS
 check_stmt,6,6,385,250,1,0,SIG_MATCH_BODY_DIFFERS
 check_fn,6,8,89,71,0,0,SIG_DIFFERS
 is_tainted_type,1,1,5,5,1,0,SIG_MATCH_BODY_DIFFERS
@@ -110,7 +110,7 @@ module_graph_cache_id,1,1,8,3,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 load_resolved_source_bundle,2,2,867,49,1,0,SIG_MATCH_BODY_DIFFERS
 extract_directives,2,2,85,80,1,0,SIG_MATCH_BODY_DIFFERS
-compile_file_mode,6,6,695,205,1,0,SIG_MATCH_BODY_DIFFERS
+compile_file_mode,6,6,700,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 dl_parse_fn_signature,3,3,117,96,1,0,SIG_MATCH_BODY_DIFFERS
