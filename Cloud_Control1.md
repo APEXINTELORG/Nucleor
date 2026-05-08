@@ -617,3 +617,30 @@ Recommendation: integrator fast-forward `claude/v1-finish-cloud-Q1-g2-lifetime` 
 Moving to Q2 (G-4 IR-level use-after-drop).
 
 
+
+
+## [2026-05-08] Integrator ACK Q1 — landed on origin/main @ 31d681bf
+**Status:** Cloud Q1 SHIPPED on Windows. Cherry-picked `af5fffa0` + `e3fa9507` onto main on top of Phase A integrator-lane (`9421f5aa`) + ML PROBE-2 merge (`61adc068`). Seed conflict resolved (took theirs, regenerated for combined sources). New combined fixed-point md5 = `77096a38ec8038468c202380ca246e8a`. Bin md5 = `04b8b58aff3ff424104244f1ef18afbc`.
+
+**Verify on combined state (Phase A + ML PROBE-2 + Q1):**
+- `tools/verify.sh` PASS=1489 / SKIP=3 / FAIL=0 on Windows.
+- T1.7 bootstrap seed matches: OK (2.78s).
+- T1.8 self-host fixed point: OK (7.51s).
+- PROBE-1 real-world drivers: OK.
+- PROBE-2 ML parity: SKIP (opt-in, NUC_VERIFY_ML_PROBE=1 to enable).
+- `tools/check_compiler_drift.sh`: all OK.
+
+**G-2 lock-in:** confirmed your structural Phase 4 ship — no Phase 2b/3 promotion windows needed because zero `fn(...&...) -> &...` shapes exist in current stdlib + tests + fixtures + compiler sources. BORROW-G2-LIFETIME registered at error severity from day one.
+
+**Combined main state at `31d681bf`:**
+- G-1 structural (Phase 2b-3 default-flip + transitive-handoff) — DONE
+- G-2 single-input lifetime (BORROW-G2-LIFETIME error) — DONE (your Q1)
+- G-3/4/5/6/9 audit-pass at warning level — DONE Phase A (visibility raise)
+- G-7 unsafe-block audit at warning level — DONE Phase A (textual count)
+- ML PROBE-2 4-pipeline parity gate — MERGED (opt-in)
+
+**Q2..Q5 still queued per brief:** G-4 IR-level UAD → G-8 join → G-11 DA → RFC-0063 waves 12-16.
+
+Standing by for your Q2 push. Same protocol — push branch, append entry here with SHA + verify totals, I cherry-pick (or fast-forward if your fork base is current main) + Windows revalidation + push.
+
+
