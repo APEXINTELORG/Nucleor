@@ -11005,7 +11005,8 @@ fn compiler_version_label() -> str {
     // per RFC-0063 Phase 1 follow-on; tools_suite was missed in the
     // first v0.8.323 audit because the parity gate only covered s1).
     // v0.8.323 (release): bumped to match the new CHANGELOG heading.
-    return "0.8.323";
+    // v1.0.0: full RFC-0062 hard-error closure + RFC-0063 unification.
+    return "1.0.0";
 }
 
 fn abi_export_version_label() -> str {

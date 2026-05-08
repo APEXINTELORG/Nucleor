@@ -5,68 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Phase A toward v1.0
+## [1.0.0] — 2026-05-08
 
-**RFC-0062 Phase 3 promotion sweep + structural G-1 closure (today's prior commits).**
+**Full RFC-0062 hard-error closure across G-1..G-11 + RFC-0063 parser unification (95/180 dups closed) + ML PROBE-2 4-pipeline parity gate. v1.0 cut criteria met across both hosts.**
 
-This is the integrator-side Phase A batch toward the v1.0 cut. The cloud
-agent is in parallel on Q1..Q5 (G-2 / G-4 / G-8 / G-11 Phase 2b real
-analysis + RFC-0063 waves 12-16). v1.0.0 final ships once both lanes
-converge with fixed-point + verify GREEN on both hosts. This entry
-documents only the integrator-lane changes; the cloud-lane changes will
-roll into the same v1.0.0 entry when promoted.
+This release closes every memory-safety / borrow / ownership / effects gap that RFC-0062 enumerated, promotes them to hard-error severity, and ships the effect-annotations framework (RFC-0062 effects extension) that anchors future per-effect surface work. Two parallel tracks delivered: an integrator-side Phase A visibility raise + structural G-1 closure on Windows; a cloud-side Q1-Q5 + R1-R4 cycle on Linux that landed the real per-fn analysis passes. ML rod surfaces gained a 4-pipeline parity gate (decision-tree classification, linear regression, KMeans clustering, BernoulliNB text classification) against sklearn references. The duplicate-fn audit went from 180 → 85 (-53%) via parser/tools-suite unification under a new shared-helpers file.
 
-### Memory-safety / borrow / ownership (RFC-0062)
+Self-host fixed-point holds at `db5a1ceede502c466b68632ebc0dc71d`. PASS=1518 / SKIP=3 / FAIL=0 on Windows verify; cloud confirmed parity on Linux at every Q-cycle.
 
-- **G-1 Phase 2b-3 unconditional default-flip** (commits f69234d8 +
-  08eba3c4 + 8cdee78d, 2026-05-08): auto-drop is now ON by default for
-  every fn body. Heap-backed locals (`Vec<T>`, `HashMap<K,V>`, `Box<T>`,
-  `String`, `VecDeque<T>`) get auto-cleanup at fn exit unless the fn
-  carries `#[manual_drop]`. The transitive-handoff recognizer
-  (`auto_drop_mark_constructor_handoffs`) was extended to kind-7 fn
-  calls, closing the move-into-struct-field handoff class structurally
-  for the entire stdlib surface. PASS=1488 / SKIP=1 / FAIL=0 on both
-  Linux and Windows. Self-host fixed-point md5 =
-  `86b491ca2d056f6006f4545e0e29d706`. **Real structural fix — closes
-  the actual blocking bug class.**
-- **G-3 / G-4 / G-5 / G-6 / G-9 audit-pass visibility promotion**:
-  existing Phase 2a heuristic diagnostics (`info[ALIAS-G3]:` /
-  `info[OWN-012]:` / `info[FFI-NULL]:` / `info[SEND-G6]:` /
-  `info[SEND-G6-CLOSURE]:` / `info[FFI-DIRECT]:`) reclassified to
-  `warning[...]:` level so adopters see them in normal builds. **This
-  is a visibility change — the underlying heuristics are unchanged.**
-  The plan's true Phase 3 (real per-fn analysis: region-token
-  invalidation, IR-level use-after-drop, null-check inference,
-  Sendable closure, bounds-check lint) remains scheduled as
-  post-v1.0 hardening; this ship only raises the surface signal level
-  on the existing audit-pass detection. Diagnostic body text rewritten
-  to drop forward-references to "Phase 2b / Phase 4" and instead state
-  the v1.0 contract directly + flag remaining items as
-  "post-v1.0 hardening".
-- **G-7 audit-pass added (new, warning-level)**: `warning[UNSAFE-G7]:`
-  surfaces any `unsafe { }` block in adopter code at compile time. The
-  OSS compiler self-host source contains zero unsafe blocks, so this
-  warning never fires on a clean OSS build; adopter code introducing
-  `unsafe { }` gets a one-line review surface so reviewers can audit
-  each block. **Same shape as the other audit-pass diagnostics —
-  textual count, not real per-block invariant analysis.**
+### Memory-safety / borrow / ownership / effects (RFC-0062 — all G-gates closed)
 
-### Residuals (cloud-lane — pending Q1..Q5 close)
+- **G-1 — auto-drop default-on (structural).** Phase 2b-3 unconditional default-flip: every fn body auto-drops local `Vec<T>` / `HashMap<K,V>` / `Box<T>` / `String` / `VecDeque<T>` at scope exit unless `#[manual_drop]` opts out. The `auto_drop_mark_constructor_handoffs` recognizer was extended to kind-7 function calls, closing the move-into-struct-field handoff class structurally for the entire stdlib. Closes the historical leak/double-free bug class.
+- **G-2 — single-input lifetime check (BORROW-G2-LIFETIME, hard error).** Per-fn IR walker in `check_fn`: when a fn has exactly one ref-typed input parameter and a ref return type, the returned region must trace back to that input. Conservative reject otherwise. Phase 4 lock-in achieved structurally — pre-edit grep across stdlib + tests + fixtures + compiler sources confirmed zero `fn(..&..) -> &..` shapes in current sources, so the check landed at error severity from day one.
+- **G-3 — heap-aliasing per-fn analysis (ALIAS-G3-VEC-OF-REFS, ALIAS-G3-HASHMAP-REHASH, hard error).** Promoted from textual audit-pass to per-call-site error in `check_expr` kind-7. ALIAS-G3-VEC-OF-REFS fires when `vec_push` / `vec_insert` lands on a `Vec<&T>` binding (pushing a borrow into a Vec hides aliasing from the syntactic borrow tracker). ALIAS-G3-HASHMAP-REHASH fires when `hashmap_insert` / `hashmap_remove` / `hashmap_clear` / `hashmap_free` is called while a live shared borrow exists on the same map binding (rehash invalidates outstanding references).
+- **G-4 — IR-level use-after-drop (OWN-G4-USE-AFTER-DROP, hard error).** Parallel freed-flag on the `own` env: set on manual-free call sites for `vec_free` / `hashmap_free` / `str_free`, checked at every kind-3 read before OWN-001's state==2 path. Independent of move-state; per-name (no alias tracking — Phase 3 territory). Double-free caught for free (second call's arg-walk reads the slot).
+- **G-5 — FFI null contract (FFI-G5-NULL-DEREF, hard error).** Real deref-after-extern-call dataflow on R3's effects framework. Bindings initialized from extern fns marked `may_return_null` get a `__g5_maynull_` flag; uses without a dominating `ptr_is_null(<binding>)` guard fire FFI-G5-NULL-DEREF. The `__g5_guarded_<vname>` flag uses the same control-flow primitives as G-11's definite-assignment, with `own_merge_moved` extended to intersect guard state at if/else joins.
+- **G-6 — Sendable propagation (SEND-G6-HASHMAP, SEND-G6-CLOSURE-CAPTURE, SEND-G6-TUPLE, SEND-G6-ENUM, hard error).** Per-call-site classification at spawn boundaries (`thread_spawn` / `async_spawn` / `conc_spawn`). Recursive closure-capture detector (`g6_closure_walk_capture`) ensures SEND-G6-CLOSURE-CAPTURE only fires on closures that actually reference enclosing-scope locals (bare-parameter closures stay clean). The 4 codes coexist with the existing RACE-001 textual pre-pass — RACE-001 catches the generic non-Sendable shape, SEND-G6-* gives the more specific shape classification.
+- **G-7 — unsafe-block audit (UNSAFE-G7-MISSING-ALLOW, hard error).** R4 promoted the audit-pass warning to a per-block hard error gated through R3's effects framework: `unsafe { }` blocks in fn body produce an `unsafe` effect; fns with unsafe blocks must declare `#[effect(unsafe)]` or `#[allow_effect(unsafe)]`. The OSS compiler self-host source contains zero unsafe blocks, so the gate is dormant on the OSS surface.
+- **G-8 — conditional-divergence move-state join (OWN-G8-COND-MOVE, hard error).** `own_merge_moved` extended with a per-arm move-state lattice at if/else join points. Bindings moved on one arm but not the other become "conditionally moved"; subsequent reads emit OWN-G8-COND-MOVE. Distinct from OWN-001 (which fires when a binding is moved on every incoming path).
+- **G-9 — FFI bounds-check / direct-FFI discipline (FFI-G9-MISSING-ALLOW-DIRECT-FFI, hard error).** Every extern fn call site requires the calling fn to declare `#[effect(direct_ffi)]` or `#[allow_effect(direct_ffi)]`. Gated behind R3's opt-in attribute machinery — adopters opt their file in by adding any `#[effect(...)]` / `#[allow_effect(...)]` attribute. Per-rod retrofit can land incrementally.
+- **G-10 — effect annotations framework (EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW, EFFECT-G10-WRONG-ROW).** New `#[effect(E1, E2, ...)]` attribute declares the effects a fn produces; `#[allow_effect(E)]` silences a single effect on a single fn. Initial vocabulary: `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`. Pass A leaf inference (vec_free / hashmap_free / str_free → `frees`; extern fn calls → `direct_ffi`; raw-ptr extern returns → `may_return_null`; unsafe blocks → `unsafe`). Pass B call propagation: callee's declared effect row contributes to caller's produced set. Three diagnostic codes cover the three contract violations: producing without declaration (UNDECLARED), declaring an extra effect not allow-silenced (MISSING-ALLOW), and over-declaring an effect that the body never produces (WRONG-ROW).
+- **G-11 — definite-assignment flow analysis (INIT-G11-READ-BEFORE-INIT, hard error).** Per-fn CFG walk tracks each local's init-state. Reads of a binding whose init-state is not "definitely assigned on every incoming path" fire INIT-G11-READ-BEFORE-INIT at error severity. Cooperates with `own_merge_moved` to intersect init state at if/else join points. The pre-existing TYP-008 rejection of `let mut x: T;` (no-init mutable bindings) was relaxed — DA flow allows them when every read is dominated by an assignment.
 
-- G-2 single-input lifetime check (BORROW-G2-LIFETIME) — Q1
-- G-4 IR-level use-after-drop (OWN-G4-USE-AFTER-DROP) — Q2
-- G-8 move-state join at branch merge (OWN-G8-COND-MOVE) — Q3 (extends
-  today's transitive-handoff fix)
-- G-11 definite-assignment flow analysis
-  (INIT-G11-READ-BEFORE-INIT) — Q4
-- RFC-0063 waves 12-16: parser/tools-suite duplicate retirement
-  (30 IDENTICAL deletes + 131 SIG_MATCH_BODY_DIFFERS triage + 19
-  SIG_DIFFERS reconcile) — Q5
+### Effects extension RFC
 
-### Brief
+- New spec: `docs/rfcs/RFC-0062-effects-extension.md` (~120 lines) — full attribute grammar, effect vocabulary, leaf inference, call propagation, and the contract for the three EFFECT-G10-* codes. R4 extended this with FFI specializations (FFI-G5-NULL-DEREF / FFI-G9-MISSING-ALLOW-DIRECT-FFI / UNSAFE-G7-MISSING-ALLOW) on top of the framework.
 
-- `CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md` (root of repo) — full
-  Q1..Q5 mandate, coordination protocol, verify gates, hard rules.
+### RFC-0063 — parser/tools-suite duplicate unification (Q5 + R1)
+
+- **Q5 wave 12** (30 IDENTICAL safe-delete batch): byte-identical fns moved from `tools_suite` into the new `compiler/nucleor_rfc0063_shared_wave1.nr` file, imported into tools_suite. Pure additive — no s1 IR change.
+- **R1 waves 13-16** (62 SIG_MATCH_BODY_DIFFERS moved + 3 SIG_DIFFERS renamed): 27 ≤30-line fns + 23 30-100-line fns + 12 large-body fns (including `lex` 790 LOC, `parse_program` 249 LOC, `expand_format_macros_with_src` 489 LOC, `parse_postfix`, `parse_if`, `parse_struct_decl`, `fmt_build_expansion`) extracted from s1 (read-only) into a second new shared file `compiler/nucleor_rfc0063_shared_wave2.nr`. tools_suite imports both wave files. Three tools-only CLI dispatch fns renamed (`run_build_shared_command` / `run_fix_command` / `run_doc_command` → `tools_*`).
+- Net impact: duplicate-fn audit went from 180 → 85 (-95, -53%). Drift gates clean. Six drift-protected fns intentionally kept LOCAL in tools_suite (`get_rt_name`, `is_ptr_ret`, `is_ptr_arg`, `emit_externs`, `emit_user_externs`, `compiler_version_label`) because `tools/check_compiler_drift.sh` reads them via direct grep without import-following — closing those requires teaching the drift script to follow imports, deferred to v1.x.
+
+### ML rod surfaces
+
+- **PROBE-2 4-pipeline parity gate** (opt-in via `NUC_VERIFY_ML_PROBE=1`): four end-to-end ML pipelines validated against Python sklearn references — decision-tree classification (`stdlib/rods/ml/probes/pipeline_01_tabular_classification.nr`), linear regression (`pipeline_02`), KMeans clustering (`pipeline_03`), BernoulliNB text classification (`pipeline_04`). Each pipeline consumes pre-fitted parameters from the Python reference's `params` block — Nucleor consumes parameters and runs PREDICT-only against the holdout fold; the parity boundary is on prediction equivalence rather than the training loop. Closes the credibility gap the prior trivial-fixture audit flagged: 120/120 ML parity claims were one-shot calls; PROBE-2 is real-program-level.
+
+### Visibility raises (Phase A integrator-lane, pre-Q1..Q5)
+
+These items raised the visibility of existing Phase 2a textual audit-pass diagnostics from `info[CODE]:` to `warning[CODE]:` so adopters see them in normal builds. The underlying heuristics are unchanged; the Phase 3 real per-fn analyses listed above (R2 for G-3 + G-6, R4 for G-5 + G-7 + G-9) are the sound replacements that supersede these where applicable.
+
+- `warning[ALIAS-G3]:` — Vec-of-reference build-summary count
+- `warning[OWN-012]:` — explicit free-call build-summary count
+- `warning[FFI-NULL]:` — extern fn raw-pointer return count
+- `warning[FFI-DIRECT]:` — extern fn declaration count
+- `warning[SEND-G6]:` — HashMap / Cell / RefCell type count
+- `warning[SEND-G6-CLOSURE]:` — `move |...|` capture-closure count
+- `warning[UNSAFE-G7]:` — `unsafe { }` block count (new in Phase A)
+
+### Generated artifacts + drift gates
+
+- `bootstrap/nucleor_s1_seed.ll` — refreshed multiple times across the cycle; final v1.0 fixed-point md5 = `db5a1ceede502c466b68632ebc0dc71d`.
+- `bin/nucleor.exe` — rebuilt from final stage2.
+- `tools/audit_dup_fns_report.csv` — regenerated; final tally 85 dups (0 IDENTICAL, 69 SIG_MATCH_BODY_DIFFERS, 16 SIG_DIFFERS).
+- `RELEASES.md` — regenerated index.
+- `tools/check_compiler_drift.sh` — all six drift gates GREEN at cut time.
+
+### Test corpus growth across the cycle
+
+- 9 G-3 + G-6 fixtures (R2): 3 positive lock-ins + 6 negatives.
+- 6 G-10 fixtures (R3): 3 positive lock-ins + 3 negatives.
+- 7 G-5 + G-7 + G-9 fixtures (R4): 4 positive lock-ins + 3 negatives.
+- Q-cycle fixtures (Q1-Q4): 9 fixtures (positive + negative for BORROW-G2-LIFETIME, OWN-G4-USE-AFTER-DROP, OWN-G8-COND-MOVE, INIT-G11-READ-BEFORE-INIT).
+- ML PROBE-2: 4 pipeline + 4 reference + 4 comparator + 1 driver scripts.
+- Total additions across the cut cycle: ~40 new fixtures + reference scripts.
+
+### Hard rules in effect through the cycle (recorded for future cycles)
+
+- No time estimates anywhere in commit messages or docs.
+- Batch validation: edit-batch then ONE verify cycle; standard verify per Q-unit, strict only at integration time and after seed refresh.
+- Structural fixes only — no `#[manual_drop]` band-aids on adopter code.
+- Cloud-lane work is purely additive in the s1 compiler: integrator handles seed/bin/audit regen on cherry-pick to avoid cascade conflicts.
+
+### Residuals (post-v1.0 hardening track)
+
+- 69 SIG_MATCH_BODY_DIFFERS + 16 SIG_DIFFERS still in `tools_suite` — large-body fns and adapter-required call-site updates; per-fn review work for v1.x maintenance.
+- 6 drift-protected fns intentionally left LOCAL in tools_suite pending drift-script import-following.
+- s1 local-copy elimination (bootstrap-affecting; deferred per the brief's explicit Phase B scope).
+- macOS native bootstrap pending hardware availability for the CI gate.
+- Per-rod `#[effect(...)]` retrofit across the 216 .nr files / 1786 extern decls in stdlib/ — adopter-incremental opt-in work; not a v1.0 blocker because the framework is gated behind file-level opt-in.
+
+### v1.0 cut artifacts
+
+- Brief: `CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md` (Q1-Q5 cycle)
+- Brief: `CLOUD_AGENT_V1X_HARDENING_BRIEF_2026-05-08.md` (R1-R3 parallel)
+- Brief: `CLOUD_AGENT_V1X_R4_BRIEF_2026-05-08.md` (R4 sequenced after R3)
+- All R-unit findings under `findings/inbox/cloud_R*_*_2026-05-08.md`.
+- All Q-cycle findings under `findings/inbox/cloud_q*_*_2026-05-08.md`.
+- Coordination history in `Cloud_Control1.md`.
 
 ---
 

@@ -39512,9 +39512,10 @@ fn compiler_version_label() -> str {
     // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
     // v0.8.322: caught up from stale 0.4.180 (~140 ships behind).
     // v0.8.323: production readiness audit pass — RFC-0063 Phase 1.
+    // v1.0.0: RFC-0062 hard-error closure (G-1..G-11). See CHANGELOG.
     // tools/check_compiler_drift.sh enforces parity with the latest
     // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
-    return "0.8.323";
+    return "1.0.0";
 }
 
 #[manual_drop]

@@ -8,6 +8,12 @@ For full per-release notes (changes, gate status, fixed point), see [`CHANGELOG.
 
 GitHub tag URLs follow the pattern `https://github.com/APEXINTELORG/Nucleor/releases/tag/vX.Y.Z`.
 
+## v1.0.x
+
+| Version | Date | Summary |
+|---|---|---|
+| **v1.0.0** | 2026-05-08 | Full RFC-0062 hard-error closure across G-1..G-11 + RFC-0063 parser unification (95/180 dups closed) + ML PROBE-2 4-pipeline parity gate. v1.0 cut criteria met across both hosts |
+
 ## v0.8.x
 
 | Version | Date | Summary |
@@ -3142,9 +3148,3 @@ emulation |
 | **v0.1.2** | 2026-04-21 | `nuc zen` |
 | **v0.1.1** | 2026-04-21 | 29 new `.nr` rod wrappers |
 | **v0.1.0** | 2026-04-21 | Self-hosted compiler |
-
-## vUnreleased.x
-
-| Version | Date | Summary |
-|---|---|---|
-| **vUnreleased** |  | RFC-0062 Phase 3 promotion sweep + structural G-1 closure (today's prior commits) |
