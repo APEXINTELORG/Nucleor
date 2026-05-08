@@ -1,6 +1,6 @@
 # Nucleor
 
-**A self-hosted programming language with a complete scientific-computing runtime — linear algebra, tensors, PDE solvers, control systems, automatic differentiation, quantum simulation, and 60+ more rods, all built in.**
+**A self-hosted systems programming language with an industrial scientific-computing runtime built in. v1.0.**
 
 ```nr
 fn main() -> i64 {
@@ -15,198 +15,150 @@ target\hello.exe
 > Hello, Nucleor!
 ```
 
-## Why
+## What it is
 
-Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source and **rebuilds itself in 4.5 s using 185 MB peak**. The standard library is **132 rods** (`stdlib/rods/*.nr` — the user-facing modules you `import`) backed by **84 runtime C source files**. The full ABI surface — the helpers the compiler can emit calls to — is **686 `__nucleor_*` symbols** organized into **13 categories** (math, vectors, collections, IO, statistics, time, randomness, concurrency, tensor ops, plus the v0.1 quantum / linalg / FFT / ODE stack). Catalog at [`docs/rfcs/helper_manifest.toml`](docs/rfcs/helper_manifest.toml). Whole thing fits in a ~55 MB repo with no external runtime dependencies beyond LLVM.
+Nucleor is what happens when you build a small programming language and refuse to stop at "hello world." The compiler is **self-hosted in ~50,000 lines of Nucleor source**, rebuilds itself from a committed `.ll` seed in a few seconds, and emits LLVM IR linked through `clang` to a native binary.
 
-- **Self-hosted from day one.** The compiler is written in Nucleor and rebuilds itself as a standard CI step. No hidden runtime dependencies; no separate bootstrap language to keep in sync.
-- **Real scientific-computing stack, not a toy.** Linear algebra (LU, QR, Cholesky, eigen, SVD), tensor decompositions (CP-ALS, TT-SVD), sparse matrices with CG/GMRES solvers, FFT, signal processing, statistics with t-tests and KDE, ODE solvers (Euler, RK4, RK45, symplectic), root finding, quadrature, B-splines + KAN, interpolation.
-- **PDE solvers that actually solve PDEs.** Multigrid Poisson, Lattice Boltzmann fluids, FDTD electromagnetics, heat transfer.
-- **Physics built in.** 17 CODATA 2018 constants. SI unit conversion across mass, length, time, temperature, pressure, energy, force, frequency, voltage, current. 3D rigid-body dynamics. Orbital mechanics (Kepler, Hohmann, vis-viva).
-- **Modern ML in the box.** Reverse-mode autodiff. Mamba selective scan, RWKV, xLSTM cells. Mixture-of-experts routing. GATv2 graph neural networks. Full state-vector quantum simulator.
-- **Performance and algebraic metadata.** Built-in arithmetic identities are optimized today. `@law(...)` annotations are captured and surfaced for audit, while user-law-driven rewrites and generated law property tests are tracked for the next RFC-0031 algebraic-laws phases. `@hot` enforces no-heap, no-format, no-indirect-dispatch in a function's body.
-- **Real interop.** The shipping `rust_bridge` demonstrates calling Rust crates (regex, base64, hashing) from Nucleor through the C ABI. The same pattern works for any language with `extern "C"` static-library output.
-- **Black-Scholes and Greeks** because why not. Plus PCA, PID, Kalman filter, control state-space models.
+The standard library is **~250 rods** (`stdlib/rods/*.nr` — modules you `import`) backed by **190 runtime C source files**. The full ABI surface — every helper the compiler can emit calls to — is **875 `__nucleor_*` symbols** organized into 17 effect-tagged classes (math, vectors, collections, IO, statistics, time, randomness, concurrency, tensor ops, FFT, autodiff, control flow, allocation, ADT, introspection, data codec, tooling). Catalog at [`docs/rfcs/helper_manifest.toml`](docs/rfcs/helper_manifest.toml). The whole repo fits in ~55 MB with no external runtime dependencies beyond LLVM 18.
 
-## Install
+**v1.0 highlights** (released 2026-05-08):
 
-Prerequisites: **Windows 10/11 x86_64**, **LLVM 18.x** with `clang.exe`. CUDA Toolkit and Rust toolchain are optional.
+- **Memory safety as a first-class compile-time guarantee.** All 11 RFC-0062 gates closed at hard-error severity: borrow checking, single-input lifetime enforcement, IR-level use-after-drop, conditional-move tracking, definite-assignment flow analysis, heap-aliasing detection through `Vec<&T>` and HashMap mutation, Sendable closure propagation across spawn boundaries, FFI null-contract enforcement with deref dataflow, FFI bounds-check discipline, unsafe-block audit, and a full effect-annotations framework (`#[effect(frees, may_return_null, direct_ffi, unsafe, borrows_mut)]`).
+- **Real scientific computing, not a toy.** Linear algebra (LU/QR/Cholesky/eigen/SVD), tensor decompositions (CP-ALS, TT-SVD), sparse solvers (CG/GMRES), FFT, signal processing, statistics with t-tests + KDE, ODE solvers (Euler/RK4/RK45/symplectic), root finding, quadrature, B-splines + KAN, interpolation. Multigrid Poisson, Lattice Boltzmann fluids, FDTD electromagnetics, heat transfer.
+- **Modern ML in the box.** Reverse-mode autodiff. Mamba selective scan, RWKV, xLSTM cells. Mixture-of-experts routing. GATv2 graph neural networks. Full state-vector quantum simulator. ONNX + GGUF + Hugging Face artifact loaders. Quantization (Q4/int8/ternary/FP8). Speculative decoding. Diffusion sampling. **PROBE-2 4-pipeline parity gate against sklearn** (decision-tree classification + linear regression + KMeans + BernoulliNB).
+- **Robotics, control, planning.** Kinematics + dynamics + URDF parsing. Forward + inverse kinematics (DH parameters + damped least squares). Trajectory generation (quintic, trapezoidal, S-curve, DMP, TOPP). Path planning (RRT + variants, PRM, A*, D* Lite, DWA, Dubins, Reeds-Shepp). Collision detection (sphere/capsule/AABB/OBB + GJK + EPA + CCD). Whole-body control. ZMP. EKF + UKF + AHRS. iLQR + cilQR + DDP + MPC + MPPI.
+- **Quantum.** Full state-vector simulator. Matrix Product States. Clifford stabilizer formalism. Photonic + neuromorphic + logical-qubit primitives. Entanglement-DAG tracking + checked gate-DAG recording.
+- **SI units and type-level dimensions.** 17 CODATA 2018 constants. Conversion across mass, length, time, temperature, pressure, energy, force, frequency, voltage, current. Wrong-unit operations are compile-time errors.
+- **Production-grade toolchain.** Self-host fixed-point gate. Six drift gates (helper manifest, rod manifest, RELEASES, CHANGELOG↔tag, parser-fn parity, version-label↔CHANGELOG). Mojibake-clean enforcement. Help-coverage gate. Real-world driver smoke. Per-step verify timings with regression detection. Reproducible builds proven byte-identical.
+
+## Try it
+
+Prerequisites: **Windows 10/11 x86_64** or **Linux x86_64**, **LLVM 18.x** with `clang.exe`. CUDA Toolkit and Rust toolchain are optional.
 
 ```
 git clone https://github.com/APEXINTELORG/Nucleor
 cd Nucleor
 nuc build examples/01_hello.nr -o hello
-target\hello.exe
+target\hello.exe        # Windows
+./target/hello          # Linux
 ```
 
-The bootstrap binary `bin/nucleor.exe` is committed to the repo, so you do not need to build the compiler from source on first use. The `nuc.bat` launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
+The bootstrap binary is committed to the repo, so you don't need to build the compiler from source on first use. The `nuc.bat` (Windows) / `nuc` (POSIX) launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
 
-POSIX (Linux) self-build is operational — `tools/bootstrap_linux.sh` builds the compiler from the seed; `tools/verify.sh` runs the full gate on Linux. Native Linux perf baseline captured at `tools/perf_baseline_linux.json`. macOS bootstrap is pending hardware availability for the CI gate.
+POSIX (Linux) self-build is operational — `tools/bootstrap_linux.sh` builds the compiler from the seed; `tools/verify.sh` runs the full ~1500-step gate. Native Linux perf baseline at `tools/perf_baseline_linux.json`. macOS bootstrap pending hardware availability for the CI gate.
 
-## Standard library — by category
+## What's in the box
 
-**Numerics & linear algebra:** `complex` · `math` · `linalg` (LU, QR, Cholesky, eigen, SVD) · `tensor_nd` · `tensor_decomp` (CP-ALS, TT-SVD) · `sparse` (CSR, CG, GMRES) · `bitwise`
+This README sketches it; the real reference is **[`docs/NUCLEOR_FEATURE_INVENTORY.md`](docs/NUCLEOR_FEATURE_INVENTORY.md)** — a category-by-category walk through every shipping feature with API depth on tensor math, the graphics + plotting surfaces, the ML facades, the quantum stack, the robotics planners, etc.
 
-**Numerical methods:** `ode` (Euler, RK4, RK45, symplectic) · `root` (bisection, Newton, Brent) · `quad` (trapezoid, Simpson, Gauss, adaptive, Monte Carlo) · `interp` (linear, cubic spline, Lagrange, Chebyshev, RBF) · `bspline` (+ KAN forward) · `optim` (GD, Adam, simplex, line search, genetic)
+The short tour:
 
-**Statistics & signal:** `stats` (regression, t-test, χ², KDE) · `signal` (FIR/IIR/Butterworth/windows) · `fft` (1D, real, convolve, power spectrum) · `pca` (fit, project)
+**Numerics + linear algebra:** `complex` · `math` · `math_typed` · `linalg` (LU + QR + Cholesky + eigen + SVD + condition + pseudo-inverse) · `tensor_nd` (N-d tensors with broadcast + einsum-shape inference) · `tensor_decomp` (CP-ALS + TT-SVD + Tucker) · `sparse` (CSR + CG + GMRES + preconditioned variants) · `fft` (1D + real + convolve + power spectrum + Bluestein) · `bigint` (karatsuba mult, modular exp) · `bitwise` · `taylor` (validated Taylor-arithmetic ODE) · `interval` (rigorous interval arithmetic) · `fixed_point` · `pca` · `ridge`
 
-**PDE & physics simulation:** `multigrid` · `fluid` (Lattice Boltzmann) · `emag` (FDTD Maxwell) · `thermo` (heat eq + ideal gas + Carnot + radiation) · `geom` · `rigid_body` · `orbit`
+**Numerical methods:** `ode` (Euler + RK4 + RK45 + symplectic + BDF) · `root` (bisection + Newton + Brent) · `quad` (Simpson + Gauss + adaptive Gauss-Kronrod + Romberg + Monte Carlo) · `interp` (linear + cubic spline + Lagrange + Chebyshev + RBF + Akima) · `bspline` + KAN forward · `optim` (GD + Adam + Nelder-Mead + line search + genetic + simulated annealing + L-BFGS) · `cspline` · `bezier` · `catmullrom`
 
-**Physical constants & units:** `physics` (17 CODATA 2018 constants) · `units` (SI conversion across 9 dimensions)
+**Statistics + signal:** `stats` (regression + t-test + χ² + KDE + bootstrap CI) · `signal` (FIR + IIR + Butterworth + windows + STFT + resample) · `bayesian` (MCMC + NUTS) · `dtw`
 
-**Symbolic & differentiable:** `autodiff` (reverse mode) · `symbolic` (expression trees + diff)
+**PDE + physics simulation:** `multigrid` (Poisson with V/W/full multigrid) · `fluid` (Lattice Boltzmann D2Q9 + D3Q19) · `emag` (FDTD Maxwell with PML) · `thermo` · `geom` · `rigid_body` · `orbit` (Kepler + Hohmann + vis-viva + J2)
 
-**Control systems:** `control` (PID + Kalman + state-space)
+**Constants + units:** `physics` (17 CODATA 2018 constants) · `units` (SI conversion across 9 dimensions, type-level)
 
-**Robotics:** `kinematics` (Vec3, quaternion, Pose) · `fk_chain` (forward kinematics, DH parameters) · `ik_dls` (damped least squares IK, 3-DOF + 6-DOF + joint limits + singularity detection) · `trajectory` (quintic, trapezoid, S-curve, DMP, TOPP time-optimal parameterization) · `collision` (sphere/capsule/AABB/OBB pairs + GJK + EPA penetration depth + CCD) · `bvh` (broad-phase pruning) · `rrt` (RRT, RRT-Connect, RRT*, goal-region) · `prm` (probabilistic roadmap + Dijkstra query) · `astar` · `urdf` (parser → FK chain)
+**Symbolic + autodiff:** `autodiff` (reverse-mode) · `symbolic` (expression trees + simplification + diff + substitution) · `nn_autodiff` · `transformer_autodiff` · `differentiable`
 
-**Modern ML:** `nn` (Dense + Adam + attention + ensemble) · `gnn` (GATv2 + global attention pool) · `ssm` (Mamba selective scan + RWKV + xLSTM + ZOH) · `moe` (top-k gate + dispatch + load balancing)
+**Control + estimation:** `control` (PID + Kalman + state-space) · `lqr` · `mpc` · `mppi` · `ilqr` · `cilqr` · `ddp` · `pidc` · `ekf` · `ukf` · `pgs` · `pgs3`
 
-**Quantum:** `quantum` (full state-vector simulator: H, X, Y, Z, CNOT, measure)
+**Robotics:** `kinematics` + `kinematics_frame`/`kinematics_transform` (typed transforms) · `fk_chain` (DH parameters) · `ik_dls` (damped least squares + joint limits + singularity detection) · `urdf` parser · `trajectory` (quintic + trapezoidal + S-curve + DMP + TOPP) · `collision` (sphere/capsule/AABB/OBB + GJK + EPA + CCD) · `bvh` · `rrt` (RRT + RRT-Connect + RRT* + goal-region) · `prm` · `astar` · `dstar` · `dwa` · `dubins` · `reeds_shepp` · `stanley` · `purepursuit` · `vfh` · `mecanum` · `skid_steer` · `diff_drive` · `bicycle` · `ahrs` · `wbc`/`hwbc` (whole-body control) · `zmp` · `dynamics` (Newton-Euler + composite-rigid-body) · `harris` · `klt` · `hough` + `hough_circle` · `canny` · `sobel` · `ransac` · `hull` · `delaunay` · `voronoi` · `icp` + `icp_p2p` · `pcalign` · `scanmatch` · `occgrid` · `voxel` · `pnp` · `handeye` · `grasp` · `mesh` · `sdf` · `bt` (behavior trees) · `mppi` · `ba` (Bundle Adjustment) · `pf` (particle filter) · `chomp` (covariant trajectory optimization)
 
-**Finance:** `finance` (Black-Scholes + all Greeks + implied vol + NPV + IRR + VaR + portfolio opt)
+**Modern ML:** `nn` (Dense + Adam + attention + ensemble) · `gnn` (GATv2 + global attention pool) · `ssm` (Mamba selective scan + RWKV + xLSTM + ZOH) · `moe` (top-k gate + expert dispatch + load balancing) · `transformer` (multi-head attention + FFN + layernorm) · `attention2` (FlashAttention-shape + ALiBi + RoPE + sliding-window) · `activation2` (GELU + SwiGLU + Mish + Squareplus + ReGLU) · `tokenizer` (BPE + WordPiece + SentencePiece-shape) · `embedding` · `kv_cache` · `quantize` (Q4 + int8 + ternary + FP8 with calibration) · `rl` (replay + GAE + PPO + DQN) · `loss` (MSE + cross-entropy + huber + focal + contrastive) · `speculative` (LLM speculative decoding) · `diffusion` (DDPM + DDIM)
 
-**System & data:** `io` · `fs` · `os` · `env` · `path` · `time` · `concurrency` (threads + mutex + spawn/join) · `cli` · `log` · `test` · `strings` · `fmt` · `json` · `csv` · `ini` · `regex` · `base64` · `uuid` · `queue` · `stack` · `sort` · `collections` · `option` · `result`
+**ML lifecycle:** `ml/data_facade` · `ml/learn_facade` · `ml/serve_facade` · `ml/ship_facade` · `ml/lab_facade` · `ml/experiment_facade` · `ml/bench_facade` · `ml/cert_facade` · `ml/contract_facade` · `ml/sbom_facade` · `ml/parity_manifest` · `ml/onnx_facade` · `ml/gguf_facade` · `ml/hf_facade` · `ml/model_io_facade` · `ml/quantize` · `ml/ml_health_facade` · `ml/probes` (PROBE-2 4-pipeline parity gate vs sklearn — opt-in via `NUC_VERIFY_ML_PROBE=1`)
 
-**Interop:** `rust` (Rust crates via C ABI) · `python` · `gpu`
+**Quantum:** `quantum` (full state-vector: H + X + Y + Z + S + T + CNOT + CZ + CRK + CCX + SWAP + measure) · `quantum_gates` · `qsim_graph` (entanglement DAG + checked gate-DAG) · `qtraj` (quantum trajectories) · `mps` (Matrix Product States + TEBD + DMRG) · `clifford` (stabilizer formalism for QEC) · `photonic` · `neuromorphic` · `logical_qubit`
 
-That's **121 rods total** as of v0.2.46 (was 103 at v0.1.5; the v0.2.18–v0.2.30 stdlib enrichment chain added 18 more), all building cleanly against the bootstrap binary. Full per-rod catalog with API surface and stability is at [`docs/rfcs/rod_manifest.toml`](docs/rfcs/rod_manifest.toml).
+**Finance:** `finance` (Black-Scholes + all Greeks + implied vol + NPV + IRR + VaR + CVaR + portfolio optimization)
 
-**v0.1.5 added** (rods that wrap runtime files which already shipped but had no `.nr` wrapper): `taylor` (validated Taylor-arithmetic ODE integrator), `interval` (rigorous interval arithmetic), `bigint`, `crypto`, `compress`, `hashmap`, `socket` (TCP + UDP), `image` (PPM/BMP, convolutions), `plot` (SVG output), `datetime`, `mmap`, `state_machine`, `graph` (BFS/DFS/Dijkstra/Bellman-Ford/MST/PageRank), `bayesian` (MCMC), `bloom` + HyperLogLog, `bm25`, `kdtree`, `hnsw`, `pq` (product quantization), `embedding`, `clifford` (stabilizer formalism for QEC), `mesh` (finite-element rectangular meshes), `mps` (Matrix Product States), `kv_cache`, `quantize` (Q4/int8/ternary/FP8), `rl` (replay/GAE/PPO/DQN), `loss`, `speculative` (LLM speculative decoding), `diffusion`, `bioseq`, `audio` (WAV/STFT/MFCC), `color`, `serial`, `comm` (collective communication), `conv` (CNN building blocks), `string_algo` (KMP/Levenshtein/Trie), `scan` (parallel-scan/SSM kernels), `checkpoint`.
+**System + IO:** `io` · `fs` + `fs_extras` · `os` · `env` · `path` · `time` + `datetime` + `time_typed` · `concurrency` (threads + mutex + condvar + spawn/join + atomic) · `cli` · `log` · `lsp` · `multi_core` · `distributed` · `comm` (allreduce + broadcast + scatter + gather) · `socket` (TCP + UDP) · `mpsc_queue` · `spsc_queue` · `serial` · `mmap` · `process` · `thread`
+
+**Data structures + algorithms:** `collections` · `option` · `result` · `queue` · `pqueue` · `stack` · `vecdeque` · `btreemap` · `btreeset` · `hashmap` · `hashset` · `sort` · `string_algo` (KMP + Levenshtein + Trie + Aho-Corasick + suffix-array) · `bloom` (+ HyperLogLog) · `bm25` · `kdtree` · `hnsw` · `pq` (product quantization) · `embedding`
+
+**Crypto + codecs:** `crypto` (AES + ChaCha20 + Poly1305 + HMAC + KDF + ECDSA + Ed25519) · `pq_crypto` (Kyber + Dilithium) · `digest` (SHA-256/512 + BLAKE3) · `compress` (gzip + deflate + lz4) · `base64` · `regex` · `uuid` (v4 + v7) · `json` + `jsonl` · `csv` + `csv_table` · `ini` · `toml` · `binary`
+
+**Image + audio + plotting:** `audio` (WAV + STFT + MFCC + spectrogram + resample) · `image` (PPM + BMP + convolutions) · `image_pyramid` (Gaussian + Laplacian) · `imgproc` (blur + threshold + morphology + color conv) · `color` (RGB/HSV/LAB/XYZ/sRGB) · `vision` · `plot` (SVG: line + scatter + bar + histogram + heatmap + contour) · `graph_render` (force-directed graph viz)
+
+**Bio:** `bioseq` (FASTA + FASTQ + alignment scoring)
+
+**Governance + provenance:** `admit` · `governance` (AuthorRecord registry) · `capabilities` · `model_provenance` · `sbom_facade` · `cert_facade`
+
+**Interop:** `rust` + `rust_bridge` (Rust crates via C ABI — regex + base64 + hashing demo) · `python` (opt-in) · `gpu` (CUDA + ROCm + Metal targets) · `simd` (AVX2 + AVX-512 + NEON)
+
+That's **~250 rods total**, all building cleanly against the bootstrap binary. Full per-rod catalog with API surface and stability classification at [`docs/rfcs/rod_manifest.toml`](docs/rfcs/rod_manifest.toml). Deep walkthrough at [`docs/NUCLEOR_FEATURE_INVENTORY.md`](docs/NUCLEOR_FEATURE_INVENTORY.md).
+
+## Memory safety — what the language guarantees
+
+Every Nucleor program at v1.0 gets the following compile-time guarantees, with span-aware diagnostic codes pointing at the offending line:
+
+- **No use-after-drop, no double-free.** `OWN-G4-USE-AFTER-DROP` fires if you read a binding after `vec_free` / `hashmap_free` / `str_free`. Auto-drop is on by default for `Vec` / `HashMap` / `Box` / `String` / `VecDeque` — opt out with `#[manual_drop]` only when you need explicit lifetime control.
+- **No use-after-move on conditional paths.** `OWN-G8-COND-MOVE` fires if a binding is moved on one arm of an `if/else` but not the other and you read it after the join.
+- **No reads before definite assignment.** `INIT-G11-READ-BEFORE-INIT` fires for `let mut x: T;` followed by an unguarded read. The DA flow analysis allows it when every CFG path assigns before the read.
+- **Lifetime soundness.** `BORROW-G2-LIFETIME` fires when a fn with one ref input and a ref return type returns a borrow that doesn't trace back to the input.
+- **No silent heap aliasing.** `ALIAS-G3-VEC-OF-REFS` fires when `vec_push` lands on a `Vec<&T>` (pushes a borrow into a Vec where the syntactic tracker can't see element aliasing). `ALIAS-G3-HASHMAP-REHASH` fires when a mutating `hashmap_*` call invalidates an outstanding borrow.
+- **Sendable closure propagation across spawn boundaries.** `SEND-G6-HASHMAP` / `SEND-G6-CLOSURE-CAPTURE` / `SEND-G6-TUPLE` / `SEND-G6-ENUM` fire when a spawn-call argument is non-Sendable (recursive capture-set walker — bare-parameter closures stay clean).
+- **FFI null contract.** `FFI-G5-NULL-DEREF` fires when you use a raw pointer returned from a `may_return_null` extern fn without a dominating `ptr_is_null(<binding>)` guard. The guard-state lattice intersects at if/else joins.
+- **FFI direct-call discipline.** `FFI-G9-MISSING-ALLOW-DIRECT-FFI` fires when you call an extern fn without `#[effect(direct_ffi)]` or `#[allow_effect(direct_ffi)]` on the calling fn.
+- **Audited unsafe.** `UNSAFE-G7-MISSING-ALLOW` fires when you write an `unsafe { }` block without `#[effect(unsafe)]` or `#[allow_effect(unsafe)]`. The OSS compiler self-host source contains zero unsafe blocks.
+- **Effect annotations.** `EFFECT-G10-UNDECLARED` / `EFFECT-G10-MISSING-ALLOW` / `EFFECT-G10-WRONG-ROW` enforce the contract between declared and produced effects on every fn boundary. Initial vocabulary: `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`. Spec at [`docs/rfcs/RFC-0062-effects-extension.md`](docs/rfcs/RFC-0062-effects-extension.md).
+
+Every diagnostic has a printable description: `nuc explain CODE`.
 
 ## Tour by example
 
-See [`examples/README.md`](examples/README.md) for the full index. The
-short tour:
+See [`examples/README.md`](examples/README.md) for the full index. The short tour:
 
 **Tier 1 — language tour:**
-
 - [`examples/01_hello.nr`](examples/01_hello.nr) — the smallest possible program.
 - [`examples/02_fib.nr`](examples/02_fib.nr) — recursion + iteration.
 - [`examples/03_structs.nr`](examples/03_structs.nr) — structs, fields, mutation.
 - [`examples/04_rods.nr`](examples/04_rods.nr) — using stdlib rods (strings + JSON).
-- [`examples/05_quantum.nr`](examples/05_quantum.nr) — Bell-state preparation on the bundled quantum simulator.
-- [`examples/06_perf_attrs.nr`](examples/06_perf_attrs.nr) — `@hot`, `@law`, `@const_fn`.
-- [`examples/07_rust_interop.nr`](examples/07_rust_interop.nr) — Rust regex + base64 via `rust_bridge`.
 
-**Tier 2 — numerics & domains:**
-
-- [`examples/08_linalg.nr`](examples/08_linalg.nr) — solve a linear system, take an SVD.
-- [`examples/09_ode.nr`](examples/09_ode.nr) — integrate a damped pendulum with RK4.
-- [`examples/10_fft.nr`](examples/10_fft.nr) — round-trip a sine wave through the FFT.
-- [`examples/11_pid.nr`](examples/11_pid.nr) — PID controller driving a plant to a setpoint.
-- [`examples/12_autodiff.nr`](examples/12_autodiff.nr) — reverse-mode autodiff of `sin(x²) + x`.
-- [`examples/13_test_framework.nr`](examples/13_test_framework.nr) — `assert_*` macros + test runner.
-
-**Tier 3 — v0.2.x stdlib showcase (real end-to-end programs):**
-
-- [`examples/14_csv_summary.nr`](examples/14_csv_summary.nr) — per-column count / min / max / mean / median / stddev report from CSV input.
-- [`examples/15_word_count.nr`](examples/15_word_count.nr) — word-frequency counter with stable top-N sort, hashmap-backed.
-- [`examples/16_histogram.nr`](examples/16_histogram.nr) — 10-bin ASCII histogram of numeric input + summary statistics.
-- [`examples/17_linecount.nr`](examples/17_linecount.nr) — `wc`-style multi-file line/word/char counter with TOTAL aggregation.
-- [`examples/18_benchmark.nr`](examples/18_benchmark.nr) — micro-benchmark harness with min/max/mean/median/stddev/p95 per workload.
-
-Tier 3 demos read a small bundled in-source sample by default, or accept
-real-data input via env vars (`NUC_CSV_PATH`, `NUC_TEXT_PATH`,
-`NUC_HIST_PATH`, `NUC_LC_FILES`, `NUC_BENCH_ITERS`). All examples are
-part of the verify gate and rebuild + run on every release.
-
-## Showcase — animated, color:
-
-Programs in [`examples/showcase/`](examples/showcase/) that demonstrate
-things Nucleor is uniquely suited for, with live ANSI-colored visualizations.
-All five are one file each.
-
-- [`vqe_h2.nr`](examples/showcase/vqe_h2.nr) — **Variational Quantum Eigensolver** finding the ground state of a 2-qubit Hamiltonian via parameter-shift gradient descent. Live convergence chart with parameter and energy bars updating in place. Other-stack equivalent: PennyLane + PyTorch + OpenFermion + SciPy.
-- [`market_maker.nr`](examples/showcase/market_maker.nr) — **Live options market-making engine.** Black-Scholes pricing + full Greeks + PID-driven delta hedging at simulated 10 ms tick. Bloomberg-style dashboard. Other-stack equivalent: Python + QuantLib + filterpy + simple-pid + a C++ rewrite for the latency path.
-- [`wing_simulator.nr`](examples/showcase/wing_simulator.nr) — **Coupled fluid + electromagnetic simulator** on the same airfoil cross-section. Lattice Boltzmann (D2Q9) for aerodynamics + FDTD on a Yee grid for electromagnetics, both in one file with one shared geometry. 256-color heatmaps for density, vorticity, and E_z field. Other-stack equivalent: OpenFOAM + Meep + a custom mesh bridge + matplotlib.
-- [`lorenz.nr`](examples/showcase/lorenz.nr) — **The Lorenz strange attractor** integrated with RK4, two trajectories from initial conditions 1e-5 apart, rendered as a heatmap of trajectory density. Visual demonstration of sensitive dependence on initial conditions — the iconic butterfly shape emerges in your console.
-- [`robotic_arm.nr`](examples/showcase/robotic_arm.nr) — **End-to-end robot motion-planning stack**, 8 stages: build a 3-link arm (DH parameters or URDF), forward kinematics, IK with joint limits + singularity detection, TOPP time-optimal trajectory parameterization, GJK + EPA collision checking, BVH workspace pruning. Other-stack equivalent: ROS / MoveIt / Pinocchio / TOPP-RA + a Python orchestrator.
-
-Each program writes a `*_data.csv` next to the binary so you can plot it,
-audit it, or feed it into another tool. Open in Excel, pandas, R, gnuplot,
-or anything that accepts CSV.
-
-## Documentation
-
-- [Getting Started](docs/getting-started.md) — install, first build, troubleshooting.
-- [Language Tour](docs/language-tour.md) — syntax and idioms by example.
-- [Language Reference](docs/language-reference.md) — formal-style spec of types, control flow, attributes, the CLI.
-- [Rods and Runtime](docs/rods-and-runtime.md) — the rod catalog with one-liners for each one.
-- [Math and Physics](docs/math-and-physics.md) — worked examples across the scientific-computing rods.
-- [Architecture](docs/architecture.md) — pipeline (lex → parse → IR → optimize → LLVM → clang), the self-host bootstrap chain, the optimizer.
-- [Memory Architecture](docs/memory-architecture.md) — how the compiler keeps self-host RSS at 67 MB (down from 19 GB), the gate-enforced 100 MB allocation budget, and the diagnostic backbone (`NUC_TRACE_ALLOC`).
-- [Benchmarks](docs/benchmarks.md) — reproducible numbers from `nuc bench`.
-
-## CLI quick reference
+**Tier 2 — scientific computing:**
+- `lorenz` — Lorenz attractor with RK4.
+- `vqe_h2` — Variational Quantum Eigensolver for H₂.
+- `market_maker` — Black-Scholes + Greeks demo.
+- `wing_simulator` — FDTD electromagnetics.
 
 ```
-nuc init [name]            scaffold a new project
-nuc build [file]           compile to native binary
-nuc run [file]             compile and run
-nuc test [path]            build and run @test / test_* functions
-nuc bench [file]           benchmark repeated runs
-nuc perf [file]            optimizer + performance diagnostics
+nuc build [path] [--release] [-o name]
+nuc run [path]
+nuc test [file]
 nuc check [file]           run all checkers (ownership, type, source, taint, effect)
-nuc emit [file]            emit LLVM IR only
-nuc stage-dump <stage>     dump compiler stage summaries (tokens|ast|typed|ir|all)
-nuc bootstrap status       self-host bootstrap report
-nuc clean                  remove target/ and .nuc_cache/ (alias: nuc scram)
-nuc zen                    the design principles of Nucleor
-nuc mco                    Mars Climate Orbiter — why dimensional analysis matters
-nuc help                   full command list
+nuc explain CODE           print the description of a diagnostic code
 ```
 
-## Tab completion
+## Verification gate
 
-Drop-in completion scripts for `bash`, `zsh`, `fish`, and PowerShell live in
-[`tools/completions/`](tools/completions/). One-liner install per shell —
-see [`tools/completions/README.md`](tools/completions/README.md).
+`tools/verify.sh` runs the full ~1500-step gate (Linux + Windows). Includes:
+- Compiler binary smoke
+- ABI parity checks (s1 ↔ tools-suite, drift gates)
+- Tools-suite rebuild
+- Mojibake-clean source enforcement
+- Help-coverage (every dispatched cmd in `nuc help`)
+- Build + run every example under `examples/`
+- Build + run every positive test under `tests/{lang,attrs,runtime,rods,features}/`
+- Confirm every `tests/err/*.nr` fails with at least a diagnostic line
+- T1.7 bootstrap seed matches current compiler
+- T1.8 self-host compiler IR fixed point (md5 stage1 == stage2 == seed)
+- PROBE-1: real-world drivers (`nuc build/run/test/check/summary/explain/init/clean`)
+- PROBE-2: ML pipeline parity (DT + LR + KMeans + NB) — opt-in via `NUC_VERIFY_ML_PROBE=1`
 
-## Testing this build
+The gate also enforces a **400 MB peak-allocation budget on the self-host compile** (current: ~185 MB) and tracks per-step timings against `tools/perf_baseline.json` / `tools/perf_baseline_linux.json` for regression detection.
 
-```
-nuc test tests/
-```
+v1.0.0 verify result: **PASS=1518 / SKIP=3 / FAIL=0** on Windows.
 
-This compiles and runs all 137 tests across `tests/lang/` (49), `tests/attrs/` (4), `tests/runtime/` (27), and `tests/rods/` (57). The full gate (`tools/verify.ps1` on Windows or `tools/verify.sh` on POSIX) additionally exercises `tests/features/` (34) and `tests/err/` (35 negative tests). The gate also enforces a **400 MB peak-allocation budget on the self-host compile** (current: 185 MB; see `MEMORY_FIX_PUNCHLIST.md` for the architectural roadmap).
+## License + contributing
 
-On Windows, the first run of `tests/rods/socket.nr` may trigger a Defender
-Firewall prompt because the socket gate briefly binds local TCP/UDP ports.
-Either `Allow` or `Block` is fine; the test does not require external network
-access and still passes under a block rule.
-
-For the full smoke gate (all examples + tests + self-host rebuild):
-
-```
-powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
-```
-
-This is what CI runs on every push.
-
-## Versioning
-
-This is **v0.2.0** (released 2026-04-22, milestone tracker at
-[docs/milestones/v0.2.0.md](docs/milestones/v0.2.0.md)). The bootstrap
-binary identifies itself as `Nucleor Compiler 0.2.0-v2` — the V2
-designation refers to the second major rewrite of the compiler
-internals (the rewrite that introduced the algebraic-rewrite
-optimizer and the V2 attribute set). v0.1.x releases were the
-incremental preview series that drove v0.2.0 to definition-of-done;
-the v0.4.0 backlog (deferred items + Tier-2 language extensions)
-lives in [docs/milestones/v0.4.0.md](docs/milestones/v0.4.0.md).
-
-See [CHANGELOG.md](CHANGELOG.md) for what changed in this release.
-For a tag-only navigable index of every release (196 tags as of
-v0.2.127), see [RELEASES.md](RELEASES.md).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: open an issue or PR at https://github.com/APEXINTELORG/Nucleor. We follow the [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## License
-
-Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
-
-Copyright 2026 Joseph Wescott.
+- License: [`LICENSE`](LICENSE) (Apache-2.0)
+- Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security: [`SECURITY.md`](SECURITY.md) — coordinated disclosure via GitHub Security Advisory
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
+- Release index: [`RELEASES.md`](RELEASES.md)
+- v1.x roadmap: [`docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md`](docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md) §2A + [`docs/rfcs/RFC-0063-production-readiness-roadmap.md`](docs/rfcs/RFC-0063-production-readiness-roadmap.md)
