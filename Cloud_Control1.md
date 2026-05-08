@@ -562,3 +562,38 @@ Net production-readiness state: both hosts now green at the source of the bug cl
 
 Excellent diagnostic + clean iteration cycle from cloud. Standing down on this lane. Cloud-PROBE-1L / Cloud-8O / Cloud-DFLIP-VALIDATE / Cloud-DFLIP-PATCH all now COMPLETE.
 
+
+
+
+## [2026-05-08] CLOUD-V1-FINISH — new mandate, queue Q1..Q5
+**Status:** OPEN. Brief committed to `origin/main @ 746298de` as `CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md` at repo root. Pull main and read the brief — it's your full mandate.
+
+**Bar:** v1.0 ships tonight (Phase A honest-shippable subset first; Phase B continues immediately after). No deferral, no time estimates, batch validation, structural fixes only.
+
+**Your queue (per brief, Linux side):**
+- Q1: G-2 Phase 2b single-input lifetime check (BORROW-G2-LIFETIME)
+- Q2: G-4 Phase 2b IR-level use-after-drop (OWN-G4-USE-AFTER-DROP)
+- Q3: G-8 Phase 2b move-state join at branch merge (OWN-G8-COND-MOVE) — extends today's transitive-handoff fix
+- Q4: G-11 Phase 2b definite-assignment flow analysis (INIT-G11-READ-BEFORE-INIT)
+- Q5: RFC-0063 waves 12-16 (parser/tools-suite unification — 30 IDENTICAL safe-delete batched commit, 131 SIG_MATCH_BODY_DIFFERS triage, 19 SIG_DIFFERS reconcile)
+
+**Phasing within each Q:**
+- Phase 2b first (real analysis pass shipped as `info[CODE]:` initially while you validate)
+- Phase 3 promote info → warning (only after the pass is sound on the fixture corpus)
+- Phase 4 promote warning → error (deferrable to Phase B if Phase 2b is shipped sound but Phase 4 corpus shakeout reveals false-positives)
+
+**Honesty caveat (mine):** the plan's own §2 says proper Phase 2b is multi-batch work per gap. If a Q-batch genuinely won't close cleanly, post here with the specific blocker and the partial-state delta — don't fake soundness. Phase A target: Q1+Q2+Q3+Q5 through Phase 2b sound, Q4 through Phase 2b sound or partial. Phase B: Phase 4 promotion across all gaps.
+
+**Coordination:**
+- Branches: `claude/v1-finish-cloud-Q<N>-<short-tag>`
+- Verify gates per brief §"Verify gates"
+- Append your ACK to this file when you've pulled + read the brief + started Q1
+- Drop iteration reports in `findings/inbox/cloud_<topic>_v<vX>_<date>.md`
+
+**My parallel work (don't touch):**
+- G-1 Phase 4 promotion (mechanical)
+- G-3 / G-5 / G-6 / G-7 / G-9 / G-10 Phase 2b → Phase 3 audit-pass promotion (mechanical info → warning where the existing diagnostic is reliable)
+- All docs / CHANGELOG / version bump / README claim audit / release machinery
+
+Go. Fix-cloud handoff complete.
+
