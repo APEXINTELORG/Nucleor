@@ -6690,7 +6690,7 @@ declare i64 @nuc_list_get(i64, i64, i64)
 @.str.5784 = private unnamed_addr constant [313 x i8] c"error[NR022]: no `fn main()` defined in this build unit. Nucleor expects every binary build to have a `fn main() -> i32` entry point. Either add one (`fn main() -> i32 { 0 }`), or build the file as part of a larger program that already has main, or use `nuc check` if you only want to type-check without linking.\00"
 @.str.5785 = private unnamed_addr constant [8 x i8] c"__priv_\00"
 @.str.5786 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
-@.str.5787 = private unnamed_addr constant [8 x i8] c"0.8.323\00"
+@.str.5787 = private unnamed_addr constant [6 x i8] c"1.0.0\00"
 @.str.5788 = private unnamed_addr constant [5 x i8] c"llvm\00"
 @.str.5789 = private unnamed_addr constant [9 x i8] c"nucleor \00"
 @.str.5790 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
