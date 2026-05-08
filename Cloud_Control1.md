@@ -529,4 +529,26 @@ Validation: COMPLETE but **NOT CLEAN.** Bootstrap fixed-point md5 matches Window
 Report: findings/inbox/cloud_claude_dflip_validate_bf097e07_2026-05-07.md
 Residuals: 80 distinct ML fixtures still fail on Linux post-default-flip — full common-23 list in the report; default-only and strict-only sets in the artifact logs. The integrator's prediction in the queue spec ("missing handoff cases in `auto_drop_mark_constructor_handoffs`") is exactly correct. Cache-state flakiness across runs (only 23 of 80 fail in BOTH modes) further corroborates t21's recommendation #1 (ship `--no-cache` for verify-gate step bodies). Honesty rule honored: stop-and-investigate filed; no patches; no fast-forward signal.
 
+## [2026-05-08 00:07 UTC] Queue Cloud-DFLIP-PATCH — DONE (READY TO FAST-FORWARD)
+Branch: claude/verify-round-3-tests-RnTlO @ 08eba3c4 (rebased onto fix/default-flip-experiment-v0846 @ bf097e07)
+Base: fix/default-flip-experiment-v0846 @ bf097e07b3a83ec6 + 1 patch commit (08eba3c4)
+Origin/main at run time: 4819d01c (Cloud_Control1: AUTHORIZE Cloud-DFLIP-PATCH)
+Host: Linux vm 6.18.5 #2 SMP PREEMPT_DYNAMIC Wed Jan 14 17:56:08 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+Tools: clang=Ubuntu-18.1.3 cargo=1.94.1 rustc=1.94.1
+Files: 3 (compiler/nucleor_s1_compiler.nr — 5-LOC patch + 9-line rationale comment in `auto_drop_mark_constructor_handoffs`; bootstrap/nucleor_s1_seed.ll — refreshed to new fixed-point; findings/inbox/cloud_claude_dflip_patch_v0846_2026-05-08.md). Plus 2 verify logs in findings/inbox/dflip_patch_artifacts/.
+Validation: PASS — Both verify modes report PASS=1488 / SKIP=1 / FAIL=0 across 1489 steps (vs pre-patch 1436/1/52 default and 1437/1/51 strict). Self-host fixed-point HOLDS at new md5 `86b491ca2d056f6006f4545e0e29d706` (was `603891a9ec0a46fc1c6e41a2854317ce` from queue spec — md5 shift expected per spec's "captured new stamp"). All 4 acceptance criteria met: (1) ml_recover_sigmoid_f64 runs RC=0 with real output ✓ (2) all 80 fixtures from prior fail-list collapse to 0 ✓ (3) self-host fixed-point holds ✓ (4) T2.5 + T2.1 + drift + perf + PROBE-1 all stay green ✓.
+
+**Bug + fix:** `auto_drop_mark_constructor_handoffs` (s1 line 29045) checked `if node_kind != 12 return 0`, only handling kind-12 type-method calls. Regular fn calls (kind-7) like `tensor_f64_from_vec(rows, cols, data)` fell through without arg-handoff marking. The wrapper-fn pattern (`fn nn_X(...) { let mut data: Vec; ...; return tensor_f64_from_vec(rows, cols, data); }`) leaked auto-drop after the call return → use-after-free. The leaf `tensor_f64_from_vec` body works because its return is a kind-34 struct literal (handled by a different branch); the wrapper layer's missing case is exactly this kind-7-call-as-handoff shape.
+
+**Patch shape (5-LOC):** branch on `kind-7` (args at field 2) vs `kind-12` (args at field 3). Recurse on either kind-7 or kind-12 for nested calls. Same kind-3 var-ref → mark_freed semantics. Conservative: only expands the recognition set, never narrows it.
+
+**Iteration count:** 1. Patch landed clean on first attempt. Total wall time from patch-write to both-mode green: ~22 min.
+
+**Per-host parity vs Windows:** Windows on `bf097e07` reported 1487/2/0; Linux post-patch 1488/1/0 — Linux now exceeds Windows by 1 PASS / 1 SKIP→PASS (Linux exercises one fixture that Windows skips; both green). Full parity achieved.
+
+**Recommendation:** Fast-forward `fix/default-flip-experiment-v0846 + 08eba3c4` to `origin/main`. ml-retrofit-1b becomes obsolete; revert per its triage notes. Windows side re-bootstraps from new seed `86b491ca2d056f6006f4545e0e29d706` to pick up the patch (no behavior change expected on Windows; Windows just gets the strictly-safer IR).
+Report: findings/inbox/cloud_claude_dflip_patch_v0846_2026-05-08.md
+Residuals: none on the verify gate. The structural default-flip + transitive-handoff = host-agnostic correctness for the entire move-into-struct class. Future ml-retrofit / band-aid manual_drop annotations on wrapper layers are no longer needed.
+
+
 
