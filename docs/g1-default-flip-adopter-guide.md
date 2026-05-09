@@ -1,39 +1,69 @@
-# G-1 Default-Flip Adopter Guide (RFC-0062 Phase 2b-3)
+# G-1 Default-Flip Adopter Guide (RFC-0062 — v1.0 retrospective)
 
-**Status:** v0.8.39 experiment — adopter validation phase
-**Final ship:** Phase 2b-3 unconditional flip, after seed-side trace
+**Status:** v1.0 — auto-drop is the default. This document is a
+retrospective of the v0.8.x experiment that hardened the flip
+before it shipped, plus the v1.0 opt-out mechanism for adopters
+who need explicit lifetime control.
 
-## What's the flip?
+## The flip, as shipped at v1.0
 
-Today (v0.x): a Nucleor function only gets auto-drop semantics
-if it's tagged `#[auto_drop]`. Bindings of `Vec<T>`, `HashMap<K,V>`,
-`String`, `Box<T>`, `VecDeque<T>` that don't have an explicit
-`vec_free` / `hashmap_free` / etc. leak at function exit.
+In v1.0, every function auto-drops heap-backed locals at function
+exit by default. Bindings of `Vec<T>`, `HashMap<K,V>`, `String`,
+`Box<T>`, `VecDeque<T>` are freed when they go out of scope, with
+no explicit `vec_free` / `hashmap_free` call required.
 
-After Phase 2b-3 ships (v0.9.x): every function will auto-drop
-heap-backed locals by default. Adopters can opt out per-function
-with `#[manual_drop]` if they intentionally retain heap state
-across the function boundary.
+Adopters who need explicit lifetime control (intentionally retaining
+heap state across the function boundary, FFI handoff, or staged
+free patterns) opt out per-function with `#[manual_drop]`:
 
-## Validating your code today
-
-The default-flip mechanism shipped behind an env-var gate in
-v0.8.39. Adopters can opt in to test their code against the
-future semantics:
-
-```bash
-# Bash / WSL
-NUC_AUTO_DROP_DEFAULT=1 nucleor build my_code.nr -o out
-
-# PowerShell
-$env:NUC_AUTO_DROP_DEFAULT='1'; nucleor build my_code.nr -o out
+```nr
+#[manual_drop]
+fn build_vec_for_caller() -> Vec<i64> {
+    let v: Vec<i64> = vec_new();
+    vec_push(v, 1); vec_push(v, 2); vec_push(v, 3);
+    return v;          // caller owns; no auto-drop here
+}
 ```
 
-When the env var is set, the build emits:
+The OSS compiler self-host source uses `#[manual_drop]` only for
+the small handful of fns that intentionally pass heap-backed
+ownership across boundaries (the build driver, the diagnostic emit
+path); everything else relies on the default.
+
+## Migration from pre-v1.0 sources
+
+Pre-v1.0 sources tagged `#[auto_drop]` per-function and required
+explicit `vec_free` / `hashmap_free` everywhere else. Migrating
+to v1.0:
+
+1. Remove `#[auto_drop]` annotations — they are now redundant
+   (the compiler accepts the attribute and treats it as a no-op
+   for backward source compatibility).
+2. Remove explicit `vec_free` / `hashmap_free` / etc. calls at
+   end-of-scope where the binding is dropped at scope exit. The
+   auto-drop pipeline detects existing `*_free` calls and
+   suppresses the generated drop, so leaving them in is correct
+   but redundant.
+3. For functions that intentionally return owned heap state,
+   either let the bare-name return pass ownership (auto-drop
+   skips dropped-by-return bindings), or annotate the function
+   with `#[manual_drop]` if you need full explicit control.
+
+## Legacy env-var (deprecated; defaults to flipped at v1.0)
+
+The pre-v1.0 experiment shipped behind `NUC_AUTO_DROP_DEFAULT`.
+At v1.0 the default IS the flip; the env var is no longer
+load-bearing. Setting `NUC_AUTO_DROP_DEFAULT=0` is a legacy
+escape hatch retained for adopter-side migration only — new code
+should not depend on it.
 
 ```
 info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 — Phase 2b-3 default-flip ENABLED for this build.
 ```
+
+The above message was emitted by pre-v1.0 builds when the env
+var was set. v1.0 builds do not emit it for the default path; the
+flip is unconditional.
 
 ## What to check
 

@@ -15,6 +15,14 @@
 # verify scripts only when stdlib/rods/rust_bridge/ has been built
 # (libnucleor_rust_bridge.a / nucleor_rust_bridge.lib present).
 # Do NOT list 07 here.
+#
+# Showcases (examples/showcase/*.nr — lorenz, vqe_h2, market_maker,
+# wing_simulator, robotic_arm) are intentionally NOT in this list.
+# They are exercised separately by the showcase-build step in
+# verify.sh / verify.ps1 (search for "showcase" / "vqe_h2" in the
+# script). Showcases are discovery-grade demos rather than gated
+# language invariants, so they live under their own step rather
+# than the per-example loop fed by this file.
 
 # Tier 1 — language tour
 01_hello

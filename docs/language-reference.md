@@ -1,6 +1,8 @@
-# Nucleor Language Reference (v0.2)
+# Nucleor Language Reference (v1.0)
 
-This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `0.2.0-v2` plus the v0.2.x post-RC sub-chain). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For v0.2-deferred language extensions (iterators, closures, lifetimes, trait objects, format strings, pattern-matching extensions), see [docs/milestones/v0.4.0.md](milestones/v0.4.0.md).
+This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `1.0.0`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For the v1.0 memory-safety surface (RFC-0062 G-series gates: `OWN-G4`, `OWN-G8`, `INIT-G11`, `BORROW-G2`, `ALIAS-G3-*`, `SEND-G6-*`, `FFI-G5`, `FFI-G9`, `UNSAFE-G7`, `EFFECT-G10-*`), see [`rfcs/RFC-0062-effects-extension.md`](rfcs/RFC-0062-effects-extension.md). For the v1.x roadmap, see [`rfcs/RFC-0063-production-readiness-roadmap.md`](rfcs/RFC-0063-production-readiness-roadmap.md).
+
+> **Status note (v1.0):** §13 below preserves the pre-v1.0 corrigenda — a record of the audits that hardened the v0.1.5 / v0.2.x chain into the shipping v1.0 surface. The corrigenda points are now part of the language proper; they are kept as a historical trail for adopters who reviewed the language during the v0.2.x window. New features and gates added since v0.2 — RFC-0062 memory-safety G-series, the effect-annotation framework (`#[effect(...)]`), the `with [...]` effect-rows-on-fn-types substrate, the `#[isr]` first pass, the `#[max_depth]` recursion bound, the auto-drop default flip — are described inline in the body sections rather than the §13 corrigenda.
 
 ## 1. Lexical structure
 

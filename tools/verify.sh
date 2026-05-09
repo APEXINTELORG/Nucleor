@@ -5,7 +5,9 @@
 #
 # Usage: ./tools/verify.sh
 #
-# Step shape (203 steps total as of v0.2.111):
+# Step shape (~1518 steps total as of v1.0.0; the count grows as new
+# example/test fixtures land — `verify.sh` reports the final
+# PASS/SKIP/FAIL counts at the end of each run):
 #   1.  Binary present + loads
 #   2.  ABI parity (s1 ↔ tools-suite)
 #   3.  Tools-suite rebuild (since v0.2.79)
@@ -990,7 +992,7 @@ cli_help_coverage_smoke() {
         "build" "build-fast" "build-strict" "build-shared" "build-wasm" "build-ptx"
         "run" "emit" "test" "bench" "perf" "bootstrap" "stage-dump"
         "summary" "query" "abi" "evidence" "impact" "graph" "doc" "profile"
-        "lock" "install" "add" "publish" "registry" "sage"
+        "lock" "install" "publish" "registry" "sage"
         "check" "explain"
         "audit" "policy" "certify" "translate"
         "init" "clean" "scram" "fix" "zen" "mco"

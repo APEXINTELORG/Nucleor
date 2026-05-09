@@ -3687,7 +3687,7 @@ fn diag_emit_json(diags: Vec<i32>, source: str, src_path: str) -> i64 {
 fn diag_emit_sarif(diags: Vec<i32>, source: str, src_path: str) -> i64 {
     let cnt: i64 = vec_len(diags);
     let mut sb: i64 = sb_new();
-    sb_append(sb, "{\"version\":\"2.1.0\",\"$schema\":\"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"nucleor\",\"version\":\"0.1.0\",\"rules\":[");
+    sb_append(sb, "{\"version\":\"2.1.0\",\"$schema\":\"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"nucleor\",\"version\":\"1.0.0\",\"rules\":[");
     sb_append(sb, "{\"id\":\"ownership/OWN-001\",\"shortDescription\":{\"text\":\"use after move\"}},");
     sb_append(sb, "{\"id\":\"taint/TNT-001\",\"shortDescription\":{\"text\":\"tainted data to sensitive sink\"}},");
     sb_append(sb, "{\"id\":\"effect/EFF-001\",\"shortDescription\":{\"text\":\"side effect in pure function\"}}");
@@ -7996,7 +7996,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NR010") { return "Lexical Syntax Failure"; };
     if str_eq(code, "NR020") { return "Parser Failure"; };
     if str_eq(code, "NR030") { return "Semantic Type Failure"; };
-    if str_eq(code, "NR031") { return "Borrow Safety Failure"; };
+    if str_eq(code, "NR031") { return "Borrow Safety Failure (legacy — superseded by RFC-0062 G-series at v1.0)"; };
     if str_eq(code, "NR032") { return "Effect or Policy Failure"; };
     if str_eq(code, "NR033") { return "Taint Safety Failure"; };
     if str_eq(code, "NR034") { return "Send/Sync Safety Failure"; };
@@ -8244,6 +8244,23 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TST-001") { return "Test discovery: no #[test] functions found"; };
     if str_eq(code, "TST-002") { return "Test isolation: process child crashed before reporting"; };
     if str_eq(code, "TST-003") { return "Test fixture: setup fn returned non-zero"; };
+    // RFC-0062 G-series memory-safety gates (v1.0)
+    if str_eq(code, "OWN-G4-USE-AFTER-DROP") { return "Use of value after manual free (use-after-drop)"; };
+    if str_eq(code, "OWN-G8-COND-MOVE") { return "Use of value moved on one branch but not the other"; };
+    if str_eq(code, "INIT-G11-READ-BEFORE-INIT") { return "Read of binding before definite assignment"; };
+    if str_eq(code, "BORROW-G2-LIFETIME") { return "Returned reference does not trace back to a reference input"; };
+    if str_eq(code, "ALIAS-G3-VEC-OF-REFS") { return "Heap aliasing: vec_push of borrow into Vec<&T>"; };
+    if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") { return "Heap aliasing: mutating hashmap call invalidates outstanding borrow"; };
+    if str_eq(code, "SEND-G6-HASHMAP") { return "Spawn-call argument carries a non-Sendable HashMap"; };
+    if str_eq(code, "SEND-G6-CLOSURE-CAPTURE") { return "Spawn-call closure captures a non-Sendable value"; };
+    if str_eq(code, "SEND-G6-TUPLE") { return "Spawn-call argument is a tuple containing a non-Sendable element"; };
+    if str_eq(code, "SEND-G6-ENUM") { return "Spawn-call argument is an enum variant carrying a non-Sendable payload"; };
+    if str_eq(code, "FFI-G5-NULL-DEREF") { return "Use of may_return_null FFI pointer without a dominating null guard"; };
+    if str_eq(code, "FFI-G9-MISSING-ALLOW-DIRECT-FFI") { return "Call to extern fn without #[effect(direct_ffi)] / #[allow_effect(direct_ffi)] on the caller"; };
+    if str_eq(code, "UNSAFE-G7-MISSING-ALLOW") { return "unsafe { } block without #[effect(unsafe)] / #[allow_effect(unsafe)] on the caller"; };
+    if str_eq(code, "EFFECT-G10-UNDECLARED") { return "Function produces an effect that is not in its declared #[effect(...)] row"; };
+    if str_eq(code, "EFFECT-G10-MISSING-ALLOW") { return "Caller invokes effectful fn without an #[allow_effect(...)] entry for the produced effect"; };
+    if str_eq(code, "EFFECT-G10-WRONG-ROW") { return "Declared #[effect(...)] row does not match the effects the function actually produces"; };
     return "";
 }
 
@@ -8253,7 +8270,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NR010") { return "The lexer found an invalid character or token shape."; };
     if str_eq(code, "NR020") { return "The token stream does not form valid Nucleor syntax."; };
     if str_eq(code, "NR030") { return "The program parsed, but semantic typing rules were violated."; };
-    if str_eq(code, "NR031") { return "Ownership or borrowing rules were violated."; };
+    if str_eq(code, "NR031") { return "Ownership or borrowing rules were violated. (Legacy code — at v1.0 the modern compiler emits the specific RFC-0062 G-series codes instead: OWN-G4-USE-AFTER-DROP, OWN-G8-COND-MOVE, BORROW-G2-LIFETIME, ALIAS-G3-VEC-OF-REFS, ALIAS-G3-HASHMAP-REHASH, INIT-G11-READ-BEFORE-INIT, SEND-G6-* — see `nuc explain <CODE>` for any of those.)"; };
     if str_eq(code, "NR032") { return "A denied effect, purity rule, or policy restriction was violated."; };
     if str_eq(code, "NR033") { return "Tainted data reached a location that requires trusted input."; };
     if str_eq(code, "NR034") { return "A spawned or shared context captured a type that is not safe to transfer or share."; };
@@ -8470,6 +8487,23 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TST-001") { return "`nuc test` scanned the source but found no functions annotated `#[test]`. Either add tests or invoke `nuc build`/`nuc check` directly."; };
     if str_eq(code, "TST-002") { return "Under `--isolation=process`, the spawned child for a test exited with an unexpected signal (segv / abort / oom) before the harness could record PASS or FAIL."; };
     if str_eq(code, "TST-003") { return "A `#[test]` declared `setup` or `teardown` returned non-zero. The test body did not run."; };
+    // RFC-0062 G-series memory-safety gates (v1.0)
+    if str_eq(code, "OWN-G4-USE-AFTER-DROP") { return "A heap-backed binding (Vec/HashMap/Box/String/VecDeque) was freed by an explicit `vec_free` / `hashmap_free` / etc., and a subsequent read of the same binding would alias freed memory. Either move the read above the free, drop the binding before the free site, or remove the explicit free and let auto-drop handle the lifetime."; };
+    if str_eq(code, "OWN-G8-COND-MOVE") { return "Inside an if/else (or other branching control flow), the binding was moved on one arm but not the other. After the join point, a read of the binding cannot be proven safe because some CFG paths leave it valid and others leave it moved. Either move on every path, on no path, or restructure to avoid the post-join read."; };
+    if str_eq(code, "INIT-G11-READ-BEFORE-INIT") { return "A `let mut x: T;` declaration without an initializer was followed by a read where the definite-assignment flow analysis cannot prove every CFG path assigns `x` first. Initialize at the declaration site, assign on every path before the read, or move the read inside a branch that assigns."; };
+    if str_eq(code, "BORROW-G2-LIFETIME") { return "A function with one reference input and a reference return type returns a borrow that does not trace back to the input — typically a borrow of a stack-local value, a synthesized temporary, or a reference threaded through a non-input path. Return by value, take/return ownership, or restructure so the returned reference is rooted at the input parameter."; };
+    if str_eq(code, "ALIAS-G3-VEC-OF-REFS") { return "A `vec_push` / `vec_insert` lands a borrow into a `Vec<&T>`. The syntactic borrow tracker does not follow elements through `Vec<&T>`, so the alias relationship between the pushed reference and any later borrow of the same backing storage is invisible to the checker. Use a `Vec<T>` (owned) or restructure to thread the lifetime through the function signature."; };
+    if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") { return "A mutating `hashmap_insert` / `hashmap_remove` / `hashmap_clear` runs while an outstanding borrow into the hashmap is live. The rehash can move backing storage and invalidate the borrow. End the borrow first, copy out the value, or move the mutating call before the borrow."; };
+    if str_eq(code, "SEND-G6-HASHMAP") { return "A spawn-call argument carries a `HashMap` (or a struct/tuple/enum containing one). HashMap is non-Sendable in v1.0 — the rehash + iterator state are not safe to move across thread boundaries. Convert to a `Vec<(K, V)>` snapshot, wrap in a Sendable handle, or pass only Sendable values into the spawn."; };
+    if str_eq(code, "SEND-G6-CLOSURE-CAPTURE") { return "A closure passed to `spawn` (or another spawn-class call) captures a non-Sendable value through its environment. The recursive capture-set walker traces every binding the closure body reads. Either remove the offending capture, convert it to a Sendable form before the spawn, or use a bare-parameter closure that takes the value as an argument."; };
+    if str_eq(code, "SEND-G6-TUPLE") { return "A spawn-call tuple argument contains a non-Sendable element. Send-checking is structural — the tuple is non-Sendable if any field is. Project out the Sendable members and move them individually, or convert the offending field before the spawn."; };
+    if str_eq(code, "SEND-G6-ENUM") { return "A spawn-call enum-variant argument carries a non-Sendable payload (typically a HashMap inside one of the variants). The Send analysis is structural across all variants. Either remove the non-Sendable payload from the enum or pre-extract a Sendable view before the spawn."; };
+    if str_eq(code, "FFI-G5-NULL-DEREF") { return "An `extern fn` declared `#[effect(may_return_null)]` returned a raw pointer that was dereferenced (or passed to a non-null sink) without a dominating `ptr_is_null(<binding>)` guard. Add an explicit `if ptr_is_null(p) { return ...; }` before the use, or use a Result/Option-typed wrapper. The guard-state lattice is intersected at if/else joins so a guard on every path counts."; };
+    if str_eq(code, "FFI-G9-MISSING-ALLOW-DIRECT-FFI") { return "The calling function invokes an `extern fn` without declaring `#[effect(direct_ffi)]` or `#[allow_effect(direct_ffi)]`. Direct FFI is a tracked effect — the annotation makes the audit explicit. Add the attribute on the calling fn (or on a containing fn that intentionally exposes the effect)."; };
+    if str_eq(code, "UNSAFE-G7-MISSING-ALLOW") { return "An `unsafe { ... }` block was written in a function that does not declare `#[effect(unsafe)]` or `#[allow_effect(unsafe)]`. Audited unsafe is a tracked effect. The OSS compiler self-host source contains zero unsafe blocks; if a user-code path needs one, the annotation makes the deviation explicit."; };
+    if str_eq(code, "EFFECT-G10-UNDECLARED") { return "The function body produces an effect (frees, borrows_mut, may_return_null, direct_ffi, unsafe) that is not declared in the function's `#[effect(...)]` row. Either add the effect to the row, or refactor to remove the effect-producing call from the function body."; };
+    if str_eq(code, "EFFECT-G10-MISSING-ALLOW") { return "The caller invoked an effectful function without an `#[allow_effect(...)]` entry for the produced effect. Either add the matching `#[allow_effect(...)]` on the caller or declare the effect on the caller's `#[effect(...)]` row to propagate it."; };
+    if str_eq(code, "EFFECT-G10-WRONG-ROW") { return "The declared `#[effect(...)]` row does not match the effects the function actually produces — typically a row claims an effect the body never emits, or omits one that the body does emit. Reconcile the row with the body."; };
     return "";
 }
 
@@ -8696,6 +8730,23 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TST-001") { return "RFC-0021 §3.1 — the discovery pass walks every fn declared in the source and looks for the `#[test]` attribute. None found means either the file has no tests yet or all candidates are gated behind `#[cfg(test)]` that isn't active. To run a single test from a non-test source, mark it `#[test]` explicitly."; };
     if str_eq(code, "TST-002") { return "RFC-0021 §3.4 — `--isolation=process` runs each test in a fresh child via env-var dispatch (`NUCLEOR_TEST_ONLY=<name>`). If the child segfaults, aborts, or is OOM-killed before `print('PASS …')` or `print('FAIL …')`, the harness reports TST-002 with the child's exit code. Re-run under a debugger or drop `--isolation=process` to see the panic in the parent."; };
     if str_eq(code, "TST-003") { return "RFC-0021 (deferred) — the v0.4 fixture work adds `#[before]` / `#[after]` hooks that gate the test body. A non-zero return from the setup hook reports TST-003 and skips the body. Until v0.4 lands, manage setup imperatively at the top of each `#[test]` fn."; };
+    // RFC-0062 G-series memory-safety gates (v1.0). Each entry below mirrors the inline build-time message; the explain database is a stable home for the prose so adopters can recall it without re-running the build.
+    if str_eq(code, "OWN-G4-USE-AFTER-DROP") { return "RFC-0062 G-4 (v1.0) — IR-level use-after-drop gate. The compiler tracks heap-backed bindings (Vec / HashMap / Box / String / VecDeque) and marks them dead after an explicit free. Reading a dead binding aliases freed memory and is rejected at error severity. Auto-drop is on by default at v1.0; explicit `vec_free` / `hashmap_free` is only required for `#[manual_drop]` paths."; };
+    if str_eq(code, "OWN-G8-COND-MOVE") { return "RFC-0062 G-8 (v1.0) — conditional-move tracking. The move-state lattice intersects the `if` and `else` arms at the join point. If the binding is moved on one side and intact on the other, the post-join read is rejected. The fix is symmetry: move on every path, on no path, or restructure so the read is dominated by an arm where the binding is still valid."; };
+    if str_eq(code, "INIT-G11-READ-BEFORE-INIT") { return "RFC-0062 G-11 (v1.0) — definite-assignment flow analysis. A `let mut x: T;` declaration without an initializer creates a binding the analysis tracks as 'definitely uninitialized'. A read is allowed only if every CFG path from the declaration to the read site assigns to `x`. The lattice meet at join points is intersection, so a single un-assigning path forces the diagnostic."; };
+    if str_eq(code, "BORROW-G2-LIFETIME") { return "RFC-0062 G-2 (v1.0) — single-input lifetime enforcement. For functions with one reference-typed input and a reference-typed return, the v1.0 gate requires the returned reference to be derived from the input. Returning a borrow of a stack-local, a synthesized temporary, or a value reached only through a non-input traversal is rejected."; };
+    if str_eq(code, "ALIAS-G3-VEC-OF-REFS") { return "RFC-0062 G-3 Phase 3 (v1.0) — heap-aliasing detection. The syntactic borrow tracker does not follow elements through `Vec<&T>`. Pushing a borrow into the Vec creates an alias the checker cannot see, so a subsequent mutation of either side could silently invalidate the other. The v1.0 fix is to reject `vec_push` / `vec_insert` on `Vec<&T>` at error severity."; };
+    if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") { return "RFC-0062 G-3 (v1.0) — HashMap rehash invalidation. Mutating `hashmap_insert` / `hashmap_remove` / `hashmap_clear` calls can move backing storage. Any borrow that points into the map's interior is invalidated by the rehash. The v1.0 gate detects an outstanding borrow at the call site and rejects it."; };
+    if str_eq(code, "SEND-G6-HASHMAP") { return "RFC-0062 G-6 (v1.0) — Sendable closure propagation. Spawn-class calls require their argument graph to be Sendable. HashMap is non-Sendable in v1.0 because the rehash + iterator state are not safe to move across thread boundaries. The structural send-checker walks the argument graph; this code fires when a HashMap (or a struct/tuple/enum carrying one) is reached."; };
+    if str_eq(code, "SEND-G6-CLOSURE-CAPTURE") { return "RFC-0062 G-6 (v1.0) — Sendable closure propagation. The recursive capture-set walker traces every binding the closure body reads. A closure that captures a non-Sendable value through its environment is itself non-Sendable. Bare-parameter closures (no captures) are clean."; };
+    if str_eq(code, "SEND-G6-TUPLE") { return "RFC-0062 G-6 (v1.0) — Sendable structural propagation. Tuples are Sendable iff every field is Sendable. A spawn-call tuple argument with a non-Sendable element fails the gate at the offending field's path through the tuple."; };
+    if str_eq(code, "SEND-G6-ENUM") { return "RFC-0062 G-6 (v1.0) — Sendable structural propagation across enum variants. The Send analysis is structural across all variants of the enum: if any variant carries a non-Sendable payload, the enum itself is non-Sendable for the purposes of the spawn-boundary gate."; };
+    if str_eq(code, "FFI-G5-NULL-DEREF") { return "RFC-0062 G-5 (v1.0) — FFI null-contract enforcement with deref dataflow. An `extern fn` declared `#[effect(may_return_null)]` returns a pointer that may be null; reading or passing it to a non-null sink without a dominating `ptr_is_null(<binding>)` guard is rejected. The guard-state lattice intersects at if/else joins, so guarding on every CFG path from the FFI return to the use site satisfies the gate."; };
+    if str_eq(code, "FFI-G9-MISSING-ALLOW-DIRECT-FFI") { return "RFC-0062 G-9 (v1.0) — FFI direct-call discipline. Direct FFI is a tracked effect. Every call to an `extern fn` from Nucleor source must be reachable from a function that declares `#[effect(direct_ffi)]` or `#[allow_effect(direct_ffi)]`. The annotation makes the audit explicit at function boundaries."; };
+    if str_eq(code, "UNSAFE-G7-MISSING-ALLOW") { return "RFC-0062 G-7 (v1.0) — audited unsafe. `unsafe { ... }` blocks are a tracked effect and require the enclosing function to declare `#[effect(unsafe)]` or `#[allow_effect(unsafe)]`. The OSS compiler self-host source contains zero unsafe blocks; if a user-code path needs one, the annotation makes the deviation explicit at function-boundary granularity."; };
+    if str_eq(code, "EFFECT-G10-UNDECLARED") { return "RFC-0062 G-10 (v1.0) — effect-annotations framework. The function body produces an effect (frees, borrows_mut, may_return_null, direct_ffi, unsafe) that is not in its declared `#[effect(...)]` row. The fix is either to add the effect to the row or to refactor the body so the effect is no longer produced."; };
+    if str_eq(code, "EFFECT-G10-MISSING-ALLOW") { return "RFC-0062 G-10 (v1.0) — effect-annotations framework. The caller invoked an effectful function but did not declare an `#[allow_effect(...)]` for the produced effect. The annotation is per-effect, so each effect the caller intentionally tolerates from callees needs its own entry. Alternatively, declare the effect on the caller's `#[effect(...)]` row to propagate it to the caller's caller."; };
+    if str_eq(code, "EFFECT-G10-WRONG-ROW") { return "RFC-0062 G-10 (v1.0) — effect-annotations framework. The declared `#[effect(...)]` row does not match the function's body — typically claiming an effect the body never produces, or omitting one the body does produce. The gate enforces tight rows: declared = produced, no surplus and no shortfall."; };
     return "";
 }
 
