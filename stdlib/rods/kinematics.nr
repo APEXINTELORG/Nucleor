@@ -116,7 +116,7 @@ fn kinematics_pose_quat(p: Pose<Frame_Unknown>) -> i64 {
     return p.rotation;
 }
 
-fn kinematics_pose_compose(a: Pose<Frame_Unknown>, b: Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
+fn kinematics_pose_compose(a: &Pose<Frame_Unknown>, b: &Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
     let ah: i64 = nuc_pose_new(a.translation, a.rotation);
     let bh: i64 = nuc_pose_new(b.translation, b.rotation);
     let ch: i64 = nuc_pose_compose(ah, bh);
@@ -128,16 +128,16 @@ fn kinematics_pose_compose(a: Pose<Frame_Unknown>, b: Pose<Frame_Unknown>) -> Po
     return Pose { translation: pos, rotation: rot };
 }
 
-fn kinematics_transform(p: Pose<Frame_Unknown>, transform: Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
+fn kinematics_transform(p: &Pose<Frame_Unknown>, transform: &Pose<Frame_Unknown>) -> Pose<Frame_Unknown> {
     return kinematics_pose_compose(transform, p);
 }
 
-fn kinematics_transform_camera_to_base(p: Pose<Frame_Camera>, camera_to_base: Pose<Frame_Unknown>) -> Pose<Frame_Base> {
+fn kinematics_transform_camera_to_base(p: &Pose<Frame_Camera>, camera_to_base: &Pose<Frame_Unknown>) -> Pose<Frame_Base> {
     let out: Pose<Frame_Unknown> = kinematics_pose_compose(camera_to_base, p);
     return out;
 }
 
-fn kinematics_transform_base_to_camera(p: Pose<Frame_Base>, base_to_camera: Pose<Frame_Unknown>) -> Pose<Frame_Camera> {
+fn kinematics_transform_base_to_camera(p: &Pose<Frame_Base>, base_to_camera: &Pose<Frame_Unknown>) -> Pose<Frame_Camera> {
     let out: Pose<Frame_Unknown> = kinematics_pose_compose(base_to_camera, p);
     return out;
 }

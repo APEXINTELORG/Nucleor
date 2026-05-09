@@ -68,25 +68,26 @@ fn spike(timestamp_us: i64, neuron_id: i64) -> Spike {
     return Spike { timestamp_us: timestamp_us, neuron_id: neuron_id };
 }
 
-fn spike_timestamp(s: Spike) -> i64 { return s.timestamp_us; }
-fn spike_neuron(s: Spike) -> i64 { return s.neuron_id; }
+// v1.0.1 (audit-pass-1 integrator): borrow-form accessors / mutators.
+fn spike_timestamp(s: &Spike) -> i64 { return s.timestamp_us; }
+fn spike_neuron(s: &Spike) -> i64 { return s.neuron_id; }
 
 fn spike_train_new() -> SpikeTrain {
     let v: Vec<i64> = Vec::new();
     return SpikeTrain { spikes: v };
 }
 
-fn spike_train_push(t: SpikeTrain, s: Spike) -> i64 {
+fn spike_train_push(t: &mut SpikeTrain, s: &Spike) -> i64 {
     t.spikes.push(s.timestamp_us);
     t.spikes.push(s.neuron_id);
     return 0;
 }
 
-fn spike_train_count(t: SpikeTrain) -> i64 {
+fn spike_train_count(t: &SpikeTrain) -> i64 {
     return vec_len(t.spikes) / 2;
 }
 
-fn spike_train_get(t: SpikeTrain, idx: i64) -> Spike {
+fn spike_train_get(t: &SpikeTrain, idx: i64) -> Spike {
     let base: i64 = idx * 2;
     let ts: i64 = vec_get(t.spikes, base);
     let id: i64 = vec_get(t.spikes, base + 1);

@@ -79,7 +79,7 @@ fn wavelength_band_name(w: Wavelength) -> str {
 // Compatibility predicate — adopters pre-flight ops here in
 // Phase A; Phase B promotes to type-level wavelength-mismatch
 // TYP-008.
-fn wavelength_compatible(a: Wavelength, b: Wavelength) -> i64 {
+fn wavelength_compatible(a: &Wavelength, b: &Wavelength) -> i64 {
     if a.nm == b.nm { return 1; };
     return 0;
 }

@@ -54,7 +54,7 @@ fn transform_identity<F>() -> Transform<F, F> {
 // The phantom signature mirrors the math: inverting a base-to-camera
 // transform yields a camera-to-base transform. Compiler enforces
 // the swap at every binding / call / return site.
-fn transform_invert<F, T>(tf: Transform<F, T>) -> Transform<T, F> {
+fn transform_invert<F, T>(tf: &Transform<F, T>) -> Transform<T, F> {
     let h: i64 = pose(tf.translation, tf.rotation);
     let inv: i64 = pose_inverse(h);
     let inv_t: i64 = pose_pos(inv);
@@ -72,8 +72,8 @@ fn transform_invert<F, T>(tf: Transform<F, T>) -> Transform<T, F> {
 // Transform<A, X> and Transform<Y, C> with X != Y, the compiler
 // emits FRAME-001 at the call site.
 fn transform_compose<A, B, C>(
-    ab: Transform<A, B>,
-    bc: Transform<B, C>
+    ab: &Transform<A, B>,
+    bc: &Transform<B, C>
 ) -> Transform<A, C> {
     let ah: i64 = pose(ab.translation, ab.rotation);
     let bh: i64 = pose(bc.translation, bc.rotation);
@@ -107,10 +107,10 @@ fn transform_apply<F, T>(tf: Transform<F, T>, p: Pose<F>) -> Pose<T> {
 //
 // Adopter ergonomics for reading the underlying handles without
 // peeking at the struct directly.
-fn transform_translation<F, T>(tf: Transform<F, T>) -> i64 {
+fn transform_translation<F, T>(tf: &Transform<F, T>) -> i64 {
     return tf.translation;
 }
 
-fn transform_rotation<F, T>(tf: Transform<F, T>) -> i64 {
+fn transform_rotation<F, T>(tf: &Transform<F, T>) -> i64 {
     return tf.rotation;
 }
