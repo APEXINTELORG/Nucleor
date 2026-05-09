@@ -86,9 +86,12 @@ fn logical_qubit_new(code_id: i64, distance: i64) -> LogicalQubit {
     return LogicalQubit { code: code_id, distance: distance, handle: h };
 }
 
-fn logical_qubit_code(lq: LogicalQubit) -> i64 { return lq.code; }
-fn logical_qubit_distance(lq: LogicalQubit) -> i64 { return lq.distance; }
-fn logical_qubit_handle(lq: LogicalQubit) -> i64 { return lq.handle; }
+// v1.0.1 (audit-pass-1 integrator): borrow-form accessors. Pre-fix the
+// by-value sigs combined with OWN-001 promoted to error (F-DIAG-003)
+// blocked every test that read more than one field from a LogicalQubit.
+fn logical_qubit_code(lq: &LogicalQubit) -> i64 { return lq.code; }
+fn logical_qubit_distance(lq: &LogicalQubit) -> i64 { return lq.distance; }
+fn logical_qubit_handle(lq: &LogicalQubit) -> i64 { return lq.handle; }
 
 fn logical_qubit_count() -> i64 { return nuc_lq_count(); }
 fn logical_qubit_clear() -> i64 { return nuc_lq_clear(); }
@@ -182,7 +185,11 @@ fn schedule_new() -> Schedule {
     return Schedule { durations: d, amplitudes: a, phases: p, waveforms: w, qubits: q, starts_ns: s };
 }
 
-fn schedule_push(sched: Schedule, p: Pulse, qubit_id: i64) -> i64 {
+// v1.0.1 (audit-pass-1 integrator): borrow-form sigs. Mutating ops take
+// &mut Schedule; read-only accessors take &Schedule. Pre-fix the by-value
+// sigs combined with OWN-001 promoted to error blocked every test that
+// pushed/read a Schedule more than once.
+fn schedule_push(sched: &mut Schedule, p: Pulse, qubit_id: i64) -> i64 {
     let n: i64 = vec_len(sched.durations);
     let mut next_start: i64 = 0;
     let mut i: i64 = 0;
@@ -200,9 +207,9 @@ fn schedule_push(sched: Schedule, p: Pulse, qubit_id: i64) -> i64 {
     return 0;
 }
 
-fn schedule_count(sched: Schedule) -> i64 { return vec_len(sched.durations); }
+fn schedule_count(sched: &Schedule) -> i64 { return vec_len(sched.durations); }
 
-fn schedule_total_duration(sched: Schedule) -> i64 {
+fn schedule_total_duration(sched: &Schedule) -> i64 {
     let n: i64 = vec_len(sched.durations);
     if n == 0 { return 0; };
     let mut max_end: i64 = 0;
@@ -215,7 +222,7 @@ fn schedule_total_duration(sched: Schedule) -> i64 {
     return max_end;
 }
 
-fn schedule_pulse_at(sched: Schedule, idx: i64) -> Pulse {
+fn schedule_pulse_at(sched: &Schedule, idx: i64) -> Pulse {
     return Pulse {
         duration_ns: vec_get(sched.durations, idx),
         amplitude_q1616: vec_get(sched.amplitudes, idx),
@@ -224,8 +231,8 @@ fn schedule_pulse_at(sched: Schedule, idx: i64) -> Pulse {
     };
 }
 
-fn schedule_qubit_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.qubits, idx); }
-fn schedule_start_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.starts_ns, idx); }
+fn schedule_qubit_at(sched: &Schedule, idx: i64) -> i64 { return vec_get(sched.qubits, idx); }
+fn schedule_start_at(sched: &Schedule, idx: i64) -> i64 { return vec_get(sched.starts_ns, idx); }
 
 fn schedule_status_ok() -> i64 { return 0; }
 fn schedule_status_overlap() -> i64 { return 1; }
@@ -323,35 +330,35 @@ fn calibration_new(backend: str) -> CalibrationData {
     };
 }
 
-fn calibration_backend(c: CalibrationData) -> str { return c.backend; }
+fn calibration_backend(c: &CalibrationData) -> str { return c.backend; }
 
-fn calibration_set_gate_fidelity(c: CalibrationData, gate: str, fidelity_q1616: i64) -> i64 {
+fn calibration_set_gate_fidelity(c: &mut CalibrationData, gate: str, fidelity_q1616: i64) -> i64 {
     c.gate_names.push(gate);
     c.gate_fidelities_q1616.push(fidelity_q1616);
     return 0;
 }
 
-fn calibration_gate_count(c: CalibrationData) -> i64 { return vec_len(c.gate_names); }
+fn calibration_gate_count(c: &CalibrationData) -> i64 { return vec_len(c.gate_names); }
 
-fn calibration_set_t1(c: CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
+fn calibration_set_t1(c: &mut CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
     while vec_len(c.t1_us_q1616) <= qubit_id { c.t1_us_q1616.push(0); };
     vec_set(c.t1_us_q1616, qubit_id, us_int * 65536);
     return 0;
 }
 
-fn calibration_set_t2(c: CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
+fn calibration_set_t2(c: &mut CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
     while vec_len(c.t2_us_q1616) <= qubit_id { c.t2_us_q1616.push(0); };
     vec_set(c.t2_us_q1616, qubit_id, us_int * 65536);
     return 0;
 }
 
-fn calibration_t1_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
+fn calibration_t1_q1616(c: &CalibrationData, qubit_id: i64) -> i64 {
     if qubit_id < 0 { return 0; };
     if vec_len(c.t1_us_q1616) <= qubit_id { return 0; };
     return vec_get(c.t1_us_q1616, qubit_id);
 }
 
-fn calibration_t2_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
+fn calibration_t2_q1616(c: &CalibrationData, qubit_id: i64) -> i64 {
     if qubit_id < 0 { return 0; };
     if vec_len(c.t2_us_q1616) <= qubit_id { return 0; };
     return vec_get(c.t2_us_q1616, qubit_id);
