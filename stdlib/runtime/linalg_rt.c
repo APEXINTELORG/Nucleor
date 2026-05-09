@@ -272,7 +272,20 @@ long long nuc_mat_qr(long long ah) {
             norm += v[i] * v[i];
         }
         norm = sqrt(norm);
-        if (norm < 1e-15) continue;
+        if (norm < 1e-15) {
+            // Audit fix F-MATH-025 (HIGH, 2026-05-08): rank-deficient
+            // column. Prior code skipped Householder reflection on
+            // `norm < 1e-15` but continued accumulating Q from earlier
+            // iterations, leaving Q*R != A on rank-deficient input
+            // (R column is zero, but Q is not orthonormalized for the
+            // missing direction). To preserve `Q^T Q = I`, leave Q
+            // unchanged at this iteration AND zero the R column at
+            // and below row k so Q*R reproduces the rank-deficient
+            // structure exactly: Q[:, k] keeps its identity-init slot
+            // (or its prior reflection) and R[k:, k] = 0.
+            for (int i = k; i < m; i++) R->data[i * n + k] = 0;
+            continue;
+        }
 
         double sign = (v[k] >= 0) ? 1.0 : -1.0;
         v[k] += sign * norm;
@@ -350,6 +363,29 @@ long long nuc_mat_eig(long long ah) {
     LAMat *a = (LAMat *)(void *)ah;
     int n = a->rows;
     if (n != a->cols) return 0;
+
+    // Audit fix F-MATH-005 (HIGH, 2026-05-08): the Jacobi rotation
+    // algorithm below is correct ONLY for real symmetric matrices.
+    // Prior code accepted any square input and silently returned the
+    // diagonal of the (still asymmetric) iterated matrix as
+    // "eigenvalues" — wrong for any non-symmetric matrix. We now
+    // detect a non-symmetric input and refuse with handle 0. The rod
+    // public surface should be `linalg_eig_symmetric`; symmetric SVD
+    // (which reaches `nuc_mat_eig` with A^T A) always satisfies the
+    // gate by construction.
+    {
+        double frob = 0;
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                frob += a->data[i * n + j] * a->data[i * n + j];
+        // Tolerance scales with matrix magnitude.
+        double sym_tol = 1e-10 * (frob > 1.0 ? sqrt(frob) : 1.0);
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++) {
+                double diff = a->data[i * n + j] - a->data[j * n + i];
+                if (fabs(diff) > sym_tol) return 0;
+            }
+    }
 
     // Jacobi eigenvalue algorithm for symmetric matrices
     double *A = (double *)malloc(n * n * sizeof(double));
@@ -493,15 +529,27 @@ long long nuc_mat_svd_V(long long h) { return ((SVDResult *)(void *)h)->V; }
 
 long long nuc_mat_rank(long long ah, long long tol_bits) {
     LAMat *a = (LAMat *)(void *)ah;
+    (void)a;
     double tol = _la_i2f(tol_bits);
     long long svd_h = nuc_mat_svd(ah);
     SVDResult *svd = (SVDResult *)(void *)svd_h;
+    LAMat *U = (LAMat *)(void *)svd->U;
     LAMat *S = (LAMat *)(void *)svd->S;
+    LAMat *V = (LAMat *)(void *)svd->V;
     int rank = 0;
     for (int i = 0; i < S->rows; i++) {
         if (S->data[i] > tol) rank++;
     }
-    // Don't free SVD results here; caller manages lifetime
+    // Audit fix F-MATH-004 (HIGH, 2026-05-08): the prior comment claimed
+    // "caller manages lifetime", but `nuc_mat_rank` returns an int — the
+    // SVDResult and its three LAMat children were unreachable, leaking
+    // O(m*n + n^2) doubles per call. Repeated rank queries (e.g. per row
+    // of a stream) grew memory monotonically. Now we own the SVD result,
+    // so we free it before returning.
+    if (U) { free(U->data); free(U); }
+    if (S) { free(S->data); free(S); }
+    if (V) { free(V->data); free(V); }
+    free(svd);
     return (long long)rank;
 }
 

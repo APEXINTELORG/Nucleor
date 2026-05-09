@@ -168,7 +168,15 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
     for (int i = 0; i < n; i++) V_re[i * n + i] = 1.0;
 
     // Jacobi sweeps: rotate off-diagonal elements to zero
-    for (int sweep = 0; sweep < 100; sweep++) {
+    // Audit fix MED-LAYER9B-013 (2026-05-08): raised hard cap from 100
+    // to 1000 sweeps. For ill-conditioned 2-site SVDs at high MPS bond
+    // dimension (e.g., RZ on highly-entangled MPS near max bond), 100
+    // sweeps was insufficient — the result was written with whatever
+    // state the half-converged eigendecomposition held, and only the
+    // observability surface (`mps_total_svd_nonconverged`) reflected
+    // the failure. 1000 sweeps converges the typical ill-conditioned
+    // case while still bounding worst-case wall time.
+    for (int sweep = 0; sweep < 1000; sweep++) {
         double off_norm = 0;
         for (int i = 0; i < n; i++)
             for (int j = i + 1; j < n; j++)

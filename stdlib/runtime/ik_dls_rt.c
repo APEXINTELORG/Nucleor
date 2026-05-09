@@ -526,12 +526,24 @@ long long nuc_ik_dls_solve_nullspace(
 static void _quat_log_map(double qw, double qx, double qy, double qz, double *out3) {
     // Convert (almost-identity) unit quaternion to a 3-vector
     // (axis × angle). Equivalent to 2 · log(q).
+    //
+    // Audit fix MED-LAYER9B-010 (2026-05-08): canonicalize to the
+    // short-arc representative before computing the log. q and -q
+    // encode the same rotation; for residuals near π, choosing the
+    // wrong sign causes the IK 6D solver to oscillate across iterations
+    // (the chosen arc flip-flops, never reducing orientation error).
+    // Standard practice (Sola 2017 §4.3) is to flip when qw < 0 so the
+    // angle of rotation lies in [0, π].
+    if (qw < 0) { qw = -qw; qx = -qx; qy = -qy; qz = -qz; }
     double sinhalf = sqrt(qx*qx + qy*qy + qz*qz);
     if (sinhalf < 1e-9) {
         out3[0] = 0; out3[1] = 0; out3[2] = 0;
         return;
     }
     double angle = 2.0 * atan2(sinhalf, qw);
+    // After short-arc canonicalization, angle is in [0, π] — no extra
+    // 2π wrap needed. The legacy wrap is preserved as a defensive
+    // no-op for callers that bypass the canonicalization.
     if (angle > 3.14159265358979) angle -= 2.0 * 3.14159265358979;
     double scale = angle / sinhalf;
     out3[0] = qx * scale;

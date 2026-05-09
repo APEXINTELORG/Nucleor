@@ -478,13 +478,21 @@ long long rods_count_nonzero(long long sv_ptr, long long threshold_bits) {
     typedef struct { long long *data; int len; int cap; } NVec;
     NVec *v = (NVec *)sv_ptr;
     double threshold = i2f_local(threshold_bits);
+    // Audit fix HIGH-LAYER9B-004 (2026-05-08): the API surface is
+    // documented as "amplitude threshold" — count amps with |amp| >
+    // threshold. Prior code compared `|amp|^2 > threshold`, which
+    // mixed units and silently filtered at threshold^2 (e.g., a 0.1
+    // arg actually filtered |amp| > 0.316). We now compare against
+    // probability `mag_sq > threshold * threshold`, restoring the
+    // documented `|amp| > threshold` semantics.
+    double thr_sq = threshold * threshold;
     int count = 0;
     for (int i = 0; i < v->len; i++) {
         long long *cx = (long long *)v->data[i]; // complex = pair of i64
         double re = i2f_local(cx[0]);
         double im = i2f_local(cx[1]);
         double mag_sq = re * re + im * im;
-        if (mag_sq > threshold) count++;
+        if (mag_sq > thr_sq) count++;
     }
     return count;
 }

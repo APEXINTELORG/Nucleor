@@ -9,4 +9,8 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-regex = "1"
+# Audit fix NOTE-LAYER9B-023 (2026-05-08): floor-pinned to `1.10`
+# (security-tracked minor) for hygiene. Reproducibility comes from the
+# committed Cargo.lock; the floor here documents the minimum vetted
+# minor. Bump the floor consciously in security audits.
+regex = "1.10"

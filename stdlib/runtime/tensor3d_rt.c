@@ -336,7 +336,14 @@ long long nuc_t3_reshape(long long h, long long shape_h) {
 long long nuc_t3_slice(long long h, long long dim, long long index) {
     Tensor3D *src = (Tensor3D *)(void *)h;
     int d = (int)dim, idx = (int)index;
-    if (d >= src->ndim) return 0;
+    if (d < 0 || d >= src->ndim) return 0;
+    // Audit fix F-MATH-027 (CRITICAL, 2026-05-08): bounds-check `idx`
+    // against the dimension extent. Prior code computed
+    // `src_offset = o*shape[d]*inner + idx*inner` with no validation,
+    // reading past the end of `src->data` for `idx >= shape[d]` (heap
+    // OOB read). Mirrors the pattern used by `nuc_t3_get`/`nuc_t3_set`
+    // accessors.
+    if (idx < 0 || idx >= src->shape[d]) return 0;
 
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = src->ndim - 1;

@@ -363,9 +363,12 @@ long long nuc_ridge_predict(long long model_handle, long long X_handle) {
             double x_std = (X->data[i * p + j] - model->data[j * 3 + 1]) / model->data[j * 3 + 2];
             sum += model->data[j * 3 + 0] * x_std;
         }
-        // Clip to [0, 1]
-        if (sum < 0) sum = 0;
-        if (sum > 1) sum = 1;
+        // Audit fix F-MATH-003 (CRITICAL, 2026-05-08): removed silent
+        // [0,1] clip. Ridge regression is L2-regularized linear regression
+        // and predicts over all reals. The prior clip silently truncated
+        // unbounded targets (house prices, temperatures, log-returns) and
+        // could not be detected by inspecting the model. Sklearn Ridge.predict
+        // does not clip; users wanting clipping apply it downstream.
         pred->data[i] = sum;
     }
     return (long long)pred;
