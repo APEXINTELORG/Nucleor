@@ -2008,14 +2008,23 @@ long long __nucleor_str_char_at_strict(const char *s, long long i) {
 // strict mode use the new `str_substring_strict` helper which still
 // does the strlen check.
 // Lane 6 / V1 (audit 2026-05-08): widened range arithmetic to int64
-// and added explicit `end <= strlen(s)` validation in the default
-// helper. Pre-fix the panic message claimed "OOB" but only fired
-// for `start<0` or `end<start`, leaving the over-end heap-overread
-// silent (info-leak class). The int truncation at >2GB ranges is
-// also gone (size_t throughout). The opt-in `_strict` companion
-// kept its O(strlen(s)) bounds posture; this default helper now
-// pays one strlen(s) walk on the slow path so adopters get the
-// safety story documented in `docs/ffi-conventions.md` G-9.
+// in the default helper; the int truncation at >2GB ranges is gone
+// (size_t throughout). The opt-in `_strict` companion keeps its
+// O(strlen(s)) bounds posture for adopters who want the
+// end-vs-strlen check.
+//
+// v1.0.3 perf fix (cold-compile regression 2026-05-09): the v1.0.2
+// audit added `strlen(s)` here for an `end <= strlen(s)` validation.
+// Profiling under callgrind showed that single line consuming 64% of
+// the cold self-host compile (21B of 33B instructions, average 73K
+// bytes/strlen × 288K calls) — the s1 lex/parse/type hot paths str_
+// substring against the multi-MB resolved source on every identifier,
+// number literal, and string literal. The fast path now mirrors v1.0.0
+// (cheap O(1) start<0 / end<start checks); adopters who want the
+// over-end heap-overread guard call `str_substring_strict` instead.
+// Same precedent set by the str_eq_at comment ("CRITICAL: do NOT call
+// str_len(source) here") and reaffirmed in the str_char_at default-
+// vs-strict pair (v0.4.279).
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
     NUC_PROFILE_HOT(g_p_str_substring, str_substring);
     if (!s) {
@@ -2025,16 +2034,15 @@ const char *__nucleor_str_substring(const char *s, long long start, long long en
         if (r) r[0] = 0;
         return r ? r : "";
     }
-    long long slen = (long long)strlen(s);
-    if (start < 0 || end < start || end > slen) {
+    if (start < 0 || end < start) {
         if (_vec_oob_lenient()) {
             char *r = (char *)malloc(1);
             if (r) r[0] = 0;
             return r ? r : "";
         }
         fprintf(stderr,
-            "PANIC: str_substring OOB: start=%lld end=%lld len=%lld (STR-SUBSTR-OOB; set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-            start, end, slen);
+            "PANIC: str_substring OOB: start=%lld end=%lld (STR-SUBSTR-OOB; set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+            start, end);
         fflush(stderr);
         exit(1);
     }
