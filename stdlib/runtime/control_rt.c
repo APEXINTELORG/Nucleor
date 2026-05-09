@@ -66,7 +66,7 @@ typedef struct {
 
 long long nuc_ss_new(long long A_h, long long B_h, long long C_h, long long D_h,
                       long long n, long long m, long long p) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *Av = (NVec *)(void *)A_h, *Bv = (NVec *)(void *)B_h;
     NVec *Cv = (NVec *)(void *)C_h, *Dv = (NVec *)(void *)D_h;
     int nn = (int)n, mm = (int)m, pp = (int)p;
@@ -90,7 +90,7 @@ long long nuc_ss_new(long long A_h, long long B_h, long long C_h, long long D_h,
 // u is Vec<f64> of m inputs, dt is timestep
 // Returns Vec<f64> of p outputs
 long long nuc_ss_step(long long h, long long u_h, long long dt_bits) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     SSModel *ss = (SSModel *)(void *)h;
     NVec *u = (NVec *)(void *)u_h;
     double dt = _ct_i2f(dt_bits);
@@ -134,7 +134,7 @@ typedef struct {
 long long nuc_kalman_new(long long A_h, long long B_h, long long C_h,
                           long long Q_h, long long R_h,
                           long long n, long long m_in, long long m_obs) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     int nn = (int)n, mi = (int)m_in, mo = (int)m_obs;
     NVec *Av = (NVec *)(void *)A_h, *Bv = (NVec *)(void *)B_h, *Cv = (NVec *)(void *)C_h;
     NVec *Qv = (NVec *)(void *)Q_h, *Rv = (NVec *)(void *)R_h;
@@ -159,7 +159,7 @@ long long nuc_kalman_new(long long A_h, long long B_h, long long C_h,
 }
 
 void nuc_kalman_predict(long long h, long long u_h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     KalmanFilter *kf = (KalmanFilter *)(void *)h;
     NVec *u = (NVec *)(void *)u_h;
     int n = kf->n;
@@ -190,7 +190,7 @@ void nuc_kalman_predict(long long h, long long u_h) {
 }
 
 long long nuc_kalman_update(long long h, long long z_h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     KalmanFilter *kf = (KalmanFilter *)(void *)h;
     NVec *z = (NVec *)(void *)z_h;
     int n = kf->n, m = kf->m;
@@ -243,7 +243,7 @@ long long nuc_kalman_update(long long h, long long z_h) {
 }
 
 long long nuc_kalman_state(long long h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     KalmanFilter *kf = (KalmanFilter *)(void *)h;
     NVec *x = (NVec *)malloc(sizeof(NVec));
     x->len = kf->n; x->cap = kf->n;

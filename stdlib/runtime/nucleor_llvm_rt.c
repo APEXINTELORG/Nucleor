@@ -2395,13 +2395,32 @@ long long __nucleor_system(const char *cmd) {
 #endif
 }
 
+/* Lane 2 audit fix G5-P-1 (2026-05-08): ptr_is_null intrinsic.
+   The FFI-G5-NULL-DEREF diagnostic recommends
+   `if ptr_is_null(p) { panic(...); }` as the prescribed
+   remediation, but pre-fix the function was not defined anywhere
+   in stdlib — adopters following the diagnostic's advice got
+   TYP-005 ("undefined function 'ptr_is_null()'"). Returns 1
+   iff the i64 pointer arg is 0, else 0. */
+long long __nucleor_ptr_is_null(long long p) {
+    return p == 0 ? 1 : 0;
+}
+
 // === Vec operations (flat array with length tracking) ===
-typedef struct {
-    long long *data;
-    int len;
-    int cap;
-    long long inline_data[2];
-} NVec;
+/* Lane 2 audit fix A1 (2026-05-08): NVec layout is now single-sourced
+   in stdlib/runtime/nvec.h, force-included via nuc_alloc.h. The local
+   typedef below is preserved as a comment for archaeology and as a
+   safety net should the force-include path break — the header guard
+   `NUC_NVEC_DEFINED` ensures only one definition wins. */
+/* typedef struct {
+       long long *data;
+       int len;
+       int cap;
+       long long inline_data[2];
+   } NVec; */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(NVec) == 32, "NVec must be 32 bytes (8B data + 4B len + 4B cap + 16B inline_data); sister _rt.c files must include stdlib/runtime/nvec.h via nuc_alloc.h");
+#endif
 
 NVec *__nucleor_vec_new(void) {
     // v0.5.32 memory tighten: initial capacity is 2 elements. The
@@ -2543,12 +2562,41 @@ void __nucleor_vec_push(NVec *v, long long x) {
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
         v->cap = _grow_cap(v->cap, sizeof(long long), "vec_push");
+        /* Lane 2 audit fix A3 (Critical, 2026-05-08): under
+           NUCLEOR_OOM_LENIENT=1, _nuc_alloc_xmalloc /
+           _nuc_alloc_xrealloc return NULL on alloc failure rather
+           than panicking. Pre-fix this code unconditionally
+           assigned the NULL into v->data, and the next line's
+           write `v->data[v->len++] = x` segfaulted before control
+           returned to the caller — making the lenient contract
+           ("adopters handle OOM themselves") impossible to honor
+           from inside vec_push. Fix: detect alloc failure, leave
+           v->data untouched, restore v->cap, and silently drop
+           the push (caller can detect via vec_len() not advancing).
+           This matches the lenient-mode semantics of "skip the
+           operation, do not crash". Adopters who need explicit
+           failure surface should use a future `vec_push_or_fail`
+           variant. */
         if (v->data == v->inline_data) {
             long long *grown = (long long *)malloc(v->cap * sizeof(long long));
+            if (!grown) {
+                /* Lenient-mode alloc failure: revert cap and skip the push. */
+                v->cap = (int)old_cap;
+                return;
+            }
             memcpy(grown, v->inline_data, (size_t)v->len * sizeof(long long));
             v->data = grown;
         } else {
-            v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+            long long *resized = (long long *)realloc(v->data, v->cap * sizeof(long long));
+            if (!resized) {
+                /* Lenient-mode realloc failure: keep the original
+                   buffer (realloc with NULL return preserves the
+                   original allocation per C11 §7.22.3.5), revert
+                   cap, and skip the push. */
+                v->cap = (int)old_cap;
+                return;
+            }
+            v->data = resized;
         }
         g_vec_realloc_bytes += (v->cap - old_cap) * sizeof(long long);
     }

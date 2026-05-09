@@ -34,7 +34,7 @@ typedef struct {
 } Interval;
 
 // ---- Vec type (matches nucleor_llvm_rt.c) ----
-typedef struct { long long *data; int len; int cap; } NVec;
+/* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
 static NVec *nvec_new(void) {
     NVec *v = (NVec *)malloc(sizeof(NVec));

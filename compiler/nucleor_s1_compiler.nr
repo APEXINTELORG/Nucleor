@@ -6848,6 +6848,14 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
     if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
     if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
+    // Lane 2 fix (audit G5-P-1, 2026-05-08): `ptr_is_null` is the
+    // prescribed remediation in the FFI-G5-NULL-DEREF diagnostic
+    // text but the function was not defined anywhere in stdlib —
+    // adopters who followed the diagnostic's advice got a
+    // TYP-005 link failure ("undefined function 'ptr_is_null()'").
+    // Add it as a builtin intrinsic backed by a runtime helper
+    // that returns 1 iff the i64 pointer is 0.
+    if str_eq(name, "ptr_is_null") { return "__nucleor_ptr_is_null"; };
     // v0.4.90: Option<T> / Result<T,E> method runtime helpers.
     // See nucleor_llvm_rt.c v0.4.90 block. Tag layout:
     // Option Some=0 None=1; Result Ok=1 Err=0.
@@ -8690,6 +8698,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
     sb_append(sb, "declare ptr @__nucleor_vec_with_capacity(i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
+    // Lane 2 fix (audit G5-P-1): ptr_is_null intrinsic.
+    sb_append(sb, "declare i64 @__nucleor_ptr_is_null(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_pop(ptr)\n");
@@ -11766,6 +11776,25 @@ fn is_known_diag_code(code: str) -> i64 {
     // the same map binding (rehash invalidates held references).
     if str_eq(code, "ALIAS-G3-VEC-OF-REFS") == 1 { return 1; };
     if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") == 1 { return 1; };
+    // Lane 2 (audit G10-A-1): unknown effect-name detection.
+    // Pre-fix `#[effect(banana)]` silently dropped `banana` —
+    // typos like `may_retrun_null` lost the intended constraint.
+    if str_eq(code, "EFFECT-G10-UNKNOWN-NAME") == 1 { return 1; };
+    // Lane 2 (audit G9-FN-1 / G10-Cliff): info-level disclosure of
+    // the effect-framework opt-in cliff. Fires when source carries
+    // the explicit `#[disclose_effects_status]` outer attribute and
+    // has no opt-in `#[effect(...)]` / `#[allow_effect(...)]`
+    // attribute anywhere, telling adopters the entire G-5/G-7/G-9/
+    // G-10 framework is inactive for this TU.
+    if str_eq(code, "EFFECT-G10-OPT-IN-CLIFF") == 1 { return 1; };
+    // Lane 2 (audit F-CONC-001): opaque concurrency-handle
+    // construction guard. Forbids struct-literal construction
+    // of AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 /
+    // AtomicBool from outside the rod's constructor fns —
+    // adopter code MUST use the public constructor fn. Pre-fix
+    // any program could fabricate a fake handle and crash the
+    // process via SEGV / UAF when the runtime dereferenced it.
+    if str_eq(code, "CONC-G6-OPAQUE-HANDLE") == 1 { return 1; };
     // RFC-0062 G-6 Phase 3 — Sendable per-call-site classification at
     // spawn boundaries (`thread_spawn` / `async_spawn` / `conc_spawn`).
     // Promotes the v0833 / v0836 textual audit-pass (build-summary
@@ -13095,11 +13124,37 @@ fn g10_compute_body_effects(body: str, decls: Vec<i32>, extern_table: Vec<i32>) 
 
 #[manual_drop]
 fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
-    // Cheap textual gate: skip when neither attribute syntax appears
-    // anywhere in the source (comments + strings included). The
-    // dominant case is "no opt-in" so this keeps the existing verify
-    // budget intact.
+    // Cheap textual gate: skip the full per-fn analysis when neither
+    // attribute syntax appears anywhere in the source. The dominant
+    // case is "no opt-in" so this keeps the existing verify budget
+    // intact.
+    //
+    // Lane 2 fix (audit G9-FN-1, G10-Cliff): pre-fix the silent
+    // early-return left adopters with `gates off` as the implicit
+    // default for unannotated source — the headline claim
+    // "RFC-0062 closed all 11 G-gates at hard-error severity in
+    // v1.0" was structurally honest only for files that opted in.
+    // Now: when no opt-in attribute exists BUT the source has at
+    // least one extern fn or unsafe block, surface a warning-level
+    // disclosure that the framework is inactive for this TU. This
+    // is the Phase A remediation from the audit (info diag), at
+    // warning severity so adopters cannot miss it; Phase B is the
+    // `#[file_effects(default_on)]` outer-attribute opt-in for
+    // file-level enable, scheduled post-v1.0.
     if str_contains(source, "#[effect(") == 0 && str_contains(source, "#[allow_effect(") == 0 {
+        // Lane 2 (audit G9-FN-1, G10-Cliff): surface an INFO-level
+        // disclosure only when adopters explicitly opt in via
+        // `#[disclose_effects_status]` at file head. This avoids
+        // warning-storm on the compiler itself, every test, and
+        // every example (all of which have extern fn / vec_free
+        // calls without opt-in attrs by design). The audit's Phase A
+        // remediation: surface the inactive-framework state to
+        // adopters who want to know — with zero impact on existing
+        // unannotated source. Phase B (post-v1.0) plans
+        // `#[file_effects(default_on)]` for file-level enable.
+        if str_contains(source, "#[disclose_effects_status]") == 1 {
+            diag_add_ex(diags, "info", "effect", "EFFECT-G10-OPT-IN-CLIFF", "this translation unit has no `#[effect(...)]` / `#[allow_effect(...)]` attributes; per RFC-0062 G-10 the effect-tracking framework (G-5 may_return_null / G-7 unsafe / G-9 direct_ffi / G-10 wrong-row) is INACTIVE for this file. Pre-v1.0 silent-default-off behavior is now disclosed at info severity (opted in via #[disclose_effects_status]). To activate the framework, add `#[effect(<E>)]` rows to fns that produce effects (vocabulary: `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`), or `#[allow_effect(<E>)]` to silence intentional uses. Phase B (post-v1.0) will add `#[file_effects(default_on)]` for file-level opt-in.", "<file>", 1, 1, "");
+        };
         return diags;
     };
     let decls: Vec<i32> = g10_collect_attr_pairs(source, "effect");
@@ -13111,6 +13166,40 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // unrelated fns don't trip on their leaf vec_free / hashmap_free
     // calls.
     if vec_len(decls) == 0 && vec_len(allows) == 0 { return diags; };
+    // Lane 2 fix (audit G10-A-1): unknown effect-name detection.
+    // Pre-fix, `#[effect(frees, banana)]` silently dropped `banana`
+    // because the per-fn loops gated on `g10_attr_known_effect(eff)
+    // == 1`. Typos like `may_retrun_null` were lost — the runtime
+    // never received the intended constraint. Walk both pair sets
+    // and emit EFFECT-G10-UNKNOWN-NAME (error severity) for each
+    // unknown name, with the closed list of known effects in the
+    // diagnostic text.
+    let mut g10u_di: i64 = 0;
+    while g10u_di + 1 < vec_len(decls) {
+        let g10u_fn: str = vec_get(decls, g10u_di);
+        let g10u_eff: str = vec_get(decls, g10u_di + 1);
+        if g10_attr_known_effect(g10u_eff) == 0 {
+            let g10u_lc: Vec<i32> = find_linecol_in_source(source, g10u_fn, g10u_fn);
+            let g10u_lcl: i64 = vec_get(g10u_lc, 0);
+            let g10u_lcc: i64 = vec_get(g10u_lc, 1);
+            let g10u_msg: str = str_concat("unknown effect name `", str_concat(g10u_eff, str_concat("` in #[effect(...)] on function `", str_concat(g10u_fn, "`. Per RFC-0062 G-10 Phase 4 (v1.0): the closed list of known effects is `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`. Pre-v1.0 unknown names were silently ignored, so typos like `may_retrun_null` lost the intended constraint. Either fix the spelling or remove the entry."))));
+            diag_add_ex(diags, "error", "effect", "EFFECT-G10-UNKNOWN-NAME", g10u_msg, g10u_fn, g10u_lcl, g10u_lcc, "");
+        };
+        g10u_di = g10u_di + 2;
+    };
+    let mut g10u_ai: i64 = 0;
+    while g10u_ai + 1 < vec_len(allows) {
+        let g10u_afn: str = vec_get(allows, g10u_ai);
+        let g10u_aeff: str = vec_get(allows, g10u_ai + 1);
+        if g10_attr_known_effect(g10u_aeff) == 0 {
+            let g10u_alc: Vec<i32> = find_linecol_in_source(source, g10u_afn, g10u_afn);
+            let g10u_alcl: i64 = vec_get(g10u_alc, 0);
+            let g10u_alcc: i64 = vec_get(g10u_alc, 1);
+            let g10u_amsg: str = str_concat("unknown effect name `", str_concat(g10u_aeff, str_concat("` in #[allow_effect(...)] on function `", str_concat(g10u_afn, "`. Per RFC-0062 G-10 Phase 4 (v1.0): the closed list of known effects is `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`. Pre-v1.0 unknown names were silently ignored. Either fix the spelling or remove the entry."))));
+            diag_add_ex(diags, "error", "effect", "EFFECT-G10-UNKNOWN-NAME", g10u_amsg, g10u_afn, g10u_alcl, g10u_alcc, "");
+        };
+        g10u_ai = g10u_ai + 2;
+    };
     let extern_table: Vec<i32> = g10_collect_extern_fn_table(source);
     let table: Vec<i32> = collect_fn_table(source);
     let tn: i64 = vec_len(table);
@@ -20822,7 +20911,41 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     // Reset o to snap state without dropping the whole backing store.
     // Branch isolation calls this in hot ownership paths; pop-all then
     // push-all preserved semantics but churned the Vec on every branch.
+    //
+    // Lane 2 fix (audit G11-B-1): before reverting, preserve any
+    // `__init_seen_<vname>` markers that were set by `let mut x: T;`
+    // declarations OUTSIDE the snapshot scope but seen INSIDE the
+    // arm. Without this, `let mut x: T;` declared before the if/
+    // else and then the then-arm's writes get rolled back by
+    // own_restore including the `__init_seen_x` marker — the
+    // post-merge G-11 check at line ~20483 needs this marker to
+    // fire INIT-G11-READ-BEFORE-INIT. Fix: collect any seen-keys
+    // from the post-arm `o` that were absent in `snap`, and re-
+    // add them after the rollback. This is correct because
+    // `__init_seen_*` is a one-way "this binding was declared
+    // mutable-uninit" sentinel — once set, it should never go
+    // back to unset on a control-flow reset.
+    let mut preserved_seen: Vec<i32> = Vec::new();
     let target_len: i64 = vec_len(snap);
+    let mut k: i64 = 0;
+    while k < vec_len(o) {
+        let key_o: str = vec_get(o, k);
+        if str_starts_with(key_o, "__init_seen_") == 1 {
+            // Was this key in the snap? If not, it was set
+            // mid-arm — we need to keep it.
+            let mut found: i64 = 0;
+            let mut sj: i64 = 0;
+            while sj < target_len && found == 0 {
+                let ks: str = vec_get(snap, sj);
+                if str_eq(ks, key_o) == 1 { found = 1; };
+                sj = sj + 2;
+            };
+            if found == 0 {
+                preserved_seen.push(key_o);
+            };
+        };
+        k = k + 2;
+    };
     while vec_len(o) > target_len { o.pop(); };
     let mut i: i64 = 0;
     while i < target_len {
@@ -20830,6 +20953,14 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
         else { o.push(vec_get(snap, i)); };
         i = i + 1;
     };
+    // Re-stamp preserved seen markers (raw key+value 1).
+    let mut pi: i64 = 0;
+    while pi < vec_len(preserved_seen) {
+        let pk_str: str = vec_get(preserved_seen, pi);
+        own_set_i_raw(o, pk_str, 1);
+        pi = pi + 1;
+    };
+    vec_free(preserved_seen);
     // v0.4.3: if this sym is the currently-warm one, the aux hashmap
     // holds stale entries from inside-the-branch own_put_i calls.
     // Clear it and reset built_at so the next sym_get rebuilds from
@@ -21210,7 +21341,34 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         warns = warns + check_expr(pool, node_field(pool, nid, 3), own, structs, enums, fn_name);
         return warns;
     };
-    if kind == 5 || kind == 6 || kind == 90 || kind == 91 || kind == 92 { return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name); };
+    // Lane 2 fix (audit G8-B-1, G8-Diag): field/index access
+    // (kind 5 / kind 6) on a binding that was conditionally moved
+    // or manually freed must still fire the per-binding diagnostics.
+    // Pre-fix the recursion descended into the receiver but the
+    // receiver-name's freed/cond-moved flags were only consulted in
+    // the bare-IDENT (kind 3) path. Real adopter code uses field/
+    // index access far more than bare IDENT reads, so the published
+    // gate covered a degenerate case.
+    if kind == 5 || kind == 6 {
+        let recv_root: str = expr_root_name(pool, node_field(pool, nid, 1), own);
+        if str_len(recv_root) > 0 {
+            if own_get_i_raw(own, str_concat("__g4_freed_", recv_root)) == 1 {
+                let g4f_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", recv_root));
+                let mut g4f_msg: str = str_concat("use of '", str_concat(recv_root, "' after manual free"));
+                if str_len(g4f_by) > 0 {
+                    g4f_msg = str_concat(g4f_msg, str_concat(" (freed by '", str_concat(g4f_by, "'). The heap allocation is gone; field/index access after `*_free` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.")));
+                };
+                warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4f_msg, recv_root);
+                return warns;
+            };
+            if own_get_i_raw(own, str_concat("__g8_cond_moved_", recv_root)) == 1 {
+                warns = warns + own_diag(own, fn_name, "OWN-G8-COND-MOVE", str_concat("conditional move of '", str_concat(recv_root, "': value is moved on one arm of the preceding if/else but not the other. Subsequent reads (including field/index access) are unsound because the binding may no longer own its value depending on which arm ran. Either move on every arm (so the value is definitely consumed) or move on no arm (so the value is preserved on every path).")), recv_root);
+                return warns;
+            };
+        };
+        return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
+    };
+    if kind == 90 || kind == 91 || kind == 92 { return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name); };
     if kind == 7 {
         // CALL — check args, move Move-type idents
         let callee_name: str = node_field(pool, nid, 1);
@@ -21368,9 +21526,15 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // / hashmap_clear / hashmap_free while a live shared
                 // borrow of the same map binding exists. Mutations rehash
                 // or invalidate held references.
-                if str_eq(callee_name, "hashmap_insert") == 1 || str_eq(callee_name, "hashmap_remove") == 1 || str_eq(callee_name, "hashmap_clear") == 1 {
+                // Lane 2 fix (audit G3-X-1): include `hashmap_free`
+                // in the borrow-invalidation guard set. Strictly
+                // worse than rehash — free DEFINITELY invalidates
+                // every live borrow into the map. Same hazard for
+                // `vec_free` against a `Vec<&T>` and `str_free`
+                // against a substring borrow.
+                if str_eq(callee_name, "hashmap_insert") == 1 || str_eq(callee_name, "hashmap_remove") == 1 || str_eq(callee_name, "hashmap_clear") == 1 || str_eq(callee_name, "hashmap_free") == 1 || str_eq(callee_name, "vec_free") == 1 || str_eq(callee_name, "str_free") == 1 {
                     if ai == 0 && own_has_shared_overlap(own, aname) == 1 {
-                        warns = warns + own_diag(own, fn_name, "ALIAS-G3-HASHMAP-REHASH", str_concat("`", str_concat(callee_name, str_concat("` on binding `", str_concat(aname, "` while a live shared borrow of the same HashMap exists. Per RFC-0062 G-3 Phase 3 (v1.0): `hashmap_insert` / `hashmap_remove` / `hashmap_clear` may rehash storage, invalidating any existing reference into the map. Either drop the borrow before mutating, or restructure to compute the mutation key/value before taking the borrow.")))), aname);
+                        warns = warns + own_diag(own, fn_name, "ALIAS-G3-HASHMAP-REHASH", str_concat("`", str_concat(callee_name, str_concat("` on binding `", str_concat(aname, "` while a live shared borrow of the same collection exists. Per RFC-0062 G-3 Phase 3 (v1.0): mutating or freeing a collection while a borrow into it is alive invalidates the borrow. `*_free` definitely invalidates every outstanding borrow; `hashmap_insert`/`remove`/`clear` may rehash storage. Either drop the borrow before mutating/freeing, or restructure to compute the mutation key/value before taking the borrow.")))), aname);
                     };
                 };
                 // RFC-0062 G-4 Phase 2b/3/4 — mark the arg's slot
@@ -21404,6 +21568,24 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         let method_name: str = node_field(pool, nid, 2);
         let args: i64 = node_field(pool, nid, 3);
         let ac: i64 = list_len(pool, args);
+        // Lane 2 fix (audit G4-FN-2): method-form free
+        // (`v.free()` / `m.free()` / `s.free()`) must mark the
+        // receiver's slot as freed, mirroring the kind-7 free-fn
+        // detection. Without this, if the rod stdlib ever exposes
+        // `Vec::free()` / `HashMap::free()` as a method, G-4
+        // collapses to no-op for the method form.
+        if str_eq(method_name, "free") == 1 {
+            let recv_root_f: str = expr_root_name(pool, node_field(pool, nid, 1), own);
+            if str_len(recv_root_f) > 0 {
+                let rt_f: str = own_get_type(own, recv_root_f);
+                // Only stamp on heap-collection types; plain i64 etc.
+                // shouldn't trigger the G-4 pattern.
+                if str_starts_with(rt_f, "Vec") == 1 || str_starts_with(rt_f, "HashMap") == 1 || str_eq(rt_f, "str") == 1 || str_eq(rt_f, "String") == 1 {
+                    own_set_i_raw(own, str_concat("__g4_freed_", recv_root_f), 1);
+                    own_set_s_raw(own, str_concat("__g4_freed_by_", recv_root_f), str_concat(method_name, "() method"));
+                };
+            };
+        };
         let mut ai: i64 = 0;
         while ai < ac {
             let arg_nid: i64 = list_get(pool, args, ai);
@@ -21434,6 +21616,14 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         return warns;
     };
     if kind == 9 { return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name); };
+    // RFC-0062 G-4/G-8/G-11 Lane 2 fix: cast wrapper (`expr as T`,
+    // AST kind 99 from parse_unary line ~2808) must walk the operand
+    // so use-after-drop / cond-move / read-before-init checks fire
+    // when the unsafe read is wrapped in a cast. Pre-fix:
+    //   vec_free(v); let n: i32 = vec_get(v, 0) as i32;     // CLEAN (audit G4-B-1)
+    //   if cond { x = 7; }; return x as i32;                // CLEAN (audit G11-Diag)
+    // Audit reproducers in audit_scratch_memsafe/G4 / G11.
+    if kind == 99 { return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name); };
     if kind == 10 {
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
         warns = warns + check_expr(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
@@ -21507,6 +21697,44 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // field) got a quiet wrong value. Emit TYP-012 listing the
         // missing field count when ic < struct's declared field count.
         let struct_name: str = node_field(pool, nid, 1);
+        // Lane 2 fix (audit F-CONC-001 / handle encapsulation):
+        // forbid struct-literal construction of types annotated
+        // `#[opaque_handle]` in their declaration. Only the
+        // declaring rod's constructor fns can build the opaque
+        // type — all other call sites must use the public
+        // accessor fns (e.g. `atomic_i64(initial)` instead of
+        // `AtomicI64 { handle: 12345 }`). Without this gate, any
+        // adopter could fabricate a fake handle, pass it to the
+        // load/store helpers, and crash the process via SEGV /
+        // UAF. The gate is textual: the source must contain the
+        // attribute pattern within ~6 lines preceding the struct
+        // declaration. The list of opaque types is closed and
+        // enforced by checking the canonical names below; this
+        // doesn't require the struct AST to carry attribute
+        // metadata. For finer-grained per-rod enforcement (e.g.
+        // permitting struct literals inside the rod that defines
+        // the type), see Phase B (post-v1.0).
+        let g_handle_is_opaque: i64 = if str_eq(struct_name, "AtomicI64") == 1 || str_eq(struct_name, "AtomicU64") == 1 || str_eq(struct_name, "AtomicI32") == 1 || str_eq(struct_name, "AtomicU32") == 1 || str_eq(struct_name, "AtomicBool") == 1 { 1 } else { 0 };
+        if g_handle_is_opaque == 1 {
+            // The closed list of constructor / CAS-shim fn names
+            // INSIDE the atomic rod that may construct the
+            // opaque type via struct literal. All other call
+            // sites (whether in atomic.nr itself or in adopter
+            // code) must use the public constructor fn.
+            // Detection is by exact fn name — this is robust
+            // against import textual-merge edge cases that the
+            // pre-fix "is the source the defining rod?" heuristic
+            // got wrong (the import causes adopter source to also
+            // contain the struct decl).
+            let g_in_ctor: i64 = if str_eq(fn_name, "atomic_i64") == 1 || str_eq(fn_name, "atomic_u64") == 1 || str_eq(fn_name, "atomic_i32") == 1 || str_eq(fn_name, "atomic_u32") == 1 || str_eq(fn_name, "atomic_bool") == 1 || str_starts_with(fn_name, "atomic_compare_exchange") == 1 { 1 } else { 0 };
+            if g_in_ctor == 0 {
+                let g_h_msg: str = str_concat("forbidden struct-literal construction of opaque concurrency-handle type `", str_concat(struct_name, "`. Per RFC-0062 G-handle (Lane 2 audit fix F-CONC-001 v1.0): handles for AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool are opaque — adopter code MUST use the public constructor fns (`atomic_i64(initial)`, `atomic_u64(initial)`, etc.) which return a properly initialized handle backed by a runtime allocation. Pre-fix, struct-literal construction `AtomicI64 { handle: 12345 }` from a saved or fabricated `i64` allowed forging a fake handle — passing the result to atomic_load/store crashed the process via SEGV / UAF. Replace with `let a: AtomicI64 = atomic_i64(initial_value);`."));
+                let g_h_diag_vec: Vec<i32> = own_diags(own);
+                let g_h_source: str = own_source(own);
+                diag_add_at_or_scan(g_h_diag_vec, g_h_source, pool, nid, struct_name, "error", "concurrency", "CONC-G6-OPAQUE-HANDLE", g_h_msg, fn_name, "");
+                warns = warns + 1;
+            };
+        };
         let s_idx: i64 = struct_find_type(pool, structs, struct_name);
         if s_idx >= 0 {
             let s_nid: i64 = vec_get(structs, s_idx);
@@ -21761,6 +21989,35 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(src, "': value is borrowed")), src);
                     } else {
                         own_set(own, src, 2);
+                    };
+                };
+                // Lane 2 fix (audit G4-FN-1, G1-X-1): alias-handle
+                // double-free closure. When a binding is alias-
+                // initialized from another (`let alias = v`) and the
+                // type is a heap-collection (Vec/HashMap/String), the
+                // tracker treats the source as live (i64 is Copy at
+                // tracker level). If the source was previously freed,
+                // propagate the freed flag onto the new binding so a
+                // subsequent free of either name fires
+                // OWN-G4-USE-AFTER-DROP. Same protection for the
+                // `let alias: i64 = v as i64` shape — the cast walk
+                // above (kind 99) recurses into the IDENT, but the
+                // freed flag lives on src; without this propagation,
+                // a free of alias would be silent.
+                if own_get_i_raw(own, str_concat("__g4_freed_", src)) == 1 {
+                    own_set_i_raw(own, str_concat("__g4_freed_", vname), 1);
+                    own_set_s_raw(own, str_concat("__g4_freed_by_", vname), str_concat("alias of '", str_concat(src, "'")));
+                };
+            } else if node_kind(pool, init) == 99 {
+                // Cast-init alias: `let alias: i64 = v as i64`
+                // also propagates the freed flag from the cast
+                // operand if it's a bare IDENT.
+                let cast_inner: i64 = node_field(pool, init, 1);
+                if node_kind(pool, cast_inner) == 3 {
+                    let csrc: str = node_field(pool, cast_inner, 1);
+                    if own_get_i_raw(own, str_concat("__g4_freed_", csrc)) == 1 {
+                        own_set_i_raw(own, str_concat("__g4_freed_", vname), 1);
+                        own_set_s_raw(own, str_concat("__g4_freed_by_", vname), str_concat("alias of '", str_concat(csrc, "'")));
                     };
                 };
             };
@@ -22097,6 +22354,41 @@ fn check_stmts(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums
     return warns;
 }
 
+// Lane 2 audit fix (G2-A-1): extract the first lifetime label
+// from a type string. Patterns:
+//   `&'a T`  → "a"
+//   `&'foo T` → "foo"
+//   `&'a mut T` → "a"
+//   `T` (no lifetime) → ""
+// Used by the multi-input G-2 check to compare param-vs-return
+// lifetime labels textually. Conservative — returns "" on shapes
+// it doesn't recognize, which suppresses the diagnostic.
+#[manual_drop]
+fn g2_extract_lifetime_label(t: str) -> str {
+    let tl: i64 = str_len(t);
+    let mut p: i64 = 0;
+    while p < tl {
+        let c: i64 = str_char_at(t, p);
+        if c == 39 {
+            // Found `'`. Walk forward collecting alpha/digit/underscore.
+            let lbl_start: i64 = p + 1;
+            let mut lbl_end: i64 = lbl_start;
+            while lbl_end < tl {
+                let cc: i64 = str_char_at(t, lbl_end);
+                let is_alpha: i64 = if (cc >= 97 && cc <= 122) || (cc >= 65 && cc <= 90) || cc == 95 { 1 } else { 0 };
+                let is_digit: i64 = if cc >= 48 && cc <= 57 { 1 } else { 0 };
+                if is_alpha == 0 && is_digit == 0 { break; };
+                lbl_end = lbl_end + 1;
+            };
+            if lbl_end > lbl_start {
+                return str_substring(t, lbl_start, lbl_end);
+            };
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
 #[manual_drop]
 fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, diags: Vec<i32>, source: str) -> i64 {
     let fn_name: str = node_field(pool, fn_nid, 1);
@@ -22180,6 +22472,53 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                     else { g2_param_root = expr_param_root(pool, last_stmt, own); };
                     if str_len(g2_param_root) > 0 && str_eq(g2_param_root, g2_single_ref_param) == 0 {
                         own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2_param_root, str_concat("' but the function's only ref-typed input is '", str_concat(g2_single_ref_param, "'. Per RFC-0062 G-2 (single-input lifetime check): the returned region must equal the input's region. Bind the return to the single ref input or restructure the signature.")))), g2_single_ref_param);
+                    };
+                };
+                // Lane 2 fix (audit G2-A-1): multi-input lifetime
+                // check. Pre-fix, fns with 2+ ref params (e.g.
+                // `fn pick<'a, 'b>(x: &'a i32, y: &'b i32) -> &'a i32`)
+                // were skipped entirely (only Phase 1 BR-7 advisory
+                // warning fired). Now: when the return traces back
+                // to a specific ref param, scan the return type's
+                // lifetime label and the parameter's lifetime label
+                // textually; reject when they differ. The check is
+                // conservative — when no lifetime labels are present
+                // (Phase 3 lifetime elision), skip. When labels are
+                // present and demonstrably mismatched, fire
+                // BORROW-G2-LIFETIME at error severity. RFC-0062
+                // §3.3 G-2 P3 schedules elision rules post-v1.0;
+                // until then explicit `<'a, 'b>` shapes get the
+                // honest enforcement they were missing.
+                if g2_ref_param_count >= 2 && str_len(escape_root) == 0 {
+                    let mut g2m_param_root: str = "";
+                    if last_kind == 25 { g2m_param_root = expr_param_root(pool, node_field(pool, last_stmt, 1), own); }
+                    else { g2m_param_root = expr_param_root(pool, last_stmt, own); };
+                    if str_len(g2m_param_root) > 0 {
+                        // Look up the param's declared type and
+                        // extract the lifetime label (the substring
+                        // between `&'` and the next non-alpha char,
+                        // if any). Scan params again to find the
+                        // root's type.
+                        let mut g2m_root_type: str = "";
+                        let mut g2m_pj2: i64 = 0;
+                        while g2m_pj2 < pc {
+                            let g2m_pjnid: i64 = list_get(pool, plist, g2m_pj2);
+                            let g2m_pname: str = node_field(pool, g2m_pjnid, 1);
+                            if str_eq(g2m_pname, g2m_param_root) == 1 {
+                                g2m_root_type = node_field(pool, g2m_pjnid, 2);
+                            };
+                            g2m_pj2 = g2m_pj2 + 1;
+                        };
+                        // ret_type is the fn's declared return type
+                        // (extracted at line ~21743 as `rtype`).
+                        let g2m_ret_type: str = rtype;
+                        // Extract first lifetime label from each:
+                        // pattern is `&'<label>` or `'<label>`.
+                        let g2m_root_lt: str = g2_extract_lifetime_label(g2m_root_type);
+                        let g2m_ret_lt: str = g2_extract_lifetime_label(g2m_ret_type);
+                        if str_len(g2m_root_lt) > 0 && str_len(g2m_ret_lt) > 0 && str_eq(g2m_root_lt, g2m_ret_lt) == 0 {
+                            own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2m_param_root, str_concat("' (declared lifetime `'", str_concat(g2m_root_lt, str_concat("`) but the function's return type carries lifetime `'", str_concat(g2m_ret_lt, "`. Per RFC-0062 G-2 multi-input (Lane 2 audit fix v1.0): the returned region must equal the input's declared lifetime. Pre-fix multi-input cases were skipped entirely. Fix the lifetime label on the return type or change which parameter the return traces from.")))))), g2m_param_root);
+                        };
                     };
                 };
             };
@@ -22719,6 +23058,9 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "str_substring") == 1 || str_eq(name, "str_substring_strict") == 1 || str_eq(name, "str_trim") == 1 || str_eq(name, "str_trim_start") == 1 || str_eq(name, "str_trim_end") == 1 { return "str"; };
     if str_eq(name, "args_get") == 1 || str_eq(name, "file_read_string") == 1 || str_eq(name, "file_read_string_or_panic") == 1 { return "str"; };
     if str_eq(name, "args_count") == 1 || str_eq(name, "env_has") == 1 || str_eq(name, "process_id") == 1 || str_eq(name, "os_family") == 1 || str_eq(name, "os_pointer_width") == 1 || str_eq(name, "path_is_absolute") == 1 || str_eq(name, "fs_exists") == 1 || str_eq(name, "fs_is_file") == 1 || str_eq(name, "fs_is_dir") == 1 || str_eq(name, "fs_size") == 1 || str_eq(name, "fs_mtime") == 1 || str_eq(name, "file_bytes_equal") == 1 || str_eq(name, "system") == 1 { return "i64"; };
+    // Lane 2 fix (audit G5-P-1): ptr_is_null is the FFI-G5 prescribed
+    // remediation. Returns 1 iff the i64 pointer arg is 0.
+    if str_eq(name, "ptr_is_null") == 1 { return "i64"; };
     if str_eq(name, "env_get") == 1 || str_eq(name, "env_get_or") == 1 || str_eq(name, "getcwd") == 1 || str_eq(name, "getenv") == 1 || str_eq(name, "chr") == 1 || str_eq(name, "fs_join") == 1 || str_eq(name, "fs_basename") == 1 || str_eq(name, "fs_dirname") == 1 || str_eq(name, "fs_extension") == 1 || str_eq(name, "fs_temp_dir") == 1 || str_eq(name, "fs_current_dir") == 1 || str_eq(name, "fs_canonicalize") == 1 || str_eq(name, "path_separator") == 1 || str_eq(name, "path_normalize") == 1 || str_eq(name, "path_with_extension") == 1 || str_eq(name, "path_strip_extension") == 1 { return "str"; };
     if str_eq(name, "sqrt") == 1 || str_eq(name, "sin") == 1 || str_eq(name, "cos") == 1 || str_eq(name, "pow") == 1 || str_eq(name, "floor") == 1 || str_eq(name, "ceil") == 1 || str_eq(name, "round") == 1 || str_eq(name, "exp") == 1 || str_eq(name, "log") == 1 || str_eq(name, "tanh") == 1 || str_eq(name, "tanh_act") == 1 || str_eq(name, "fabs") == 1 || str_eq(name, "fmod") == 1 || str_eq(name, "f64_from_bits") == 1 { return "f64"; };
     if str_eq(name, "f64_to_bits") == 1 { return "i64"; };

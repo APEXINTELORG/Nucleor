@@ -42,7 +42,7 @@ long long nuc_sp_new_csr(long long rows, long long cols, long long nnz) {
 // `_inferred` derives nnz from row_vec->len (the canonical entry count).
 long long nuc_sp_from_coo_inferred(long long row_vec, long long col_vec, long long val_vec,
                                      long long rows, long long cols) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *rv = (NVec *)(void *)row_vec;
     NVec *cv = (NVec *)(void *)col_vec;
     NVec *vv = (NVec *)(void *)val_vec;
@@ -84,7 +84,7 @@ long long nuc_sp_from_coo_inferred(long long row_vec, long long col_vec, long lo
 // could promote to a hard error.
 long long nuc_sp_from_coo(long long row_vec, long long col_vec, long long val_vec,
                            long long rows, long long cols, long long nnz_hint) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *rv = (NVec *)(void *)row_vec;
     /* nnz_hint is informational; canonical nnz = row_vec->len. */
     (void)nnz_hint;
@@ -123,7 +123,7 @@ long long nuc_sp_nnz(long long h)  { return ((SpMat *)(void *)h)->nnz; }
 // ================================================================
 
 long long nuc_sp_mul_vec(long long ah, long long xh) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     SpMat *a = (SpMat *)(void *)ah;
     NVec *x = (NVec *)(void *)xh;
 
@@ -146,7 +146,7 @@ long long nuc_sp_mul_vec(long long ah, long long xh) {
 // ================================================================
 
 long long nuc_sp_cg_solve(long long ah, long long bh, long long tol_bits) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     SpMat *A = (SpMat *)(void *)ah;
     NVec *b = (NVec *)(void *)bh;
     double tol = _sp_i2f(tol_bits);
@@ -210,7 +210,7 @@ long long nuc_sp_cg_solve(long long ah, long long bh, long long tol_bits) {
 // ================================================================
 
 long long nuc_sp_gmres(long long ah, long long bh, long long tol_bits) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     SpMat *A = (SpMat *)(void *)ah;
     NVec *b = (NVec *)(void *)bh;
     double tol = _sp_i2f(tol_bits);

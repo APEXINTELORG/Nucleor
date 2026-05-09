@@ -17,6 +17,12 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
+/* Lane 2 audit fix A1 (2026-05-08): canonical NVec layout. Local
+   per-fn typedefs were removed in this file; for nvcc builds that
+   don't pick up the s1 -include path, pull the canonical header
+   directly so `sizeof(NVec) == 32` matches nucleor_llvm_rt.c. */
+#include "nvec.h"
+
 // =====================================================
 // Telemetry collection
 // =====================================================
@@ -547,7 +553,7 @@ long long nuc_gpu_mc_extract(long long handle) {
     // Pack features into Nucleor Vec (via the NVec API)
     // Return as i64-encoded f64 values in a flat array
     // We'll use the NVec from the main runtime
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec local typedef removed Lane 2 audit fix A1 2026-05-08; CUDA TUs see nvec.h via nuc_alloc.h force-include when nvcc is invoked through the same -include path */
     NVec *feats = (NVec *)malloc(sizeof(NVec));
     feats->cap = 24;
     feats->data = (long long *)malloc(feats->cap * sizeof(long long));
@@ -997,7 +1003,7 @@ long long nuc_gpu_diff_extract(long long handle) {
     // Build per-core features on host (same 12 features as diff_sim_rt.c)
     double eps = 1e-9;
     int total_feats = n_noisy * 12;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec local typedef removed Lane 2 audit fix A1 2026-05-08; CUDA TUs see nvec.h via nuc_alloc.h force-include when nvcc is invoked through the same -include path */
     NVec *feats = (NVec *)malloc(sizeof(NVec));
     feats->cap = total_feats + 4;
     feats->len = 0;
@@ -1087,7 +1093,7 @@ void nuc_gpu_diff_backward(long long handle, long long grad_loss_bits) {
 long long nuc_gpu_diff_get_logits(long long handle) {
     GPUDiffSim *ds = (GPUDiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec local typedef removed Lane 2 audit fix A1 2026-05-08; CUDA TUs see nvec.h via nuc_alloc.h force-include when nvcc is invoked through the same -include path */
     int total = ds->n_noisy * ds->n_gates;
     double *h_logits = (double *)malloc(ds->n_noisy * DIFF_MAX_GATES * sizeof(double));
     cudaMemcpy(h_logits, ds->d_logits, ds->n_noisy * DIFF_MAX_GATES * sizeof(double), cudaMemcpyDeviceToHost);
@@ -1106,7 +1112,7 @@ long long nuc_gpu_diff_get_logits(long long handle) {
 long long nuc_gpu_diff_get_grad_logits(long long handle) {
     GPUDiffSim *ds = (GPUDiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec local typedef removed Lane 2 audit fix A1 2026-05-08; CUDA TUs see nvec.h via nuc_alloc.h force-include when nvcc is invoked through the same -include path */
     int total = ds->n_noisy * ds->n_gates;
     double *h_grad = (double *)malloc(ds->n_noisy * DIFF_MAX_GATES * sizeof(double));
     cudaMemcpy(h_grad, ds->d_grad_logits, ds->n_noisy * DIFF_MAX_GATES * sizeof(double), cudaMemcpyDeviceToHost);
@@ -1125,7 +1131,7 @@ long long nuc_gpu_diff_get_grad_logits(long long handle) {
 void nuc_gpu_diff_set_logits(long long handle, long long vec) {
     GPUDiffSim *ds = (GPUDiffSim *)(void *)handle;
     if (!ds) return;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec local typedef removed Lane 2 audit fix A1 2026-05-08; CUDA TUs see nvec.h via nuc_alloc.h force-include when nvcc is invoked through the same -include path */
     NVec *v = (NVec *)(void *)vec;
     double *h_logits = (double *)calloc(ds->n_noisy * DIFF_MAX_GATES, sizeof(double));
     for (int ci = 0; ci < ds->n_noisy; ci++)

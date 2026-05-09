@@ -153,7 +153,7 @@ long long nuc_quad_2d(long long f_ptr, long long ax_bits, long long bx_bits,
 long long nuc_quad_monte_carlo(long long f_ptr, long long lo_h, long long hi_h, long long n) {
     typedef long long (*Fn)(long long);
     Fn f = (Fn)(void *)f_ptr;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *lo = (NVec *)(void *)lo_h, *hi = (NVec *)(void *)hi_h;
     int dim = lo->len;
     int N = (int)n;

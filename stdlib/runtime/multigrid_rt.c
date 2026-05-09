@@ -111,7 +111,7 @@ static void vcycle_2d(double *u, double *f, int N, double h) {
 // Public: solve -Laplacian(u) = rhs on [0,1]^2 with Dirichlet BC = 0
 // rhs_h and sol_h are Vec<f64> of length N*N
 long long nuc_mg_solve_2d(long long rhs_h, long long sol_h, long long N, long long tol_bits) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *rhs_v = (NVec *)(void *)rhs_h;
     NVec *sol_v = (NVec *)(void *)sol_h;
     int n = (int)N;
@@ -151,7 +151,7 @@ long long nuc_mg_solve_2d(long long rhs_h, long long sol_h, long long N, long lo
 
 // Residual norm (for external convergence check)
 long long nuc_mg_residual(long long sol_h, long long rhs_h, long long N) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *sol = (NVec *)(void *)sol_h, *rhs = (NVec *)(void *)rhs_h;
     int n = (int)N;
     double h = 1.0 / (n - 1);

@@ -68,7 +68,7 @@ void nuc_nn_reset_rng(void) {
 // Forward: output = W @ input + b
 // input is a Vec<f64> (NVec*), returns Vec<f64>
 long long nuc_nn_dense_forward(long long handle, long long input_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NNDense *l = (NNDense *)(void *)handle;
     NVec *inv = (NVec *)(void *)input_vec;
 
@@ -94,7 +94,7 @@ long long nuc_nn_dense_forward(long long handle, long long input_vec) {
 
 // Backward: given grad_output, compute dW, db, and return grad_input
 long long nuc_nn_dense_backward(long long handle, long long grad_out_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NNDense *l = (NNDense *)(void *)handle;
     NVec *gout = (NVec *)(void *)grad_out_vec;
 
@@ -128,7 +128,7 @@ void nuc_nn_dense_zero_grad(long long handle) {
 
 // Set the cached input for backward (used when sharing a layer across multiple inputs)
 void nuc_nn_dense_set_cache(long long handle, long long input_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NNDense *l = (NNDense *)(void *)handle;
     NVec *inv = (NVec *)(void *)input_vec;
     for (int i = 0; i < l->in_dim && i < inv->len; i++)
@@ -141,7 +141,7 @@ void nuc_nn_dense_set_cache(long long handle, long long input_vec) {
 // =====================================================
 
 long long nuc_nn_relu(long long vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     NVec *out = (NVec *)malloc(sizeof(NVec));
     out->len = v->len; out->cap = v->len;
@@ -155,7 +155,7 @@ long long nuc_nn_relu(long long vec) {
 
 // ReLU backward: grad * (input > 0)
 long long nuc_nn_relu_backward(long long input_vec, long long grad_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *inp = (NVec *)(void *)input_vec;
     NVec *grad = (NVec *)(void *)grad_vec;
     NVec *out = (NVec *)malloc(sizeof(NVec));
@@ -170,7 +170,7 @@ long long nuc_nn_relu_backward(long long input_vec, long long grad_vec) {
 }
 
 long long nuc_nn_sigmoid(long long vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     NVec *out = (NVec *)malloc(sizeof(NVec));
     out->len = v->len; out->cap = v->len;
@@ -185,7 +185,7 @@ long long nuc_nn_sigmoid(long long vec) {
 
 // Sigmoid backward: grad * output * (1 - output)
 long long nuc_nn_sigmoid_backward(long long output_vec, long long grad_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *out_v = (NVec *)(void *)output_vec;
     NVec *grad = (NVec *)(void *)grad_vec;
     NVec *result = (NVec *)malloc(sizeof(NVec));
@@ -200,7 +200,7 @@ long long nuc_nn_sigmoid_backward(long long output_vec, long long grad_vec) {
 }
 
 long long nuc_nn_softmax(long long vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     NVec *out = (NVec *)malloc(sizeof(NVec));
     out->len = v->len; out->cap = v->len;
@@ -271,7 +271,7 @@ void nuc_nn_adam_step_dense(long long opt_handle, long long layer_handle) {
 
 // Update a noise model's logits
 void nuc_nn_adam_step_logits(long long opt_handle, long long logits_vec, long long grad_vec, long long offset) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NNAdam *opt = (NNAdam *)(void *)opt_handle;
     NVec *logits = (NVec *)(void *)logits_vec;
     NVec *grads = (NVec *)(void *)grad_vec;
@@ -319,7 +319,7 @@ long long nuc_nn_noise_rate_grad(long long logit_bits, long long max_p_bits) {
 // d(sv_noisy[i])/dp = -sv[i] + 1/sqrt(N)
 // This returns the mean |d_output/dp| across all amplitudes
 long long nuc_nn_noisy_mix_grad(long long sv_vec, long long n_amps_val) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *sv = (NVec *)(void *)sv_vec;
     int n = (int)n_amps_val;
     double inv_sqrt_n = 1.0 / sqrt((double)n);
@@ -338,7 +338,7 @@ long long nuc_nn_noisy_mix_grad(long long sv_vec, long long n_amps_val) {
 // Utility: Vec creation for results
 // =====================================================
 long long nuc_nn_vec_new(long long size) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->len = 0; v->cap = (int)size;
     v->data = (long long *)malloc(v->cap * sizeof(long long));
@@ -346,7 +346,7 @@ long long nuc_nn_vec_new(long long size) {
 }
 
 long long nuc_nn_vec_from_scalar(long long val) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->len = 1; v->cap = 1;
     v->data = (long long *)malloc(sizeof(long long));
@@ -464,7 +464,7 @@ long long nuc_nn_adam_step_at_no_tick(long long opt_handle, long long layer_hand
 
 // Step logits at offset WITHOUT incrementing t
 void nuc_nn_adam_step_logits_no_tick(long long opt_handle, long long logits_vec, long long grad_vec, long long offset) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NNAdam *opt = (NNAdam *)(void *)opt_handle;
     NVec *logits = (NVec *)(void *)logits_vec;
     NVec *grads = (NVec *)(void *)grad_vec;
@@ -492,7 +492,7 @@ void nuc_nn_adam_step_logits_no_tick(long long opt_handle, long long logits_vec,
 
 // Concatenate two vectors: returns new vec = a ++ b
 long long nuc_nn_vec_concat(long long a_vec, long long b_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *a = (NVec *)(void *)a_vec;
     NVec *b = (NVec *)(void *)b_vec;
     int total = a->len + b->len;
@@ -506,7 +506,7 @@ long long nuc_nn_vec_concat(long long a_vec, long long b_vec) {
 
 // Slice a vector: returns new vec = v[start..start+len]
 long long nuc_nn_vec_slice(long long vec, long long start, long long len) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     int s = (int)start, n = (int)len;
     if (s + n > v->len) n = v->len - s;
@@ -522,7 +522,7 @@ long long nuc_nn_vec_slice(long long vec, long long start, long long len) {
 // input: flat vec of N*D values, weights: vec of N values, D: dimension
 // returns: vec of D values = sum(weights[i] * input[i*D .. (i+1)*D])
 long long nuc_nn_weighted_sum(long long input_vec, long long weights_vec, long long dim) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *inp = (NVec *)(void *)input_vec;
     NVec *wts = (NVec *)(void *)weights_vec;
     int D = (int)dim;
@@ -557,7 +557,7 @@ long long nuc_nn_weighted_sum(long long input_vec, long long weights_vec, long l
 // dataset: Vec of Vecs (each inner vec is one sample's features)
 // Returns: Vec with [mean_vec, std_vec] (each is a Vec of f64)
 long long nuc_nn_compute_stats(long long dataset_vec, long long n_samples, long long feat_dim) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *dataset = (NVec *)(void *)dataset_vec;
     int ns = (int)n_samples, fd = (int)feat_dim;
 
@@ -607,7 +607,7 @@ long long nuc_nn_compute_stats(long long dataset_vec, long long n_samples, long 
 
 // Apply z-score: (x - mean) / std
 long long nuc_nn_zscore(long long vec, long long mean_vec, long long std_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     NVec *m = (NVec *)(void *)mean_vec;
     NVec *s = (NVec *)(void *)std_vec;
@@ -627,7 +627,7 @@ long long nuc_nn_zscore(long long vec, long long mean_vec, long long std_vec) {
 // Pearson correlation (Issue 5)
 // =====================================================
 long long nuc_nn_pearson(long long x_vec, long long y_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *x = (NVec *)(void *)x_vec;
     NVec *y = (NVec *)(void *)y_vec;
     int n = x->len < y->len ? x->len : y->len;
@@ -774,7 +774,7 @@ void nuc_nn_lbfgs_step_dense(long long opt_handle, long long layer_handle) {
 }
 
 long long nuc_nn_softmax_backward(long long softmax_vec, long long grad_vec) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *sm = (NVec *)(void *)softmax_vec;
     NVec *grad = (NVec *)(void *)grad_vec;
     int n = sm->len;

@@ -186,7 +186,7 @@ long long nuc_bio_kmer_count(const char *seq, long long k) {
 // ================================================================
 
 long long nuc_bio_find_orfs(const char *seq, long long min_len) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     if (!seq) return 0;
     int n = (int)strlen(seq), ml = (int)min_len;
     NVec *orfs = (NVec *)malloc(sizeof(NVec));
