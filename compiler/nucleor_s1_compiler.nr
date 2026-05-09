@@ -41797,7 +41797,6 @@ fn print_help() -> i64 {
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
     print("    --json               Output machine-readable lock status");
     print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
-    print("  add | remove | update  Aliases for install (RFC-0019 phase 4 ergonomics)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
     print("  registry [subcmd]      List/search/inspect packages in a local registry");
@@ -41812,7 +41811,7 @@ fn print_help() -> i64 {
     print("    --check=<checkers>   Run specific checkers (ownership,type,source,taint,effect)");
     print("    --review             Enable review surface (nucleor_review.jsonl)");
     print("    --review-filter=<f>  Filter: findings, function=<name>, <checker>");
-    print("  explain <NR031>        Explain a compiler error code");
+    print("  explain <CODE>         Explain a compiler error code (e.g. NR031, OWN-G4-USE-AFTER-DROP)");
     print("    --json               Output a JSON explanation object");
     print("");
     print("Governance commands:");
@@ -41826,6 +41825,7 @@ fn print_help() -> i64 {
     print("  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only");
     print("  scram                  Alias for `clean` (emergency shutdown of build state)");
     print("  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)");
+    print("  gen-headers <input.nr> [-o <out.h>]  Emit C decls for #[export] / #[repr(C)] (RFC-0011)");
     print("  zen                    The design principles of Nucleor");
     print("  mco                    Mars Climate Orbiter - why we ship dimensional analysis");
     print("");
@@ -42066,6 +42066,22 @@ fn main() -> i64 {
             saw_output_name = 1;
         } else if str_eq(cmd, "policy") && cli_is_flag(flag) == 0 {
             policy_level = flag;
+        } else if cli_is_flag(flag) == 1 && (str_eq(cmd, "build") == 1 || str_eq(cmd, "build-fast") == 1 || str_eq(cmd, "build-strict") == 1 || str_eq(cmd, "build-shared") == 1 || str_eq(cmd, "run") == 1 || str_eq(cmd, "emit") == 1 || str_eq(cmd, "build-wasm") == 1 || str_eq(cmd, "build-ptx") == 1 || str_eq(cmd, "verify-reproducible") == 1) {
+            // Lane-7 audit fix (v1.0): warn on unknown flags rather
+            // than silently swallow them. The pre-fix behaviour
+            // accepted arbitrary `--bogus` flags without complaint,
+            // which masked the README/architecture mentions of
+            // `--release` and `--tier <0|1|2>` (both removed at v1.0
+            // because the binary never honoured them). Warning
+            // severity (not hard error) preserves backward-compat
+            // for any downstream tooling that passes through extra
+            // flags by accident. Scoped to the build-class subcommands
+            // only — `check`, `test`, `audit`, `policy`, `certify`,
+            // `translate` and `bench` accept additional flags that are
+            // parsed by the tools-suite delegation downstream of this
+            // loop (e.g. `check --json`, `check --sarif`, `check
+            // --review`), so we do NOT warn for those subcommands.
+            print(str_concat("warning: unknown flag '", str_concat(flag, "' (ignored)")));
         };
         argi_build = argi_build + 1;
     };

@@ -81,6 +81,6 @@ nuc stage-dump all    examples\01_hello.nr
 | Symptom | Cause | Fix |
 |---|---|---|
 | `clang: command not found` | LLVM not installed or not on PATH | Install LLVM 18.x; the launcher will find it automatically if it's at `C:\Program Files\LLVM` |
-| `bin\nucleor.exe not found` | Repo wasn't cloned with binary | The bootstrap binary is committed to the repo. If missing, re-clone or rebuild via `nuc build compiler\nucleor_s1_compiler.nr -o bin\nucleor.exe` (chicken-and-egg: requires an existing `nuc`) |
+| `bin\nucleor.exe not found` | Repo wasn't cloned with binary | The bootstrap binary is committed to the repo. If missing, re-clone, then on Windows run `tools\bootstrap_windows.ps1 -Run -Force` (or on POSIX `tools/bootstrap_linux.sh`) — both rebuild from the committed `bootstrap/nucleor_s1_seed.ll` without an existing `nuc`. (Note: `nuc build ... -o bin\nucleor.exe` always lands the output in `target\nucleor.exe` — the basename is preserved but the directory is not.) |
 | `LNK1181: cannot open input file 'nucleor_rust_bridge.lib'` | Trying to use `stdlib/rods/rust.nr` without building the Rust bridge | `cd stdlib\rods\rust_bridge && cargo build --release` |
 | Build succeeds but `target\hello.exe` is missing | The compiler emitted IR but linking failed | Look for `clang exit N` in the output and address the underlying linker error |

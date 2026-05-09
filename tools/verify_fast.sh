@@ -712,7 +712,7 @@ cli_help_coverage_smoke() {
         "build" "build-fast" "build-strict" "build-shared" "build-wasm" "build-ptx"
         "run" "emit" "test" "bench" "perf" "bootstrap" "stage-dump"
         "summary" "query" "abi" "evidence" "impact" "graph" "doc" "profile"
-        "lock" "install" "add" "publish" "registry" "sage"
+        "lock" "install" "publish" "registry" "sage"
         "check" "explain"
         "audit" "policy" "certify" "translate"
         "init" "clean" "scram" "fix" "zen" "mco"

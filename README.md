@@ -43,7 +43,7 @@ target\hello.exe        # Windows
 ./target/hello          # Linux
 ```
 
-The bootstrap binary is committed to the repo, so you don't need to build the compiler from source on first use. The `nuc.bat` (Windows) / `nuc` (POSIX) launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
+The bootstrap binary is committed to the repo, so you don't need to build the compiler from source on first use. The `nuc.bat` (Windows) / `nuc` (POSIX) launcher resolves `clang` (or `clang.exe` on Windows) from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then a host-appropriate fallback (`C:\Program Files\LLVM\bin` on Windows; `/usr/lib/llvm-18/bin` then `/usr/local/bin` on POSIX), then plain PATH.
 
 POSIX (Linux) self-build is operational — `tools/bootstrap_linux.sh` builds the compiler from the seed; `tools/verify.sh` runs the full ~1500-step gate. Native Linux perf baseline at `tools/perf_baseline_linux.json`. macOS bootstrap pending hardware availability for the CI gate.
 
@@ -127,7 +127,7 @@ See [`examples/README.md`](examples/README.md) for the full index. The short tou
 - `wing_simulator` — FDTD electromagnetics.
 
 ```
-nuc build [path] [--release] [-o name]
+nuc build [path] [-o name]
 nuc run [path]
 nuc test [file]
 nuc check [file]           run all checkers (ownership, type, source, taint, effect)

@@ -1,8 +1,17 @@
 # Benchmarks
 
+> **PRE-V1.0 numbers — refresh pending.** The figures below were captured
+> against the v0.2.x self-host pipeline (v0.2.128 / v0.2.87 / v0.2.84
+> stamps). They are retained as a historical reference but do NOT match
+> the v1.0 surface. The current v1.0 self-host peak allocation is
+> ~185 MB under a 400 MB budget (see `tools/perf_baseline.json`,
+> `tools/perf_baseline_linux.json`, and the `verify.sh` PASS line in
+> README §"Verification gate"). A v1.0 refresh of the table below is
+> tracked under post-v1.0 docs polish.
+
 Numbers below are reproducible from this repo with `nuc bench`. The intent is to
-characterize the v0.2 self-host bootstrap pipeline, not to compete with mature
-production compilers — that comparison comes after v1.0.
+characterize the self-host bootstrap pipeline, not to compete with mature
+production compilers — that comparison is post-v1.0 work.
 
 ## Self-host build time
 

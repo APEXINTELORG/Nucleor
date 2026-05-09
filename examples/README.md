@@ -8,9 +8,10 @@ regressions block the gate.
 ## Build & run
 
 ```bash
-# Build any example to ./<name>.exe
+# Build any example to target/<name>.{exe,} (basename preserved, directory is always target/)
 bin/nucleor.exe build examples/01_hello.nr -o hello
-./hello.exe
+target/hello.exe        # Windows
+./target/hello          # Linux
 
 # All examples build with the same `nuc build` command — no special flags
 # needed except for 07_rust_interop, which needs the rust_bridge cdylib.
@@ -133,8 +134,9 @@ cp examples/14_csv_summary.nr examples/19_my_demo.nr
 # Edit. Build:
 bin/nucleor.exe build examples/19_my_demo.nr -o my_demo
 
-# Run, confirm exit 0:
-./my_demo.exe; echo "exit=$?"
+# Run, confirm exit 0 (binary lands in target/, basename preserved):
+target/my_demo.exe; echo "exit=$?"   # Windows
+./target/my_demo; echo "exit=$?"     # Linux
 
 # Wire into the gate — add a single line to tools/examples.list
 # (one entry per line, no .nr extension):

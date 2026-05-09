@@ -1781,7 +1781,6 @@ fn print_help() -> i64 {
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
     print("    --json               Output machine-readable lock status");
     print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
-    print("  add | remove | update  Aliases for install (RFC-0019 phase 4 ergonomics)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
     print("  registry [subcmd]      List/search/inspect packages in a local registry");
@@ -1796,7 +1795,7 @@ fn print_help() -> i64 {
     print("    --check=<checkers>   Run specific checkers (ownership,type,source,taint,effect)");
     print("    --review             Enable review surface (nucleor_review.jsonl)");
     print("    --review-filter=<f>  Filter: findings, function=<name>, <checker>");
-    print("  explain <NR031>        Explain a compiler error code");
+    print("  explain <CODE>         Explain a compiler error code (e.g. NR031, OWN-G4-USE-AFTER-DROP)");
     print("    --json               Output a JSON explanation object");
     print("");
     print("Governance commands:");
@@ -1810,6 +1809,7 @@ fn print_help() -> i64 {
     print("  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only");
     print("  scram                  Alias for `clean` (emergency shutdown of build state)");
     print("  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)");
+    print("  gen-headers <input.nr> [-o <out.h>]  Emit C decls for #[export] / #[repr(C)] (RFC-0011)");
     print("  zen                    The design principles of Nucleor");
     print("  mco                    Mars Climate Orbiter - why we ship dimensional analysis");
     print("");

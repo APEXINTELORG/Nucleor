@@ -74,18 +74,6 @@ nuc build compiler\nucleor_s1_compiler.nr -o bin\nucleor.exe.new
 
 If the resulting binary builds the same `.nr` programs and produces the same outputs, the self-host loop has closed. This is one of the strongest "the language isn't broken" signals available — every change to the compiler must keep the compiler itself buildable.
 
-## Tier system
-
-The compiler emits LLVM IR optimized at one of three tiers, controlled by `--tier`:
-
-| Tier | Backend | Use case |
-|---|---|---|
-| 0 | LLVM `-O0` (fast)   | Fast dev builds; default for `build-fast` |
-| 1 | LLVM `-O1` (default)| Staging |
-| 2 | LLVM `-O3` + LTO    | Release |
-
-The default `nuc build` runs at tier 1.
-
 ## Optimizer
 
 The IR optimizer in `compiler/nucleor_s1_compiler.nr` runs before LLVM
@@ -180,6 +168,6 @@ There is no garbage collector. Memory ownership follows the rules enforced at co
 | AST → IR lowering        | search `fn lower_fn`, `fn lower_stmt`, `fn lower_expr` |
 | Optimizer                | search `fn opt_fn`, `fn opt_fold_block` (constant folding / algebraic), `fn opt_cse_block` (CSE), `fn opt_dce_block` (DCE), `fn opt_prop_block` (copy prop), `fn opt_dead_store_block` |
 | LLVM emission            | search `fn emit_fn`, `fn emit_inst`, `fn emit_externs`, `fn nr_type_to_llvm`, `fn escape_llvm_str` |
-| Builtin name mapping     | `fn get_rt_name(name: str) -> str` (line 2004 as of v0.2.129; the long string of `__nucleor_*` mappings runs from there for several hundred lines) |
+| Builtin name mapping     | `fn get_rt_name(name: str) -> str` (search for the function declaration; the long string of `__nucleor_*` mappings runs from there for several hundred lines). |
 | The CLI                  | `compiler/nucleor_tools_suite.nr` — subcommand dispatch, `nuc test`, `nuc perf`, etc. |
 | The clang invocation     | search `fn link_native_module`, `fn llvm_clang_path` |
