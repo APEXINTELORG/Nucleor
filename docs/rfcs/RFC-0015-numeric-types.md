@@ -182,6 +182,48 @@ A `Vec<u8>` of length 1024 occupies 1024 bytes, not 8192.
 | NUM-004 | f8/f16/bf16 op without hardware support (warning, falls back to f32) |
 | NUM-005 | `usize`/`isize` mixed with explicit-width type |
 
+### 3.10 Mixed-width amendment (v1.0.1, audit pass 1, F-NUM-004)
+
+**Status (v1.0.1):** opt-in / advisory only.
+
+The audit-pass-1 finding F-NUM-004 noted that NUM-001's "mixed-width
+arithmetic without cast" rule is documented as a hard-error rule in
+§3.2 (the type lattice tightens i8 + i16 etc.) but the live compiler
+ships it as **warning + integer-promotion** for the common shapes
+(i32 + i64 → i64, i8 + i64 → i64) to keep adopter migration tractable.
+Strict enforcement under `NUC_STRICT_NUMERIC=1` is wired by Lane 1 via
+TYP-044 at the let-binding site (RFC-0062 §G-3 reference).
+
+The fix-direction the audit recommended was either:
+
+(a) Promote NUM-001 to error severity by default and run a stdlib +
+    fixture migration sweep (~hundreds of files affected by the
+    integer-promotion latitude shipped pre-v1.0).
+
+(b) Amend RFC-0015 §3.2 to acknowledge the documented type-lattice
+    rule is partially advisory in v1.0; per-pair coercion table
+    documents which mixes are accepted vs rejected; promote pair-by-pair
+    in subsequent ships rather than as a flag-day flip.
+
+**v1.0.1 ships option (b).** The amendment:
+
+1. The `i8 + i16 → invalid` row of §3.2 is restated as: "v1.0 accepts
+   `i32 + i64`, `i8 + i64`, `u8 + u64` and similarly-narrower-to-i64
+   promotions silently with implicit sign-/zero-extend. Other mixes
+   (e.g. `i32 + u32`, `i64 + f64`, `i32 + i16`) emit NUM-001 at warning
+   severity and trigger a typed-cast suggestion."
+2. `NUC_STRICT_NUMERIC=1` upgrades NUM-001 to error severity and
+   activates the TYP-044 narrow-cast check at let-binding sites.
+3. v1.0.2+ ships per-pair promotion to error per the audit's intent,
+   with each promotion gated by a stdlib migration sweep for that
+   pair.
+
+The lattice strictness in §3.2 documents the *eventual* state; the
+v1.0 surface honors the looser warning model with an explicit opt-in
+to strict. F-NUM-004 closure: this amendment.
+
+
+
 ---
 
 ## 4. Implementation
