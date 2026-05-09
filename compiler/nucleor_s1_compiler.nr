@@ -356,6 +356,22 @@ fn lex(src: str) -> Vec<i32> {
                     str_concat(", body length ", str_from_int(body_len))));
             };
         }
+        else if c == 35 && p + 1 < slen && (str_char_at(src, p + 1) == 99 || str_char_at(src, p + 1) == 108)
+            && ((p + 6 < slen && str_eq_at(src, p, "#cfile") == 1)
+                || (p + 5 < slen && str_eq_at(src, p, "#link") == 1)
+                || (p + 8 < slen && str_eq_at(src, p, "#libpath") == 1)) {
+            // v1.0.1 (audit-pass-1 integrator): native-link directives
+            // `#cfile "..."`, `#link <ident>`, `#link_windows "..."`,
+            // `#libpath "..."`. Pre-Lane-4 the lexer's silent-skip
+            // accidentally tolerated these lines (the leading `#` got
+            // dropped, leaving an ident + string that the parser
+            // ignored as stray top-level garbage). With Lane 4's
+            // LEX-001 byte rejection, the bare `#` now produces an
+            // error. extract_directives runs much later (at link time)
+            // so the line is still in the source when lex walks it.
+            // Skip the entire line at the lexer.
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        }
         else if c == 35 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
             // Rust-style outer attribute: #[name], #[name(args)], #[name = val].
             // Lex-time skip with quoted-string + bracket-depth awareness.
