@@ -6185,6 +6185,28 @@ long long __nucleor_compile_src_clear(void) {
     return 0;
 }
 
+// Lane 4 / F-002: parse recursion depth side table. Single-threaded
+// by design (matches g_compile_src). Used by parse_expr / parse_stmt /
+// parse_if / parse_primary to bail with PARSE-DEPTH-001 before hitting
+// the OS stack-overflow at ~3000-4000 nested levels (reproducer:
+// audit_scratch_lexer_parser/deep_if_4000.nr).
+static long long g_parse_depth = 0;
+long long __nucleor_parse_depth_inc(void) {
+    g_parse_depth = g_parse_depth + 1;
+    return g_parse_depth;
+}
+long long __nucleor_parse_depth_dec(void) {
+    if (g_parse_depth > 0) g_parse_depth = g_parse_depth - 1;
+    return g_parse_depth;
+}
+long long __nucleor_parse_depth_get(void) {
+    return g_parse_depth;
+}
+long long __nucleor_parse_depth_reset(void) {
+    g_parse_depth = 0;
+    return 0;
+}
+
 // === HashMap iteration (RFC-0017 stdlib enrichment) ===
 // hashmap_keys(h)   -> Vec<str>  : every occupied slot's key (newly strdup'd)
 // hashmap_values(h) -> Vec<i64>  : every occupied slot's value (in same order

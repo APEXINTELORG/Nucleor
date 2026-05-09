@@ -6,7 +6,13 @@ This document describes the Nucleor language as implemented by the self-hosted c
 
 ### 1.1 Source encoding
 
-Source files are UTF-8. Line endings may be `\n` or `\r\n`.
+Source files are UTF-8. Line endings may be `\n` or `\r\n`. Bare carriage-returns (CR / 0x0D not followed by LF) are rejected with `LEX-CR-ONLY`. NUL bytes (0x00) embedded in source are rejected with `LEX-002` (pre-fix, the file was silently truncated at the first NUL via C-string semantics).
+
+A UTF-8 byte-order-mark (`EF BB BF`) at the start of a file is silently consumed; embedded BOMs / zero-width spaces / smart-quotes / RTL bytes mid-source are rejected with `LEX-001` (pre-fix, every non-ASCII byte was silently dropped — a known supply-chain attack vector, CVE-2021-42574 family).
+
+String literals may contain a raw newline (the resulting `str` includes the LF byte). String literals are NOT terminated by EOF — an unterminated string literal at end-of-file is a hard error.
+
+`fn` / `let` / `return` etc. are reserved words (§1.5) and cannot be used as binding names. The set of reserved words is small; any of the words listed in §1.5 used in a binding-name slot is rejected at parse time with `PARSE-LET-001`.
 
 ### 1.2 Comments
 
@@ -52,22 +58,39 @@ and [UPGRADE_v0.4.241.md](UPGRADE_v0.4.241.md) for migration
 details. The mixed-width-arithmetic warning NUM-001 is now
 emitted directly during type-check.)
 
-String escape sequences: `\n`, `\r`, `\t`, `\\`, `\"`.
+String escape sequences (recognised by the lexer): `\n`, `\r`, `\t`, `\\`, `\"`, `\'`, `\0`. Any other backslash sequence inside a string literal (e.g. `\v`, `\x...`, `\u{...}`) is a hard error (`NR025`).
+
+Numeric-literal hygiene rules (Lane 4 audit close, F-016 through F-024):
+
+- `0x` / `0o` / `0b` prefixes require at least one digit (`LEX-NUM-003` if missing).
+- Underscores must separate digits — leading underscore (`0x_1`), consecutive underscores (`1__2`), and trailing underscore not followed by a numeric/`as`-cast suffix (`100_;`) are rejected (`LEX-NUM-001`/`002`/`004`).
+- Hex/octal/binary literals exceeding the u64 width are rejected as `NUM-021` (mirrors the existing decimal check; pre-fix hex silently wrapped).
+- A leading-zero decimal (`007`) is rejected (`LEX-NUM-005`) because Nucleor does not have C-style octal — adopters porting C/Java code who expect octal semantics get a clean diagnostic.
+- An integer literal followed immediately by an alphabetic character that is not a recognised type suffix (`i8`/`i16`/`i32`/`i64`/`i128`/`isize`/`u8`/`u16`/`u32`/`u64`/`u128`/`usize`) is rejected (`LEX-NUM-SUFFIX`); pre-fix `1z42` silently dropped `z42` as a stray identifier.
+- Float literals that overflow IEEE-754 finite range (`1e400`) are rejected (`LEX-NUM-FLOAT-OVERFLOW`); pre-fix the resulting Inf/NaN bit pattern was stored silently.
 
 ### 1.5 Keywords
 
-`fn`, `let`, `mut`, `return`, `if`, `else`, `while`, `match`, `struct`, `enum`, `import`, `extern`, `pub`, `true`, `false`.
+`fn`, `let`, `mut`, `return`, `if`, `else`, `while`, `for`, `in`, `match`, `loop`, `break`, `continue`, `struct`, `enum`, `trait`, `impl`, `where`, `as`, `const`, `type`, `import`, `use`, `mod`, `extern`, `pub`, `pure`, `true`, `false`.
+
+The lexer recognises `dyn` and `move` as contextual keywords (only meaningful in trait-object-type and closure positions respectively); see §6 / §3.1 for usage. Any of the above words used as a binding name (`let fn: i64 = 5;`) is rejected with `PARSE-LET-001` rather than silently shadowed.
 
 ### 1.6 Operators
 
 | Category | Operators |
 |---|---|
-| Arithmetic | `+`, `-`, `*`, `/` |
+| Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=` |
 | Logical | `&&`, `||`, `!` |
+| Bitwise | `&`, `|`, `^`, `<<`, `>>` |
+| Compound assignment | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` |
+| Postfix | `++`, `--` (statement form only — desugars to `x = x + 1` / `x = x - 1`) |
+| Range | `..`, `..=` (only in for-loop heads — see §6) |
 | Assignment | `=` |
 | Field access | `.` |
 | Path | `::` (e.g. `Option::Some`, `Vec::new`) |
+| Closure pipe | `|` ... `|` (closure parameter delimiter) |
+| Postfix Result/Option propagation | `?` |
 
 ## 2. Types
 
@@ -94,7 +117,7 @@ fn name(p1: T1, p2: T2, ...) -> ReturnType {
 ```
 
 - Every parameter requires a type annotation.
-- Every function requires a return type. `void`-returning functions return `()` (rare; most `void` cases are modeled as `-> i64` returning `0`).
+- Functions may omit `-> ReturnType`, in which case the implicit return type is `()` (the unit / void type). The compiler accepts both `fn helper() { ... }` and `fn helper() -> () { ... }`. Most non-trivial functions declare a return type explicitly, and the audit recommends the explicit form for adopter clarity (the `-> ReturnType` shape is mandatory in adopter-facing documentation generators, e.g. `nuc explain`). v0.2-era versions of this spec required `-> ReturnType`; v1.0 relaxes this to match the implementation (Lane 4 audit, F-041 doc drift).
 - Functions are first-class: a function name evaluated outside of a call expression yields a function pointer (`i64`).
 
 ### 3.1 Closures

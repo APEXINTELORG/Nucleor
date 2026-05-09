@@ -224,6 +224,11 @@ fn classify(name: str) -> str {
         return "Introspection";
     };
 
+    // ToolingMeta — compiler self-introspection (parse-depth recursion guard, etc.)
+    if str_starts_with(bare, "parse_depth_") == 1 {
+        return "ToolingMeta";
+    };
+
     // ADT
     if str_starts_with(bare, "option_") == 1
         || str_starts_with(bare, "result_") == 1 {

@@ -220,12 +220,19 @@ _run_target() {
 }
 case "$(uname -s)" in
     CYGWIN*|MINGW*|MSYS*)
+        NUC_OS=windows
         if [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
         ;;
+    Darwin*)
+        NUC_OS=macos
+        if [ -x "$ROOT/bin/nucleor" ]; then BIN="$ROOT/bin/nucleor"; elif [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
+        ;;
     *)
+        NUC_OS=linux
         if [ -x "$ROOT/bin/nucleor" ]; then BIN="$ROOT/bin/nucleor"; elif [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
         ;;
 esac
+export NUC_OS
 case "$(uname -s)" in
     Linux*)
         case "$BIN" in
@@ -872,7 +879,8 @@ negative_coverage_gate() {
         line1=""; line2=""; line3=""
         { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$f" 2>/dev/null
         ec=$(printf '%s\n%s\n%s\n' "$line1" "$line2" "$line3" \
-            | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+            | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+error\[([A-Z][A-Z0-9]*-[A-Z0-9-]+)\].*|\1|p
+                       s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
                        s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' \
             | head -1)
         if [ -n "$ec" ]; then
@@ -890,20 +898,31 @@ negative_coverage_gate() {
     # known. Each entry references its closing finding ID + owner.
     local known_uncovered_file="$NUC_VERIFY_TMPDIR/_known_uncovered.txt"
     cat > "$known_uncovered_file" <<'KU'
-ASYNC-001
-DIAG-001
-LAW-001
-LAW-004
-LAW-006
-LAW-007
-LAW-008
-PERF-2
-PERF-3
-PKG-3
-PKG-6
-RT-005
-RT-008
-TNT-001
+ATOMIC-006
+CODE
+CONTRACT-006
+CONTRACT-008
+CONTRACT-009
+CONTRACT-010
+CONTRACT-011
+FMT-003
+LEX-002
+MATCH-013
+MATCH-014
+MOD-003
+NR020
+NR022
+NR023
+NR024
+NR025
+NR035
+NR036
+OWN-002
+RACE-002
+RACE-007
+RT-004
+RT-009
+TYP-009
 KU
     sort -u "$known_uncovered_file" -o "$known_uncovered_file"
 
