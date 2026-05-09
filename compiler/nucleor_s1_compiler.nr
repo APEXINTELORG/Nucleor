@@ -41033,11 +41033,14 @@ fn content_hash(s: str) -> str {
 
 #[manual_drop]
 fn compiler_version_label() -> str {
-    return "1.0.1";
+    return "1.0.3";
     // History: 0.2.0-v2 → 0.3.134 → 0.4.180 (caught up from 0.4.21) →
     // 0.8.322 (caught up from 0.4.180) → 0.8.323 (RFC-0063 Phase 1) →
     // 1.0.0 (RFC-0062 hard-error closure G-1..G-11) → 1.0.1
-    // (audit-pass-1 hardening sweep, 244 findings, 7 fix lanes).
+    // (audit-pass-1 hardening sweep, 244 findings, 7 fix lanes) →
+    // 1.0.2 (audit residual close, label-skip cut) → 1.0.3
+    // (cold-compile str_substring regression fix; 22 s → 6 s on
+    // Linux, ~5.8× faster).
     // tools/check_compiler_drift.sh enforces parity with the latest
     // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
 }
