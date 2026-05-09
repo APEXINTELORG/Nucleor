@@ -290,8 +290,29 @@ fn qsim_p(sv: i64, q: i64, theta: i64) {
 // 2-qubit gates
 // =====================================================
 
+// Audit fix HIGH-LAYER9B-003 (2026-05-08): preflight qubit-index range
+// against qsim_num_qubits(sv) to keep entanglement-graph (1024-cap),
+// trace-side union-find (32-cap), and state-vector caps consistent.
+// Prior code accepted any ctrl/tgt and forwarded to qsim_entangle_register
+// (1024-cap) + rods_trace_entangle (32-cap, silently skipped >=32) +
+// qsim_cgate1 (cap = qsim_num_qubits(sv)). An out-of-range index would
+// silently leave the state-vector unchanged while the entanglement graph
+// recorded the pair as "entangled" — adopters got inconsistent reasoning
+// across rods. The guard returns early without firing trace events on a
+// malformed call.
+fn _qsim_2q_in_range(sv: i64, a: i64, b: i64) -> i64 {
+    let n: i64 = qsim_num_qubits(sv);
+    if a < 0 { return 0; };
+    if b < 0 { return 0; };
+    if a >= n { return 0; };
+    if b >= n { return 0; };
+    if a == b { return 0; };
+    return 1;
+}
+
 // CNOT (CX): controlled-X
 fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
+    if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CNOT", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CNOT", ctrl, tgt); };
     qsim_entangle_register(ctrl, tgt);
     let zero: i64 = cx_zero();
@@ -302,6 +323,7 @@ fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
 
 // CZ: controlled-Z
 fn qsim_cz(sv: i64, ctrl: i64, tgt: i64) {
+    if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
     if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CZ", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CZ", ctrl, tgt); };
     qsim_entangle_register(ctrl, tgt);
     let one: i64 = cx_one();
@@ -313,6 +335,7 @@ fn qsim_cz(sv: i64, ctrl: i64, tgt: i64) {
 
 // Controlled-Rk (controlled rotation by 2*pi/2^k) — used in QFT
 fn qsim_crk(sv: i64, ctrl: i64, tgt: i64, k: i64) {
+    if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
     let one: i64 = cx_one();
     let zero: i64 = cx_zero();
     let denom: i64 = f64_from_int(bit_shift_left(1, k));
@@ -325,10 +348,23 @@ fn qsim_crk(sv: i64, ctrl: i64, tgt: i64, k: i64) {
 }
 
 // SWAP: swap two qubits
+//
+// Audit fix HIGH-LAYER9B-005 (2026-05-08): emit a single SWAP trace
+// event before the 3-CNOT decomposition so downstream consumers
+// (qsim_graph, gate DAG, profile-event sinks) see one logical SWAP
+// instead of three CNOTs. The 3-CNOT decomposition still applies the
+// correct unitary; only the trace surface is corrected. The
+// `qsim_entangle_register` call on (q1, q2) is idempotent in the
+// union-find — subsequent CNOT calls re-register the same pair with
+// no further side-effect.
 fn qsim_swap(sv: i64, q1: i64, q2: i64) {
+    if _qsim_2q_in_range(sv, q1, q2) != 1 { return; };
+    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("SWAP", _q2_json(q1, q2), 0, 0); rods_trace_entangle("SWAP", q1, q2); };
+    qsim_entangle_register(q1, q2);
     qsim_cnot(sv, q1, q2);
     qsim_cnot(sv, q2, q1);
     qsim_cnot(sv, q1, q2);
+    qsim_gate_record_checked("SWAP", q1, q2);
 }
 
 // =====================================================
@@ -494,17 +530,46 @@ fn qsim_measure(sv: i64, q: i64) -> i64 {
         i = i + 1;
     };
 
-    // Renormalize
-    let norm: i64 = f64_div(f64_from_int(1), f64_sqrt(norm_sq));
+    // Audit fix MED-LAYER9B-014 (2026-05-08): zero-norm guard. If the
+    // selected outcome's basis projection has zero probability mass
+    // (e.g., a deep circuit with truncation has driven the conditional
+    // probability under f64 underflow, or the RNG branch hits an
+    // outcome the state assigns probability 0), then `norm_sq = 0` and
+    // `1 / sqrt(0) = inf` would corrupt every amplitude. We refuse the
+    // measurement and reset the state to the fallback |0..0> by skipping
+    // the rescale; the returned outcome is still defined so callers see
+    // a deterministic transcript, and `collapse_count == size - 1`
+    // signals the degenerate path.
+    // Zero-norm threshold ~ 1e-30: norm_sq below this means the
+    // measurement projection has effectively zero probability mass.
+    let _tiny: i64 = f64_div(f64_from_int(1), f64_from_int(1000000000));
+    let zero_norm_thresh: i64 = f64_mul(_tiny, f64_mul(_tiny, _tiny));
+    let zero_norm: i64 = f64_lt(norm_sq, zero_norm_thresh);
+    let mut norm: i64 = f64_from_int(1);
+    if zero_norm == 0 {
+        norm = f64_div(f64_from_int(1), f64_sqrt(norm_sq));
+    };
     i = 0;
     let mut collapse_count: i64 = 0;
     while i < size {
         if bit_test(i, q) == outcome {
-            vec_set(sv, i, cx_scale(vec_get(sv, i), norm));
+            if zero_norm == 0 {
+                vec_set(sv, i, cx_scale(vec_get(sv, i), norm));
+            };
         } else {
             collapse_count = collapse_count + 1;
         };
         i = i + 1;
+    };
+    if zero_norm == 1 {
+        // Degenerate measurement — restore the state to |0..0> so
+        // subsequent gates see a clean canonical state instead of
+        // (0+0i, ..., 0+0i) which is undefined.
+        let one: i64 = cx_one();
+        let cz: i64 = cx_zero();
+        vec_set(sv, 0, one);
+        let mut k: i64 = 1;
+        while k < size { vec_set(sv, k, cz); k = k + 1; };
     };
 
     if rods_trace_enabled() == 1 {

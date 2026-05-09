@@ -1,5 +1,13 @@
 // rust_interop.nr — Rust regex + base64 via rust_bridge
 // Requires: cd stdlib/rods/rust_bridge && cargo build --release
+//
+// Audit fix CRIT-LAYER9B-002 (2026-05-08): Every `*const c_char` returned
+// by the Rust bridge transfers heap ownership to the caller via
+// `CString::into_raw()` — caller MUST pass the exact pointer back to
+// `rust_free_str` to reclaim. Prior version of this test leaked the
+// `enc`/`dec` allocations on every invocation, normalizing a bad pattern
+// for downstream copyers. The reclaim calls below preserve the canonical
+// adopter pattern.
 import "stdlib/rods/rust.nr"
 
 fn main() -> i64 {
@@ -26,6 +34,10 @@ fn main() -> i64 {
         print(str_concat("FAIL rust: base64 decode = ", dec));
         fail = fail + 1;
     };
+    // Reclaim heap allocations transferred from Rust by `into_raw()`.
+    // Skipping these calls leaks one CString per round trip.
+    rust_free_str(enc);
+    rust_free_str(dec);
 
     if fail == 0 { print("OK rust_interop"); return 0; };
     return 1;

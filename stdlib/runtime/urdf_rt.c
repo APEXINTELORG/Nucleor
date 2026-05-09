@@ -248,9 +248,38 @@ long long nuc_urdf_parse(long long h, long long src_ptr) {
     while (cursor < end) {
         const char *jstart = _find_elem(cursor, end, "joint");
         if (!jstart) break;
-        // Find the joint element's closing `</joint>` or `/>` (self-closing — rare).
-        const char *jend = strstr(jstart, "</joint>");
-        if (!jend) jend = end;
+        // Audit fix HIGH-LAYER9B-007 (2026-05-08): handle self-closing
+        // `<joint .../>` and detect a genuinely missing `</joint>` close
+        // tag. Prior code fell back to `jend = end`, which silently
+        // absorbed every subsequent sibling element (`<link>`, `<joint>`,
+        // ...) into the current malformed joint. Now self-closing tags
+        // bound `jend` at the `/>`, and a truly unclosed tag (no `</joint>`
+        // and no self-close `/>` inside the open tag) signals end-of-input
+        // for that joint and stops the scan to avoid silent absorption.
+        const char *open_end_tag = strchr(jstart, '>');
+        // Detect self-close: `/>` immediately precedes the first `>`.
+        int self_closed = 0;
+        if (open_end_tag && open_end_tag > jstart && *(open_end_tag - 1) == '/') {
+            self_closed = 1;
+        }
+        const char *jend;
+        int advance_past_close;
+        if (self_closed) {
+            // Self-closing joint: `<joint name="..." .../>` — bound jend
+            // to the `>` so subsequent siblings are reachable. Advance
+            // cursor by 1 (past `>`).
+            jend = open_end_tag;
+            advance_past_close = 1;
+        } else {
+            const char *close = strstr(jstart, "</joint>");
+            if (!close) {
+                // Genuinely malformed: no `</joint>` and not self-closing.
+                // Stop scanning to avoid the silent-absorption hazard.
+                break;
+            }
+            jend = close;
+            advance_past_close = 8;  // strlen("</joint>")
+        }
 
         // Grow joints array if needed.
         if (u->n_joints >= u->cap_joints) {
@@ -260,13 +289,17 @@ long long nuc_urdf_parse(long long h, long long src_ptr) {
         }
         _URDFJoint *j = &u->joints[u->n_joints];
         memset(j, 0, sizeof(*j));
-        // Defaults: identity transform, z-axis revolute.
-        j->axis[2] = 1.0;
+        // Audit fix CRIT-LAYER9B-001 (CRITICAL, 2026-05-08): URDF spec
+        // default joint axis is `(1, 0, 0)` (x-axis) per
+        // http://wiki.ros.org/urdf/XML/joint — prior `(0, 0, 1)` produced
+        // wrong FK end-effector poses for any URDF lacking explicit
+        // `<axis>`. Now matches spec and ROS robot_description loaders.
+        j->axis[0] = 1.0;
         j->joint_type = _URDF_REVOLUTE;
 
         // Parse name + type from the joint opening tag.
         const char *open_close = strchr(jstart, '>');
-        if (!open_close || open_close > jend) { cursor = jend + 8; continue; }
+        if (!open_close || open_close > jend) { cursor = jend + advance_past_close; continue; }
         char buf[128];
         if (_find_attr(jstart - 1, open_close, "name", buf, sizeof(buf))) {
             _copy_attr_value(j->name, (int)sizeof(j->name), buf);
@@ -342,7 +375,7 @@ long long nuc_urdf_parse(long long h, long long src_ptr) {
 
         u->n_joints++;
         parsed++;
-        cursor = jend + 8;  // past "</joint>"
+        cursor = jend + advance_past_close;  // past "</joint>" or past "/>"
     }
     return (long long)parsed;
 }
