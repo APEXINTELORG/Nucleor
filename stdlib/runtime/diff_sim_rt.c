@@ -405,7 +405,7 @@ void nuc_diff_gate(long long handle, long long gate_type, long long q0, long lon
 long long nuc_diff_extract(long long handle) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
     int nc = ds->n_cores, na = ds->n_amps;
     int n_noisy = nc - 1;
@@ -604,7 +604,7 @@ void nuc_diff_backward(long long handle, long long grad_loss_bits) {
 long long nuc_diff_get_logits(long long handle) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     int n_noisy = ds->n_cores - 1;
     int total = n_noisy * ds->n_gates;
     NVec *v = (NVec *)malloc(sizeof(NVec));
@@ -619,7 +619,7 @@ long long nuc_diff_get_logits(long long handle) {
 long long nuc_diff_get_grad_logits(long long handle) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     int n_noisy = ds->n_cores - 1;
     int total = n_noisy * ds->n_gates;
     NVec *v = (NVec *)malloc(sizeof(NVec));
@@ -634,7 +634,7 @@ long long nuc_diff_get_grad_logits(long long handle) {
 void nuc_diff_set_logits(long long handle, long long vec) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec;
     int n_noisy = ds->n_cores - 1;
     for (int ci = 0; ci < n_noisy; ci++)
@@ -769,7 +769,7 @@ static double ds_entropy_grad_dp(double *pre_sv, int nq, int na, double p) {
 void nuc_diff_backward_perfeature(long long handle, long long grad_input_vec) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *grad_input = (NVec *)(void *)grad_input_vec;
 
     int na = ds->n_amps, nc = ds->n_cores;
@@ -952,7 +952,7 @@ long long nuc_diff_reset_cached(long long handle) {
 long long nuc_diff_gate_importance(long long handle) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->len = ds->n_gates; v->cap = ds->n_gates;
@@ -1034,7 +1034,7 @@ void nuc_diff_backward_selective(long long handle, long long grad_loss_bits, lon
 long long nuc_diff_export_prior(long long handle) {
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
     int n_noisy = ds->n_cores - 1;
     double sum_1q = 0, sum_2q = 0, ssq_1q = 0, ssq_2q = 0;
@@ -1073,7 +1073,7 @@ long long nuc_diff_sim_init_from_prior(long long nq, long long n_cores, long lon
     DiffSim *ds = (DiffSim *)(void *)handle;
     if (!ds) return 0;
 
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *prior = (NVec *)(void *)prior_vec;
     if (!prior || prior->len < 4) return handle;
 
@@ -1175,7 +1175,7 @@ long long nuc_diff_get_sv(long long handle, long long core) {
     if (!ds) return 0;
     int c = (int)core;
     if (c < 0 || c >= ds->n_cores) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->cap = ds->n_amps * 2 + 4;
     v->len = 0;
@@ -1195,7 +1195,7 @@ long long nuc_diff_get_probs(long long handle, long long core) {
     if (!ds) return 0;
     int c = (int)core;
     if (c < 0 || c >= ds->n_cores) return 0;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->cap = ds->n_amps + 4;
     v->len = 0;

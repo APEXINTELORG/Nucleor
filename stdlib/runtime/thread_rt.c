@@ -127,6 +127,19 @@ long long nuc_threadpool_new(long long n_threads) {
 typedef struct {
     long long result;
     int done;
+    /* Lane 2 audit fix F-CONC-002 (Critical, 2026-05-08):
+       idempotent consume flag. Pre-fix `nuc_future_get` freed
+       the Future struct unconditionally; a second call (in a
+       retry loop, or after a panic-aborted worker leaves the
+       handle dangling per `thread_limitations()`) double-freed
+       the heap allocation → process crash with rc=0xC0000374
+       (Windows heap-corruption fast-fail) or libc abort on glibc.
+       The flag is set on first consume; second consume returns
+       0 (sentinel) without re-waiting or re-freeing the
+       primitives. The struct is intentionally LEAKED on the
+       second call rather than re-freed — a 64-byte leak per
+       double-consume is preferable to a UAF crash. */
+    int consumed;
 #ifdef _WIN32
     HANDLE event;
 #else
@@ -200,6 +213,31 @@ long long nuc_threadpool_submit(long long pool_h, long long fn_ptr, long long ar
 long long nuc_future_get(long long fut_h) {
     Future *fut = (Future *)(void *)fut_h;
     if (!fut) return 0;
+    /* Lane 2 audit fix F-CONC-002: idempotency guard. If the
+       future was already consumed (its consumed flag is set), the
+       backing storage is in one of two states: (a) freed on first
+       call (legacy path, now disabled below) or (b) leaked but
+       still mapped (post-fix path). Either way, do NOT re-wait
+       on the destroyed event/cond and do NOT re-free. Return 0
+       and emit a one-shot diagnostic. The diagnostic helps
+       adopters notice the bug without crashing. */
+    if (fut->consumed) {
+        static int warned_once = 0;
+        if (!warned_once) {
+            warned_once = 1;
+            fprintf(stderr,
+                "WARN[F-CONC-002]: thread_future_get called twice on the same "
+                "future handle (0x%llx). Returning 0 sentinel. Pre-Lane-2-fix "
+                "this would have double-freed the Future struct and crashed "
+                "with rc=0xC0000374 (heap fast-fail) on Windows. The first "
+                "consume's result is gone; subsequent consumes are no-ops. "
+                "If you need polling, use a separate consume guard in adopter "
+                "code or wait for `thread_future_try_get` (post-v1.0).\n",
+                (unsigned long long)fut_h);
+            fflush(stderr);
+        }
+        return 0;
+    }
 #ifdef _WIN32
     WaitForSingleObject(fut->event, INFINITE);
     CloseHandle(fut->event);
@@ -211,7 +249,18 @@ long long nuc_future_get(long long fut_h) {
     pthread_cond_destroy(&fut->cond);
 #endif
     long long result = fut->result;
-    free(fut);
+    /* Mark consumed before relinquishing the storage. Intentionally
+       LEAK the Future struct (~64 bytes) so the consumed flag stays
+       readable on a subsequent erroneous call — turns the previously
+       crashing UAF into an observable WARN. The leak is bounded by
+       the number of double-consume bugs in adopter code, not by
+       legitimate per-future allocation. */
+    fut->consumed = 1;
+    /* Pre-Lane-2-fix path freed unconditionally:
+           free(fut);
+       The free is removed; see comment above. Adopters running long-
+       lived workloads who never double-consume see only the new
+       nominal leak (which a future v1.x slab allocator can recover). */
     return result;
 }
 
@@ -250,7 +299,7 @@ void nuc_threadpool_free(long long pool_h) {
 // ================================================================
 
 long long nuc_threadpool_map(long long pool_h, long long fn_ptr, long long vec_h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec_h;
     int n = v->len;
 

@@ -595,7 +595,7 @@ long long nuc_mps_total_svd_negative_clamps(long long handle) {
 // Extract features: max bond dimension, mean entropy
 long long nuc_mps_extract(long long handle) {
     MPS *mps = (MPS *)(void *)handle;
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
     // Max bond dimension
     int max_b = 0;

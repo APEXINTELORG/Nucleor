@@ -150,7 +150,7 @@ long long nuc_map_len(long long handle) {
 
 // Returns Vec of key strings (as Nucleor Vec<str>)
 long long nuc_map_keys(long long handle) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     HashMap *m = (HashMap *)(void *)handle;
     if (!m) return 0;
     NVec *v = (NVec *)malloc(sizeof(NVec));

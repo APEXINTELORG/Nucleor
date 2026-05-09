@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 // Forward-declare NVec layout (matches nucleor_llvm_rt.c / nucleor_rt)
-typedef struct { long long *data; int len; int cap; } NVec;
+/* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
 void __nucleor_vec_push(NVec *v, long long x);
 long long __nucleor_vec_get(NVec *v, long long i);

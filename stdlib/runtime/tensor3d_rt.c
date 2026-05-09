@@ -149,7 +149,7 @@ long long nuc_t3_new(long long d1, long long d2, long long d3) {
 // validation, total overflow check. Same hazard class as
 // v0.3.225's nuc_t3_new fix.
 static long long nuc_t3_new_nd_typed(long long shape_h, int dtype) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *sh = (NVec *)(void *)shape_h;
     if (!sh) {
         fprintf(stderr, "PANIC: nuc_t3_new_nd: null shape handle\n");
@@ -313,7 +313,7 @@ void nuc_t3_fill(long long h, long long val_bits) {
 // ================================================================
 
 long long nuc_t3_reshape(long long h, long long shape_h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     Tensor3D *src = (Tensor3D *)(void *)h;
     NVec *sh = (NVec *)(void *)shape_h;
 
@@ -498,7 +498,7 @@ long long nuc_t3_transpose(long long h) {
 }
 
 long long nuc_t3_permute(long long h, long long axes_h) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     Tensor3D *src = (Tensor3D *)(void *)h;
     NVec *axes = (NVec *)(void *)axes_h;
     if (!src || !axes) return 0;

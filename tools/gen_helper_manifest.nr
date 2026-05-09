@@ -313,7 +313,8 @@ fn classify(name: str) -> str {
         || str_eq(bare, "memcpy") == 1
         || str_eq(bare, "calloc") == 1
         || str_starts_with(bare, "capture_") == 1
-        || str_starts_with(bare, "dyn_box_") == 1 {
+        || str_starts_with(bare, "dyn_box_") == 1
+        || str_eq(bare, "ptr_is_null") == 1 {
         return "Allocation";
     };
 

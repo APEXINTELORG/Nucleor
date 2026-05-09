@@ -1462,6 +1462,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    // Lane 2 audit fix (2026-05-08) — G-5 prescribed ptr_is_null builtin.
+    if str_eq(name, "ptr_is_null") { return "__nucleor_ptr_is_null"; };
     // Lane 1 audit fix (2026-05-08) — close C-002, C-003. Mirror of the
     // s1 entries; keeps tools-suite ABI tables in sync per the
     // check_compiler_drift gate.
@@ -2861,6 +2863,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
+    // Lane 2 audit fix (2026-05-08) — G-5 prescribed ptr_is_null builtin.
+    sb_append(sb, "declare i64 @__nucleor_ptr_is_null(i64)\n");
     // Lane 1 audit fix (2026-05-08) — close C-002 / C-003 (u64 helpers).
     sb_append(sb, "declare i64 @__nucleor_panic_shr_u64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_div_u64(i64, i64)\n");

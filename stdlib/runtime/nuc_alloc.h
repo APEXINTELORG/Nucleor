@@ -40,6 +40,15 @@
 #include <execinfo.h>
 #endif
 
+/* Lane 2 audit fix (A1, 2026-05-08): single-source NVec layout.
+   Force-include the canonical NVec definition into every C TU so
+   the ~200 sister `*_rt.c` files all see the same 32-byte struct
+   with `inline_data[2]`. Pre-fix, divergent local typedefs
+   without `inline_data` caused 24-byte allocations that the
+   canonical helpers later read as 32-byte (latent UB at the
+   hottest single ABI type in the runtime). */
+#include "nvec.h"
+
 /* Per-TU cache of the env lookup. The env value is read once on
    first call inside each TU and reused. The function is static so
    each TU gets its own copy (fine -- the answer is identical). */

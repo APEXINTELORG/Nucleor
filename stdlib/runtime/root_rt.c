@@ -138,7 +138,7 @@ long long nuc_root_brent(long long f_ptr, long long a_bits, long long b_bits, lo
 
 long long nuc_root_system(long long F_ptr, long long J_ptr, long long x0_h, long long tol_bits) {
     typedef long long (*VecFn)(long long);
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     VecFn F = (VecFn)(void *)F_ptr;
     VecFn J = (VecFn)(void *)J_ptr;
     NVec *x0 = (NVec *)(void *)x0_h;

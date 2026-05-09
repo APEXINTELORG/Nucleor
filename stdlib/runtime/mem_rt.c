@@ -10,13 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-// NVec must match nucleor_llvm_rt.c exactly.
-typedef struct {
-    long long *data;
-    int len;
-    int cap;
-    long long inline_data[2];
-} NVec;
+/* Lane 2 audit fix A1 (2026-05-08): NVec definition single-sourced
+   in stdlib/runtime/nvec.h, force-included by clang via nuc_alloc.h.
+   Local redeclaration removed to prevent layout drift between this
+   TU and the canonical layout in nucleor_llvm_rt.c. */
 
 // Free a Vec and its data array. Handle becomes invalid after this call.
 void nuc_vec_free(long long handle) {

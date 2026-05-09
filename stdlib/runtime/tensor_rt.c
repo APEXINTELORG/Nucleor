@@ -162,7 +162,7 @@ long long nuc_mat_solve(long long a_handle, long long b_handle) {
 // vec_ptr is a Nucleor Vec handle, we read n_rows * n_cols values
 long long nuc_mat_from_vec(long long vec_ptr, long long n_rows, long long n_cols) {
     // Access Nucleor Vec internals (same layout as NVec in nucleor_llvm_rt.c)
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec_ptr;
     NMat *m = mat_alloc((int)n_rows, (int)n_cols);
     int total = (int)n_rows * (int)n_cols;
@@ -175,7 +175,7 @@ long long nuc_mat_from_vec(long long vec_ptr, long long n_rows, long long n_cols
 
 // Copy Vec of f64 into n x 1 matrix
 long long nuc_mat_from_vec_col(long long vec_ptr, long long n) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *v = (NVec *)(void *)vec_ptr;
     NMat *m = mat_alloc((int)n, 1);
     for (int i = 0; i < (int)n && i < v->len; i++) {
@@ -375,7 +375,7 @@ long long nuc_ridge_predict(long long model_handle, long long X_handle) {
 long long nuc_ridge_cv(long long X_vec, long long y_vec,
                         long long n_samples, long long n_feats,
                         long long k_folds, long long lambda_bits) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     NVec *xv = (NVec *)(void *)X_vec;
     NVec *yv = (NVec *)(void *)y_vec;
     tf64 lam; lam.i = lambda_bits;

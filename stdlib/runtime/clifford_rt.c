@@ -23,7 +23,7 @@ static double _mi2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); ret
 static long long _mf2i(double f) { long long i; memcpy(&i, &f, sizeof(long long)); return i; }
 
 // ---- Vec type (matches nucleor_llvm_rt.c, redeclared locally) ----
-typedef struct { long long *data; int len; int cap; } NVec;
+/* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
 
 static NVec *nvec_new(void) {
     NVec *v = (NVec *)malloc(sizeof(NVec));

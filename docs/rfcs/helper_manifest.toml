@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 902
+# Total helpers: 903
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -473,6 +473,20 @@ effects          = []
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "ptr_is_null"
+class            = "Allocation"
+symbol           = "__nucleor_ptr_is_null"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""

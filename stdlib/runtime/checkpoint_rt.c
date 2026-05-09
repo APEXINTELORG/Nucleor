@@ -41,7 +41,7 @@ long long nuc_ckpt_new(long long interval) {
 // ================================================================
 
 void nuc_ckpt_save(long long cs_h, long long layer_id, long long data_h, long long size) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     CheckpointStore *cs = (CheckpointStore *)(void *)cs_h;
     NVec *data = (NVec *)(void *)data_h;
     int lid = (int)layer_id, n = (int)size;
@@ -72,7 +72,7 @@ void nuc_ckpt_save(long long cs_h, long long layer_id, long long data_h, long lo
 // ================================================================
 
 long long nuc_ckpt_restore(long long cs_h, long long layer_id) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     CheckpointStore *cs = (CheckpointStore *)(void *)cs_h;
     int lid = (int)layer_id;
 
@@ -115,7 +115,7 @@ long long nuc_ckpt_nearest_before(long long cs_h, long long layer_id) {
 // ================================================================
 
 long long nuc_ckpt_recompute_range(long long cs_h, long long layer_id) {
-    typedef struct { long long *data; int len; int cap; } NVec;
+    /* NVec typedef removed Lane 2 audit fix A1 2026-05-08; canonical definition force-included via stdlib/runtime/nvec.h */
     long long nearest = nuc_ckpt_nearest_before(cs_h, layer_id);
     int start = (nearest >= 0) ? (int)nearest : 0;
     int end = (int)layer_id;
