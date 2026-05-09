@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] — 2026-05-09
+
+Cold-compile perf-regression fix. The Lane 6 audit ship in v1.0.2 widened
+`__nucleor_str_substring`'s bounds check to include `end <= strlen(s)`,
+turning a constant-time validator into an O(strlen) walk on the input
+string. The s1 lex/parse/type hot paths str_substring against the
+multi-MB resolved compiler source on every identifier, number-literal,
+and string-literal extraction, so the change quietly tripled the
+default-helper cost on every call. Cold self-host went from ~4 s
+(v1.0.0 Linux baseline) to ~22 s on Windows / ~26 s on Linux without
+the verify gate noticing — the verify smoke gate enforces FAIL=0,
+not a perf budget.
+
+### Diagnosis
+
+- Linux callgrind on the v1.0.2 cold compile recorded 33 B instructions,
+  21.3 B (64.64 %) of which were `__strlen_avx2` invocations from inside
+  `__nucleor_str_substring` — 287 989 calls × ~73 K bytes/strlen
+  averaging the multi-MB source string. The lex/resolve_source/emit
+  per-byte cost showed the same shape on Windows.
+- Per-phase (s1_compiler.nr cold, Linux x86_64, before fix):
+  resolve_source 6088 ms, lex 8177 ms, emit 3352 ms (4–143 × the
+  v1.0.0 baseline).
+
+### Fix
+
+- `__nucleor_str_substring` reverts the `end <= strlen(s)` walk on the
+  default fast path (mirrors v1.0.0). The opt-in `_strict` companion
+  retains the over-end heap-overread guard for adopters who want the
+  safety story documented in `docs/ffi-conventions.md` G-9. Same
+  precedent already documented in `str_eq_at` ("CRITICAL: do NOT call
+  str_len(source) here") and codified in the `str_char_at` default-vs-
+  strict pair shipped in v0.4.279.
+
+### Result
+
+- Linux self-host cold (s1_compiler.nr, 2.41 MB):
+  - before: total 25737 ms (resolve 6088 / lex 8177 / type 771 /
+    ownership 2506 / emit 3352)
+  - after:  total  4434 ms (resolve   72 / lex   62 / type 763 /
+    ownership 2503 / emit  191) — **5.8× faster**
+  - including clang link: 27 565 ms → 6 273 ms (4.4×).
+- Per-phase deltas vs v1.0.0 baseline:
+  - resolve_source 141 ms → 72 ms (sub-baseline)
+  - lex 62 ms → 62 ms (at baseline)
+  - emit 191 ms (baseline figure not separately reported in the brief)
+- Verify: `tools/verify_fast.sh` PASS=1493 SKIP=1 FAIL=55 — same FAIL
+  set as the pre-fix baseline (rust_bridge prebuilt unavailable in the
+  CI host, error-code format gaps in pre-existing negative tests, and
+  the v1.0.2 CHANGELOG entry skip — none of these are introduced by
+  this fix).
+
+### Residual
+
+- `ownership` phase is still ~2.4× the v1.0.0 baseline (2503 ms vs
+  1062 ms). The cost is concentrated in `own_put_i` /
+  `own_merge_moved`'s linear key scan over the merge target (`o`) ×
+  per-key `sym_get(b, key)` warm-cache thrash. A C-side
+  `__nucleor_vec_find_str_pair_back` helper was prototyped but
+  abandoned for v1.0.3 — the bootstrap seed is built from the prior
+  source (which has no declare for the new extern) so the stage-1
+  produces an unlinkable s2.ll with a call but no declare. A clean
+  fix needs either a two-step seed refresh or a hashmap-only
+  in-source path. Tracked for v1.0.4.
+
+Self-host fixed-point: `0ef60189d0e019734327e4f647488197` (stage-2 IR
+unchanged from v1.0.2; the regression fix is in the C runtime, not
+the compiler IR, so the seed remains byte-identical).
+
+## [1.0.2] — 2026-05-09
+
+Tag-only release cut from `296ab6c4` (the v1.0.1 close commit). No
+source delta from v1.0.1; preserved as the canonical `296ab6c4` ship
+point so the cold-compile regression that prompted v1.0.3 has a clear
+"this is what was shipped" reference. Verify counts identical to
+v1.0.1 (PASS=1589, FAIL=0 in the maintainer's pre-flight environment;
+PASS=1493 / FAIL=55 in environments lacking the rust_bridge prebuilt
++ negative-test error-code format gaps).
+
 ## [1.0.1] — 2026-05-09
 
 Audit-driven hardening release. Pass-1 recon audit identified 244 findings across 11 layers (39 Critical, 77 High, ~71 Med, ~26 Low, ~31 Note). Seven parallel cloud lanes closed the substantive Critical/High set. Verify gate hardened so the original blind spots that allowed v1.0 to ship with these defects latent are exposed up-front going forward.

@@ -11115,10 +11115,12 @@ fn package_exports_rust_file_name() -> str { return "Nucleor.exports.rs"; }
 fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json"; }
 
 fn compiler_version_label() -> str {
-    return "1.0.1";
+    return "1.0.3";
     // Mirrors s1. History: 0.4.180 (caught up from stale 0.2.0-v2) →
     // 0.8.323 (RFC-0063 Phase 1 follow-on) → 1.0.0 (RFC-0062 closure +
-    // RFC-0063 unification) → 1.0.1 (audit-pass-1 hardening sweep).
+    // RFC-0063 unification) → 1.0.1 (audit-pass-1 hardening sweep) →
+    // 1.0.2 (audit residual close) → 1.0.3 (cold-compile str_substring
+    // regression fix).
 }
 
 fn abi_export_version_label() -> str {
