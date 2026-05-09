@@ -123,7 +123,7 @@ fn model_provenance(arch: i64, weights_hash: str, dataset: str,
     };
 }
 
-fn model_provenance_register(p: ModelProvenance) -> i64 {
+fn model_provenance_register(p: &ModelProvenance) -> i64 {
     return nuc_model_prov_register(p.arch, p.weights_hash, p.dataset_lineage,
                                     p.license, p.safety_eval, p.quantization);
 }
@@ -148,12 +148,15 @@ fn model_provenance_clear() -> i64 { return nuc_model_prov_clear(); }
 // adopter code wants. Phase B promotes these to type-level
 // constraints; Phase A runs them at runtime.
 // =====================================================
-fn model_provenance_license_is(p: ModelProvenance, want: str) -> i64 {
+fn model_provenance_license_is(p: &ModelProvenance, want: str) -> i64 {
     if str_eq(p.license, want) == 1 { return 1; };
     return 0;
 }
 
-fn model_provenance_license_commercial_ok(p: ModelProvenance) -> i64 {
+// v1.0.1 (audit-pass-1 integrator): borrow-form accessors so OWN-001
+// (now error-severity) doesn't false-fire when adopters call multiple
+// accessors on the same ModelProvenance.
+fn model_provenance_license_commercial_ok(p: &ModelProvenance) -> i64 {
     if str_eq(p.license, "Apache-2.0") == 1 { return 1; };
     if str_eq(p.license, "MIT") == 1 { return 1; };
     if str_eq(p.license, "BSD-3-Clause") == 1 { return 1; };
@@ -163,17 +166,17 @@ fn model_provenance_license_commercial_ok(p: ModelProvenance) -> i64 {
     return 0;
 }
 
-fn model_provenance_arch_is(p: ModelProvenance, want: i64) -> i64 {
+fn model_provenance_arch_is(p: &ModelProvenance, want: i64) -> i64 {
     if p.arch == want { return 1; };
     return 0;
 }
 
-fn model_provenance_quant_is(p: ModelProvenance, want: i64) -> i64 {
+fn model_provenance_quant_is(p: &ModelProvenance, want: i64) -> i64 {
     if p.quantization == want { return 1; };
     return 0;
 }
 
-fn model_provenance_to_json(p: ModelProvenance) -> str {
+fn model_provenance_to_json(p: &ModelProvenance) -> str {
     let mut out: str = "{\"arch\":\"";
     out = str_concat(out, model_arch_name(p.arch));
     out = str_concat(out, "\",\"weights_hash\":\"");

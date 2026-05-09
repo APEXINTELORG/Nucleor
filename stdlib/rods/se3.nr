@@ -134,8 +134,8 @@ fn se3_buf_new<F, T>(t: i64, q: i64) -> Se3Buf<F, T> {
     return Se3Buf { t_ptr: t, q_ptr: q };
 }
 
-fn se3_buf_t<F, T>(b: Se3Buf<F, T>) -> i64 { return b.t_ptr; }
-fn se3_buf_q<F, T>(b: Se3Buf<F, T>) -> i64 { return b.q_ptr; }
+fn se3_buf_t<F, T>(b: &Se3Buf<F, T>) -> i64 { return b.t_ptr; }
+fn se3_buf_q<F, T>(b: &Se3Buf<F, T>) -> i64 { return b.q_ptr; }
 
 // T_AC = T_AB · T_BC. The middle frame B must match across the two
 // inputs; the v0840 ROBO-7 Wave 2 check enforces this on the
@@ -143,9 +143,9 @@ fn se3_buf_q<F, T>(b: Se3Buf<F, T>) -> i64 { return b.q_ptr; }
 // generic-phantom-unification residual from Queue 5A applies to
 // generic call sites).
 fn se3_compose_typed<A, B, C>(
-    ab: Se3Buf<A, B>,
-    bc: Se3Buf<B, C>,
-    out: Se3Buf<A, C>
+    ab: &Se3Buf<A, B>,
+    bc: &Se3Buf<B, C>,
+    out: &Se3Buf<A, C>
 ) {
     nuc_se3_compose(ab.t_ptr, ab.q_ptr, bc.t_ptr, bc.q_ptr, out.t_ptr, out.q_ptr);
 }
@@ -153,7 +153,7 @@ fn se3_compose_typed<A, B, C>(
 // T_inv : Se3Buf<F, T> -> Se3Buf<T, F>. Frame swap is enforced by
 // the phantom-type signature; out's frames must be (T, F) at the
 // adopter's let-binding site.
-fn se3_inverse_typed<F, T>(in_buf: Se3Buf<F, T>, out: Se3Buf<T, F>) {
+fn se3_inverse_typed<F, T>(in_buf: &Se3Buf<F, T>, out: &Se3Buf<T, F>) {
     nuc_se3_inverse(in_buf.t_ptr, in_buf.q_ptr, out.t_ptr, out.q_ptr);
 }
 

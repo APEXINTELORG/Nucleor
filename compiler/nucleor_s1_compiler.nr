@@ -14683,6 +14683,137 @@ fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
     return "";
 }
 
+// v1.0.1 (audit-pass-1 integrator): fn_param_type by INDEX. Used by
+// OWN-001 sig-aware move-skip — when the callee's idx-th param is
+// `&Type` / `&mut Type`, the arg passing is a borrow not a move and
+// OWN-001 should NOT mark the caller's binding moved.
+fn fn_param_type_at_index(source: str, fn_name: str, idx: i64) -> str {
+    let mut needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let mut pat_pos: i64 = str_index_of(source, needle);
+    if pat_pos < 0 {
+        // generic form `fn FNAME<...>(...)`
+        needle = str_concat("fn ", str_concat(fn_name, "<"));
+        pat_pos = str_index_of(source, needle);
+        if pat_pos < 0 { return ""; };
+        // skip the generic-params block to land before `(`
+        let mut q_pos: i64 = pat_pos + str_len(needle);
+        let n_g: i64 = str_len(source);
+        let mut g_depth: i64 = 1;
+        while q_pos < n_g && g_depth > 0 {
+            let ch: i64 = str_char_at(source, q_pos);
+            if ch == 60 { g_depth = g_depth + 1; };
+            if ch == 62 { g_depth = g_depth - 1; };
+            q_pos = q_pos + 1;
+        };
+        // expect `(` after the closing `>`
+        if q_pos >= n_g || str_char_at(source, q_pos) != 40 { return ""; };
+        return fn_param_type_at_index_from_open(source, q_pos + 1, idx);
+    };
+    let params_start: i64 = pat_pos + str_len(needle);
+    let n: i64 = str_len(source);
+    let mut depth: i64 = 1;
+    let mut p: i64 = params_start;
+    let mut params_end: i64 = 0 - 1;
+    while p < n {
+        let ch: str = str_substring(source, p, p + 1);
+        if str_eq(ch, "(") == 1 { depth = depth + 1; };
+        if str_eq(ch, ")") == 1 {
+            depth = depth - 1;
+            if depth == 0 { params_end = p; p = n; };
+        };
+        p = p + 1;
+    };
+    if params_end < 0 { return ""; };
+    let mut q: i64 = params_start;
+    let mut start: i64 = params_start;
+    let mut adepth: i64 = 0;
+    let mut pdepth: i64 = 0;
+    let mut at_idx: i64 = 0;
+    while q <= params_end {
+        let at_end: i64 = if q >= params_end { 1 } else { 0 };
+        let cch: str = if at_end == 1 { "," } else { str_substring(source, q, q + 1) };
+        if str_eq(cch, "<") == 1 { adepth = adepth + 1; };
+        if str_eq(cch, ">") == 1 { adepth = adepth - 1; };
+        if str_eq(cch, "(") == 1 { pdepth = pdepth + 1; };
+        if str_eq(cch, ")") == 1 { pdepth = pdepth - 1; };
+        let comma_at_depth_zero: i64 = if str_eq(cch, ",") == 1 { if adepth == 0 { if pdepth == 0 { 1 } else { 0 } } else { 0 } } else { 0 };
+        if comma_at_depth_zero == 1 || at_end == 1 {
+            if at_idx == idx {
+                let param_text: str = str_substring(source, start, q);
+                let colon_pos: i64 = str_index_of(param_text, ":");
+                if colon_pos > 0 {
+                    let rhs: str = str_trim(str_substring(param_text, colon_pos + 1, str_len(param_text)));
+                    return rhs;
+                };
+                return "";
+            };
+            at_idx = at_idx + 1;
+            start = q + 1;
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+// v1.0.1 (audit-pass-1 integrator): walk param list starting AT
+// params_start (just past the opening `(`), return the type of the
+// idx-th param. Shared between the bare-fn and generic-fn entry paths.
+fn fn_param_type_at_index_from_open(source: str, params_start: i64, idx: i64) -> str {
+    let n: i64 = str_len(source);
+    let mut depth: i64 = 1;
+    let mut p: i64 = params_start;
+    let mut params_end: i64 = 0 - 1;
+    while p < n {
+        let ch: str = str_substring(source, p, p + 1);
+        if str_eq(ch, "(") == 1 { depth = depth + 1; };
+        if str_eq(ch, ")") == 1 {
+            depth = depth - 1;
+            if depth == 0 { params_end = p; p = n; };
+        };
+        p = p + 1;
+    };
+    if params_end < 0 { return ""; };
+    let mut q: i64 = params_start;
+    let mut start: i64 = params_start;
+    let mut adepth: i64 = 0;
+    let mut pdepth: i64 = 0;
+    let mut at_idx: i64 = 0;
+    while q <= params_end {
+        let at_end: i64 = if q >= params_end { 1 } else { 0 };
+        let cch: str = if at_end == 1 { "," } else { str_substring(source, q, q + 1) };
+        if str_eq(cch, "<") == 1 { adepth = adepth + 1; };
+        if str_eq(cch, ">") == 1 { adepth = adepth - 1; };
+        if str_eq(cch, "(") == 1 { pdepth = pdepth + 1; };
+        if str_eq(cch, ")") == 1 { pdepth = pdepth - 1; };
+        let comma_at_depth_zero: i64 = if str_eq(cch, ",") == 1 { if adepth == 0 { if pdepth == 0 { 1 } else { 0 } } else { 0 } } else { 0 };
+        if comma_at_depth_zero == 1 || at_end == 1 {
+            if at_idx == idx {
+                let param_text: str = str_substring(source, start, q);
+                let colon_pos: i64 = str_index_of(param_text, ":");
+                if colon_pos > 0 {
+                    let rhs: str = str_trim(str_substring(param_text, colon_pos + 1, str_len(param_text)));
+                    return rhs;
+                };
+                return "";
+            };
+            at_idx = at_idx + 1;
+            start = q + 1;
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+// v1.0.1 (audit-pass-1 integrator): predicate "callee's idx-th param
+// is a borrow type" (`&T` or `&mut T`). Used in check_expr kind-7 to
+// suppress the OWN-001 move-marking when the call passes-by-reference.
+fn fn_callee_param_is_borrow(source: str, fn_name: str, idx: i64) -> i64 {
+    let pty: str = fn_param_type_at_index(source, fn_name, idx);
+    if str_len(pty) == 0 { return 0; };
+    if str_starts_with(pty, "&") == 1 { return 1; };
+    return 0;
+}
+
 // v0.4.272 RFC-0006 — text-level lookup of a fn's return type.
 // Finds `fn FNAME(...)`, walks past the param list with paren
 // depth tracking, then returns the text between `->` and `{`
@@ -21559,7 +21690,18 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if own_has_shared_overlap(own, aname) == 1 || own_has_mut_overlap(own, aname) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(aname, "': value is borrowed")), aname);
                     } else {
-                        own_set(own, aname, 2); own_set_type(own, str_concat("__moved_by_", aname), callee_name);
+                        // v1.0.1 (audit-pass-1 integrator): suppress the move
+                        // mark when the callee's idx-th param is `&T` / `&mut T`.
+                        // OWN-001's move-on-call is correct for by-value params
+                        // but mis-fires on by-reference accessors (the rod
+                        // surface uses `&Schedule` / `&LogicalQubit` etc.). The
+                        // callee sig is the source of truth; consult it.
+                        let arg_src: str = own_source(own);
+                        if str_len(arg_src) > 0 && fn_callee_param_is_borrow(arg_src, callee_name, ai) == 1 {
+                            // borrow — no move
+                        } else {
+                            own_set(own, aname, 2); own_set_type(own, str_concat("__moved_by_", aname), callee_name);
+                        };
                     };
                 };
             };

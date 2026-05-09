@@ -134,12 +134,12 @@ fn mldsa_keygen(level: i64) -> KeypairHandle {
     return KeypairHandle { handle: h, algo: pq_algo_mldsa(), level: level };
 }
 
-fn mldsa_sign(kp: KeypairHandle, msg_digest: i64) -> SignatureHandle {
+fn mldsa_sign(kp: &KeypairHandle, msg_digest: i64) -> SignatureHandle {
     let s: i64 = nuc_pq_sign(kp.handle, msg_digest);
     return SignatureHandle { handle: s, algo: pq_algo_mldsa() };
 }
 
-fn mldsa_verify(kp: KeypairHandle, msg_digest: i64, sig: SignatureHandle) -> i64 {
+fn mldsa_verify(kp: &KeypairHandle, msg_digest: i64, sig: &SignatureHandle) -> i64 {
     return nuc_pq_verify(kp.handle, msg_digest, sig.handle);
 }
 
