@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 903
-# Of which REVIEW REQUIRED: 0
+# Total helpers: 904
+# Of which REVIEW REQUIRED: 1
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,6 +22,7 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   __nucleor_source_bare_cr_offset          (Unclassified)
 
 
 # ----- class: ADT -----
@@ -11113,6 +11114,23 @@ proof_obligation = "none"
 stability        = "unstable"
 since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+
+
+# ----- class: Unclassified -----
+
+[[helper]]
+name             = "__nucleor_source_bare_cr_offset"
+class            = "Unclassified"
+symbol           = "__nucleor_source_bare_cr_offset"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 
 # ----- class: VectorOps -----

@@ -396,6 +396,8 @@ surface through `TYP-003`, `TYP-007`, and `TYP-008`, while
 | MATCH-012 | Struct-pattern field after `:` is not an identifier | [RFC-0023 §3.6](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-013 | Float scrutinee or float-literal pattern in `match` is unsupported | [RFC-0023 §3.7](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-014 | Negative literal range-pattern bounds are unsupported; use a guard | [RFC-0023 §3.1](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-015 | Negative literal pattern in match arm is unsupported; use a guard | [RFC-0023 §3.1](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-016 | Cross-enum pattern: scrutinee enum type does not match constructor's enum type | [RFC-0062 G-1](../rfcs/RFC-0062-memory-safety-gap-analysis.md) |
 
 ## COLL series — RFC-0017 collections
 
