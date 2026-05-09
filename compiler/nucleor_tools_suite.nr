@@ -1462,6 +1462,24 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    // Lane 1 audit fix (2026-05-08) — close C-002, C-003. Mirror of the
+    // s1 entries; keeps tools-suite ABI tables in sync per the
+    // check_compiler_drift gate.
+    if str_eq(name, "panic_div_u64") { return "__nucleor_panic_div_u64"; };
+    if str_eq(name, "panic_rem_u64") { return "__nucleor_panic_rem_u64"; };
+    if str_eq(name, "panic_shr_u64") { return "__nucleor_panic_shr_u64"; };
+    // Lane 1 audit fix — F-019 / F-026 reserved diag_exit (see s1 source
+    // for the rationale; mirrored for table parity).
+    if str_eq(name, "diag_exit") { return "__nucleor_diag_exit"; };
+    // Lane 1 audit fix — F-NUM-001 f-to-narrow saturating-truncate.
+    if str_eq(name, "f64_to_i8") { return "__nucleor_f64_to_i8"; };
+    if str_eq(name, "f64_to_u8") { return "__nucleor_f64_to_u8"; };
+    if str_eq(name, "f64_to_i16") { return "__nucleor_f64_to_i16"; };
+    if str_eq(name, "f64_to_u16") { return "__nucleor_f64_to_u16"; };
+    if str_eq(name, "f32_to_i8") { return "__nucleor_f32_to_i8"; };
+    if str_eq(name, "f32_to_u8") { return "__nucleor_f32_to_u8"; };
+    if str_eq(name, "f32_to_i16") { return "__nucleor_f32_to_i16"; };
+    if str_eq(name, "f32_to_u16") { return "__nucleor_f32_to_u16"; };
     if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
     if str_eq(name, "panic_rem_i32") { return "__nucleor_panic_rem_i32"; };
     if str_eq(name, "panic_div_i16") { return "__nucleor_panic_div_i16"; };
@@ -2843,6 +2861,21 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
+    // Lane 1 audit fix (2026-05-08) — close C-002 / C-003 (u64 helpers).
+    sb_append(sb, "declare i64 @__nucleor_panic_shr_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_u64(i64, i64)\n");
+    // Lane 1 audit fix — F-019 / F-026 clean diagnostic exit.
+    sb_append(sb, "declare i64 @__nucleor_diag_exit()\n");
+    // Lane 1 audit fix — F-NUM-001 f-to-narrow saturating-truncate.
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u16(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_var_type(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_fn_return_type(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_substring_strict(ptr, i64, i64)\n");

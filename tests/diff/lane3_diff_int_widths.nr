@@ -8,10 +8,10 @@
 // the diff step fails.
 
 fn print_i64_kv(k: str, v: i64) {
-    print(k);
-    print("=");
-    print_int(v);
-    print("\n");
+    // Build "key=value" as one string so __nucleor_print_str's
+    // implicit trailing newline produces one line per kv pair —
+    // matches the C reference's single printf("%s=%lld\n", ...).
+    print(str_concat(k, str_concat("=", str_from_int(v))));
 }
 
 fn main() -> i64 {

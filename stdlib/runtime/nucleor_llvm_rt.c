@@ -4374,6 +4374,23 @@ long long __nucleor_panic(const char *msg) {
     exit(1);
 }
 
+// Lane 1 audit fix (2026-05-08) — close F-019, F-026.
+// __nucleor_diag_exit: clean compiler-internal exit AFTER a diagnostic
+// has already been printed (no PANIC: prefix, no further output). Use
+// when the user error is real but a `panic(...)` would pollute the
+// output with an internal-compiler-error look-alike line. Mirrors the
+// CL-4 cross-layer observation in the typesystem audit
+// (audit_recon_pass1_typesystem_2026-05-08.md): "PANIC-as-diagnostic"
+// is a documented anti-pattern — at least three call sites emit a
+// real error then `panic(...)` to abort, producing a trailing PANIC
+// line that downstream tooling cannot distinguish from an actual ICE.
+long long __nucleor_diag_exit(void) {
+    fflush(stdout);
+    fflush(stderr);
+    exit(1);
+    return 0;
+}
+
 // === RFC-0015 phase 2: `as` cast helpers ===
 // Each truncates the value to the target width and (for signed types)
 // sign-extends back to i64 storage. Internally everything is i64; these
@@ -4766,6 +4783,47 @@ long long __nucleor_panic_shr_i64(long long a, long long b) {
         fflush(stderr); exit(1);
     }
     return a >> (int)b;
+}
+
+// Lane 1 audit fix (2026-05-08) — close C-002, C-003, F-NUM-001.
+// __nucleor_panic_shr_u64: logical (lshr) right shift for u64. Mirrors
+// __nucleor_panic_shr_i64 but treats `a` as unsigned so the high bit is
+// zero-filled. Pre-fix `>>` on a u64 with the high bit set sign-extended
+// (ashr) and produced a negative-looking i64 — silent miscompile for any
+// CRC / hash / address-arithmetic / bit-extraction that uses the full
+// 64-bit unsigned range.
+long long __nucleor_panic_shr_u64(long long a, long long b) {
+    if (b < 0 || b >= 64) {
+        fprintf(stderr, "PANIC: u64 shr out-of-range: %llu >> %lld (shift amount must be 0..63)\n",
+                (unsigned long long)a, b);
+        fflush(stderr); exit(1);
+    }
+    return (long long)((unsigned long long)a >> (int)b);
+}
+
+// __nucleor_panic_div_u64 / __nucleor_panic_rem_u64: unsigned 64-bit
+// divide / remainder with divide-by-zero panic. Pre-fix `u64 / u64` (and
+// `u64 % u64`) routed through __nucleor_panic_div_i64 which uses signed
+// `/` — wrong for any operand with the high bit set
+// (e.g. 18446744073709551614 / 2 returned -1 instead of 9223372036854775807).
+// No `i64::MIN / -1` overflow case here — unsigned div has no analog.
+long long __nucleor_panic_div_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a;
+    unsigned long long ub = (unsigned long long)b;
+    if (ub == 0) {
+        fprintf(stderr, "PANIC: u64 division by zero: %llu / 0\n", ua);
+        fflush(stderr); exit(1);
+    }
+    return (long long)(ua / ub);
+}
+long long __nucleor_panic_rem_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a;
+    unsigned long long ub = (unsigned long long)b;
+    if (ub == 0) {
+        fprintf(stderr, "PANIC: u64 mod by zero: %llu %% 0\n", ua);
+        fflush(stderr); exit(1);
+    }
+    return (long long)(ua % ub);
 }
 
 // --- v0.2.28: division / remainder / negation variants ---
@@ -8091,6 +8149,69 @@ long long __nucleor_f32_to_u64(long long a) {
     if (f <= 0.0f) return 0;
     if (f >= 18446744000000000000.0f) return (long long)0xFFFFFFFFFFFFFFFFULL;
     return (long long)(unsigned long long)f;
+}
+// Lane 1 audit fix (2026-05-08) — close F-NUM-001.
+// f64/f32 -> {i8,u8,i16,u16} saturating-truncate per RFC-0015 §3.5
+// (Rust `as` semantics: NaN -> 0, saturate at the destination range, then
+// truncate toward zero). Pre-fix `f64 as u8` and similar fell through to
+// the integer-bit-mask `__nucleor_as_u8` path on the f64 BIT PATTERN —
+// silent miscompute for image / color / audio / ML quantization paths
+// (every "round" f64 mantissa-low-bits-zero literal silently became 0).
+long long __nucleor_f64_to_i8(long long b) {
+    double d = __nuc_b2d(b);
+    if (d != d) return 0;            /* NaN -> 0 */
+    if (d >  127.0) return 127LL;
+    if (d < -128.0) return -128LL;
+    return (long long)(signed char)d;
+}
+long long __nucleor_f64_to_u8(long long b) {
+    double d = __nuc_b2d(b);
+    if (d != d) return 0;            /* NaN -> 0 */
+    if (d <= 0.0) return 0;
+    if (d >= 255.0) return 255LL;
+    return (long long)(unsigned char)d;
+}
+long long __nucleor_f64_to_i16(long long b) {
+    double d = __nuc_b2d(b);
+    if (d != d) return 0;            /* NaN -> 0 */
+    if (d >  32767.0) return 32767LL;
+    if (d < -32768.0) return -32768LL;
+    return (long long)(short)d;
+}
+long long __nucleor_f64_to_u16(long long b) {
+    double d = __nuc_b2d(b);
+    if (d != d) return 0;            /* NaN -> 0 */
+    if (d <= 0.0) return 0;
+    if (d >= 65535.0) return 65535LL;
+    return (long long)(unsigned short)d;
+}
+long long __nucleor_f32_to_i8(long long a) {
+    float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;
+    if (f >  127.0f) return 127LL;
+    if (f < -128.0f) return -128LL;
+    return (long long)(signed char)f;
+}
+long long __nucleor_f32_to_u8(long long a) {
+    float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;
+    if (f <= 0.0f) return 0;
+    if (f >= 255.0f) return 255LL;
+    return (long long)(unsigned char)f;
+}
+long long __nucleor_f32_to_i16(long long a) {
+    float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;
+    if (f >  32767.0f) return 32767LL;
+    if (f < -32768.0f) return -32768LL;
+    return (long long)(short)f;
+}
+long long __nucleor_f32_to_u16(long long a) {
+    float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;
+    if (f <= 0.0f) return 0;
+    if (f >= 65535.0f) return 65535LL;
+    return (long long)(unsigned short)f;
 }
 // Legacy unprefixed names referenced by the IR header for cross-compat.
 long long __nucleor_fabs(long long b)  { return __nuc_d2b(fabs(__nuc_b2d(b))); }
