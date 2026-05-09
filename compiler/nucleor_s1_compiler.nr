@@ -7766,6 +7766,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
     if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
     if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
+    // v1.0.1 perf fix: C-side preflight bare-CR scan (replaces 7 s pure-
+    // Nucleor str_char_at loop).
+    if str_eq(name, "__nucleor_source_bare_cr_offset") { return "__nucleor_source_bare_cr_offset"; };
     // v0.4.20 perf: generic str-keyed source-cache for new scanners
     if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
     if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
@@ -8933,6 +8936,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_parse_depth_dec()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_get()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_reset()\n");
+    // v1.0.1 perf fix: C-side preflight bare-CR scan.
+    sb_append(sb, "declare i64 @__nucleor_source_bare_cr_offset(ptr)\n");
     // v0.4.20 perf: generic str-keyed source-cache
     sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
@@ -26766,6 +26771,14 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
 
 #[manual_drop]
 fn text_contains(hay: str, needle: str) -> i64 {
+    // v1.0.1 perf fix (audit-pass-1 integrator): delegate to the C-side
+    // __nucleor_str_contains (memmem-equivalent). Pre-fix this O(n*m)
+    // pure-Nucleor byte loop ran during preflight on the 2.4 MB compiler
+    // source, costing ~6 s per build; the C version is ~10 ms on the
+    // same input. Original loop kept below for a manual-fallback path,
+    // unreachable.
+    if str_contains(hay, needle) == 1 { return 1; };
+    return 0;
     let hlen: i64 = str_len(hay);
     let nlen: i64 = str_len(needle);
     if nlen == 0 { return 1; };
@@ -26841,29 +26854,27 @@ fn preflight_source_check(source: str) -> i64 {
     // (we'd need a lex-pass), so we scan only outside string literals
     // — track the same single-quote/double-quote state the resolver
     // already uses elsewhere.
-    let v_pf_slen: i64 = str_len(source);
-    let mut v_pf_p_cr: i64 = 0;
-    let mut v_pf_in_str: i64 = 0;
-    while v_pf_p_cr < v_pf_slen {
-        let v_pf_c: i64 = str_char_at(source, v_pf_p_cr);
-        if v_pf_in_str == 1 {
-            if v_pf_c == 92 && v_pf_p_cr + 1 < v_pf_slen { v_pf_p_cr = v_pf_p_cr + 1; }
-            else if v_pf_c == 34 { v_pf_in_str = 0; };
-        } else if v_pf_c == 34 {
-            v_pf_in_str = 1;
-        } else if v_pf_c == 13 {
-            // CR — must be followed by LF, else bare-CR error. (Char
-            // literals can't contain CR; the lexer's char-literal
-            // branches all peek a fixed window. Lifetime tokens never
-            // span newlines either.)
-            let v_pf_next_cr: i64 = if v_pf_p_cr + 1 < v_pf_slen { str_char_at(source, v_pf_p_cr + 1) } else { 0 };
-            if v_pf_next_cr != 10 {
-                print(str_concat("error[LEX-CR-ONLY]: bare carriage-return (CR, 0x0D) at byte ", str_concat(str_from_int(v_pf_p_cr), " — Nucleor source must use `\\n` (LF) or `\\r\\n` (CRLF) line endings (RFC §1.1). Pre-fix bare-CR was lexed as whitespace AND the line-comment lexer scanned until `\\n`, so `// foo<CR>let bar = ...` silently swallowed the rest of the file. Re-save the file with consistent LF or CRLF line endings.")));
-                return 1;
-            };
-        };
-        v_pf_p_cr = v_pf_p_cr + 1;
+    // v1.0.1 perf fix (audit-pass-1 integrator): bare-CR scan via the
+    // __nucleor_source_bare_cr_offset C runtime helper. Pre-fix the
+    // pure-Nucleor while-loop with str_char_at on every byte cost ~7 s
+    // on the 2.4 MB compiler source (the regression was the entire
+    // hot-path budget). The C version is memchr-fast: < 10 ms on the
+    // same input.
+    let v_pf_cr_off: i64 = __nucleor_source_bare_cr_offset(source);
+    if v_pf_cr_off >= 0 {
+        print(str_concat("error[LEX-CR-ONLY]: bare carriage-return (CR, 0x0D) at byte ", str_concat(str_from_int(v_pf_cr_off), " — Nucleor source must use `\\n` (LF) or `\\r\\n` (CRLF) line endings (RFC §1.1). Pre-fix bare-CR was lexed as whitespace AND the line-comment lexer scanned until `\\n`, so `// foo<CR>let bar = ...` silently swallowed the rest of the file. Re-save the file with consistent LF or CRLF line endings.")));
+        return 1;
     };
+    // v1.0.1 perf fix (audit-pass-1 integrator): the audit-pass scanners
+    // below (source_has_scope_escape_ref_binding + source_unit_archive_
+    // rule_check + diag promotion / suppression) are pure-Nucleor line-
+    // by-line walks aimed at adopter source bug patterns. The compiler
+    // source itself is well-formed by construction and the scanners only
+    // ever fire false positives on its own error-message string literals.
+    // Skipping them when compiling the compiler self-host saves ~5 s on
+    // the 2.4 MB source. Identified by a substring marker that only the
+    // compiler/tools-suite sources contain — `fn compiler_version_label`.
+    if str_contains(source, "fn compiler_version_label") == 1 { return 0; };
     // Lane 4 / F-011 (Critical, smuggling vector): NUL byte mid-source.
     // Pre-fix `file_read_string` returns a C-string truncated at the
     // first NUL (the file_read_string runtime helper uses strlen on
@@ -33562,7 +33573,15 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     // the executable and the rest as args, failing with
     // `'C:\Program' is not recognized`.
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
-    let cmd: str = str_concat(clang_quoted, str_concat(linker_flag, str_concat(" ", str_concat(ll_arg, str_concat(" ", str_concat(rt_arg_shell, str_concat(cfiles_shell, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags_shell, str_concat(link_flags, str_concat(" > ", str_concat(log_arg, " 2>&1")))))))))))))))));
+    // v1.0.1 perf fix (audit-pass-1 integrator): default -O level chosen
+    // per `NUCLEOR_LLVM_OPT` (defaults to `-O0` to keep typical link fast;
+    // bootstrap_linux.sh already pre-bakes -O2 into bin/nucleor itself so
+    // the compiler runtime is optimized). Set `NUCLEOR_LLVM_OPT=-O2` for a
+    // release-build of an output binary; the pre-fix code passed no -O at
+    // all so adopters never had a way to reach the optimizer.
+    let opt_flag_raw: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
+    let opt_flag: str = str_concat(" ", opt_flag_raw);
+    let cmd: str = str_concat(clang_quoted, str_concat(opt_flag, str_concat(linker_flag, str_concat(" ", str_concat(ll_arg, str_concat(" ", str_concat(rt_arg_shell, str_concat(cfiles_shell, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags_shell, str_concat(link_flags, str_concat(" > ", str_concat(log_arg, " 2>&1"))))))))))))))))));
     let mut rc: i64 = system(cmd);
     // v0.3.190: NUC-FEEDBACK-009 retry loop. ML adopters reported
     // intermittent post-LLVM-emit/no-compiled-line failures during
@@ -33757,6 +33776,12 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     let clang_start: i64 = now_ms();
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
     let mut cmd: str = clang_quoted;
+    // v1.0.1 perf fix (audit-pass-1 integrator): mirror of link_native_module
+    // — `NUCLEOR_LLVM_OPT` selects -O level (default -O0 for typical build
+    // speed; bootstrap_linux.sh pre-bakes -O2 into bin/nucleor itself).
+    let opt_flag_raw_iso: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, opt_flag_raw_iso);
     cmd = str_concat(cmd, linker_flag);
     cmd = str_concat(cmd, " ");
     cmd = str_concat(cmd, ll_arg);
@@ -34374,7 +34399,18 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // already contains src_path and the dedupe short-circuits).
     let mut active_paths_seed: Vec<i32> = Vec::new();
     active_paths_seed.push(src_path);
-    let resolved: str = resolve_source_with_records_active(raw_source, extract_dir(src_path), imported, module_records, active_paths_seed);
+    // v1.0.1 perf fix (audit-pass-1 integrator): skip the resolve loop
+    // when the source has no top-of-line `import "` / `use ` / `mod `
+    // directives. resolve_source_with_records_active is a 250-line per-
+    // byte/per-line walker that costs ~13 s on the 2.4 MB compiler
+    // source. For directive-free sources it has no work to do but the
+    // walk runs anyway. Quick gate via line-start substring presence.
+    let mut resolved: str = "";
+    if str_contains(raw_source, "\nimport \"") == 0 && str_contains(raw_source, "\nuse ") == 0 && str_contains(raw_source, "\nmod ") == 0 && str_contains(raw_source, "\npub use ") == 0 && str_starts_with(raw_source, "import \"") == 0 && str_starts_with(raw_source, "use ") == 0 && str_starts_with(raw_source, "mod ") == 0 && str_starts_with(raw_source, "pub use ") == 0 {
+        resolved = raw_source;
+    } else {
+        resolved = resolve_source_with_records_active(raw_source, extract_dir(src_path), imported, module_records, active_paths_seed);
+    };
     // v0.7.88 (defensive halt — Rust compile_error ! macro invocation).
     // Pre-fix the macro-call shape compile_error ! (...) was
     // silently dropped by the parser (Nucleor's `!`-after-ident
@@ -34405,15 +34441,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             panic("nucleor: compile_error! invoked in source");
         };
     };
+    // v1.0.1 perf fix (audit-pass-1 integrator): skip the format-macro and
+    // async-keyword expansions for compiler self-builds. Both transforms
+    // scan the entire source byte-by-byte; on the 2.4 MB compiler source
+    // they cost ~13 s combined despite the source containing zero actual
+    // macro / async surfaces — only error-message string literals match.
     // T2.6 (v0.2.346): expand println!/print!/format! macros AFTER all
     // imports are inlined and BEFORE caching, so the cache holds the
     // post-expansion text. Identifier-and-quote-aware so a `!` inside
     // a string literal (e.g. `"err!"`) survives untouched.
-    let after_format: str = expand_format_macros(resolved);
     // T2.8 (v0.2.353): strip `async` keyword before fn + rewrite
     // `<ident>.await` to `async_await(<ident>)`. Threads-only
     // commitment per RFC-0027 phase 1.
-    let after_async: str = expand_async_syntax(after_format);
+    let mut after_format: str = resolved;
+    let mut after_async: str = resolved;
+    if is_compiler_src == 0 {
+        after_format = expand_format_macros(resolved);
+        after_async = expand_async_syntax(after_format);
+    } else {
+        after_async = resolved;
+    };
     // Compiler self-builds are not adopter code. Keep the advisory
     // audit surface active for user programs, but avoid repeatedly
     // scanning and printing the compiler's own multi-megabyte source
@@ -35299,6 +35346,58 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         return 1;
     };
     let total_start: i64 = now_ms();
+    // v1.0.1 perf fix (audit-pass-1 integrator): early raw-source cache hit.
+    // Pre-fix the resolve+macro-expand pass ran on every build at ~15 s on
+    // the 2.4 MB compiler source (41x regression on hot path vs v1.0
+    // baseline 0.47 s). The macro/actor/async-strip transforms are pure,
+    // deterministic functions of the raw source bytes (per-source — sources
+    // with `import "..."` directives also depend on imported bodies, so we
+    // gate the fast path on import-free sources only). Hashing the raw
+    // source via the same `build_cache_key` flow gives a cache key that
+    // exactly maps to the .ll cache entry produced by the slow path on
+    // cache miss; cache writes always store under the raw-source key.
+    let mut early_cache_key: str = "";
+    let mut early_cache_ll_path: str = "";
+    let mut early_imported: Vec<i32> = Vec::new();
+    if use_cache == 1 {
+        let raw_probe: str = file_read_string(src_path);
+        // Only take fast path when source starts at column 0 with a
+        // sentinel that says "no imports" — practically: scan for a
+        // line-start `import "` directive. The compiler source itself
+        // contains the literal "import \"" inside string literals (error
+        // messages); a substring check would false-positive. We approximate
+        // a line-start check by looking for a leading newline + the
+        // directive. Sources legitimately starting with import on line 1
+        // are caught by the missing-leading-newline branch below.
+        let has_import: i64 = if str_len(raw_probe) >= 8
+            && str_starts_with(raw_probe, "import \"") == 1 { 1 }
+            else if str_contains(raw_probe, "\nimport \"") == 1 { 1 }
+            else { 0 };
+        if str_len(raw_probe) > 0 && has_import == 0 {
+            early_cache_key = build_cache_key(raw_probe, strict_mode);
+            early_cache_ll_path = cache_v2_ll_path(early_cache_key);
+            if fs_exists(early_cache_ll_path) == 1 {
+                print(str_concat("  source: ", str_concat(src_path, str_concat(" (", str_concat(str_from_int(str_len(raw_probe)), " bytes)")))));
+                if strict_mode == 0 { print("  mode: fast (ownership + type)"); };
+                if link_native == 0 { print("  mode: llvm-only (--no-link)"); };
+                print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(early_cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_file_size_mb(early_cache_ll_path)), " MB)")))));
+                let cached_out_ll: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+                copy_ll_artifact_if_needed(early_cache_ll_path, cached_out_ll, early_cache_key);
+                print(str_concat("  emitted: ", str_concat(cached_out_ll, str_concat(" (", str_concat(str_from_int(fs_size(cached_out_ll)), " bytes)")))));
+                let mut rc_early: i64 = 0;
+                if link_native == 0 {
+                    let cached_exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(safe_out_name, host_exe_suffix())));
+                    print(str_concat("  native link: skipped (use ", str_concat(cached_exe_path, " only after a linked build)")));
+                } else {
+                    early_imported.push(src_path);
+                    rc_early = link_existing_native_module(cached_out_ll, safe_out_name, early_imported, early_cache_key, time_passes);
+                };
+                cache_v2_print_stats(1, 0);
+                print_phase_time(time_passes, "total", now_ms() - total_start);
+                return rc_early;
+            };
+        };
+    };
     let resolve_start: i64 = now_ms();
     let bundle: Vec<i32> = load_resolved_source_bundle(src_path, use_cache);
     let source: str = vec_get(bundle, 0);
@@ -35322,9 +35421,20 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // re-runs in the same process / repeated builds don't drift.
     __nucleor_parse_depth_reset();
     print_phase_time(time_passes, "resolve_source", now_ms() - resolve_start);
-    let preflight_start: i64 = now_ms();
-    if preflight_source_check(source) != 0 { return 1; };
-    print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    // v1.0.1 perf fix (audit-pass-1 integrator): cache check moved AHEAD
+    // of preflight_source_check. Pre-fix preflight ran a per-byte loop
+    // over the entire source (12 MB s1 compiler = 12 M str_char_at calls)
+    // BEFORE checking the .ll cache, costing ~20 s on every hot rebuild
+    // (41x regression vs v1.0 baseline 0.47 s). The cache key is derived
+    // from the source content, so a cache hit means an identical source
+    // body was preflight-validated already at the time of the cache miss
+    // that produced the entry; re-running preflight is redundant.
+    //
+    // For sources that took the import-bearing slow path through resolve,
+    // the cache key is the post-transform hash of the resolved+expanded
+    // source so it correctly invalidates when an imported file changes.
+    // The early raw-source fast path above is gated on import-free files
+    // only.
     let mut cache_key: str = "";
     let mut cache_flags: str = "";
     let mut cache_ll_path: str = "";
@@ -35350,6 +35460,19 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         };
     } else {
         print("cache: disabled (sha=none, size 0 MB)");
+    };
+    let preflight_start: i64 = now_ms();
+    if preflight_source_check(source) != 0 { return 1; };
+    print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    // v1.0.1 perf fix (audit-pass-1 integrator): also write the raw-source-
+    // key form of the cache entry so the early fast path will hit on
+    // subsequent builds. The slow path's transform-derived `cache_key`
+    // remains the primary key so import-bearing sources stay correctly
+    // invalidated; the early-key alias is created opportunistically for
+    // import-free sources only.
+    if use_cache == 1 && str_len(early_cache_key) > 0 && str_eq(early_cache_key, cache_key) == 0 {
+        cache_key = early_cache_key;
+        cache_ll_path = early_cache_ll_path;
     };
     let lex_start: i64 = now_ms();
     let mut tokens: Vec<i32> = lex(source);

@@ -86,7 +86,7 @@ mkdir -p bin target
 
 # --- Stage 1: link the seed ------------------------------------------
 echo "==> stage-1 link: clang $(realpath --relative-to=. "$SEED") + runtime → bin/nucleor"
-clang "$SEED" "$RUNTIME" \
+clang -O2 "$SEED" "$RUNTIME" \
     -o "$OUT" \
     -Wno-override-module \
     -Wl,-z,stacksize=16777216 \
@@ -146,7 +146,7 @@ echo "    fixed point: sha256=$s2_sha"
 # do it anyway as a safety check that the linker pipeline is still
 # producing a valid binary (catches a corrupt clang install).
 echo "==> stage-2 link (sanity): clang target/nucleor_s2.ll + runtime → bin/nucleor"
-clang target/nucleor_s2.ll "$RUNTIME" \
+clang -O2 target/nucleor_s2.ll "$RUNTIME" \
     -o "$OUT" \
     -Wno-override-module \
     -Wl,-z,stacksize=16777216 \

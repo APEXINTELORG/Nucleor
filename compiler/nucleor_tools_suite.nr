@@ -1342,6 +1342,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
     if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
     if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
+    // v1.0.1 perf fix: C-side preflight bare-CR scan.
+    if str_eq(name, "__nucleor_source_bare_cr_offset") { return "__nucleor_source_bare_cr_offset"; };
     // v0.4.20 perf: generic str-keyed source-cache
     if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
     if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
@@ -2582,6 +2584,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_parse_depth_dec()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_get()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_reset()\n");
+    // v1.0.1 perf fix: C-side preflight bare-CR scan.
+    sb_append(sb, "declare i64 @__nucleor_source_bare_cr_offset(ptr)\n");
     // v0.4.20 perf: generic str-keyed source-cache
     sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
