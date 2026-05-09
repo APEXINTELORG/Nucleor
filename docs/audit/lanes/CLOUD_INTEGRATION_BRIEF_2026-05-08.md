@@ -4,9 +4,48 @@
 **Owner:** cloud agent (Linux preferred — faster verify, no Windows-only verify thrash)
 **Branch to work on:** `integrate/audit-fix-2026-05-08` on `origin` (`APEXINTELORG/Nucleor-archive` private repo)
 
+## Required reading (all in this branch)
+
+Everything the agent needs is committed under `docs/audit/`:
+
+**Original recon findings — what we're trying to solve (read these to understand the actual defects):**
+- `docs/audit/findings/audit_recon_pass1_lexer_parser_2026-05-08.md` — Layer 1
+- `docs/audit/findings/audit_recon_pass1_typesystem_2026-05-08.md` — Layer 2
+- `docs/audit/findings/audit_recon_pass1_diagnostics_2026-05-08.md` — Layer 3 (cross-cutting)
+- `docs/audit/findings/audit_recon_pass1_memsafe_2026-05-08.md` — Layer 4 (RFC-0062 G-1..G-11)
+- `docs/audit/findings/audit_recon_pass1_concurrency_2026-05-08.md` — Layer 5
+- `docs/audit/findings/audit_recon_pass1_codegen_2026-05-08.md` — Layer 6
+- `docs/audit/findings/audit_recon_pass1_runtime_abi_2026-05-08.md` — Layer 7
+- `docs/audit/findings/audit_recon_pass1_numeric_2026-05-08.md` — Layer 8
+- `docs/audit/findings/audit_recon_pass1_stdlib_math_2026-05-08.md` — Layer 9a
+- `docs/audit/findings/audit_recon_pass1_stdlib_robo_quantum_ffi_2026-05-08.md` — Layer 9b
+- `docs/audit/findings/audit_recon_pass1_examples_docs_2026-05-08.md` — Layer 10
+
+**Per-lane fix briefs — what each lane was tasked with (read these to understand the remediation contracts):**
+- `docs/audit/lanes/LANE_1_TYPE_FLOW_CODEGEN.md`
+- `docs/audit/lanes/LANE_2_MEMORY_SAFETY_ENCAPSULATION.md`
+- `docs/audit/lanes/LANE_3_VERIFY_HARNESS_DIAGNOSTICS.md`
+- `docs/audit/lanes/LANE_4_LEXER_PARSER_ROBUSTNESS.md`
+- `docs/audit/lanes/LANE_5_STDLIB_CORRECTNESS.md`
+- `docs/audit/lanes/LANE_6_RUNTIME_ABI_RT_EFFECTS.md`
+- `docs/audit/lanes/LANE_7_DOCS_USER_SURFACE.md`
+- `docs/audit/lanes/AUDIT_FIX_CONTROL.md` — master coord with cross-lane dependencies + cherry-pick order
+
+**Per-lane completion reports — what each lane actually closed (read these to understand current state):**
+- `docs/audit/lanes/LANE_1_REPORT.md` — type flow + codegen u64
+- `docs/audit/lanes/LANE_2_REPORT.md` — memory safety + handle encapsulation
+- `docs/audit/lanes/LANE_3_REPORT.md` — verify harness + diagnostics (already integrated)
+- `docs/audit/lanes/LANE_4_REPORT.md` — lexer/parser robustness
+- `docs/audit/lanes/LANE_5_REPORT.md` — stdlib correctness (math + robotics + quantum + FFI)
+- `docs/audit/lanes/LANE_6_REPORT.md` — runtime ABI + RT + effects (already integrated, base)
+- `docs/audit/lanes/LANE_7_REPORT.md` — docs + user surface
+- `docs/audit/lanes/_lane5_diff_tests.py` — Lane 5's numpy/scipy/sklearn differential harness (informational)
+
+The agent should skim every recon file at minimum to understand the audit scope, then read the per-lane brief + report for the lane currently being integrated. The lane reports document partial closures, deferrals, and cross-lane handoffs that may affect integration sequencing.
+
 ## Context
 
-Pass-1 recon audit (`docs/audit/findings/audit_recon_pass1_*_2026-05-08.md`) surfaced 244 findings across 11 layers (39 Critical, 77 High, ~71 Med, ~26 Low, ~31 Note).
+Pass-1 recon audit surfaced 244 findings across 11 layers (39 Critical, 77 High, ~71 Med, ~26 Low, ~31 Note).
 
 Seven parallel cloud lanes produced fix branches:
 
