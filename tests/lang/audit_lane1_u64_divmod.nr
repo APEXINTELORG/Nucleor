@@ -38,6 +38,6 @@ fn main() -> i32 {
         print("\n");
     };
 
-    if fail == 0 { print("PASS: u64 div/mod unsigned semantics\n"); };
+    if fail == 0 { print("OK audit_lane1_u64_divmod\n"); };
     fail as i32
 }

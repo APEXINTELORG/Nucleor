@@ -27,6 +27,6 @@ fn main() -> i32 {
     let max_u: u64 = 18446744073709551615u64;
     if !(max_u > h) { fail = fail + 1; print("FAIL: !(max_u > h)\n"); };
 
-    if fail == 0 { print("PASS: u64 ordered compare unsigned semantics\n"); };
+    if fail == 0 { print("OK audit_lane1_u64_compare\n"); };
     fail as i32
 }

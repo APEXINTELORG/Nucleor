@@ -8,5 +8,5 @@ fn main() -> i32 {
     let a: AtomicI64 = atomic_i64(7);
     let v: i64 = atomic_load(&a, MemOrder::SeqCst);
     atomic_i64_drop(a);
-    if v == 7 { 0 } else { 1 }
+    if v == 7 { print("OK conc_handle_round_trip\n"); 0 } else { 1 }
 }

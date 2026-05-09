@@ -34,6 +34,6 @@ fn main() -> i32 {
     if (neg_i8 as i64) != (0 - 128) { fail = fail + 1; print("FAIL: f64(-1000) as i8 should saturate to -128\n"); };
     if (neg_u8 as i64) != 0 { fail = fail + 1; print("FAIL: f64(-1000) as u8 should saturate to 0\n"); };
 
-    if fail == 0 { print("PASS: f-to-narrow saturating-truncate\n"); };
+    if fail == 0 { print("OK audit_lane1_f_to_narrow\n"); };
     fail as i32
 }

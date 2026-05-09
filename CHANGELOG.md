@@ -5,6 +5,110 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] — 2026-05-09
+
+Audit-driven hardening release. Pass-1 recon audit identified 244 findings across 11 layers (39 Critical, 77 High, ~71 Med, ~26 Low, ~31 Note). Seven parallel cloud lanes closed the substantive Critical/High set. Verify gate hardened so the original blind spots that allowed v1.0 to ship with these defects latent are exposed up-front going forward.
+
+Self-host fixed-point: `0a290ed1523d03b58532431113e1c680` (stage-3 ↔ stage-2 byte-identical; stage-3 IR is the new bootstrap seed).
+
+### Verify harness (Lane 3)
+- Negative-test runner now requires both expected diagnostic regex AND non-zero exit code. Pre-fix regex-only acceptance allowed OWN-001 (F-DIAG-003) to slip past as a warning emitting RC=0.
+- New differential codegen step compiles `tests/diff/lane3_diff_int_widths.nr` + `.c` reference, bit-compares output (catches the i64-everywhere class).
+- Contention/UAF/platform smokes added (lane3_mutex_contention / lane3_channel_contention / lane3_platform_arith_parity). On 64-bit POSIX, the bit-pack-handle approach in the contention smokes degrades to SIGSEGV (handles are pointers); skipped at runtime, build-only smoke retained pending v1.0.2 structural rewrite.
+- Negative coverage gate: every emitted diagnostic code must have ≥1 fixture in `tests/err/` (with `// EXPECT: <CODE>` or `// EXPECT: error[<CODE>]` form). 14 codes graduated from KNOWN_UNCOVERED; 26 codes remain on the exemption list pending wiring or test fixtures (LEX-002, MATCH-013/14, NR020/22-25/35-36, OWN-002, RACE-002/7, RT-004/9, TYP-009, ATOMIC-006, CONTRACT-006/8/9/10/11, FMT-003, MOD-003).
+- F-DIAG-003 OWN-001 severity flip ("warning" → "error").
+- F-DIAG-007 EFF-001 severity flip ("warning" → "error").
+- F-DIAG-009 OWN-G4-USE-AFTER-DROP message restored (3-arg str_concat truncation fixed).
+- F-DIAG-011 TYP-005 link-stage parenthetical removed (the claim was false in v1.0).
+- 17 new `tests/err/err_*.nr` fixtures so every v1.0 diagnostic code is at least documented.
+
+### Memory safety (Lane 2 + RFC-0062)
+- G-1..G-11 false-negative closure: 12/14 Critical fixed. Notable: G-4 `as`-cast UAF wrapper (`check_expr` kind-99 walk), G-11 if-without-else init (`__init_seen_*` markers preserved across `own_restore`), G-8 textbook one-arm move (kind-5/kind-6 field/index access mirror), G-3 `hashmap_free` while shared borrow alive (added to ALIAS-G3 guard set), G-4 method-form free (`v.free()` detection), G-2 multi-input lifetime check (textual lifetime-label compare).
+- `EFFECT-G10-OPT-IN-CLIFF` info-level diagnostic fires when source has zero `#[effect]` annotations (closes the silent disable).
+- `EFFECT-G10-UNKNOWN-NAME` per-unknown-name error rejects typos in `#[effect(...)]` / `#[allow_effect(...)]`.
+- Concurrency primitives (`AtomicI64/U64/I32/U32/Bool`) handle types are now opaque — `CONC-G6-OPAQUE-HANDLE` rejects literal-construction outside the closed constructor / CAS-shim list.
+- `Future.consumed` flag — `nuc_future_get` is idempotent. Second call returns 0 + emits `WARN[F-CONC-002]` to stderr. Intentional ~64 B leak vs UAF crash.
+- `NVec` canonicalized in `stdlib/runtime/nvec.h` with `_Static_assert(sizeof(NVec) == 32, ...)`. 20+ sister `_rt.c` redeclarations and 5 cuda_rt.cu occurrences removed; `tools/check_nvec_layout.sh` drift gate added.
+- A3 `vec_push` NULL-deref guard under `NUCLEOR_OOM_LENIENT=1`.
+- G-5 prescribed remediation `ptr_is_null(<binding>)` builtin added; runtime helper `__nucleor_ptr_is_null` returns 1 iff i64 == 0.
+
+### Type flow + codegen (Lane 1)
+- `u64 < u64` now emits `icmp ult` (was `icmp slt`); same for `<=`/`>`/`>=`. Uses new iops 38..41 routed through `binop_u64_type`.
+- `u64 >> n` emits `lshr` (was `ashr`); var-RHS u64 shift routes through new `__nucleor_panic_shr_u64`.
+- `u64 / u64` and `u64 % u64` route to new `__nucleor_panic_div_u64` / `_rem_u64` runtime helpers.
+- `f64/f32 as {i8,u8,i16,u16}` saturating-rounds via 8 new `__nucleor_f{32,64}_to_{i8,u8,i16,u16}` helpers (RFC-0015 §3.5; NaN→0, saturate-at-bound, truncate toward zero).
+- Type system: duplicate-type-param `<T,T>` rejected (TYP-042); type-param shadowing primitive rejected (TYP-041).
+- `opt_fold_block` extended with unsigned-fold cmp branch via sign-bit-flip XOR-trick.
+- `__nucleor_diag_exit` runtime helper added; reserved for F-019 / F-026 follow-on bootstrap iteration.
+
+### Lexer / parser (Lane 4)
+- F-066 root cause: lexer's terminal silent-byte-skip replaced with `LEX-001 unexpected byte` panic naming the offending byte (with hex code) + context hint. Closes ~10 silent-accept findings (F-003, F-004, F-005, F-008, F-009, F-010, ...).
+- `let x: 1 + 1 = 5;` → `PARSE-TYPE-001` (was SIGSEGV).
+- Recursive-descent depth limit 1024 → `PARSE-DEPTH-001` (was OS stack overflow). Runtime-side counter `__nucleor_parse_depth_inc/dec/get/reset`.
+- Embedded NUL → `LEX-002` lex-time defense (was silent source truncation, smuggling vector).
+- Hex literal overflow → `NUM-021` (was silent wrap; decimal was checked, hex wasn't).
+- `1e400` → `LEX-NUM-FLOAT-OVERFLOW` (was silent Inf bit pattern).
+- 24+ silent-accept hardenings: number literal hygiene, char-literal misclassification, missing-comma, closing-delim recovery, closure-no-body, import shape, keyword-as-binding, top-level garbage.
+- BOM-at-SOF accepted; rejected mid-source.
+- 25 new `tests/err/lex_f*` / `parse_f*` negative-test fixtures.
+
+### Runtime ABI + RT (Lane 6)
+- 10 missing manifest rows added; manifest now 890 helpers (was 875 pre-audit), 0 REVIEW REQUIRED.
+- `unit_convert_f64` wires `dim_check_or_panic`: cross-dimensional conversions now `UNIT-DIM-001`.
+- `bit_shift_*`/`bit_set/clear/test` shift count bounds `[0, 63]` → `BIT-001` (was C UB).
+- RT-attribute scanner replaced substring matching with proper expression walk (catches `Vec::with_capacity`, `Box::new`, array OOB `v.get(i)`, fn-pointer call, helper-chain depth).
+- `#[atomic]`/`#[isr]` blocking detection extended to multi-hop call graph.
+- `proc_run1` shell-injection guard via per-platform quoting.
+- `proc_capture_stdout` thread-safety: `_Thread_local` status slot.
+- RFC-0001 §3.2.4 deadline semantics downgraded to "best-effort post-hoc detection" (HW-timer trap deferred to v1.1+).
+
+### Stdlib correctness (Lane 5)
+- TT-SVD real implementation (was stub returning identity matrices). Tolerance: rank-1 1.74e-16; full-rank 4×5×6 = 1.24e-15.
+- CP-ALS proper pseudoinverse (was diagonal-only "solve"). Rank-2 5×4×3 relerr 5.34e-13.
+- `nuc_ridge_predict` no longer clips outputs to `[0,1]` (sklearn parity).
+- `nuc_t3_slice` bounds check.
+- `nuc_mat_eig` non-symmetric input → `MAT-EIG-NOT-SYMMETRIC` (was wrong eigenvalues silently).
+- `nuc_mat_rank` no longer leaks U/S/V/EigResult.
+- QR rank-deficient zeroes Q on `norm < 1e-15`; |Q*R - A| / |A| = 7.15e-17.
+- URDF default joint axis fixed to `(1,0,0)` per spec (was `(0,0,1)`); URDF parser emits `URDF-PARSE-001` on unclosed `<joint>`.
+- Quantum: qsim/qsim_graph/trace qubit caps reconciled; sparsity threshold standardized on `|amp|²`; `qsim_measure` zero-norm guard ~1e-30; `qsim_swap` single SWAP trace.
+- Quat short-arc canonicalization (MED-9B-010); MPS Jacobi cap raised 100 → 1000.
+- FFI: `tests/rods/rust_interop.nr` calls `rust_free_str`; `rust_bridge` regex pinned to `1.10`.
+
+### Docs + CLI surface (Lane 7)
+- `nuc help` no longer lists unimplemented `add | remove | update` aliases.
+- `nuc explain` database covers the v1.0 G-series codes (was returning "unknown error code" for OWN-G4-*, BORROW-G2-*, ALIAS-G3-*, SEND-G6-*, FFI-G5/G9-*, UNSAFE-G7-*, EFFECT-G10-*).
+- `language-reference.md` rewritten to v1.0; keyword set synced to actual lexer.
+- `examples/README.md` install paths fixed: `target/hello.exe` (Windows) / `./target/hello` (Linux).
+- `--release` / `--tier` mentions removed from README + architecture (unimplemented); strict-flag-check added so future drift surfaces as `warning: unknown flag '--XYZ' (ignored)`.
+- `nuc gen-headers` listed in `nuc help`.
+- SARIF driver version bumped 0.1.0 → 1.0.0.
+- README launcher fallback path lists POSIX + Windows separately.
+- `g1-default-flip-adopter-guide.md` rewritten as v1.0 retrospective.
+- `benchmarks.md` marked PRE-V1.0 with refresh-pending callout.
+
+### Integrator-side fix-forward (closes audit-pass squash residuals)
+- `tools/verify.sh`: NUC_OS now derived from `uname -s` (was unset, broke step ~10 with `set -u`); negative_coverage_gate regex matches both `// EXPECT: error[CODE]` and bare `// EXPECT: CODE` forms; KNOWN_UNCOVERED list rewritten against the current emit set; differential codegen + contention smokes set `NUCLEOR_INT_STRICT_INTRIN=0` so wrap semantics match the C reference; contention smokes runtime-skip on 64-bit POSIX where bit-packed handles overflow i64.
+- `tests/diff/lane3_diff_int_widths.nr`: `print_i64_kv` builds one string per kv pair via `str_concat` (was 4 separate prints adding extra newlines).
+- `stdlib/rods/concurrency.nr`: added missing `import "stdlib/rods/atomic.nr"` (pre-existing L3 squash bug — `conc_atomic_get` referenced `atomic_load_v` without import).
+- `compiler/nucleor_tools_suite.nr`: added `ptr_is_null` entry to `get_rt_name` + IR declare in `emit_externs` (Lane 2 squash added them to s1 only).
+- `tools/gen_helper_manifest.nr`: classified `__nucleor_parse_depth_*` (ToolingMeta), `__nucleor_diag_exit` (ToolingMeta), `ptr_is_null` (Allocation) — formerly Unclassified / REVIEW REQUIRED.
+
+### Residuals carried to v1.0.2 / v1.x
+- L1 partials: F-019 (PANIC trailing line on dup impls — diag wired but trailing PANIC needs second bootstrap of `diag_exit`), F-002 (cross-enum match — MATCH-016 wired, scrut_t population gating), F-003 (i64→i32 narrow — TYP-044 gated by `NUC_STRICT_NUMERIC=1` to preserve existing fixtures), F-006 (generic enum payload — blocked on per-instantiation monomorphization).
+- L2 partials: G4-A-1/A-2 (cast-walk closes most-common shapes; full branch-merge fix-point deferred), G6-A-1 (per-shape struct-field recursion deferred).
+- L4 partials: F-011 NUL byte smuggling vector — full close requires Lane 6 length-aware `__nucleor_file_read_string`. F-012 inside-fn-body adjacent-token silent miscompile — top-level case (PARSE-TOP-001) closed; inside-fn-body case sister to F-013 deferred. F-013 / F-035 / F-039 / F-058 deferred per L4 brief residuals. F-038, F-049, F-052, F-055, F-057, F-060, F-063, F-067, F-072 not in L4's status table — residuals for v1.0.2 audit pass-2.
+- L3 contention smokes: bit-packed handle approach overflows i64 on 64-bit POSIX — runtime-skipped pending structural rewrite.
+- L3 platform_arith_parity test: contains compile-time const expressions that legitimately overflow under v1.0 strict const-fold — diagnostic firing IS the v1.0 gate; build-attempt skipped.
+- L5 deferred: F-MATH-011 / F-MATH-012 (kmeans / dt predict UB — needs Lane 2 coordination on the structural DFLIP-PATCH residual). HIGH-9B-006 CNOT control-|0⟩ false entanglement — intentional syntactic-vs-semantic distinction.
+- F-NUM-004 mixed-width arithmetic (NUM-001) — RFC amendment recommended.
+- F-CONC-006 / F-CONC-007 Windows mutex/channel parity — integrator-local pending.
+- Per-rod `#[effect(...)]` retrofit — 216 .nr / 1786 extern decls — adopter-incremental.
+- macOS native bootstrap — pending hardware.
+
+### Verify
+PASS / SKIP / FAIL counts: pending final integrator-side run on Windows. Linux integrator run completed lane-by-lane with verify.sh in fix-forward mode.
+
 ## [1.0.0] — 2026-05-08
 
 **Full RFC-0062 hard-error closure across G-1..G-11 + RFC-0063 parser unification (95/180 dups closed) + ML PROBE-2 4-pipeline parity gate. v1.0 cut criteria met across both hosts.**
