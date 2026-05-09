@@ -6,5 +6,5 @@ fn main() -> i32 {
     vec_push(v, 42);
     let n: i32 = vec_get(v, 0) as i32;
     vec_free(v);
-    n
+    if n == 42 { print("OK g4_cast_legit\n"); 0 } else { 1 }
 }

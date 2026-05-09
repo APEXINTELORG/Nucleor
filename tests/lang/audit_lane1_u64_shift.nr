@@ -36,6 +36,6 @@ fn main() -> i32 {
         print("\n");
     };
 
-    if fail == 0 { print("PASS: u64 right shift logical semantics\n"); };
+    if fail == 0 { print("OK audit_lane1_u64_shift\n"); };
     fail as i32
 }

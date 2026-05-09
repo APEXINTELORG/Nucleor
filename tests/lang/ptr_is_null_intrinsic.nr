@@ -7,5 +7,5 @@ fn main() -> i32 {
     let nonzero: i64 = 7;
     let r1: i64 = ptr_is_null(zero);
     let r2: i64 = ptr_is_null(nonzero);
-    if r1 == 1 && r2 == 0 { 0 } else { 1 }
+    if r1 == 1 && r2 == 0 { print("OK ptr_is_null_intrinsic\n"); 0 } else { 1 }
 }

@@ -11105,13 +11105,10 @@ fn package_exports_rust_file_name() -> str { return "Nucleor.exports.rs"; }
 fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json"; }
 
 fn compiler_version_label() -> str {
-    // v0.4.180: caught up from stale "0.2.0-v2" (sync with s1).
-    // v0.8.323 (initial): caught up from stale 0.4.180 (sync with s1
-    // per RFC-0063 Phase 1 follow-on; tools_suite was missed in the
-    // first v0.8.323 audit because the parity gate only covered s1).
-    // v0.8.323 (release): bumped to match the new CHANGELOG heading.
-    // v1.0.0: full RFC-0062 hard-error closure + RFC-0063 unification.
-    return "1.0.0";
+    return "1.0.1";
+    // Mirrors s1. History: 0.4.180 (caught up from stale 0.2.0-v2) →
+    // 0.8.323 (RFC-0063 Phase 1 follow-on) → 1.0.0 (RFC-0062 closure +
+    // RFC-0063 unification) → 1.0.1 (audit-pass-1 hardening sweep).
 }
 
 fn abi_export_version_label() -> str {
