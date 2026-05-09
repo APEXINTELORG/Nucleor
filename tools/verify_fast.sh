@@ -1226,11 +1226,29 @@ fi
 
 out_name="_pv_err_${tname}"
 out="$("$BIN" build "tests/err/$tname.nr" -o "$out_name" --no-cache 2>&1)"
+rc=$?
 t1="$(now_ms)"
 dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
-echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' \
-    && finish PASS "$dt" "" \
-    || finish FAIL "$dt" "no_error_or_warning_emitted"
+# Lane 3 (F-DIAG-014): exit-code-aware + EXPECT-code-aware gate.
+if [ "$rc" -eq 0 ]; then
+    finish FAIL "$dt" "negative_test_exited_zero"
+fi
+__exp_l1=""; __exp_l2=""; __exp_l3=""
+{ IFS= read -r __exp_l1 || true; IFS= read -r __exp_l2 || true; IFS= read -r __exp_l3 || true; } < "tests/err/$tname.nr" 2>/dev/null
+__exp_combined="$__exp_l1
+$__exp_l2
+$__exp_l3"
+__expect_code=$(echo "$__exp_combined" | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+                                                    s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' | head -1)
+if [ -n "$__expect_code" ]; then
+    echo "$out" | grep -qE "(error|warning)\[${__expect_code}([: ]|\])" \
+        && finish PASS "$dt" "" \
+        || finish FAIL "$dt" "expect_code_${__expect_code}_not_emitted"
+else
+    echo "$out" | grep -qE 'error\[' \
+        && finish PASS "$dt" "" \
+        || finish FAIL "$dt" "no_error_code_emitted"
+fi
 EOS
     chmod +x "$worker" 2>/dev/null || true
     echo "$worker"
