@@ -4847,12 +4847,11 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. Pre-v0.6.36 Nucleor accepted the declaration and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD). v0.6.36 catches the recursion at parse-time.");
             print(str_concat("  Workaround: wrap the recursive field in `Box<", str_concat(name, str_concat(">` (heap-indirection, single-element list shape), or `Option<Box<", str_concat(name, str_concat(">>` (linked-list / tree shape with terminator), or `&", str_concat(name, "` (advisory until borrow lowering of recursive structs lands).")))))));
             // Lane 1 audit fix (2026-05-08) — partial close of F-026.
-            // The NR036 diagnostic above is correct; the trailing
-            // PANIC line that the F-026 finding flagged is unchanged
-            // for now (eliminating it cleanly requires a new runtime
-            // exit-without-prefix helper + a bootstrap re-iteration
-            // that the current shipping binary cannot perform in a
-            // single pass).
+            // v1.0.1 audit-pass-1 integrator: F-026 trailing-PANIC line
+            // closure. Lane 1 staged __nucleor_diag_exit; this bootstrap
+            // iteration wires the call site to suppress the PANIC: prefix
+            // and exit(1) cleanly after the NR036 diagnostic.
+            diag_exit();
             panic(str_concat("nucleor: recursive struct ", str_concat(name, str_concat(" contains itself directly via field ", fn2))));
         };
         // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
@@ -10127,6 +10126,12 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
                         print(str_concat("  `", str_concat(type_name_v060, str_concat("` has two impls defining `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
                         print(str_concat("  Workaround until full UFCS lands: rename one trait's method (e.g. `", str_concat(method_name_v060, str_concat("_v1` / `", str_concat(method_name_v060, "_v2`), or split the impls across distinct concrete types so the mangled symbols differ."))))));
                         print("  This is Rust's E0034 \"multiple applicable items in scope\" territory — the long-term fix is UFCS disambiguation `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't yet support that surface (forward-roadmap).");
+                        // v1.0.1 (audit-pass-1 integrator) F-019 closure:
+                        // route through __nucleor_diag_exit so the trailing
+                        // "PANIC:" line is suppressed in favor of a clean
+                        // exit(1). The runtime helper was staged by Lane 1;
+                        // this bootstrap iteration wires the call site.
+                        diag_exit();
                         panic(str_concat("ambiguous method dispatch: ", fn_name));
                     };
                     print(str_concat("ERROR: duplicate top-level fn name '", str_concat(fn_name, "'")));

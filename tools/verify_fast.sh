@@ -8,7 +8,8 @@
 #
 # Usage: ./tools/verify_fast.sh
 #
-# Step shape (203 steps total as of v0.2.111):
+# Step shape (~1597 steps total as of v1.0.1; the count grows as new
+# audit-pass + RFC fixtures land):
 #   1.  Binary present + loads
 #   2.  ABI parity (s1 ↔ tools-suite)
 #   3.  Tools-suite rebuild (since v0.2.79)

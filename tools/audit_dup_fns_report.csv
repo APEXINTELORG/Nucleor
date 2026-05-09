@@ -20,7 +20,7 @@ is_ptr_arg,2,2,214,212,1,0,SIG_MATCH_BODY_DIFFERS
 emit_inst,4,4,190,97,1,0,SIG_MATCH_BODY_DIFFERS
 emit_externs,0,0,956,949,1,0,SIG_MATCH_BODY_DIFFERS
 emit_user_externs,2,2,54,25,1,0,SIG_MATCH_BODY_DIFFERS
-emit_module_ext,5,4,142,9,0,0,SIG_DIFFERS
+emit_module_ext,5,4,148,9,0,0,SIG_DIFFERS
 sym_get,2,2,43,5,1,0,SIG_MATCH_BODY_DIFFERS
 expr_struct_type,4,4,80,18,1,0,SIG_MATCH_BODY_DIFFERS
 sendable_type_forced_not,2,2,30,22,1,0,SIG_MATCH_BODY_DIFFERS

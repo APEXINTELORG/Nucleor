@@ -3,7 +3,9 @@
 #
 # Usage: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
 #
-# Step shape (203 steps total as of v0.2.111):
+# Step shape (~1597 steps total as of v1.0.1; the count grows as new
+# audit-pass + RFC fixtures land — exact count is per-run since the
+# parallel-fixture sweep enumerates tests/lang/* and tests/err/*):
 #   1.  Binary present + loads
 #   2.  ABI parity (s1 <-> tools-suite, via WSL bash if available)
 #   3.  Tools-suite rebuild (since v0.2.79)

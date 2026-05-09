@@ -504,12 +504,20 @@ awk -F, 'NR>1 {
 The live ticker also shows timings now — every `[N/450] OK <step>` line
 gets a `( N.NNs)` suffix so you can spot slowdowns as they happen.
 
-## Baseline (v0.4.22 — 2026-04-28)
+## Baseline (v0.4.22 — 2026-04-28; updated v1.0.1 — 2026-05-09)
 
+Original v0.4.22:
 - 450 steps, 448 PASS / 2 FAIL (memory budget items, pre-existing)
 - **Total: 325s (5.4 min)**
 - Median step: **0.609s**
 - p99: 5.0s, max: 27.5s
+
+v1.0.1 update — audit-pass-1 closure: ~1597 steps total. The audit added
+~30 verify steps (Lane 3 hardening — negative coverage gate, differential
+codegen, contention smokes, etc.) and the parallel-fixture sweep
+enumerates ~1300 tests/lang/* + tests/err/* fixtures. Parallel-fixture
+worker speedup typically 4x on a 4-core runner. Sequential portion runs
+~150-180s; parallel portion runs ~160-200s wall.
 
 ### Top 5 slowest steps to be aware of
 
