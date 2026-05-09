@@ -3907,7 +3907,16 @@ void __nucleor_mutex_free_value(long long handle) {
 typedef struct {
     long long *buf; int cap; int head; int tail; int count;
     int closed;
-    CRITICAL_SECTION lock; HANDLE not_empty; HANDLE not_full;
+    /* F-CONC-007 fix (audit pass-1, integrator-local Windows-parity 2026-05-09):
+     * Replaced HANDLE not_empty/not_full Event objects + 100ms polling with
+     * CONDITION_VARIABLE + SleepConditionVariableCS for true wait/notify
+     * semantics. Pre-fix: producer/consumer wait timed out every 100ms even
+     * when no work was pending, giving Windows channels a 100ms latency floor
+     * vs Linux's pthread_cond_wait (microsecond-class). Post-fix: Windows now
+     * matches Linux's wait/notify semantics — wake-on-signal, no polling. */
+    CRITICAL_SECTION lock;
+    CONDITION_VARIABLE not_empty;
+    CONDITION_VARIABLE not_full;
 } NChannel;
 long long __nucleor_channel_new(long long capacity) {
     NChannel *ch = (NChannel*)malloc(sizeof(NChannel));
@@ -3916,59 +3925,63 @@ long long __nucleor_channel_new(long long capacity) {
     ch->head = 0; ch->tail = 0; ch->count = 0;
     ch->closed = 0;
     InitializeCriticalSection(&ch->lock);
-    ch->not_empty = CreateEvent(NULL, FALSE, FALSE, NULL);
-    ch->not_full = CreateEvent(NULL, FALSE, TRUE, NULL);
+    InitializeConditionVariable(&ch->not_empty);
+    InitializeConditionVariable(&ch->not_full);
     return (long long)ch;
 }
 void __nucleor_channel_send(long long handle, long long val) {
     NChannel *ch = (NChannel*)(void*)handle;
     if (!ch) return;
-    while (1) {
-        EnterCriticalSection(&ch->lock);
-        if (ch->closed) {
-            LeaveCriticalSection(&ch->lock);
-            return;
-        }
-        if (ch->count < ch->cap) {
-            ch->buf[ch->tail] = val;
-            ch->tail = (ch->tail + 1) % ch->cap;
-            ch->count++;
-            SetEvent(ch->not_empty);
-            LeaveCriticalSection(&ch->lock);
-            return;
-        }
-        LeaveCriticalSection(&ch->lock);
-        WaitForSingleObject(ch->not_full, 100);
+    EnterCriticalSection(&ch->lock);
+    while (!ch->closed && ch->count >= ch->cap) {
+        /* SleepConditionVariableCS atomically releases the CS, waits for
+         * the CV signal, and re-acquires before returning. INFINITE wait
+         * means we wake only on actual signal (close or buffer-not-full),
+         * not on a 100ms timer. */
+        SleepConditionVariableCS(&ch->not_full, &ch->lock, INFINITE);
     }
+    if (ch->closed) {
+        LeaveCriticalSection(&ch->lock);
+        return;
+    }
+    ch->buf[ch->tail] = val;
+    ch->tail = (ch->tail + 1) % ch->cap;
+    ch->count++;
+    /* Wake exactly one consumer waiting on not_empty. WakeConditionVariable
+     * (vs WakeAll) is correct here because each item satisfies one consumer. */
+    WakeConditionVariable(&ch->not_empty);
+    LeaveCriticalSection(&ch->lock);
 }
 long long __nucleor_channel_recv(long long handle) {
     NChannel *ch = (NChannel*)(void*)handle;
     if (!ch) return 0;
-    while (1) {
-        EnterCriticalSection(&ch->lock);
-        if (ch->count > 0) {
-            long long val = ch->buf[ch->head];
-            ch->head = (ch->head + 1) % ch->cap;
-            ch->count--;
-            SetEvent(ch->not_full);
-            LeaveCriticalSection(&ch->lock);
-            return val;
-        }
-        if (ch->closed) {
-            LeaveCriticalSection(&ch->lock);
-            return 0;
-        }
-        LeaveCriticalSection(&ch->lock);
-        WaitForSingleObject(ch->not_empty, 100);
+    EnterCriticalSection(&ch->lock);
+    while (!ch->closed && ch->count == 0) {
+        SleepConditionVariableCS(&ch->not_empty, &ch->lock, INFINITE);
     }
+    if (ch->count == 0 && ch->closed) {
+        /* Drained + closed → return 0 (matches pre-fix behavior; user code
+         * should check is_closed before assuming 0 is a real value). */
+        LeaveCriticalSection(&ch->lock);
+        return 0;
+    }
+    long long val = ch->buf[ch->head];
+    ch->head = (ch->head + 1) % ch->cap;
+    ch->count--;
+    WakeConditionVariable(&ch->not_full);
+    LeaveCriticalSection(&ch->lock);
+    return val;
 }
 void __nucleor_channel_close(long long handle) {
     NChannel *ch = (NChannel*)(void*)handle;
     if (!ch) return;
     EnterCriticalSection(&ch->lock);
     ch->closed = 1;
-    SetEvent(ch->not_empty);
-    SetEvent(ch->not_full);
+    /* Wake ALL waiters on both CVs so they observe the closed state and
+     * exit their wait loops. WakeAll (vs Wake) is required here because
+     * close() is a broadcast event, not a per-item signal. */
+    WakeAllConditionVariable(&ch->not_empty);
+    WakeAllConditionVariable(&ch->not_full);
     LeaveCriticalSection(&ch->lock);
 }
 long long __nucleor_channel_is_closed(long long handle) {
@@ -4111,9 +4124,23 @@ long long __nucleor_async_await(long long task_handle) {
     free(t);
     return r;
 }
+/* F-CONC-006 fix (audit pass-1, integrator-local Windows-parity 2026-05-09):
+ * Windows CRITICAL_SECTION is recursive by default; default pthread_mutex_t
+ * (PTHREAD_MUTEX_DEFAULT) on Linux maps to PTHREAD_MUTEX_NORMAL which is
+ * non-recursive. Code written/tested on Windows that re-entered a held
+ * mutex (callbacks, helper fns that incidentally re-acquire) silently
+ * deadlocked on Linux. Cross-platform contract is now: mutexes are
+ * recursive on both OSes. Tradeoff acknowledged: recursive mutexes can
+ * mask lock-ordering bugs that would otherwise deadlock-then-debug;
+ * code wanting strict non-recursive semantics should use atomics or
+ * higher-level primitives. */
 long long __nucleor_mutex_new(void) {
     pthread_mutex_t *m = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(m, NULL);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(m, &attr);
+    pthread_mutexattr_destroy(&attr);
     return (long long)m;
 }
 void __nucleor_mutex_lock(long long handle) { pthread_mutex_lock((pthread_mutex_t*)(void*)handle); }
