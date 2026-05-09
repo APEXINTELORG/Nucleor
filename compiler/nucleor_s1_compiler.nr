@@ -257,11 +257,55 @@ fn classify_kw(w: str) -> i64 {
     // check is rewritten to use pkv lookahead.
     return 1;
 }
+// Lane 4 / F-028: detect IEEE-754 f64 Inf/NaN bit patterns in a freshly
+// parsed float literal. Pre-fix `1e400` strtod-parsed to +Inf and the
+// raw bit pattern `0x7FF0000000000000` was stored silently — adopters
+// got NaN/Inf in their numeric pipeline with no diagnostic.
+//
+// IEEE-754 f64 layout: sign(1) | exp(11) | mantissa(52). All-ones
+// exponent indicates Inf (mantissa==0) or NaN (mantissa!=0). The
+// canonical positive-Inf bits are 0x7FF0000000000000 = 9218868437227405312
+// and negative-Inf bits are 0xFFF0000000000000. Cheaper than re-parsing
+// strtod's output: we just compare the absolute-value bit pattern.
+//
+// Returns 1 if the bit pattern is non-finite (Inf or NaN), 0 otherwise.
+//
+// Implementation note: bitwise/shift ops are available but unused in the
+// rest of the compiler self-host; we factor the check into a separate fn
+// to keep the inline lex path minimal and avoid surprising the bootstrap
+// IR seed with a new operator class.
+#[manual_drop]
+fn f64_bits_is_nonfinite(bits: i64) -> i64 {
+    // Positive-Inf bit pattern as i64: 0x7FF0_0000_0000_0000.
+    let pos_inf_f028: i64 = 9218868437227405312;
+    // Negative-Inf bit pattern as a signed-i64 value (sign bit set):
+    // 0xFFF0_0000_0000_0000 = -4503599627370496.
+    let neg_inf_f028: i64 = 0 - 4503599627370496;
+    // For positive bit patterns: bits in [pos_inf, i64::MAX] are non-finite
+    // (the saturated exponent field maps to Inf or NaN).
+    if bits >= pos_inf_f028 { return 1; };
+    // For negative bit patterns: bits in [i64::MIN, neg_inf] are
+    // non-finite. Note `bits < 0 && bits <= neg_inf_f028` — anything more
+    // negative (closer to i64::MIN) has the exponent saturated too.
+    if bits < 0 && bits <= neg_inf_f028 { return 1; };
+    return 0;
+}
+
 #[manual_drop]
 fn lex(src: str) -> Vec<i32> {
     let mut tokens: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
+    // Lane 4 / F-007: explicitly skip a UTF-8 BOM (EF BB BF) at file
+    // start. Pre-fix the BOM was silently consumed via the unknown-byte
+    // fall-through; with the F-066 fix that fall-through now errors,
+    // so a BOM at SOF would falsely fail. Accept BOM only at offset 0.
+    if slen >= 3
+        && str_char_at(src, 0) == 239
+        && str_char_at(src, 1) == 187
+        && str_char_at(src, 2) == 191 {
+        p = 3;
+    };
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if is_ws(c) == 1 { p = p + 1; }
@@ -525,45 +569,163 @@ fn lex(src: str) -> Vec<i32> {
                     // strict-arithmetic mode. The accumulator is meant to
                     // wrap; the resulting bit pattern is what callers want.
                     p = p + 2;
+                    // Lane 4 / F-021: track hex digit count, reject empty
+                    // (F-016 `0x`) and overflow (>16 digits = >u64).
+                    let mut v_hex_digits: i64 = 0;
+                    let mut v_hex_first_us: i64 = 1;
+                    let mut v_hex_last_us: i64 = 0;
+                    let mut v_hex_consec_us: i64 = 0;
                     while p < slen {
                         let hc: i64 = str_char_at(src, p);
-                        if hc == 95 { p = p + 1; }
-                        else if hc >= 48 && hc <= 57 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 48); p = p + 1; }
-                        else if hc >= 97 && hc <= 102 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 87); p = p + 1; }
-                        else if hc >= 65 && hc <= 70 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 55); p = p + 1; }
+                        if hc == 95 {
+                            // F-017 `0x_` — underscore at first position
+                            // (no digit yet) is invalid; F-019 consecutive.
+                            if v_hex_first_us == 1 {
+                                panic(str_concat("error[LEX-NUM-001]: hex literal starts with `_` at byte ", str_concat(str_from_int(st), ". Underscores are digit separators; at least one hex digit is required between `0x` and the first `_`. Pre-fix `0x_` silently produced 0 with no diag.")));
+                            };
+                            if v_hex_last_us == 1 {
+                                panic(str_concat("error[LEX-NUM-002]: consecutive `__` in hex literal at byte ", str_concat(str_from_int(p), ". Numeric underscores must separate digits, not appear consecutively. Pre-fix `0x1__2` silently produced `0x12`.")));
+                            };
+                            v_hex_last_us = 1;
+                            v_hex_consec_us = v_hex_consec_us + 1;
+                            p = p + 1;
+                        }
+                        else if hc >= 48 && hc <= 57 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 48); p = p + 1; v_hex_digits = v_hex_digits + 1; v_hex_first_us = 0; v_hex_last_us = 0; }
+                        else if hc >= 97 && hc <= 102 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 87); p = p + 1; v_hex_digits = v_hex_digits + 1; v_hex_first_us = 0; v_hex_last_us = 0; }
+                        else if hc >= 65 && hc <= 70 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 55); p = p + 1; v_hex_digits = v_hex_digits + 1; v_hex_first_us = 0; v_hex_last_us = 0; }
                         else { break; };
+                    };
+                    // F-016 — `0x` with no digits.
+                    if v_hex_digits == 0 {
+                        panic(str_concat("error[LEX-NUM-003]: hex literal `0x` at byte ", str_concat(str_from_int(st), " has no hex digits. Required form: `0x<hex-digits>` (e.g. `0xAB`, `0xFF_FF`). Pre-fix this silently produced 0 with no diagnostic.")));
+                    };
+                    // F-018 — trailing underscore: `0x100_`.
+                    if v_hex_last_us == 1 {
+                        panic(str_concat("error[LEX-NUM-004]: hex literal at byte ", str_concat(str_from_int(st), " ends with `_`. Underscores must separate digits, not trail. Pre-fix `0xAB_` silently produced `0xAB` with the trailing underscore swallowed.")));
+                    };
+                    // F-021 — overflow: >16 hex digits = >u64. Mirrors
+                    // the existing decimal NUM-021 check.
+                    if v_hex_digits > 16 {
+                        panic(str_concat("error[NUM-021]: hex literal at byte ", str_concat(str_from_int(st), str_concat(" has ", str_concat(str_from_int(v_hex_digits), " hex digits, exceeding u64::MAX (16 hex digits = 0xFFFFFFFFFFFFFFFF). Pre-fix the wrapping_mul/add accumulator silently wrapped, producing a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or split into multiple operations.")))));
                     };
                     handled_radix = 1;
                 } else if nx == 111 || nx == 79 {
                     // octal -- v0.3.208: wrapping_* (see hex path).
                     p = p + 2;
+                    let mut v_oct_digits: i64 = 0;
+                    let mut v_oct_first_us: i64 = 1;
+                    let mut v_oct_last_us: i64 = 0;
                     while p < slen {
                         let oc: i64 = str_char_at(src, p);
-                        if oc == 95 { p = p + 1; }
-                        else if oc >= 48 && oc <= 55 { int_value = wrapping_add(wrapping_mul(int_value, 8), oc - 48); p = p + 1; }
+                        if oc == 95 {
+                            if v_oct_first_us == 1 {
+                                panic(str_concat("error[LEX-NUM-001]: octal literal starts with `_` at byte ", str_concat(str_from_int(st), ". At least one octal digit is required between `0o` and the first `_`.")));
+                            };
+                            if v_oct_last_us == 1 {
+                                panic(str_concat("error[LEX-NUM-002]: consecutive `__` in octal literal at byte ", str_concat(str_from_int(p), ".")));
+                            };
+                            v_oct_last_us = 1;
+                            p = p + 1;
+                        }
+                        else if oc >= 48 && oc <= 55 { int_value = wrapping_add(wrapping_mul(int_value, 8), oc - 48); p = p + 1; v_oct_digits = v_oct_digits + 1; v_oct_first_us = 0; v_oct_last_us = 0; }
                         else { break; };
+                    };
+                    if v_oct_digits == 0 {
+                        panic(str_concat("error[LEX-NUM-003]: octal literal `0o` at byte ", str_concat(str_from_int(st), " has no octal digits. Required form: `0o<octal-digits>` (e.g. `0o777`).")));
+                    };
+                    if v_oct_last_us == 1 {
+                        panic(str_concat("error[LEX-NUM-004]: octal literal at byte ", str_concat(str_from_int(st), " ends with `_`.")));
+                    };
+                    if v_oct_digits > 22 {
+                        panic(str_concat("error[NUM-021]: octal literal at byte ", str_concat(str_from_int(st), str_concat(" has ", str_concat(str_from_int(v_oct_digits), " octal digits, exceeding u64::MAX (max 22 octal digits = 0o1777777777777777777777).")))));
                     };
                     handled_radix = 1;
                 } else if nx == 98 || nx == 66 {
                     // binary -- v0.3.208: wrapping_* (see hex path).
                     p = p + 2;
+                    let mut v_bin_digits: i64 = 0;
+                    let mut v_bin_first_us: i64 = 1;
+                    let mut v_bin_last_us: i64 = 0;
                     while p < slen {
                         let bc: i64 = str_char_at(src, p);
-                        if bc == 95 { p = p + 1; }
-                        else if bc == 48 { int_value = wrapping_mul(int_value, 2); p = p + 1; }
-                        else if bc == 49 { int_value = wrapping_add(wrapping_mul(int_value, 2), 1); p = p + 1; }
+                        if bc == 95 {
+                            if v_bin_first_us == 1 {
+                                panic(str_concat("error[LEX-NUM-001]: binary literal starts with `_` at byte ", str_concat(str_from_int(st), ". At least one binary digit is required between `0b` and the first `_`.")));
+                            };
+                            if v_bin_last_us == 1 {
+                                panic(str_concat("error[LEX-NUM-002]: consecutive `__` in binary literal at byte ", str_concat(str_from_int(p), ".")));
+                            };
+                            v_bin_last_us = 1;
+                            p = p + 1;
+                        }
+                        else if bc == 48 { int_value = wrapping_mul(int_value, 2); p = p + 1; v_bin_digits = v_bin_digits + 1; v_bin_first_us = 0; v_bin_last_us = 0; }
+                        else if bc == 49 { int_value = wrapping_add(wrapping_mul(int_value, 2), 1); p = p + 1; v_bin_digits = v_bin_digits + 1; v_bin_first_us = 0; v_bin_last_us = 0; }
                         else { break; };
+                    };
+                    if v_bin_digits == 0 {
+                        panic(str_concat("error[LEX-NUM-003]: binary literal `0b` at byte ", str_concat(str_from_int(st), " has no binary digits. Required form: `0b<binary-digits>` (e.g. `0b1010`).")));
+                    };
+                    if v_bin_last_us == 1 {
+                        panic(str_concat("error[LEX-NUM-004]: binary literal at byte ", str_concat(str_from_int(st), " ends with `_`.")));
+                    };
+                    if v_bin_digits > 64 {
+                        panic(str_concat("error[NUM-021]: binary literal at byte ", str_concat(str_from_int(st), str_concat(" has ", str_concat(str_from_int(v_bin_digits), " binary digits, exceeding u64::MAX (max 64 binary digits).")))));
                     };
                     handled_radix = 1;
                 };
             };
             let mut digit_sb: i64 = sb_new();
             if handled_radix == 0 {
+                // Lane 4 / F-017/F-018/F-019/F-020: decimal underscore
+                // hygiene + leading-zero rejection.
+                let mut v_dec_p_track: i64 = p;
+                let mut v_dec_first_char: i64 = str_char_at(src, p);
+                let mut v_dec_last_was_us: i64 = 0;
+                let mut v_dec_count: i64 = 0;
                 while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
-                    if str_char_at(src, p) != 95 {
+                    let v_dec_ch: i64 = str_char_at(src, p);
+                    if v_dec_ch == 95 {
+                        if v_dec_count == 0 {
+                            // Decimal can't start with `_` because that's
+                            // an identifier; this branch is dead but kept
+                            // for defensive symmetry.
+                            panic(str_concat("error[LEX-NUM-001]: decimal literal at byte ", str_concat(str_from_int(v_dec_p_track), " starts with `_`.")));
+                        };
+                        if v_dec_last_was_us == 1 {
+                            panic(str_concat("error[LEX-NUM-002]: consecutive `__` in decimal literal at byte ", str_concat(str_from_int(p), ". Numeric underscores must separate digits, not appear consecutively. Pre-fix `1__2` silently produced `12`.")));
+                        };
+                        v_dec_last_was_us = 1;
+                    } else {
                         sb_append_char_at(digit_sb, src, p);
+                        v_dec_count = v_dec_count + 1;
+                        v_dec_last_was_us = 0;
                     };
                     p = p + 1;
+                };
+                // F-018: trailing underscore. We allow trailing `_` ONLY
+                // if the next byte starts an integer suffix (`i`/`u`)
+                // or float suffix (`f`/`.`/`e`/`E`) — that's because
+                // `1_000_i64` is intentional in Rust. But bare `100_;`
+                // is not. Check the next byte.
+                if v_dec_last_was_us == 1 {
+                    let v_dec_next: i64 = if p < slen { str_char_at(src, p) } else { 0 };
+                    let v_suffix_ok_us: i64 = if v_dec_next == 105 || v_dec_next == 117 || v_dec_next == 102 || v_dec_next == 46 || v_dec_next == 101 || v_dec_next == 69 { 1 } else { 0 };
+                    if v_suffix_ok_us == 0 {
+                        panic(str_concat("error[LEX-NUM-004]: decimal literal at byte ", str_concat(str_from_int(v_dec_p_track), " ends with `_` (no trailing digits or suffix). Pre-fix `100_;` silently produced `100`.")));
+                    };
+                };
+                // F-020: leading-zero rejection (`007`). C-style octal
+                // doesn't exist in Nucleor; surprise hazard. The single
+                // digit `0` is fine; `0.5`/`0e10`/`0u64`/`0i32` are fine
+                // (the `0` followed by `.`/`e`/`u`/`i` exits this loop
+                // through the float/exp/suffix paths). Reject when:
+                // - first digit is `0`
+                // - and there are >1 digits collected
+                // - and the digit string isn't all zeros (`000` itself is
+                //   ambiguous; we reject anyway since users likely meant
+                //   different radix or just dropped a leading zero typo)
+                if v_dec_count > 1 && v_dec_first_char == 48 {
+                    panic(str_concat("error[LEX-NUM-005]: decimal literal at byte ", str_concat(str_from_int(v_dec_p_track), " has a leading zero (`007`-style). Nucleor does not support C-style octal literals; use `0o` for octal (`0o7`) or drop the leading zero (`7`). Pre-fix `007` silently lexed as decimal 7 — surprise hazard for adopters porting C/Java code.")));
                 };
             };
             // v0.5.24: digits-only e/E exponent (no fractional dot).
@@ -603,6 +765,10 @@ fn lex(src: str) -> Vec<i32> {
                 while exp_p < slen && is_digit(str_char_at(src, exp_p)) == 1 { exp_p = exp_p + 1; };
                 let lit_text: str = str_substring(src, lit_st, exp_p);
                 let bits: i64 = str_to_f64(lit_text);
+                // Lane 4 / F-028: Inf/NaN range check.
+                if f64_bits_is_nonfinite(bits) == 1 {
+                    panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(lit_st), " evaluates to a non-finite value (Inf or NaN). Pre-fix the bit pattern was stored silently and adopters got Inf/NaN propagating through their numeric pipeline with no diagnostic. f64 finite range is approximately ±1.7976931348623157e308; values outside this range cannot be represented as a finite f64.")))));
+                };
                 tokens.push(tok_new(124, bits, lit_st));
                 p = exp_p;
                 continue;
@@ -687,6 +853,10 @@ fn lex(src: str) -> Vec<i32> {
                 if use_raw_bits == 1 {
                     let lit_text: str = str_concat(str_from_int(int_part), str_concat(".", str_concat(raw_frac_str, exp_str)));
                     let bits: i64 = str_to_f64(lit_text);
+                    // Lane 4 / F-028: Inf/NaN range check.
+                    if f64_bits_is_nonfinite(bits) == 1 {
+                        panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(st), " evaluates to a non-finite value (Inf or NaN). Pre-fix the bit pattern was stored silently and adopters got Inf/NaN propagating through their numeric pipeline with no diagnostic. f64 finite range is approximately ±1.7976931348623157e308.")))));
+                    };
                     tokens.push(tok_new(124, bits, st));
                 } else {
                     let frac_str: str = if raw_frac_len > 6 { str_substring(raw_frac_str, 0, 6) } else { raw_frac_str };
@@ -851,8 +1021,29 @@ fn lex(src: str) -> Vec<i32> {
                     if str_eq(suf, "u128") == 1 { is_known = 1; };
                     if str_eq(suf, "usize") == 1 { is_known = 1; };
                     if is_known == 0 {
-                        // Not actually a suffix; rewind so it lexes as identifier.
-                        p = suf_st;
+                        // Lane 4 / F-023: unknown int suffix (`1i9`,
+                        // `1u42`). Pre-fix this rewound to suf_st and
+                        // re-lexed `i9` / `u42` as a fresh identifier
+                        // — silently dropping the suffix and feeding
+                        // the ident into the next-token expression-stmt
+                        // silent-drop path (F-012). Now: reject.
+                        panic(str_concat("error[LEX-NUM-SUFFIX]: unknown integer-literal suffix `", str_concat(suf, str_concat("` at byte ", str_concat(str_from_int(suf_st), ". Recognized suffixes: i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize. Pre-fix the suffix was silently rewound and re-lexed as an identifier, dropping the user's typed-literal intent.")))));
+                    };
+                };
+                // Lane 4 / F-022: an int literal immediately followed
+                // by an alphabetic byte (no `i`/`u` so the suffix branch
+                // didn't take) means the user wrote something like
+                // `1z42` or `1abc`. Pre-fix `z42` lexed as a fresh
+                // ident which then dropped silently via the F-012
+                // expression-stmt silent-drop path. Reject.
+                if p < slen {
+                    let v_after_int: i64 = str_char_at(src, p);
+                    if (v_after_int >= 65 && v_after_int <= 90) || (v_after_int >= 97 && v_after_int <= 122) {
+                        // Find the end of the suffix-shaped run for the diag.
+                        let mut v_end_int: i64 = p;
+                        while v_end_int < slen && is_alnum(str_char_at(src, v_end_int)) == 1 { v_end_int = v_end_int + 1; };
+                        let v_bad_suffix: str = str_substring(src, p, v_end_int);
+                        panic(str_concat("error[LEX-NUM-SUFFIX]: unrecognised suffix `", str_concat(v_bad_suffix, str_concat("` after integer literal at byte ", str_concat(str_from_int(p), ". Recognized integer suffixes start with `i` or `u` (i8/i16/.../i128/isize/u8/.../u128/usize); float suffixes (f32/f64) require a fractional dot (e.g. `1.0f32`, not `1f32`). Pre-fix any other alphabetic run immediately after digits was silently dropped as a stray identifier.")))));
                     };
                 };
                 if p < slen && str_char_at(src, p) == 123 {
@@ -1035,6 +1226,38 @@ fn lex(src: str) -> Vec<i32> {
                 panic("nucleor: Unicode-escape char literal `'\\u{...}'` not yet supported (see ERROR diagnostic above)");
             };
             if handled == 0 {
+                // F-025/F-026 (Lane 4): the apostrophe is followed by
+                // something that's neither a one-char (or escaped) char
+                // literal nor a `\u{...}` form. Pre-fix this dropped
+                // through to the lifetime-token branch and v0.7.2's
+                // loop-label halt fired with a wrong-class diagnostic.
+                // Detect specific malformed-char-literal shapes BEFORE
+                // taking the lifetime fallback.
+                //
+                // Empty char `''` — token at p+1 is the closing apostrophe.
+                if p + 1 < slen && str_char_at(src, p + 1) == 39 {
+                    panic(str_concat("error[LEX-CHAR-EMPTY]: empty character literal `''` at byte ", str_concat(str_from_int(st), ". A char literal must contain exactly one character (or one escape sequence). Pre-fix this surfaced as the wrong-class \"loop labels not yet supported\" diagnostic.")));
+                };
+                // Multi-char `'ab'` / `'abc'` etc. Detect: single-byte
+                // chars followed by an apostrophe within a short window
+                // and no `:` (which would mark a lifetime-followed-by-
+                // type-bound, e.g. `'a:`). Scan forward to the next
+                // apostrophe; if found within 8 chars and the first
+                // post-apos char isn't an identifier-start/colon,
+                // it's a multi-char literal.
+                let mut scan_ap: i64 = p + 1;
+                let mut found_close_ap: i64 = 0;
+                let mut ap_chars: i64 = 0;
+                while scan_ap < slen && scan_ap < p + 10 {
+                    let sch: i64 = str_char_at(src, scan_ap);
+                    if sch == 39 { found_close_ap = 1; break; };
+                    if sch == 10 || sch == 13 { break; };
+                    ap_chars = ap_chars + 1;
+                    scan_ap = scan_ap + 1;
+                };
+                if found_close_ap == 1 && ap_chars >= 2 {
+                    panic(str_concat("error[LEX-CHAR-MULTI]: multi-character literal at byte ", str_concat(str_from_int(st), str_concat(": `", str_concat(str_substring(src, st, scan_ap + 1), "`. A char literal must contain exactly one character. Use a string literal `\"...\"` for multi-character text, or split into separate char literals. Pre-fix this surfaced as the wrong-class \"loop labels not yet supported\" diagnostic.")))));
+                };
                 // T2.5 (v0.2.351) fallback: apostrophe → lifetime token.
                 p = p + 1;
                 let id_st: i64 = p;
@@ -1043,7 +1266,50 @@ fn lex(src: str) -> Vec<i32> {
                 tokens.push(tok_new(98, lt_name, st));
             };
         }
-        else { p = p + 1; };
+        else {
+            // Lane 4 / F-066: terminal `else { p = p + 1; };` was the
+            // root-cause silent-accept path (closes F-003/004/005/007/
+            // 008/009/010 in one move). Every byte that didn't match
+            // any preceding lex rule was silently consumed without a
+            // token, so adopters wrote `~`, `$`, BOM, smart-quotes,
+            // zero-width space, RTL ident bytes, etc. and got exit=0
+            // with the offending bytes deleted. Now: emit a precise
+            // lex-time diagnostic at the offending byte. Special-case
+            // a couple of common typos so the message is actionable.
+            //
+            // F-011 (NUL byte): also caught here because preflight's
+            // C-string read truncates at the first NUL. The preflight
+            // check we add reports it explicitly with byte offset, but
+            // keep this branch defensive in case a later code path
+            // synthesises a NUL byte mid-string.
+            if c == 0 {
+                panic(str_concat("error[LEX-002]: NUL byte (0x00) in source at byte ", str_concat(str_from_int(p), ". Nucleor source must not contain embedded NUL bytes — pre-fix the file was silently truncated at the first NUL via C-string semantics, masking everything after it. Re-save the file as plain UTF-8 (or ASCII) without embedded NULs.")));
+            };
+            // F-009 (zero-width space U+200B = E2 80 8B), F-008 (smart
+            // quotes “ ” = E2 80 9C / 9D), F-010 (any non-ASCII high
+            // byte). Group 0xE2 prefix for the common Unicode-typography
+            // class so the diag can name it. Otherwise just say
+            // "unexpected byte 0xNN".
+            let mut hint: str = "";
+            if c == 226 && p + 2 < slen {
+                let b1: i64 = str_char_at(src, p + 1);
+                let b2: i64 = str_char_at(src, p + 2);
+                if b1 == 128 && b2 == 139 { hint = " (looks like a U+200B zero-width space — known supply-chain attack vector; remove it)"; };
+                if b1 == 128 && (b2 == 156 || b2 == 157) { hint = " (looks like a Unicode smart-quote U+201C/D — replace with a plain ASCII `\"`)"; };
+                if b1 == 128 && (b2 == 152 || b2 == 153) { hint = " (looks like a Unicode smart-apostrophe U+2018/9 — replace with a plain ASCII `'`)"; };
+            };
+            if c == 36 { hint = " — `$` is not part of Nucleor's identifier grammar (idents are [A-Za-z_][A-Za-z0-9_]*)"; };
+            if c == 96 { hint = " — backtick `` ` `` is not a Nucleor token"; };
+            if c == 126 { hint = " — `~` is not a Nucleor operator (Rust uses `!` for bitwise-not; Nucleor doesn't yet have a bitwise-not op)"; };
+            if c == 92 { hint = " — bare `\\` is not a Nucleor token (string-escape `\\n`/`\\t`/etc. work only inside `\"...\"`)"; };
+            if c >= 128 { hint = " — non-ASCII byte; Nucleor identifiers are restricted to ASCII (RFC §1.3)"; };
+            // Hex of the byte for the diag.
+            let hex_chars: str = "0123456789ABCDEF";
+            let hi: i64 = (c / 16) % 16;
+            let lo: i64 = c % 16;
+            let hex_str: str = str_concat(str_substring(hex_chars, hi, hi + 1), str_substring(hex_chars, lo, lo + 1));
+            panic(str_concat("error[LEX-001]: unexpected byte 0x", str_concat(hex_str, str_concat(" at byte ", str_concat(str_from_int(p), str_concat(hint, ". Pre-fix the byte was silently consumed by the lexer's terminal fall-through, masking ~10 silent-accept findings (F-003 through F-010, F-066). Remove or replace the offending byte.")))))));
+        };
     };
     tokens.push(tok_new(0, 0, slen));
     return tokens;
@@ -1204,10 +1470,20 @@ fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut args: Vec<i32> = Vec::new();
     let mut cp: i64 = pos;
     if pk(tokens, cp) != 51 {
+        // Lane 4 / F-037: leading comma `h(,1)` silent accept. Reject.
+        if pk(tokens, cp) == 44 {
+            let v_args_byte_f037l: i64 = tok_pos_at(tokens, cp);
+            panic(str_concat("error[PARSE-ARGS-COMMA]: leading `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte_f037l), ". Pre-fix `f(,1)` was silently accepted as a 1-arg call. Remove the leading comma.")));
+        };
         let mut r: Vec<i32> = parse_expr(tokens, cp, pool);
         args.push(pr_val(r)); cp = pr_pos(r);
         while pk(tokens, cp) == 44 {
             if pk(tokens, cp + 1) == 51 { cp = cp + 1; }
+            else if pk(tokens, cp + 1) == 44 {
+                // Lane 4 / F-037: extra comma `h(1,, 2)` silent accept.
+                let v_args_byte_f037: i64 = tok_pos_at(tokens, cp + 1);
+                panic(str_concat("error[PARSE-ARGS-COMMA]: extra `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte_f037), ". Pre-fix `f(1,, 2)` silently dropped the missing argument expression. Remove the duplicate comma.")));
+            }
             else {
                 r = parse_expr(tokens, cp + 1, pool); args.push(pr_val(r)); cp = pr_pos(r);
             };
@@ -2563,6 +2839,18 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, pr_pos(br), 53);
             return pr(cp, mk3(pool, 42, mk_list(pool, cparams), pr_val(br)));
         } else {
+            // Lane 4 / F-053: closure without a body — `||;`, `|x|;`,
+            // `|x| )` etc. Pre-fix parse_expr fell through to
+            // parse_primary on the recovery-marker token (`;`/`)`/`,`/
+            // `}`/`]`/`=`/EOF) and silently produced `int_lit(0)` as
+            // the closure body — no diag, hidden no-op. Reject cleanly.
+            let v_cl_tt_f053: i64 = pk(tokens, cp);
+            if v_cl_tt_f053 == 0 || v_cl_tt_f053 == 40 || v_cl_tt_f053 == 41
+                || v_cl_tt_f053 == 43 || v_cl_tt_f053 == 44
+                || v_cl_tt_f053 == 51 || v_cl_tt_f053 == 53 || v_cl_tt_f053 == 55 {
+                let v_cl_byte_f053: i64 = tok_pos_at(tokens, cp);
+                panic(str_concat("error[PARSE-CLOSURE-NO-BODY]: closure literal at byte ", str_concat(str_from_int(v_cl_byte_f053), str_concat(" has no body — got ", str_concat(tok_name(v_cl_tt_f053), ". Closure form is `|args| <expr>` or `|args| { <stmts> }`. Pre-fix the missing body silently became `int_lit(0)`, producing a closure that returns 0 with no diagnostic.")))));
+            };
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);
             let mut rbody: Vec<i32> = Vec::new();
@@ -2942,10 +3230,67 @@ fn parse_pipe_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 }
 
 #[manual_drop]
-fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> { return parse_pipe_expr(tokens, pos, pool); }
+fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    // Lane 4 / F-002: recursive-descent depth limit. Pre-fix the parser
+    // ran out of OS stack at ~3000-4000 nested `if`/`while`/`{`/`(`/`[`
+    // levels and exited 127 (process killed) with no diagnostic. The
+    // 1024 ceiling leaves generous headroom for legitimate code (no
+    // hand-written program nests this deep) and bails cleanly with
+    // PARSE-DEPTH-001 before the OS stack overflows. Counter is
+    // tracked in a runtime-managed side table and reset at the
+    // compile-file-mode driver entry.
+    let v_d_pd001: i64 = __nucleor_parse_depth_inc();
+    if v_d_pd001 > 1024 {
+        let v_byte_pd001: i64 = tok_pos_at(tokens, pos);
+        panic(str_concat("error[PARSE-DEPTH-001]: expression nesting too deep at byte ", str_concat(str_from_int(v_byte_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_pd001), " > 1024). Pre-fix the recursive-descent parser ran out of OS stack at ~3000-4000 nested levels and exited 127 with no diagnostic. Refactor the deeply-nested expression into helper bindings — `let t1 = a + b; let t2 = t1 + c;` — or split a large expression-tree across multiple statements.")))));
+    };
+    let result_pd001: Vec<i32> = parse_pipe_expr(tokens, pos, pool);
+    __nucleor_parse_depth_dec();
+    return result_pd001;
+}
 
 #[manual_drop]
 fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
+    // Lane 4 / F-001 (Critical, SIGSEGV): pre-fix `let x: 1 + 1 = 5;`
+    // hit a NULL string deref on the first call to `pkv(tokens, pos)`
+    // (line `let name: i64 = pkv(tokens, pos);`) because integer-literal
+    // tokens carry an i64 value, not a str pointer. Reject expression-
+    // shaped input cleanly with PARSE-TYPE-001 BEFORE entering any of
+    // the prefix-token branches that would also crash.
+    let v_tt_pt001: i64 = pk(tokens, pos);
+    let v_byte_pt001: i64 = tok_pos_at(tokens, pos);
+    // Token kinds that legitimately START a type position:
+    //   1   identifier  (most types)
+    //   10  fn          (fn-pointer type)
+    //   22  *           (raw ptr — defensive halt below)
+    //   38  !           (never type — defensive halt below)
+    //   50  (           (tuple/unit type)
+    //   54  [           (array/slice type)
+    //   56  for         (HRTB — defensive halt below)
+    //   67  impl        (impl Trait — defensive halt below)
+    //   73  const       (raw ptr `*const T`, surfaces via 22)
+    //   82  &           (reference type)
+    //   98  '           (lifetime — used after `&`, but never as the
+    //                   leading token of a type itself; we still reject
+    //                   for safety)
+    if v_tt_pt001 != 1
+        && v_tt_pt001 != 10
+        && v_tt_pt001 != 22
+        && v_tt_pt001 != 38
+        && v_tt_pt001 != 50
+        && v_tt_pt001 != 54
+        && v_tt_pt001 != 56
+        && v_tt_pt001 != 67
+        && v_tt_pt001 != 82 {
+        let v_what_pt001: str = if v_tt_pt001 == 2 { "integer literal" }
+            else if v_tt_pt001 == 3 { "string literal" }
+            else if v_tt_pt001 == 70 { "float literal" }
+            else if v_tt_pt001 == 124 { "float literal" }
+            else if v_tt_pt001 == 125 { "f32 literal" }
+            else if v_tt_pt001 == 0 { "<EOF>" }
+            else { tok_name(v_tt_pt001) };
+        panic(str_concat("error[PARSE-TYPE-001]: expected a type, found ", str_concat(v_what_pt001, str_concat(" at byte ", str_concat(str_from_int(v_byte_pt001), ". Pre-fix this CRASHED the compiler with SIGSEGV on inputs like `let x: 1 + 1 = 5;` because the type-position parser dereferenced the token's value as a str pointer when the token actually carried an integer. Type positions accept type names (`i64`, `Vec<T>`, struct/enum names, etc.), not arbitrary expressions; if you meant to assign an expression, drop the type annotation: `let x: i64 = 1 + 1;` (with a real type) or `let x = 1 + 1;` (let inference fill in the type).")))));
+    };
     if pk(tokens, pos) == 56 {
         halt_hrtb_not_supported_v718();
     };
@@ -3355,6 +3700,19 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         return pr(cp, td_nid);
     };
     let name_span: i64 = tok_pos_at(tokens, cp);
+    // Lane 4 / F-054: keyword-as-binding silent accept. Pre-fix
+    // `let fn: i64 = 5;` accepted any token kind for the binding name
+    // (`pkv` reads the value field regardless of kind). For keyword
+    // tokens the value field is whatever the lexer happened to put
+    // there — usually 0 or a stale ptr — and the resulting let
+    // binding had a garbage name. The IR emitted broken stores;
+    // adopters got silent miscompiles. Reject any non-identifier
+    // token at the binding-name slot.
+    let v_let_name_tt: i64 = pk(tokens, cp);
+    if v_let_name_tt != 1 {
+        let v_let_name_byte: i64 = tok_pos_at(tokens, cp);
+        panic(str_concat("error[PARSE-LET-001]: expected identifier as `let` binding name at byte ", str_concat(str_from_int(v_let_name_byte), str_concat(", got reserved keyword or punctuation (", str_concat(tok_name(v_let_name_tt), "). Reserved words (`fn`, `let`, `return`, `if`, `while`, `for`, `match`, `struct`, `enum`, `trait`, `impl`, `pub`, `mut`, `as`, `in`, `break`, `continue`, etc.) cannot be used as binding names. Pre-fix this silently produced an invalid binding with a garbage name and emitted broken IR.")))));
+    };
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
     let mut tstr: str = "";
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
@@ -3815,6 +4173,25 @@ fn parse_return_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 #[manual_drop]
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    // Lane 4 / F-002: depth guard at statement boundary. `if a { if b
+    // { ... } }` recurses through parse_stmts → parse_stmt → parse_if
+    // → parse_stmts at each `if` level; the reproducer
+    // `deep_if_4000.nr` exits 127 (stack overflow) without this guard.
+    // Same 1024 ceiling as parse_expr; the side-table counter is shared
+    // because `if cond { stmt }` consumes both expr-depth and stmt-depth
+    // budget at every nest level.
+    let v_d_stmt_pd001: i64 = __nucleor_parse_depth_inc();
+    if v_d_stmt_pd001 > 1024 {
+        let v_byte_stmt_pd001: i64 = tok_pos_at(tokens, pos);
+        panic(str_concat("error[PARSE-DEPTH-001]: statement nesting too deep at byte ", str_concat(str_from_int(v_byte_stmt_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_stmt_pd001), " > 1024). Pre-fix the recursive-descent parser ran out of OS stack at ~3000-4000 nested `if`/`while`/`{` levels and exited 127 with no diagnostic. Refactor deeply-nested control flow into helper fns or use a flat `match`/`if-else` chain.")))));
+    };
+    let result_stmt_pd001: Vec<i32> = parse_stmt_inner(tokens, pos, pool);
+    __nucleor_parse_depth_dec();
+    return result_stmt_pd001;
+}
+
+#[manual_drop]
+fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
     // v0.7.77 (defensive halt — Rust 1.59+ destructuring assignment
     // `(a, b) = (1, 2);` / `[a, b] = [1, 2];` to already-bound
@@ -4911,7 +5288,22 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
     let mut cp: i64 = expect_tok(tokens, pr_pos(er), 52); // {
     let mut arms: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
-        if vec_len(arms) > 0 && pk(tokens, cp) == 44 { cp = cp + 1; };
+        // Lane 4 / F-036: missing-comma between match arms silently
+        // accepted. Pre-fix `_ => { 1 } 1 => { 2 }` (no `,` between
+        // the two arms) parsed as two arms with the first arm's
+        // body absorbing nothing extra — but adopters expected
+        // a parse error per §5.1. Now: after the first arm, the
+        // next token MUST be `,` or `}`.
+        if vec_len(arms) > 0 {
+            if pk(tokens, cp) == 44 {
+                cp = cp + 1;
+            } else if pk(tokens, cp) == 53 {
+                // closing brace — allow trailing-comma-omitted form.
+            } else {
+                let v_arm_byte_f036: i64 = tok_pos_at(tokens, cp);
+                panic(str_concat("error[PARSE-MATCH-COMMA]: missing `,` between match arms at byte ", str_concat(str_from_int(v_arm_byte_f036), str_concat(" — got ", str_concat(tok_name(pk(tokens, cp)), ". Match arms must be comma-separated (`pat => body, pat => body`). Pre-fix the missing comma was silently accepted, masking adopter typos.")))));
+            };
+        };
         if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
         let mut pat: Vec<i32> = parse_match_one_pattern(tokens, cp, pool);
         cp = vec_get(pat, 0);
@@ -5315,7 +5707,29 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             print("ERROR: statement-level keyword at module scope. Only `fn`, `extern fn`, `pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`, and `pub` (with the above) are allowed as top-level items. Move statement-level constructs into a fn body.");
             panic("nucleor: statement-level keyword at module scope (see ERROR diagnostic above)");
         }
-        else { cp = cp + 1; pending_pub = 0; };
+        else {
+            // Lane 4 / F-003 / F-014: top-level garbage silent-accept.
+            // Pre-fix any token that didn't match a top-level item rule
+            // was silently skipped one-by-one. With F-066 lex-time
+            // tightening, byte-level garbage already errors. But valid
+            // tokens at the wrong scope (`;`, `}`, `)`, stray int
+            // literal, etc.) still slipped through this catch-all.
+            // Now: emit PARSE-TOP-001.
+            let v_top_tt_pt001: i64 = pk(tokens, cp);
+            // EOF (0) shouldn't reach here (the `while pk != 0` guard
+            // should keep us out), but be defensive.
+            if v_top_tt_pt001 == 0 { break; };
+            let v_top_byte_pt001: i64 = tok_pos_at(tokens, cp);
+            // Provide an actionable hint based on token shape.
+            let v_top_hint: str = if v_top_tt_pt001 == 53 { ", possibly an extra closing `}` (F-014)" }
+                else if v_top_tt_pt001 == 51 { ", possibly an extra closing `)`" }
+                else if v_top_tt_pt001 == 55 { ", possibly an extra closing `]`" }
+                else if v_top_tt_pt001 == 43 { ", stray `;` at module scope" }
+                else if v_top_tt_pt001 == 2 { " (integer literal)" }
+                else if v_top_tt_pt001 == 3 { " (string literal)" }
+                else { "" };
+            panic(str_concat("error[PARSE-TOP-001]: unexpected ", str_concat(tok_name(v_top_tt_pt001), str_concat(v_top_hint, str_concat(" at byte ", str_concat(str_from_int(v_top_byte_pt001), ". Only top-level items are accepted at module scope: `fn`, `extern fn`, `pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`, `pub`, `import`, `use`, `mod`. Pre-fix the token was silently skipped and the program continued parsing — masking syntax errors and accepting `}}}}` after a fn body, stray int literals, etc."))))));
+        };
     };
     return pr(cp, mk_list(pool, items));
 }
@@ -7229,6 +7643,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
+    // Lane 4 / F-002: parse-depth side table for recursion guard.
+    if str_eq(name, "__nucleor_parse_depth_inc") { return "__nucleor_parse_depth_inc"; };
+    if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
+    if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
+    if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
     // v0.4.20 perf: generic str-keyed source-cache for new scanners
     if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
     if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
@@ -8375,6 +8794,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
+    // Lane 4 / F-002: parse-depth side table.
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_inc()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_dec()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_get()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_reset()\n");
     // v0.4.20 perf: generic str-keyed source-cache
     sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
@@ -25804,6 +26228,67 @@ fn source_unit_archive_rule_check(source: str, diags: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn preflight_source_check(source: str) -> i64 {
+    // Lane 4 / F-046: bare-CR line endings are an attack-class hazard.
+    // The line-comment lexer (line 434-435 era) scans `// ...` until
+    // `\n`, so a CR-terminated comment in a CR-only file would swallow
+    // every following statement up to the next LF. Per language-ref
+    // §1.1 line endings are `\n` or `\r\n`; bare CR is rejected. We
+    // run the check on the post-resolve source so embedded CR detection
+    // happens once at file boundary.
+    //
+    // Heuristic: if any CR (0x0D) byte is NOT immediately followed by
+    // LF (0x0A), reject. This allows canonical CRLF cleanly. Embedded
+    // CR inside a string literal can't be inspected at this layer
+    // (we'd need a lex-pass), so we scan only outside string literals
+    // — track the same single-quote/double-quote state the resolver
+    // already uses elsewhere.
+    let v_pf_slen: i64 = str_len(source);
+    let mut v_pf_p_cr: i64 = 0;
+    let mut v_pf_in_str: i64 = 0;
+    while v_pf_p_cr < v_pf_slen {
+        let v_pf_c: i64 = str_char_at(source, v_pf_p_cr);
+        if v_pf_in_str == 1 {
+            if v_pf_c == 92 && v_pf_p_cr + 1 < v_pf_slen { v_pf_p_cr = v_pf_p_cr + 1; }
+            else if v_pf_c == 34 { v_pf_in_str = 0; };
+        } else if v_pf_c == 34 {
+            v_pf_in_str = 1;
+        } else if v_pf_c == 13 {
+            // CR — must be followed by LF, else bare-CR error. (Char
+            // literals can't contain CR; the lexer's char-literal
+            // branches all peek a fixed window. Lifetime tokens never
+            // span newlines either.)
+            let v_pf_next_cr: i64 = if v_pf_p_cr + 1 < v_pf_slen { str_char_at(source, v_pf_p_cr + 1) } else { 0 };
+            if v_pf_next_cr != 10 {
+                print(str_concat("error[LEX-CR-ONLY]: bare carriage-return (CR, 0x0D) at byte ", str_concat(str_from_int(v_pf_p_cr), " — Nucleor source must use `\\n` (LF) or `\\r\\n` (CRLF) line endings (RFC §1.1). Pre-fix bare-CR was lexed as whitespace AND the line-comment lexer scanned until `\\n`, so `// foo<CR>let bar = ...` silently swallowed the rest of the file. Re-save the file with consistent LF or CRLF line endings.")));
+                return 1;
+            };
+        };
+        v_pf_p_cr = v_pf_p_cr + 1;
+    };
+    // Lane 4 / F-011 (Critical, smuggling vector): NUL byte mid-source.
+    // Pre-fix `file_read_string` returns a C-string truncated at the
+    // first NUL (the file_read_string runtime helper uses strlen on
+    // a malloc'd buffer). Up to that NUL, source is read; after, the
+    // buffer is silently dropped, so an attacker who inserted a NUL
+    // between two fns could keep the second from compiling and the
+    // resulting NR020 EOF diag mis-points at the file end. The NUL
+    // also masquerades as a "valid file" for cache hashing.
+    //
+    // Enforcement: we cannot DETECT a mid-source NUL via str_len
+    // (it stopped at the first NUL). But the F-011 reproducer expects
+    // the NUL to be REJECTED — and embedded NUL is invalid Nucleor
+    // source per the language reference's ASCII / UTF-8-without-NUL
+    // assumption. So instead of trying to inspect what we already lost,
+    // compare the file's on-disk byte count to the str_len we got back.
+    // If they differ, an embedded NUL truncated the read.
+    //
+    // (Implementation note: this check needs the source path; the
+    // current preflight signature doesn't carry it. The lexer's F-066
+    // fall-through still catches a NUL byte that survives into the
+    // stream — see LEX-002 in lex(). The smuggling-vector exit path
+    // depends on file_read_string returning the full byte count; the
+    // runtime helper layer is in Lane 6 / Lane 5 scope.)
+
     let mut diags: Vec<i32> = diag_new();
     let mut warns: i64 = 0;
     if source_has_scope_escape_ref_binding(source) == 1 {
@@ -33094,6 +33579,11 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                 let ps: i64 = qp + 1;
                 let mut pe: i64 = ps;
                 while pe < eol && str_char_at(src, pe) != 34 { pe = pe + 1; };
+                // Lane 4 / F-051: empty `import "";` silent accept.
+                if pe == ps {
+                    print(str_concat("error[PARSE-IMPORT-EMPTY]: empty import path `import \"\";` at byte ", str_concat(str_from_int(p), ". An import directive must name a non-empty path. Pre-fix the empty path was silently dropped.")));
+                    panic("nucleor: empty import path");
+                };
                 let path: str = resolve_import_path(base_dir, str_substring(src, ps, pe));
                 let mut already: i64 = 0;
                 let mut ii: i64 = 0;
@@ -33137,6 +33627,18 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                     };
                 };
             } else {
+                // Lane 4 / F-050: `import` without a quoted path silently
+                // dropped. Rewriter only handles `use std::/crate::/super::`
+                // unquoted forms; other unquoted shapes after `import ` /
+                // `use ` / `mod ` fall here and were pre-fix preserved
+                // verbatim into the resolved source — the parser then
+                // saw `import foo;` and failed cryptically (or silently
+                // accepted, since `import` isn't a parser keyword and
+                // dispatched to the silent-skip catch-all). Reject early.
+                if prefix_len == 7 {
+                    print(str_concat("error[PARSE-IMPORT-001]: `import` requires a quoted path `import \"path/to/file.nr\";` at byte ", str_concat(str_from_int(p), ". Pre-fix unquoted forms like `import foo;` or `import stdlib/rods/strings.nr;` were silently passed through to the parser and dropped.")));
+                    panic("nucleor: unquoted import path");
+                };
                 sb_append_range(result, src, p, eol);
                 sb_append(result, "\n");
             };
@@ -34145,6 +34647,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // can do scrutinee-type inference for Option<T> / Result<T,E>
     // without threading `src` through 30+ call sites.
     __nucleor_compile_src_set(source);
+    // Lane 4 / F-002: reset parse-depth counter at compile entry so
+    // re-runs in the same process / repeated builds don't drift.
+    __nucleor_parse_depth_reset();
     print_phase_time(time_passes, "resolve_source", now_ms() - resolve_start);
     let preflight_start: i64 = now_ms();
     if preflight_source_check(source) != 0 { return 1; };

@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 886
+# Total helpers: 890
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -10616,6 +10616,62 @@ class            = "ToolingMeta"
 symbol           = "__nucleor_compile_src_set"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_parse_depth_dec"
+class            = "ToolingMeta"
+symbol           = "__nucleor_parse_depth_dec"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_parse_depth_get"
+class            = "ToolingMeta"
+symbol           = "__nucleor_parse_depth_get"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_parse_depth_inc"
+class            = "ToolingMeta"
+symbol           = "__nucleor_parse_depth_inc"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "__nucleor_parse_depth_reset"
+class            = "ToolingMeta"
+symbol           = "__nucleor_parse_depth_reset"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"

@@ -2,6 +2,8 @@
 // All threads run at IDLE priority — never preempt gaming or normal workloads
 // All spawned work is scoped — parent always waits for children
 
+import "stdlib/rods/atomic.nr"
+
 extern fn __nucleor_mutex_free(handle: i64);
 extern fn __nucleor_channel_close(handle: i64);
 extern fn __nucleor_channel_is_closed(handle: i64) -> i64;

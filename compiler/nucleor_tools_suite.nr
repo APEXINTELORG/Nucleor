@@ -1337,6 +1337,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
+    // Lane 4 / F-002: parse-depth side table for recursion guard.
+    if str_eq(name, "__nucleor_parse_depth_inc") { return "__nucleor_parse_depth_inc"; };
+    if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
+    if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
+    if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
     // v0.4.20 perf: generic str-keyed source-cache
     if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
     if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
@@ -2552,6 +2557,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
+    // Lane 4 / F-002: parse-depth side table.
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_inc()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_dec()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_get()\n");
+    sb_append(sb, "declare i64 @__nucleor_parse_depth_reset()\n");
     // v0.4.20 perf: generic str-keyed source-cache
     sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
