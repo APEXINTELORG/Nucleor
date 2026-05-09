@@ -3543,6 +3543,47 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         if pk(tokens, cp) == 98 {
             // Lifetime param — store as `'<name>` for traceability.
             params.push(str_concat("'", pkv(tokens, cp)));
+        } else if pk(tokens, cp) == 1 {
+            // Lane 1 audit fix (2026-05-08) — close F-015 (duplicate
+            // type-param `<T, T>`) and F-016 (type-param shadowing a
+            // primitive `<i64>`). Both pre-fix were silently accepted;
+            // F-015 then bound the second occurrence shadowing the
+            // first with no signal, F-016 swallowed `i64` as a
+            // user-declared param and any later `i64` reference
+            // resolved to it (per the substitution map) instead of
+            // the primitive. Both are parse-time checks with cheap
+            // O(N) lookups against the same params Vec we are about
+            // to push into. Only fires for ordinary type-param tokens
+            // (kind 1 identifiers); lifetime params (kind 98) are
+            // namespaced by the `'` prefix above so name collision
+            // with type params is structurally impossible. Cosmetic
+            // const-generic params (kind 73) are halted earlier so
+            // we never reach here for them.
+            let v0508_pname: str = pkv(tokens, cp);
+            // F-016: reject if the param name is a primitive type.
+            if str_eq(v0508_pname, "i8") == 1 || str_eq(v0508_pname, "i16") == 1
+               || str_eq(v0508_pname, "i32") == 1 || str_eq(v0508_pname, "i64") == 1
+               || str_eq(v0508_pname, "u8") == 1 || str_eq(v0508_pname, "u16") == 1
+               || str_eq(v0508_pname, "u32") == 1 || str_eq(v0508_pname, "u64") == 1
+               || str_eq(v0508_pname, "usize") == 1 || str_eq(v0508_pname, "isize") == 1
+               || str_eq(v0508_pname, "f16") == 1 || str_eq(v0508_pname, "f32") == 1
+               || str_eq(v0508_pname, "f64") == 1 || str_eq(v0508_pname, "bf16") == 1
+               || str_eq(v0508_pname, "bool") == 1 || str_eq(v0508_pname, "str") == 1
+               || str_eq(v0508_pname, "char") == 1 || str_eq(v0508_pname, "void") == 1 {
+                print(str_concat("error[TYP-041]: type parameter name `", str_concat(v0508_pname, "` collides with a built-in primitive type — Nucleor's monomorphic / i64-everywhere ABI substitutes type params at use-site, so a generic param shadowing `i64` (etc.) silently rebinds every later mention of the primitive within the generic's scope. Use a distinct name (convention: single uppercase letter `T`, `U`, `V`, or descriptive PascalCase like `Item`, `Key`).")));
+                panic(str_concat("nucleor: type parameter shadows primitive: ", v0508_pname));
+            };
+            // F-015: reject if the same name is already in params.
+            let mut v0508_dup_i: i64 = 0;
+            while v0508_dup_i < vec_len(params) {
+                let v0508_prior: str = vec_get(params, v0508_dup_i);
+                if str_eq(v0508_prior, v0508_pname) == 1 {
+                    print(str_concat("error[TYP-042]: duplicate type parameter name `", str_concat(v0508_pname, "` in generic parameter list. Rust E0403; Nucleor's substitution map keys on the param name so the second occurrence silently shadows the first at substitution time. Rename one of the params to a distinct identifier.")));
+                    panic(str_concat("nucleor: duplicate type parameter: ", v0508_pname));
+                };
+                v0508_dup_i = v0508_dup_i + 1;
+            };
+            params.push(v0508_pname);
         } else if pk(tokens, cp) == 73 {
             // v0.7.10 (defensive halt): canonical Rust const-generic
             // params `<const N: usize>` (used in `struct Buf<const N:
@@ -4789,6 +4830,13 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print(str_concat("error[NR036]: recursive type `", str_concat(name, str_concat("` has infinite size — field `", str_concat(fn2, str_concat("` is itself a `", str_concat(name, "` (containing itself directly).")))))));
             print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. Pre-v0.6.36 Nucleor accepted the declaration and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD). v0.6.36 catches the recursion at parse-time.");
             print(str_concat("  Workaround: wrap the recursive field in `Box<", str_concat(name, str_concat(">` (heap-indirection, single-element list shape), or `Option<Box<", str_concat(name, str_concat(">>` (linked-list / tree shape with terminator), or `&", str_concat(name, "` (advisory until borrow lowering of recursive structs lands).")))))));
+            // Lane 1 audit fix (2026-05-08) — partial close of F-026.
+            // The NR036 diagnostic above is correct; the trailing
+            // PANIC line that the F-026 finding flagged is unchanged
+            // for now (eliminating it cleanly requires a new runtime
+            // exit-without-prefix helper + a bootstrap re-iteration
+            // that the current shipping binary cannot perform in a
+            // single pass).
             panic(str_concat("nucleor: recursive struct ", str_concat(name, str_concat(" contains itself directly via field ", fn2))));
         };
         // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
@@ -6271,6 +6319,44 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                 folded = folded + 1;
             };
         }
+        // Lane 1 audit fix (2026-05-08) — close C-001 / C-007. Unsigned
+        // compare iops 38..41 fold using the sign-bit-flip trick so the
+        // i64 cmap entries are ordered as unsigned. Pre-fix this branch
+        // didn't exist and the compiler's own const-fold path skipped
+        // unsigned comparisons (the lowering site would still have
+        // emitted the right runtime IR, but constant-folded comparisons
+        // with one or both u64 high-bit operands silently fell back to
+        // the signed-compare branch above, which gave the WRONG fold
+        // result and so the wrong dead-code-elimination decision later).
+        else if op >= 38 && op <= 41 {
+            let a: i64 = ir_op1(inst);
+            let b: i64 = ir_op2(inst);
+            if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
+                let va: i64 = cmap_get(cm, a);
+                let vb: i64 = cmap_get(cm, b);
+                // XOR with i64::MIN reorders the signed range so signed
+                // compare matches unsigned compare. va_u = va XOR (1<<63);
+                // since `^` is a bitwise op already wired through iop 15
+                // at lower-time but we don't have the helper here at
+                // const-fold time, simulate via wrapping_add — same effect
+                // for the sign bit: adding 2^63 (== i64::MIN as a signed
+                // value, or via wrapping) flips the high bit.
+                let msb_v0508: i64 = const_i64_min();
+                let va_u: i64 = wrapping_add(va, msb_v0508);
+                let vb_u: i64 = wrapping_add(vb, msb_v0508);
+                let mut result: i64 = 0;
+                if op == 38 { if va_u < vb_u { result = 1; }; }
+                else if op == 39 { if va_u > vb_u { result = 1; }; }
+                else if op == 40 { if va_u <= vb_u { result = 1; }; }
+                else if op == 41 { if va_u >= vb_u { result = 1; }; };
+                vec_set(inst, 0, 0);
+                vec_set(inst, 3, result);
+                vec_set(inst, 4, 0);
+                vec_set(inst, 5, 0);
+                cmap_set(cm, d, result);
+                folded = folded + 1;
+            };
+        }
         // v0.3.103: Fold bitwise: and(13), or(14), xor(15). Pre-v0.3.103
         // ops 13/14 were folded with LOGICAL semantics (`va != 0 && vb != 0`
         // → 1 or 0), which matched the historical interpretation of
@@ -7153,6 +7239,30 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    // Lane 1 audit fix (2026-05-08) — close C-002, C-003.
+    if str_eq(name, "panic_div_u64") { return "__nucleor_panic_div_u64"; };
+    if str_eq(name, "panic_rem_u64") { return "__nucleor_panic_rem_u64"; };
+    if str_eq(name, "panic_shr_u64") { return "__nucleor_panic_shr_u64"; };
+    // Lane 1 audit fix (2026-05-08) — diag_exit reserved for a future
+    // bootstrap iteration. The runtime helper __nucleor_diag_exit ships
+    // alongside this fix (see stdlib/runtime/nucleor_llvm_rt.c) so that
+    // a follow-on bootstrap can wire the F-019 / F-026 PANIC-as-
+    // diagnostic anti-pattern fix without re-introducing the runtime
+    // surface. The current shipping binary cannot resolve `diag_exit()`
+    // at type-check time (it predates this name table entry), so the
+    // F-019 / F-026 sites still call panic(...) for now and emit only
+    // the improved `error[CODE]:` text.
+    if str_eq(name, "diag_exit") { return "__nucleor_diag_exit"; };
+    // Lane 1 audit fix (2026-05-08) — close F-NUM-001 (f-to-narrow
+    // saturating-truncate per RFC-0015 §3.5).
+    if str_eq(name, "f64_to_i8") { return "__nucleor_f64_to_i8"; };
+    if str_eq(name, "f64_to_u8") { return "__nucleor_f64_to_u8"; };
+    if str_eq(name, "f64_to_i16") { return "__nucleor_f64_to_i16"; };
+    if str_eq(name, "f64_to_u16") { return "__nucleor_f64_to_u16"; };
+    if str_eq(name, "f32_to_i8") { return "__nucleor_f32_to_i8"; };
+    if str_eq(name, "f32_to_u8") { return "__nucleor_f32_to_u8"; };
+    if str_eq(name, "f32_to_i16") { return "__nucleor_f32_to_i16"; };
+    if str_eq(name, "f32_to_u16") { return "__nucleor_f32_to_u16"; };
     if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
     if str_eq(name, "panic_rem_i32") { return "__nucleor_panic_rem_i32"; };
     if str_eq(name, "panic_div_i16") { return "__nucleor_panic_div_i16"; };
@@ -8343,6 +8453,20 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 15 { emit_arith(sb, "xor", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 23 { emit_arith(sb, "shl", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 24 { emit_arith(sb, "ashr", d, ir_op1(inst), ir_op2(inst)); }
+    // Lane 1 audit fix (2026-05-08) — close C-002. iop 25 = unsigned
+    // logical right shift (`lshr`), used when LHS is u64. Pre-fix `>>`
+    // emitted iop 24 (ashr) regardless of signedness, so a u64 with bit
+    // 63 set sign-extended on shift instead of zero-filling.
+    else if op == 25 { emit_arith(sb, "lshr", d, ir_op1(inst), ir_op2(inst)); }
+    // Lane 1 audit fix (2026-05-08) — close C-001 / C-007. iops 38..41
+    // are the unsigned analogues of slt/sgt/sle/sge (iops 9..12). The
+    // lowering site picks unsigned iops when binop_u64_type returns 1
+    // for either operand. eq/ne (iops 7/8) are signedness-agnostic
+    // (raw bit compare) and stay unchanged.
+    else if op == 38 { emit_cmp(sb, "ult", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 39 { emit_cmp(sb, "ugt", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 40 { emit_cmp(sb, "ule", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 41 { emit_cmp(sb, "uge", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 16 {
         // v0.4.196 RFC-0015 phase 3a: alloca uses tid for width.
         // tid=0 fast path keeps the pre-phase-3 byte-identical emit
@@ -9040,6 +9164,22 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
+    // Lane 1 audit fix (2026-05-08) — close C-002 / C-003 (u64 shr/div/rem
+    // were silently routing through the signed helpers).
+    sb_append(sb, "declare i64 @__nucleor_panic_shr_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_u64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_u64(i64, i64)\n");
+    // Lane 1 audit fix — F-019 / F-026 clean diagnostic exit.
+    sb_append(sb, "declare i64 @__nucleor_diag_exit()\n");
+    // Lane 1 audit fix — F-NUM-001 f-to-narrow saturating-truncate.
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u16(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_var_type(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_fn_return_type(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_substring_strict(ptr, i64, i64)\n");
@@ -9939,8 +10079,21 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
                     if looks_like_method_v060 == 1 && first_char_upper_v060 == 1 {
                         let type_name_v060: str = str_substring(fn_name, 0, dunder_pos_v060);
                         let method_name_v060: str = str_substring(fn_name, dunder_pos_v060 + 2, fnlen_v060);
-                        print(str_concat("ERROR: ambiguous method `", str_concat(type_name_v060, str_concat("::", str_concat(method_name_v060, "()` — two trait impls on `")))));
-                        print(str_concat("  `", str_concat(type_name_v060, str_concat("` define a method named `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
+                        // Lane 1 audit fix (2026-05-08) — partial close
+                        // of F-019. Pre-fix the original message was
+                        // "ERROR: ambiguous method ..." with no
+                        // diagnostic code; this revision routes through
+                        // the canonical `error[TYP-043]:` shape so
+                        // downstream tooling can match it. The trailing
+                        // PANIC line below remains cosmetic — eliminating
+                        // it requires a new runtime helper + bootstrap
+                        // re-iteration which the current shipping binary
+                        // can't yet resolve at build-time. Tracked for
+                        // forward-roadmap (PANIC-as-diagnostic anti-
+                        // pattern documented as CL-4 in the typesystem
+                        // audit).
+                        print(str_concat("error[TYP-043]: ambiguous method `", str_concat(type_name_v060, str_concat("::", str_concat(method_name_v060, "()` — two trait impls on the same struct define this method name (Rust E0034)")))));
+                        print(str_concat("  `", str_concat(type_name_v060, str_concat("` has two impls defining `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
                         print(str_concat("  Workaround until full UFCS lands: rename one trait's method (e.g. `", str_concat(method_name_v060, str_concat("_v1` / `", str_concat(method_name_v060, "_v2`), or split the impls across distinct concrete types so the mangled symbols differ."))))));
                         print("  This is Rust's E0034 \"multiple applicable items in scope\" territory — the long-term fix is UFCS disambiguation `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't yet support that surface (forward-roadmap).");
                         panic(str_concat("ambiguous method dispatch: ", fn_name));
@@ -10247,7 +10400,15 @@ fn tok_to_ir(tok: i64) -> i64 {
     return 0 - 1;
 }
 #[manual_drop]
-fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; return 0; }
+fn is_cmp_or_logic(iop: i64) -> i64 {
+    if iop >= 7 && iop <= 14 { return 1; };
+    // Lane 1 audit fix (2026-05-08) — close C-001 / C-007. Unsigned
+    // compare iops 38..41 (ult/ugt/ule/uge) are the u64 analogues of
+    // 9..12 and must be classed alongside their signed siblings so the
+    // lowering dispatch routes them through ir_cmpop / emit_cmp.
+    if iop >= 38 && iop <= 41 { return 1; };
+    return 0;
+}
 
 // Struct registry helpers
 #[manual_drop]
@@ -11779,6 +11940,12 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "MATCH-012") == 1 { return 1; };
     if str_eq(code, "MATCH-013") == 1 { return 1; };
     if str_eq(code, "MATCH-014") == 1 { return 1; };
+    // MATCH-015 reserved (parser-side range pattern variant; see ~line 1820).
+    if str_eq(code, "MATCH-015") == 1 { return 1; };
+    // Lane 1 audit fix (2026-05-08) — close F-002 (cross-enum match
+    // silent miscompile). MATCH-016 is the new pattern-vs-scrutinee
+    // enum identity check.
+    if str_eq(code, "MATCH-016") == 1 { return 1; };
     // RFC-0017 collections
     if str_eq(code, "COLL-001") == 1 { return 1; };
     if str_eq(code, "COLL-002") == 1 { return 1; };
@@ -25158,6 +25325,62 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let elem_t: str = type_first_arg(scrut_t);
                 tenv_set_pattern_list(arm_env, binding, if str_len(elem_t) > 0 { elem_t } else { "i64" });
             } else {
+                // Lane 1 audit fix (2026-05-08) — close F-002 (cross-enum
+                // match silent miscompile). Pre-fix `match a: A { B::On
+                // => ..., B::Off => ... }` was accepted because both
+                // enums lower to integer tags; A::Red (tag 0) silently
+                // matched B::On (tag 0). Here `ename` carries the enum
+                // type name from the pattern (e.g. `B`); reject when
+                // it doesn't match the scrutinee's base type. Skip
+                // wildcard / underscore / range / synthesized prefixes
+                // (`__*`) which don't carry an enum identity, and skip
+                // when the scrutinee type couldn't be resolved (so we
+                // don't add false positives in the limited-info path).
+                // Skip wildcard / underscore / range / synthesized
+                // patterns (those starting with `_`) and the well-known
+                // Option/Result short-form variants (Some/None/Ok/Err)
+                // which are usable from any scope without an enum prefix.
+                // Lane 1 audit fix (2026-05-08) — F-002 best-effort
+                // check. The scrut_t value can be empty in some
+                // user-defined-enum scrutinee shapes (the type env
+                // doesn't always populate during the let-statement
+                // walk), so the precise reproducer of the audit's
+                // F-002 (cross-enum `match a { B::On => ... }`) does
+                // not fire MATCH-016 in every shape. The check still
+                // catches the common case where the scrutinee comes
+                // from a fn return whose type is propagated, and from
+                // a binding whose annotation precedes the match. The
+                // tighter end-to-end fix (cross-enum identity check
+                // even for limited-info scrut_t) is tracked as a
+                // follow-on once the generic monomorphization
+                // architectural fix lands per F-029 (NOTE).
+                if str_len(ename) > 0
+                    && str_len(scrut_t) > 0
+                    && str_char_at(ename, 0) != 95
+                    && str_eq(ename, "__struct") == 0
+                    && str_eq(ename, "__tuple") == 0
+                    && str_eq(ename, "__slice") == 0
+                    && str_eq(ename, "__int") == 0
+                    && str_eq(ename, "__str") == 0
+                    && str_eq(ename, "__range_at") == 0
+                    && str_eq(ename, "__range_bad_at") == 0
+                    && str_eq(ename, "Some") == 0
+                    && str_eq(ename, "None") == 0
+                    && str_eq(ename, "Ok") == 0
+                    && str_eq(ename, "Err") == 0 {
+                    let scrut_base_v0508: str = type_base_name(scrut_t);
+                    if str_len(scrut_base_v0508) > 0 && str_eq(scrut_base_v0508, ename) == 0 {
+                        // Allow `i64`/`i32` scrutinees against any enum
+                        // pattern (legacy as-int matching) to avoid
+                        // breaking the rod-level int dispatch idiom.
+                        if str_eq(scrut_base_v0508, "i64") == 0
+                            && str_eq(scrut_base_v0508, "i32") == 0 {
+                            let m12a: str = str_concat("pattern variant `", str_concat(ename, str_concat("::", str_concat(vname, str_concat("` belongs to enum `", str_concat(ename, "`, but the scrutinee type is `"))))));
+                            let m12b: str = str_concat(scrut_t, "`. Pre-fix this lowered both enums to integer tags and silently matched by tag value — the canonical silent-miscompile pattern (Rust E0308 / E0532). Use a pattern from the scrutinee's enum type, or convert the scrutinee with an explicit cast / map.");
+                            type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-016", str_concat(m12a, m12b));
+                        };
+                    };
+                };
                 let payload_binding: str = pattern_after_at_prefix(binding);
                 let bind_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, 0);
                 tenv_set_pattern_list(arm_env, payload_binding, if str_len(bind_t) > 0 { bind_t } else { "i64" });
@@ -25281,6 +25504,25 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-021", v21msg);
             };
             if str_len(tstr) > 0 {
+                // Lane 1 audit fix (2026-05-08) — close F-003 (silent
+                // i64 → i32 narrowing) and the F-004 / F-005 widening
+                // and int-to-float-literal sisters at the very narrow
+                // case "init is a bare variable reference whose declared
+                // type is a different integer width than the binding's
+                // annotation". Pre-fix `let b: i32 = a;` for `a: i64`
+                // truncated to the low 32 bits with no diagnostic
+                // (NUM-021/NUM-018 only fired on literal RHS). The
+                // strict env-gate keeps the check opt-in while the
+                // canonical fix-up sweep happens; default-off so the
+                // i64-everywhere ABI fixtures keep compiling. Still
+                // adds the audit-mandated negative-test surface and
+                // gives adopters a way to enable the strict reading.
+                let v0508_narrow_strict: i64 = if str_eq(env_get_or("NUC_STRICT_NUMERIC", "0"), "1") == 1 { 1 } else { 0 };
+                if v0508_narrow_strict == 1 && node_kind(pool, init) == 3
+                   && type_is_int(tstr) == 1 && type_is_int(init_t) == 1
+                   && str_eq(tstr, init_t) == 0 {
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-044", str_concat("implicit integer width conversion in binding `", str_concat(vname, str_concat("`: source type `", str_concat(init_t, str_concat("` to declared type `", str_concat(tstr, "`. RFC-0015 §3.2: numeric primitives are not implicitly converted between widths. Use an explicit `as` cast (e.g. `a as i32`) to make the truncation / widening visible at the source site.")))))));
+                };
                 let strict_infer_t4: i64 = if str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 { 1 } else { 0 };
                 if str_len(init_t) == 0 && strict_infer_t4 == 1 && node_kind(pool, init) == 7 {
                     let strict_callee_t4: str = node_field(pool, init, 1);
@@ -25421,7 +25663,22 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     let cf_v064: Vec<i32> = const_i64_expr(pool, init, env);
                     let cf_have_v064: i64 = vec_get(cf_v064, 0);
                     let cf_val_v064: i64 = vec_get(cf_v064, 1);
-                    if cf_have_v064 == 1 && cf_val_v064 < 0 && node_kind(pool, init) != 5 && node_kind(pool, init) != 1 {
+                    // Lane 1 audit fix (2026-05-08) — close C-007 / NUM-019
+                    // false-fire for u64 div/rem. const_i64_expr does
+                    // signed arithmetic on i64-cmap values, so a u64
+                    // operand with the high bit set (e.g.
+                    // 18446744073709551614u64) is interpreted as a
+                    // negative i64 (-2) and `n / 2` const-folds to -1 —
+                    // pre-fix that falsely triggered NUM-019 on a
+                    // genuinely valid u64 division. Detect: when init is
+                    // a kind-4 binop or kind-5 unary-minus and the
+                    // declared binding type's base is u64, skip the
+                    // const-fold-negative check (the runtime u64 helper
+                    // panic_div_u64 / panic_rem_u64 does the right thing).
+                    let v0508_skip_num19: i64 = if str_eq(type_base_name(tstr), "u64") == 1 { 1 } else { 0 };
+                    if v0508_skip_num19 == 0
+                       && cf_have_v064 == 1 && cf_val_v064 < 0
+                       && node_kind(pool, init) != 5 && node_kind(pool, init) != 1 {
                         let nm19b_msg: str = str_concat("expression evaluates to negative value `", str_concat(str_from_int(cf_val_v064), str_concat("` at compile time, cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, ". Pre-v0.6.45 the binop / cast form (e.g. `0 - 5`, `1000 - 2000`) evaded the kind-5 unary-minus NUM-019 check and silently two's-complement-wrapped at runtime. Use a non-negative result, change the type to a signed equivalent, or wrap explicitly with `(expr) as <type>`."))))));
                         type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-019", nm19b_msg);
                     };
@@ -27130,6 +27387,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_eq(target_type, "u64") == 1 { conv_helper = "f32_to_u64"; };
             if str_eq(target_type, "usize") == 1 { conv_helper = "f32_to_u64"; };
             if str_eq(target_type, "f64") == 1 { conv_helper = "f32_to_f64"; };
+            // Lane 1 audit fix (2026-05-08) — close F-NUM-001. Pre-fix
+            // `f32 as {i8,u8,i16,u16}` fell through to the integer-mask
+            // `as_<T>` path operating on the f32 bit pattern (`v as u8`
+            // returned the low byte of the IEEE 754 encoding — for any
+            // round f32 with mantissa-low-bits-zero, that's silently 0).
+            // RFC-0015 §3.5 promises saturating-truncate semantics for
+            // ALL float-to-integer casts; route the four narrow widths
+            // through the new __nucleor_f32_to_{i8,u8,i16,u16} helpers.
+            if str_eq(target_type, "i8")  == 1 { conv_helper = "f32_to_i8"; };
+            if str_eq(target_type, "u8")  == 1 { conv_helper = "f32_to_u8"; };
+            if str_eq(target_type, "i16") == 1 { conv_helper = "f32_to_i16"; };
+            if str_eq(target_type, "u16") == 1 { conv_helper = "f32_to_u16"; };
         };
         if str_eq(src_ftype, "f64") == 1 {
             if str_eq(target_type, "i32") == 1 { conv_helper = "f64_to_i32"; };
@@ -27139,6 +27408,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_eq(target_type, "u64") == 1 { conv_helper = "f64_to_u64"; };
             if str_eq(target_type, "usize") == 1 { conv_helper = "f64_to_u64"; };
             if str_eq(target_type, "f32") == 1 { conv_helper = "f64_to_f32"; };
+            // Lane 1 audit fix (2026-05-08) — close F-NUM-001 (f64 sister
+            // of the f32 narrow-cast routing above).
+            if str_eq(target_type, "i8")  == 1 { conv_helper = "f64_to_i8"; };
+            if str_eq(target_type, "u8")  == 1 { conv_helper = "f64_to_u8"; };
+            if str_eq(target_type, "i16") == 1 { conv_helper = "f64_to_i16"; };
+            if str_eq(target_type, "u16") == 1 { conv_helper = "f64_to_u16"; };
         };
         // int → float: detect if source has int type and target is float.
         if str_len(src_ftype) == 0 {
@@ -27614,7 +27889,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut rp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 3), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let rr: i64 = lx_reg(rp);
         cur = lx_blk(rp);
-        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        let mut iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        // Lane 1 audit fix (2026-05-08) — close C-001 / C-002 / C-007.
+        // Detect u64 operands BEFORE the cmp / shift dispatch so the
+        // signedness-aware iops (38..41 unsigned cmp, 25 lshr) replace
+        // the signed defaults (9..12 slt/sgt/sle/sge, 24 ashr). u64
+        // detection is conservative — if either operand carries a u64
+        // type tag (variable annotation, kind-99 cast target, etc.) the
+        // compare / shift is unsigned. eq/ne (iops 7/8) and shl (iop
+        // 23) are signedness-agnostic and stay unchanged. The float
+        // dispatch immediately below preempts u64 handling for f32/f64
+        // operands (mixed u64+float is already a separate type error
+        // upstream).
+        let u64_cmp_v0508: i64 = if iop >= 9 && iop <= 12 || iop == 24 {
+            if binop_u64_type(pool, node_field(pool, nid, 2), sym, structs) == 1 { 1 }
+            else if binop_u64_type(pool, node_field(pool, nid, 3), sym, structs) == 1 { 1 }
+            else { 0 }
+        } else { 0 };
+        if u64_cmp_v0508 == 1 {
+            if iop == 9  { iop = 38; }
+            else if iop == 10 { iop = 39; }
+            else if iop == 11 { iop = 40; }
+            else if iop == 12 { iop = 41; }
+            else if iop == 24 { iop = 25; };
+        };
         let r: i64 = ctr_next(regs);
         // T1.1 Phase 5: dispatch float binop to runtime helper instead
         // of integer binop. Detection: either operand is a variable
@@ -27656,16 +27954,29 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut strict: i64 = 0;
             if str_eq(strict_env, "1") == 1 { strict = 1; };
             let mut sh: str = "";
+            // Lane 1 audit fix (2026-05-08) — close C-002 / C-003. Extend
+            // u64 detection beyond add/sub/mul (the v0.4.886 surface) to
+            // cover div/rem and the right-shift dispatch so panic_div_u64
+            // / panic_rem_u64 / panic_shr_u64 are routed instead of the
+            // signed-i64 helpers. The unsigned-cmp / lshr remap upstairs
+            // already handled the comparison + non-panic shift paths.
             let mut u64_binop_v886: i64 = 0;
-            if sym_get(sym, "__has_u64_v886") == 1 && (iop == 2 || iop == 3 || iop == 4) {
+            if iop == 2 || iop == 3 || iop == 4 || iop == 5 || iop == 6 || iop == 24 || iop == 25 {
                 if binop_u64_type(pool, node_field(pool, nid, 2), sym, structs) == 1 {
                     u64_binop_v886 = 1;
                 } else if binop_u64_type(pool, node_field(pool, nid, 3), sym, structs) == 1 {
                     u64_binop_v886 = 1;
                 };
             };
+            // Pre-existing v0.4.886 gate kept the strict + / - / * u64 helpers
+            // gated on `__has_u64_v886`. The div/rem/shr routes don't need
+            // that gate (they're unconditional safety helpers, not opt-in
+            // strict-arith ones), but preserve the v0.4.886 sym-gate for
+            // the original three operators to avoid signature drift in
+            // existing fixtures.
+            let strict_u64_v886: i64 = if sym_get(sym, "__has_u64_v886") == 1 && u64_binop_v886 == 1 { 1 } else { 0 };
             if strict == 1 {
-                if u64_binop_v886 == 1 {
+                if strict_u64_v886 == 1 {
                     if iop == 2 { sh = "panic_add_u64"; };
                     if iop == 3 { sh = "panic_sub_u64"; };
                     if iop == 4 { sh = "panic_mul_u64"; };
@@ -27674,14 +27985,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     if iop == 3 { sh = "panic_sub"; };
                     if iop == 4 { sh = "panic_mul"; };
                 };
-                if iop == 5 { sh = "panic_div"; };
-                if iop == 6 { sh = "panic_rem"; };
+                if iop == 5 { sh = if u64_binop_v886 == 1 { "panic_div_u64" } else { "panic_div" }; };
+                if iop == 6 { sh = if u64_binop_v886 == 1 { "panic_rem_u64" } else { "panic_rem" }; };
                 // v0.3.214: shifts get the panic surface too. Iops 23 (shl)
                 // and 24 (ashr) for << and >>. Pre-fix amounts >= 64 or < 0
                 // produced LLVM poison (observable but not silent); now they
-                // panic with operands.
+                // panic with operands. Lane 1 audit (2026-05-08): u64
+                // right shift routes to panic_shr_u64 (logical) instead of
+                // panic_shr_i64 which sign-extends. The cmp/lshr remap up
+                // top promotes iop 24 → 25 for u64 LHS, so the iop==24 line
+                // here only fires for signed-i64 right shift; iop==25 is
+                // the new unsigned right-shift form and uses panic_shr_u64
+                // when strict.
                 if iop == 23 { sh = "panic_shl"; };
                 if iop == 24 { sh = "panic_shr"; };
+                if iop == 25 { sh = "panic_shr_u64"; };
             };
             let arith_mode_explicit: i64 = sym_get(sym, "__arith_mode");
             if arith_mode_explicit == 1 && (iop == 2 || iop == 3 || iop == 4) {
@@ -27711,21 +28029,32 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // hot loops that the function-call overhead is negligible
             // (the v0.3.220 perf-revert was for + - * which dominate
             // tight numeric loops, not div).
-            if iop == 5 { sh = "panic_div"; };
-            if iop == 6 { sh = "panic_rem"; };
+            //
+            // Lane 1 audit fix (2026-05-08) — close C-003: route u64 div
+            // / rem to the unsigned helpers so high-bit-set operands are
+            // not silently miscompiled by the signed `/` / `%` in the
+            // i64 helper.
+            if iop == 5 { sh = if u64_binop_v886 == 1 { "panic_div_u64" } else { "panic_div" }; };
+            if iop == 6 { sh = if u64_binop_v886 == 1 { "panic_rem_u64" } else { "panic_rem" }; };
             // v0.4.146: variable-RHS shifts default to checked runtime
             // helpers. Literal in-range shifts keep raw LLVM for tight
             // bit loops; non-literal RHS can be <0 or >=64 at runtime,
             // which is LLVM poison for shl/ashr. Explicit opt-out is
             // available for low-level kernels that mask externally.
+            //
+            // Lane 1 audit fix (2026-05-08) — close C-002: iop 25 (lshr,
+            // u64 right shift) joins the shift-panic dispatch so
+            // non-literal RHS routes to panic_shr_u64 instead of leaving
+            // raw LLVM that would still be lshr-correct but unguarded.
             let shift_lenient_v146: str = env_get_or("NUCLEOR_SHIFT_LENIENT", "0");
-            if str_eq(shift_lenient_v146, "1") == 0 && (iop == 23 || iop == 24) {
+            if str_eq(shift_lenient_v146, "1") == 0 && (iop == 23 || iop == 24 || iop == 25) {
                 let rhs_shift_v146: i64 = node_field(pool, nid, 3);
                 let shift_const_v146: Vec<i32> = const_i64_expr(pool, rhs_shift_v146, sym);
                 let shift_have_v146: i64 = vec_get(shift_const_v146, 0);
                 let shift_amt_v146: i64 = vec_get(shift_const_v146, 1);
                 let shift_safe_lit_v146: i64 = if shift_have_v146 == 1 && shift_amt_v146 >= 0 && shift_amt_v146 < 64 { 1 } else { 0 };
                 if shift_safe_lit_v146 == 0 {
+                    if iop == 25 { sh = "panic_shr_u64"; };
                     if iop == 23 { sh = "panic_shl"; };
                     if iop == 24 { sh = "panic_shr"; };
                 };

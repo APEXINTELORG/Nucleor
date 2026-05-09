@@ -229,6 +229,11 @@ fn classify(name: str) -> str {
         return "ToolingMeta";
     };
 
+    // ToolingMeta — clean compiler exit with diagnostic emission (Lane 1 F-019/F-026 path)
+    if str_eq(bare, "diag_exit") == 1 {
+        return "ToolingMeta";
+    };
+
     // ADT
     if str_starts_with(bare, "option_") == 1
         || str_starts_with(bare, "result_") == 1 {

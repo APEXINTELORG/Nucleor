@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 890
+# Total helpers: 902
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -4167,6 +4167,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "panic_div_u64"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_div_u64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "panic_mul"
 class            = "PanickingArith"
 symbol           = "__nucleor_panic_mul_i64"
@@ -4265,6 +4279,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "panic_rem_u64"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_rem_u64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "panic_shl"
 class            = "PanickingArith"
 symbol           = "__nucleor_panic_shl_i64"
@@ -4282,6 +4310,20 @@ notes            = ""
 name             = "panic_shr"
 class            = "PanickingArith"
 symbol           = "__nucleor_panic_shr_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_shr_u64"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_shr_u64"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = "TODO"  # TODO
@@ -5990,6 +6032,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f32_to_i16"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_i16"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f32_to_i32"
 class            = "PureMath"
 symbol           = "__nucleor_f32_to_i32"
@@ -6007,6 +6063,20 @@ notes            = ""
 name             = "f32_to_i64"
 class            = "PureMath"
 symbol           = "__nucleor_f32_to_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_to_i8"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_i8"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -6060,6 +6130,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f32_to_u16"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_u16"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f32_to_u32"
 class            = "PureMath"
 symbol           = "__nucleor_f32_to_u32"
@@ -6077,6 +6161,20 @@ notes            = ""
 name             = "f32_to_u64"
 class            = "PureMath"
 symbol           = "__nucleor_f32_to_u64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_to_u8"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_u8"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -6942,6 +7040,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_to_i16"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_i16"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_to_i32"
 class            = "PureMath"
 symbol           = "__nucleor_f64_to_i32"
@@ -6959,6 +7071,20 @@ notes            = ""
 name             = "f64_to_i64"
 class            = "PureMath"
 symbol           = "__nucleor_f64_to_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_i8"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_i8"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -7040,6 +7166,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_to_u16"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_u16"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_to_u32"
 class            = "PureMath"
 symbol           = "__nucleor_f64_to_u32"
@@ -7057,6 +7197,20 @@ notes            = ""
 name             = "f64_to_u64"
 class            = "PureMath"
 symbol           = "__nucleor_f64_to_u64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_u8"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_u8"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -10774,6 +10928,20 @@ effects          = ["io"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "diag_exit"
+class            = "ToolingMeta"
+symbol           = "__nucleor_diag_exit"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
