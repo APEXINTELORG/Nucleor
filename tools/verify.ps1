@@ -898,8 +898,31 @@ foreach ($e in $errFiles) {
         # skip the source cache, or a stale .nuc_cache silently
         # swallows the error/warning the assertion is grepping for.
         $out = & $bin build $src -o $ename --no-cache 2>&1
-        $sawErr = $out | Select-String "ERROR|WARNING|error:" | Select-Object -First 1
-        return $null -ne $sawErr
+        $rc = $LASTEXITCODE
+        # Lane 3 (F-DIAG-014): exit-code-aware + EXPECT-code-aware gate.
+        if ($rc -eq 0) { return $false }
+        $outStr = $out | Out-String
+        # Read first 3 lines of source for // EXPECT: CODE
+        $expectCode = $null
+        try {
+            $first3 = Get-Content -Path $e.FullName -TotalCount 3 -ErrorAction Stop
+            foreach ($ln in $first3) {
+                if ($ln -match '^\s*//\s*EXPECT:\s+([A-Z][A-Z0-9]*-[A-Z0-9-]+)') {
+                    $expectCode = $Matches[1]
+                    break
+                }
+                elseif ($ln -match '^\s*//\s*EXPECT:\s+(NR[0-9]+)') {
+                    $expectCode = $Matches[1]
+                    break
+                }
+            }
+        } catch { $expectCode = $null }
+        if ($expectCode) {
+            $pat = '(error|warning)\[' + [regex]::Escape($expectCode) + '([: ]|\])'
+            if ($outStr -match $pat) { return $true } else { return $false }
+        }
+        if ($outStr -match 'error\[') { return $true }
+        return $false
     }
 }
 

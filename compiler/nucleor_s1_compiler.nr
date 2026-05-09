@@ -20543,7 +20543,17 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             let freed_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", vname));
             let mut g4_msg: str = str_concat("use of '", str_concat(vname, "' after manual free"));
             if str_len(freed_by) > 0 {
-                g4_msg = str_concat(g4_msg, str_concat(" (freed by '", str_concat(freed_by, "'). The heap allocation is gone; reading the binding after `", str_concat(freed_by, "(", str_concat(vname, ")` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.")))));
+                // Lane 3 (F-DIAG-009): the pre-fix call was
+                // `str_concat(freed_by, "(", str_concat(vname, ...))`
+                // which has THREE positional args to str_concat
+                // (which only takes 2). The third positional was
+                // silently dropped, truncating the message at
+                // "reading the binding after `". Now the post-tilde
+                // tail is built up via nested 2-arg concats so the
+                // full sentence renders.
+                let g4_freed_call: str = str_concat(freed_by, str_concat("(", str_concat(vname, ")")));
+                let g4_tail: str = str_concat(g4_freed_call, "` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.");
+                g4_msg = str_concat(g4_msg, str_concat(" (freed by '", str_concat(freed_by, str_concat("'). The heap allocation is gone; reading the binding after `", g4_tail))));
             };
             warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4_msg, vname);
             return warns;
@@ -20584,7 +20594,14 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 ln = find_in_source(source_text_move, fn_name, vname);
                 col = find_column_in_source(source_text_move, fn_name, vname);
             };
-            let d_idx: i64 = diag_add_ex(diag_vec_move, "warning", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
+            // Lane 3 (F-DIAG-003): OWN-001 was emitted at "warning" severity,
+            // which combined with the regex-only negative-test gate let
+            // use-after-move ship a binary at RC=0 past every layer of
+            // v1.0 enforcement. The other ownership-family codes (OWN-G4,
+            // OWN-G8, BORROW-G2, INIT-G11, ALIAS-G3-*, SEND-G6-*) all emit
+            // at "error" severity via own_diag; OWN-001 was the lone
+            // outlier. Now consistent.
+            let d_idx: i64 = diag_add_ex(diag_vec_move, "error", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
             // Add child note: where was it moved?
             let moved_by: str = own_get_type(own, str_concat("__moved_by_", vname));
             if str_len(moved_by) > 0 {
@@ -39387,7 +39404,15 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                         print("                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.");
                     };
                 } else {
-                    print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link; type-checker emitted a TYP-005 warning earlier in this build.)")));
+                    // Lane 3 (F-DIAG-011): the pre-fix message tail
+                    // claimed "type-checker emitted a TYP-005 warning
+                    // earlier in this build" — false in v1.0 (the
+                    // type-checker has no undefined-callee diagnostic;
+                    // the only TYP-005 emit for unbound idents was
+                    // this link-stage one, see F-DIAG-016). Drop the
+                    // misleading parenthetical until the type-checker
+                    // pre-link emit is wired (F-DIAG-016 owner).
+                    print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link.)")));
                 };
                 count = count + 1;
             };

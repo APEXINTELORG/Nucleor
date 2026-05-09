@@ -113,12 +113,28 @@ run_step() {
             echo "$out" | grep -qE '^OK ' && echo "OK|$label|$dt|" > "$result" || echo "FAIL|$label|$dt|missing_OK_marker" > "$result"
         fi
     else
-        local out
-        out=$("$BIN" build "tests/err/$tname.nr" -o "$tname" --no-cache 2>&1)
+        local out exit
+        out=$("$BIN" build "tests/err/$tname.nr" -o "$tname" --no-cache 2>&1); exit=$?
         t1=$(date +%s.%N); dt=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')
-        echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' \
-            && echo "OK|$label|$dt|" > "$result" \
-            || echo "FAIL|$label|$dt|no_error_or_warning_emitted" > "$result"
+        # Lane 3 (F-DIAG-014): exit-code-aware + EXPECT-code-aware gate.
+        if [ "$exit" -eq 0 ]; then
+            echo "FAIL|$label|$dt|negative_test_exited_zero" > "$result"
+            return
+        fi
+        local __l1 __l2 __l3 __ec
+        __l1=""; __l2=""; __l3=""
+        { IFS= read -r __l1 || true; IFS= read -r __l2 || true; IFS= read -r __l3 || true; } < "tests/err/$tname.nr" 2>/dev/null
+        __ec=$(printf '%s\n%s\n%s\n' "$__l1" "$__l2" "$__l3" | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+                                                                       s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' | head -1)
+        if [ -n "$__ec" ]; then
+            echo "$out" | grep -qE "(error|warning)\[${__ec}([: ]|\])" \
+                && echo "OK|$label|$dt|" > "$result" \
+                || echo "FAIL|$label|$dt|expect_code_${__ec}_not_emitted" > "$result"
+        else
+            echo "$out" | grep -qE 'error\[' \
+                && echo "OK|$label|$dt|" > "$result" \
+                || echo "FAIL|$label|$dt|no_error_code_emitted" > "$result"
+        fi
     fi
 }
 

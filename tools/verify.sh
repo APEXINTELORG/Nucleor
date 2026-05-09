@@ -731,6 +731,206 @@ err_tests_have_expect_smoke() {
     return 0
 }
 
+lane3_differential_codegen_smoke() {
+    # Lane 3 (C-008): differential codegen reference. Compile a fixture
+    # through Nucleor and through clang (sister .c file). Run both.
+    # Bit-compare stdout. If Nucleor's i64-everywhere class flips a
+    # u8/u32 width semantics, the two outputs diverge and this step
+    # fails — closing the gap that let the v1.0 self-host fixed-point
+    # silently agree on a buggy stage1 (cf. C-008).
+    local nr_src="tests/diff/lane3_diff_int_widths.nr"
+    local c_src="tests/diff/lane3_diff_int_widths.c"
+    if [ ! -f "$nr_src" ] || [ ! -f "$c_src" ]; then
+        echo "       missing diff fixture (nr or c)"
+        return 1
+    fi
+    local out_name="_lane3_diff_int_widths"
+    "$BIN" build "$nr_src" -o "$out_name" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || {
+        echo "       nucleor build failed"
+        return 1
+    }
+    local nr_exe="target/$out_name"
+    [ -f "$nr_exe.exe" ] && nr_exe="$nr_exe.exe"
+    [ -f "$nr_exe" ] || { echo "       nucleor exe not produced"; return 1; }
+    local nr_out
+    nr_out=$("$nr_exe" 2>&1) || true
+
+    # Locate clang. Prefer NUCLEOR_LLVM_CC; fall back to clang in PATH.
+    local cc="${NUCLEOR_LLVM_CC:-clang}"
+    if ! command -v "$cc" >/dev/null 2>&1; then
+        # If clang isn't available (some bootstrap minimal envs),
+        # this step is INFO, not FAIL. We still ran the nucleor side.
+        echo "       clang not available; skipping bit-compare (diff step would have run with clang)"
+        return 0
+    fi
+    local c_exe="target/_lane3_diff_int_widths_ref"
+    [ "$NUC_OS" = "windows" ] 2>/dev/null && c_exe="$c_exe.exe"
+    "$cc" -O0 "$c_src" -o "$c_exe" >>$NUC_VERIFY_STEP_LOG 2>&1 || {
+        echo "       clang ref build failed"
+        return 1
+    }
+    local c_out
+    c_out=$("$c_exe" 2>&1) || true
+
+    if [ "$nr_out" != "$c_out" ]; then
+        echo "       differential codegen mismatch:"
+        echo "       nucleor output:"
+        printf '%s\n' "$nr_out" | sed 's/^/         /'
+        echo "       clang reference output:"
+        printf '%s\n' "$c_out" | sed 's/^/         /'
+        return 1
+    fi
+    return 0
+}
+
+lane3_contention_smoke() {
+    # Lane 3 (F-CONC-016): mutex + channel contention smokes.
+    # 4 threads × 10K acquire/release; 4 producers × 4 consumers ×
+    # 10K msgs. End counts must match exactly. If concurrency
+    # primitives drop work or the lock is broken, the counter will
+    # be below the expected total.
+    local out_name exe
+    for fix in "lane3_mutex_contention" "lane3_channel_contention" "lane3_platform_arith_parity"; do
+        out_name="_${fix}"
+        "$BIN" build "tests/features/${fix}.nr" -o "$out_name" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || {
+            echo "       ${fix} build failed"
+            return 1
+        }
+        exe="target/$out_name"
+        [ -f "$exe.exe" ] && exe="$exe.exe"
+        [ -f "$exe" ] || { echo "       ${fix} exe missing"; return 1; }
+        "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || {
+            echo "       ${fix} run failed (exit $?)"
+            return 1
+        }
+        grep -q "OK ${fix}" $NUC_VERIFY_RUN_LOG || {
+            echo "       ${fix} did not print expected OK marker"
+            return 1
+        }
+    done
+    return 0
+}
+
+negative_coverage_gate() {
+    # Lane 3 (F-DIAG-006): every diagnostic CODE emitted by the compiler
+    # must have at least one negative test in tests/err/ that EXPECTs
+    # that code. Without this gate, codes can be added in compiler
+    # source with zero proof that they actually fire, and silent
+    # severity drift (cf. F-DIAG-003) goes undetected.
+    #
+    # Approach: scan compiler/*.nr for diag_add_ex(... "CODE" ...) and
+    # error[CODE]: literals, build the set of emitted codes, then
+    # verify that for each code the tests/err/ corpus contains at
+    # least one file whose // EXPECT: header names that code.
+    #
+    # The set of codes the audit knows are presently uncovered is
+    # carried as an exemption list (closed by Phase 3b's added tests
+    # or by an explicit `lane: <N>` exemption granting another lane
+    # ownership). Removing a code from KNOWN_UNCOVERED requires
+    # adding a test_err/err_<code-lower>_*.nr file or this step fails.
+    local emit_codes_file="$NUC_VERIFY_TMPDIR/_emit_codes.txt"
+    local err_codes_file="$NUC_VERIFY_TMPDIR/_err_codes.txt"
+    local missing_file="$NUC_VERIFY_TMPDIR/_missing_codes.txt"
+    : > "$emit_codes_file"
+    : > "$err_codes_file"
+    : > "$missing_file"
+
+    # Set 1: codes emitted via diag_add_ex(diags, sev, checker, "CODE", ...)
+    # Pattern: 4th positional arg, the only short ALL-CAPS quoted token.
+    grep -hEo 'diag_add_ex\([^"]*"[^"]*"[^"]*"[^"]*"[[:space:]]*,[[:space:]]*"[A-Z][A-Z0-9-]*"' \
+        "$ROOT"/compiler/*.nr 2>/dev/null \
+        | sed -nE 's|.*"([A-Z][A-Z0-9-]+)"$|\1|p' \
+        | sort -u >> "$emit_codes_file"
+    # Set 2: codes emitted via own_diag(... , "CODE", ...) — third arg.
+    grep -hEo 'own_diag(_ex)?\([^"]*"[A-Z][A-Z0-9-]+"' \
+        "$ROOT"/compiler/*.nr 2>/dev/null \
+        | sed -nE 's|.*"([A-Z][A-Z0-9-]+)"$|\1|p' \
+        | sort -u >> "$emit_codes_file"
+    # Set 3: codes emitted via type_diag(... , "CODE", ...) — fifth arg
+    # (diags, src, fn, sym, "CODE", msg).
+    grep -hEo 'type_diag\([^"]*"[A-Z][A-Z0-9-]+"' \
+        "$ROOT"/compiler/*.nr 2>/dev/null \
+        | sed -nE 's|.*"([A-Z][A-Z0-9-]+)"$|\1|p' \
+        | sort -u >> "$emit_codes_file"
+    # Set 4: codes emitted as `error[CODE]:` string literals
+    grep -hEo 'error\[[A-Z][A-Z0-9-]+\]' \
+        "$ROOT"/compiler/*.nr 2>/dev/null \
+        | sed -nE 's|^error\[([A-Z][A-Z0-9-]+)\]$|\1|p' \
+        | sort -u >> "$emit_codes_file"
+
+    # Dedup the union and drop noise (codes known not to be diagnostic codes
+    # — e.g. checker names like "type" or "ownership" never enter this set
+    # because they don't match [A-Z][A-Z0-9-]+ with the leading uppercase).
+    sort -u "$emit_codes_file" -o "$emit_codes_file"
+
+    # Now scan tests/err/*.nr for // EXPECT: <CODE> headers
+    local f line1 line2 line3 ec
+    for f in "$ROOT"/tests/err/*.nr; do
+        case "$f" in
+            *_aux.nr|*import_dedupe_lib.nr) continue ;;
+        esac
+        line1=""; line2=""; line3=""
+        { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$f" 2>/dev/null
+        ec=$(printf '%s\n%s\n%s\n' "$line1" "$line2" "$line3" \
+            | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+                       s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' \
+            | head -1)
+        if [ -n "$ec" ]; then
+            echo "$ec" >> "$err_codes_file"
+        fi
+    done
+    sort -u "$err_codes_file" -o "$err_codes_file"
+
+    # KNOWN_UNCOVERED: codes the audit found uncovered. Phase 3b added
+    # negative-test fixtures for each, but several diagnostics don't
+    # actually fire on the documented condition class today (these
+    # are the audit's "ghost codes" / wiring-incomplete sites, owned
+    # by Phase 3b follow-on or other lanes). The fixtures sit in
+    # tests/err/ to PROVE the gap exists; this list says the gap is
+    # known. Each entry references its closing finding ID + owner.
+    local known_uncovered_file="$NUC_VERIFY_TMPDIR/_known_uncovered.txt"
+    cat > "$known_uncovered_file" <<'KU'
+ASYNC-001
+DIAG-001
+LAW-001
+LAW-004
+LAW-006
+LAW-007
+LAW-008
+PERF-2
+PERF-3
+PKG-3
+PKG-6
+RT-005
+RT-008
+TNT-001
+KU
+    sort -u "$known_uncovered_file" -o "$known_uncovered_file"
+
+    # Compute emitted-but-uncovered = emit_codes \ err_codes \ known_uncovered
+    local actually_missing
+    actually_missing=$(comm -23 "$emit_codes_file" "$err_codes_file" \
+        | comm -23 - "$known_uncovered_file")
+    # Compute exemptions-no-longer-needed = known_uncovered ∩ err_codes
+    # (the audit said it was uncovered; tests now exist; we should
+    # tighten the exemption list).
+    local stale_exemptions
+    stale_exemptions=$(comm -12 "$known_uncovered_file" "$err_codes_file")
+
+    local rc=0
+    if [ -n "$actually_missing" ]; then
+        echo "       diagnostic codes emitted with NO test in tests/err/ and NOT exempted:"
+        printf '         - %s\n' $actually_missing
+        rc=1
+    fi
+    if [ -n "$stale_exemptions" ]; then
+        echo "       exemptions in KNOWN_UNCOVERED that are now covered (tighten the list):"
+        printf '         - %s\n' $stale_exemptions
+        rc=1
+    fi
+    return "$rc"
+}
+
 cli_help_coverage_smoke() {
     # v0.2.84 — every dispatched CLI subcommand must appear in the
     # `nuc help` output. Catches the drift class that bit `doc` and
@@ -1255,12 +1455,53 @@ build_test() {
 
 build_negative() {
     local ename="$1"
-    local out
+    local out rc
     # --no-cache: see v0.3.26 — diagnostic-dependent tests must skip
     # the source cache, or a stale .nuc_cache silently swallows the
     # error/warning the assertion grep is looking for.
     out=$("$BIN" build "tests/err/$ename.nr" -o "$ename" --no-cache 2>&1)
-    echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' && return 0 || return 1
+    rc=$?
+    # Lane 3 (F-DIAG-014): exit-code-aware + EXPECT-code-aware gate.
+    # A negative test must:
+    #   1. cause the build to exit non-zero (no warning-only passes), AND
+    #   2. emit an `error[CODE]:` line for the CODE named in the test's
+    #      `// EXPECT: <CODE> ...` header (when present), or otherwise
+    #      at least one `error[...]:` line.
+    # The pre-Lane-3 gate accepted any "error|warning" word, regardless
+    # of exit code, which let F-DIAG-003 (OWN-001 warning) ship a binary
+    # past every layer of v1.0 enforcement.
+    if [ "$rc" -eq 0 ]; then
+        return 1
+    fi
+    local expect_code
+    expect_code=$(_read_expect_code "tests/err/$ename.nr")
+    if [ -n "$expect_code" ]; then
+        # Allow either error[CODE] or warning[CODE] — but rc!=0 already
+        # excludes the OWN-001 case (warning + RC=0).
+        echo "$out" | grep -qE "(error|warning)\[${expect_code}([: ]|\])" && return 0 || return 1
+    fi
+    echo "$out" | grep -qE 'error\[' && return 0 || return 1
+}
+
+# Lane 3 (F-DIAG-014): read the `// EXPECT: <CODE> ...` header from a
+# negative test. Returns the CODE (e.g. OWN-001, TYP-002, RACE-005)
+# on stdout, or empty string if no EXPECT header is present.
+_read_expect_code() {
+    local path="$1"
+    local line1 line2 line3
+    { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$path" 2>/dev/null
+    local combined="$line1
+$line2
+$line3"
+    # Match `// EXPECT: CODE ...` and capture the first whitespace-delimited token.
+    # CODE must look like a real diagnostic code: contains a hyphen
+    # (OWN-001, ALIAS-G3-HASHMAP-REHASH, EFFECT-G10-WRONG-ROW) or
+    # is the NR\d+ family (NR020, NR022). Excludes free-text EXPECTs
+    # like `// EXPECT: ERROR foo` or `// EXPECT: C string literal`.
+    echo "$combined" \
+        | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+                   s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' \
+        | head -1
 }
 
 _write_parallel_fixture_worker() {
@@ -1344,11 +1585,30 @@ fi
 
 out_name="_pv_err_${tname}"
 out="$("$BIN" build "tests/err/$tname.nr" -o "$out_name" --no-cache 2>&1)"
+rc=$?
 t1="$(now_ms)"
 dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
-echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' \
-    && finish PASS "$dt" "" \
-    || finish FAIL "$dt" "no_error_or_warning_emitted"
+# Lane 3 (F-DIAG-014): exit-code-aware + EXPECT-code-aware gate.
+if [ "$rc" -eq 0 ]; then
+    finish FAIL "$dt" "negative_test_exited_zero"
+fi
+# Read first 3 lines for // EXPECT: CODE header
+__exp_l1=""; __exp_l2=""; __exp_l3=""
+{ IFS= read -r __exp_l1 || true; IFS= read -r __exp_l2 || true; IFS= read -r __exp_l3 || true; } < "tests/err/$tname.nr" 2>/dev/null
+__exp_combined="$__exp_l1
+$__exp_l2
+$__exp_l3"
+__expect_code=$(echo "$__exp_combined" | sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+([A-Z][A-Z0-9]*-[A-Z0-9-]+).*|\1|p
+                                                    s|^[[:space:]]*//[[:space:]]*EXPECT:[[:space:]]+(NR[0-9]+).*|\1|p' | head -1)
+if [ -n "$__expect_code" ]; then
+    echo "$out" | grep -qE "(error|warning)\[${__expect_code}([: ]|\])" \
+        && finish PASS "$dt" "" \
+        || finish FAIL "$dt" "expect_code_${__expect_code}_not_emitted"
+else
+    echo "$out" | grep -qE 'error\[' \
+        && finish PASS "$dt" "" \
+        || finish FAIL "$dt" "no_error_code_emitted"
+fi
 EOS
     chmod +x "$worker" 2>/dev/null || true
     echo "$worker"
@@ -5636,6 +5896,9 @@ step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke
 step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_audit_zero
 step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
+step "Lane 3: every emitted diagnostic code has a negative test" negative_coverage_gate
+step "Lane 3: differential codegen vs clang reference" lane3_differential_codegen_smoke
+step "Lane 3: mutex/channel contention + platform arith parity" lane3_contention_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
 step "RFC-0008 ISR attribute first-pass contract and IR marker" rfc0008_isr_first_pass

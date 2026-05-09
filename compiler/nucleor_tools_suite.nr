@@ -4468,7 +4468,14 @@ fn effect_check_expr(pool: Vec<i32>, nid: i64, fn_name: str, pure_fns: Vec<i32>,
     if kind == 7 {
         let callee: str = node_field(pool, nid, 1);
         if is_effectful_builtin(callee) == 1 {
-            diag_add(diags, "warning", "effect", "EFF-001", str_concat("pure function calls effectful '", str_concat(callee, "'")), fn_name, find_in_source(source, fn_name, callee));
+            // Lane 3 (F-DIAG-007): EFF-001 was emitted at "warning"
+            // here while the s1_compiler path emits "error" (lines
+            // 11845/11867/11890/18571/18579/19060/19069). Same code,
+            // same checker, same condition class → consistent
+            // severity. Adopt "error" (matches the documented
+            // RFC-0032 purity contract and the s1 enforcement
+            // majority).
+            diag_add(diags, "error", "effect", "EFF-001", str_concat("pure function calls effectful '", str_concat(callee, "'")), fn_name, find_in_source(source, fn_name, callee));
             warns = warns + 1;
         };
         let args: i64 = node_field(pool, nid, 2);
