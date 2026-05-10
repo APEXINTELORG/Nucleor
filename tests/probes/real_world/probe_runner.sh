@@ -91,6 +91,7 @@ if [ -f "$exe.exe" ]; then exe="$exe.exe"; fi
 if [ -f "$exe" ]; then
     run_out=$("$exe" 2>&1)
     rc=$?
+    run_out=$(printf '%s' "$run_out" | tr -d '\r')
     if [ "$rc" -ne 0 ]; then
         probe_fail "1.2" "build-then-run" "exit=$rc out='$run_out'"
     elif ! echo "$run_out" | grep -q "^total=286$"; then

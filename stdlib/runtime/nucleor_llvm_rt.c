@@ -2828,6 +2828,7 @@ extern long long __nucleor_hashmap_insert(long long h, const char *key, long lon
 // both (str pointers are stored as i64-cast).
 long long __nucleor_own_put_i_full(NVec *v, const char *key, long long val) {
     if (!v) return 0;
+    long long h = -1;
     if (key) {
         int n = v->len;
         long long *data = v->data;
@@ -2835,7 +2836,7 @@ long long __nucleor_own_put_i_full(NVec *v, const char *key, long long val) {
             const char *k = (const char *)(intptr_t)data[j];
             if (k == key || (k && strcmp(k, key) == 0)) {
                 data[j + 1] = val;
-                long long h = __nucleor_sym_aux_get((long long)(intptr_t)v);
+                h = __nucleor_sym_aux_get((long long)(intptr_t)v);
                 if (h > 0) __nucleor_hashmap_insert(h, key, val);
                 return 0;
             }

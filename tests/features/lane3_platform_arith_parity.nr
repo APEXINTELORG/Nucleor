@@ -19,7 +19,7 @@ fn opaque(x: i64) -> i64 {
 fn main() -> i64 {
     // Signed wrap on overflow.
     let a: i64 = opaque(9223372036854775807);
-    let wrap: i64 = a + 1;
+    let wrap: i64 = wrapping_add(a, 1);
     if wrap != -9223372036854775808 {
         return 1;
     };

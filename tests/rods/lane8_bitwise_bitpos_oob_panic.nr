@@ -1,4 +1,5 @@
 // F-NUM-003 negative proof: bit positions must be in 0..=63.
+// EXPECT_RUNTIME_PANIC: BIT-001
 import "stdlib/rods/bitwise.nr"
 
 fn main() -> i64 {

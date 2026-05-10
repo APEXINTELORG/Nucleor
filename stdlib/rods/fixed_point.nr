@@ -55,12 +55,12 @@ fn fixed_q60_4()  -> i64 { return fixed_q(60, 4); }    // monetary cents-class
 // =====================================================
 fn fixed_from_int(q: i64, x: i64) -> i64 {
     let f: i64 = fixed_q_f_bits(q);
-    return x * (1 << f);
+    return x * (1i64 << f);
 }
 
 fn fixed_to_int(q: i64, v: i64) -> i64 {
     let f: i64 = fixed_q_f_bits(q);
-    return v / (1 << f);
+    return v / (1i64 << f);
 }
 
 // Build a fixed-point value from an integer part and a numerator
@@ -68,9 +68,9 @@ fn fixed_to_int(q: i64, v: i64) -> i64 {
 // adopters want a literal-ish constructor without f64.
 fn fixed_from_parts(q: i64, int_part: i64, num_per_10k: i64) -> i64 {
     let f: i64 = fixed_q_f_bits(q);
-    let scale: i64 = 1 << f;
+    let scale: i64 = 1i64 << f;
     let int_scaled: i64 = int_part * scale;
-    let frac_scaled: i64 = (num_per_10k * scale) / 10000;
+    let frac_scaled: i64 = (num_per_10k * scale) / 10000i64;
     return int_scaled + frac_scaled;
 }
 

@@ -4,16 +4,7 @@ import "stdlib/rods/toml.nr"
 fn main() -> i64 {
     let mut fail: i64 = 0;
 
-    let src: str = "[package]
-name = \"my_robot\"
-version = \"0.1.0\"
-
-[deps]
-ros2 = \"1.2\"
-threads = 4
-release_mode = true
-debug_mode = false
-";
+    let src: str = "[package]\nname = \"my_robot\"\nversion = \"0.1.0\"\n\n[deps]\nros2 = \"1.2\"\nthreads = 4\nrelease_mode = true\ndebug_mode = false\n";
 
     let t: i64 = toml(src);
 

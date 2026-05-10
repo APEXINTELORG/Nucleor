@@ -16,36 +16,36 @@
 // and emit `ret rv`. Six shapes locked in below — any future ship
 // that re-breaks any of them halts the verify gate immediately.
 
-fn main() -> i32 {
+fn main() -> i64 {
     // 1. expression body (always worked; lock in)
-    let f_expr = |y: i32| y + 7;
+    let f_expr = |y: i64| y + 7;
     if f_expr(10) != 17 { print("FAIL expr body"); return 1; };
 
     // 2. braced single tail expr (was the bug)
-    let f_tail = |y: i32| { y + 7 };
+    let f_tail = |y: i64| { y + 7 };
     if f_tail(10) != 17 { print("FAIL braced single tail"); return 1; };
 
     // 3. multi-stmt body with tail expr
-    let f_multi = |y: i32| {
-        let z: i32 = 3;
-        let w: i32 = 4;
+    let f_multi = |y: i64| {
+        let z: i64 = 3;
+        let w: i64 = 4;
         y + z + w
     };
     if f_multi(10) != 17 { print("FAIL multi-stmt tail"); return 1; };
 
     // 4. side-effect-only body (closure returns 0; runs print)
-    let f_side = |y: i32| { print_int(y); };
+    let f_side = |y: i64| { print_int(y); };
     f_side(42);
 
     // 5. if-as-tail-expression
-    let f_if = |y: i32| { if y > 0 { 1 } else { 0 - 1 } };
+    let f_if = |y: i64| { if y > 0 { 1 } else { 0 - 1 } };
     if f_if(5) != 1 { print("FAIL if tail (positive)"); return 1; };
     if f_if(0 - 5) != -1 { print("FAIL if tail (negative)"); return 1; };
 
     // 6. mixed: stmt-with-semi then tail-without-semi
-    let f_mix = |y: i32| {
-        let a: i32 = y * 2;
-        let b: i32 = a + 1;
+    let f_mix = |y: i64| {
+        let a: i64 = y * 2;
+        let b: i64 = a + 1;
         b
     };
     if f_mix(10) != 21 { print("FAIL mixed stmt+tail"); return 1; };

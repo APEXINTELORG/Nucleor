@@ -7,21 +7,7 @@
 fn main() -> i32 {
     let mut fail: i64 = 0;
 
-    let src: str = "# Comment line
-name = \"my_robot\"
-version = \"0.3.1\"
-release = true
-debug = false
-threads = 8
-
-[deps]
-nucleor-ros2 = \"1.2\"
-nucleor-mujoco = \"1.0\"
-
-[profile.release]
-opt_level = 3
-lto = true
-";
+    let src: str = "# Comment line\nname = \"my_robot\"\nversion = \"0.3.1\"\nrelease = true\ndebug = false\nthreads = 8\n\n[deps]\nnucleor-ros2 = \"1.2\"\nnucleor-mujoco = \"1.0\"\n\n[profile.release]\nopt_level = 3\nlto = true\n";
 
     let m: i64 = toml_parse_string(src);
 

@@ -1253,7 +1253,13 @@ fn lex(src: str) -> Vec<i32> {
         }
         else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 { tokens.push(tok_new(58, 0, p)); p = p + 2; }
         else if c == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
-            panic(str_concat("error[LEX-NUM-FLOAT-FORM]: leading-dot float literal at byte ", str_concat(str_from_int(p), ". Nucleor requires a leading zero; write `0.5` instead of `.5`.")));
+            let dot_prev: i64 = if p > 0 { str_char_at(src, p - 1) } else { 0 };
+            if is_alnum(dot_prev) == 1 || dot_prev == 95 || dot_prev == 41 || dot_prev == 93 {
+                tokens.push(tok_new(45, 0, p));
+                p = p + 1;
+            } else {
+                panic(str_concat("error[LEX-NUM-FLOAT-FORM]: leading-dot float literal at byte ", str_concat(str_from_int(p), ". Nucleor requires a leading zero; write `0.5` instead of `.5`.")));
+            };
         }
         else if c == 46 { tokens.push(tok_new(45, 0, p)); p = p + 1; }
         else if c == 40 { tokens.push(tok_new(50, 0, p)); p = p + 1; }
@@ -15216,15 +15222,15 @@ fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
 // `&Type` / `&mut Type`, the arg passing is a borrow not a move and
 // OWN-001 should NOT mark the caller's binding moved.
 fn fn_param_type_at_index(source: str, fn_name: str, idx: i64) -> str {
-    let mut needle: str = str_concat("fn ", str_concat(fn_name, "("));
-    let mut pat_pos: i64 = str_index_of(source, needle);
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let pat_pos: i64 = str_index_of(source, needle);
     if pat_pos < 0 {
         // generic form `fn FNAME<...>(...)`
-        needle = str_concat("fn ", str_concat(fn_name, "<"));
-        pat_pos = str_index_of(source, needle);
-        if pat_pos < 0 { return ""; };
+        let generic_needle: str = str_concat("fn ", str_concat(fn_name, "<"));
+        let generic_pat_pos: i64 = str_index_of(source, generic_needle);
+        if generic_pat_pos < 0 { return ""; };
         // skip the generic-params block to land before `(`
-        let mut q_pos: i64 = pat_pos + str_len(needle);
+        let mut q_pos: i64 = generic_pat_pos + str_len(generic_needle);
         let n_g: i64 = str_len(source);
         let mut g_depth: i64 = 1;
         while q_pos < n_g && g_depth > 0 {
@@ -27424,7 +27430,25 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     let expected_arity_v110: i64 = gparams_type_count(pool, arity_gparams_v110);
                     let actual_arity_v110: i64 = type_arg_count(tstr);
                     if expected_arity_v110 != actual_arity_v110 {
-                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-005", str_concat("wrong number of type arguments for `", str_concat(arity_base_v110, str_concat("`: expected ", str_concat(str_from_int(expected_arity_v110), str_concat(", found ", str_from_int(actual_arity_v110)))))));
+                        // ROBO-7 frame tags are zero-cost phantoms over
+                        // non-generic handle structs. Keep the check gated
+                        // by base name so ordinary generic aliases like
+                        // Vec<i32> do not pay per-use frame parsing cost.
+                        let mut frame_phantom_ok_v110: i64 = 0;
+                        if expected_arity_v110 == 0 {
+                            if (str_eq(arity_base_v110, "Pose") == 1 && actual_arity_v110 == 1) || ((str_eq(arity_base_v110, "Transform") == 1 || str_eq(arity_base_v110, "Se3Buf") == 1) && actual_arity_v110 == 2) {
+                                frame_phantom_ok_v110 = 1;
+                                let mut frame_arg_i_v110: i64 = 0;
+                                while frame_arg_i_v110 < actual_arity_v110 {
+                                    let frame_arg_v110: str = strip_spaces(type_arg_at(tstr, frame_arg_i_v110));
+                                    if str_starts_with(frame_arg_v110, "Frame_") == 0 { frame_phantom_ok_v110 = 0; };
+                                    frame_arg_i_v110 = frame_arg_i_v110 + 1;
+                                };
+                            };
+                        };
+                        if frame_phantom_ok_v110 == 0 {
+                            type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-005", str_concat("wrong number of type arguments for `", str_concat(arity_base_v110, str_concat("`: expected ", str_concat(str_from_int(expected_arity_v110), str_concat(", found ", str_from_int(actual_arity_v110)))))));
+                        };
                     };
                 };
                 if node_kind(pool, init) == 34 && arity_struct_idx_v110 >= 0
@@ -34933,8 +34957,8 @@ fn cache_v2_file_size_mb(path: str) -> i64 {
 // v1.1.x perf: precompiled-rt.o cache key/path. Returns "" if caching
 // is disabled (env opt-out). The .o is keyed on the rt.c content,
 // alloc.h content, opt level, and clang version proxy (toolchain
-// path). Cache lives in .nuc_cache/ alongside the link logs and
-// content-addressable cache.
+// path). Cache lives outside .nuc_cache so source-cache cold checks
+// still avoid recompiling the unchanged runtime C translation unit.
 #[manual_drop]
 fn rt_o_cache_path(rt_arg: str, alloc_hdr: str, opt_flag: str) -> str {
     if str_eq(env_get_or("NUCLEOR_RT_O_CACHE", "1"), "0") == 1 { return ""; };
@@ -34943,7 +34967,7 @@ fn rt_o_cache_path(rt_arg: str, alloc_hdr: str, opt_flag: str) -> str {
     let opt_hash: str = str_from_int(fnv1a_64_str(opt_flag));
     let clang_hash: str = str_from_int(fnv1a_64_str(llvm_clang_path()));
     let key: str = str_concat("rt-", str_concat(rt_hash, str_concat("-", str_concat(alloc_hash, str_concat("-", str_concat(opt_hash, str_concat("-", clang_hash)))))));
-    return sanitize(str_concat(".nuc_cache/", str_concat(key, host_obj_suffix())));
+    return sanitize(str_concat(".nuc_rt_cache/", str_concat(key, host_obj_suffix())));
 }
 
 #[manual_drop]
@@ -35343,6 +35367,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     // capture, clang's output goes straight to the terminal and we
     // can't tell whether any of its errors are MOD-003-worthy.
     system(str_concat("mkdir .nuc_cache", null_redir));
+    system(str_concat("mkdir .nuc_rt_cache", null_redir));
     // v0.4.104: per-output clang_link log. Pre-fix this was a single
     // shared `.nuc_cache/clang_link.log` that every concurrent compile
     // raced on (parallel verify harness at -j 8 lost ~3 fixtures to
@@ -35563,6 +35588,7 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     let stack_flag: str = host_stack_link_flag();
     let linker_flag: str = host_fast_link_flag();
     system(str_concat("mkdir .nuc_cache", null_redir));
+    system(str_concat("mkdir .nuc_rt_cache", null_redir));
     let log_path: str = sanitize(str_concat(".nuc_cache/clang_link.", str_concat(out_name, ".log")));
     let log_arg: str = host_shell_path(log_path);
     let mut native_cache_key: str = "";

@@ -129,6 +129,7 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-013 | Unknown field in struct initialization (would silently drop the extra field) | struct-init type-check, v0.4.63 | error |
 | TYP-026 | Invalid or unproven `as char`, or a non-void function reaches the end with no tail expression | type-check, v0.4.219/v0.8.45 | error |
 | TYP-027 | Type inference failed; explicit annotation required | strict inference type-check, v0.8 E3 | error |
+| TYP-044 | Implicit integer width conversion in binding | let stmt type-check, v1.1.0 audit | error |
 
 `TYP-027` is suppressed only when strict inference can prove the
 initializer's concrete type. The current positive helper-return table
@@ -136,6 +137,9 @@ covers core string helpers, direct IO/env/path helpers, format/string
 conversion helpers, and direct numeric/f64 runtime helpers. Unknown
 helpers still require an explicit user function signature or a concrete
 type annotation at the call boundary.
+
+`TYP-044` rejects implicit integer width conversion at bindings.
+Use an explicit `as` cast when the conversion is intentional.
 
 ### FMT series — format macro expansion
 

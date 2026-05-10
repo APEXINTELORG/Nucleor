@@ -1,4 +1,5 @@
 // F-NUM-002 negative proof: pressure cannot be converted to length.
+// EXPECT_RUNTIME_PANIC: UNIT-DIM-001
 import "stdlib/rods/units.nr"
 
 fn main() -> i64 {

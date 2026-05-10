@@ -90,5 +90,6 @@ fn main() -> i64 {
     fails = fails + check_boundary_touching_same_qubit_allowed();
     fails = fails + check_invalid_rows_rejected_without_mutation();
     fails = fails + check_limitations_mentions_push_at();
+    if fails == 0 { print("OK logical_qubit_schedule_push_at_smoke\n"); };
     return fails;
 }
