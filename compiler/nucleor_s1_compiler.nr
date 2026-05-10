@@ -21889,20 +21889,53 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         own_merge_state_key(o, a, b, key, vec_get(a, i + 1), sym_get(b, key));
         i = i + 2;
     };
+    let nA: i64 = vec_len(a);
+    let nB: i64 = vec_len(b);
+    // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): pre-build a
+    // hashmap of `a`'s keys for the second loop's "is this key in
+    // a?" check. Only when nA is large enough that the linear sym_get
+    // cost (per b-key × nA) exceeds the hashmap setup overhead.
+    // Threshold 128 (= 64 pairs) matches the existing warm-aux
+    // gate, where hashmap O(1) becomes worth the setup cost vs
+    // linear backward scan.
+    let use_hash: i64 = if nA >= 128 { 1 } else { 0 };
+    let a_idx: i64 = if use_hash == 1 { __nucleor_hashmap_with_capacity(nA) } else { 0 - 1 };
+    if use_hash == 1 {
+        let mut ai: i64 = 0;
+        while ai < nA {
+            __nucleor_hashmap_insert(a_idx, vec_get(a, ai), vec_get(a, ai + 1));
+            ai = ai + 2;
+        };
+    };
     let mut j: i64 = 0;
-    while j < vec_len(b) {
+    while j < nB {
         let bkey: str = vec_get(b, j);
-        if str_starts_with(bkey, "__os_") == 1
-            || str_starts_with(bkey, "__g4_freed_") == 1
-            || str_starts_with(bkey, "__g8_cond_moved_") == 1
-            || (str_starts_with(bkey, "__init_") == 1 && str_starts_with(bkey, "__init_seen_") == 0)
-            || str_starts_with(bkey, "__init_seen_") == 1 {
-            if sym_get(a, bkey) < 0 {
+        let bklen: i64 = str_len(bkey);
+        let mut is_state: i64 = 0;
+        if bklen >= 5 {
+            let c2b: i64 = str_char_at(bkey, 2);
+            if c2b == 111 {
+                if str_starts_with(bkey, "__os_") == 1 { is_state = 1; };
+            } else if c2b == 103 {
+                if str_starts_with(bkey, "__g4_freed_") == 1 { is_state = 1; }
+                else if str_starts_with(bkey, "__g8_cond_moved_") == 1 { is_state = 1; };
+            } else if c2b == 105 {
+                if str_starts_with(bkey, "__init_") == 1 { is_state = 1; };
+            };
+        };
+        if is_state == 1 {
+            let in_a: i64 = if use_hash == 1 {
+                if __nucleor_hashmap_contains(a_idx, bkey) == 1 { 1 } else { 0 }
+            } else {
+                if sym_get(a, bkey) >= 0 { 1 } else { 0 }
+            };
+            if in_a == 0 {
                 own_merge_state_key(o, a, b, bkey, 0, vec_get(b, j + 1));
             };
         };
         j = j + 2;
     };
+    if use_hash == 1 { __nucleor_hashmap_free(a_idx); };
     return 0;
 }
 
