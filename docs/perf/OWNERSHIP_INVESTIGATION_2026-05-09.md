@@ -257,8 +257,40 @@ The v1.0.3 author's note ("a C-side `__nucleor_vec_find_str_pair_back` helper wa
 
 1. **NOT Opt-1** — hashmap-per-merge does not pay off at typical env sizes; matches the v0.4.3 design comment.
 2. **NOT naive Opt-4 either** — adding a new extern via the standard `get_rt_name` / `is_runtime_extern` chains pays a side-cost that exceeds the saved work in `own_put_i`.
-3. **Opt-3 (multi-sym warm aux)** is the most promising remaining avenue — it's a runtime-only change (`nucleor_llvm_rt.c`) that doesn't touch the extern-registration tables. Implement K-way LRU in the existing `__nucleor_sym_aux_*` API; the API surface stays the same so no compiler-side registration changes needed. Should let `sym_get(a, ...)` and `sym_get(b, ...)` both stay warm during a merge, eliminating the thrash without per-merge allocation.
+3. **NOT Opt-3 either** — see Opt-3 result below.
 4. **Investigate the registration side-cost.** Why does adding ONE entry to `get_rt_name` slow ownership/type by ~500 ms each? If the lookup tables can be converted from sequential `if str_eq` chains to a hashmap or trie keyed on name, that's a separate one-time win that benefits all future extern additions.
 5. **Lex-time intern-and-deduplicate the state-key prefixes** (`__os_`, `__oi_`, `__g4_*`, `__g8_*`, `__init_*`). Currently every `own_set_i(o, key, val)` calls `str_concat("__oi_", key)` per call, allocating a fresh string. Prefix-interned keys would skip the alloc.
 
-The branch state (`fa36f142` + uncommitted experiment artifacts in `compiler/nucleor_s1_compiler.nr` + `stdlib/runtime/nucleor_llvm_rt.c`) preserves both failed experiments for the next agent's inspection.
+### Opt-3 attempt: K-way LRU warm-aux
+
+Replaced the single-slot warm cache in `nucleor_llvm_rt.c` (`g_sym_warm_handle` / `g_sym_warm_aux` / `g_sym_warm_built_at`) with a 4-way LRU. API-compatible: same four `__nucleor_sym_aux_*` functions, just internal storage promoted to a 4-slot array with monotonic-tick LRU eviction. Pure C runtime change — no Nucleor source edits, no extern registration changes (so no side-cost).
+
+**Result: REGRESSED.**
+
+| Metric | Baseline | Opt-3 | Delta |
+|---|---|---|---|
+| ownership | 1579 ms | 2287 ms (avg of 3) | +708 ms |
+| total IR | 2766 ms | 4573 ms | +1807 ms |
+| total native | 4031 ms | 5807 ms | +1776 ms |
+
+**Diagnosis:** the warm-aux isn't actually on the hot path. `sym_get`'s warm hashmap branch is gated by `n >= 64`, so for typical small ownership envs (the common case), the warm path is never taken — sym_get linear-scans regardless. The warm-aux call inside `own_put_i` (post-loop, side-effect to maintain cache consistency) fires thousands of times per ownership phase. K-way LRU costs 3-4× more per call than single-slot (4 handle compares + LRU tick update vs 1 handle compare). Multiplied by thousands of callers, the side-cost erases any unrealized benefit.
+
+The single-slot design was deliberate: for the small-env common case where warm-aux isn't taken, single-slot minimizes the per-call check overhead.
+
+### Three negative results — what's left
+
+After Opt-1, Opt-3, and the registration-side test for Opt-4 all regressed, the structural problem becomes clearer:
+
+The ownership phase's slowness is in the .nr-source linear backward scan loop in `own_put_i` doing `str_eq(vec_get(o, i), key)` per iteration. Optimizing it requires either:
+
+(a) Making the per-iteration `str_eq` cheaper without changing the call surface — e.g., the strings are unique-interned (str_intern), so identical strings would have identical i64 pointer values; pointer comparison via `vec_get(o, i) == key` (no str_eq runtime call) might short-circuit most lookups. Worth investigating whether the keys passed in are always intern'd or whether some path passes a freshly-allocated str.
+
+(b) A C helper that does the scan natively — but the standard registration path adds enough side-cost in the compiler's lookup tables (per Opt-4) that the helper's per-call savings get erased. Would need to either:
+   - Optimize the lookup-table chains first (Opts-4 + 5 above) and THEN add a C helper.
+   - OR find a way to add a C extern that bypasses `get_rt_name` / `is_runtime_extern` (e.g., direct `__nucleor_*` call from source via a special-case path).
+
+(c) Reduce the FREQUENCY of own_put_i calls — not the per-call cost. Each `own_set_i / own_set_s / own_set / own_set_type` call can multiply through state-prefix concat. If state-prefix concat results were cached or interned per fn-body, fewer own_put_i calls would be needed.
+
+(d) Out-of-scope architecturally: replace the flat-Vec ownership env with a different data structure (proper hashmap, indexed b-tree). Would require a substantial refactor of all `sym_get` / `own_put_i` / `own_get_i` / `own_merge_moved` callsites.
+
+The branch state preserves all three failed experiments. Each negative result rules out a class of attempts and narrows the remaining design space.
