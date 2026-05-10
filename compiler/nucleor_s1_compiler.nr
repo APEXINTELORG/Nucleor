@@ -21777,7 +21777,29 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn own_merge_state_key(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>, key: str, va_in: i64, vb_in: i64) -> i64 {
-    if str_starts_with(key, "__g4_freed_by_") == 1 { return 0; };
+    // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): dispatch on
+    // str_char_at(key, 2) instead of testing every prefix sequentially.
+    // Pure source refactor — no new externs, no compiler registration
+    // changes, no runtime/seed change. Same semantics, fewer per-call
+    // str_starts_with lookups.
+    let klen_dsp: i64 = str_len(key);
+    if klen_dsp >= 5 {
+        let c2_dsp: i64 = str_char_at(key, 2);
+        // 'g' family: __g4_*, __g8_*. Early-out for __g4_freed_by_
+        // (same as pre-fix line-21780 behavior).
+        if c2_dsp == 103 {
+            if str_starts_with(key, "__g4_freed_by_") == 1 { return 0; };
+        } else if c2_dsp != 111 && c2_dsp != 105 {
+            // Not 'o', 'g', or 'i' — definitely a non-state key.
+            // Apply non-state semantic and return.
+            let mut va_ns: i64 = va_in;
+            let mut vb_ns: i64 = vb_in;
+            if va_ns < 0 { va_ns = 0; };
+            if vb_ns < 0 { vb_ns = 0; };
+            if va_ns == 2 || vb_ns == 2 { own_put_i(o, key, 2); };
+            return 0;
+        };
+    };
     let mut va: i64 = va_in;
     let mut vb: i64 = vb_in;
     if va < 0 { va = 0; };
