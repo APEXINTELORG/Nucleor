@@ -6322,57 +6322,69 @@ long long __nucleor_hashmap_clone(long long h) {
 // Concurrency: the s1 self-host compiler is single-threaded; the
 // warm cache is not protected by a mutex.
 
-static long long g_sym_warm_handle = 0;
-static long long g_sym_warm_aux = 0;          /* NHashMap handle, lazily created */
-static long long g_sym_warm_built_at = 0;     /* vec_len when aux was last fully synced for warm_handle */
-
-static void _sym_warm_init_if_needed(void) {
-    if (g_sym_warm_aux == 0) {
-        g_sym_warm_aux = __nucleor_hashmap_new();
+/* v1.1.x perf (audit-pass-1 follow-up 2026-05-09): K-way LRU warm
+ * cache replacing single-slot. Lets a/b/o stay warm together during
+ * merges. Re-enabled after the -O0 vs -O3 measurement bug was fixed
+ * — earlier "regression" was the rebuild path defaulting to -O0. */
+#define NUC_SYM_AUX_WAYS 4
+typedef struct { long long handle; long long aux; long long built_at; long long lru_tick; } NucSymAuxSlot;
+static NucSymAuxSlot g_sym_aux_slots[NUC_SYM_AUX_WAYS];
+static long long g_sym_aux_lru_clock = 0;
+static NucSymAuxSlot *_sym_aux_find_slot(long long h) {
+    for (int i = 0; i < NUC_SYM_AUX_WAYS; i++) {
+        if (g_sym_aux_slots[i].handle == h && g_sym_aux_slots[i].lru_tick != 0) return &g_sym_aux_slots[i];
     }
+    return NULL;
 }
+static NucSymAuxSlot *_sym_aux_pick_eviction(void) {
+    NucSymAuxSlot *v = &g_sym_aux_slots[0];
+    for (int i = 0; i < NUC_SYM_AUX_WAYS; i++) {
+        if (g_sym_aux_slots[i].lru_tick == 0) return &g_sym_aux_slots[i];
+        if (g_sym_aux_slots[i].lru_tick < v->lru_tick) v = &g_sym_aux_slots[i];
+    }
+    return v;
+}
+/* Compatibility shims so the rest of the file (which still references
+ * g_sym_warm_*) compiles unchanged in transition. Map them to slot 0. */
+#define g_sym_warm_handle    g_sym_aux_slots[0].handle
+#define g_sym_warm_aux       g_sym_aux_slots[0].aux
+#define g_sym_warm_built_at  g_sym_aux_slots[0].built_at
 
-/* Return the aux NHashMap handle for sym_handle, or -1 if the
-   queried sym isn't currently warm. (The runtime owns ONE hashmap;
-   it returns -1 when the caller's sym isn't the one mirrored.)  */
 long long __nucleor_sym_aux_get(long long sym_handle) {
-    if (sym_handle == g_sym_warm_handle && g_sym_warm_aux != 0) {
-        return g_sym_warm_aux;
-    }
-    return -1;
+    NucSymAuxSlot *s = _sym_aux_find_slot(sym_handle);
+    if (s == NULL) return -1;
+    s->lru_tick = ++g_sym_aux_lru_clock;
+    return s->aux;
 }
 
-/* Get-or-set-warm the aux NHashMap. If `sym_handle` is already
-   the warm handle, return the existing aux. Otherwise: clear the
-   hashmap, set warm = sym_handle, reset built_at = 0, return the
-   (now-empty) aux handle. The caller's catchup loop will then
-   repopulate from the new sym's vec.                              */
 long long __nucleor_sym_aux_create(long long sym_handle) {
-    _sym_warm_init_if_needed();
-    if (sym_handle != g_sym_warm_handle) {
-        __nucleor_hashmap_clear(g_sym_warm_aux);
-        g_sym_warm_handle = sym_handle;
-        g_sym_warm_built_at = 0;
+    NucSymAuxSlot *s = _sym_aux_find_slot(sym_handle);
+    if (s != NULL) {
+        s->lru_tick = ++g_sym_aux_lru_clock;
+        return s->aux;
     }
-    return g_sym_warm_aux;
+    s = _sym_aux_pick_eviction();
+    if (s->aux == 0) {
+        s->aux = __nucleor_hashmap_new();
+    } else {
+        __nucleor_hashmap_clear(s->aux);
+    }
+    s->handle = sym_handle;
+    s->built_at = 0;
+    s->lru_tick = ++g_sym_aux_lru_clock;
+    return s->aux;
 }
 
-/* Return the vec length at which the warm aux was last fully synced
-   for `sym_handle`. If `sym_handle` isn't the warm handle, returns 0
-   so the caller's catchup loop runs over the entire vec.           */
 long long __nucleor_sym_aux_built_at(long long sym_handle) {
-    if (sym_handle == g_sym_warm_handle && g_sym_warm_aux != 0) {
-        return g_sym_warm_built_at;
-    }
-    return 0;
+    NucSymAuxSlot *s = _sym_aux_find_slot(sym_handle);
+    if (s == NULL) return 0;
+    return s->built_at;
 }
 
-/* Record that the warm aux is synced up to vec length n. No-op if
-   `sym_handle` isn't the current warm handle (caller raced with a
-   context-switch -- the next sym_get will rebuild).                 */
 long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n) {
-    if (sym_handle == g_sym_warm_handle) {
-        g_sym_warm_built_at = n;
+    NucSymAuxSlot *s = _sym_aux_find_slot(sym_handle);
+    if (s != NULL) {
+        s->built_at = n;
     }
     return 0;
 }

@@ -1,4 +1,0 @@
-  source: compiler\nucleor_s1_compiler.nr (2493024 bytes)
-  mode: fast (ownership + type)
-  mode: llvm-only (--no-link)
-cache: disabled (sha=none, size 0 MB)
