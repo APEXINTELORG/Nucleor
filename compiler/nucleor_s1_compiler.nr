@@ -10419,26 +10419,12 @@ fn fn_return_map_get(m: i64, key: str) -> i64 {
 #[manual_drop]
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let n: i64 = vec_len(s);
-    if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
-    if n < 4 {
-        // v0.6.54 perf-slice: fall back to shared fn-return-map for
-        // __fnret_* / __fnfulltype_* keys.
-        if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
-            let ret_map0: i64 = sym_get(s, "__fn_return_map");
-            if ret_map0 >= 0 { return fn_return_map_get(ret_map0, name); };
-        };
-        return 0 - 1;
-    };
-    // Size-gated warm hash path. Below threshold, linear is faster
-    // (cache-friendly + no warm-cache touch). Threshold 64 entries
-    // = 32 pairs. (Tried 32 with K-way LRU; regressed slightly —
-    // rebuild cost outweighs scan savings at small sizes.)
+    // v1.1.x perf: collapse the n>=2 tail check + n<64 linear scan
+    // into a single C call. Helper scans backward from tail anyway,
+    // so the explicit tail check was redundant. Saves one FFI call
+    // per sym_get (~9M / build).
     if n < 64 {
-        // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): hoist the
-        // small-vec linear scan into a single C runtime call. Pre-fix
-        // each iteration crossed the .nr -> C boundary 2x (vec_get +
-        // str_eq), and this loop alone accounted for ~70% of all
-        // str_eq + vec_get calls in a release build (212M of 300M).
+        if n < 2 { return 0 - 1; };
         let lhit: i64 = __nucleor_sym_linear_lookup(s, name);
         if lhit >= 0 { return lhit; };
         if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
