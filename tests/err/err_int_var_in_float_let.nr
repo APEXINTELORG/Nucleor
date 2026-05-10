@@ -7,10 +7,9 @@
 // denormal f64) instead of `5.0`.
 //
 // Sister to NUM-018 (float literal into int binding, v0.4.76).
-// The literal-int-into-f64 case (`let f: f64 = 5;`) still works
-// — the parser's narrow-numeric coercion handles it via the
-// type-aware literal-emit path, so only non-literal int
-// expressions trip NUM-020.
+// The literal-int-into-f64 case (`let f: f64 = 5;`) is now rejected
+// separately by the audit-pass-1 Layer 2 F-005 TYP-008 check; write
+// `5.0` when the source value is a float.
 
 fn main() -> i32 {
     let i: i64 = 5;

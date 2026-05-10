@@ -2,8 +2,8 @@
 // gate-DAG intent through qsim_graph's checked-record surface.
 //
 // Locks that the high-level qsim wrappers update the queryable DAG
-// even when tracing is disabled. SWAP inherits its records through
-// the existing CNOT decomposition. CCX is represented by two
+// even when tracing is disabled. SWAP records one logical SWAP event,
+// not its former internal CNOT decomposition. CCX is represented by two
 // control-target records because qsim_gate_record_checked is a
 // two-qubit public surface.
 //
@@ -38,14 +38,14 @@ fn check_crk_records_after_prior_touches() -> i64 {
     return 0;
 }
 
-fn check_swap_inherits_cnot_records() -> i64 {
+fn check_swap_records_one_logical_gate() -> i64 {
     qsim_graph_clear();
     let sv: i64 = qsim_init(2);
 
     qsim_swap(sv, 0, 1);
-    if qsim_gate_dag_size() != 3 { return 128; };
-    if qsim_gate_dag_depends_on(1, 0) != 1 { return 256; };
-    if qsim_gate_dag_depends_on(2, 1) != 1 { return 512; };
+    if qsim_gate_dag_size() != 1 { return 128; };
+    if qsim_gate_dag_parent_count(0) != 0 { return 256; };
+    if qsim_gate_dag_parent_at(0, 0) != (0 - 1) { return 512; };
     return 0;
 }
 
@@ -63,7 +63,7 @@ fn main() -> i64 {
     let mut fails: i64 = 0;
     fails = fails + check_cnot_cz_dependencies();
     fails = fails + check_crk_records_after_prior_touches();
-    fails = fails + check_swap_inherits_cnot_records();
+    fails = fails + check_swap_records_one_logical_gate();
     fails = fails + check_ccx_control_target_records();
     qsim_graph_clear();
     return fails;

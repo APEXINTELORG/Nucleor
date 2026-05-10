@@ -7,7 +7,7 @@ fn smap_new() -> Vec<i32> {
 }
 
 #[manual_drop]
-fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; return 0; }
+fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; if iop >= 38 && iop <= 41 { return 1; }; return 0; }
 
 #[manual_drop]
 fn find_column_in_source(source: str, fn_name: str, var_name: str) -> i64 {
@@ -2773,6 +2773,44 @@ fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
 
 fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
 
+fn tok_int_suffix_code(t: Vec<i32>) -> i64 {
+    if vec_len(t) >= 4 { return vec_get(t, 3); };
+    return 0;
+}
+
+fn int_suffix_code(suf: str) -> i64 {
+    if str_eq(suf, "u64") == 1 { return 1; };
+    if str_eq(suf, "usize") == 1 { return 2; };
+    if str_eq(suf, "u32") == 1 { return 3; };
+    if str_eq(suf, "u16") == 1 { return 4; };
+    if str_eq(suf, "u8") == 1 { return 5; };
+    if str_eq(suf, "i64") == 1 { return 6; };
+    if str_eq(suf, "isize") == 1 { return 7; };
+    if str_eq(suf, "i32") == 1 { return 8; };
+    if str_eq(suf, "i16") == 1 { return 9; };
+    if str_eq(suf, "i8") == 1 { return 10; };
+    return 0;
+}
+
+fn int_suffix_code_type(code: i64) -> str {
+    if code == 1 { return "u64"; };
+    if code == 2 { return "usize"; };
+    if code == 3 { return "u32"; };
+    if code == 4 { return "u16"; };
+    if code == 5 { return "u8"; };
+    if code == 6 { return "i64"; };
+    if code == 7 { return "isize"; };
+    if code == 8 { return "i32"; };
+    if code == 9 { return "i16"; };
+    if code == 10 { return "i8"; };
+    return "i32";
+}
+
+fn int_suffix_code_is_u64ish(code: i64) -> i64 {
+    if code == 1 || code == 2 { return 1; };
+    return 0;
+}
+
 fn is_digit(c: i64) -> i64 { if c >= 48 && c <= 57 { return 1; }; return 0; }
 
 fn tok_at(tokens: Vec<i32>, idx: i64) -> Vec<i32> {
@@ -2783,11 +2821,24 @@ fn tok_type_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_type(tok_at(token
 
 fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens, idx)); }
 
+fn tok_int_suffix_code_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_int_suffix_code(tok_at(tokens, idx)); }
+
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
 
 fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
 
 fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
+
+fn int_lit_suffix_code(pool: Vec<i32>, nid: i64) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let nd: Vec<i32> = vec_get(pool, nid);
+    if vec_len(nd) >= 3 { return vec_get(nd, 2); };
+    return 0;
+}
+
+fn int_lit_type(pool: Vec<i32>, nid: i64) -> str {
+    return int_suffix_code_type(int_lit_suffix_code(pool, nid));
+}
 
 fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
 
@@ -3218,4 +3269,3 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     while i < cnt { b = lower_stmt(pool, list_get(pool, lid, i), b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls); i = i + 1; };
     return b;
 }
-

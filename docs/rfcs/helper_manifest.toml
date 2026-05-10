@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 904
-# Of which REVIEW REQUIRED: 1
+# Total helpers: 907
+# Of which REVIEW REQUIRED: 4
 
 # ============================================================
 # REVIEW REQUIRED
@@ -23,6 +23,9 @@
 # or `class = "Unclassified"` so callers can find them.
 #
 #   __nucleor_source_bare_cr_offset          (Unclassified)
+#   deadline_enter                           (Unclassified)
+#   deadline_exit                            (Unclassified)
+#   deadline_poll                            (Unclassified)
 
 
 # ----- class: ADT -----
@@ -11124,6 +11127,48 @@ class            = "Unclassified"
 symbol           = "__nucleor_source_bare_cr_offset"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "deadline_enter"
+class            = "Unclassified"
+symbol           = "__nucleor_deadline_enter"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "deadline_exit"
+class            = "Unclassified"
+symbol           = "__nucleor_deadline_exit"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "deadline_poll"
+class            = "Unclassified"
+symbol           = "__nucleor_deadline_poll"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"

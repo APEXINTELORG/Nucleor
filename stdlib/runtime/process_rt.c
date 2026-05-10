@@ -21,6 +21,7 @@
 // Compile: clang -c stdlib/runtime/process_rt.c -o target/process_rt.obj -O2
 
 #define _CRT_SECURE_NO_WARNINGS
+#include "nuc_alloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,7 +87,7 @@ static long long g_last_capture_status = 0;
 // same return type.
 static const char *s1_empty_owned(void) {
     char *r = (char *)malloc(1);
-    if (!r) return "";
+    if (!r) return NULL;
     r[0] = 0;
     return r;
 }
@@ -130,6 +131,7 @@ long long __nucleor_proc_capture_status(void) {
 // status read (e.g. result aggregated across concurrent test runners).
 const char *__nucleor_proc_capture_with_status(const char *cmdline) {
     const char *body = __nucleor_proc_capture_stdout(cmdline);
+    if (!body) return NULL;
     long long status = g_last_capture_status;
 
     size_t body_len = strlen(body);

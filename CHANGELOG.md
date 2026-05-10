@@ -5,6 +5,17 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-05-09
+
+Audit-complete production-readiness branch. This release line starts from the
+v1.0.3 cold-compile performance recovery branch, integrates the Windows
+concurrency parity fix, and tracks all audit-pass-1 Critical/High findings
+through an executable closure ledger before final tagging.
+
+Status: in progress. Do not tag until the audit closure matrix, self-host fixed
+point, drift gates, full verify, version/artifact parity, and cold-compile
+performance gate are green on the documented release hosts.
+
 ## [1.0.3] — 2026-05-09
 
 Cold-compile perf-regression fix. The Lane 6 audit ship in v1.0.2 widened

@@ -133,7 +133,61 @@ fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
 #[manual_drop]
 fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
 #[manual_drop]
-fn tok_pos(t: Vec<i32>) -> i64 { return vec_get(t, 2); }
+fn tok_pos(t: Vec<i32>) -> i64 {
+    let p: i64 = vec_get(t, 2);
+    if p < 0 { return ((0 - p) - 1) / 16; };
+    return p;
+}
+#[manual_drop]
+fn tok_int_suffix_code(t: Vec<i32>) -> i64 {
+    let p: i64 = vec_get(t, 2);
+    if p < 0 { return ((0 - p) - 1) % 16; };
+    return 0;
+}
+fn tok_pos_encode_int_suffix(p: i64, code: i64) -> i64 {
+    if code == 0 { return p; };
+    return 0 - ((p * 16) + code + 1);
+}
+#[manual_drop]
+fn tokens_linecol_at_byte(tokens: Vec<i32>, byte_off: i64) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    out.push(nuc_diag_line_for_byte(byte_off));
+    out.push(nuc_diag_col_for_byte(byte_off));
+    return out;
+}
+#[manual_drop]
+fn int_suffix_code(suf: str) -> i64 {
+    if str_eq(suf, "u64") == 1 { return 1; };
+    if str_eq(suf, "usize") == 1 { return 2; };
+    if str_eq(suf, "u32") == 1 { return 3; };
+    if str_eq(suf, "u16") == 1 { return 4; };
+    if str_eq(suf, "u8") == 1 { return 5; };
+    if str_eq(suf, "i64") == 1 { return 6; };
+    if str_eq(suf, "isize") == 1 { return 7; };
+    if str_eq(suf, "i32") == 1 { return 8; };
+    if str_eq(suf, "i16") == 1 { return 9; };
+    if str_eq(suf, "i8") == 1 { return 10; };
+    return 0;
+}
+#[manual_drop]
+fn int_suffix_code_type(code: i64) -> str {
+    if code == 1 { return "u64"; };
+    if code == 2 { return "usize"; };
+    if code == 3 { return "u32"; };
+    if code == 4 { return "u16"; };
+    if code == 5 { return "u8"; };
+    if code == 6 { return "i64"; };
+    if code == 7 { return "isize"; };
+    if code == 8 { return "i32"; };
+    if code == 9 { return "i16"; };
+    if code == 10 { return "i8"; };
+    return "i32";
+}
+#[manual_drop]
+fn int_suffix_code_is_u64ish(code: i64) -> i64 {
+    if code == 1 || code == 2 { return 1; };
+    return 0;
+}
 #[manual_drop]
 fn is_ws(c: i64) -> i64 { if c == 32 || c == 9 || c == 10 || c == 13 { return 1; }; return 0; }
 #[manual_drop]
@@ -296,15 +350,15 @@ fn lex(src: str) -> Vec<i32> {
     let mut tokens: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
-    // Lane 4 / F-007: explicitly skip a UTF-8 BOM (EF BB BF) at file
-    // start. Pre-fix the BOM was silently consumed via the unknown-byte
-    // fall-through; with the F-066 fix that fall-through now errors,
-    // so a BOM at SOF would falsely fail. Accept BOM only at offset 0.
+    // Lane 4 / F-007: reject a UTF-8 BOM (EF BB BF) at file start.
+    // Accepting it creates a source-byte normalization exception where
+    // the first three bytes are silently erased before the parser sees
+    // the file. Keep the source contract byte-exact instead.
     if slen >= 3
         && str_char_at(src, 0) == 239
         && str_char_at(src, 1) == 187
         && str_char_at(src, 2) == 191 {
-        p = 3;
+        panic("error[LEX-001]: unexpected UTF-8 BOM (0xEF 0xBB 0xBF) at byte 0. Nucleor source must be plain UTF-8 without a byte-order mark; remove the BOM so the first token is visible to the lexer.");
     };
     while p < slen {
         let c: i64 = str_char_at(src, p);
@@ -913,6 +967,12 @@ fn lex(src: str) -> Vec<i32> {
                     p = p + 1;
                 }
             } else {
+                if handled_radix == 0 && p < slen && str_char_at(src, p) == 46 {
+                    let next_after_dot_v110: i64 = if p + 1 < slen { str_char_at(src, p + 1) } else { 0 };
+                    if next_after_dot_v110 != 46 {
+                        panic(str_concat("error[LEX-NUM-FLOAT-FORM]: trailing-dot float literal at byte ", str_concat(str_from_int(st), ". Nucleor requires at least one digit after the decimal point; write `1.0` instead of `1.`. Pre-fix this lexed as integer `1` followed by field-access `.`, causing wrong-class parser/type diagnostics.")));
+                    };
+                };
                 // v0.4.119: NUM-021 — decimal literal too wide for u64.
                 // Pre-fix `let x: i64 = 99999999999999999999;` (a 20-digit
                 // value > u64::MAX) silently wrapped through str_to_int's
@@ -1016,8 +1076,7 @@ fn lex(src: str) -> Vec<i32> {
                         };
                     };
                 };
-                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
-                tokens.push(tok_new(2, int_lit_value, st));
+                let mut int_suffix_v110: i64 = 0;
                 // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
                 if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
                     let suf_st: i64 = p;
@@ -1045,7 +1104,12 @@ fn lex(src: str) -> Vec<i32> {
                         // silent-drop path (F-012). Now: reject.
                         panic(str_concat("error[LEX-NUM-SUFFIX]: unknown integer-literal suffix `", str_concat(suf, str_concat("` at byte ", str_concat(str_from_int(suf_st), ". Recognized suffixes: i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize. Pre-fix the suffix was silently rewound and re-lexed as an identifier, dropping the user's typed-literal intent.")))));
                     };
+                    int_suffix_v110 = int_suffix_code(suf);
                 };
+                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
+                let int_tok_pos_v110: i64 = tok_pos_encode_int_suffix(st, int_suffix_v110);
+                let mut int_tok_v110: Vec<i32> = tok_new(2, int_lit_value, int_tok_pos_v110);
+                tokens.push(int_tok_v110);
                 // Lane 4 / F-022: an int literal immediately followed
                 // by an alphabetic byte (no `i`/`u` so the suffix branch
                 // didn't take) means the user wrote something like
@@ -1072,6 +1136,9 @@ fn lex(src: str) -> Vec<i32> {
             let st: i64 = p; p = p + 1;
             let mut sb: i64 = sb_new();
             while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 10 || str_char_at(src, p) == 13 {
+                    panic(str_concat("error[LEX-STRING-NEWLINE]: raw newline in string literal opened at byte ", str_concat(str_from_int(st), ". Nucleor string literals must stay on one physical line; use `\\n` or `\\r\\n` escapes, or split and concatenate the string. Pre-fix raw CR/LF bytes were embedded silently in the literal.")));
+                };
                 if str_char_at(src, p) == 92 && p + 1 < slen {
                     let nc: i64 = str_char_at(src, p + 1);
                     if nc == 110 { sb_append(sb, "\n"); } else if nc == 116 { sb_append(sb, "\t"); }
@@ -1092,9 +1159,14 @@ fn lex(src: str) -> Vec<i32> {
                         panic(str_concat("error[NR025]: unknown escape sequence `", str_concat(bad_esc, "` in string literal. Pre-v0.4.121 the backslash was silently dropped and the next char emitted as-is. Recognized escapes: `\\n`, `\\t`, `\\\"`, `\\\\`, `\\r`, `\\0`, `\\'`. To get a literal backslash + char, escape the backslash explicitly (e.g. `\\\\z`).")));
                     };
                     p = p + 2;
+                } else if str_char_at(src, p) == 92 {
+                    panic(str_concat("error[LEX-STRING-EOF]: string literal opened at byte ", str_concat(str_from_int(st), " ends with a trailing backslash before EOF. The escape sequence is incomplete; write `\\\\` for a literal backslash or close the string before EOF.")));
                 } else { sb_append_char_at(sb, src, p); p = p + 1; };
             };
-            if p < slen { p = p + 1; };
+            if p < slen { p = p + 1; }
+            else {
+                panic(str_concat("error[LEX-STRING-EOF]: unterminated string literal opened at byte ", str_concat(str_from_int(st), ". Add the closing `\"` before EOF.")));
+            };
             tokens.push(tok_new(3, sb_to_str(sb), st));
         }
         else if c == 45 && p + 1 < slen && str_char_at(src, p + 1) == 62 { tokens.push(tok_new(41, 0, p)); p = p + 2; }
@@ -1180,6 +1252,9 @@ fn lex(src: str) -> Vec<i32> {
             p = p + 3;
         }
         else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 { tokens.push(tok_new(58, 0, p)); p = p + 2; }
+        else if c == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
+            panic(str_concat("error[LEX-NUM-FLOAT-FORM]: leading-dot float literal at byte ", str_concat(str_from_int(p), ". Nucleor requires a leading zero; write `0.5` instead of `.5`.")));
+        }
         else if c == 46 { tokens.push(tok_new(45, 0, p)); p = p + 1; }
         else if c == 40 { tokens.push(tok_new(50, 0, p)); p = p + 1; }
         else if c == 41 { tokens.push(tok_new(51, 0, p)); p = p + 1; }
@@ -1208,7 +1283,7 @@ fn lex(src: str) -> Vec<i32> {
                 let n1: i64 = str_char_at(src, p + 1);
                 let n2: i64 = str_char_at(src, p + 2);
                 // Plain `'X'` form — single non-backslash char.
-                if n1 != 92 && n2 == 39 {
+                if n1 != 92 && n1 != 39 && n2 == 39 {
                     tokens.push(tok_new(2, n1, st));
                     p = p + 3;
                     handled = 1;
@@ -1261,6 +1336,36 @@ fn lex(src: str) -> Vec<i32> {
                 // apostrophe; if found within 8 chars and the first
                 // post-apos char isn't an identifier-start/colon,
                 // it's a multi-char literal.
+                //
+                // v1.1.0 audit closeout: do not mistake lifetime lists
+                // such as `<'a, 'b>` or ref types such as `&'a T` for
+                // malformed char literals just because a second lifetime
+                // apostrophe appears nearby.
+                let mut lifetime_like_v110: i64 = 0;
+                if p + 1 < slen {
+                    let lt_c1_v110: i64 = str_char_at(src, p + 1);
+                    let lt_start_v110: i64 = if (lt_c1_v110 >= 97 && lt_c1_v110 <= 122) || (lt_c1_v110 >= 65 && lt_c1_v110 <= 90) || lt_c1_v110 == 95 { 1 } else { 0 };
+                    if lt_start_v110 == 1 {
+                        let mut lt_end_v110: i64 = p + 2;
+                        while lt_end_v110 < slen && (is_alnum(str_char_at(src, lt_end_v110)) == 1 || str_char_at(src, lt_end_v110) == 95) { lt_end_v110 = lt_end_v110 + 1; };
+                        if lt_end_v110 < slen {
+                            let after_lt_v110: i64 = str_char_at(src, lt_end_v110);
+                            if after_lt_v110 == 44 || after_lt_v110 == 62 || after_lt_v110 == 58 || after_lt_v110 == 43 || after_lt_v110 == 41 || after_lt_v110 == 123 || after_lt_v110 == 125 {
+                                lifetime_like_v110 = 1;
+                            } else if after_lt_v110 == 32 || after_lt_v110 == 9 || after_lt_v110 == 10 || after_lt_v110 == 13 {
+                                let mut ws_v110: i64 = lt_end_v110;
+                                while ws_v110 < slen {
+                                    let wc_v110: i64 = str_char_at(src, ws_v110);
+                                    if wc_v110 != 32 && wc_v110 != 9 && wc_v110 != 10 && wc_v110 != 13 { break; };
+                                    ws_v110 = ws_v110 + 1;
+                                };
+                                if ws_v110 >= slen || str_char_at(src, ws_v110) != 39 {
+                                    lifetime_like_v110 = 1;
+                                };
+                            };
+                        };
+                    };
+                };
                 let mut scan_ap: i64 = p + 1;
                 let mut found_close_ap: i64 = 0;
                 let mut ap_chars: i64 = 0;
@@ -1271,7 +1376,7 @@ fn lex(src: str) -> Vec<i32> {
                     ap_chars = ap_chars + 1;
                     scan_ap = scan_ap + 1;
                 };
-                if found_close_ap == 1 && ap_chars >= 2 {
+                if lifetime_like_v110 == 0 && found_close_ap == 1 && ap_chars >= 2 {
                     panic(str_concat("error[LEX-CHAR-MULTI]: multi-character literal at byte ", str_concat(str_from_int(st), str_concat(": `", str_concat(str_substring(src, st, scan_ap + 1), "`. A char literal must contain exactly one character. Use a string literal `\"...\"` for multi-character text, or split into separate char literals. Pre-fix this surfaced as the wrong-class \"loop labels not yet supported\" diagnostic.")))));
                 };
                 // T2.5 (v0.2.351) fallback: apostrophe → lifetime token.
@@ -1346,6 +1451,9 @@ extern fn nuc_node_kind(pool: Vec<i32>, nid: i64) -> i64;
 extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
 extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
 extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
+extern fn nuc_diag_set_source(source: str) -> i64;
+extern fn nuc_diag_line_for_byte(byte_off: i64) -> i64;
+extern fn nuc_diag_col_for_byte(byte_off: i64) -> i64;
 
 #[manual_drop]
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
@@ -1373,6 +1481,20 @@ fn node_get_span(pool: Vec<i32>, nid: i64) -> i64 {
     let n: i64 = vec_len(nd);
     if n >= 3 && vec_get(nd, n - 2) == node_span_sentinel() { return vec_get(nd, n - 1); };
     return 0 - 1;
+}
+#[manual_drop]
+fn int_lit_suffix_code(pool: Vec<i32>, nid: i64) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let nd: Vec<i32> = vec_get(pool, nid);
+    if vec_len(nd) >= 3 {
+        let code: i64 = vec_get(nd, 2);
+        if code != node_span_sentinel() { return code; };
+    };
+    return 0;
+}
+#[manual_drop]
+fn int_lit_type(pool: Vec<i32>, nid: i64) -> str {
+    return int_suffix_code_type(int_lit_suffix_code(pool, nid));
 }
 #[manual_drop]
 fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(2); n.push(k); n.push(a); return node_add(pool, n); }
@@ -1474,9 +1596,13 @@ fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
         // Pre-fix message: "expected token 52 got 50" — opaque.
         // Post-fix: "expected `{` got `(`" — actionable.
         let tok: Vec<i32> = tok_at(tokens, pos);
-        let byte_pos: i64 = vec_get(tok, 2);
+        let byte_pos: i64 = tok_pos(tok);
+        let lc_pos: Vec<i32> = tokens_linecol_at_byte(tokens, byte_pos);
+        let line_pos: i64 = vec_get(lc_pos, 0);
+        let col_pos: i64 = vec_get(lc_pos, 1);
         let got_tt: i64 = pk(tokens, pos);
-        panic(str_concat("error[NR020]: parse error at byte ", str_concat(str_from_int(byte_pos), str_concat(": expected ", str_concat(tok_name(tt), str_concat(", got ", str_concat(tok_name(got_tt), ". Pre-v0.4.78 this printed a warning and continued, producing a likely-broken binary; v0.4.208 added token names to make the diagnostic actionable.")))))));
+        let loc_pos: str = str_concat(str_from_int(line_pos), str_concat(":", str_from_int(col_pos)));
+        panic(str_concat("error[NR020]: parse error at line ", str_concat(loc_pos, str_concat(" (byte ", str_concat(str_from_int(byte_pos), str_concat("): expected ", str_concat(tok_name(tt), str_concat(", got ", tok_name(got_tt))))))));
     };
     return pos + 1;
 }
@@ -1701,6 +1827,25 @@ fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>
             continue;
         };
         cp = cp + 1; // past ':'
+        let mut lhs_known_v110: i64 = 0;
+        let lhs_gc_v110: i64 = vec_len(gparams);
+        let mut lhs_gi_v110: i64 = 0;
+        while lhs_gi_v110 < lhs_gc_v110 {
+            let lhs_entry_v110: str = vec_get(gparams, lhs_gi_v110);
+            if str_len(lhs_entry_v110) > 0 && str_char_at(lhs_entry_v110, 0) != 63
+               && str_char_at(lhs_entry_v110, 0) != 39
+               && str_eq(lhs_entry_v110, pname) == 1 {
+                lhs_known_v110 = 1;
+                lhs_gi_v110 = lhs_gc_v110;
+            } else {
+                lhs_gi_v110 = lhs_gi_v110 + 1;
+            };
+        };
+        if lhs_known_v110 == 0 {
+            print(str_concat("error[TYP-008]: where-clause references unknown type parameter `", str_concat(pname, "`. The left-hand side of `where X: Trait` must name a type parameter declared by this item.")));
+            diag_exit();
+            panic(str_concat("nucleor: unknown where-clause type parameter `", str_concat(pname, "`")));
+        };
         // Bounds list: walk identifiers until comma / { / ;.
         // Multi-bound (`T: A + B`) handled by the inner ident loop —
         // every kw-class ident is treated as a bound name. Operator
@@ -2366,7 +2511,11 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 cp = cp + 1;
             };
         };
-        return pr(cp, mk2(pool, 1, pkv(tokens, pos)));
+        let int_tok_v110: Vec<i32> = tok_at(tokens, pos);
+        let int_suffix_v110: i64 = tok_int_suffix_code(int_tok_v110);
+        let int_value_v110: i64 = tok_val(int_tok_v110);
+        if int_suffix_v110 != 0 { return pr(cp, mk3(pool, 1, int_value_v110, int_suffix_v110)); };
+        return pr(cp, mk2(pool, 1, int_value_v110));
     };
     // f64 literal (token 70) — encoded as int_part*1000000 + frac_millionths
     if tt == 70 {
@@ -2927,8 +3076,12 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     if is_recovery_marker == 0 {
         let fall_tok: Vec<i32> = tok_at(tokens, pos);
-        let fall_byte: i64 = vec_get(fall_tok, 2);
-        panic(str_concat("error[NR020]: parse_primary cannot start an expression at token kind ", str_concat(str_from_int(fall_tt), str_concat(" (byte position ", str_concat(str_from_int(fall_byte), "). Pre-v0.4.99 this silently became int_lit(0), producing a likely-broken AST node downstream consumed without diagnostic.")))));
+        let fall_byte: i64 = tok_pos(fall_tok);
+        let fall_lc: Vec<i32> = tokens_linecol_at_byte(tokens, fall_byte);
+        let fall_line: i64 = vec_get(fall_lc, 0);
+        let fall_col: i64 = vec_get(fall_lc, 1);
+        let fall_loc: str = str_concat(str_from_int(fall_line), str_concat(":", str_from_int(fall_col)));
+        panic(str_concat("error[NR020]: parse_primary cannot start an expression at token kind ", str_concat(str_from_int(fall_tt), str_concat(" at line ", str_concat(fall_loc, str_concat(" (byte ", str_concat(str_from_int(fall_byte), ")")))))));
     };
     return pr(pos + 1, mk2(pool, 1, 0));
 }
@@ -2945,11 +3098,13 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // parse_primary fails on the second `+`. Detect the `++`/`--`
     // shape after a primary and halt cleanly with `x = x + 1`
     // workaround pointer.
-    if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
+    let node_kind_postfix_v110: i64 = node_kind(pool, node);
+    let node_lvalue_postfix_v110: i64 = if node_kind_postfix_v110 == 3 || node_kind_postfix_v110 == 9 || node_kind_postfix_v110 == 10 { 1 } else { 0 };
+    if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
         print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 20` (the second `+`). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
         panic("nucleor: `x++` post-increment not supported (see ERROR diagnostic above)");
     };
-    if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
+    if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
         print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 21` (the second `-`). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
         panic("nucleor: `x--` post-decrement not supported (see ERROR diagnostic above)");
     };
@@ -3064,6 +3219,9 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 #[manual_drop]
 fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    if pk(tokens, pos) == 20 {
+        panic(str_concat("error[PARSE-UNARY-PLUS]: unary `+` is not supported at byte ", str_concat(str_from_int(tok_pos_at(tokens, pos)), ". Remove the redundant `+` or write the numeric expression without consecutive `+` operators. Pre-fix repeated operators such as `1 + + + 2` were misdiagnosed as post-increment.")));
+    };
     if pk(tokens, pos) == 21 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 5, pr_val(r))); };
     if pk(tokens, pos) == 38 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 6, pr_val(r))); };
     if pk(tokens, pos) == 22 {
@@ -3695,6 +3853,12 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: struct destructure-in-let not yet supported (see ERROR diagnostic above)");
         };
     };
+    if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 46 {
+        let lname_v110: str = pkv(tokens, cp);
+        print(str_concat("ERROR: enum or path pattern in `let` (e.g. `let ", str_concat(lname_v110, "::Variant(a, b) = expr;`) is not yet supported in Nucleor. Use `if let` or `match` to destructure enum variants. Pre-fix this reached parse_primary at `::` and surfaced as a wrong-class parser failure.")));
+        diag_exit();
+        panic(str_concat("nucleor: enum/path pattern-in-let `", str_concat(lname_v110, "::...` not yet supported (see ERROR diagnostic above)")));
+    };
     // v0.7.81 (defensive halt — Rust array-destructure-in-let
     // `let [a, b, c] = [1, 2, 3];`). Pre-fix the parser read `[`
     // (token 54) as the binding name and the `,`-separated names
@@ -3752,7 +3916,16 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = expect_tok(tokens, cp, 40); // expect =
         let mut er85: Vec<i32> = parse_expr(tokens, cp, pool);
         cp = pr_pos(er85);
-        if pk(tokens, cp) == 43 { cp = cp + 1; }; // skip ;
+        if pk(tokens, cp) == 43 {
+            cp = cp + 1;
+        } else {
+            let v_let_semi_byte85: i64 = tok_pos_at(tokens, cp);
+            let v_let_semi_lc85: Vec<i32> = tokens_linecol_at_byte(tokens, v_let_semi_byte85);
+            let v_let_semi_line85: i64 = vec_get(v_let_semi_lc85, 0);
+            let v_let_semi_col85: i64 = vec_get(v_let_semi_lc85, 1);
+            let v_let_semi_loc85: str = str_concat(str_from_int(v_let_semi_line85), str_concat(":", str_from_int(v_let_semi_col85)));
+            panic(str_concat("error[PARSE-LET-SEMI]: expected `;` after let statement at line ", str_concat(v_let_semi_loc85, str_concat(" (byte ", str_concat(str_from_int(v_let_semi_byte85), str_concat("), got ", tok_name(pk(tokens, cp))))))));
+        };
         let td_nid: i64 = mk3(pool, 85, names_csv, pr_val(er85));
         return pr(cp, td_nid);
     };
@@ -3768,7 +3941,11 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let v_let_name_tt: i64 = pk(tokens, cp);
     if v_let_name_tt != 1 {
         let v_let_name_byte: i64 = tok_pos_at(tokens, cp);
-        panic(str_concat("error[PARSE-LET-001]: expected identifier as `let` binding name at byte ", str_concat(str_from_int(v_let_name_byte), str_concat(", got reserved keyword or punctuation (", str_concat(tok_name(v_let_name_tt), "). Reserved words (`fn`, `let`, `return`, `if`, `while`, `for`, `match`, `struct`, `enum`, `trait`, `impl`, `pub`, `mut`, `as`, `in`, `break`, `continue`, etc.) cannot be used as binding names. Pre-fix this silently produced an invalid binding with a garbage name and emitted broken IR.")))));
+        let v_let_name_lc: Vec<i32> = tokens_linecol_at_byte(tokens, v_let_name_byte);
+        let v_let_name_line: i64 = vec_get(v_let_name_lc, 0);
+        let v_let_name_col: i64 = vec_get(v_let_name_lc, 1);
+        let v_let_name_loc: str = str_concat(str_from_int(v_let_name_line), str_concat(":", str_from_int(v_let_name_col)));
+        panic(str_concat("error[PARSE-LET-001]: expected identifier as `let` binding name at line ", str_concat(v_let_name_loc, str_concat(" (byte ", str_concat(str_from_int(v_let_name_byte), str_concat("), got ", tok_name(v_let_name_tt)))))));
     };
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
     let mut tstr: str = "";
@@ -3803,7 +3980,16 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // v0.3.97 diag-only stub is no longer needed — parse_expr
     // consumes the full bitwise expression, so there's nothing
     // left for next_after_rhs to detect.
-    if pk(tokens, cp) == 43 { cp = cp + 1; };
+    if pk(tokens, cp) == 43 {
+        cp = cp + 1;
+    } else {
+        let v_let_semi_byte: i64 = tok_pos_at(tokens, cp);
+        let v_let_semi_lc: Vec<i32> = tokens_linecol_at_byte(tokens, v_let_semi_byte);
+        let v_let_semi_line: i64 = vec_get(v_let_semi_lc, 0);
+        let v_let_semi_col: i64 = vec_get(v_let_semi_lc, 1);
+        let v_let_semi_loc: str = str_concat(str_from_int(v_let_semi_line), str_concat(":", str_from_int(v_let_semi_col)));
+        panic(str_concat("error[PARSE-LET-SEMI]: expected `;` after let statement at line ", str_concat(v_let_semi_loc, str_concat(" (byte ", str_concat(str_from_int(v_let_semi_byte), str_concat("), got ", tok_name(pk(tokens, cp))))))));
+    };
     let let_nid: i64 = mk5(pool, 20, name, is_mut, tstr, init_id);
     node_set_span(pool, let_nid, name_span);
     return pr(cp, let_nid);
@@ -4197,6 +4383,13 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = pr_pos(sr);
     if pk(tokens, cp) == 58 {
         let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); // end expr
+        if node_kind(pool, pr_val(sr)) == 1 && node_kind(pool, pr_val(er)) == 1 {
+            let rs_v110: i64 = node_field(pool, pr_val(sr), 1);
+            let re_v110: i64 = node_field(pool, pr_val(er), 1);
+            if rs_v110 > re_v110 {
+                print(str_concat("warning[RANGE-001]: statically empty `for` range ", str_concat(str_from_int(rs_v110), str_concat("..", str_concat(str_from_int(re_v110), "`. The loop body will not execute; check the bound order or use an explicit descending loop.")))));
+            };
+        };
         cp = expect_tok(tokens, pr_pos(er), 52); // expect '{'
         let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
         cp = expect_tok(tokens, pr_pos(br), 53); // expect '}'
@@ -4315,6 +4508,9 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 let true_node_l: i64 = mk2(pool, 1, 1);
                 return pr(cp_l, mk3(pool, 24, true_node_l, pr_val(br_l)));
             };
+        };
+        if str_eq(pkv(tokens, pos), "import") == 1 {
+            panic(str_concat("error[PARSE-IMPORT-LOCAL]: `import` directives are only valid at module scope and must use a quoted path. Local `import` at byte ", str_concat(str_from_int(tok_pos_at(tokens, pos)), " is not a statement; move it to the top level as `import \"path.nr\";`.")));
         };
     };
     if tt == 84 {
@@ -4486,7 +4682,15 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         return pr(cp, mk3(pool, 21, pr_val(er), rhs_v846));
     };
     let mut had_semi_v060: i64 = 0;
-    if pk(tokens, cp) == 43 { cp = cp + 1; had_semi_v060 = 1; };
+    if pk(tokens, cp) == 43 { cp = cp + 1; had_semi_v060 = 1; }
+    else if pk(tokens, cp) != 53 && pk(tokens, cp) != 51 && pk(tokens, cp) != 55 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
+        let stmt_expr_kind_v110: i64 = node_kind(pool, pr_val(er));
+        let next_stmt_tt_v110: i64 = pk(tokens, cp);
+        let next_starts_expr_v110: i64 = if next_stmt_tt_v110 == 1 || next_stmt_tt_v110 == 2 || next_stmt_tt_v110 == 3 || next_stmt_tt_v110 == 50 { 1 } else { 0 };
+        if (stmt_expr_kind_v110 == 1 || stmt_expr_kind_v110 == 2 || stmt_expr_kind_v110 == 3 || stmt_expr_kind_v110 == 71 || stmt_expr_kind_v110 == 72 || stmt_expr_kind_v110 == 73) && next_starts_expr_v110 == 1 {
+            panic(str_concat("error[PARSE-STMT-SEMI]: expected `;` between statements at byte ", str_concat(str_from_int(tok_pos_at(tokens, cp)), str_concat(", got ", tok_name(next_stmt_tt_v110)))));
+        };
+    };
     return pr(cp, mk3(pool, 25, pr_val(er), had_semi_v060));
 }
 
@@ -4545,6 +4749,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print("ERROR: `mut` qualifier on fn parameter (e.g. `fn inc(mut x: i64) -> i64 { x = x + 1; ... }`) is not yet supported in Nucleor. Pre-v0.7.75 the `mut` ident landed in the binding slot and `x` was pushed to where the colon should be, surfacing as wrong-class `error[NR020]: expected ':', got identifier`. Workaround: rebind in the body — `fn inc(x: i64) -> i64 { let mut x: i64 = x; x = x + 1; return x; }`. Tracked for forward-roadmap (param-mut shadowing is a small surface-level allowance once parameter-pattern-binding lowers cleanly).");
             panic("nucleor: `mut` qualifier on fn parameter not yet supported (see ERROR diagnostic above)");
         };
+        let pn_byte: i64 = tok_pos_at(tokens, cp);
         let pn: i64 = pkv(tokens, cp);
         // v0.7.49 (defensive halt — typeless default-arg form
         // `fn h(x: i64, y = 5)`). Sister to v0.7.38 (typed
@@ -4608,7 +4813,11 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let prior_pid: i64 = vec_get(params, dup_check_i);
             let prior_name: str = node_field(pool, prior_pid, 1);
             if str_eq(prior_name, pn) == 1 {
-                panic(str_concat("error[NAM-001]: identifier `", str_concat(pn, str_concat("` is bound more than once in this parameter list. Pre-v0.4.207 the second binding silently shadowed the first, so the first argument was unreachable inside the body — `fn add(a, a) { a + a }` called as `add(3, 5)` returned 10 (5+5) instead of 8. Rename one of the parameters."))));
+                let pn_lc: Vec<i32> = tokens_linecol_at_byte(tokens, pn_byte);
+                let pn_line: i64 = vec_get(pn_lc, 0);
+                let pn_col: i64 = vec_get(pn_lc, 1);
+                let pn_loc: str = str_concat(str_from_int(pn_line), str_concat(":", str_from_int(pn_col)));
+                panic(str_concat("error[NAM-001]: identifier `", str_concat(pn, str_concat("` is bound more than once in this parameter list at line ", pn_loc))));
             };
             dup_check_i = dup_check_i + 1;
         };
@@ -5783,6 +5992,9 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // should keep us out), but be defensive.
             if v_top_tt_pt001 == 0 { break; };
             let v_top_byte_pt001: i64 = tok_pos_at(tokens, cp);
+            let v_top_lc_pt001: Vec<i32> = tokens_linecol_at_byte(tokens, v_top_byte_pt001);
+            let v_top_line_pt001: i64 = vec_get(v_top_lc_pt001, 0);
+            let v_top_col_pt001: i64 = vec_get(v_top_lc_pt001, 1);
             // Provide an actionable hint based on token shape.
             let v_top_hint: str = if v_top_tt_pt001 == 53 { ", possibly an extra closing `}` (F-014)" }
                 else if v_top_tt_pt001 == 51 { ", possibly an extra closing `)`" }
@@ -5791,7 +6003,8 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
                 else if v_top_tt_pt001 == 2 { " (integer literal)" }
                 else if v_top_tt_pt001 == 3 { " (string literal)" }
                 else { "" };
-            panic(str_concat("error[PARSE-TOP-001]: unexpected ", str_concat(tok_name(v_top_tt_pt001), str_concat(v_top_hint, str_concat(" at byte ", str_concat(str_from_int(v_top_byte_pt001), ". Only top-level items are accepted at module scope: `fn`, `extern fn`, `pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`, `pub`, `import`, `use`, `mod`. Pre-fix the token was silently skipped and the program continued parsing — masking syntax errors and accepting `}}}}` after a fn body, stray int literals, etc."))))));
+            let v_top_loc_pt001: str = str_concat(str_from_int(v_top_line_pt001), str_concat(":", str_from_int(v_top_col_pt001)));
+            panic(str_concat("error[PARSE-TOP-001]: unexpected ", str_concat(tok_name(v_top_tt_pt001), str_concat(v_top_hint, str_concat(" at line ", str_concat(v_top_loc_pt001, str_concat(" (byte ", str_concat(str_from_int(v_top_byte_pt001), ")")))))));
         };
     };
     return pr(cp, mk_list(pool, items));
@@ -5842,7 +6055,13 @@ fn is_atomic_ordered_builtin(name: str) -> i64 {
         if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
         return 0;
     };
-    if str_starts_with(name, "atomic_i64_fetch_add_") == 1 || str_starts_with(name, "atomic_i64_fetch_sub_") == 1 || str_starts_with(name, "atomic_i64_fetch_and_") == 1 || str_starts_with(name, "atomic_i64_fetch_or_") == 1 || str_starts_with(name, "atomic_i64_fetch_xor_") == 1 {
+    let mut fetch_family: i64 = 0;
+    if str_starts_with(name, "atomic_i64_fetch_add_") == 1 { fetch_family = 1; };
+    if str_starts_with(name, "atomic_i64_fetch_sub_") == 1 { fetch_family = 1; };
+    if str_starts_with(name, "atomic_i64_fetch_and_") == 1 { fetch_family = 1; };
+    if str_starts_with(name, "atomic_i64_fetch_or_") == 1 { fetch_family = 1; };
+    if str_starts_with(name, "atomic_i64_fetch_xor_") == 1 { fetch_family = 1; };
+    if fetch_family == 1 {
         if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
         return 0;
     };
@@ -6384,81 +6603,27 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         //
         // v0.3.103: Fold bitwise: and(13), or(14), xor(15).
         //
-        // v0.3.147: skip the bitwise fold when either operand is negative.
-        // The while-shift bit-extraction below uses
-        // `ra - (ra/2)*2 == 1` to detect a set LSB. For negative odd ra,
-        // C-style integer division (Nucleor's semantics) rounds toward
-        // zero so `ra/2` underflows: `-1/2 == 0` and `-1 - 0*2 == -1`,
-        // not `1`. The `== 1` check fails, the bit is never recorded as
-        // set, and the entire fold collapses high-bit operands to ~0.
-        // `255 & -1` const-folded to `0` instead of `255`. Adopters
-        // using bitmasks against `-1` (all-ones sentinel) silently
-        // computed wrong values. The runtime LLVM `and i64` is correct
-        // on signed-i64-as-bits — the bug is purely the s1-emulated fold.
-        // Safe fallback: don't fold negative operands; let runtime LLVM
-        // compute it. (The same fold-skip pattern as v0.3.145 div/mod
-        // by zero, using a do_fold flag so the loop counter isn't
-        // touched.)
+        // v1.1.0 audit pass 1 / C-004: fold through the same bitwise
+        // operators that lowering emits. The old self-host emulation used
+        // division-based LSB extraction and had to skip negative operands;
+        // that kept runtime results correct but left the fold path
+        // untested for all-ones sentinels and high-bit masks.
         else if op == 13 || op == 14 || op == 15 {
             let a: i64 = ir_op1(inst);
             let b: i64 = ir_op2(inst);
             if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
                 let va: i64 = cmap_get(cm, a);
                 let vb: i64 = cmap_get(cm, b);
-                let mut do_bit_fold: i64 = 1;
-                if va < 0 { do_bit_fold = 0; };
-                if vb < 0 { do_bit_fold = 0; };
-                if do_bit_fold == 1 {
                 let mut result: i64 = 0;
-                // Use sym_get's hash-style int-pair AND emulation: Nucleor
-                // doesn't expose a `&` operator at this self-host level
-                // either (chicken-and-egg), so do it via while-shift.
-                if op == 13 {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 && rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                } else if op == 14 {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 || rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                } else {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        let bita: i64 = ra - (ra / 2) * 2;
-                        let bitb: i64 = rb - (rb / 2) * 2;
-                        if bita != bitb { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                };
+                if op == 13 { result = va & vb; }
+                else if op == 14 { result = va | vb; }
+                else { result = va ^ vb; };
                 vec_set(inst, 0, 0);
                 vec_set(inst, 3, result);
                 vec_set(inst, 4, 0);
                 vec_set(inst, 5, 0);
                 cmap_set(cm, d, result);
                 folded = folded + 1;
-                };
             };
         };
         i = i + 1;
@@ -7537,6 +7702,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
     if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
     // v0.3.0 (T3.1): runtime #[deadline] check helper.
+    if str_eq(name, "deadline_enter") { return "__nucleor_deadline_enter"; };
+    if str_eq(name, "deadline_exit") { return "__nucleor_deadline_exit"; };
+    if str_eq(name, "deadline_poll") { return "__nucleor_deadline_poll"; };
     if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
     if str_eq(name, "max_depth_enter") { return "__nucleor_max_depth_enter"; };
     if str_eq(name, "max_depth_exit") { return "__nucleor_max_depth_exit"; };
@@ -9409,6 +9577,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ms()\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_enter(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_exit()\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_poll()\n");
     sb_append(sb, "declare i64 @__nucleor_deadline_check(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_max_depth_enter(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_max_depth_exit(i64)\n");
@@ -10871,6 +11042,176 @@ fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
 }
 
 #[manual_drop]
+fn type_arg_at(t: str, want_idx: i64) -> str {
+    let tlen: i64 = str_len(t);
+    if tlen == 0 || want_idx < 0 { return ""; };
+    let mut lt_pos: i64 = 0 - 1;
+    let mut p: i64 = 0;
+    while p < tlen {
+        if str_char_at(t, p) == 60 { lt_pos = p; p = tlen; };
+        p = p + 1;
+    };
+    if lt_pos < 0 { return ""; };
+    let mut depth: i64 = 0;
+    let mut arg_idx: i64 = 0;
+    let mut arg_start: i64 = lt_pos + 1;
+    let mut q: i64 = lt_pos + 1;
+    while q < tlen {
+        let c: i64 = str_char_at(t, q);
+        if c == 60 { depth = depth + 1; }
+        else if c == 62 {
+            if depth == 0 {
+                if arg_idx == want_idx {
+                    return strip_spaces(str_substring(t, arg_start, q));
+                };
+                return "";
+            };
+            depth = depth - 1;
+        }
+        else if c == 44 && depth == 0 {
+            if arg_idx == want_idx {
+                return strip_spaces(str_substring(t, arg_start, q));
+            };
+            arg_idx = arg_idx + 1;
+            arg_start = q + 1;
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn type_arg_count(t: str) -> i64 {
+    let tlen: i64 = str_len(t);
+    if tlen == 0 { return 0; };
+    let mut lt_pos: i64 = 0 - 1;
+    let mut p: i64 = 0;
+    while p < tlen {
+        if str_char_at(t, p) == 60 { lt_pos = p; p = tlen; };
+        p = p + 1;
+    };
+    if lt_pos < 0 { return 0; };
+    let mut depth: i64 = 0;
+    let mut count: i64 = 1;
+    let mut saw_token: i64 = 0;
+    let mut q: i64 = lt_pos + 1;
+    while q < tlen {
+        let c: i64 = str_char_at(t, q);
+        if c == 60 { depth = depth + 1; saw_token = 1; }
+        else if c == 62 {
+            if depth == 0 {
+                if saw_token == 0 { return 0; };
+                return count;
+            };
+            depth = depth - 1;
+        }
+        else if c == 44 && depth == 0 {
+            count = count + 1;
+        }
+        else if c != 32 && c != 9 && c != 10 && c != 13 {
+            saw_token = 1;
+        };
+        q = q + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn gparams_type_count(pool: Vec<i32>, gparams_lid: i64) -> i64 {
+    if gparams_lid < 0 { return 0; };
+    let gc: i64 = list_len(pool, gparams_lid);
+    let mut gi: i64 = 0;
+    let mut out: i64 = 0;
+    while gi < gc {
+        let gp: str = list_get(pool, gparams_lid, gi);
+        if str_len(gp) > 0 && str_char_at(gp, 0) != 63 && str_char_at(gp, 0) != 39 {
+            out = out + 1;
+        };
+        gi = gi + 1;
+    };
+    return out;
+}
+
+#[manual_drop]
+fn type_contains_gparam_name(t: str, name: str) -> i64 {
+    let nlen: i64 = str_len(name);
+    if nlen == 0 { return 0; };
+    let tlen: i64 = str_len(t);
+    let mut p: i64 = 0;
+    while p + nlen <= tlen {
+        if str_eq_at_len(t, p, name, nlen) == 1 {
+            let before_ok: i64 = if p == 0 { 1 } else {
+                let cb: i64 = str_char_at(t, p - 1);
+                if is_alnum(cb) == 1 || cb == 95 { 0 } else { 1 }
+            };
+            let after_ok: i64 = if p + nlen >= tlen { 1 } else {
+                let ca: i64 = str_char_at(t, p + nlen);
+                if is_alnum(ca) == 1 || ca == 95 { 0 } else { 1 }
+            };
+            if before_ok == 1 && after_ok == 1 { return 1; };
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn type_contains_any_type_gparam(pool: Vec<i32>, gparams_lid: i64, t: str) -> i64 {
+    if gparams_lid < 0 || str_len(t) == 0 { return 0; };
+    let gc: i64 = list_len(pool, gparams_lid);
+    let mut gi: i64 = 0;
+    while gi < gc {
+        let gp: str = list_get(pool, gparams_lid, gi);
+        if str_len(gp) > 0 && str_char_at(gp, 0) != 63 && str_char_at(gp, 0) != 39 {
+            if type_contains_gparam_name(t, gp) == 1 { return 1; };
+        };
+        gi = gi + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn substitute_gparams_from_list(pool: Vec<i32>, gparams_lid: i64, inst_type: str, raw_type: str) -> str {
+    if str_len(raw_type) == 0 || gparams_lid < 0 { return raw_type; };
+    let mut out: str = raw_type;
+    let mut concrete_idx: i64 = 0;
+    let gc: i64 = list_len(pool, gparams_lid);
+    let mut gi: i64 = 0;
+    while gi < gc {
+        let gp: str = list_get(pool, gparams_lid, gi);
+        if str_len(gp) > 0 && str_char_at(gp, 0) != 63 {
+            let arg: str = type_arg_at(inst_type, concrete_idx);
+            if str_len(arg) > 0 {
+                out = substitute_gparam_in_rtype(out, gp, arg);
+            };
+            concrete_idx = concrete_idx + 1;
+        };
+        gi = gi + 1;
+    };
+    return out;
+}
+
+#[manual_drop]
+fn struct_field_type_for_inst(pool: Vec<i32>, struct_nid: i64, inst_type: str, fname: str) -> str {
+    let raw: str = struct_field_type(pool, struct_nid, fname);
+    return substitute_gparams_from_list(pool, node_field(pool, struct_nid, 3), inst_type, raw);
+}
+
+#[manual_drop]
+fn enum_gparams_for_name(pool: Vec<i32>, prog: i64, enum_name: str) -> i64 {
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 36 && str_eq(node_field(pool, nid, 1), enum_name) == 1 {
+            return node_field(pool, nid, 3);
+        };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
 fn match_payload_type_from_scrutinee(scrut_t: str, ename: str, vname: str, bind_idx: i64) -> str {
     if bind_idx != 0 { return ""; };
     let sbase: str = type_base_name(scrut_t);
@@ -11145,6 +11486,65 @@ fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
 }
 
 #[manual_drop]
+fn type_direct_value_base(t: str) -> str {
+    let s: str = strip_spaces(t);
+    let slen: i64 = str_len(s);
+    if slen == 0 { return ""; };
+    if str_starts_with(s, "&mut ") == 1 { return ""; };
+    if str_char_at(s, 0) == 38 { return ""; };
+    if str_starts_with(s, "Box<") == 1 { return ""; };
+    if str_starts_with(s, "Vec<") == 1 { return ""; };
+    if str_starts_with(s, "Option<Box<") == 1 { return ""; };
+    if str_starts_with(s, "Option<&") == 1 { return ""; };
+    return type_base_name(s);
+}
+
+#[manual_drop]
+fn struct_reaches_value_cycle(pool: Vec<i32>, structs: Vec<i32>, current_name: str, target_name: str, visited: Vec<i32>, depth: i64) -> i64 {
+    if depth > 64 { return 0; };
+    if name_in_vec(visited, current_name) == 1 { return 0; };
+    visited.push(current_name);
+    let si: i64 = struct_find(pool, structs, current_name);
+    if si < 0 { return 0; };
+    let s_nid: i64 = vec_get(structs, si);
+    let flist: i64 = node_field(pool, s_nid, 2);
+    let fc: i64 = list_len(pool, flist);
+    let mut fi: i64 = 0;
+    while fi < fc {
+        let f_nid: i64 = list_get(pool, flist, fi);
+        let f_type: str = node_field(pool, f_nid, 2);
+        let base: str = type_direct_value_base(f_type);
+        if str_eq(base, target_name) == 1 { return 1; };
+        if str_len(base) > 0 && struct_find(pool, structs, base) >= 0 {
+            if struct_reaches_value_cycle(pool, structs, base, target_name, visited, depth + 1) == 1 { return 1; };
+        };
+        fi = fi + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn type_check_recursive_struct_cycles(pool: Vec<i32>, structs: Vec<i32>, diags: Vec<i32>, source: str) -> i64 {
+    let sc: i64 = vec_len(structs);
+    let mut si: i64 = 0;
+    let mut warns: i64 = 0;
+    while si < sc {
+        let s_nid: i64 = vec_get(structs, si);
+        let sname: str = node_field(pool, s_nid, 1);
+        let mut visited: Vec<i32> = Vec::new();
+        if struct_reaches_value_cycle(pool, structs, sname, sname, visited, 0) == 1 {
+            let lc: Vec<i32> = diag_find_global_linecol(source, sname);
+            let msg: str = str_concat("recursive type `", str_concat(sname, "` has infinite size through direct by-value struct fields. Use Box<T>, &T, or another indirection for at least one edge in the cycle."));
+            diag_add_ex(diags, "error", "type", "NR036", msg, "<file>", vec_get(lc, 0), vec_get(lc, 1), "");
+            warns = warns + 1;
+        };
+        vec_free(visited);
+        si = si + 1;
+    };
+    return warns;
+}
+
+#[manual_drop]
 fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -11338,6 +11738,72 @@ fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message:
     return vec_len(diags);
 }
 #[manual_drop]
+fn diag_find_global_linecol(source: str, needle: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let nlen: i64 = str_len(needle);
+    if nlen == 0 { out.push(1); out.push(1); return out; };
+    let slen: i64 = str_len(source);
+    let mut line: i64 = 1;
+    let mut col: i64 = 1;
+    let mut i: i64 = 0;
+    while i + nlen <= slen {
+        if str_eq_at_len(source, i, needle, nlen) == 1 {
+            out.push(line);
+            out.push(col);
+            return out;
+        };
+        if str_char_at(source, i) == 10 { line = line + 1; col = 1; }
+        else { col = col + 1; };
+        i = i + 1;
+    };
+    out.push(1);
+    out.push(1);
+    return out;
+}
+#[manual_drop]
+fn diag_linecol_at_byte(source: str, byte_off: i64) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut limit: i64 = byte_off;
+    if limit < 0 { limit = 0; };
+    if limit > slen { limit = slen; };
+    let mut line: i64 = 1;
+    let mut col: i64 = 1;
+    let mut i: i64 = 0;
+    while i < limit {
+        if str_char_at(source, i) == 10 { line = line + 1; col = 1; }
+        else { col = col + 1; };
+        i = i + 1;
+    };
+    out.push(line);
+    out.push(col);
+    return out;
+}
+#[manual_drop]
+fn diag_add_fn_site(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, source: str, fn_name: str) -> i64 {
+    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+    let mut line: i64 = vec_get(lc, 0);
+    let mut col: i64 = vec_get(lc, 1);
+    if line <= 0 {
+        let glc: Vec<i32> = diag_find_global_linecol(source, fn_name);
+        line = vec_get(glc, 0);
+        col = vec_get(glc, 1);
+    };
+    return diag_add_ex(diags, severity, checker, code, message, fn_name, line, col, "");
+}
+#[manual_drop]
+fn diag_add_symbol_site(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, source: str, fn_name: str, symbol: str) -> i64 {
+    let lc: Vec<i32> = find_linecol_in_source(source, fn_name, symbol);
+    let mut line: i64 = vec_get(lc, 0);
+    let mut col: i64 = vec_get(lc, 1);
+    if line <= 0 {
+        let glc: Vec<i32> = diag_find_global_linecol(source, symbol);
+        line = vec_get(glc, 0);
+        col = vec_get(glc, 1);
+    };
+    return diag_add_ex(diags, severity, checker, code, message, fn_name, line, col, "");
+}
+#[manual_drop]
 fn diag_count(diags: Vec<i32>) -> i64 { return vec_len(diags); }
 #[manual_drop]
 fn diag_count_errors(diags: Vec<i32>) -> i64 {
@@ -11374,6 +11840,20 @@ fn collect_allowed_codes(source: str) -> Vec<i32> {
     let plen: i64 = str_len(pat);
     let mut p: i64 = 0;
     while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
         let mut m: i64 = 1;
         let mut k: i64 = 0;
         while k < plen {
@@ -11548,6 +12028,20 @@ fn collect_denied_codes(source: str) -> Vec<i32> {
     let plen: i64 = str_len(pat);
     let mut p: i64 = 0;
     while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
         let mut m: i64 = 1;
         let mut k: i64 = 0;
         while k < plen {
@@ -11686,6 +12180,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NR005") == 1 { return 1; };
     if str_eq(code, "NR010") == 1 { return 1; };
     if str_eq(code, "NR020") == 1 { return 1; };
+    if str_eq(code, "PARSE-LET-SEMI") == 1 { return 1; };
     if str_eq(code, "NR030") == 1 { return 1; };
     if str_eq(code, "NR031") == 1 { return 1; };
     if str_eq(code, "NR032") == 1 { return 1; };
@@ -11737,6 +12232,7 @@ fn is_known_diag_code(code: str) -> i64 {
     // error severity (Phase 4 hard-fail). The Phase 2a OWN-012
     // textual count remains as a build-summary line.
     if str_eq(code, "OWN-G4-USE-AFTER-DROP") == 1 { return 1; };
+    if str_eq(code, "OWN-G1-RAW-HANDLE-CAST") == 1 { return 1; };
     // RACE — RFC-0035 Sendable + actor isolation
     if str_eq(code, "RACE-001") == 1 { return 1; };
     if str_eq(code, "RACE-002") == 1 { return 1; };
@@ -11767,6 +12263,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-011") == 1 { return 1; };
     if str_eq(code, "TYP-012") == 1 { return 1; };
     if str_eq(code, "TYP-013") == 1 { return 1; };
+    if str_eq(code, "TYP-044") == 1 { return 1; };
     if str_eq(code, "TYP-026") == 1 { return 1; };
     if str_eq(code, "TYP-027") == 1 { return 1; };
     // RFC-0062 G-2 Phase 2b/3/4 — single-input lifetime check.
@@ -12056,17 +12553,19 @@ fn is_known_diag_code(code: str) -> i64 {
 // on a noisy refactor.
 #[manual_drop]
 fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
-    let allowed: Vec<i32> = collect_allowed_codes(source);
-    let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(source);
-    let denied: Vec<i32> = collect_denied_codes(source);
-    let deny_fn_pairs: Vec<i32> = collect_deny_fn_pairs(source);
+    let scan_source: str = source;
+    let allowed: Vec<i32> = collect_allowed_codes(scan_source);
+    let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(scan_source);
+    let denied: Vec<i32> = collect_denied_codes(scan_source);
+    let deny_fn_pairs: Vec<i32> = collect_deny_fn_pairs(scan_source);
     let mut i: i64 = 0;
     let an: i64 = vec_len(allowed);
     while i < an {
         let code: str = vec_get(allowed, i);
         if is_known_diag_code(code) == 0 {
             let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[allow(...)] -- not in canonical diagnostic code set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
-            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
+            let loc_allow: Vec<i32> = diag_find_global_linecol(scan_source, code);
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "<file>", vec_get(loc_allow, 0), vec_get(loc_allow, 1), "");
         };
         i = i + 1;
     };
@@ -12076,7 +12575,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
         let code: str = vec_get(denied, i);
         if is_known_diag_code(code) == 0 {
             let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[deny(...)] -- not in canonical diagnostic code set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
-            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
+            let loc_deny: Vec<i32> = diag_find_global_linecol(scan_source, code);
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "<file>", vec_get(loc_deny, 0), vec_get(loc_deny, 1), "");
         };
         i = i + 1;
     };
@@ -12087,7 +12587,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
         let code: str = vec_get(allow_fn_pairs, pi + 1);
         if is_known_diag_code(code) == 0 {
             let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[allow_fn(...)] on fn '", str_concat(fname, "' -- not in canonical diagnostic code set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
-            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
+            let loc_allow_fn: Vec<i32> = diag_find_global_linecol(scan_source, code);
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, vec_get(loc_allow_fn, 0), vec_get(loc_allow_fn, 1), "");
         };
         pi = pi + 2;
     };
@@ -12098,7 +12599,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
         let code: str = vec_get(deny_fn_pairs, qi + 1);
         if is_known_diag_code(code) == 0 {
             let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[deny_fn(...)] on fn '", str_concat(fname, "' -- not in canonical diagnostic code set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
-            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
+            let loc_deny_fn: Vec<i32> = diag_find_global_linecol(scan_source, code);
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, vec_get(loc_deny_fn, 0), vec_get(loc_deny_fn, 1), "");
         };
         qi = qi + 2;
     };
@@ -12780,6 +13282,19 @@ fn g10_fn_has_decl(pairs: Vec<i32>, fn_name: str) -> i64 {
 // defensive parser halt today, so adopters use `i64` return types
 // and annotate the decl with the null-return contract explicitly.
 #[manual_drop]
+fn g10_extern_name_may_return_null_by_default(name: str) -> i64 {
+    if str_contains(name, "_alloc") == 1 { return 1; };
+    if str_contains(name, "_open") == 1 { return 1; };
+    if str_contains(name, "_find") == 1 { return 1; };
+    if str_contains(name, "_load") == 1 { return 1; };
+    if str_contains(name, "_get") == 1 { return 1; };
+    if str_contains(name, "_new") == 1 { return 1; };
+    if str_contains(name, "_create") == 1 { return 1; };
+    if str_contains(name, "_init") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
 fn g10_collect_extern_fn_table(source: str) -> Vec<i32> {
     let mut table: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -12865,6 +13380,9 @@ fn g10_collect_extern_fn_table(source: str) -> Vec<i32> {
             let dlen: i64 = str_len(decl);
             let rt_raw: str = str_substring(decl, arrow_at + 2, dlen);
             rtype = str_trim(rt_raw);
+        };
+        if str_eq(returns_ptr, "0") == 1 && str_eq(rtype, "i64") == 1 && g10_extern_name_may_return_null_by_default(extern_name) == 1 {
+            returns_ptr = "1";
         };
         table.push(extern_name);
         table.push(returns_ptr);
@@ -13168,18 +13686,9 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // `#[file_effects(default_on)]` outer-attribute opt-in for
     // file-level enable, scheduled post-v1.0.
     if str_contains(source, "#[effect(") == 0 && str_contains(source, "#[allow_effect(") == 0 {
-        // Lane 2 (audit G9-FN-1, G10-Cliff): surface an INFO-level
-        // disclosure only when adopters explicitly opt in via
-        // `#[disclose_effects_status]` at file head. This avoids
-        // warning-storm on the compiler itself, every test, and
-        // every example (all of which have extern fn / vec_free
-        // calls without opt-in attrs by design). The audit's Phase A
-        // remediation: surface the inactive-framework state to
-        // adopters who want to know — with zero impact on existing
-        // unannotated source. Phase B (post-v1.0) plans
-        // `#[file_effects(default_on)]` for file-level enable.
-        if str_contains(source, "#[disclose_effects_status]") == 1 {
-            diag_add_ex(diags, "info", "effect", "EFFECT-G10-OPT-IN-CLIFF", "this translation unit has no `#[effect(...)]` / `#[allow_effect(...)]` attributes; per RFC-0062 G-10 the effect-tracking framework (G-5 may_return_null / G-7 unsafe / G-9 direct_ffi / G-10 wrong-row) is INACTIVE for this file. Pre-v1.0 silent-default-off behavior is now disclosed at info severity (opted in via #[disclose_effects_status]). To activate the framework, add `#[effect(<E>)]` rows to fns that produce effects (vocabulary: `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`), or `#[allow_effect(<E>)]` to silence intentional uses. Phase B (post-v1.0) will add `#[file_effects(default_on)]` for file-level opt-in.", "<file>", 1, 1, "");
+        let stripped_g10_cliff: str = strip_strings_and_line_comments(source);
+        if str_contains(stripped_g10_cliff, "extern fn ") == 1 || str_contains(stripped_g10_cliff, "unsafe {") == 1 {
+            diag_add_ex(diags, "info", "effect", "EFFECT-G10-OPT-IN-CLIFF", "this translation unit has no `#[effect(...)]` / `#[allow_effect(...)]` attributes; per RFC-0062 G-10 the effect-tracking framework (G-5 may_return_null / G-7 unsafe / G-9 direct_ffi / G-10 wrong-row) is INACTIVE for this file. Pre-v1.0 silent-default-off behavior is now disclosed at info severity whenever an extern or unsafe surface is present. To activate the framework, add `#[effect(<E>)]` rows to fns that produce effects (vocabulary: `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`), or `#[allow_effect(<E>)]` to silence intentional uses. Phase B (post-v1.0) will add `#[file_effects(default_on)]` for file-level enable.", "<file>", 1, 1, "");
         };
         return diags;
     };
@@ -16231,6 +16740,8 @@ fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> 
         if close_pos < 0 { return added; };
         let comma: i64 = sendable_find_top_comma(source, open_pos + 1, close_pos);
         if comma > 0 {
+            let mut arg_start_byte: i64 = comma + 1;
+            while arg_start_byte < close_pos && is_ws(str_char_at(source, arg_start_byte)) == 1 { arg_start_byte = arg_start_byte + 1; };
             let arg: str = str_trim(str_substring(source, comma + 1, close_pos));
             let mut code: str = "";
             let mut msg: str = "";
@@ -16250,7 +16761,7 @@ fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> 
                 };
             };
             if str_len(code) > 0 {
-                let mut lc: Vec<i32> = find_linecol_in_source(source, arg, arg);
+                let mut lc: Vec<i32> = diag_linecol_at_byte(source, arg_start_byte);
                 diag_add_ex(diags, "error", "race", code, msg, call_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 added = added + 1;
             };
@@ -16958,7 +17469,7 @@ fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     let pat: str = str_concat(n, "(");
                     if str_contains(body, pat) == 1 {
                         let msg: str = str_concat("`", str_concat(n, str_concat("` allocates but `", str_concat(fn_name, "` is marked #[no_alloc]"))));
-                        diag_add_ex(diags, "error", "rt", "RT-001", msg, fn_name, 0, 0, "");
+                        diag_add_fn_site(diags, "error", "rt", "RT-001", msg, source, fn_name);
                     };
                     ai = ai + 1;
                 };
@@ -17141,7 +17652,7 @@ fn check_no_alloc_transitive_call_violations(diags: Vec<i32>, source: str, fn_na
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
                 let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file allocation but `", str_concat(fn_name, "` is marked #[no_alloc] (audit RT-G1 Phase 2b)"))));
-                diag_add_ex(diags, "error", "rt", "RT-001", msg, fn_name, 0, 0, "");
+                diag_add_fn_site(diags, "error", "rt", "RT-001", msg, source, fn_name);
                 emitted = emitted + 1;
             };
         };
@@ -17342,7 +17853,7 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     let pat: str = str_concat(n, "(");
                     if str_contains(body, pat) == 1 {
                         let msg: str = str_concat("`", str_concat(n, str_concat("` can panic but `", str_concat(fn_name, "` is marked #[no_panic]"))));
-                        diag_add_ex(diags, "error", "rt", "RT-002", msg, fn_name, 0, 0, "");
+                        diag_add_fn_site(diags, "error", "rt", "RT-002", msg, source, fn_name);
                     };
                     ai = ai + 1;
                 };
@@ -17373,11 +17884,11 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
                 };
                 if div_found == 1 {
                     let msg_div: str = str_concat("integer `/` divide can panic on divisor=0; `", str_concat(fn_name, "` is marked #[no_panic] (use `checked_div` for explicit handling, or `#[allow_fn(RT-009)]` when divisor is provably non-zero)"));
-                    diag_add_ex(diags, "warning", "rt", "RT-009", msg_div, fn_name, 0, 0, "");
+                    diag_add_fn_site(diags, "warning", "rt", "RT-009", msg_div, source, fn_name);
                 };
                 if mod_found == 1 {
                     let msg_mod: str = str_concat("integer `%` modulo can panic on divisor=0; `", str_concat(fn_name, "` is marked #[no_panic] (use `checked_rem` for explicit handling, or `#[allow_fn(RT-009)]` when divisor is provably non-zero)"));
-                    diag_add_ex(diags, "warning", "rt", "RT-009", msg_mod, fn_name, 0, 0, "");
+                    diag_add_fn_site(diags, "warning", "rt", "RT-009", msg_mod, source, fn_name);
                 };
             };
             return;
@@ -17400,7 +17911,7 @@ fn check_no_panic_transitive_call_violations(diags: Vec<i32>, source: str, fn_na
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
                 let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file panic-prone code but `", str_concat(fn_name, "` is marked #[no_panic] (audit RT-G3 Phase 2b)"))));
-                diag_add_ex(diags, "error", "rt", "RT-002", msg, fn_name, 0, 0, "");
+                diag_add_fn_site(diags, "error", "rt", "RT-002", msg, source, fn_name);
                 emitted = emitted + 1;
             };
         };
@@ -17595,7 +18106,7 @@ fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effe
                     str_concat("`", str_concat(matched, str_concat("` (in the `", str_concat(effect_name, "` family)"))))
                 };
                 let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect ", str_concat(effect_phrase, str_concat(" but `", str_concat(fn_name, str_concat("` is declared with [", str_concat(contract_name, "]"))))))));
-                diag_add_ex(diags, "error", "effect", "EFF-003", msg, fn_name, 0, 0, "");
+                diag_add_fn_site(diags, "error", "effect", "EFF-003", msg, source, fn_name);
                 emitted = emitted + 1;
             };
         };
@@ -17654,7 +18165,7 @@ fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) 
         let pat: str = str_concat(n, "(");
         if str_contains(body, pat) == 1 {
             let msg: str = str_concat("`", str_concat(n, str_concat("` may block but `", str_concat(fn_name, "` is marked #[atomic]"))));
-            diag_add_ex(diags, "error", "atomic", "ATOMIC-001", msg, fn_name, 0, 0, "");
+            diag_add_symbol_site(diags, "error", "atomic", "ATOMIC-001", msg, source, fn_name, n);
         };
         i = i + 1;
     };
@@ -17665,7 +18176,7 @@ fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) 
         let pat2: str = str_concat(n2, "(");
         if str_contains(body, pat2) == 1 {
             let msg2: str = str_concat("`", str_concat(n2, str_concat("` allocates but `", str_concat(fn_name, "` is marked #[atomic]"))));
-            diag_add_ex(diags, "error", "atomic", "ATOMIC-002", msg2, fn_name, 0, 0, "");
+            diag_add_symbol_site(diags, "error", "atomic", "ATOMIC-002", msg2, source, fn_name, n2);
         };
         i = i + 1;
     };
@@ -17675,7 +18186,7 @@ fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) 
         let n3: str = vec_get(cells, i);
         if str_contains(body, n3) == 1 {
             let msg3: str = str_concat("`", str_concat(n3, "` is interior mutability with runtime borrow state and is forbidden inside #[atomic]"));
-            diag_add_ex(diags, "error", "atomic", "ATOMIC-003", msg3, fn_name, 0, 0, "");
+            diag_add_symbol_site(diags, "error", "atomic", "ATOMIC-003", msg3, source, fn_name, n3);
         };
         i = i + 1;
     };
@@ -17757,8 +18268,12 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
         let endp: i64 = atomic_find_call_end(code_text, p + plen - 1);
         if endp > p {
             let call: str = str_substring(code_text, p, endp + 1);
-            if str_contains(call, bad_a) == 1 || (str_len(bad_b) > 0 && str_contains(call, bad_b) == 1) {
-                diag_add_ex(diags, "error", "atomic", code, message, "main", 0, 0, "");
+            let mut bad_order: i64 = 0;
+            if str_contains(call, bad_a) == 1 { bad_order = 1; };
+            if str_len(bad_b) > 0 && str_contains(call, bad_b) == 1 { bad_order = 1; };
+            if bad_order == 1 {
+                let loc_atomic_order: Vec<i32> = diag_find_global_linecol(code_text, callee_pat);
+                diag_add_ex(diags, "error", "atomic", code, message, "main", vec_get(loc_atomic_order, 0), vec_get(loc_atomic_order, 1), "");
                 emitted = emitted + 1;
             };
             p = endp + 1;
@@ -17784,12 +18299,21 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
 fn enforce_no_atomic_in_closure(source: str) -> i64 {
     let code: str = strip_strings_and_line_comments(source);
     let n: i64 = str_len(code);
-    // Conservative scan: find `||` (zero-arg closure literal),
-    // then look ahead up to 200 chars for an `atomic_` substring
+    // Conservative scan: find the zero-arg closure literal token,
+    // then look ahead up to 200 chars for an atomic helper substring
     // before hitting `}` or `;` (closure body terminator).
     let mut p: i64 = 0;
     while p + 1 < n {
         if str_char_at(code, p) == 124 && str_char_at(code, p + 1) == 124 {
+            let mut prev: i64 = p - 1;
+            while prev >= 0 && is_ws(str_char_at(code, prev)) == 1 { prev = prev - 1; };
+            let mut closure_literal: i64 = 0;
+            if prev < 0 { closure_literal = 1; }
+            else {
+                let pc: i64 = str_char_at(code, prev);
+                if pc == 40 || pc == 44 || pc == 61 || pc == 91 || pc == 123 { closure_literal = 1; };
+            };
+            if closure_literal == 0 { p = p + 1; continue; };
             // Found zero-arg closure literal. Look ahead.
             let look_end: i64 = if p + 200 < n { p + 200 } else { n };
             let mut q: i64 = p + 2;
@@ -17824,7 +18348,8 @@ fn enforce_atomic_ordering(diags: Vec<i32>, source: str) -> Vec<i32> {
             let success: i64 = atomic_nth_order_code(call, 1);
             let failure: i64 = atomic_nth_order_code(call, 2);
             if success >= 0 && failure >= 0 && atomic_cmpxchg_orders_valid(success, failure) == 0 {
-                diag_add_ex(diags, "error", "atomic", "ATOMIC-004", "compare_exchange failure ordering must not be Release/AcqRel and must not be stronger than success ordering", "main", 0, 0, "");
+                let loc_cmpxchg: Vec<i32> = diag_find_global_linecol(code, callee_pat);
+                diag_add_ex(diags, "error", "atomic", "ATOMIC-004", "compare_exchange failure ordering must not be Release/AcqRel and must not be stronger than success ordering", "main", vec_get(loc_cmpxchg, 0), vec_get(loc_cmpxchg, 1), "");
             };
             p = endp + 1;
         } else {
@@ -17955,7 +18480,7 @@ fn check_no_dyn_violations(diags: Vec<i32>, source: str, fn_name: str) {
                 let combined: str = str_concat(sig_text, str_concat(" ", body));
                 if str_contains(combined, "dyn ") == 1 {
                     let msg: str = str_concat("dynamic dispatch (`dyn`) used but `", str_concat(fn_name, "` is marked #[no_dyn]"));
-                    diag_add_ex(diags, "error", "rt", "RT-003", msg, fn_name, 0, 0, "");
+                    diag_add_fn_site(diags, "error", "rt", "RT-003", msg, source, fn_name);
                 };
             };
             return;
@@ -18071,7 +18596,7 @@ fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: 
                     let pat: str = str_concat(ext_name, "(");
                     if str_contains(body, pat) == 1 {
                         let msg: str = str_concat("FFI call '", str_concat(ext_name, str_concat("' from ", str_concat(attr_label, str_concat(" fn '", str_concat(fn_name, "' -- extern fns may allocate, panic, or block (mark the extern with #[ffi_no_alloc] / #[ffi_no_panic] for per-symbol opt-out, or #[allow(RT-005)] for file-wide)"))))));
-                        diag_add_ex(diags, "warning", "rt", "RT-005", msg, fn_name, 0, 0, "");
+                        diag_add_fn_site(diags, "warning", "rt", "RT-005", msg, source, fn_name);
                     };
                     ei = ei + 1;
                 };
@@ -18933,7 +19458,7 @@ fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
                         let call_pat: str = str_concat(wrapper_name, "(");
                         if str_contains(body, call_pat) == 1 {
                             let msg: str = str_concat("'", str_concat(wrapper_name, "' has #[deadline] and recursively calls itself; add #[max_depth = N] to opt out (recursion can blow the deadline budget)"));
-                            diag_add_ex(diags, "warning", "rt", "RT-008", msg, wrapper_name, 0, 0, "");
+                            diag_add_fn_site(diags, "warning", "rt", "RT-008", msg, source, wrapper_name);
                         };
                     };
                 };
@@ -18980,7 +19505,7 @@ fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
             while q < slen && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
             let fn_name: str = str_substring(source, nm_start, q);
             let msg: str = str_concat("RT attribute (e.g. #[no_alloc] / #[no_panic] / #[no_dyn] / #[deadline]) on async fn '", str_concat(fn_name, "' -- async is non-deterministic by design and cannot satisfy real-time guarantees"));
-            diag_add_ex(diags, "error", "rt", "RT-006", msg, fn_name, 0, 0, "");
+            diag_add_fn_site(diags, "error", "rt", "RT-006", msg, source, fn_name);
             p = q;
         } else {
             p = p + 1;
@@ -19017,7 +19542,7 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
             while q < slen && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
             let fn_name: str = str_substring(source, nm_start, q);
             let msg: str = str_concat("`async` keyword on fn `", str_concat(fn_name, "` is silently stripped — Nucleor v0.5 has no Future / no .await polling. Adopters writing the canonical Rust pattern get immediate sync execution. Use `async_spawn(fn_ptr, arg)` to run on a real OS thread (returns a handle) + `async_await(handle)` to join (RFC-0027 phase 1, see stdlib/rods/async.nr). Or drop the `async` keyword if sync execution was intended."));
-            diag_add_ex(diags, "warning", "async", "ASYNC-001", msg, fn_name, 0, 0, "");
+            diag_add_fn_site(diags, "warning", "async", "ASYNC-001", msg, source, fn_name);
             p = q;
         } else {
             p = p + 1;
@@ -20290,7 +20815,7 @@ fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
         let estimated_us: i64 = (units + 9) / 10;
         if estimated_us > limit_us {
             let msg: str = str_concat("heuristic deadline estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (RT-004 is a heuristic, NOT certified WCET; no callee/ISA/cache modeling; use #[allow(RT-004)] file-wide or #[allow_fn(RT-004)] per-fn when the estimate is wrong; default loop multiplier 100x)", "")))))));
-            diag_add_ex(diags, "warning", "rt", "RT-004", msg, inner_name, 0, 0, "");
+            diag_add_fn_site(diags, "warning", "rt", "RT-004", msg, source, inner_name);
         };
         i = i + 2;
     };
@@ -20330,7 +20855,7 @@ fn enforce_deadline_safety(diags: Vec<i32>, source: str) -> Vec<i32> {
         };
         if has_no_alloc == 0 && has_no_panic == 0 {
             let msg: str = str_concat("'", str_concat(inner_name, "' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] file-wide, or #[allow_fn(RT-007)] per-fn)"));
-            diag_add_ex(diags, "warning", "rt", "RT-007", msg, inner_name, 0, 0, "");
+            diag_add_fn_site(diags, "warning", "rt", "RT-007", msg, source, inner_name);
         };
         i = i + 2;
     };
@@ -20811,6 +21336,47 @@ fn own_get_s(o: Vec<i32>, key: str) -> str {
     return v;
 }
 #[manual_drop]
+fn own_g4_alias_root(o: Vec<i32>, name: str) -> str {
+    let root: str = own_get_s_raw(o, str_concat("__g4_root_", name));
+    if str_len(root) > 0 { return root; };
+    return name;
+}
+#[manual_drop]
+fn own_g4_set_alias(o: Vec<i32>, dst: str, src: str) -> i64 {
+    let root: str = own_g4_alias_root(o, src);
+    own_set_s_raw(o, str_concat("__g4_root_", src), root);
+    own_set_s_raw(o, str_concat("__g4_root_", dst), root);
+    return 0;
+}
+#[manual_drop]
+fn own_g4_mark_freed(o: Vec<i32>, name: str, freed_by: str, state: i64) -> i64 {
+    let root: str = own_g4_alias_root(o, name);
+    own_set_s_raw(o, str_concat("__g4_root_", name), root);
+    own_set_i_raw(o, str_concat("__g4_freed_", name), state);
+    own_set_s_raw(o, str_concat("__g4_freed_by_", name), freed_by);
+    if str_eq(root, name) == 0 {
+        own_set_i_raw(o, str_concat("__g4_freed_", root), state);
+        own_set_s_raw(o, str_concat("__g4_freed_by_", root), freed_by);
+    };
+    let prefix: str = "__g4_root_";
+    let plen: i64 = str_len(prefix);
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(o) {
+        let key: str = vec_get(o, i);
+        if str_starts_with(key, prefix) == 1 {
+            let alias_root: str = vec_get(o, i + 1);
+            if str_eq(alias_root, root) == 1 {
+                let alias_name: str = str_substring(key, plen, str_len(key));
+                own_set_i_raw(o, str_concat("__g4_freed_", alias_name), state);
+                own_set_s_raw(o, str_concat("__g4_freed_by_", alias_name), freed_by);
+            };
+        };
+        i = i + 2;
+    };
+    own_set_g4_flow_active(o);
+    return 0;
+}
+#[manual_drop]
 fn own_diags(o: Vec<i32>) -> Vec<i32> {
     if vec_len(o) > 1 { return vec_get(o, 1); };
     return own_get_type(o, "__diags");
@@ -20871,6 +21437,42 @@ fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
     };
     keys.push(name);
     return 0;
+}
+#[manual_drop]
+fn own_init_names_vec(o: Vec<i32>) -> Vec<i32> {
+    if vec_len(o) > 13 { return vec_get(o, 13); };
+    return own_get_type(o, "__init_names");
+}
+#[manual_drop]
+fn own_track_init_name(o: Vec<i32>, name: str) -> i64 {
+    let keys: Vec<i32> = own_init_names_vec(o);
+    let mut i: i64 = 0;
+    while i < vec_len(keys) {
+        if str_eq(vec_get(keys, i), name) == 1 { return 0; };
+        i = i + 1;
+    };
+    keys.push(name);
+    return 0;
+}
+#[manual_drop]
+fn own_g4_flow_active(o: Vec<i32>) -> i64 {
+    if vec_len(o) > 15 { return vec_get(o, 15); };
+    return own_get_i_raw(o, "__g4_flow_active");
+}
+#[manual_drop]
+fn own_set_g4_flow_active(o: Vec<i32>) -> i64 {
+    if vec_len(o) > 15 { vec_set(o, 15, 1); return 0; };
+    return own_set_i_raw(o, "__g4_flow_active", 1);
+}
+#[manual_drop]
+fn own_g8_flow_active(o: Vec<i32>) -> i64 {
+    if vec_len(o) > 17 { return vec_get(o, 17); };
+    return own_get_i_raw(o, "__g8_flow_active");
+}
+#[manual_drop]
+fn own_set_g8_flow_active(o: Vec<i32>) -> i64 {
+    if vec_len(o) > 17 { vec_set(o, 17, 1); return 0; };
+    return own_set_i_raw(o, "__g8_flow_active", 1);
 }
 #[manual_drop]
 fn own_set_scope(o: Vec<i32>, name: str, depth: i64) -> i64 {
@@ -21064,45 +21666,96 @@ fn own_snapshot(o: Vec<i32>) -> Vec<i32> {
     return snap;
 }
 #[manual_drop]
+fn own_vec_has_key(o: Vec<i32>, key: str) -> i64 {
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(o) {
+        if str_eq(vec_get(o, i), key) == 1 { return 1; };
+        i = i + 2;
+    };
+    return 0;
+}
+#[manual_drop]
+fn own_clear_binding_flow(o: Vec<i32>, name: str) -> i64 {
+    // A fresh `let name = ...` shadow or a definite assignment
+    // reinitializes the slot. Stale path facts attached to an older
+    // binding with the same spelling must not poison the new value.
+    if vec_get(o, 15) == 0 && vec_get(o, 17) == 0 { return 0; };
+    if vec_get(o, 15) == 1 {
+        let g4_key: str = str_concat("__g4_freed_", name);
+        if own_get_i_raw(o, g4_key) != 0 { own_set_i_raw(o, g4_key, 0); };
+        let g4_by_key: str = str_concat("__g4_freed_by_", name);
+        if str_len(own_get_s_raw(o, g4_by_key)) > 0 { own_set_s_raw(o, g4_by_key, ""); };
+    };
+    if vec_get(o, 17) == 1 {
+        let g8_key: str = str_concat("__g8_cond_moved_", name);
+        if own_get_i_raw(o, g8_key) != 0 { own_set_i_raw(o, g8_key, 0); };
+    };
+    return 0;
+}
+#[manual_drop]
+fn own_enter_maybe_zero_loop(o: Vec<i32>) -> i64 {
+    let d: i64 = own_get_i_raw(o, "__loop_maybe_zero_depth") + 1;
+    own_set_i_raw(o, "__loop_maybe_zero_depth", d);
+    return d;
+}
+#[manual_drop]
+fn own_exit_maybe_zero_loop(o: Vec<i32>, depth: i64, mark_start: i64) -> i64 {
+    if own_get_i_raw(o, "__loop_cond_init_count") <= mark_start {
+        own_set_i_raw(o, "__loop_maybe_zero_depth", depth - 1);
+        return 0;
+    };
+    let prefix: str = "__loop_cond_init_";
+    let plen: i64 = str_len(prefix);
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(o) {
+        let key: str = vec_get(o, i);
+        if str_starts_with(key, prefix) == 1 {
+            let mark_depth: i64 = vec_get(o, i + 1);
+            if mark_depth == depth {
+                let bname: str = str_substring(key, plen, str_len(key));
+                own_set_i_raw(o, str_concat("__init_", bname), 0);
+                own_set_i_raw(o, key, 0);
+            };
+        };
+        i = i + 2;
+    };
+    own_set_i_raw(o, "__loop_maybe_zero_depth", depth - 1);
+    return 0;
+}
+#[manual_drop]
+fn own_note_loop_cond_init(o: Vec<i32>, name: str, prev_init: i64) -> i64 {
+    let depth: i64 = own_get_i_raw(o, "__loop_maybe_zero_depth");
+    if depth <= 0 { return 0; };
+    if prev_init != 0 { return 0; };
+    if own_get_i_raw(o, str_concat("__init_seen_", name)) != 1 { return 0; };
+    if own_get(o, name) != 0 { return 0; };
+    let key: str = str_concat("__loop_cond_init_", name);
+    if own_get_i_raw(o, key) == 0 {
+        own_set_i_raw(o, key, depth);
+        own_set_i_raw(o, "__loop_cond_init_count", own_get_i_raw(o, "__loop_cond_init_count") + 1);
+    };
+    return 0;
+}
+#[manual_drop]
+fn own_has_uninit_binding(o: Vec<i32>) -> i64 {
+    let names: Vec<i32> = own_init_names_vec(o);
+    let mut i: i64 = 0;
+    while i < vec_len(names) {
+        let bname: str = vec_get(names, i);
+        if own_get_i_raw(o, str_concat("__init_", bname)) == 0 {
+            if own_get(o, bname) == 0 && own_get_i_raw(o, str_concat("__init_seen_", bname)) == 1 { return 1; };
+        };
+        i = i + 1;
+    };
+    return 0;
+}
+#[manual_drop]
 fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     // Reset o to snap state without dropping the whole backing store.
     // Branch isolation calls this in hot ownership paths; pop-all then
     // push-all preserved semantics but churned the Vec on every branch.
     //
-    // Lane 2 fix (audit G11-B-1): before reverting, preserve any
-    // `__init_seen_<vname>` markers that were set by `let mut x: T;`
-    // declarations OUTSIDE the snapshot scope but seen INSIDE the
-    // arm. Without this, `let mut x: T;` declared before the if/
-    // else and then the then-arm's writes get rolled back by
-    // own_restore including the `__init_seen_x` marker — the
-    // post-merge G-11 check at line ~20483 needs this marker to
-    // fire INIT-G11-READ-BEFORE-INIT. Fix: collect any seen-keys
-    // from the post-arm `o` that were absent in `snap`, and re-
-    // add them after the rollback. This is correct because
-    // `__init_seen_*` is a one-way "this binding was declared
-    // mutable-uninit" sentinel — once set, it should never go
-    // back to unset on a control-flow reset.
-    let mut preserved_seen: Vec<i32> = Vec::new();
     let target_len: i64 = vec_len(snap);
-    let mut k: i64 = 0;
-    while k < vec_len(o) {
-        let key_o: str = vec_get(o, k);
-        if str_starts_with(key_o, "__init_seen_") == 1 {
-            // Was this key in the snap? If not, it was set
-            // mid-arm — we need to keep it.
-            let mut found: i64 = 0;
-            let mut sj: i64 = 0;
-            while sj < target_len && found == 0 {
-                let ks: str = vec_get(snap, sj);
-                if str_eq(ks, key_o) == 1 { found = 1; };
-                sj = sj + 2;
-            };
-            if found == 0 {
-                preserved_seen.push(key_o);
-            };
-        };
-        k = k + 2;
-    };
     while vec_len(o) > target_len { o.pop(); };
     let mut i: i64 = 0;
     while i < target_len {
@@ -21110,14 +21763,6 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
         else { o.push(vec_get(snap, i)); };
         i = i + 1;
     };
-    // Re-stamp preserved seen markers (raw key+value 1).
-    let mut pi: i64 = 0;
-    while pi < vec_len(preserved_seen) {
-        let pk_str: str = vec_get(preserved_seen, pi);
-        own_set_i_raw(o, pk_str, 1);
-        pi = pi + 1;
-    };
-    vec_free(preserved_seen);
     // v0.4.3: if this sym is the currently-warm one, the aux hashmap
     // holds stale entries from inside-the-branch own_put_i calls.
     // Clear it and reset built_at so the next sym_get rebuilds from
@@ -21128,6 +21773,69 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
         hashmap_clear(h);
         __nucleor_sym_aux_set_built_at(o, 0);
     };
+    return 0;
+}
+#[manual_drop]
+fn own_merge_state_key(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>, key: str, va_in: i64, vb_in: i64) -> i64 {
+    if str_starts_with(key, "__g4_freed_by_") == 1 { return 0; };
+    let mut va: i64 = va_in;
+    let mut vb: i64 = vb_in;
+    if va < 0 { va = 0; };
+    if vb < 0 { vb = 0; };
+    if str_starts_with(key, "__os_") == 1 {
+        if va == 2 && vb == 2 {
+            own_put_i(o, key, 2);
+        } else {
+            if (va == 2 && vb != 2) || (va != 2 && vb == 2) {
+                let bname: str = str_substring(key, 5, str_len(key));
+                if va != 2 { own_put_i(o, key, va); }
+                else { own_put_i(o, key, vb); };
+                own_set_i_raw(o, str_concat("__g8_cond_moved_", bname), 1);
+                own_set_g8_flow_active(o);
+            };
+        };
+        return 0;
+    };
+    if str_starts_with(key, "__g8_cond_moved_") == 1 {
+        if va == 1 || vb == 1 {
+            own_set_i_raw(o, key, 1);
+            own_set_g8_flow_active(o);
+        };
+        return 0;
+    };
+    if str_starts_with(key, "__g4_freed_") == 1 {
+        let g4_name: str = str_substring(key, 11, str_len(key));
+        if va == 1 && vb == 1 {
+            own_set_i_raw(o, key, 1);
+            own_set_g4_flow_active(o);
+            let g4_by_a: str = own_get_s_raw(a, str_concat("__g4_freed_by_", g4_name));
+            let g4_by_b: str = own_get_s_raw(b, str_concat("__g4_freed_by_", g4_name));
+            if str_len(g4_by_a) > 0 { own_set_s_raw(o, str_concat("__g4_freed_by_", g4_name), g4_by_a); }
+            else if str_len(g4_by_b) > 0 { own_set_s_raw(o, str_concat("__g4_freed_by_", g4_name), g4_by_b); };
+        } else {
+            if va > 0 || vb > 0 {
+                own_set_i_raw(o, key, 2);
+                own_set_g4_flow_active(o);
+                let g4c_by_a: str = own_get_s_raw(a, str_concat("__g4_freed_by_", g4_name));
+                let g4c_by_b: str = own_get_s_raw(b, str_concat("__g4_freed_by_", g4_name));
+                if str_len(g4c_by_a) > 0 { own_set_s_raw(o, str_concat("__g4_freed_by_", g4_name), g4c_by_a); }
+                else if str_len(g4c_by_b) > 0 { own_set_s_raw(o, str_concat("__g4_freed_by_", g4_name), g4c_by_b); };
+            };
+        };
+        return 0;
+    };
+    if str_starts_with(key, "__init_") == 1 && str_starts_with(key, "__init_seen_") == 0 {
+        // G-11 init-state intersection.
+        if va == 1 && vb == 1 { own_put_i(o, key, 1); }
+        else { own_put_i(o, key, 0); };
+        return 0;
+    };
+    if str_starts_with(key, "__init_seen_") == 1 {
+        if va == 1 || vb == 1 { own_set_i_raw(o, key, 1); };
+        return 0;
+    };
+    // Non-state key -- preserve legacy "either-moved -> moved" semantic.
+    if va == 2 || vb == 2 { own_put_i(o, key, 2); };
     return 0;
 }
 #[manual_drop]
@@ -21156,29 +21864,22 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(a) {
         let key: str = vec_get(a, i);
-        let va: i64 = vec_get(a, i + 1);
-        let vb: i64 = sym_get(b, key);
-        if str_starts_with(key, "__os_") == 1 {
-            // G-8 state-key lattice.
-            if va == 2 && vb == 2 {
-                own_put_i(o, key, 2);
-            } else {
-                if (va == 2 && vb != 2) || (va != 2 && vb == 2) {
-                    let bname: str = str_substring(key, 5, str_len(key));
-                    own_set_i_raw(o, str_concat("__g8_cond_moved_", bname), 1);
-                };
-            };
-        } else {
-            if str_starts_with(key, "__init_") == 1 && str_starts_with(key, "__init_seen_") == 0 {
-                // G-11 init-state intersection.
-                if va == 1 && vb == 1 { own_put_i(o, key, 1); }
-                else { own_put_i(o, key, 0); };
-            } else {
-                // Non-state key — preserve legacy "either-moved → moved" semantic.
-                if va == 2 || vb == 2 { own_put_i(o, key, 2); };
+        own_merge_state_key(o, a, b, key, vec_get(a, i + 1), sym_get(b, key));
+        i = i + 2;
+    };
+    let mut j: i64 = 0;
+    while j < vec_len(b) {
+        let bkey: str = vec_get(b, j);
+        if str_starts_with(bkey, "__os_") == 1
+            || str_starts_with(bkey, "__g4_freed_") == 1
+            || str_starts_with(bkey, "__g8_cond_moved_") == 1
+            || (str_starts_with(bkey, "__init_") == 1 && str_starts_with(bkey, "__init_seen_") == 0)
+            || str_starts_with(bkey, "__init_seen_") == 1 {
+            if sym_get(a, bkey) < 0 {
+                own_merge_state_key(o, a, b, bkey, 0, vec_get(b, j + 1));
             };
         };
-        i = i + 2;
+        j = j + 2;
     };
     return 0;
 }
@@ -21191,6 +21892,49 @@ fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
         i = i + 1;
     };
     return 0 - 1;
+}
+
+#[manual_drop]
+fn g6_type_has_nonsendable(pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, tstr: str, depth: i64) -> i64 {
+    if depth > 8 { return 0; };
+    if str_len(tstr) == 0 { return 0; };
+    if str_index_of(tstr, "HashMap<") >= 0 { return 1; };
+    if str_index_of(tstr, "RefCell<") >= 0 { return 1; };
+    if str_index_of(tstr, "Cell<") >= 0 { return 1; };
+    let base: str = type_base_name(tstr);
+    let sidx: i64 = struct_find_type(pool, structs, base);
+    if sidx >= 0 {
+        let s_nid: i64 = vec_get(structs, sidx);
+        let flist: i64 = node_field(pool, s_nid, 2);
+        let fc: i64 = list_len(pool, flist);
+        let mut fi: i64 = 0;
+        while fi < fc {
+            let f_nid: i64 = list_get(pool, flist, fi);
+            let f_t: str = node_field(pool, f_nid, 2);
+            if g6_type_has_nonsendable(pool, structs, enums, f_t, depth + 1) == 1 { return 1; };
+            fi = fi + 1;
+        };
+    };
+    let eidx: i64 = enum_find(pool, enums, base);
+    if eidx >= 0 {
+        let e_nid: i64 = vec_get(enums, eidx);
+        let vlist: i64 = node_field(pool, e_nid, 2);
+        let vc: i64 = list_len(pool, vlist);
+        let mut vi: i64 = 0;
+        while vi < vc {
+            let v_nid: i64 = list_get(pool, vlist, vi);
+            let payload: i64 = node_field(pool, v_nid, 2);
+            let pc: i64 = list_len(pool, payload);
+            let mut pi: i64 = 0;
+            while pi < pc {
+                let p_t: str = list_get(pool, payload, pi);
+                if g6_type_has_nonsendable(pool, structs, enums, p_t, depth + 1) == 1 { return 1; };
+                pi = pi + 1;
+            };
+            vi = vi + 1;
+        };
+    };
+    return 0;
 }
 
 // RFC-0062 G-6 Phase 3 helper — true iff `name` appears in the
@@ -21236,10 +21980,15 @@ fn g6_closure_walk_capture(pool: Vec<i32>, nid: i64, cparams_lid: i64, own: Vec<
         if str_len(vtyp) > 0 { return 1; };
         return 0;
     };
-    // Binary op / index / cmp: children at fields 2 & 3 (and 1 for some).
-    if kind == 4 || kind == 10 {
+    // Binary op / cmp: children at fields 2 & 3.
+    if kind == 4 {
         if g6_closure_walk_capture(pool, node_field(pool, nid, 2), cparams_lid, own) == 1 { return 1; };
         if g6_closure_walk_capture(pool, node_field(pool, nid, 3), cparams_lid, own) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 10 {
+        if g6_closure_walk_capture(pool, node_field(pool, nid, 1), cparams_lid, own) == 1 { return 1; };
+        if g6_closure_walk_capture(pool, node_field(pool, nid, 2), cparams_lid, own) == 1 { return 1; };
         return 0;
     };
     // Unary / cast / borrow / deref / paren: child at field 1.
@@ -21345,6 +22094,311 @@ fn own_binding_move_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Ve
 }
 
 #[manual_drop]
+fn expr_may_flow_change(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 1 || kind == 2 || kind == 3 || kind == 71 || kind == 72 { return 0; };
+    if kind == 4 {
+        if expr_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums) == 1 { return 1; };
+        if expr_may_flow_change(pool, node_field(pool, nid, 3), own, structs, enums) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 10 {
+        if expr_may_flow_change(pool, node_field(pool, nid, 1), own, structs, enums) == 1 { return 1; };
+        if expr_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 5 || kind == 6 || kind == 9 || kind == 90 || kind == 91 || kind == 92 || kind == 99 {
+        return expr_may_flow_change(pool, node_field(pool, nid, 1), own, structs, enums);
+    };
+    if kind == 7 || kind == 12 {
+        let callee_name: str = if kind == 7 { node_field(pool, nid, 1) } else { str_concat(node_field(pool, nid, 1), str_concat("::", node_field(pool, nid, 2))) };
+        if str_eq(callee_name, "vec_free") == 1 || str_eq(callee_name, "hashmap_free") == 1 || str_eq(callee_name, "str_free") == 1 { return 1; };
+        let mut args: i64 = node_field(pool, nid, 2);
+        if kind == 12 { args = node_field(pool, nid, 3); };
+        let ac: i64 = list_len(pool, args);
+        let mut ai: i64 = 0;
+        while ai < ac {
+            let arg_nid: i64 = list_get(pool, args, ai);
+            if node_kind(pool, arg_nid) == 3 {
+                let aname: str = node_field(pool, arg_nid, 1);
+                let atype: str = own_get_type(own, aname);
+                if str_len(atype) > 0 && is_copy_type(atype, pool, structs, enums) == 0 { return 1; };
+            };
+            if expr_may_flow_change(pool, arg_nid, own, structs, enums) == 1 { return 1; };
+            ai = ai + 1;
+        };
+        return 0;
+    };
+    if kind == 8 {
+        let method_name: str = node_field(pool, nid, 2);
+        if str_eq(method_name, "free") == 1 { return 1; };
+        let args: i64 = node_field(pool, nid, 3);
+        let ac: i64 = list_len(pool, args);
+        let mut ai: i64 = 0;
+        while ai < ac {
+            if expr_may_flow_change(pool, list_get(pool, args, ai), own, structs, enums) == 1 { return 1; };
+            ai = ai + 1;
+        };
+        return 0;
+    };
+    if kind == 34 {
+        let inits: i64 = node_field(pool, nid, 2);
+        let ic: i64 = list_len(pool, inits);
+        let mut ii: i64 = 0;
+        while ii < ic {
+            let init_nid: i64 = list_get(pool, inits, ii);
+            let val_nid: i64 = node_field(pool, init_nid, 2);
+            if node_kind(pool, val_nid) == 3 {
+                let vn: str = node_field(pool, val_nid, 1);
+                let vt: str = own_get_type(own, vn);
+                if own_binding_move_type(vt, pool, structs, enums) == 1 { return 1; };
+            };
+            if expr_may_flow_change(pool, val_nid, own, structs, enums) == 1 { return 1; };
+            ii = ii + 1;
+        };
+        return 0;
+    };
+    if kind == 38 || kind == 42 { return 1; };
+    if kind == 47 || kind == 48 {
+        let items: i64 = node_field(pool, nid, 1);
+        let ic: i64 = list_len(pool, items);
+        let mut ii: i64 = 0;
+        while ii < ic {
+            if expr_may_flow_change(pool, list_get(pool, items, ii), own, structs, enums) == 1 { return 1; };
+            ii = ii + 1;
+        };
+    };
+    return 0;
+}
+#[manual_drop]
+fn stmt_may_flow_change(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 20 {
+        let init: i64 = node_field(pool, nid, 4);
+        if init >= 0 {
+            if node_kind(pool, init) == 3 {
+                let src: str = node_field(pool, init, 1);
+                let st: str = own_get_type(own, src);
+                if own_binding_move_type(st, pool, structs, enums) == 1 { return 1; };
+            };
+            return expr_may_flow_change(pool, init, own, structs, enums);
+        };
+        return 0;
+    };
+    if kind == 21 {
+        let lhs: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, lhs) == 3 {
+            let lname: str = node_field(pool, lhs, 1);
+            if own_get(own, lname) == 0 && own_get_i_raw(own, str_concat("__init_", lname)) == 0 && own_get_i_raw(own, str_concat("__init_seen_", lname)) == 1 { return 1; };
+        };
+        return expr_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums);
+    };
+    if kind == 22 || kind == 25 { return expr_may_flow_change(pool, node_field(pool, nid, 1), own, structs, enums); };
+    if kind == 23 {
+        if expr_may_flow_change(pool, node_field(pool, nid, 1), own, structs, enums) == 1 { return 1; };
+        if stmt_list_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums) == 1 { return 1; };
+        let enode: i64 = node_field(pool, nid, 3);
+        if enode >= 0 && stmt_list_may_flow_change(pool, enode, own, structs, enums) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 24 {
+        if expr_may_flow_change(pool, node_field(pool, nid, 1), own, structs, enums) == 1 { return 1; };
+        return stmt_list_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums);
+    };
+    if kind == 28 { return stmt_list_may_flow_change(pool, node_field(pool, nid, 4), own, structs, enums); };
+    if kind == 49 {
+        if expr_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums) == 1 { return 1; };
+        return stmt_list_may_flow_change(pool, node_field(pool, nid, 3), own, structs, enums);
+    };
+    if kind == 38 { return match_arms_need_flow_merge(pool, node_field(pool, nid, 2), own, structs, enums); };
+    if kind == 52 { return stmt_list_may_flow_change(pool, node_field(pool, nid, 2), own, structs, enums); };
+    return 0;
+}
+#[manual_drop]
+fn stmt_list_may_flow_change(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if lid < 0 || lid >= vec_len(pool) { return 0; };
+    let cnt: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < cnt {
+        if stmt_may_flow_change(pool, list_get(pool, lid, i), own, structs, enums) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn match_arms_need_flow_merge(pool: Vec<i32>, arms: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    let ac: i64 = list_len(pool, arms);
+    let mut ai: i64 = 0;
+    while ai < ac {
+        let arm_nid: i64 = list_get(pool, arms, ai);
+        if stmt_list_may_flow_change(pool, node_field(pool, arm_nid, 4), own, structs, enums) == 1 { return 1; };
+        ai = ai + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn own_apply_match_cond_inits(o: Vec<i32>, mark_start: i64) -> i64 {
+    if own_get_i_raw(o, "__match_cond_init_count") <= mark_start { return 0; };
+    let prefix: str = "__match_cond_init_";
+    let plen: i64 = str_len(prefix);
+    let mut i: i64 = 0;
+    while i + 1 < vec_len(o) {
+        let key: str = vec_get(o, i);
+        if str_starts_with(key, prefix) == 1 {
+            if vec_get(o, i + 1) == 1 {
+                let bname: str = str_substring(key, plen, str_len(key));
+                own_set_i_raw(o, str_concat("__init_", bname), 0);
+                own_set_i_raw(o, key, 0);
+            };
+        };
+        i = i + 2;
+    };
+    return 0;
+}
+#[manual_drop]
+fn own_note_match_cond_init(o: Vec<i32>, name: str) -> i64 {
+    if own_get(o, name) != 0 { return 0; };
+    if own_get_i_raw(o, str_concat("__init_", name)) != 0 { return 0; };
+    if own_get_i_raw(o, str_concat("__init_seen_", name)) != 1 { return 0; };
+    let key: str = str_concat("__match_cond_init_", name);
+    if own_get_i_raw(o, key) == 0 {
+        own_set_i_raw(o, key, 1);
+        own_set_i_raw(o, "__match_cond_init_count", own_get_i_raw(o, "__match_cond_init_count") + 1);
+    };
+    return 0;
+}
+#[manual_drop]
+fn stmt_mark_match_init_candidates(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 21 {
+        let lhs: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, lhs) == 3 { own_note_match_cond_init(own, node_field(pool, lhs, 1)); };
+        return 0;
+    };
+    if kind == 23 {
+        stmt_list_mark_match_init_candidates(pool, node_field(pool, nid, 2), own);
+        let enode: i64 = node_field(pool, nid, 3);
+        if enode >= 0 { stmt_list_mark_match_init_candidates(pool, enode, own); };
+        return 0;
+    };
+    if kind == 24 { return stmt_list_mark_match_init_candidates(pool, node_field(pool, nid, 2), own); };
+    if kind == 28 { return stmt_list_mark_match_init_candidates(pool, node_field(pool, nid, 4), own); };
+    if kind == 49 { return stmt_list_mark_match_init_candidates(pool, node_field(pool, nid, 3), own); };
+    if kind == 52 { return stmt_list_mark_match_init_candidates(pool, node_field(pool, nid, 2), own); };
+    if kind == 38 { return match_mark_match_init_candidates(pool, node_field(pool, nid, 2), own); };
+    return 0;
+}
+#[manual_drop]
+fn stmt_list_mark_match_init_candidates(pool: Vec<i32>, lid: i64, own: Vec<i32>) -> i64 {
+    if lid < 0 || lid >= vec_len(pool) { return 0; };
+    let cnt: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < cnt {
+        stmt_mark_match_init_candidates(pool, list_get(pool, lid, i), own);
+        i = i + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn match_mark_match_init_candidates(pool: Vec<i32>, arms: i64, own: Vec<i32>) -> i64 {
+    let ac: i64 = list_len(pool, arms);
+    let mut ai: i64 = 0;
+    while ai < ac {
+        stmt_list_mark_match_init_candidates(pool, node_field(pool, list_get(pool, arms, ai), 4), own);
+        ai = ai + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn expr_mark_match_move_free(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 7 || kind == 12 {
+        let callee_name: str = if kind == 7 { node_field(pool, nid, 1) } else { str_concat(node_field(pool, nid, 1), str_concat("::", node_field(pool, nid, 2))) };
+        let mut args: i64 = node_field(pool, nid, 2);
+        if kind == 12 { args = node_field(pool, nid, 3); };
+        let ac: i64 = list_len(pool, args);
+        let mut ai: i64 = 0;
+        while ai < ac {
+            let arg_nid: i64 = list_get(pool, args, ai);
+            if node_kind(pool, arg_nid) == 3 {
+                let aname: str = node_field(pool, arg_nid, 1);
+                if str_eq(callee_name, "vec_free") == 1 || str_eq(callee_name, "hashmap_free") == 1 || str_eq(callee_name, "str_free") == 1 {
+                    own_g4_mark_freed(own, aname, callee_name, 2);
+                } else {
+                    let atype: str = own_get_type(own, aname);
+                    if str_len(atype) > 0 && is_copy_type(atype, pool, structs, enums) == 0 {
+                        own_set_i_raw(own, str_concat("__g8_cond_moved_", aname), 1);
+                        own_set_g8_flow_active(own);
+                    };
+                };
+            };
+            expr_mark_match_move_free(pool, arg_nid, own, structs, enums);
+            ai = ai + 1;
+        };
+        return 0;
+    };
+    if kind == 4 {
+        expr_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums);
+        expr_mark_match_move_free(pool, node_field(pool, nid, 3), own, structs, enums);
+        return 0;
+    };
+    if kind == 10 {
+        expr_mark_match_move_free(pool, node_field(pool, nid, 1), own, structs, enums);
+        expr_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums);
+        return 0;
+    };
+    if kind == 5 || kind == 6 || kind == 9 || kind == 90 || kind == 91 || kind == 92 || kind == 99 {
+        return expr_mark_match_move_free(pool, node_field(pool, nid, 1), own, structs, enums);
+    };
+    return 0;
+}
+#[manual_drop]
+fn stmt_mark_match_move_free(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 20 { return expr_mark_match_move_free(pool, node_field(pool, nid, 4), own, structs, enums); };
+    if kind == 21 { return expr_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums); };
+    if kind == 22 || kind == 25 { return expr_mark_match_move_free(pool, node_field(pool, nid, 1), own, structs, enums); };
+    if kind == 23 {
+        stmt_list_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums);
+        let enode: i64 = node_field(pool, nid, 3);
+        if enode >= 0 { stmt_list_mark_match_move_free(pool, enode, own, structs, enums); };
+        return 0;
+    };
+    if kind == 24 { return stmt_list_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums); };
+    if kind == 28 { return stmt_list_mark_match_move_free(pool, node_field(pool, nid, 4), own, structs, enums); };
+    if kind == 49 { return stmt_list_mark_match_move_free(pool, node_field(pool, nid, 3), own, structs, enums); };
+    if kind == 52 { return stmt_list_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums); };
+    if kind == 38 { return match_mark_match_move_free(pool, node_field(pool, nid, 2), own, structs, enums); };
+    return 0;
+}
+#[manual_drop]
+fn stmt_list_mark_match_move_free(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if lid < 0 || lid >= vec_len(pool) { return 0; };
+    let cnt: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < cnt {
+        stmt_mark_match_move_free(pool, list_get(pool, lid, i), own, structs, enums);
+        i = i + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn match_mark_match_move_free(pool: Vec<i32>, arms: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    let ac: i64 = list_len(pool, arms);
+    let mut ai: i64 = 0;
+    while ai < ac {
+        stmt_list_mark_match_move_free(pool, node_field(pool, list_get(pool, arms, ai), 4), own, structs, enums);
+        ai = ai + 1;
+    };
+    return 0;
+}
+
+#[manual_drop]
 fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if nid < 0 { return 0; };
     if nid >= vec_len(pool) { return 0; };
@@ -21368,7 +22422,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // tracker. Skip the check for `_` placeholder reads and
         // self-method receivers (which the parser reroutes through
         // a different binding name).
-        if str_len(vname) > 0 && str_eq(vname, "_") == 0 {
+        if vec_len(vec_get(own, 13)) > 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 {
             // own_get_i_raw returns 0 for keys that never existed.
             // Only fire when the key was explicitly set to 0 by the
             // let-no-init or never-assigned path; we distinguish
@@ -21402,7 +22456,10 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                             // that check_stmt kind-20 sets on
                             // every let-decl.
                             if own_get_i_raw(own, str_concat("__init_seen_", vname)) == 1 {
-                                warns = warns + own_diag(own, fn_name, "INIT-G11-READ-BEFORE-INIT", str_concat("read of '", str_concat(vname, "' before it is definitely assigned. The binding was declared without an initializer (`let mut ", str_concat(vname, ": T;`) and either no assignment dominates this read, or only some arms of a preceding if/else assigned it. Either initialize at the declaration point (`let mut ", str_concat(vname, ": T = ...;`) or ensure every incoming control-flow path assigns the binding before this read.")))), vname);
+                                let g11_msg_a: str = str_concat("read of '", str_concat(vname, "' before it is definitely assigned. The binding was declared without an initializer (`let mut "));
+                                let g11_msg_b: str = str_concat(vname, ": T;`) and either no assignment dominates this read, or only some incoming control-flow arms assigned it. Either initialize at the declaration point (`let mut ");
+                                let g11_msg_c: str = str_concat(vname, ": T = ...;`) or ensure every incoming control-flow path assigns the binding before this read.");
+                                warns = warns + own_diag(own, fn_name, "INIT-G11-READ-BEFORE-INIT", str_concat(g11_msg_a, str_concat(g11_msg_b, g11_msg_c)), vname);
                                 return warns;
                             };
                         };
@@ -21418,24 +22475,36 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // freed flag below is set at the manual-free call site
         // (kind-7 dispatch further down); reading the slot after
         // the free emits OWN-G4-USE-AFTER-DROP at error severity.
-        if own_get_i_raw(own, str_concat("__g4_freed_", vname)) == 1 {
-            let freed_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", vname));
-            let mut g4_msg: str = str_concat("use of '", str_concat(vname, "' after manual free"));
-            if str_len(freed_by) > 0 {
-                // Lane 3 (F-DIAG-009): the pre-fix call was
-                // `str_concat(freed_by, "(", str_concat(vname, ...))`
-                // which has THREE positional args to str_concat
-                // (which only takes 2). The third positional was
-                // silently dropped, truncating the message at
-                // "reading the binding after `". Now the post-tilde
-                // tail is built up via nested 2-arg concats so the
-                // full sentence renders.
-                let g4_freed_call: str = str_concat(freed_by, str_concat("(", str_concat(vname, ")")));
-                let g4_tail: str = str_concat(g4_freed_call, "` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.");
-                g4_msg = str_concat(g4_msg, str_concat(" (freed by '", str_concat(freed_by, str_concat("'). The heap allocation is gone; reading the binding after `", g4_tail))));
+        if vec_get(own, 15) == 1 {
+            let g4_state_v: i64 = own_get_i_raw(own, str_concat("__g4_freed_", vname));
+            if g4_state_v == 1 {
+                let freed_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", vname));
+                let mut g4_msg: str = str_concat("use of '", str_concat(vname, "' after manual free"));
+                if str_len(freed_by) > 0 {
+                    // Lane 3 (F-DIAG-009): the pre-fix call was
+                    // `str_concat(freed_by, "(", str_concat(vname, ...))`
+                    // which has THREE positional args to str_concat
+                    // (which only takes 2). The third positional was
+                    // silently dropped, truncating the message at
+                    // "reading the binding after `". Now the post-tilde
+                    // tail is built up via nested 2-arg concats so the
+                    // full sentence renders.
+                    let g4_freed_call: str = str_concat(freed_by, str_concat("(", str_concat(vname, ")")));
+                    let g4_tail: str = str_concat(g4_freed_call, "` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.");
+                    g4_msg = str_concat(g4_msg, str_concat(" (freed by '", str_concat(freed_by, str_concat("'). The heap allocation is gone; reading the binding after `", g4_tail))));
+                };
+                warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4_msg, vname);
+                return warns;
             };
-            warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4_msg, vname);
-            return warns;
+            if g4_state_v == 2 {
+                let cfreed_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", vname));
+                let mut g4c_msg: str = str_concat("conditional manual free of '", str_concat(vname, "': value is freed on one incoming control-flow path but preserved on another. Subsequent reads are unsound because the binding may point at freed storage depending on which path ran."));
+                if str_len(cfreed_by) > 0 {
+                    g4c_msg = str_concat(g4c_msg, str_concat(" One path freed it by '", str_concat(cfreed_by, "'.")));
+                };
+                warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4c_msg, vname);
+                return warns;
+            };
         };
         // RFC-0062 G-8 Phase 2b/3/4 — conditional-divergence move
         // detection. The cond-moved flag is set by `own_merge_moved`
@@ -21446,7 +22515,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // at error severity. Checked before the existing OWN-001
         // path so the precise diagnostic fires instead of the more
         // general "use of moved" classification.
-        if own_get_i_raw(own, str_concat("__g8_cond_moved_", vname)) == 1 {
+        if vec_get(own, 17) == 1 && own_get_i_raw(own, str_concat("__g8_cond_moved_", vname)) == 1 {
             warns = warns + own_diag(own, fn_name, "OWN-G8-COND-MOVE", str_concat("conditional move of '", str_concat(vname, "': value is moved on one arm of the preceding if/else but not the other. Subsequent reads are unsound because the binding may no longer own its value depending on which arm ran. Either move on every arm (so the value is definitely consumed) or move on no arm (so the value is preserved on every path).")), vname);
             return warns;
         };
@@ -21509,16 +22578,28 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     if kind == 5 || kind == 6 {
         let recv_root: str = expr_root_name(pool, node_field(pool, nid, 1), own);
         if str_len(recv_root) > 0 {
-            if own_get_i_raw(own, str_concat("__g4_freed_", recv_root)) == 1 {
-                let g4f_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", recv_root));
-                let mut g4f_msg: str = str_concat("use of '", str_concat(recv_root, "' after manual free"));
-                if str_len(g4f_by) > 0 {
-                    g4f_msg = str_concat(g4f_msg, str_concat(" (freed by '", str_concat(g4f_by, "'). The heap allocation is gone; field/index access after `*_free` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.")));
+            if vec_get(own, 15) == 1 {
+                let g4_state_recv: i64 = own_get_i_raw(own, str_concat("__g4_freed_", recv_root));
+                if g4_state_recv == 1 {
+                    let g4f_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", recv_root));
+                    let mut g4f_msg: str = str_concat("use of '", str_concat(recv_root, "' after manual free"));
+                    if str_len(g4f_by) > 0 {
+                        g4f_msg = str_concat(g4f_msg, str_concat(" (freed by '", str_concat(g4f_by, "'). The heap allocation is gone; field/index access after `*_free` is undefined. Either drop the post-free use, or rely on `#[auto_drop]` (RFC-0042) for automatic cleanup at scope exit.")));
+                    };
+                    warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4f_msg, recv_root);
+                    return warns;
                 };
-                warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4f_msg, recv_root);
-                return warns;
+                if g4_state_recv == 2 {
+                    let g4cf_by: str = own_get_s_raw(own, str_concat("__g4_freed_by_", recv_root));
+                    let mut g4cf_msg: str = str_concat("conditional manual free of '", str_concat(recv_root, "': value is freed on one incoming control-flow path but preserved on another. Subsequent field/index access is unsound because the binding may point at freed storage depending on which path ran."));
+                    if str_len(g4cf_by) > 0 {
+                        g4cf_msg = str_concat(g4cf_msg, str_concat(" One path freed it by '", str_concat(g4cf_by, "'.")));
+                    };
+                    warns = warns + own_diag(own, fn_name, "OWN-G4-USE-AFTER-DROP", g4cf_msg, recv_root);
+                    return warns;
+                };
             };
-            if own_get_i_raw(own, str_concat("__g8_cond_moved_", recv_root)) == 1 {
+            if vec_get(own, 17) == 1 && own_get_i_raw(own, str_concat("__g8_cond_moved_", recv_root)) == 1 {
                 warns = warns + own_diag(own, fn_name, "OWN-G8-COND-MOVE", str_concat("conditional move of '", str_concat(recv_root, "': value is moved on one arm of the preceding if/else but not the other. Subsequent reads (including field/index access) are unsound because the binding may no longer own its value depending on which arm ran. Either move on every arm (so the value is definitely consumed) or move on no arm (so the value is preserved on every path).")), recv_root);
                 return warns;
             };
@@ -21589,55 +22670,20 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if str_starts_with(g6_atype, "&mut ") == 1 { g6_atype = str_trim(str_substring(g6_atype, 5, str_len(g6_atype))); }
                     else if str_starts_with(g6_atype, "&") == 1 { g6_atype = str_trim(str_substring(g6_atype, 1, str_len(g6_atype))); };
                     if str_len(g6_atype) > 0 {
-                        let g6_has_hm: i64 = if str_index_of(g6_atype, "HashMap<") >= 0 { 1 } else { 0 };
-                        let g6_has_refcell: i64 = if str_index_of(g6_atype, "RefCell<") >= 0 { 1 } else { 0 };
-                        let g6_has_cell: i64 = if str_index_of(g6_atype, "Cell<") >= 0 { 1 } else { 0 };
-                        let g6_has_nonsend: i64 = if g6_has_hm == 1 || g6_has_refcell == 1 || g6_has_cell == 1 { 1 } else { 0 };
+                        let g6_direct_nonsend: i64 = if str_index_of(g6_atype, "HashMap<") >= 0 || str_index_of(g6_atype, "RefCell<") >= 0 || str_index_of(g6_atype, "Cell<") >= 0 { 1 } else { 0 };
+                        let g6_has_nonsend: i64 = g6_type_has_nonsendable(pool, structs, enums, g6_atype, 0);
                         let g6_is_tuple: i64 = if str_starts_with(g6_atype, "(") == 1 { 1 } else { 0 };
+                        let g6_base: str = type_base_name(g6_atype);
+                        let g6_eidx: i64 = enum_find(pool, enums, g6_base);
                         if g6_is_tuple == 1 && g6_has_nonsend == 1 {
                             warns = warns + own_diag(own, fn_name, "SEND-G6-TUPLE", str_concat("tuple type `", str_concat(g6_atype, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call with at least one non-Sendable element (HashMap / Cell / RefCell). Per RFC-0062 G-6 Phase 3 (v1.0): a tuple is Sendable iff every element type is Sendable. Reshape the spawn payload to a tuple of Sendable elements only (primitives, Vec<Sendable>, struct with `impl Sendable`).")))), g6_aname);
-                        } else if g6_has_nonsend == 1 {
+                        } else if g6_direct_nonsend == 1 {
                             warns = warns + own_diag(own, fn_name, "SEND-G6-HASHMAP", str_concat("non-Sendable container type `", str_concat(g6_atype, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call. Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> is Sendable iff K, V, and the hasher are Sendable (today's HashMap is unaudited and must be treated as non-Sendable across spawn). Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). Restructure the spawn argument as a Sendable handle (Vec<i64>, primitives, structs with `impl Sendable`).")))), g6_aname);
+                        } else if g6_eidx >= 0 && g6_has_nonsend == 1 {
+                            warns = warns + own_diag(own, fn_name, "SEND-G6-ENUM", str_concat("enum type `", str_concat(g6_base, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call with at least one non-Sendable variant payload (HashMap / Cell / RefCell). Per RFC-0062 G-6 Phase 3 (v1.0): an enum is Sendable iff every variant's payload types are Sendable. Either restructure the offending variant's payload to Sendable types or pass an i64 handle instead of the enum at the spawn boundary.")))), g6_aname);
+                        } else if g6_has_nonsend == 1 {
+                            warns = warns + own_diag(own, fn_name, "SEND-G6-HASHMAP", str_concat("non-Sendable struct type `", str_concat(g6_atype, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call because at least one transitive field contains HashMap / Cell / RefCell. Per RFC-0062 G-6 Phase 3 (v1.0): a struct is Sendable iff every field is Sendable. Reshape the spawn payload to contain only Sendable fields or pass an explicit handle with audited synchronization.")))), g6_aname);
                         } else {
-                            // Enum-payload non-Sendable check. Resolve
-                            // base name and look up in enum table; walk
-                            // each variant's payload field types for a
-                            // non-Sendable shape.
-                            let g6_base: str = type_base_name(g6_atype);
-                            if str_len(g6_base) > 0 {
-                                let g6_eidx: i64 = enum_find(pool, enums, g6_base);
-                                if g6_eidx >= 0 {
-                                    let g6_e_nid: i64 = vec_get(enums, g6_eidx);
-                                    let g6_vlist: i64 = node_field(pool, g6_e_nid, 2);
-                                    let g6_vcnt: i64 = list_len(pool, g6_vlist);
-                                    let mut g6_vi: i64 = 0;
-                                    let mut g6_hit: i64 = 0;
-                                    while g6_vi < g6_vcnt && g6_hit == 0 {
-                                        let g6_var: i64 = list_get(pool, g6_vlist, g6_vi);
-                                        // Variant payload list elements are
-                                        // type-strings (`pr_val` of parse_type),
-                                        // not node ids (parse_enum_decl: line
-                                        // ~4587 mk_list(pool, ptypes) where
-                                        // ptypes is `Vec<i32>` of pr_val str
-                                        // handles). list_get returns the i64
-                                        // string handle directly.
-                                        let g6_payload: i64 = node_field(pool, g6_var, 2);
-                                        let g6_pcnt: i64 = list_len(pool, g6_payload);
-                                        let mut g6_pi: i64 = 0;
-                                        while g6_pi < g6_pcnt && g6_hit == 0 {
-                                            let g6_ftype: str = list_get(pool, g6_payload, g6_pi);
-                                            if str_index_of(g6_ftype, "HashMap<") >= 0 || str_index_of(g6_ftype, "RefCell<") >= 0 || str_index_of(g6_ftype, "Cell<") >= 0 {
-                                                g6_hit = 1;
-                                            };
-                                            g6_pi = g6_pi + 1;
-                                        };
-                                        g6_vi = g6_vi + 1;
-                                    };
-                                    if g6_hit == 1 {
-                                        warns = warns + own_diag(own, fn_name, "SEND-G6-ENUM", str_concat("enum type `", str_concat(g6_base, str_concat("` of binding `", str_concat(g6_aname, "` crosses a thread boundary at this spawn-family call with at least one non-Sendable variant payload (HashMap / Cell / RefCell). Per RFC-0062 G-6 Phase 3 (v1.0): an enum is Sendable iff every variant's payload types are Sendable. Either restructure the offending variant's payload to Sendable types or pass an i64 handle instead of the enum at the spawn boundary.")))), g6_aname);
-                                    };
-                                };
-                            };
                         };
                     };
                 };
@@ -21668,13 +22714,17 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     };
                 };
                 // RFC-0062 G-3 Phase 3 — heap-aliasing per-fn analysis.
-                // ALIAS-G3-VEC-OF-REFS: vec_push / vec_insert into a
+                // ALIAS-G3-VEC-OF-REFS: Vec mutators into a
                 // binding declared as Vec<&T> (or Vec<&mut T>) hides
                 // aliasing from the syntactic borrow tracker — the
                 // tracker doesn't follow elements through Vec<&...>,
                 // so two pushes can leave aliased &T pointing at the
                 // same T. Fire at the call site with the binding name.
-                if str_eq(callee_name, "vec_push") == 1 || str_eq(callee_name, "vec_insert") == 1 {
+                if str_eq(callee_name, "vec_push") == 1
+                    || str_eq(callee_name, "vec_insert") == 1
+                    || str_eq(callee_name, "vec_insert_at") == 1
+                    || str_eq(callee_name, "vec_extend") == 1
+                    || str_eq(callee_name, "vec_set") == 1 {
                     if ai == 0 && str_index_of(atype, "Vec<&") >= 0 {
                         warns = warns + own_diag(own, fn_name, "ALIAS-G3-VEC-OF-REFS", str_concat("`", str_concat(callee_name, str_concat("` into binding `", str_concat(aname, str_concat("` of type `", str_concat(atype, "` installs a borrow into a Vec-of-references. Per RFC-0062 G-3 Phase 3 (v1.0): the syntactic borrow tracker does not follow elements through `Vec<&T>`, so two pushes of borrows aliasing the same `T` are invisible. Prefer indexing — store `Vec<i64>` indexes into an owned vector instead of `Vec<&T>` borrows of separate vectors.")))))), aname);
                     };
@@ -21704,8 +22754,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // the freed flag in the kind-3 path above and fires
                 // OWN-G4-USE-AFTER-DROP before this set runs again.
                 if str_eq(callee_name, "vec_free") == 1 || str_eq(callee_name, "hashmap_free") == 1 || str_eq(callee_name, "str_free") == 1 {
-                    own_set_i_raw(own, str_concat("__g4_freed_", aname), 1);
-                    own_set_s_raw(own, str_concat("__g4_freed_by_", aname), callee_name);
+                    own_g4_mark_freed(own, aname, callee_name, 1);
                 };
                 if is_copy_type(atype, pool, structs, enums) == 0 {
                     if own_has_shared_overlap(own, aname) == 1 || own_has_mut_overlap(own, aname) == 1 {
@@ -21717,8 +22766,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // but mis-fires on by-reference accessors (the rod
                         // surface uses `&Schedule` / `&LogicalQubit` etc.). The
                         // callee sig is the source of truth; consult it.
-                        let arg_src: str = own_source(own);
-                        if str_len(arg_src) > 0 && fn_callee_param_is_borrow(arg_src, callee_name, ai) == 1 {
+                            let arg_src: str = own_source(own);
+                            if str_len(arg_src) > 0 && fn_callee_param_is_borrow(arg_src, callee_name, ai) == 1 {
                             // borrow — no move
                         } else {
                             own_set(own, aname, 2); own_set_type(own, str_concat("__moved_by_", aname), callee_name);
@@ -21749,8 +22798,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // Only stamp on heap-collection types; plain i64 etc.
                 // shouldn't trigger the G-4 pattern.
                 if str_starts_with(rt_f, "Vec") == 1 || str_starts_with(rt_f, "HashMap") == 1 || str_eq(rt_f, "str") == 1 || str_eq(rt_f, "String") == 1 {
-                    own_set_i_raw(own, str_concat("__g4_freed_", recv_root_f), 1);
-                    own_set_s_raw(own, str_concat("__g4_freed_by_", recv_root_f), str_concat(method_name, "() method"));
+                    own_g4_mark_freed(own, recv_root_f, str_concat(method_name, "() method"), 1);
                 };
             };
         };
@@ -21894,7 +22942,13 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // pre-fix "is the source the defining rod?" heuristic
             // got wrong (the import causes adopter source to also
             // contain the struct decl).
-            let g_in_ctor: i64 = if str_eq(fn_name, "atomic_i64") == 1 || str_eq(fn_name, "atomic_u64") == 1 || str_eq(fn_name, "atomic_i32") == 1 || str_eq(fn_name, "atomic_u32") == 1 || str_eq(fn_name, "atomic_bool") == 1 || str_starts_with(fn_name, "atomic_compare_exchange") == 1 { 1 } else { 0 };
+            let mut g_in_ctor: i64 = 0;
+            if str_eq(fn_name, "atomic_i64") == 1 { g_in_ctor = 1; };
+            if str_eq(fn_name, "atomic_u64") == 1 { g_in_ctor = 1; };
+            if str_eq(fn_name, "atomic_i32") == 1 { g_in_ctor = 1; };
+            if str_eq(fn_name, "atomic_u32") == 1 { g_in_ctor = 1; };
+            if str_eq(fn_name, "atomic_bool") == 1 { g_in_ctor = 1; };
+            if str_starts_with(fn_name, "atomic_compare_exchange") == 1 { g_in_ctor = 1; };
             if g_in_ctor == 0 {
                 let g_h_msg: str = str_concat("forbidden struct-literal construction of opaque concurrency-handle type `", str_concat(struct_name, "`. Per RFC-0062 G-handle (Lane 2 audit fix F-CONC-001 v1.0): handles for AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool are opaque — adopter code MUST use the public constructor fns (`atomic_i64(initial)`, `atomic_u64(initial)`, etc.) which return a properly initialized handle backed by a runtime allocation. Pre-fix, struct-literal construction `AtomicI64 { handle: 12345 }` from a saved or fabricated `i64` allowed forging a fake handle — passing the result to atomic_load/store crashed the process via SEGV / UAF. Replace with `let a: AtomicI64 = atomic_i64(initial_value);`."));
                 let g_h_diag_vec: Vec<i32> = own_diags(own);
@@ -22019,6 +23073,10 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
         let arms_e: i64 = node_field(pool, nid, 2);
         let ac_e: i64 = list_len(pool, arms_e);
+        let match_expr_init_mark_start_g411: i64 = own_get_i_raw(own, "__match_cond_init_count");
+        let match_expr_has_init_g411: i64 = if vec_len(vec_get(own, 13)) > 0 { 1 } else { 0 };
+        if match_expr_has_init_g411 == 1 { match_mark_match_init_candidates(pool, arms_e, own); };
+        let expr_match_scope: i64 = own_cur_scope(own);
         let mut has_wild_e: i64 = 0;
         let mut ai_e: i64 = 0;
         while ai_e < ac_e {
@@ -22026,9 +23084,14 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             let ename_e: str = node_field(pool, arm_e, 1);
             if str_eq(ename_e, "__wild") == 1 { has_wild_e = 1; };
             // Recurse into the arm body so use-after-move etc. fires.
+            own_set_cur_scope(own, expr_match_scope + 1);
             warns = warns + check_stmts(pool, node_field(pool, arm_e, 4), own, structs, enums, fn_name);
+            own_release_scope(own, expr_match_scope + 1);
+            own_set_cur_scope(own, expr_match_scope);
             ai_e = ai_e + 1;
         };
+        match_mark_match_move_free(pool, arms_e, own, structs, enums);
+        if match_expr_has_init_g411 == 1 { own_apply_match_cond_inits(own, match_expr_init_mark_start_g411); };
         if has_wild_e == 0 && ac_e > 0 {
             let first_arm_e: i64 = list_get(pool, arms_e, 0);
             let first_ename_e: str = node_field(pool, first_arm_e, 1);
@@ -22172,6 +23235,9 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // above (kind 99) recurses into the IDENT, but the
                 // freed flag lives on src; without this propagation,
                 // a free of alias would be silent.
+                if is_heap_aliased_type(st) == 1 {
+                    own_g4_set_alias(own, vname, src);
+                };
                 if own_get_i_raw(own, str_concat("__g4_freed_", src)) == 1 {
                     own_set_i_raw(own, str_concat("__g4_freed_", vname), 1);
                     own_set_s_raw(own, str_concat("__g4_freed_by_", vname), str_concat("alias of '", str_concat(src, "'")));
@@ -22189,6 +23255,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     };
                 };
             };
+            own_clear_binding_flow(own, vname);
             own_set(own, vname, 1);
             // RFC-0062 G-11 Phase 2b — DA flow analysis. let-with-
             // initializer = definitely assigned at this program
@@ -22198,6 +23265,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             own_set_i_raw(own, str_concat("__init_", vname), 1);
             own_set_i_raw(own, str_concat("__init_seen_", vname), 1);
         } else {
+            own_clear_binding_flow(own, vname);
             own_set(own, vname, 0);
             // RFC-0062 G-11 Phase 2b — DA flow analysis. let-without-
             // initializer = NOT yet assigned. Subsequent reads emit
@@ -22208,6 +23276,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // actually went through the DA-aware let-decl path.
             own_set_i_raw(own, str_concat("__init_", vname), 0);
             own_set_i_raw(own, str_concat("__init_seen_", vname), 1);
+            own_track_init_name(own, vname);
         };
         own_set_type(own, vname, tstr);
         return warns;
@@ -22271,6 +23340,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     };
                 };
             };
+            own_clear_binding_flow(own, lname);
             own_set(own, lname, 1);
             return warns;
         };
@@ -22317,14 +23387,14 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     };
     if kind == 23 {
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
-        let snap: Vec<i32> = own_snapshot(own);
+        let if23_snap_g411: Vec<i32> = own_snapshot(own);
         own_set_cur_scope(own, scope_depth + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
         own_set_cur_scope(own, scope_depth);
-        let then_state: Vec<i32> = own_snapshot(own);
-        own_restore(own, snap);
-        vec_free(snap);
+        let if23_then_state_g411: Vec<i32> = own_snapshot(own);
+        own_restore(own, if23_snap_g411);
+        vec_free(if23_snap_g411);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
             own_set_cur_scope(own, scope_depth + 1);
@@ -22332,18 +23402,28 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             own_release_scope(own, scope_depth + 1);
             own_set_cur_scope(own, scope_depth);
         };
-        let else_state: Vec<i32> = own_snapshot(own);
-        own_merge_moved(own, then_state, else_state);
-        vec_free(then_state);
-        vec_free(else_state);
+        let if23_else_state_g411: Vec<i32> = own_snapshot(own);
+        own_merge_moved(own, if23_then_state_g411, if23_else_state_g411);
+        vec_free(if23_then_state_g411);
+        vec_free(if23_else_state_g411);
         return warns;
     };
     if kind == 24 {
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
+        let while24_body_lid_g411: i64 = node_field(pool, nid, 2);
+        let while24_needs_flow_g411: i64 = if own_has_uninit_binding(own) == 1 || stmt_list_may_flow_change(pool, while24_body_lid_g411, own, structs, enums) == 1 { 1 } else { 0 };
+        let while24_snap_g411: Vec<i32> = if while24_needs_flow_g411 == 1 { own_snapshot(own) } else { Vec::new() };
         own_set_cur_scope(own, scope_depth + 1);
-        warns = warns + check_stmts(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
+        warns = warns + check_stmts(pool, while24_body_lid_g411, own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
         own_set_cur_scope(own, scope_depth);
+        if while24_needs_flow_g411 == 1 {
+            let while24_body_state_g411: Vec<i32> = own_snapshot(own);
+            own_restore(own, while24_snap_g411);
+            own_merge_moved(own, while24_snap_g411, while24_body_state_g411);
+            vec_free(while24_body_state_g411);
+        };
+        vec_free(while24_snap_g411);
         return warns;
     };
     if kind == 25 {
@@ -22351,29 +23431,49 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     };
     if kind == 28 {
         let loop_var: str = node_field(pool, nid, 1);
+        let for28_body_lid_g411: i64 = node_field(pool, nid, 4);
+        let for28_needs_flow_g411: i64 = if own_has_uninit_binding(own) == 1 || stmt_list_may_flow_change(pool, for28_body_lid_g411, own, structs, enums) == 1 { 1 } else { 0 };
+        let for28_snap_g411: Vec<i32> = if for28_needs_flow_g411 == 1 { own_snapshot(own) } else { Vec::new() };
         own_set(own, loop_var, 1);
         own_set_type(own, loop_var, "i64");
         own_set_mutable(own, loop_var, 1);
         own_set_scope(own, loop_var, scope_depth + 1);
         own_set_param(own, loop_var, 0);
         own_set_cur_scope(own, scope_depth + 1);
-        warns = warns + check_stmts(pool, node_field(pool, nid, 4), own, structs, enums, fn_name);
+        warns = warns + check_stmts(pool, for28_body_lid_g411, own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
         own_set_cur_scope(own, scope_depth);
+        if for28_needs_flow_g411 == 1 {
+            let for28_body_state_g411: Vec<i32> = own_snapshot(own);
+            own_restore(own, for28_snap_g411);
+            own_merge_moved(own, for28_snap_g411, for28_body_state_g411);
+            vec_free(for28_body_state_g411);
+        };
+        vec_free(for28_snap_g411);
         return warns;
     };
     if kind == 49 {
         let loop_var: str = node_field(pool, nid, 1);
+        warns = warns + check_expr(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
+        let foreach49_body_lid_g411: i64 = node_field(pool, nid, 3);
+        let foreach49_needs_flow_g411: i64 = if own_has_uninit_binding(own) == 1 || stmt_list_may_flow_change(pool, foreach49_body_lid_g411, own, structs, enums) == 1 { 1 } else { 0 };
+        let foreach49_snap_g411: Vec<i32> = if foreach49_needs_flow_g411 == 1 { own_snapshot(own) } else { Vec::new() };
         own_set(own, loop_var, 1);
         own_set_type(own, loop_var, "Vec");
         own_set_mutable(own, loop_var, 1);
         own_set_scope(own, loop_var, scope_depth + 1);
         own_set_param(own, loop_var, 0);
-        warns = warns + check_expr(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
         own_set_cur_scope(own, scope_depth + 1);
-        warns = warns + check_stmts(pool, node_field(pool, nid, 3), own, structs, enums, fn_name);
+        warns = warns + check_stmts(pool, foreach49_body_lid_g411, own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
         own_set_cur_scope(own, scope_depth);
+        if foreach49_needs_flow_g411 == 1 {
+            let foreach49_body_state_g411: Vec<i32> = own_snapshot(own);
+            own_restore(own, foreach49_snap_g411);
+            own_merge_moved(own, foreach49_snap_g411, foreach49_body_state_g411);
+            vec_free(foreach49_body_state_g411);
+        };
+        vec_free(foreach49_snap_g411);
         return warns;
     };
     if kind == 38 {
@@ -22382,13 +23482,14 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
         let arms: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, arms);
-        let snap: Vec<i32> = own_snapshot(own);
+        let match38_init_mark_start_g411: i64 = own_get_i_raw(own, "__match_cond_init_count");
+        let match38_has_init_g411: i64 = if vec_len(vec_get(own, 13)) > 0 { 1 } else { 0 };
+        if match38_has_init_g411 == 1 { match_mark_match_init_candidates(pool, arms, own); };
         let mut has_wildcard: i64 = 0;
         let mut wildcard_idx: i64 = 0 - 1;
         let mut ai: i64 = 0;
         while ai < ac {
             let arm_nid: i64 = list_get(pool, arms, ai);
-            own_restore(own, snap);
             let ename: str = node_field(pool, arm_nid, 1);
             // v0.4.215: a `__wild` arm (`_ => ...` or var-binder
             // `x => ...`) is only an exhaustive catch-all when it
@@ -22434,7 +23535,8 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             own_set_cur_scope(own, scope_depth);
             ai = ai + 1;
         };
-        vec_free(snap);
+        match_mark_match_move_free(pool, arms, own, structs, enums);
+        if match38_has_init_g411 == 1 { own_apply_match_cond_inits(own, match38_init_mark_start_g411); };
         // RFC-0016 phase 5 — MATCH-002: any arm following a wildcard is
         // unreachable (the wildcard already captures every value).
         if wildcard_idx >= 0 && wildcard_idx < ac - 1 {
@@ -22558,6 +23660,111 @@ fn g2_extract_lifetime_label(t: str) -> str {
 }
 
 #[manual_drop]
+fn g2_find_fn_sig_pos(source: str, fn_name: str) -> i64 {
+    let needle: str = str_concat("fn ", fn_name);
+    let slen: i64 = str_len(source);
+    let nlen: i64 = str_len(needle);
+    if nlen == 0 || slen < nlen { return 0 - 1; };
+    let mut i: i64 = 0;
+    while i <= slen - nlen {
+        if str_eq_at_len(source, i, needle, nlen) == 1 { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn g2_find_char_from(source: str, start: i64, want: i64) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut i: i64 = start;
+    while i < slen {
+        if str_char_at(source, i) == want { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn g2_find_matching_paren(source: str, open_pos: i64) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut depth: i64 = 0;
+    let mut i: i64 = open_pos;
+    while i < slen {
+        let c: i64 = str_char_at(source, i);
+        if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            depth = depth - 1;
+            if depth == 0 { return i; };
+        };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn g2_source_param_lifetime(source: str, fn_name: str, param_name: str) -> str {
+    let sig: i64 = g2_find_fn_sig_pos(source, fn_name);
+    if sig < 0 { return ""; };
+    let openp: i64 = g2_find_char_from(source, sig, 40);
+    if openp < 0 { return ""; };
+    let closep: i64 = g2_find_matching_paren(source, openp);
+    if closep < 0 { return ""; };
+    let plen: i64 = str_len(param_name);
+    let mut p: i64 = openp + 1;
+    while p < closep {
+        while p < closep && is_ws(str_char_at(source, p)) == 1 { p = p + 1; };
+        let seg_start: i64 = p;
+        let mut seg_end: i64 = p;
+        let mut angle_depth: i64 = 0;
+        let mut par_depth: i64 = 0;
+        while seg_end < closep {
+            let c: i64 = str_char_at(source, seg_end);
+            if c == 60 { angle_depth = angle_depth + 1; }
+            else if c == 62 && angle_depth > 0 { angle_depth = angle_depth - 1; }
+            else if c == 40 { par_depth = par_depth + 1; }
+            else if c == 41 && par_depth > 0 { par_depth = par_depth - 1; }
+            else if c == 44 && angle_depth == 0 && par_depth == 0 { break; };
+            seg_end = seg_end + 1;
+        };
+        let mut name_start: i64 = seg_start;
+        while name_start < seg_end && is_ws(str_char_at(source, name_start)) == 1 { name_start = name_start + 1; };
+        if name_start + plen <= seg_end && str_eq_at_len(source, name_start, param_name, plen) == 1 {
+            let mut after_name: i64 = name_start + plen;
+            while after_name < seg_end && is_ws(str_char_at(source, after_name)) == 1 { after_name = after_name + 1; };
+            if after_name < seg_end && str_char_at(source, after_name) == 58 {
+                let ty: str = str_substring(source, after_name + 1, seg_end);
+                return g2_extract_lifetime_label(ty);
+            };
+        };
+        p = seg_end + 1;
+    };
+    return "";
+}
+
+#[manual_drop]
+fn g2_source_return_lifetime(source: str, fn_name: str) -> str {
+    let sig: i64 = g2_find_fn_sig_pos(source, fn_name);
+    if sig < 0 { return ""; };
+    let openp: i64 = g2_find_char_from(source, sig, 40);
+    if openp < 0 { return ""; };
+    let closep: i64 = g2_find_matching_paren(source, openp);
+    if closep < 0 { return ""; };
+    let slen: i64 = str_len(source);
+    let mut p: i64 = closep + 1;
+    while p < slen && is_ws(str_char_at(source, p)) == 1 { p = p + 1; };
+    if p + 1 >= slen || str_char_at(source, p) != 45 || str_char_at(source, p + 1) != 62 { return ""; };
+    p = p + 2;
+    let ret_start: i64 = p;
+    let mut ret_end: i64 = p;
+    while ret_end < slen {
+        let c: i64 = str_char_at(source, ret_end);
+        if c == 123 || c == 59 || c == 10 || c == 13 { break; };
+        ret_end = ret_end + 1;
+    };
+    return g2_extract_lifetime_label(str_substring(source, ret_start, ret_end));
+}
+
+#[manual_drop]
 fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, diags: Vec<i32>, source: str) -> i64 {
     let fn_name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
@@ -22571,6 +23778,9 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
     own_set_type(own, "__mut_keys", Vec::new());
     own_set_type(own, "__scope_keys", Vec::new());
     own_set_i(own, "cur_scope", 0);
+    own_set_type(own, "__init_names", Vec::new());
+    own_set_i_raw(own, "__g4_flow_active", 0);
+    own_set_i_raw(own, "__g8_flow_active", 0);
     let mut pi: i64 = 0;
     while pi < pc {
         let pnid: i64 = list_get(pool, plist, pi);
@@ -22677,13 +23887,15 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                             };
                             g2m_pj2 = g2m_pj2 + 1;
                         };
-                        // ret_type is the fn's declared return type
-                        // (extracted at line ~21743 as `rtype`).
-                        let g2m_ret_type: str = rtype;
-                        // Extract first lifetime label from each:
-                        // pattern is `&'<label>` or `'<label>`.
-                        let g2m_root_lt: str = g2_extract_lifetime_label(g2m_root_type);
-                        let g2m_ret_lt: str = g2_extract_lifetime_label(g2m_ret_type);
+                        // Parsed type strings deliberately erase
+                        // lifetime labels (`&'a T` lowers to `&T`) so
+                        // normal type compatibility stays canonical.
+                        // For this explicit multi-input audit rule,
+                        // recover the labels from the source signature.
+                        let mut g2m_root_lt: str = g2_extract_lifetime_label(g2m_root_type);
+                        if str_len(g2m_root_lt) == 0 { g2m_root_lt = g2_source_param_lifetime(source, fn_name, g2m_param_root); };
+                        let mut g2m_ret_lt: str = g2_extract_lifetime_label(rtype);
+                        if str_len(g2m_ret_lt) == 0 { g2m_ret_lt = g2_source_return_lifetime(source, fn_name); };
                         if str_len(g2m_root_lt) > 0 && str_len(g2m_ret_lt) > 0 && str_eq(g2m_root_lt, g2m_ret_lt) == 0 {
                             own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2m_param_root, str_concat("' (declared lifetime `'", str_concat(g2m_root_lt, str_concat("`) but the function's return type carries lifetime `'", str_concat(g2m_ret_lt, "`. Per RFC-0062 G-2 multi-input (Lane 2 audit fix v1.0): the returned region must equal the input's declared lifetime. Pre-fix multi-input cases were skipped entirely. Fix the lifetime label on the return type or change which parameter the return traces from.")))))), g2m_param_root);
                         };
@@ -22709,6 +23921,132 @@ fn taint_inner_type(t: str) -> str {
     let slen: i64 = str_len(t);
     if str_starts_with(t, "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
     return t;
+}
+#[manual_drop]
+fn tnt_collect_tainted_symbols(source: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let pat: str = "tainted<";
+    let plen: i64 = str_len(pat);
+    let slen: i64 = str_len(source);
+    let mut base: i64 = 0;
+    let mut rest: str = source;
+    while base + plen <= slen {
+        let rel: i64 = str_index_of(rest, pat);
+        if rel < 0 {
+            base = slen;
+        } else {
+            let p: i64 = base + rel;
+            let mut q: i64 = p - 1;
+            while q >= 0 && is_ws(str_char_at(source, q)) == 1 { q = q - 1; };
+            if q >= 0 && str_char_at(source, q) == 58 {
+                q = q - 1;
+                while q >= 0 && is_ws(str_char_at(source, q)) == 1 { q = q - 1; };
+                let end_name: i64 = q + 1;
+                while q >= 0 && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q - 1; };
+                let start_name: i64 = q + 1;
+                if end_name > start_name {
+                    let sym: str = str_substring(source, start_name, end_name);
+                    if str_len(sym) > 0 { out.push(sym); };
+                };
+            };
+            base = p + plen;
+            if base + plen <= slen { rest = str_substring(source, base, slen); };
+        };
+    };
+    return out;
+}
+#[manual_drop]
+fn tnt_symbol_is_tainted(symbols: Vec<i32>, name: str) -> i64 {
+    let n: i64 = vec_len(symbols);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(symbols, i), name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+#[manual_drop]
+fn tnt_is_sensitive_sink(name: str) -> i64 {
+    if str_eq(name, "print") == 1 { return 1; };
+    if str_eq(name, "println") == 1 { return 1; };
+    if str_eq(name, "system") == 1 { return 1; };
+    if str_eq(name, "proc_run") == 1 { return 1; };
+    if str_eq(name, "proc_run1") == 1 { return 1; };
+    if str_eq(name, "file_write_string") == 1 { return 1; };
+    return 0;
+}
+#[manual_drop]
+fn tnt_find_call_end(text: str, open_pos: i64) -> i64 {
+    let tlen: i64 = str_len(text);
+    let mut p: i64 = open_pos;
+    let mut depth: i64 = 0;
+    while p < tlen {
+        let c: i64 = str_char_at(text, p);
+        if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+#[manual_drop]
+fn tnt_arg_is_sanitized(arg: str) -> i64 {
+    let s: str = str_trim(arg);
+    if str_starts_with(s, "sanitize(") == 1 { return 1; };
+    return 0;
+}
+#[manual_drop]
+fn tnt_emit_for_call_args(diags: Vec<i32>, source: str, symbols: Vec<i32>, sink: str, open_pos: i64, close_pos: i64) -> i64 {
+    let mut emitted: i64 = 0;
+    let mut depth: i64 = 0;
+    let mut start: i64 = open_pos + 1;
+    let mut p: i64 = start;
+    while p <= close_pos {
+        let at_end: i64 = if p == close_pos { 1 } else { 0 };
+        let c: i64 = if at_end == 1 { 41 } else { str_char_at(source, p) };
+        if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            if depth > 0 { depth = depth - 1; };
+        };
+        if (at_end == 1 || (c == 44 && depth == 0)) {
+            let arg: str = str_trim(str_substring(source, start, p));
+            if tnt_arg_is_sanitized(arg) == 0 && tnt_symbol_is_tainted(symbols, arg) == 1 {
+                let msg: str = str_concat("tainted data passed to sensitive sink '", str_concat(sink, "'; sanitize the value before crossing the sink boundary"));
+                let loc: Vec<i32> = diag_linecol_at_byte(source, start);
+                diag_add_ex(diags, "error", "taint", "TNT-001", msg, sink, vec_get(loc, 0), vec_get(loc, 1), "");
+                emitted = emitted + 1;
+            };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    return emitted;
+}
+#[manual_drop]
+fn enforce_tnt001_tainted_sinks(diags: Vec<i32>, source: str) -> Vec<i32> {
+    if str_index_of(source, "tainted<") < 0 { return diags; };
+    let symbols: Vec<i32> = tnt_collect_tainted_symbols(source);
+    if vec_len(symbols) == 0 { return diags; };
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut sink: str = "";
+        if p + 6 <= slen && str_eq_at_len(source, p, "print(", 6) == 1 { sink = "print"; };
+        if p + 8 <= slen && str_eq_at_len(source, p, "println(", 8) == 1 { sink = "println"; };
+        if p + 7 <= slen && str_eq_at_len(source, p, "system(", 7) == 1 { sink = "system"; };
+        if p + 9 <= slen && str_eq_at_len(source, p, "proc_run(", 9) == 1 { sink = "proc_run"; };
+        if p + 10 <= slen && str_eq_at_len(source, p, "proc_run1(", 10) == 1 { sink = "proc_run1"; };
+        if p + 18 <= slen && str_eq_at_len(source, p, "file_write_string(", 18) == 1 { sink = "file_write_string"; };
+        if str_len(sink) > 0 && tnt_is_sensitive_sink(sink) == 1 {
+            let open_pos: i64 = p + str_len(sink);
+            let close_pos: i64 = tnt_find_call_end(source, open_pos);
+            if close_pos > open_pos { tnt_emit_for_call_args(diags, source, symbols, sink, open_pos, close_pos); p = close_pos; };
+        };
+        p = p + 1;
+    };
+    return diags;
 }
 fn types_compatible(expected: str, actual: str) -> i64 {
     if str_len(expected) == 0 || str_len(actual) == 0 { return 1; };
@@ -23233,7 +24571,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "sqrt") == 1 || str_eq(name, "sin") == 1 || str_eq(name, "cos") == 1 || str_eq(name, "pow") == 1 || str_eq(name, "floor") == 1 || str_eq(name, "ceil") == 1 || str_eq(name, "round") == 1 || str_eq(name, "exp") == 1 || str_eq(name, "log") == 1 || str_eq(name, "tanh") == 1 || str_eq(name, "tanh_act") == 1 || str_eq(name, "fabs") == 1 || str_eq(name, "fmod") == 1 || str_eq(name, "f64_from_bits") == 1 { return "f64"; };
     if str_eq(name, "f64_to_bits") == 1 { return "i64"; };
     if str_eq(name, "f64_to_i32") == 1 { return "i32"; };
-    if str_eq(name, "now_ms") == 1 || str_eq(name, "sleep_ms") == 1 || str_eq(name, "sleep_us") == 1 || str_eq(name, "time_monotonic_ms") == 1 || str_eq(name, "time_monotonic_ns") == 1 || str_eq(name, "time_monotonic_us") == 1 || str_eq(name, "time_wall_ms") == 1 || str_eq(name, "time_wall_ns") == 1 || str_eq(name, "time_wall_seconds") == 1 || str_eq(name, "time_wall_us") == 1 || str_eq(name, "time_year") == 1 || str_eq(name, "time_month") == 1 || str_eq(name, "time_day") == 1 || str_eq(name, "time_hour") == 1 || str_eq(name, "time_minute") == 1 || str_eq(name, "time_second") == 1 || str_eq(name, "time_weekday") == 1 || str_eq(name, "time_day_of_year") == 1 || str_eq(name, "time_elapsed_ms") == 1 { return "i64"; };
+    if str_eq(name, "now_ms") == 1 || str_eq(name, "sleep_ms") == 1 || str_eq(name, "sleep_us") == 1 || str_eq(name, "time_monotonic_ms") == 1 || str_eq(name, "time_monotonic_ns") == 1 || str_eq(name, "time_monotonic_us") == 1 || str_eq(name, "time_wall_ms") == 1 || str_eq(name, "time_wall_ns") == 1 || str_eq(name, "time_wall_seconds") == 1 || str_eq(name, "time_wall_us") == 1 || str_eq(name, "time_year") == 1 || str_eq(name, "time_month") == 1 || str_eq(name, "time_day") == 1 || str_eq(name, "time_hour") == 1 || str_eq(name, "time_minute") == 1 || str_eq(name, "time_second") == 1 || str_eq(name, "time_weekday") == 1 || str_eq(name, "time_day_of_year") == 1 || str_eq(name, "time_elapsed_ms") == 1 || str_eq(name, "deadline_enter") == 1 || str_eq(name, "deadline_exit") == 1 || str_eq(name, "deadline_poll") == 1 || str_eq(name, "deadline_check") == 1 { return "i64"; };
     if str_eq(name, "ambient_scheduler") == 1 { return "SchedulerCap"; };
     if str_eq(name, "ambient_random") == 1 { return "RandomCap"; };
     if str_eq(name, "random_uniform") == 1 { return "f64"; };
@@ -24084,7 +25422,7 @@ fn type_last_stmt(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<
 fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
-    if kind == 1 { return "i32"; };
+    if kind == 1 { return int_lit_type(pool, nid); };
     if kind == 71 { return "f64"; };
     if kind == 72 { return "f64"; };
     if kind == 2 { return "str"; };
@@ -24152,6 +25490,13 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let tw: i64 = type_width(target_type);
         let ss: i64 = type_signedness(source_t);
         let ts: i64 = type_signedness(target_type);
+        let source_base_g1: str = type_base_name(source_t);
+        if str_eq(target_type, "i64") == 1 {
+            if str_eq(source_base_g1, "Vec") == 1 || str_eq(source_base_g1, "HashMap") == 1 || str_eq(source_base_g1, "StringBuilder") == 1 || str_eq(source_base_g1, "Box") == 1 {
+                let g1_msg: str = str_concat("raw handle cast `", str_concat(source_t, "` -> `i64` strips ownership and auto-drop identity. Per RFC-0062 G-1/G-4, collection handles must not escape the ownership tracker by casting to an integer; keep the typed binding, transfer ownership through a typed binding, or write an audited unsafe FFI wrapper instead."));
+                diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "ownership", "OWN-G1-RAW-HANDLE-CAST", g1_msg, fn_name, "");
+            };
+        };
         if str_eq(target_type, "char") == 1 {
             let ch_const_v084: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
             if const_i64_overflow(ch_const_v084) == 0 && vec_get(ch_const_v084, 0) == 1 {
@@ -24432,8 +25777,23 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let flt_side_v137: str = if lt_is_flt_v137 == 1 { lt } else { rt };
             let is_arith_v141: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
             let kind_label_v141: str = if is_arith_v141 == 1 { "arithmetic" } else { "comparison" };
-            let v22msg: str = str_concat("integer (`", str_concat(int_side_v137, str_concat("`) and float (`", str_concat(flt_side_v137, str_concat("`) operands in ", str_concat(kind_label_v141, " binop. Pre-v0.4.137/.141 each side's bit pattern was used as raw i64 — `5 == 5.0` returned FALSE; `5 + 5.0` produced meaningless i64 garbage; `5 < 5.0` returned TRUE (i64=5 reinterpreted as f64 is a tiny denormal). Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site.")))))));
+            let v22msg: str = str_concat("integer (`", str_concat(int_side_v137, str_concat("`) and float (`", str_concat(flt_side_v137, str_concat("`) operands in ", str_concat(kind_label_v141, " binop. Pre-v0.4.137/.141 each side's bit pattern was used as raw i64 — `5 == 5.0` returned FALSE; `5 + 5.0` produced meaningless i64 garbage; `5 < 5.0` returned TRUE (i64=5 reinterpreted as f64 is a tiny denormal). Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site."))))));
             type_diag(diags, source, fn_name, fn_name, "NUM-022", v22msg);
+        };
+        // v1.1.0 / F-NUM-004: RFC-0015 requires distinct integer
+        // widths/signedness to be joined explicitly with `as`. Before
+        // this gate, `i32 + u32` and `i32 + i64` lowered through the
+        // i64-everywhere ABI and returned a plausible but unsound value.
+        let is_int_arith_v110: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
+        let lhs_nid_v110: i64 = node_field(pool, nid, 2);
+        let rhs_nid_v110: i64 = node_field(pool, nid, 3);
+        let lhs_unsuffixed_lit_v110: i64 = if node_kind(pool, lhs_nid_v110) == 1 && int_lit_suffix_code(pool, lhs_nid_v110) == 0 { 1 } else { 0 };
+        let rhs_unsuffixed_lit_v110: i64 = if node_kind(pool, rhs_nid_v110) == 1 && int_lit_suffix_code(pool, rhs_nid_v110) == 0 { 1 } else { 0 };
+        if is_int_arith_v110 == 1 && lhs_unsuffixed_lit_v110 == 0 && rhs_unsuffixed_lit_v110 == 0 && lt_is_int_v137 == 1 && rt_is_int_v137 == 1 && str_eq(type_base_name(lt), type_base_name(rt)) == 0 {
+            let opch_v110: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            let v001a: str = str_concat("mixed-width integer arithmetic `", str_concat(lt, str_concat(" ", str_concat(opch_v110, str_concat(" ", str_concat(rt, "` is not implicitly converted."))))));
+            let v001b: str = " RFC-0015 follows Rust's distinct-numeric-types rule: cast one operand explicitly with `as` so truncation, sign extension, and widening intent are visible.";
+            type_diag(diags, source, fn_name, fn_name, "NUM-001", str_concat(v001a, v001b));
         };
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
             type_diag(diags, source, fn_name, fn_name, "TYP-002", "boolean values cannot be used in arithmetic");
@@ -24654,7 +26014,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             if node_kind(pool, rhs_check_div) == 1 && node_field(pool, rhs_check_div, 1) == 0 {
                 let div_op: str = if op == 23 { "/" } else { "%" };
                 let div_kind: str = if op == 23 { "division" } else { "remainder" };
-                let nm9_msg: str = str_concat(div_kind, str_concat(" by literal zero (`", str_concat(div_op, str_concat("0`) traps at runtime as SIGFPE. Remove the dead expression, use a non-zero divisor, or guard with a runtime check (`if d != 0 { x ", str_concat(div_op, " d } else { ... } }`)."))));
+                let nm9_msg: str = str_concat(div_kind, str_concat(" by literal zero (`", str_concat(div_op, str_concat("0`) traps at runtime as SIGFPE. Remove the dead expression, use a non-zero divisor, or guard with a runtime check (`if d != 0 { x ", str_concat(div_op, " d } else { ... } }`).")))));
                 type_diag(diags, source, fn_name, fn_name, "NUM-009", nm9_msg);
             };
         };
@@ -24689,7 +26049,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let sh_op: str = if op == 115 { "<<" } else { ">>" };
                 let bound_disp_v063: str = if sh_bound_v063 > 0 { str_from_int(sh_bound_v063 - 1) } else { "0" };
                 let lt_disp_v063: str = if str_len(lt_strip_v063) > 0 { lt_strip_v063 } else { "i64" };
-                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for ", str_concat(lt_disp_v063, str_concat(" (`", str_concat(sh_op, str_concat("` requires 0..=", str_concat(bound_disp_v063, "). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount or widen the LHS type.")))))))));
+                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for ", str_concat(lt_disp_v063, str_concat(" (`", str_concat(sh_op, str_concat("` requires 0..=", str_concat(bound_disp_v063, "). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount or widen the LHS type."))))))));
                 type_diag(diags, source, fn_name, fn_name, "NUM-008", nm8_msg);
             };
         };
@@ -24708,15 +26068,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // when called from binop type_expr). Deferred to v0.4.54+ once
         // the recursion path is debugged. Hazard documented in
         // tests/fixtures/repro_v53_vec_eq_pointer_guard_DEFERRED.nr.
-        // RFC-0015 phase 6 (NUM-001 firing) is gated behind the stdlib
-        // audit (phase 5) — the existing v0.1.x codebase relies on
-        // implicit i32→i64 widening pervasively. The classifier
-        // helpers (type_width, type_signedness, type_is_int, type_is_float,
-        // type_is_numeric) are in place; the typecker will start firing
-        // NUM-001 at warning level once `nuc fix --numeric` (RFC-0015
-        // phase 5) has migrated the stdlib.
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
+        if is_int_arith_v110 == 1 && lhs_unsuffixed_lit_v110 == 1 && rt_is_int_v137 == 1 { return rt; };
+        if is_int_arith_v110 == 1 && rhs_unsuffixed_lit_v110 == 1 && lt_is_int_v137 == 1 { return lt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
         // v0.4.72 NOT enforcing && / || bool-only — Nucleor's
         // i64-everywhere ABI accepts integer truthiness in logical
@@ -25440,7 +26795,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
                 return callee;
             };
-            let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
+            let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn.")))));
             let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
             type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
         };
@@ -25644,7 +26999,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let t18b: str = " Pre-v0.4.129 this lowered to vec_get(struct, -1) and surfaced at runtime as a misleading `vec_get OOB index -1` panic with no compile-time signal. Check the field name spelling against the struct definition.";
                 type_diag(diags, source, fn_name, fn_name, "TYP-018", str_concat(t18a, t18b));
             };
-            return struct_field_type(pool, vec_get(structs, si), fname_v9);
+            return struct_field_type_for_inst(pool, vec_get(structs, si), recv_t, fname_v9);
         };
         return "";
     };
@@ -26013,25 +27368,91 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 let v21msg: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement above the let."));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-021", v21msg);
             };
+            if str_len(tstr) == 0 && node_kind(pool, init) == 7 {
+                let infer_callee_v110: str = node_field(pool, init, 1);
+                let infer_sentry_v110: i64 = sig_find(sigs, infer_callee_v110);
+                if infer_sentry_v110 >= 0 {
+                    let infer_gparams_v110: i64 = sig_gparams_from_entry(infer_sentry_v110);
+                    let infer_args_v110: i64 = node_field(pool, init, 2);
+                    let infer_rtype_v110: str = vec_get(infer_sentry_v110, 1);
+                    if gparams_type_count(pool, infer_gparams_v110) > 0
+                       && list_len(pool, infer_args_v110) == 0
+                       && type_contains_any_type_gparam(pool, infer_gparams_v110, infer_rtype_v110) == 1
+                       && str_eq(vname, "_") == 0 {
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-027", str_concat("type annotation required for binding `", str_concat(vname, str_concat("`: generic call `", str_concat(infer_callee_v110, "()` returns a type containing an unconstrained type parameter.")))));
+                    };
+                };
+            };
             if str_len(tstr) > 0 {
-                // Lane 1 audit fix (2026-05-08) — close F-003 (silent
-                // i64 → i32 narrowing) and the F-004 / F-005 widening
-                // and int-to-float-literal sisters at the very narrow
-                // case "init is a bare variable reference whose declared
-                // type is a different integer width than the binding's
-                // annotation". Pre-fix `let b: i32 = a;` for `a: i64`
-                // truncated to the low 32 bits with no diagnostic
-                // (NUM-021/NUM-018 only fired on literal RHS). The
-                // strict env-gate keeps the check opt-in while the
-                // canonical fix-up sweep happens; default-off so the
-                // i64-everywhere ABI fixtures keep compiling. Still
-                // adds the audit-mandated negative-test surface and
-                // gives adopters a way to enable the strict reading.
-                let v0508_narrow_strict: i64 = if str_eq(env_get_or("NUC_STRICT_NUMERIC", "0"), "1") == 1 { 1 } else { 0 };
+                let arity_base_v110: str = type_base_name(tstr);
+                let mut arity_gparams_v110: i64 = 0 - 1;
+                let arity_struct_idx_v110: i64 = struct_find_type(pool, structs, tstr);
+                if arity_struct_idx_v110 >= 0 {
+                    arity_gparams_v110 = node_field(pool, vec_get(structs, arity_struct_idx_v110), 3);
+                } else {
+                    arity_gparams_v110 = enum_gparams_for_name(pool, prog, arity_base_v110);
+                };
+                if arity_gparams_v110 >= 0 {
+                    let expected_arity_v110: i64 = gparams_type_count(pool, arity_gparams_v110);
+                    let actual_arity_v110: i64 = type_arg_count(tstr);
+                    if expected_arity_v110 != actual_arity_v110 {
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-005", str_concat("wrong number of type arguments for `", str_concat(arity_base_v110, str_concat("`: expected ", str_concat(str_from_int(expected_arity_v110), str_concat(", found ", str_from_int(actual_arity_v110)))))));
+                    };
+                };
+                if node_kind(pool, init) == 34 && arity_struct_idx_v110 >= 0
+                   && str_eq(type_base_name(tstr), node_field(pool, init, 1)) == 1 {
+                    let init_fields_v110: i64 = node_field(pool, init, 2);
+                    let init_fc_v110: i64 = list_len(pool, init_fields_v110);
+                    let mut init_fi_v110: i64 = 0;
+                    while init_fi_v110 < init_fc_v110 {
+                        let init_field_v110: i64 = list_get(pool, init_fields_v110, init_fi_v110);
+                        let init_fname_v110: str = node_field(pool, init_field_v110, 1);
+                        let exp_field_v110: str = struct_field_type_for_inst(pool, vec_get(structs, arity_struct_idx_v110), tstr, init_fname_v110);
+                        let act_field_v110: str = type_expr(pool, prog, node_field(pool, init_field_v110, 2), env, sigs, structs, fn_name, diags, source, tprof);
+                        if str_len(exp_field_v110) > 0 && str_len(act_field_v110) > 0 {
+                            if types_compatible_context(pool, prog, exp_field_v110, act_field_v110) == 0 {
+                                type_diag_at(diags, source, pool, init_field_v110, fn_name, init_fname_v110, "TYP-008", str_concat("generic struct field initializer mismatch for `", str_concat(arity_base_v110, str_concat(".", str_concat(init_fname_v110, str_concat("`: instantiated field type `", str_concat(exp_field_v110, str_concat("`, got `", str_concat(act_field_v110, "`.")))))))));
+                            };
+                        };
+                        init_fi_v110 = init_fi_v110 + 1;
+                    };
+                };
+                // Audit pass 1 / Layer 2 F-003 + F-004: numeric
+                // primitives are not implicitly converted between
+                // widths at binding sites. The previous build hid
+                // this behind NUC_STRICT_NUMERIC=1; production mode is
+                // now strict by default, with an explicit escape hatch
+                // only for legacy compatibility audits.
+                let v0508_narrow_strict: i64 = if str_eq(env_get_or("NUC_STRICT_NUMERIC", "1"), "1") == 1 { 1 } else { 0 };
                 if v0508_narrow_strict == 1 && node_kind(pool, init) == 3
                    && type_is_int(tstr) == 1 && type_is_int(init_t) == 1
                    && str_eq(tstr, init_t) == 0 {
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-044", str_concat("implicit integer width conversion in binding `", str_concat(vname, str_concat("`: source type `", str_concat(init_t, str_concat("` to declared type `", str_concat(tstr, "`. RFC-0015 §3.2: numeric primitives are not implicitly converted between widths. Use an explicit `as` cast (e.g. `a as i32`) to make the truncation / widening visible at the source site.")))))));
+                };
+                if type_is_float(tstr) == 1 && type_is_int(init_t) == 1 && node_kind(pool, init) == 1 {
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("integer literal cannot initialize float binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "`. Numeric primitives are not implicitly converted; write a float literal such as `3.0`, or use an explicit conversion helper/cast.")))));
+                };
+                if node_kind(pool, init) == 12 && str_index_of(tstr, "<") >= 0 {
+                    let init_enum_name_v110: str = node_field(pool, init, 1);
+                    let init_variant_v110: str = node_field(pool, init, 2);
+                    if str_eq(type_base_name(tstr), init_enum_name_v110) == 1 {
+                        let enum_gparams_v110: i64 = enum_gparams_for_name(pool, prog, init_enum_name_v110);
+                        let init_args_v110: i64 = node_field(pool, init, 3);
+                        let init_argc_v110: i64 = list_len(pool, init_args_v110);
+                        let mut enum_ai_v110: i64 = 0;
+                        while enum_ai_v110 < init_argc_v110 {
+                            let raw_payload_v110: str = infer_enum_variant_payload_type(source, init_enum_name_v110, init_variant_v110, enum_ai_v110);
+                            let exp_payload_v110: str = substitute_gparams_from_list(pool, enum_gparams_v110, tstr, raw_payload_v110);
+                            let act_payload_v110: str = type_expr(pool, prog, list_get(pool, init_args_v110, enum_ai_v110), env, sigs, structs, fn_name, diags, source, tprof);
+                            if str_len(exp_payload_v110) > 0 && str_len(act_payload_v110) > 0 {
+                                if types_compatible_context(pool, prog, exp_payload_v110, act_payload_v110) == 0 {
+                                    let enum_msg_v110: str = str_concat("generic enum payload mismatch for `", str_concat(init_enum_name_v110, str_concat("::", str_concat(init_variant_v110, str_concat("`: declared binding type `", str_concat(tstr, str_concat("` requires payload `", str_concat(exp_payload_v110, str_concat("`, got `", str_concat(act_payload_v110, "`. Pre-fix the payload was bit-stored into the erased i64 slot with no type check."))))))))));
+                                    type_diag_at(diags, source, pool, init, fn_name, vname, "TYP-008", enum_msg_v110);
+                                };
+                            };
+                            enum_ai_v110 = enum_ai_v110 + 1;
+                        };
+                    };
                 };
                 let strict_infer_t4: i64 = if str_eq(env_get_or("NUC_STRICT_INFERENCE", "0"), "1") == 1 { 1 } else { 0 };
                 if str_len(init_t) == 0 && strict_infer_t4 == 1 && node_kind(pool, init) == 7 {
@@ -26249,7 +27670,14 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             };
         };
         if str_len(tstr) > 0 {
-            if str_len(init_t) == 0 { tenv_set(env, vname, ""); }
+            if str_len(init_t) == 0 {
+                let tstr_base_v110: str = type_base_name(tstr);
+                if enum_gparams_for_name(pool, prog, tstr_base_v110) >= 0 {
+                    tenv_set(env, vname, tstr);
+                } else {
+                    tenv_set(env, vname, "");
+                };
+            }
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
@@ -26275,7 +27703,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             if hm_keyed_collection_v651 == 1 {
                 let key_t_v651: str = type_first_arg(tstr);
                 if str_len(key_t_v651) > 0 && str_eq(key_t_v651, "str") == 0 && str_eq(key_t_v651, "_") == 0 {
-                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Pre-v0.6.51 this CRASHED at runtime with STATUS_ACCESS_VIOLATION on the first insert because the runtime helper dereferences the key as a string pointer. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys. Tracked for forward-roadmap (key-type-aware hash/cmp helper family).")))))));
+                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Pre-v0.6.51 this CRASHED at runtime with STATUS_ACCESS_VIOLATION on the first insert because the runtime helper dereferences the key as a string pointer. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys. Tracked for forward-roadmap (key-type-aware hash/cmp helper family)."))))));
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-026", hm_msg_v651);
                 };
             };
@@ -26703,6 +28131,120 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
     vec_free(env);
     return warns;
 }
+
+#[manual_drop]
+fn trait_decl_find(pool: Vec<i32>, prog: i64, trait_name: str) -> i64 {
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 43 && str_eq(node_field(pool, nid, 1), trait_name) == 1 { return nid; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn method_find_by_name(pool: Vec<i32>, methods: i64, mname: str) -> i64 {
+    if methods < 0 { return 0 - 1; };
+    let mc: i64 = list_len(pool, methods);
+    let mut mi: i64 = 0;
+    while mi < mc {
+        let mnid: i64 = list_get(pool, methods, mi);
+        if str_eq(node_field(pool, mnid, 1), mname) == 1 { return mnid; };
+        mi = mi + 1;
+    };
+    return 0 - 1;
+}
+
+#[manual_drop]
+fn trait_sig_type_for_impl(ptype: str, impl_type: str) -> str {
+    if str_eq(ptype, "Self") == 1 { return impl_type; };
+    if str_eq(ptype, "&Self") == 1 { return str_concat("&", impl_type); };
+    if str_eq(ptype, "&mut Self") == 1 { return str_concat("&mut ", impl_type); };
+    return ptype;
+}
+
+#[manual_drop]
+fn trait_method_signature_matches(pool: Vec<i32>, trait_method: i64, impl_method: i64, impl_type: str) -> i64 {
+    let trait_params: i64 = node_field(pool, trait_method, 2);
+    let impl_params: i64 = node_field(pool, impl_method, 2);
+    let tpc: i64 = list_len(pool, trait_params);
+    let ipc: i64 = list_len(pool, impl_params);
+    if tpc != ipc { return 0; };
+    let mut pi: i64 = 0;
+    while pi < tpc {
+        let tp: i64 = list_get(pool, trait_params, pi);
+        let ip: i64 = list_get(pool, impl_params, pi);
+        let expected: str = trait_sig_type_for_impl(node_field(pool, tp, 2), impl_type);
+        let actual: str = node_field(pool, ip, 2);
+        if str_eq(expected, actual) == 0 { return 0; };
+        pi = pi + 1;
+    };
+    let tr: str = trait_sig_type_for_impl(node_field(pool, trait_method, 3), impl_type);
+    let ir: str = node_field(pool, impl_method, 3);
+    if str_eq(tr, ir) == 0 { return 0; };
+    return 1;
+}
+
+#[manual_drop]
+fn type_check_trait_impl_conformance(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: str) -> i64 {
+    let cnt: i64 = list_len(pool, prog);
+    let mut warns: i64 = 0;
+    let mut ii: i64 = 0;
+    while ii < cnt {
+        let impl_nid: i64 = list_get(pool, prog, ii);
+        if node_kind(pool, impl_nid) == 45 {
+            let trait_name: str = node_field(pool, impl_nid, 1);
+            let impl_type: str = node_field(pool, impl_nid, 2);
+            let impl_methods: i64 = node_field(pool, impl_nid, 3);
+            if str_len(trait_name) > 0 {
+                let trait_nid: i64 = trait_decl_find(pool, prog, trait_name);
+                if trait_nid >= 0 {
+                    let trait_methods: i64 = node_field(pool, trait_nid, 2);
+                    let tmc: i64 = list_len(pool, trait_methods);
+                    let mut tmi: i64 = 0;
+                    while tmi < tmc {
+                        let tm: i64 = list_get(pool, trait_methods, tmi);
+                        let tmname: str = node_field(pool, tm, 1);
+                        let im: i64 = method_find_by_name(pool, impl_methods, tmname);
+                        if im < 0 {
+                            if node_field(pool, tm, 4) < 0 {
+                                let msg_miss_a: str = str_concat("impl `", str_concat(trait_name, str_concat(" for ", impl_type)));
+                                let msg_miss: str = str_concat(msg_miss_a, str_concat("` is missing required method `", str_concat(tmname, "`. Trait methods without default bodies must be implemented.")));
+                                type_diag(diags, source, trait_name, impl_type, "TYP-008", msg_miss);
+                                warns = warns + 1;
+                            };
+                        } else if trait_method_signature_matches(pool, tm, im, impl_type) == 0 {
+                            let msg_sig_a: str = str_concat("impl method `", str_concat(tmname, "` for `"));
+                            let msg_sig_b: str = str_concat(msg_sig_a, str_concat(trait_name, str_concat(" for ", impl_type)));
+                            let msg_sig: str = str_concat(msg_sig_b, "` does not match the trait method signature.");
+                            type_diag(diags, source, trait_name, tmname, "TYP-008", msg_sig);
+                            warns = warns + 1;
+                        };
+                        tmi = tmi + 1;
+                    };
+                    let imc: i64 = list_len(pool, impl_methods);
+                    let mut imi: i64 = 0;
+                    while imi < imc {
+                        let im2: i64 = list_get(pool, impl_methods, imi);
+                        let imname: str = node_field(pool, im2, 1);
+                        if method_find_by_name(pool, trait_methods, imname) < 0 {
+                            let msg_extra_a: str = str_concat("method `", str_concat(imname, "` is not a member of trait `"));
+                            let msg_extra: str = str_concat(msg_extra_a, str_concat(trait_name, "`. Move it to an inherent `impl Type { ... }` block or add it to the trait."));
+                            type_diag(diags, source, trait_name, imname, "TYP-008", msg_extra);
+                            warns = warns + 1;
+                        };
+                        imi = imi + 1;
+                    };
+                };
+            };
+        };
+        ii = ii + 1;
+    };
+    return warns;
+}
+
 #[manual_drop]
 fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> i64 {
     let mut sigs: Vec<i32> = sig_new();
@@ -26779,7 +28321,10 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
         };
         tb_i = tb_i + 1;
     };
-    let mut warns: i64 = type_check_global_consts(pool, prog, diags, source);
+    let mut warns: i64 = 0;
+    warns = warns + type_check_recursive_struct_cycles(pool, structs, diags, source);
+    warns = warns + type_check_trait_impl_conformance(pool, prog, diags, source);
+    warns = warns + type_check_global_consts(pool, prog, diags, source);
     i = 0;
     while i < cnt {
         let nid: i64 = list_get(pool, prog, i);
@@ -29793,6 +31338,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat("ERROR: `.clone()` called on struct `", str_concat(v764_sname, "` which does not `#[derive(Clone)]`. Pre-v0.7.64 this fell through to `vec_clone(...)` synthesis — wrong-class TYP-005 at clang link. Workaround: add `#[derive(Clone)]` above the struct definition.")));
                                 panic(str_concat("nucleor: `.clone()` on struct `", str_concat(v764_sname, "` without #[derive(Clone)] (see ERROR diagnostic above)")));
                             };
+                            if struct_idx_v123 >= 0 {
+                                print(str_concat("error[TYP-007]: receiver type `", str_concat(stype_base, str_concat("` has no method `.", str_concat(mname, "()`.")))));
+                                print(str_concat("  Define an inherent `impl ", str_concat(stype_base, str_concat(" { fn ", str_concat(mname, "(self, ...) -> T { ... } }` method or implement a trait that provides the method. Pre-fix this fell through to `vec_", str_concat(mname, "(...)` and misreported the receiver as `Vec<T>`.")))));
+                                panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for struct receiver `", str_concat(stype_base, "`")))));
+                            };
                             // v0.4.87: dispatch-name drift fix. Pre-fix
                             // `v.insert(idx, val)` lowered to `vec_insert(...)`
                             // but the runtime helper is `vec_insert_at`;
@@ -31159,11 +32709,11 @@ fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs:
         if vt >= 0 { vtype = vt; };
     };
     if vk == 9 {
-        let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
+        let parent_type: str = expr_full_type_from_sym(pool, node_field(pool, vexpr, 1), sym, structs);
         if str_len(parent_type) > 0 {
             let si: i64 = struct_find_type(pool, structs, parent_type);
             if si >= 0 {
-                vtype = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
+                vtype = struct_field_type_for_inst(pool, vec_get(structs, si), parent_type, node_field(pool, vexpr, 2));
             };
         };
     };
@@ -31201,7 +32751,7 @@ fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs:
 #[manual_drop]
 fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
-    if kind == 1 { return "i32"; };
+    if kind == 1 { return int_lit_type(pool, nid); };
     if kind == 71 { return "f64"; };
     if kind == 72 { return "f64"; };
     if kind == 73 { return "f32"; };
@@ -31219,7 +32769,7 @@ fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec
         let parent_base: str = type_base_name(parent_t);
         if str_len(parent_base) > 0 {
             let si: i64 = struct_find_type(pool, structs, parent_base);
-            if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
+            if si >= 0 { return struct_field_type_for_inst(pool, vec_get(structs, si), parent_t, node_field(pool, nid, 2)); };
         };
         return "";
     };
@@ -31280,6 +32830,7 @@ fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec
         if ft12 >= 0 { return ft12; };
         let rt12: i64 = sym_get(sym, str_concat("__fnret_", mangled12));
         if rt12 >= 0 { return rt12; };
+        if list_len(pool, args) == 0 { return tname; };
     };
     return "";
 }
@@ -31288,7 +32839,7 @@ fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec
 fn binop_u64_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
     let kind: i64 = node_kind(pool, nid);
-    if kind == 1 { return 0; };
+    if kind == 1 { return int_suffix_code_is_u64ish(int_lit_suffix_code(pool, nid)); };
     if kind == 3 {
         let name: str = node_field(pool, nid, 1);
         let ft: i64 = sym_get(sym, str_concat("__fulltype_", name));
@@ -31828,7 +33379,8 @@ fn auto_drop_assignment_reuses_lhs(pool: Vec<i32>, rhs_nid: i64, lhs_name: str) 
         return 0;
     };
     if rk == 7 || rk == 12 {
-        let args_list: i64 = if rk == 12 { node_field(pool, rhs_nid, 3) } else { node_field(pool, rhs_nid, 2) };
+        let mut args_list: i64 = node_field(pool, rhs_nid, 2);
+        if rk == 12 { args_list = node_field(pool, rhs_nid, 3); };
         if list_len(pool, args_list) <= 0 { return 0; };
         let first_arg: i64 = list_get(pool, args_list, 0);
         if node_kind(pool, first_arg) == 3 {
@@ -31845,6 +33397,15 @@ fn auto_drop_assignment_reuses_lhs(pool: Vec<i32>, rhs_nid: i64, lhs_name: str) 
         };
     };
     return 0;
+}
+
+fn deadline_poll_emit_if_enabled(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>) -> Vec<i32> {
+    if sym_get(sym, "__deadline_poll_enabled") == 1 {
+        let args: Vec<i32> = Vec::new();
+        let dr: i64 = ctr_next(regs);
+        ir_block_add(cur, ir_call_ex(dr, "deadline_poll", args));
+    };
+    return cur;
 }
 
 #[manual_drop]
@@ -31877,7 +33438,16 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // vec_contains / etc. — wrong-class TYP-005 at clang link. Fix: detect
             // kind-2 (str literal) RHS and stamp tstr="str" so the type entry lands
             // and the v0.4.88 str-method dispatch picks it up correctly.
-            else if ik == 2 { tstr = "str"; };
+            else if ik == 2 { tstr = "str"; }
+            else if ik == 3 {
+                let src_name20: str = node_field(pool, init, 1);
+                let src_full_i20: i64 = sym_get(sym, str_concat("__fulltype_", src_name20));
+                if src_full_i20 >= 0 { tstr = src_full_i20; }
+                else {
+                    let src_base_i20: i64 = sym_get(sym, str_concat("__type_", src_name20));
+                    if src_base_i20 >= 0 { tstr = src_base_i20; };
+                };
+            };
         };
         let sbase: str = type_base_name(tstr);
         if str_eq(sbase, "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
@@ -31934,7 +33504,16 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // element type for kind==10 (indexing) dispatch. type_base_name
         // strips the <T> for the existing __type_ entry.
         if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
-        if init >= 0 && auto_drop_init_owns_value(pool, init) == 1 { auto_drop_register(sym, vname, tstr, ar); };
+        if init >= 0 && node_kind(pool, init) == 3 && str_len(auto_drop_helper_for_type(tstr)) > 0 {
+            let transfer_src20: str = node_field(pool, init, 1);
+            let transfer_idx20: i64 = sym_get(sym, auto_drop_index_key(transfer_src20));
+            if transfer_idx20 >= 0 && sym_get(sym, auto_drop_state_key(transfer_idx20)) == 1 {
+                auto_drop_mark_freed(sym, transfer_src20);
+                auto_drop_register(sym, vname, tstr, ar);
+            };
+        } else if init >= 0 && auto_drop_init_owns_value(pool, init) == 1 {
+            auto_drop_register(sym, vname, tstr, ar);
+        };
         if init >= 0 && node_kind(pool, init) == 42 {
             let cid_meta: i64 = sym_get(sym, "__last_closure_id");
             let caps_meta: i64 = sym_get(sym, "__last_closure_caps");
@@ -32278,6 +33857,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let hl: i64 = ctr_next(lbls); let bl: i64 = ctr_next(lbls); let xl: i64 = ctr_next(lbls);
         ir_block_add(cur, ir_br(hl));
         let mut hb: Vec<i32> = ir_block_new(hl); ir_fn_add_block(fir, hb);
+        hb = deadline_poll_emit_if_enabled(hb, regs, sym);
         let mut cp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), hb, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let cr: i64 = lx_reg(cp);
         hb = lx_blk(cp);
@@ -32307,6 +33887,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let il: i64 = ctr_next(lbls); let xl: i64 = ctr_next(lbls);
         ir_block_add(cur, ir_br(hl));
         let mut hb: Vec<i32> = ir_block_new(hl); ir_fn_add_block(fir, hb);
+        hb = deadline_poll_emit_if_enabled(hb, regs, loop_sym);
         let lv: i64 = ctr_next(regs); ir_block_add(hb, ir_load(lv, ar));
         let mut ep: Vec<i32> = lower_expr(pool, node_field(pool, nid, 3), hb, regs, lbls, loop_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let ev: i64 = lx_reg(ep);
@@ -32381,6 +33962,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let il: i64 = ctr_next(lbls); let xl: i64 = ctr_next(lbls);
         ir_block_add(cur, ir_br(hl));
         let mut hb: Vec<i32> = ir_block_new(hl); ir_fn_add_block(fir, hb);
+        hb = deadline_poll_emit_if_enabled(hb, regs, loop_sym);
         let idx_v: i64 = ctr_next(regs); ir_block_add(hb, ir_load(idx_v, idx_slot));
         let len_v: i64 = ctr_next(regs); ir_block_add(hb, ir_load(len_v, len_slot));
         let cv: i64 = ctr_next(regs); ir_block_add(hb, ir_cmpop(9, cv, idx_v, len_v));
@@ -32667,6 +34249,9 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     let mut regs: Vec<i32> = ctr_new();
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
+    if str_starts_with(name, "__nuc_dl_inner_") == 1 {
+        sym_set(sym, "__deadline_poll_enabled", 1);
+    };
     if suppress_auto_drop == 0
        && name_in_manual_drop(manual_drop_fns, name) == 0 {
         // 2026-05-07 Phase 2b-3 default-flip: every fn auto-drops by
@@ -33340,6 +34925,7 @@ fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, 
     let ll_hash: str = str_from_int(fnv1a_64_str(ll));
     let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
     let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let opt_flag: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-link-v1|");
     sb_append(sb, compiler_identity());
@@ -33353,6 +34939,8 @@ fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, 
     sb_append(sb, stack_flag);
     sb_append(sb, "|linker=");
     sb_append(sb, linker_flag);
+    sb_append(sb, "|opt=");
+    sb_append(sb, opt_flag);
     return sha256_hex(sb_to_str(sb));
 }
 
@@ -33361,6 +34949,7 @@ fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_h
     if str_len(compile_key) == 0 { return ""; };
     let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
     let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let opt_flag: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-link-v2|");
     sb_append(sb, compiler_identity());
@@ -33374,6 +34963,8 @@ fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_h
     sb_append(sb, stack_flag);
     sb_append(sb, "|linker=");
     sb_append(sb, linker_flag);
+    sb_append(sb, "|opt=");
+    sb_append(sb, opt_flag);
     return sha256_hex(sb_to_str(sb));
 }
 
@@ -34421,6 +36012,7 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                 if already == 0 {
                     imported.push(path);
                     let isrc: str = file_read_string(path);
+                    source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
                         let isrc_used: str = priv_apply_if_opted_in(isrc, path);
                         module_record_add(module_records, path, isrc_used);
@@ -34472,6 +36064,7 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                 if already == 0 {
                     imported.push(path);
                     let isrc: str = file_read_string(path);
+                    source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
                         let isrc_used: str = priv_apply_if_opted_in(isrc, path);
                         module_record_add(module_records, path, isrc_used);
@@ -34520,6 +36113,17 @@ fn resolve_source(src: str, base_dir: str, imported: Vec<i32>) -> str {
     let mut module_records: Vec<i32> = Vec::new();
     return resolve_source_with_records(src, base_dir, imported, module_records);
 }
+
+fn source_reject_nul_truncation(path: str, source: str) -> i64 {
+    let disk_size: i64 = fs_size(path);
+    let visible_size: i64 = str_len(source);
+    if disk_size > visible_size {
+        print(str_concat("error[LEX-002]: NUL byte (0x00) in source at byte ", str_concat(str_from_int(visible_size), str_concat(" in ", str_concat(path, ". Nucleor source must not contain embedded NUL bytes; pre-fix file_read_string truncated at the first NUL and compiled only the prefix.")))));
+        panic("nucleor: NUL byte in source (LEX-002)");
+    };
+    return 0;
+}
+
 #[manual_drop]
 fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
@@ -34546,6 +36150,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         };
     };
     let raw_source: str = file_read_string(src_path);
+    source_reject_nul_truncation(src_path, raw_source);
     let mut imported: Vec<i32> = Vec::new();
     if str_len(raw_source) == 0 {
         out.push("");
@@ -35000,7 +36605,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // reads that today are invisible. Phase 2b adds Vec-of-ref
     // flow analysis; Phase 4 promotes to deny-by-default with
     // `#[allow(vec_of_refs)]` opt-out.
-    let v0827_vof_count: i64 = simple_attribute_audit_count(after_async,
+    let v0827_alias_scan: str = strip_strings_and_line_comments(after_async);
+    let v0827_vof_count: i64 = simple_attribute_audit_count(v0827_alias_scan,
         str_concat("Vec", "<&"));
     if v0827_vof_count > 0 {
         print(str_concat("warning[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
@@ -35024,7 +36630,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0862_total: i64 = v0862_qsim_cnot + v0862_qsim_gate + v0862_chomp;
         if v0862_total > 0 {
             print(str_concat("info[QM-89-ROBO-8]: Wave 3 final Tier C surface: ", str_from_int(v0862_total)));
-            print("  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_swap inherits this through its CNOT sequence. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 — CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.");
+            print("  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_cnot/CZ/CRK register entanglement only when populated control/target branches can actually entangle, and qsim_swap is a primitive statevector permutation with one SWAP DAG event. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 — CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.");
         };
     };
     // v0.8.61 ML-2/3/5/6/10 Phase 1 — Tensor/ML/Autodiff surface
@@ -35176,7 +36782,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0854_total: i64 = v0854_deadline + v0854_no_alloc + v0854_no_panic + v0854_isr;
         if v0854_total > 0 {
             print(str_concat("info[RT-G135]: real-time/determinism annotations in source: ", str_from_int(v0854_total)));
-            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \"...\"` reach is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] numeric budget has only runtime check + heuristic RT-004 estimate, not certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \"...\"` reach is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] now installs a runtime deadline context, polls deadline inner loops, keeps an exit check for straight-line work, and still uses heuristic RT-004 estimates rather than certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
         };
     };
     // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
@@ -35524,6 +37130,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let mut early_imported: Vec<i32> = Vec::new();
     if use_cache == 1 {
         let raw_probe: str = file_read_string(src_path);
+        source_reject_nul_truncation(src_path, raw_probe);
         // Only take fast path when source starts at column 0 with a
         // sentinel that says "no imports" — practically: scan for a
         // line-start `import "` directive. The compiler source itself
@@ -35568,6 +37175,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let mut max_depth_source: str = source;
     if vec_len(bundle) > 3 { max_depth_source = vec_get(bundle, 3); };
     if str_len(source) == 0 {
+        if fs_exists(src_path) == 1 && fs_size(src_path) == 0 {
+            print(str_concat("error[NR022]: source file is empty: ", src_path));
+            print("  Nucleor expects every binary build to have a `fn main() -> i32` entry point. Add a main function, or compile this file only as part of a larger imported program.");
+            return 1;
+        };
         print(str_concat("ERROR: cannot read ", src_path));
         return 1;
     };
@@ -35637,6 +37249,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         cache_key = early_cache_key;
         cache_ll_path = early_cache_ll_path;
     };
+    nuc_diag_set_source(source);
     let lex_start: i64 = now_ms();
     let mut tokens: Vec<i32> = lex(source);
     print_phase_time(time_passes, "lex", now_ms() - lex_start);
@@ -35908,12 +37521,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let trait_ens: i64 = vec_get(counts, 1);
         if trait_req >= 0 {
             if l_irq > trait_req {
-                let msg4: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has more #[require(...)] preconditions (", str_concat(str_from_int(l_irq), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_req), "). Liskov: subtype must not strengthen preconditions.")))))))));
+                let msg4: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has more #[require(...)] preconditions (", str_concat(str_from_int(l_irq), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_req), "). Liskov: subtype must not strengthen preconditions."))))))))));
                 let mut lc4: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
                 diag_add_ex(diags, "error", "type", "CONTRACT-004", msg4, l_method, vec_get(lc4, 0), vec_get(lc4, 1), "");
             };
             if l_ien < trait_ens {
-                let msg5: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has fewer #[ensure(...)] postconditions (", str_concat(str_from_int(l_ien), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_ens), "). Liskov: subtype must not weaken postconditions.")))))))));
+                let msg5: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has fewer #[ensure(...)] postconditions (", str_concat(str_from_int(l_ien), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_ens), "). Liskov: subtype must not weaken postconditions."))))))))));
                 let mut lc5: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
                 diag_add_ex(diags, "error", "type", "CONTRACT-005", msg5, l_method, vec_get(lc5, 0), vec_get(lc5, 1), "");
             };
@@ -35935,6 +37548,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // boundaries must be Sendable, and field-only `actor` declarations
     // reject direct external field access.
     diags = enforce_sendable_contracts(diags, source);
+    // Lane 3 F-DIAG-010: TNT-001 is a real compiler diagnostic, not
+    // just an `nuc explain` / suggestion-table entry. Explicit
+    // `tainted<T>` symbols must be sanitized before flowing into
+    // sensitive sink functions.
+    diags = enforce_tnt001_tainted_sinks(diags, source);
     // RFC-0001 phase 1 — enforce #[no_alloc] before suppression so
     // users can `#[allow(RT-001)]` if needed. enforce_no_alloc
     // appends to diags; if no #[no_alloc] attribute is present in
@@ -37137,6 +38755,9 @@ fn expand_deadline(src: str) -> str {
                     };
                     sb_append(sb, "{\n");
                     sb_append(sb, "    let __nuc_dl_start: i64 = time_monotonic_us();\n");
+                    sb_append(sb, "    deadline_enter(__nuc_dl_start, ");
+                    sb_append(sb, str_from_int(dl_value));
+                    sb_append(sb, ");\n");
                     if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
                         sb_append(sb, "    let __nuc_dl_r: ");
                         sb_append(sb, ret_type);
@@ -37145,6 +38766,7 @@ fn expand_deadline(src: str) -> str {
                         sb_append(sb, "(");
                         sb_append(sb, arg_names);
                         sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_exit();\n");
                         sb_append(sb, "    deadline_check(__nuc_dl_start, ");
                         sb_append(sb, str_from_int(dl_value));
                         sb_append(sb, ");\n");
@@ -37155,6 +38777,7 @@ fn expand_deadline(src: str) -> str {
                         sb_append(sb, "(");
                         sb_append(sb, arg_names);
                         sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_exit();\n");
                         sb_append(sb, "    deadline_check(__nuc_dl_start, ");
                         sb_append(sb, str_from_int(dl_value));
                         sb_append(sb, ");\n");
@@ -40897,11 +42520,13 @@ fn lift_no_main_link_error(clang_output: str) -> i64 {
     // single readable NR022 error before suppressing the raw clang
     // dump. Returns 1 if it lifted, 0 otherwise.
     let win_marker: str = "LNK1561";
+    let win_marker_lld: str = "subsystem must be defined";
     let posix_marker_a: str = "undefined reference to `main'";
     let posix_marker_b: str = "undefined reference to `_main'";
     let posix_marker_c: str = "Undefined symbols for architecture";
     let mut hit: i64 = 0;
     if str_contains(clang_output, win_marker) == 1 { hit = 1; };
+    if hit == 0 && str_contains(clang_output, win_marker_lld) == 1 { hit = 1; };
     if hit == 0 && str_contains(clang_output, posix_marker_a) == 1 { hit = 1; };
     if hit == 0 && str_contains(clang_output, posix_marker_b) == 1 { hit = 1; };
     if hit == 0 && str_contains(clang_output, posix_marker_c) == 1 && str_contains(clang_output, "_main") == 1 { hit = 1; };
@@ -41033,14 +42658,15 @@ fn content_hash(s: str) -> str {
 
 #[manual_drop]
 fn compiler_version_label() -> str {
-    return "1.0.3";
+    return "1.1.0";
     // History: 0.2.0-v2 → 0.3.134 → 0.4.180 (caught up from 0.4.21) →
     // 0.8.322 (caught up from 0.4.180) → 0.8.323 (RFC-0063 Phase 1) →
     // 1.0.0 (RFC-0062 hard-error closure G-1..G-11) → 1.0.1
     // (audit-pass-1 hardening sweep, 244 findings, 7 fix lanes) →
     // 1.0.2 (audit residual close, label-skip cut) → 1.0.3
     // (cold-compile str_substring regression fix; 22 s → 6 s on
-    // Linux, ~5.8× faster).
+    // Linux, ~5.8× faster) → 1.1.0 (audit-complete production
+    // readiness line).
     // tools/check_compiler_drift.sh enforces parity with the latest
     // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
 }
@@ -42288,6 +43914,34 @@ fn main() -> i64 {
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
         else if str_eq(flag, "--cache-stats") { env_set("NUCLEOR_CACHE_STATS", "1"); }
+        else if str_eq(flag, "--release") {
+            env_set("NUCLEOR_LLVM_OPT", "-O3");
+        } else if str_eq(flag, "--tier") {
+            if argi_build + 1 >= argc {
+                print("ERROR: --tier requires a value (0, 1, or 2)");
+                return 1;
+            };
+            let tier_value: str = args_get(argi_build + 1);
+            if str_eq(tier_value, "0") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O0"); }
+            else if str_eq(tier_value, "1") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O1"); }
+            else if str_eq(tier_value, "2") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O3"); }
+            else {
+                print(str_concat("ERROR: unsupported --tier value: ", tier_value));
+                print("       expected 0, 1, or 2");
+                return 1;
+            };
+            argi_build = argi_build + 1;
+        } else if str_starts_with(flag, "--tier=") == 1 {
+            let tier_eq_value: str = str_substring(flag, 7, str_len(flag));
+            if str_eq(tier_eq_value, "0") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O0"); }
+            else if str_eq(tier_eq_value, "1") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O1"); }
+            else if str_eq(tier_eq_value, "2") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O3"); }
+            else {
+                print(str_concat("ERROR: unsupported --tier value: ", tier_eq_value));
+                print("       expected 0, 1, or 2");
+                return 1;
+            };
+        }
         else if str_eq(flag, "--provenance") {
             // v0.4.5 RFC-NRT-001: --provenance <path> populates the
             // .nucleor_provenance section of the output binary with
@@ -42351,21 +44005,9 @@ fn main() -> i64 {
         } else if str_eq(cmd, "policy") && cli_is_flag(flag) == 0 {
             policy_level = flag;
         } else if cli_is_flag(flag) == 1 && (str_eq(cmd, "build") == 1 || str_eq(cmd, "build-fast") == 1 || str_eq(cmd, "build-strict") == 1 || str_eq(cmd, "build-shared") == 1 || str_eq(cmd, "run") == 1 || str_eq(cmd, "emit") == 1 || str_eq(cmd, "build-wasm") == 1 || str_eq(cmd, "build-ptx") == 1 || str_eq(cmd, "verify-reproducible") == 1) {
-            // Lane-7 audit fix (v1.0): warn on unknown flags rather
-            // than silently swallow them. The pre-fix behaviour
-            // accepted arbitrary `--bogus` flags without complaint,
-            // which masked the README/architecture mentions of
-            // `--release` and `--tier <0|1|2>` (both removed at v1.0
-            // because the binary never honoured them). Warning
-            // severity (not hard error) preserves backward-compat
-            // for any downstream tooling that passes through extra
-            // flags by accident. Scoped to the build-class subcommands
-            // only — `check`, `test`, `audit`, `policy`, `certify`,
-            // `translate` and `bench` accept additional flags that are
-            // parsed by the tools-suite delegation downstream of this
-            // loop (e.g. `check --json`, `check --sarif`, `check
-            // --review`), so we do NOT warn for those subcommands.
-            print(str_concat("warning: unknown flag '", str_concat(flag, "' (ignored)")));
+            print(str_concat("ERROR: unknown flag: ", flag));
+            print("       run `nuc help` for the supported build flags");
+            return 1;
         };
         argi_build = argi_build + 1;
     };

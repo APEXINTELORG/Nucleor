@@ -182,8 +182,8 @@ The same high-level qsim wrappers now also update the queryable
    control-target DAG relationships. This is an edge representation,
    not a single three-qubit DAG node, because the public checked-record
    API is two-qubit.
-3. SWAP inherits both entanglement and DAG records through its existing
-   three-CNOT decomposition.
+3. SWAP is recorded as one logical SWAP DAG event and applies a primitive
+   statevector permutation. It does not inherit CNOT entanglement records.
 4. External `nuc audit` / governance pipelines (RFC-0060) can still use
    the trace stream as audit provenance.
 

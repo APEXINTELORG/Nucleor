@@ -310,60 +310,122 @@ fn _qsim_2q_in_range(sv: i64, a: i64, b: i64) -> i64 {
     return 1;
 }
 
+fn _qsim_branch_mass_nonzero(sv: i64, q: i64, branch: i64) -> i64 {
+    let size: i64 = vec_len(sv);
+    let mut mass: i64 = f64_from_int(0);
+    let mut i: i64 = 0;
+    while i < size {
+        if bit_test(i, q) == branch {
+            mass = f64_add(mass, cx_abs_sq(vec_get(sv, i)));
+        };
+        i = i + 1;
+    };
+    let tiny: i64 = f64_div(f64_from_int(1), f64_from_int(1000000000));
+    let threshold: i64 = f64_mul(tiny, f64_mul(tiny, tiny));
+    if f64_gt(mass, threshold) == 1 { return 1; };
+    return 0;
+}
+
+fn _qsim_control_has_both_branches(sv: i64, ctrl: i64) -> i64 {
+    if _qsim_branch_mass_nonzero(sv, ctrl, 0) != 1 { return 0; };
+    if _qsim_branch_mass_nonzero(sv, ctrl, 1) != 1 { return 0; };
+    return 1;
+}
+
+fn _qsim_target_has_both_branches(sv: i64, tgt: i64) -> i64 {
+    if _qsim_branch_mass_nonzero(sv, tgt, 0) != 1 { return 0; };
+    if _qsim_branch_mass_nonzero(sv, tgt, 1) != 1 { return 0; };
+    return 1;
+}
+
+fn _qsim_swap_state(sv: i64, q1: i64, q2: i64) {
+    let size: i64 = vec_len(sv);
+    let mask: i64 = bit_or(bit_shift_left(1, q1), bit_shift_left(1, q2));
+    let mut i: i64 = 0;
+    while i < size {
+        if bit_test(i, q1) != bit_test(i, q2) {
+            let j: i64 = bit_xor(i, mask);
+            if i < j {
+                let ai: i64 = vec_get(sv, i);
+                let aj: i64 = vec_get(sv, j);
+                vec_set(sv, i, aj);
+                vec_set(sv, j, ai);
+            };
+        };
+        i = i + 1;
+    };
+}
+
 // CNOT (CX): controlled-X
 fn qsim_cnot(sv: i64, ctrl: i64, tgt: i64) {
     if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
-    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CNOT", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CNOT", ctrl, tgt); };
-    qsim_entangle_register(ctrl, tgt);
+    let should_mark_entangle: i64 = _qsim_control_has_both_branches(sv, ctrl);
+    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CNOT", _q2_json(ctrl, tgt), 0, 0); };
     let zero: i64 = cx_zero();
     let one: i64 = cx_one();
     qsim_cgate1(sv, ctrl, tgt, zero, one, one, zero);
+    if should_mark_entangle == 1 {
+        if rods_trace_enabled() == 1 { rods_trace_entangle("CNOT", ctrl, tgt); };
+        qsim_entangle_register(ctrl, tgt);
+    };
     qsim_gate_record_checked("CNOT", ctrl, tgt);
 }
 
 // CZ: controlled-Z
 fn qsim_cz(sv: i64, ctrl: i64, tgt: i64) {
     if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
-    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CZ", _q2_json(ctrl, tgt), 0, 0); rods_trace_entangle("CZ", ctrl, tgt); };
-    qsim_entangle_register(ctrl, tgt);
+    let mut should_mark_entangle: i64 = 0;
+    if _qsim_control_has_both_branches(sv, ctrl) == 1 {
+        if _qsim_target_has_both_branches(sv, tgt) == 1 {
+            should_mark_entangle = 1;
+        };
+    };
+    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("CZ", _q2_json(ctrl, tgt), 0, 0); };
     let one: i64 = cx_one();
     let mone: i64 = cx_neg(one);
     let zero: i64 = cx_zero();
     qsim_cgate1(sv, ctrl, tgt, one, zero, zero, mone);
+    if should_mark_entangle == 1 {
+        if rods_trace_enabled() == 1 { rods_trace_entangle("CZ", ctrl, tgt); };
+        qsim_entangle_register(ctrl, tgt);
+    };
     qsim_gate_record_checked("CZ", ctrl, tgt);
 }
 
 // Controlled-Rk (controlled rotation by 2*pi/2^k) — used in QFT
 fn qsim_crk(sv: i64, ctrl: i64, tgt: i64, k: i64) {
     if _qsim_2q_in_range(sv, ctrl, tgt) != 1 { return; };
+    let mut should_mark_entangle: i64 = 0;
+    if _qsim_control_has_both_branches(sv, ctrl) == 1 {
+        if _qsim_target_has_both_branches(sv, tgt) == 1 {
+            should_mark_entangle = 1;
+        };
+    };
     let one: i64 = cx_one();
     let zero: i64 = cx_zero();
     let denom: i64 = f64_from_int(bit_shift_left(1, k));
     let theta: i64 = f64_div(f64_tau(), denom);
-    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate_angle("CRK", _q2_json(ctrl, tgt), theta); rods_trace_entangle("CRK", ctrl, tgt); };
-    qsim_entangle_register(ctrl, tgt);
+    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate_angle("CRK", _q2_json(ctrl, tgt), theta); };
     let phase: i64 = cx_new(f64_cos(theta), f64_sin(theta));
     qsim_cgate1(sv, ctrl, tgt, one, zero, zero, phase);
+    if should_mark_entangle == 1 {
+        if rods_trace_enabled() == 1 { rods_trace_entangle("CRK", ctrl, tgt); };
+        qsim_entangle_register(ctrl, tgt);
+    };
     qsim_gate_record_checked("CRK", ctrl, tgt);
 }
 
 // SWAP: swap two qubits
 //
-// Audit fix HIGH-LAYER9B-005 (2026-05-08): emit a single SWAP trace
-// event before the 3-CNOT decomposition so downstream consumers
-// (qsim_graph, gate DAG, profile-event sinks) see one logical SWAP
-// instead of three CNOTs. The 3-CNOT decomposition still applies the
-// correct unitary; only the trace surface is corrected. The
-// `qsim_entangle_register` call on (q1, q2) is idempotent in the
-// union-find — subsequent CNOT calls re-register the same pair with
-// no further side-effect.
+// Audit fix HIGH-LAYER9B-005 (2026-05-09): apply SWAP as a primitive
+// statevector permutation. The earlier wrapper emitted one SWAP event and
+// then called public qsim_cnot three times, so trace and qsim_graph saw
+// four logical gates and inherited CNOT entanglement records. SWAP is a
+// non-entangling unitary by itself; it now records exactly one DAG event.
 fn qsim_swap(sv: i64, q1: i64, q2: i64) {
     if _qsim_2q_in_range(sv, q1, q2) != 1 { return; };
-    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("SWAP", _q2_json(q1, q2), 0, 0); rods_trace_entangle("SWAP", q1, q2); };
-    qsim_entangle_register(q1, q2);
-    qsim_cnot(sv, q1, q2);
-    qsim_cnot(sv, q2, q1);
-    qsim_cnot(sv, q1, q2);
+    if rods_trace_enabled() == 1 { rods_trace_next_step(); rods_trace_gate("SWAP", _q2_json(q1, q2), 0, 0); };
+    _qsim_swap_state(sv, q1, q2);
     qsim_gate_record_checked("SWAP", q1, q2);
 }
 
