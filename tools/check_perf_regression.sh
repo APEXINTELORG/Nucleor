@@ -177,6 +177,30 @@ run_capped="$root/tools/run_capped.sh"
 
 doctor_fail=0
 
+json_number() {
+    local key="$1"
+    awk -v key="$key" '
+        index($0, "\"" key "\"") {
+            line = $0
+            sub(/^[^:]*:/, "", line)
+            gsub(/[", ]/, "", line)
+            sub(/,$/, "", line)
+            if (line ~ /^[-+]?[0-9]+([.][0-9]+)?$/) {
+                print line
+                exit
+            }
+        }
+    ' "$baseline"
+}
+
+require_json_number() {
+    local key="$1"
+    local value
+    value="$(json_number "$key")"
+    [ -n "$value" ] || die "baseline missing numeric field: $key"
+    printf '%s\n' "$value"
+}
+
 doctor_ok() {
     echo "doctor $1: OK - $2"
 }
@@ -248,6 +272,22 @@ run_doctor() {
             */perf_baseline.json) doctor_ok "baseline-and-source" "baseline=$baseline (windows/legacy default) source=$src" ;;
             *) doctor_ok "baseline-and-source" "baseline=$baseline source=$src" ;;
         esac
+
+        # D1 (2026-05-10): doctor must confirm both compiler-only ceilings are
+        # present so the perf gate enforces the same four-ceiling contract as
+        # Windows (tools/perf_baseline.json). Missing fields fail the doctor;
+        # populate the baseline via Step 7 of the handoff doc before locking.
+        local doctor_cold_compiler doctor_hot_compiler doctor_missing_ceilings
+        doctor_cold_compiler="$(json_number cold_max_allowed_compiler_memory_mb)"
+        doctor_hot_compiler="$(json_number hot_max_allowed_compiler_memory_mb)"
+        doctor_missing_ceilings=""
+        [ -n "$doctor_cold_compiler" ] || doctor_missing_ceilings="${doctor_missing_ceilings}${doctor_missing_ceilings:+, }cold_max_allowed_compiler_memory_mb"
+        [ -n "$doctor_hot_compiler" ] || doctor_missing_ceilings="${doctor_missing_ceilings}${doctor_missing_ceilings:+, }hot_max_allowed_compiler_memory_mb"
+        if [ -z "$doctor_missing_ceilings" ]; then
+            doctor_ok "compiler-rss-ceilings" "cold_max_allowed_compiler_memory_mb=${doctor_cold_compiler} hot_max_allowed_compiler_memory_mb=${doctor_hot_compiler}"
+        else
+            doctor_bad "compiler-rss-ceilings" "baseline missing: $doctor_missing_ceilings (D1 compiler-only split; add to $baseline before locking Step 7)"
+        fi
     else
         doctor_bad "baseline-and-source" "$baseline_src_missing"
     fi
@@ -333,29 +373,7 @@ if command -v file >/dev/null 2>&1; then
     esac
 fi
 
-json_number() {
-    local key="$1"
-    awk -v key="$key" '
-        index($0, "\"" key "\"") {
-            line = $0
-            sub(/^[^:]*:/, "", line)
-            gsub(/[", ]/, "", line)
-            sub(/,$/, "", line)
-            if (line ~ /^[-+]?[0-9]+([.][0-9]+)?$/) {
-                print line
-                exit
-            }
-        }
-    ' "$baseline"
-}
-
-require_json_number() {
-    local key="$1"
-    local value
-    value="$(json_number "$key")"
-    [ -n "$value" ] || die "baseline missing numeric field: $key"
-    printf '%s\n' "$value"
-}
+# json_number / require_json_number are defined earlier so run_doctor can use them.
 
 cold_max="$(require_json_number cold_max_allowed_seconds)"
 hot_max="$(require_json_number hot_max_allowed_seconds)"
@@ -369,6 +387,23 @@ hot_process_tree_baseline="$(json_number hot_process_tree_peak_memory_mb)"
 [ -n "$hot_baseline" ] || hot_baseline="$hot_max"
 [ -n "$cold_process_tree_baseline" ] || cold_process_tree_baseline="$cold_process_tree_max"
 [ -n "$hot_process_tree_baseline" ] || hot_process_tree_baseline="$hot_process_tree_max"
+
+# Compiler-only RSS ceilings (D1 split, 2026-05-10). Optional in older
+# baseline files so this gate stays backward-compatible during the
+# transition. When present, both ceilings are enforced strictly;
+# when absent, the gate reports compiler=NNN MB observed but only
+# warns instead of failing, so a runner can populate the baseline
+# at Step 7 without being blocked by an unset ceiling at Step 5.
+cold_compiler_max="$(json_number cold_max_allowed_compiler_memory_mb)"
+hot_compiler_max="$(json_number hot_max_allowed_compiler_memory_mb)"
+cold_compiler_baseline="$(json_number cold_compiler_peak_memory_mb)"
+hot_compiler_baseline="$(json_number hot_compiler_peak_memory_mb)"
+compiler_split_enforced=1
+if [ -z "$cold_compiler_max" ] || [ -z "$hot_compiler_max" ]; then
+    compiler_split_enforced=0
+fi
+[ -n "$cold_compiler_baseline" ] || cold_compiler_baseline="${cold_compiler_max:-$cold_process_tree_max}"
+[ -n "$hot_compiler_baseline" ] || hot_compiler_baseline="${hot_compiler_max:-$hot_process_tree_max}"
 
 now_ms() {
     if [ -n "${EPOCHREALTIME:-}" ]; then
@@ -414,6 +449,8 @@ hot_times="$tmpdir/hot_times.txt"
 : > "$hot_times"
 cold_process_tree_mb=0
 hot_process_tree_mb=0
+cold_compiler_mb=0
+hot_compiler_mb=0
 
 run_sample() {
     local phase="$1"
@@ -461,7 +498,8 @@ run_sample() {
             ;;
     esac
 
-    peak="$(sed -n 's/.*RSS-CAP summary: .* peak=\([0-9][0-9]*\) MB.*/\1/p' "$out" | tail -n 1)"
+    summary_line="$(grep '^RSS-CAP summary:' "$out" | tail -n 1)"
+    peak="$(printf '%s\n' "$summary_line" | sed -n 's/.* peak=\([0-9][0-9]*\) MB.*/\1/p')"
     case "$peak" in
         ''|*[!0-9]*)
             echo "FAIL POSIX perf: ${phase} sample ${sample} did not emit parseable RSS-CAP summary" >&2
@@ -470,16 +508,30 @@ run_sample() {
             ;;
     esac
 
+    # compiler= and root= are the D1 split fields (run_capped.sh 2026-05-10).
+    # Older run_capped.sh builds omitted them; fall back to peak so the gate
+    # remains operable against a process-tree-only sampler if it ever ships.
+    compiler_peak="$(printf '%s\n' "$summary_line" | sed -n 's/.* compiler=\([0-9][0-9]*\) MB.*/\1/p')"
+    case "$compiler_peak" in
+        ''|*[!0-9]*) compiler_peak="$peak" ;;
+    esac
+    root_peak="$(printf '%s\n' "$summary_line" | sed -n 's/.* root=\([0-9][0-9]*\) MB.*/\1/p')"
+    case "$root_peak" in
+        ''|*[!0-9]*) root_peak="$peak" ;;
+    esac
+
     if [ "$phase" = "cold" ]; then
         printf '%s\n' "$wall" >> "$cold_times"
         [ "$peak" -le "$cold_process_tree_mb" ] || cold_process_tree_mb="$peak"
+        [ "$compiler_peak" -le "$cold_compiler_mb" ] || cold_compiler_mb="$compiler_peak"
     else
         printf '%s\n' "$wall" >> "$hot_times"
         [ "$peak" -le "$hot_process_tree_mb" ] || hot_process_tree_mb="$peak"
+        [ "$compiler_peak" -le "$hot_compiler_mb" ] || hot_compiler_mb="$compiler_peak"
     fi
 
     if [ "$quiet" -ne 1 ]; then
-        echo "sample ${phase} ${sample}: ${wall}s, process_tree=${peak}MB, ${cache_line}"
+        echo "sample ${phase} ${sample}: ${wall}s, tree=${peak}MB compiler=${compiler_peak}MB root=${root_peak}MB, ${cache_line}"
     fi
 }
 
@@ -502,14 +554,30 @@ cold_ok=1
 hot_ok=1
 cold_mem_ok=1
 hot_mem_ok=1
+cold_compiler_ok=1
+hot_compiler_ok=1
 float_le "$cold" "$cold_max" || cold_ok=0
 float_le "$hot" "$hot_max" || hot_ok=0
 [ "$cold_process_tree_mb" -le "$cold_process_tree_max" ] || cold_mem_ok=0
 [ "$hot_process_tree_mb" -le "$hot_process_tree_max" ] || hot_mem_ok=0
+if [ "$compiler_split_enforced" -eq 1 ]; then
+    [ "$cold_compiler_mb" -le "$cold_compiler_max" ] || cold_compiler_ok=0
+    [ "$hot_compiler_mb" -le "$hot_compiler_max" ] || hot_compiler_ok=0
+fi
 
-if [ "$cold_ok" -eq 1 ] && [ "$hot_ok" -eq 1 ] && [ "$cold_mem_ok" -eq 1 ] && [ "$hot_mem_ok" -eq 1 ]; then
-    echo "OK POSIX perf: cold=${cold}s (max ${cold_max}s) | hot=${hot}s (max ${hot_max}s) | mem cold_tree=${cold_process_tree_mb}/${cold_process_tree_max}MB cold_compiler=n/a hot_tree=${hot_process_tree_mb}/${hot_process_tree_max}MB hot_compiler=n/a"
-    echo "  note: POSIX gate enforces Linux process-tree RSS via tools/run_capped.sh; compiler-only RSS split remains Windows-only in this prep branch."
+if [ "$compiler_split_enforced" -eq 1 ]; then
+    compiler_summary="cold_compiler=${cold_compiler_mb}/${cold_compiler_max}MB hot_compiler=${hot_compiler_mb}/${hot_compiler_max}MB"
+else
+    compiler_summary="cold_compiler=${cold_compiler_mb}/unlocked hot_compiler=${hot_compiler_mb}/unlocked"
+fi
+
+if [ "$cold_ok" -eq 1 ] && [ "$hot_ok" -eq 1 ] && [ "$cold_mem_ok" -eq 1 ] && [ "$hot_mem_ok" -eq 1 ] && [ "$cold_compiler_ok" -eq 1 ] && [ "$hot_compiler_ok" -eq 1 ]; then
+    echo "OK POSIX perf: cold=${cold}s (max ${cold_max}s) | hot=${hot}s (max ${hot_max}s) | mem cold_tree=${cold_process_tree_mb}/${cold_process_tree_max}MB hot_tree=${hot_process_tree_mb}/${hot_process_tree_max}MB ${compiler_summary}"
+    if [ "$compiler_split_enforced" -eq 1 ]; then
+        echo "  note: POSIX gate enforces process-tree + compiler-only RSS (D1 split, mirrors tools/perf_baseline.json)."
+    else
+        echo "  note: compiler-only RSS observed but ceilings not yet locked in baseline; add cold_max_allowed_compiler_memory_mb and hot_max_allowed_compiler_memory_mb to enforce."
+    fi
     exit 0
 fi
 
@@ -527,5 +595,13 @@ fi
 if [ "$hot_mem_ok" -ne 1 ]; then
     echo "  HOT PROCESS-TREE MEMORY: ${hot_process_tree_mb}MB vs baseline ${hot_process_tree_baseline}MB ($(ratio "$hot_process_tree_mb" "$hot_process_tree_baseline")x, max ${hot_process_tree_max}MB)"
 fi
-echo "  compiler-only RSS: n/a on POSIX prep gate; process-tree RSS is enforced."
+if [ "$compiler_split_enforced" -eq 1 ] && [ "$cold_compiler_ok" -ne 1 ]; then
+    echo "  COLD COMPILER-ONLY MEMORY: ${cold_compiler_mb}MB vs baseline ${cold_compiler_baseline}MB ($(ratio "$cold_compiler_mb" "$cold_compiler_baseline")x, max ${cold_compiler_max}MB)"
+fi
+if [ "$compiler_split_enforced" -eq 1 ] && [ "$hot_compiler_ok" -ne 1 ]; then
+    echo "  HOT COMPILER-ONLY MEMORY: ${hot_compiler_mb}MB vs baseline ${hot_compiler_baseline}MB ($(ratio "$hot_compiler_mb" "$hot_compiler_baseline")x, max ${hot_compiler_max}MB)"
+fi
+if [ "$compiler_split_enforced" -eq 0 ]; then
+    echo "  note: compiler-only RSS observed (cold=${cold_compiler_mb}MB hot=${hot_compiler_mb}MB) but ceilings not locked; lock via cold_max_allowed_compiler_memory_mb / hot_max_allowed_compiler_memory_mb in the baseline."
+fi
 exit 1
