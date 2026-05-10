@@ -213,3 +213,52 @@ The current code does loop-over-a then loop-over-b. With a pre-built b-index (Op
 - Measuring the warm-hashmap rebuild cost vs the linear-scan cost at threshold 64. Could be wrong about Opt-2.
 
 These would tighten the estimates but not change the rank order. Opt-1 is the obvious first move.
+
+## Experiment results (2026-05-09)
+
+### Opt-1 attempt: pre-build hashmap of `b` per merge
+
+Implemented exactly as proposed. Added a tiny-env guard (`< 16 entries each`) to skip the optimization for small merges where the hashmap setup cost would exceed the linear-scan savings.
+
+**Result: REGRESSED.**
+
+| Metric | Baseline | Opt-1 | Delta |
+|---|---|---|---|
+| ownership | 1594 ms | **2328 ms** | +734 ms (-46% slower) |
+| type | 469 ms | 1000 ms | +531 ms |
+| total IR | 2766 ms | 4625 ms | +1859 ms |
+| total native | 4031 ms | 5843 ms | +1812 ms |
+
+Hashmap allocation overhead per merge (~100µs × thousands of merge calls) exceeds the per-merge savings. The 16-entry threshold guard was insufficient — most env sizes at merge time fall in the 20-200 range where the linear scan is still faster than hashmap_with_capacity + N inserts + N lookups + free.
+
+Cross-reference: the v0.4.3 design comment in `nucleor_llvm_rt.c:6280` documents that an earlier per-sym hashmap experiment (Phase B v0.3.237) was reverted in the same release for a 1.8× peak-memory regression. The single warm-cache slot was deliberate — to avoid exactly this allocation thrash.
+
+### Opt-4 attempt: C helper `__nucleor_vec_find_str_pair_back`
+
+Added the C runtime helper, registered name in `get_rt_name` + `is_runtime_extern`, added `emit_externs` declare. Did NOT yet replace any call sites — purely registration-side changes to validate the bootstrap chain works.
+
+**Result: ALSO REGRESSED, before any call site change.**
+
+| Metric | Baseline | Registration-only | Delta |
+|---|---|---|---|
+| ownership | 1594 ms | **2282 ms** | +688 ms |
+| type | 469 ms | 984 ms | +515 ms |
+| total IR | 2766 ms | 4594 ms | +1828 ms |
+
+Source diff was 5 lines (1× declare in emit_externs, 1× get_rt_name entry, 1× is_runtime_extern entry, 1× is_vec_arg-at-idx-0 entry, 1× helper definition in C). 3 measurement runs each, very stable.
+
+**Diagnosis:** adding ONE entry to the known-extern lookup tables (sequential `if str_eq(...)` chains) adds work × N where N = number of call-site lookups during compile. The compiler's own type/ownership phases iterate these lookups thousands of times. Each new entry adds ~N str_eq calls. The cumulative cost is non-trivial.
+
+Plus: when a new extern is registered, the type-checker's per-call validation does additional work (likely arg-shape checking via `is_vec_arg`-style fns).
+
+The v1.0.3 author's note ("a C-side `__nucleor_vec_find_str_pair_back` helper was prototyped but abandoned for v1.0.3") may have hit the same wall: the bootstrap chain works, but the registration side-cost erases the speedup before any call site is even modified.
+
+### Updated rank: what should be tried next
+
+1. **NOT Opt-1** — hashmap-per-merge does not pay off at typical env sizes; matches the v0.4.3 design comment.
+2. **NOT naive Opt-4 either** — adding a new extern via the standard `get_rt_name` / `is_runtime_extern` chains pays a side-cost that exceeds the saved work in `own_put_i`.
+3. **Opt-3 (multi-sym warm aux)** is the most promising remaining avenue — it's a runtime-only change (`nucleor_llvm_rt.c`) that doesn't touch the extern-registration tables. Implement K-way LRU in the existing `__nucleor_sym_aux_*` API; the API surface stays the same so no compiler-side registration changes needed. Should let `sym_get(a, ...)` and `sym_get(b, ...)` both stay warm during a merge, eliminating the thrash without per-merge allocation.
+4. **Investigate the registration side-cost.** Why does adding ONE entry to `get_rt_name` slow ownership/type by ~500 ms each? If the lookup tables can be converted from sequential `if str_eq` chains to a hashmap or trie keyed on name, that's a separate one-time win that benefits all future extern additions.
+5. **Lex-time intern-and-deduplicate the state-key prefixes** (`__os_`, `__oi_`, `__g4_*`, `__g8_*`, `__init_*`). Currently every `own_set_i(o, key, val)` calls `str_concat("__oi_", key)` per call, allocating a fresh string. Prefix-interned keys would skip the alloc.
+
+The branch state (`fa36f142` + uncommitted experiment artifacts in `compiler/nucleor_s1_compiler.nr` + `stdlib/runtime/nucleor_llvm_rt.c`) preserves both failed experiments for the next agent's inspection.
