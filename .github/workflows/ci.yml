@@ -40,17 +40,25 @@ jobs:
         # pinned self-hosted runner. The perf gate below runs in
         # informational mode; baseline locks come from the pinned runner
         # job (commented stub at the bottom of this file).
+        #
+        # `set +e +o pipefail` because GHA default bash is `-eo pipefail`,
+        # which makes `cmd | head -N` fail on SIGPIPE when head closes
+        # stdin early. Step 1 is pure diagnostic — a partial dump must
+        # not fail the whole verify-linux job.
+        shell: bash
         run: |
+          set +e +o pipefail
           {
             echo "## Step 1 runner — Ubuntu GHA (correctness gate, NOT pinned)"
             uname -a
-            (cat /etc/os-release || true) | head -5
-            clang --version | head -1
-            ldd --version | head -1
-            (lscpu | grep -E "^Model name|^CPU\(s\):|^Architecture") || true
-            free -m | head -2
+            head -5 /etc/os-release 2>/dev/null || true
+            clang --version 2>/dev/null | head -1 || true
+            ldd --version 2>/dev/null | head -1 || true
+            lscpu 2>/dev/null | grep -E "^Model name|^CPU\(s\):|^Architecture" || true
+            head -2 /proc/meminfo 2>/dev/null || true
             echo "GitHub runner image: ubuntu-24.04 (hosted)"
           } | tee runner-info.txt
+          true
       - name: Step 2 — bootstrap bin/nucleor from IR seed
         # T1.7 (v0.2.339): the Linux verify gate now produces its own
         # bin/nucleor by clang-linking bootstrap/nucleor_s1_seed.ll
@@ -81,8 +89,15 @@ jobs:
         # fail on cold/hot wall regressions here. The pinned-runner
         # job (commented stub below) is where wall-time regressions
         # become gating.
+        #
+        # `set +e +o pipefail` neutralizes GHA's default `-eo pipefail`
+        # so the pipe-through-tee can't mask the real perf-gate exit
+        # behind a tee failure. `${PIPESTATUS[0]}` captures the gate's
+        # exit explicitly. Trailing `exit 0` is the explicit "this step
+        # never gates" contract.
+        shell: bash
         run: |
-          set +e
+          set +e +o pipefail
           bash tools/check_perf_regression.sh \
               --cold-samples 2 \
               --hot-samples 2 \
@@ -90,7 +105,7 @@ jobs:
               --warning-mb 600 \
               --timeout-sec 180 \
               --verbose | tee perf-informational.txt
-          rc=$?
+          rc=${PIPESTATUS[0]}
           echo "informational perf gate exit: $rc (NOT gating on hosted GHA)"
           exit 0
       - name: Step 8 — full verify.sh
