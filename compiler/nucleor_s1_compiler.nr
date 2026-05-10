@@ -10427,7 +10427,8 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     };
     // Size-gated warm hash path. Below threshold, linear is faster
     // (cache-friendly + no warm-cache touch). Threshold 64 entries
-    // = 32 pairs.
+    // = 32 pairs. (Tried 32 with K-way LRU; regressed slightly —
+    // rebuild cost outweighs scan savings at small sizes.)
     if n < 64 {
         let mut j: i64 = n - 4;
         while j >= 0 { if str_eq(vec_get(s, j), name) == 1 { return vec_get(s, j + 1); }; j = j - 2; };
