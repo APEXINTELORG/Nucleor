@@ -28,5 +28,6 @@ fn main() -> i64 {
     let r7: i64 = 0xfffffffffffffff8 & 7;
     if r7 != 0 { return 7; };
 
-    return 42;
+    print("OK audit_lane1_bitwise_fold_neg\n");
+    return 0;
 }

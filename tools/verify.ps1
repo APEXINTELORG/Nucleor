@@ -523,7 +523,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # TYP series -- type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
-        "TYP-026", "TYP-027",
+        "TYP-026", "TYP-027", "TYP-044",
         # FMT series -- format macro expansion
         "FMT-002", "FMT-003",
         # TRAIT series -- trait dispatch and conversions

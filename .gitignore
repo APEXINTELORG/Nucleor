@@ -1,6 +1,7 @@
 # Build outputs
 target/
 .nuc_cache/
+.nuc_rt_cache/
 *.exe
 *.dll
 *.lib

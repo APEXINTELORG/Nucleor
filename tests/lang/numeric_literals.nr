@@ -23,8 +23,8 @@ fn main() -> i64 {
     let f: i64 = 1_000_000_000i64;
     if f != 1000000000 { fail = fail + 1; print("FAIL: i64 suffix with underscores\n"); };
 
-    let g: i64 = 42usize;
-    if g != 42 { fail = fail + 1; print("FAIL: usize suffix\n"); };
+    let g: usize = 42usize;
+    if g != 42usize { fail = fail + 1; print("FAIL: usize suffix\n"); };
 
     if fail == 0 { print("OK numeric_literals\n"); return 0; };
     return 1;

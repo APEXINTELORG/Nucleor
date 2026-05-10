@@ -923,6 +923,7 @@ fn opt_merge_blocks(f: Vec<i32>) -> i64 {
 }
 
 // --- Optimizer driver: runs all passes on an entire function ---
+#[manual_drop]
 fn opt_fn(f: Vec<i32>) -> i64 {
     let mut total: i64 = 0;
     let mut bi: i64 = 0;
@@ -942,9 +943,9 @@ fn opt_fn(f: Vec<i32>) -> i64 {
     // Block merging disabled — predecessor counting doesn't account for
     // new predecessors created when a merged block's terminator branches elsewhere.
     // Iteration 2: re-run per-block passes on merged blocks
-    bc = ir_fn_block_count(f);
+    let bc2: i64 = ir_fn_block_count(f);
     bi = 0;
-    while bi < bc {
+    while bi < bc2 {
         let blk: Vec<i32> = ir_fn_get_block(f, bi);
         total = total + opt_fold_block(blk);
         total = total + opt_prop_block(blk);
@@ -969,6 +970,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_substring") { return "__nucleor_str_substring"; };
     if str_eq(name, "str_concat") { return "__nucleor_str_concat"; };
     if str_eq(name, "str_intern") { return "__nucleor_str_intern"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup") { return "__nucleor_sym_linear_lookup"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup_idx") { return "__nucleor_sym_linear_lookup_idx"; };
+    if str_eq(name, "__nucleor_own_put_i_full") { return "__nucleor_own_put_i_full"; };
     if str_eq(name, "str_free") { return "__nucleor_str_free"; };
     if str_eq(name, "str_arena_new") { return "__nucleor_str_arena_new"; };
     if str_eq(name, "str_arena_free") { return "__nucleor_str_arena_free"; };
@@ -2584,6 +2588,9 @@ fn emit_externs() -> str {
     // v0.3.236 Phase A — sym-aux side hashmap helpers
     sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup_idx(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_own_put_i_full(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
     // v0.4.10 Phase A — compile-source side table
@@ -8183,6 +8190,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
     if str_eq(code, "TYP-026") { return "Invalid or unproven `as char`, or non-void function reaches the end without returning a value"; };
     if str_eq(code, "TYP-027") { return "Type inference failed"; };
+    if str_eq(code, "TYP-044") { return "Implicit integer width conversion in binding"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
     if str_eq(code, "FMT-003") { return "Format string has more arguments than `{}` placeholders (extras would be silently dropped)"; };
     if str_eq(code, "TRAIT-001") { return "Missing From conversion for `?` error propagation"; };
@@ -8452,6 +8460,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
     if str_eq(code, "TYP-026") { return "`as char` requires a valid Unicode scalar value. Constant casts must be within 0..0x10FFFF and outside 0xD800..0xDFFF; non-constant casts must be guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800`. This code also covers non-void functions that can fall through without an explicit return or tail expression."; };
     if str_eq(code, "TYP-027") { return "Strict inference mode found an expression whose type checker returned the empty-type sentinel. The compiler rejects it instead of treating the unknown type as compatible with every annotated type."; };
+    if str_eq(code, "TYP-044") { return "A binding annotated with one integer width was initialized by another integer width. Silent widening or narrowing is rejected so portability and truncation are explicit."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
     if str_eq(code, "FMT-003") { return "`format!(\"{}\", 1, 2, 3)` (more args than placeholders) silently dropped the extras pre-v0.5.11 — including any side effects in the dropped argument expressions. Either add `{}` placeholders for each extra arg or remove the unused args from the call. Mirrors the v0.4.70 placeholder>args check (the loud-direction asymmetry that left this case silent)."; };
     if str_eq(code, "TRAIT-001") { return "`?` on `Result<T, SrcErr>` inside a function returning `Result<U, DstErr>` requires `impl From<SrcErr> for DstErr` when the error payload types differ."; };
@@ -8698,6 +8707,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
     if str_eq(code, "TYP-026") { return "For `as char`, keep invalid constants out of the cast and guard dynamic codepoints before casting. For missing returns, audit every control-flow path and make the returned value explicit; side-effect-only functions should return void."; };
     if str_eq(code, "TYP-027") { return "Add a concrete type annotation or route the expression through a helper whose return type is known to the type checker. For collection helpers, prefer typed methods or explicit wrappers until strict inference becomes the default."; };
+    if str_eq(code, "TYP-044") { return "Cast explicitly with `as` at the binding site, or change the annotation to the expression's real integer width."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
     if str_eq(code, "FMT-003") { return "Pre-v0.5.11 `format!(\"just {}\", 1, 2, 3)` silently dropped args 2 and 3 — the format expander walked the placeholders and stopped at the first arg, leaving the rest unevaluated/unreferenced. Adopter typos (left an arg after removing a placeholder) and refactor mistakes (renamed a placeholder, kept the arg) hit silently. v0.5.11 mirrors the v0.4.70 placeholder>args check direction so both asymmetries halt cleanly. Side-effecting expressions in dropped args (e.g. `format!(\"{}\", 1, expensive_call())`) no longer evaluate-then-discard."; };
     if str_eq(code, "TRAIT-001") { return "The `?` operator propagates the Err payload early. When the callee error type and enclosing function error type differ, Nucleor now performs the Rust-style `From<SrcErr> for DstErr` conversion. If that impl is absent, continuing would either return the wrong payload layout or silently expose the source error type through the destination API, so the compiler stops with TRAIT-001."; };

@@ -101,9 +101,21 @@ run_step() {
             return
         fi
         local out exit
+        local expected_panic
+        expected_panic=$(sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT_RUNTIME_PANIC:[[:space:]]*([^[:space:]]+).*|\1|p' "tests/$dir/$tname.nr" | head -1)
         out=$("$exe" </dev/null 2>&1); exit=$?
         t1=$(date +%s.%N); dt=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')
-        if [ "$dir" = "features" ]; then
+        if [ -n "$expected_panic" ]; then
+            if [ "$exit" -eq 0 ]; then
+                echo "FAIL|$label|$dt|expected_runtime_panic_but_exit_0" > "$result"
+            elif ! echo "$out" | grep -q 'PANIC:'; then
+                echo "FAIL|$label|$dt|missing_runtime_panic_banner" > "$result"
+            elif ! echo "$out" | grep -q "$expected_panic"; then
+                echo "FAIL|$label|$dt|missing_runtime_panic_code_$expected_panic" > "$result"
+            else
+                echo "OK|$label|$dt|" > "$result"
+            fi
+        elif [ "$dir" = "features" ]; then
             if [ "$exit" -eq 139 ] || [ "$exit" -eq 138 ] || [ "$exit" -eq -1073741819 ] || [ "$exit" -eq -1073740940 ]; then
                 echo "FAIL|$label|$dt|crash_exit_$exit" > "$result"
             else

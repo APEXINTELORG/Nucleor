@@ -1044,7 +1044,7 @@ cli_explain_full_smoke() {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
-        "TYP-026" "TYP-027"
+        "TYP-026" "TYP-027" "TYP-044"
         # FMT series — format macro expansion
         "FMT-002" "FMT-003"
         # TRAIT series — trait dispatch and conversions
@@ -1672,10 +1672,19 @@ if [ "$kind" = "test" ]; then
         dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
         finish SKIP "$dt" "socket runtime disabled; set NUC_VERIFY_RUN_SOCKET=1"
     fi
+    expected_panic="$(sed -nE 's|^[[:space:]]*//[[:space:]]*EXPECT_RUNTIME_PANIC:[[:space:]]*([^[:space:]]+).*|\1|p' "tests/$dir/$tname.nr" | head -1)"
     out="$("$exe" 2>&1)"
     rc=$?
     t1="$(now_ms)"
     dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+    if [ -n "$expected_panic" ]; then
+        if [ "$rc" -eq 0 ]; then
+            finish FAIL "$dt" "expected_runtime_panic_but_exit_0"
+        fi
+        echo "$out" | grep -q 'PANIC:' || finish FAIL "$dt" "missing_runtime_panic_banner"
+        echo "$out" | grep -q "$expected_panic" || finish FAIL "$dt" "missing_runtime_panic_code_$expected_panic"
+        finish PASS "$dt" ""
+    fi
     if [ "$dir" = "features" ]; then
         if [ "$rc" -eq 139 ] || [ "$rc" -eq 138 ] || [ "$rc" -eq -1073741819 ] || [ "$rc" -eq -1073740940 ]; then
             finish FAIL "$dt" "crash_exit_$rc"

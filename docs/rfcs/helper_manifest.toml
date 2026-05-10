@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 907
-# Of which REVIEW REQUIRED: 4
+# Total helpers: 910
+# Of which REVIEW REQUIRED: 7
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,7 +22,10 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   __nucleor_own_put_i_full                 (Unclassified)
 #   __nucleor_source_bare_cr_offset          (Unclassified)
+#   __nucleor_sym_linear_lookup              (Unclassified)
+#   __nucleor_sym_linear_lookup_idx          (Unclassified)
 #   deadline_enter                           (Unclassified)
 #   deadline_exit                            (Unclassified)
 #   deadline_poll                            (Unclassified)
@@ -11122,11 +11125,53 @@ notes            = "intentional v0.4 placeholder; declared in IR for forward com
 # ----- class: Unclassified -----
 
 [[helper]]
+name             = "__nucleor_own_put_i_full"
+class            = "Unclassified"
+symbol           = "__nucleor_own_put_i_full"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
 name             = "__nucleor_source_bare_cr_offset"
 class            = "Unclassified"
 symbol           = "__nucleor_source_bare_cr_offset"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_sym_linear_lookup"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_linear_lookup"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_sym_linear_lookup_idx"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_linear_lookup_idx"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
