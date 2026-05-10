@@ -1,6 +1,6 @@
 # Nucleor Language Reference (v1.0)
 
-This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `1.0.0`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For the v1.0 memory-safety surface (RFC-0062 G-series gates: `OWN-G4`, `OWN-G8`, `INIT-G11`, `BORROW-G2`, `ALIAS-G3-*`, `SEND-G6-*`, `FFI-G5`, `FFI-G9`, `UNSAFE-G7`, `EFFECT-G10-*`), see [`rfcs/RFC-0062-effects-extension.md`](rfcs/RFC-0062-effects-extension.md). For the v1.x roadmap, see [`rfcs/RFC-0063-production-readiness-roadmap.md`](rfcs/RFC-0063-production-readiness-roadmap.md).
+This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `1.1.0`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For the v1.0 memory-safety surface (RFC-0062 G-series gates: `OWN-G4`, `OWN-G8`, `INIT-G11`, `BORROW-G2`, `ALIAS-G3-*`, `SEND-G6-*`, `FFI-G5`, `FFI-G9`, `UNSAFE-G7`, `EFFECT-G10-*`), see [`rfcs/RFC-0062-effects-extension.md`](rfcs/RFC-0062-effects-extension.md). For the v1.x roadmap, see [`rfcs/RFC-0063-production-readiness-roadmap.md`](rfcs/RFC-0063-production-readiness-roadmap.md).
 
 > **Status note (v1.0):** §13 below preserves the pre-v1.0 corrigenda — a record of the audits that hardened the v0.1.5 / v0.2.x chain into the shipping v1.0 surface. The corrigenda points are now part of the language proper; they are kept as a historical trail for adopters who reviewed the language during the v0.2.x window. New features and gates added since v0.2 — RFC-0062 memory-safety G-series, the effect-annotation framework (`#[effect(...)]`), the `with [...]` effect-rows-on-fn-types substrate, the `#[isr]` first pass, the `#[max_depth]` recursion bound, the auto-drop default flip — are described inline in the body sections rather than the §13 corrigenda.
 
@@ -10,9 +10,9 @@ This document describes the Nucleor language as implemented by the self-hosted c
 
 Source files are UTF-8. Line endings may be `\n` or `\r\n`. Bare carriage-returns (CR / 0x0D not followed by LF) are rejected with `LEX-CR-ONLY`. NUL bytes (0x00) embedded in source are rejected with `LEX-002` (pre-fix, the file was silently truncated at the first NUL via C-string semantics).
 
-A UTF-8 byte-order-mark (`EF BB BF`) at the start of a file is silently consumed; embedded BOMs / zero-width spaces / smart-quotes / RTL bytes mid-source are rejected with `LEX-001` (pre-fix, every non-ASCII byte was silently dropped — a known supply-chain attack vector, CVE-2021-42574 family).
+A UTF-8 byte-order-mark (`EF BB BF`) at the start of a file is rejected with `LEX-001`; embedded BOMs / zero-width spaces / smart-quotes / RTL bytes mid-source are also rejected with `LEX-001` (pre-fix, every non-ASCII byte was silently dropped — a known supply-chain attack vector, CVE-2021-42574 family).
 
-String literals may contain a raw newline (the resulting `str` includes the LF byte). String literals are NOT terminated by EOF — an unterminated string literal at end-of-file is a hard error.
+String literals may not contain raw line breaks. Use `\n` / `\r\n` escapes, or split and concatenate the string. Unterminated strings and strings ending with a bare trailing backslash are hard lexer errors (`LEX-STRING-EOF`).
 
 `fn` / `let` / `return` etc. are reserved words (§1.5) and cannot be used as binding names. The set of reserved words is small; any of the words listed in §1.5 used in a binding-name slot is rejected at parse time with `PARSE-LET-001`.
 
@@ -20,10 +20,10 @@ String literals may contain a raw newline (the resulting `str` includes the LF b
 
 ```
 // line comment to end of line
-/* block comment, can span lines */
+/* block comment, currently rejected */
 ```
 
-Both line and block comments are supported.
+Line comments are supported. Block comments and doc-block comments (`/* ... */`, `/** ... */`) are rejected with a clear frontend diagnostic; convert them to `//` lines until block-comment skipping ships.
 
 ### 1.3 Identifiers
 
@@ -57,8 +57,8 @@ integers panic on overflow rather than wrapping silently. Use
 blocks or set `NUCLEOR_INT_STRICT_INTRIN=0` at compile time
 to opt out. See [UPGRADE_v0.4.239.md](UPGRADE_v0.4.239.md)
 and [UPGRADE_v0.4.241.md](UPGRADE_v0.4.241.md) for migration
-details. The mixed-width-arithmetic warning NUM-001 is now
-emitted directly during type-check.)
+details. Mixed-width integer arithmetic without an explicit `as`
+cast is rejected with `NUM-001` during type-check.)
 
 String escape sequences (recognised by the lexer): `\n`, `\r`, `\t`, `\\`, `\"`, `\'`, `\0`. Any other backslash sequence inside a string literal (e.g. `\v`, `\x...`, `\u{...}`) is a hard error (`NR025`).
 
@@ -70,6 +70,7 @@ Numeric-literal hygiene rules (Lane 4 audit close, F-016 through F-024):
 - A leading-zero decimal (`007`) is rejected (`LEX-NUM-005`) because Nucleor does not have C-style octal — adopters porting C/Java code who expect octal semantics get a clean diagnostic.
 - An integer literal followed immediately by an alphabetic character that is not a recognised type suffix (`i8`/`i16`/`i32`/`i64`/`i128`/`isize`/`u8`/`u16`/`u32`/`u64`/`u128`/`usize`) is rejected (`LEX-NUM-SUFFIX`); pre-fix `1z42` silently dropped `z42` as a stray identifier.
 - Float literals that overflow IEEE-754 finite range (`1e400`) are rejected (`LEX-NUM-FLOAT-OVERFLOW`); pre-fix the resulting Inf/NaN bit pattern was stored silently.
+- Leading-dot and trailing-dot floats are rejected (`LEX-NUM-FLOAT-FORM`); write `0.5` and `1.0` instead of `.5` and `1.`.
 
 ### 1.5 Keywords
 
@@ -258,6 +259,22 @@ The compiler runs an ownership/move checker by default (`OWN-*` codes) and a typ
 |---|---|
 | `OWN-001` | Use of moved variable |
 | `OWN-008` | Cannot assign to immutable binding (missing `mut`) |
+| `OWN-G4-USE-AFTER-DROP` | Heap-backed binding read after explicit free |
+| `OWN-G8-COND-MOVE` | Conditional move leaves a later read path unsafe |
+| `INIT-G11-READ-BEFORE-INIT` | Binding may be read before every path initializes it |
+| `BORROW-G2-LIFETIME` | Returned/stored reference outlives its source scope |
+| `ALIAS-G3-VEC-OF-REFS` | Reference element stored in a reallocating `Vec` |
+| `ALIAS-G3-HASHMAP-REHASH` | Reference/key alias can be invalidated by hashmap rehash |
+| `SEND-G6-HASHMAP` | Non-Send hashmap payload crosses a spawned boundary |
+| `SEND-G6-CLOSURE-CAPTURE` | Spawned closure captures a non-Send value |
+| `SEND-G6-TUPLE` | Tuple containing a non-Send field crosses a spawned boundary |
+| `SEND-G6-ENUM` | Enum containing a non-Send variant crosses a spawned boundary |
+| `FFI-G5-NULL-DEREF` | Direct FFI pointer dereference may be null |
+| `FFI-G9-MISSING-ALLOW-DIRECT-FFI` | Direct FFI call requires explicit allow/unsafe annotation |
+| `UNSAFE-G7-MISSING-ALLOW` | Unsafe block/expression is missing an allow annotation |
+| `EFFECT-G10-UNDECLARED` | Function body performs an effect missing from its row |
+| `EFFECT-G10-MISSING-ALLOW` | Effect requires an allow/capability annotation |
+| `EFFECT-G10-WRONG-ROW` | Declared effect row does not match produced effects |
 | `TYP-005` | Wrong number of arguments in call |
 | `TYP-006` | Argument type mismatch |
 | `TYP-008` | Type mismatch for binding |

@@ -71,7 +71,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 cp = cp + 1;
             };
         };
-        return pr(cp, mk2(pool, 1, pkv(tokens, pos)));
+        return pr(cp, mk3(pool, 1, pkv(tokens, pos), tok_int_suffix_code_at(tokens, pos)));
     };
     // f64 literal (token 70) — encoded as int_part*1000000 + frac_millionths
     if tt == 70 {
@@ -345,7 +345,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
     let mut init_id: i64 = 0 - 1;
     if pk(tokens, cp) == 40 { let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(er); init_id = pr_val(er); };
-    if pk(tokens, cp) == 43 { cp = cp + 1; };
+    cp = expect_tok(tokens, cp, 43);
     return pr(cp, mk5(pool, 20, name, is_mut, tstr, init_id));
 }
 
@@ -1780,6 +1780,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
     // v0.3.0 (T3.1): synced from s1.
+    if str_eq(name, "deadline_enter") { return "__nucleor_deadline_enter"; };
+    if str_eq(name, "deadline_exit") { return "__nucleor_deadline_exit"; };
+    if str_eq(name, "deadline_poll") { return "__nucleor_deadline_poll"; };
     if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
     if str_eq(name, "max_depth_enter") { return "__nucleor_max_depth_enter"; };
     if str_eq(name, "max_depth_exit") { return "__nucleor_max_depth_exit"; };
@@ -2233,6 +2236,14 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 12 { emit_cmp(sb, "sge", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 13 { emit_arith(sb, "and", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 14 { emit_arith(sb, "or", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 15 { emit_arith(sb, "xor", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 23 { emit_arith(sb, "shl", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 24 { emit_arith(sb, "ashr", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 25 { emit_arith(sb, "lshr", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 38 { emit_cmp(sb, "ult", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 39 { emit_cmp(sb, "ugt", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 40 { emit_cmp(sb, "ule", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 41 { emit_cmp(sb, "uge", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 16 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = alloca i64\n"); }
     else if op == 17 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = load i64, ptr %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n"); }
     else if op == 18 { sb_append(sb, "  store i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n"); }
@@ -3186,6 +3197,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ms()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_enter(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_exit()\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_poll()\n");
     sb_append(sb, "declare i64 @__nucleor_deadline_check(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_max_depth_enter(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_max_depth_exit(i64)\n");
@@ -3993,7 +4007,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         if state == 2 {
             let ln: i64 = find_in_source(source_text, fn_name, vname);
             let col: i64 = find_column_in_source(source_text, fn_name, vname);
-            let d_idx: i64 = diag_add_ex(diag_vec, "warning", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
+            let d_idx: i64 = diag_add_ex(diag_vec, "error", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
             // Add child note: where was it moved?
             let moved_by: str = own_get_type(own, str_concat("__moved_by_", vname));
             if str_len(moved_by) > 0 {
@@ -5026,7 +5040,7 @@ fn type_last_stmt(pool: Vec<i32>, lid: i64, env: Vec<i32>, sigs: Vec<i32>, struc
 fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
-    if kind == 1 { return "i32"; };
+    if kind == 1 { return int_lit_type(pool, nid); };
     if kind == 71 { return "f64"; };
     if kind == 2 { return "str"; };
     if kind == 3 {
@@ -5067,8 +5081,20 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let v22msg_t: str = str_concat("integer (`", str_concat(int_side_v137_t, str_concat("`) and float (`", str_concat(flt_side_v137_t, "`) operands in arith/cmp binop. Pre-v0.4.137/.141 the raw i64 bit patterns were used. Use an explicit `x as f64` or `y as i64`."))));
             type_diag(diags, source, fn_name, fn_name, "NUM-022", v22msg_t);
         };
+        let is_int_arith_v110_t: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
+        let lhs_nid_v110_t: i64 = node_field(pool, nid, 2);
+        let rhs_nid_v110_t: i64 = node_field(pool, nid, 3);
+        let lhs_unsuffixed_lit_v110_t: i64 = if node_kind(pool, lhs_nid_v110_t) == 1 && int_lit_suffix_code(pool, lhs_nid_v110_t) == 0 { 1 } else { 0 };
+        let rhs_unsuffixed_lit_v110_t: i64 = if node_kind(pool, rhs_nid_v110_t) == 1 && int_lit_suffix_code(pool, rhs_nid_v110_t) == 0 { 1 } else { 0 };
+        if is_int_arith_v110_t == 1 && lhs_unsuffixed_lit_v110_t == 0 && rhs_unsuffixed_lit_v110_t == 0 && lt_is_int_v137_t == 1 && rt_is_int_v137_t == 1 && str_eq(lt, rt) == 0 {
+            let opch_v110_t: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            let v001msg_t: str = str_concat("mixed-width integer arithmetic `", str_concat(lt, str_concat(" ", str_concat(opch_v110_t, str_concat(" ", str_concat(rt, "` requires an explicit `as` cast (NUM-001)."))))));
+            type_diag(diags, source, fn_name, fn_name, "NUM-001", v001msg_t);
+        };
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
+        if is_int_arith_v110_t == 1 && lhs_unsuffixed_lit_v110_t == 1 && rt_is_int_v137_t == 1 { return rt; };
+        if is_int_arith_v110_t == 1 && rhs_unsuffixed_lit_v110_t == 1 && lt_is_int_v137_t == 1 { return lt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
         // v0.4.147 mirror: TYP-011 — struct == / != / ord silently
         // does pointer comparison.
@@ -6103,6 +6129,46 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
 
 
 
+fn expr_is_u64ish(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> i64 {
+    if nid < 0 { return 0; };
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 1 { return int_suffix_code_is_u64ish(int_lit_suffix_code(pool, nid)); };
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        let t: i64 = sym_get(sym, str_concat("__type_", name));
+        if t >= 0 {
+            let b: str = type_base_name(t);
+            if str_eq(b, "u64") == 1 || str_eq(b, "usize") == 1 { return 1; };
+        };
+        return 0;
+    };
+    if kind == 4 {
+        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        if is_cmp_or_logic(iop) == 1 { return 0; };
+        if expr_is_u64ish(pool, node_field(pool, nid, 2), sym, structs) == 1 { return 1; };
+        if expr_is_u64ish(pool, node_field(pool, nid, 3), sym, structs) == 1 { return 1; };
+        return 0;
+    };
+    if kind == 90 || kind == 91 || kind == 92 {
+        return expr_is_u64ish(pool, node_field(pool, nid, 1), sym, structs);
+    };
+    if kind == 99 {
+        let target: str = type_base_name(node_field(pool, nid, 2));
+        if str_eq(target, "u64") == 1 || str_eq(target, "usize") == 1 { return 1; };
+        return 0;
+    };
+    if kind == 9 {
+        let outer_type: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+        if str_len(outer_type) == 0 { return 0; };
+        let si: i64 = struct_find_type(pool, structs, outer_type);
+        if si >= 0 {
+            let ft: str = type_base_name(struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)));
+            if str_eq(ft, "u64") == 1 || str_eq(ft, "usize") == 1 { return 1; };
+        };
+    };
+    return 0;
+}
+
 #[manual_drop]
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
@@ -6183,7 +6249,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut rp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 3), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let rr: i64 = lx_reg(rp);
         cur = lx_blk(rp);
-        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        let mut iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        let u64_binop: i64 = if expr_is_u64ish(pool, node_field(pool, nid, 2), sym, structs) == 1 || expr_is_u64ish(pool, node_field(pool, nid, 3), sym, structs) == 1 { 1 } else { 0 };
+        if u64_binop == 1 {
+            if iop == 9 { iop = 38; }
+            else if iop == 10 { iop = 39; }
+            else if iop == 11 { iop = 40; }
+            else if iop == 12 { iop = 41; }
+            else if iop == 24 { iop = 25; };
+        };
         let r: i64 = ctr_next(regs);
         if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
         else {
@@ -6199,7 +6273,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     if iop == 4 { sh_sat = "saturating_mul"; };
                 };
             };
-            if str_len(sh_sat) > 0 {
+            if u64_binop == 1 && (iop == 5 || iop == 6) {
+                let mut sa_u64: Vec<i32> = Vec::new();
+                sa_u64.push(lr); sa_u64.push(rr);
+                let h_u64: str = if iop == 5 { "panic_div_u64" } else { "panic_rem_u64" };
+                ir_block_add(cur, ir_call_ex(r, h_u64, sa_u64));
+            } else if str_len(sh_sat) > 0 {
                 let mut sa_sat: Vec<i32> = Vec::new();
                 sa_sat.push(lr); sa_sat.push(rr);
                 ir_block_add(cur, ir_call_ex(r, sh_sat, sa_sat));
@@ -7599,7 +7678,24 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_key_hint
     // undefined-symbol errors that match privatized fns into MOD-003.
     system(str_concat("mkdir .nuc_cache", null_redir));
     let log_path: str = sanitize(".nuc_cache/clang_link.log");
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
+    let opt_flag: str = str_concat(" ", env_get_or("NUCLEOR_LLVM_OPT", "-O0"));
+    let mut cmd: str = llvm_clang_path();
+    cmd = str_concat(cmd, opt_flag);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, ll_path);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, rt_arg);
+    cmd = str_concat(cmd, cfiles);
+    cmd = str_concat(cmd, " -o ");
+    cmd = str_concat(cmd, exe_path);
+    cmd = str_concat(cmd, " -Wno-override-module");
+    cmd = str_concat(cmd, stack_flag);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, libpath_flags);
+    cmd = str_concat(cmd, link_flags);
+    cmd = str_concat(cmd, " > ");
+    cmd = str_concat(cmd, log_path);
+    cmd = str_concat(cmd, " 2>&1");
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     let clang_log: str = file_read_string(log_path);
@@ -7641,7 +7737,16 @@ fn compile_and_run(ll: str, name: str) -> i64 {
     system(str_concat("mkdir target", host_null_redirect()));
     file_write_string(lp, ll);
     let rt_arg2: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(lp, str_concat(" ", str_concat(rt_arg2, str_concat(" -o ", str_concat(ep, str_concat(" -Wno-override-module", str_concat(host_stack_link_flag(), "  2>&1")))))))));
+    let mut cmd: str = llvm_clang_path();
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, lp);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, rt_arg2);
+    cmd = str_concat(cmd, " -o ");
+    cmd = str_concat(cmd, ep);
+    cmd = str_concat(cmd, " -Wno-override-module");
+    cmd = str_concat(cmd, host_stack_link_flag());
+    cmd = str_concat(cmd, " 2>&1");
     let rc: i64 = system(cmd);
     if rc != 0 { print(str_concat("  COMPILE FAIL: ", safe_name)); return 0 - 1; };
     return system(ep);
@@ -7999,6 +8104,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NR005") { return "Module Resolution Failure"; };
     if str_eq(code, "NR010") { return "Lexical Syntax Failure"; };
     if str_eq(code, "NR020") { return "Parser Failure"; };
+    if str_eq(code, "PARSE-LET-SEMI") { return "Missing semicolon after let statement"; };
     if str_eq(code, "NR030") { return "Semantic Type Failure"; };
     if str_eq(code, "NR031") { return "Borrow Safety Failure (legacy — superseded by RFC-0062 G-series at v1.0)"; };
     if str_eq(code, "NR032") { return "Effect or Policy Failure"; };
@@ -8275,6 +8381,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NR005") { return "A use target or package import could not be resolved safely."; };
     if str_eq(code, "NR010") { return "The lexer found an invalid character or token shape."; };
     if str_eq(code, "NR020") { return "The token stream does not form valid Nucleor syntax."; };
+    if str_eq(code, "PARSE-LET-SEMI") { return "A `let` statement initializer was not terminated by `;`, so the next token would otherwise be parsed as a separate expression statement."; };
     if str_eq(code, "NR030") { return "The program parsed, but semantic typing rules were violated."; };
     if str_eq(code, "NR031") { return "Ownership or borrowing rules were violated. (Legacy code — at v1.0 the modern compiler emits the specific RFC-0062 G-series codes instead: OWN-G4-USE-AFTER-DROP, OWN-G8-COND-MOVE, BORROW-G2-LIFETIME, ALIAS-G3-VEC-OF-REFS, ALIAS-G3-HASHMAP-REHASH, INIT-G11-READ-BEFORE-INIT, SEND-G6-* — see `nuc explain <CODE>` for any of those.)"; };
     if str_eq(code, "NR032") { return "A denied effect, purity rule, or policy restriction was violated."; };
@@ -8520,6 +8627,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NR005") { return "The import graph could not be resolved because a target was missing, escaped its package boundary, created a cycle, or conflicted with another exported symbol."; };
     if str_eq(code, "NR010") { return "The source text cannot be tokenized into valid Nucleor tokens. This usually means a malformed literal, a non-ASCII identifier, or an unexpected character."; };
     if str_eq(code, "NR020") { return "The parser reached a token sequence that does not match the grammar. This is usually a missing delimiter, malformed declaration, or invalid expression shape."; };
+    if str_eq(code, "PARSE-LET-SEMI") { return "Nucleor requires `let name: Type = expr;` or `let name = expr;`. Pre-v1.1 builds could accept input such as `let x: i64 = 1 2 3;` and silently drop the trailing tokens as no-op expression statements. The parser now rejects the statement before lowering or codegen."; };
     if str_eq(code, "NR030") { return "The checker rejected the program because types, names, effects, or ownership rules did not line up. More specific semantic failures use narrower codes when possible."; };
     if str_eq(code, "NR031") { return "The checker found an illegal aliasing, move, or borrow pattern. Typical causes are moving a borrowed value, mixing shared and mutable borrows, or using a value after move."; };
     if str_eq(code, "NR032") { return "The program attempted an operation that the current effect context, purity contract, or active policy block does not allow."; };
@@ -8787,6 +8895,10 @@ fn explain_error_next_steps(code: str) -> Vec<i32> {
         steps.push("Check the line and column around the reported span.");
         steps.push("Look for missing braces, commas, semicolons, or parentheses.");
         steps.push("Verify declaration headers and function signatures.");
+    } else if str_eq(code, "PARSE-LET-SEMI") {
+        steps.push("Add `;` immediately after the let initializer.");
+        steps.push("If another value follows the initializer, connect it with an explicit operator or split it into a separate statement.");
+        steps.push("Re-run the build and check the first token named after the reported byte offset.");
     } else if str_eq(code, "NR030") {
         steps.push("Read the concrete message for the exact mismatch.");
         steps.push("Check variable names, function signatures, and return types.");
@@ -11115,12 +11227,12 @@ fn package_exports_rust_file_name() -> str { return "Nucleor.exports.rs"; }
 fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json"; }
 
 fn compiler_version_label() -> str {
-    return "1.0.3";
+    return "1.1.0";
     // Mirrors s1. History: 0.4.180 (caught up from stale 0.2.0-v2) →
     // 0.8.323 (RFC-0063 Phase 1 follow-on) → 1.0.0 (RFC-0062 closure +
     // RFC-0063 unification) → 1.0.1 (audit-pass-1 hardening sweep) →
     // 1.0.2 (audit residual close) → 1.0.3 (cold-compile str_substring
-    // regression fix).
+    // regression fix) → 1.1.0 (audit-complete production readiness).
 }
 
 fn abi_export_version_label() -> str {
@@ -14535,7 +14647,22 @@ fn link_shared_module(out_name: str, imported: Vec<i32>, export_names: Vec<i32>,
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
     let clang_start: i64 = now_ms();
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -shared -o ", str_concat(dll_path, str_concat(" -Wl,/DEF:", str_concat(path_shell_native(def_path), str_concat(" -Wl,/IMPLIB:", str_concat(path_shell_native(lib_path), str_concat(" -Wno-override-module ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))))))));
+    let mut cmd: str = llvm_clang_path();
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, ll_path);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, rt_arg);
+    cmd = str_concat(cmd, cfiles);
+    cmd = str_concat(cmd, " -shared -o ");
+    cmd = str_concat(cmd, dll_path);
+    cmd = str_concat(cmd, " -Wl,/DEF:");
+    cmd = str_concat(cmd, path_shell_native(def_path));
+    cmd = str_concat(cmd, " -Wl,/IMPLIB:");
+    cmd = str_concat(cmd, path_shell_native(lib_path));
+    cmd = str_concat(cmd, " -Wno-override-module ");
+    cmd = str_concat(cmd, libpath_flags);
+    cmd = str_concat(cmd, link_flags);
+    cmd = str_concat(cmd, " 2>&1");
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang_shared", now_ms() - clang_start);
     if rc != 0 {
@@ -15795,6 +15922,15 @@ fn main() -> i64 {
     if str_eq(cmd, "install") {
         return run_install_command(argc);
     };
+    if str_eq(cmd, "add") {
+        return run_install_command(argc);
+    };
+    if str_eq(cmd, "remove") {
+        return run_install_command(argc);
+    };
+    if str_eq(cmd, "update") {
+        return run_install_command(argc);
+    };
     if str_eq(cmd, "publish") {
         return run_publish_command(argc);
     };
@@ -15889,6 +16025,34 @@ fn main() -> i64 {
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
         else if str_eq(flag, "--cache-stats") { env_set("NUCLEOR_CACHE_STATS", "1"); }
+        else if str_eq(flag, "--release") {
+            env_set("NUCLEOR_LLVM_OPT", "-O3");
+        } else if str_eq(flag, "--tier") {
+            if argi_build + 1 >= argc {
+                print("ERROR: --tier requires a value (0, 1, or 2)");
+                return 1;
+            };
+            let tier_value: str = args_get(argi_build + 1);
+            if str_eq(tier_value, "0") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O0"); }
+            else if str_eq(tier_value, "1") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O1"); }
+            else if str_eq(tier_value, "2") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O3"); }
+            else {
+                print(str_concat("ERROR: unsupported --tier value: ", tier_value));
+                print("       expected 0, 1, or 2");
+                return 1;
+            };
+            argi_build = argi_build + 1;
+        } else if str_starts_with(flag, "--tier=") == 1 {
+            let tier_eq_value: str = str_substring(flag, 7, str_len(flag));
+            if str_eq(tier_eq_value, "0") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O0"); }
+            else if str_eq(tier_eq_value, "1") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O1"); }
+            else if str_eq(tier_eq_value, "2") == 1 { env_set("NUCLEOR_LLVM_OPT", "-O3"); }
+            else {
+                print(str_concat("ERROR: unsupported --tier value: ", tier_eq_value));
+                print("       expected 0, 1, or 2");
+                return 1;
+            };
+        }
         else if str_eq(cmd, "test") && str_eq(flag, "--list") { test_list_only = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--check-laws") { test_check_laws = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--isolation=process") { test_isolation_process = 1; }
@@ -15940,6 +16104,10 @@ fn main() -> i64 {
             saw_output_name = 1;
         } else if str_eq(cmd, "policy") && cli_is_flag(flag) == 0 {
             policy_level = flag;
+        } else if cli_is_flag(flag) == 1 && (str_eq(cmd, "build") == 1 || str_eq(cmd, "build-fast") == 1 || str_eq(cmd, "build-strict") == 1 || str_eq(cmd, "run") == 1 || str_eq(cmd, "emit") == 1 || str_eq(cmd, "build-wasm") == 1 || str_eq(cmd, "build-ptx") == 1 || str_eq(cmd, "verify-reproducible") == 1) {
+            print(str_concat("ERROR: unknown flag: ", flag));
+            print("       run `nuc help` for the supported build flags");
+            return 1;
         };
         argi_build = argi_build + 1;
     };

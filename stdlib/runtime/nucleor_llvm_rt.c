@@ -14,12 +14,19 @@
 #include <stdint.h>
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <dbghelp.h>
 #else
 #include <sys/wait.h>
 #endif
+
+long long __nucleor_atomic_i64_new(long long initial);
+long long __nucleor_atomic_i64_free(long long h);
+long long __nucleor_atomic_i64_load(long long h);
+long long __nucleor_atomic_i64_store(long long h, long long v);
+long long __nucleor_atomic_i64_fetch_add(long long h, long long v);
 
 /* v0.3.234: shared OOM-aware allocator wrappers. The header is
    also force-included into every other rt TU via clang -include
@@ -64,6 +71,41 @@
 #define _nuc_xmalloc _nuc_alloc_xmalloc
 #define _nuc_xrealloc _nuc_alloc_xrealloc
 #define _nuc_xcalloc _nuc_alloc_xcalloc
+
+static const char *__nucleor_owned_empty_string(void) {
+    char *r = (char *)malloc(1);
+    if (!r) return NULL;
+    r[0] = 0;
+    return r;
+}
+
+static const char* g_nuc_diag_source = NULL;
+
+long long nuc_diag_set_source(const char* source) {
+    g_nuc_diag_source = source;
+    return 0;
+}
+
+long long nuc_diag_line_for_byte(long long byte_off) {
+    const char* s = g_nuc_diag_source;
+    if (!s || byte_off <= 0) return 1;
+    long long line = 1;
+    for (long long i = 0; s[i] && i < byte_off; ++i) {
+        if (s[i] == '\n') line++;
+    }
+    return line;
+}
+
+long long nuc_diag_col_for_byte(long long byte_off) {
+    const char* s = g_nuc_diag_source;
+    if (!s || byte_off <= 0) return 1;
+    long long col = 1;
+    for (long long i = 0; s[i] && i < byte_off; ++i) {
+        if (s[i] == '\n') col = 1;
+        else col++;
+    }
+    return col;
+}
 
 // v0.3.233: cap-doubling overflow guard. Centralizes the
 // "doubling cap exceeds safe i64 range" check used by every
@@ -451,7 +493,7 @@ void __nucleor_eprint_raw(const char *s) {
 // RFC-0028 in v0.4.
 
 static const char *__nuc_render_format(const char *tmpl, const char *replacement) {
-    if (!tmpl) return "";
+    if (!tmpl) return __nucleor_owned_empty_string();
     const char *p = tmpl;
     while (*p && !(p[0] == '{' && p[1] == '}')) p++;
     if (!*p) {
@@ -1137,18 +1179,18 @@ const char *__nucleor_str_center(const char *s, long long width, long long fill)
 const char *__nucleor_read_line(void) {
     size_t cap = 256, len = 0;
     char *buf = (char *)malloc(cap);
-    if (!buf) return "";
+    if (!buf) return __nucleor_owned_empty_string();
     int c;
     while ((c = fgetc(stdin)) != EOF && c != '\n') {
         if (len + 1 >= cap) {
             cap = (int)_grow_cap((long long)cap, sizeof(char), "stdin readline buffer");
             char *grown = (char *)realloc(buf, cap);
-            if (!grown) { free(buf); return ""; }
+            if (!grown) { free(buf); return __nucleor_owned_empty_string(); }
             buf = grown;
         }
         buf[len++] = (char)c;
     }
-    if (c == EOF && len == 0) { free(buf); return ""; }
+    if (c == EOF && len == 0) { free(buf); return __nucleor_owned_empty_string(); }
     buf[len] = 0;
     return buf;
 }
@@ -2047,6 +2089,13 @@ const char *__nucleor_str_substring(const char *s, long long start, long long en
         exit(1);
     }
     long long n = end - start;
+    if (n > 0 && memchr(s + start, '\0', (size_t)n) != NULL) {
+        fprintf(stderr,
+            "PANIC: str_substring OOB: end=%lld exceeds string length from start=%lld (STR-SUBSTR-OOB; use str_substring_strict for full-length diagnostics)\n",
+            end, start);
+        fflush(stderr);
+        exit(1);
+    }
     /* Defensive cap — malloc(size_t) is the C-side limit. On 64-bit
      * platforms (the only ones Nucleor targets in v1.0) size_t is
      * 64-bit so any non-negative int64 fits. Guard left in for the
@@ -2074,7 +2123,7 @@ const char *__nucleor_str_substring(const char *s, long long start, long long en
 // Adopter-facing for code that wants full bounds-checking; pays the
 // O(strlen(s)) cost per call.
 const char *__nucleor_str_substring_strict(const char *s, long long start, long long end) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     long long slen = (long long)strlen(s);
     if (start < 0 || end < start || end > slen) {
         fprintf(stderr, "PANIC: str_substring_strict OOB: start=%lld end=%lld len=%lld\n",
@@ -2116,7 +2165,7 @@ const char *__nucleor_str_concat(const char *a, const char *b) {
 //   str_split(s, sep) -> NVec*   — Vec<str> of substrings (each is a strdup)
 
 const char *__nucleor_str_to_lower(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     char *out = (char *)malloc(n + 1);
     for (size_t i = 0; i < n; i++) {
@@ -2128,7 +2177,7 @@ const char *__nucleor_str_to_lower(const char *s) {
 }
 
 const char *__nucleor_str_to_upper(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     char *out = (char *)malloc(n + 1);
     for (size_t i = 0; i < n; i++) {
@@ -2140,7 +2189,7 @@ const char *__nucleor_str_to_upper(const char *s) {
 }
 
 const char *__nucleor_str_trim(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     size_t start = 0;
     while (start < n && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r')) start++;
@@ -2153,7 +2202,7 @@ const char *__nucleor_str_trim(const char *s) {
     return out;
 }
 const char *__nucleor_str_trim_start(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     size_t start = 0;
     while (start < n && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r')) start++;
@@ -2164,7 +2213,7 @@ const char *__nucleor_str_trim_start(const char *s) {
     return out;
 }
 const char *__nucleor_str_trim_end(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     size_t end = n;
     while (end > 0 && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\n' || s[end - 1] == '\r')) end--;
@@ -2190,7 +2239,7 @@ long long __nucleor_str_count(const char *s, const char *needle) {
     return c;
 }
 const char *__nucleor_str_reverse(const char *s) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     size_t n = strlen(s);
     char *out = (char *)malloc(n + 1);
     for (size_t i = 0; i < n; i++) out[i] = s[n - 1 - i];
@@ -2224,7 +2273,7 @@ long long __nucleor_str_contains(const char *s, const char *needle) {
 }
 
 const char *__nucleor_str_replace(const char *s, const char *find, const char *repl) {
-    if (!s) return "";
+    if (!s) return __nucleor_owned_empty_string();
     if (!find || !*find) {
         size_t n = strlen(s) + 1;
         char *out = (char *)malloc(n);
@@ -2294,14 +2343,15 @@ const char *__nucleor_str_repeat(const char *s, long long n) {
 //     intact. Adopters who want strict semantics can call the
 //     new __nucleor_file_read_string_or_panic helper.
 const char *__nucleor_file_read_string(const char *path) {
-    if (!path) return "";
+    if (!path) return __nucleor_owned_empty_string();
     FILE *f = fopen(path, "rb");
-    if (!f) return "";
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return ""; }
+    if (!f) return __nucleor_owned_empty_string();
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return __nucleor_owned_empty_string(); }
     long sz = ftell(f);
-    if (sz < 0) { fclose(f); return ""; }   /* CVE-class: prevent SIZE_MAX fread */
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return ""; }
+    if (sz < 0) { fclose(f); return __nucleor_owned_empty_string(); }   /* CVE-class: prevent SIZE_MAX fread */
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return __nucleor_owned_empty_string(); }
     char *buf = (char *)malloc((size_t)sz + 1);
+    if (!buf) return __nucleor_owned_empty_string();
     size_t n_read = fread(buf, 1, (size_t)sz, f);
     fclose(f);
     buf[n_read] = 0;
@@ -2457,11 +2507,18 @@ NVec *__nucleor_vec_with_capacity(long long n) {
     if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
     g_vec_new_count++;
     long long cap = n < 2 ? 2 : n;
+    if (cap > INT_MAX) {
+        fprintf(stderr,
+            "PANIC: vec_with_capacity capacity %lld exceeds INT_MAX; current NVec ABI stores len/cap as int (A2)\n",
+            cap);
+        fflush(stderr);
+        exit(1);
+    }
     NVec *v = (NVec *)malloc(sizeof(NVec));
     if (cap <= 2) { v->data = v->inline_data; }
     else { v->data = (long long *)malloc((size_t)cap * sizeof(long long)); }
     v->len = 0;
-    v->cap = cap;
+    v->cap = (int)cap;
     g_vec_realloc_bytes += sizeof(NVec);
     if (cap > 2) { g_vec_realloc_bytes += (long long)cap * (long long)sizeof(long long); }
     return v;
@@ -2569,7 +2626,15 @@ void __nucleor_vec_push(NVec *v, long long x) {
     if (!v) return;
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
-        v->cap = _grow_cap(v->cap, sizeof(long long), "vec_push");
+        long long new_cap = _grow_cap(v->cap, sizeof(long long), "vec_push");
+        if (new_cap > INT_MAX) {
+            fprintf(stderr,
+                "PANIC: vec_push capacity growth %lld exceeds INT_MAX; current NVec ABI stores len/cap as int (A2)\n",
+                new_cap);
+            fflush(stderr);
+            exit(1);
+        }
+        v->cap = (int)new_cap;
         /* Lane 2 audit fix A3 (Critical, 2026-05-08): under
            NUCLEOR_OOM_LENIENT=1, _nuc_alloc_xmalloc /
            _nuc_alloc_xrealloc return NULL on alloc failure rather
@@ -2650,6 +2715,14 @@ long long nuc_node_kind(long long pool_cell, long long nid) {
 long long nuc_node_field(long long pool_cell, long long nid, long long idx) {
     NVec *pool = (NVec *)(intptr_t)pool_cell;
     NVec *nd = (NVec *)(intptr_t)__nucleor_vec_direct_checked(pool, nid, "node_field pool");
+    if (nd && idx >= nd->len && !_vec_oob_lenient()) {
+        long long kind = (nd->len > 0) ? (long long)nd->data[0] : -1LL;
+        fprintf(stderr,
+                "PANIC: node_field node OOB: nid %lld, kind %lld, index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                nid, kind, idx, (long long)nd->len);
+        fflush(stderr);
+        exit(1);
+    }
     return __nucleor_vec_direct_checked(nd, idx, "node_field node");
 }
 
@@ -4002,15 +4075,14 @@ long long __nucleor_channel_len(long long handle) {
 }
 // Atomic counter for safe shared state
 long long __nucleor_atomic_new(long long val) {
-    long long *p = (long long*)malloc(sizeof(long long));
-    *p = val;
-    return (long long)p;
+    return __nucleor_atomic_i64_new(val);
 }
 long long __nucleor_atomic_add(long long handle, long long delta) {
-    return InterlockedAdd64((volatile LONG64*)(void*)handle, delta);
+    long long prev = __nucleor_atomic_i64_fetch_add(handle, delta);
+    return prev + delta;
 }
 long long __nucleor_atomic_load(long long handle) {
-    return InterlockedCompareExchange64((volatile LONG64*)(void*)handle, 0, 0);
+    return __nucleor_atomic_i64_load(handle);
 }
 // CPU count for work distribution
 long long __nucleor_cpu_count(void) {
@@ -4266,11 +4338,13 @@ long long __nucleor_channel_len(long long h) {
     return n;
 }
 long long __nucleor_atomic_new(long long val) {
-    long long *p = (long long*)malloc(sizeof(long long));
-    *p = val; return (long long)p;
+    return __nucleor_atomic_i64_new(val);
 }
-long long __nucleor_atomic_add(long long h, long long d) { return __sync_add_and_fetch((long long*)(void*)h, d); }
-long long __nucleor_atomic_load(long long h) { return __sync_val_compare_and_swap((long long*)(void*)h, 0, 0); }
+long long __nucleor_atomic_add(long long h, long long d) {
+    long long prev = __nucleor_atomic_i64_fetch_add(h, d);
+    return prev + d;
+}
+long long __nucleor_atomic_load(long long h) { return __nucleor_atomic_i64_load(h); }
 long long __nucleor_cpu_count(void) { return (long long)sysconf(_SC_NPROCESSORS_ONLN); }
 #endif
 
@@ -5281,15 +5355,19 @@ long long __nucleor_vec_u8_extend_from_ptr(long long h, const unsigned char *src
 typedef struct { float *data; long long len; long long cap; } NVecF32;
 long long __nucleor_vec_f32_new(void) {
     NVecF32 *v = (NVecF32 *)malloc(sizeof(NVecF32));
+    if (!v) return 0;
     v->data = (float *)malloc(64 * sizeof(float));
+    if (!v->data) { free(v); return 0; }
     v->len = 0;
     v->cap = 64;
     return (long long)(intptr_t)v;
 }
 long long __nucleor_vec_f32_with_capacity(long long n) {
     NVecF32 *v = (NVecF32 *)malloc(sizeof(NVecF32));
+    if (!v) return 0;
     if (n < 1) n = 1;
     v->data = (float *)malloc((size_t)n * sizeof(float));
+    if (!v->data) { free(v); return 0; }
     v->len = 0;
     v->cap = n;
     return (long long)(intptr_t)v;
@@ -5299,8 +5377,15 @@ long long __nucleor_vec_f32_push_bits(long long h, long long bits) {
     NVecF32 *v = (NVecF32 *)(intptr_t)h;
     if (!v) return 0;
     if (v->len >= v->cap) {
-        v->cap = _grow_cap(v->cap, sizeof(float), "vec_f32 push");
-        v->data = (float *)realloc(v->data, (size_t)v->cap * sizeof(float));
+        long long old_cap = v->cap;
+        long long new_cap = _grow_cap(v->cap, sizeof(float), "vec_f32 push");
+        float *grown = (float *)realloc(v->data, (size_t)new_cap * sizeof(float));
+        if (!grown) {
+            v->cap = old_cap;
+            return 0;
+        }
+        v->cap = new_cap;
+        v->data = grown;
     }
     union { unsigned int u; float f; } cv;
     cv.u = (unsigned int)(bits & 0xFFFFFFFFLL);
@@ -6431,22 +6516,55 @@ long long __nucleor_time_monotonic_us(void) { return __nucleor_time_monotonic_ns
 long long __nucleor_time_monotonic_ms(void) { return __nucleor_time_monotonic_ns() / 1000000LL; }
 
 // === v0.3.0 (T3.1): runtime #[deadline] checks ===
-// Compiler-injected at the entry/exit of #[deadline = N] fns. Reads
-// the saved start time, compares against limit, and aborts with a
-// friendly diagnostic if elapsed time exceeded the limit.
-//
+// v1.1.0 audit pass 1 / F-CONC-003: wrappers now establish a
+// per-thread deadline context and deadline inner functions poll it at
+// loop headers. The exit check remains as a final guard for straight-line
+// work and helper calls without loop polls.
+typedef struct {
+    long long start_us;
+    long long limit_us;
+} NucDeadlineCtx;
+
+static NUCLEOR_TLS NucDeadlineCtx __nucleor_deadline_stack[64];
+static NUCLEOR_TLS int __nucleor_deadline_depth = 0;
+
+static void __nucleor_deadline_abort(long long elapsed, long long limit_us) {
+    fprintf(stderr, "error[RT-004]: #[deadline] overrun: elapsed %lld us > limit %lld us\n",
+            elapsed, limit_us);
+    fflush(stderr);
+    exit(1);
+}
+
+long long __nucleor_deadline_enter(long long start_us, long long limit_us) {
+    int depth = __nucleor_deadline_depth;
+    if (depth < 0) depth = 0;
+    if (depth >= 64) depth = 63;
+    __nucleor_deadline_stack[depth].start_us = start_us;
+    __nucleor_deadline_stack[depth].limit_us = limit_us;
+    if (__nucleor_deadline_depth < 64) __nucleor_deadline_depth++;
+    return 0;
+}
+
+long long __nucleor_deadline_exit(void) {
+    if (__nucleor_deadline_depth > 0) __nucleor_deadline_depth--;
+    return 0;
+}
+
+long long __nucleor_deadline_poll(void) {
+    if (__nucleor_deadline_depth <= 0) return 0;
+    NucDeadlineCtx *ctx = &__nucleor_deadline_stack[__nucleor_deadline_depth - 1];
+    long long elapsed = __nucleor_time_monotonic_us() - ctx->start_us;
+    if (elapsed > ctx->limit_us) __nucleor_deadline_abort(elapsed, ctx->limit_us);
+    return 0;
+}
+
 // Returns 0 on pass; aborts (exit 1) on overrun. Returning rather
 // than void so source-rewriter can drop the call into expression
 // position if needed.
 long long __nucleor_deadline_check(long long start_us, long long limit_us) {
     long long now = __nucleor_time_monotonic_us();
     long long elapsed = now - start_us;
-    if (elapsed > limit_us) {
-        fprintf(stderr, "error[RT-004]: #[deadline] overrun: elapsed %lld us > limit %lld us\n",
-                elapsed, limit_us);
-        fflush(stderr);
-        exit(1);
-    }
+    if (elapsed > limit_us) __nucleor_deadline_abort(elapsed, limit_us);
     return 0;
 }
 
@@ -8024,7 +8142,11 @@ long long __nucleor_uuid_v4(void) {
 // All ops use seq_cst ordering; relaxed/acquire/release variants
 // land with full RFC-0007 in v0.5.
 //
-// Storage: malloc'd long long*. Handle is the pointer.
+// Storage: registry-tracked cells whose public handle remains the address of
+// the i64 value. Keeping the value pointer as the handle preserves the
+// zero-extern-hop LLVM ordered-atomic lowering, while registry validation
+// keeps the legacy raw-handle helpers from dereferencing forged or freed
+// pointers.
 #ifdef _WIN32
 #define NUC_AT_LOAD(p) ((long long)InterlockedCompareExchange64((LONG64 volatile*)(p), 0, 0))
 #define NUC_AT_STORE(p, v) ((void)InterlockedExchange64((LONG64 volatile*)(p), (LONG64)(v)))
@@ -8048,62 +8170,182 @@ long long __nucleor_uuid_v4(void) {
 #define NUC_AT_SWAP(p, v) atomic_exchange((_Atomic long long *)(p), (v))
 #endif
 
+#define NUC_ATOMIC_I64_MAGIC 0x4e554341544f4d31ULL
+#define NUC_ATOMIC_I64_REG_CAP 65536
+typedef struct {
+    uint64_t magic;
+    int active;
+    long long value;
+} NucAtomicI64Cell;
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(NucAtomicI64Cell, value) % 8 == 0,
+               "NucAtomicI64Cell.value must be 8-byte aligned for Win32 Interlocked64");
+#ifndef _WIN32
+_Static_assert(offsetof(NucAtomicI64Cell, value) % _Alignof(_Atomic long long) == 0,
+               "NucAtomicI64Cell.value must satisfy _Atomic long long alignment");
+#endif
+#endif
+typedef struct {
+    uintptr_t handle;
+    NucAtomicI64Cell *cell;
+} NucAtomicI64RegistryEntry;
+static NucAtomicI64RegistryEntry g_atomic_i64_registry[NUC_ATOMIC_I64_REG_CAP];
+#ifdef _WIN32
+static INIT_ONCE g_atomic_i64_once = INIT_ONCE_STATIC_INIT;
+static CRITICAL_SECTION g_atomic_i64_lock;
+static BOOL CALLBACK __nuc_atomic_i64_init_once(PINIT_ONCE once, PVOID param, PVOID *ctx) {
+    (void)once; (void)param; (void)ctx;
+    InitializeCriticalSection(&g_atomic_i64_lock);
+    return TRUE;
+}
+static void __nuc_atomic_i64_registry_init(void) {
+    InitOnceExecuteOnce(&g_atomic_i64_once, __nuc_atomic_i64_init_once, NULL, NULL);
+}
+static void __nuc_atomic_i64_registry_lock(void) { EnterCriticalSection(&g_atomic_i64_lock); }
+static void __nuc_atomic_i64_registry_unlock(void) { LeaveCriticalSection(&g_atomic_i64_lock); }
+#else
+static pthread_mutex_t g_atomic_i64_lock = PTHREAD_MUTEX_INITIALIZER;
+static void __nuc_atomic_i64_registry_init(void) { }
+static void __nuc_atomic_i64_registry_lock(void) { pthread_mutex_lock(&g_atomic_i64_lock); }
+static void __nuc_atomic_i64_registry_unlock(void) { pthread_mutex_unlock(&g_atomic_i64_lock); }
+#endif
+
+static size_t __nuc_atomic_i64_hash(uintptr_t handle) {
+    uint64_t x = (uint64_t)(handle >> 3);
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    return (size_t)(x & (NUC_ATOMIC_I64_REG_CAP - 1));
+}
+
+static int __nuc_atomic_i64_register(NucAtomicI64Cell *cell) {
+    uintptr_t handle = (uintptr_t)&cell->value;
+    size_t idx = __nuc_atomic_i64_hash(handle);
+    for (size_t probe = 0; probe < NUC_ATOMIC_I64_REG_CAP; probe++) {
+        size_t pos = (idx + probe) & (NUC_ATOMIC_I64_REG_CAP - 1);
+        if (g_atomic_i64_registry[pos].handle == 0 || g_atomic_i64_registry[pos].handle == handle) {
+            g_atomic_i64_registry[pos].handle = handle;
+            g_atomic_i64_registry[pos].cell = cell;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static NucAtomicI64Cell *__nuc_atomic_i64_lookup_locked(long long h) {
+    uintptr_t handle = (uintptr_t)(intptr_t)h;
+    if (handle == 0) return NULL;
+    size_t idx = __nuc_atomic_i64_hash(handle);
+    for (size_t probe = 0; probe < NUC_ATOMIC_I64_REG_CAP; probe++) {
+        size_t pos = (idx + probe) & (NUC_ATOMIC_I64_REG_CAP - 1);
+        uintptr_t seen = g_atomic_i64_registry[pos].handle;
+        if (seen == handle) return g_atomic_i64_registry[pos].cell;
+        if (seen == 0) return NULL;
+    }
+    return NULL;
+}
+
+static void __nuc_atomic_i64_warn_invalid(long long h) {
+    static int warned_once = 0;
+    if (!warned_once) {
+        warned_once = 1;
+        fprintf(stderr,
+            "WARN[F-CONC-001]: invalid or freed AtomicI64 handle 0x%llx; "
+            "operation ignored and 0 returned. Raw atomic handles must come "
+            "from atomic_i64_new/atomic_new and must not be reused after "
+            "atomic_i64_free/atomic_drop.\n",
+            (unsigned long long)h);
+        fflush(stderr);
+    }
+}
+
+static NucAtomicI64Cell *__nuc_atomic_i64_active_cell(long long h) {
+    __nuc_atomic_i64_registry_init();
+    __nuc_atomic_i64_registry_lock();
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_lookup_locked(h);
+    int ok = (cell && cell->magic == NUC_ATOMIC_I64_MAGIC && cell->active);
+    __nuc_atomic_i64_registry_unlock();
+    if (!ok) {
+        __nuc_atomic_i64_warn_invalid(h);
+        return NULL;
+    }
+    return cell;
+}
+
 long long __nucleor_atomic_i64_new(long long initial) {
-    long long *p = (long long *)malloc(sizeof(long long));
-    *p = initial;
-    return (long long)(intptr_t)p;
+    __nuc_atomic_i64_registry_init();
+    NucAtomicI64Cell *cell = (NucAtomicI64Cell *)calloc(1, sizeof(NucAtomicI64Cell));
+    if (!cell) return 0;
+    cell->magic = NUC_ATOMIC_I64_MAGIC;
+    cell->active = 1;
+    NUC_AT_STORE(&cell->value, initial);
+    __nuc_atomic_i64_registry_lock();
+    int registered = __nuc_atomic_i64_register(cell);
+    __nuc_atomic_i64_registry_unlock();
+    if (!registered) {
+        free(cell);
+        fprintf(stderr, "PANIC: AtomicI64 handle registry full (max %d live-or-retired handles).\n", NUC_ATOMIC_I64_REG_CAP);
+        fflush(stderr);
+        exit(1);
+    }
+    return (long long)(intptr_t)&cell->value;
 }
 long long __nucleor_atomic_i64_free(long long h) {
-    long long *p = (long long *)(intptr_t)h;
-    if (p) free(p);
+    __nuc_atomic_i64_registry_init();
+    __nuc_atomic_i64_registry_lock();
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_lookup_locked(h);
+    if (cell && cell->magic == NUC_ATOMIC_I64_MAGIC && cell->active) {
+        cell->active = 0;
+    }
+    __nuc_atomic_i64_registry_unlock();
     return 0;
 }
 long long __nucleor_atomic_i64_load(long long h) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_LOAD(p);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_LOAD(&cell->value);
 }
 long long __nucleor_atomic_i64_store(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    NUC_AT_STORE(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    NUC_AT_STORE(&cell->value, v);
     return 0;
 }
 long long __nucleor_atomic_i64_fetch_add(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_ADD(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_ADD(&cell->value, v);
 }
 long long __nucleor_atomic_i64_fetch_sub(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_SUB(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_SUB(&cell->value, v);
 }
 long long __nucleor_atomic_i64_fetch_and(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_AND(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_AND(&cell->value, v);
 }
 long long __nucleor_atomic_i64_fetch_or(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_OR(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_OR(&cell->value, v);
 }
 long long __nucleor_atomic_i64_fetch_xor(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_XOR(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_XOR(&cell->value, v);
 }
 long long __nucleor_atomic_i64_swap(long long h, long long v) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_SWAP(p, v);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_SWAP(&cell->value, v);
 }
 // CAS — returns the previous value. Caller compares vs `expected` for success.
 long long __nucleor_atomic_i64_cas(long long h, long long expected, long long desired) {
-    long long *p = (long long *)(intptr_t)h;
-    if (!p) return 0;
-    return NUC_AT_CAS(p, expected, desired);
+    NucAtomicI64Cell *cell = __nuc_atomic_i64_active_cell(h);
+    if (!cell) return 0;
+    return NUC_AT_CAS(&cell->value, expected, desired);
 }
 
 // === Bit-twiddling primitives ===

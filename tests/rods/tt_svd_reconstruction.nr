@@ -72,6 +72,7 @@ fn main() -> i64 {
     let g1_off: i64 = 6;
     let g2_off: i64 = g1_off + g1s;
     let g3_off: i64 = g2_off + g2s;
+    let two: i64 = 2;
 
     // Sum over a in [0, r1), b in [0, r2) of G1[i,a]*G2[a,j,b]*G3[b,k]
     // for (i, j, k) = (0, 0, 0): expect 2.0
@@ -80,11 +81,11 @@ fn main() -> i64 {
     while a < r1 {
         let mut b: i64 = 0;
         while b < r2 {
-            let g1_v: f64 = f64_from_bits(vec_get(h, g1_off + 0 * r1 + a));
+            let g1_v: f64 = f64_from_bits(vec_get(h, g1_off + a));
             // G2[a, 0, b] -> a*d2*r2 + 0*r2 + b
-            let g2_v: f64 = f64_from_bits(vec_get(h, g2_off + a * 2 * r2 + 0 * r2 + b));
+            let g2_v: f64 = f64_from_bits(vec_get(h, g2_off + a * two * r2 + b));
             // G3[b, 0] -> b*d3 + 0
-            let g3_v: f64 = f64_from_bits(vec_get(h, g3_off + b * 2 + 0));
+            let g3_v: f64 = f64_from_bits(vec_get(h, g3_off + b * two));
             acc = acc + g1_v * g2_v * g3_v;
             b = b + 1;
         };
@@ -101,9 +102,9 @@ fn main() -> i64 {
     while a2 < r1 {
         let mut b2: i64 = 0;
         while b2 < r2 {
-            let g1_v: f64 = f64_from_bits(vec_get(h, g1_off + 1 * r1 + a2));
-            let g2_v: f64 = f64_from_bits(vec_get(h, g2_off + a2 * 2 * r2 + 1 * r2 + b2));
-            let g3_v: f64 = f64_from_bits(vec_get(h, g3_off + b2 * 2 + 1));
+            let g1_v: f64 = f64_from_bits(vec_get(h, g1_off + r1 + a2));
+            let g2_v: f64 = f64_from_bits(vec_get(h, g2_off + a2 * two * r2 + r2 + b2));
+            let g3_v: f64 = f64_from_bits(vec_get(h, g3_off + b2 * two + 1));
             acc2 = acc2 + g1_v * g2_v * g3_v;
             b2 = b2 + 1;
         };

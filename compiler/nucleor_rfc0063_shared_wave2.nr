@@ -1283,7 +1283,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "sqrt") == 1 || str_eq(name, "sin") == 1 || str_eq(name, "cos") == 1 || str_eq(name, "pow") == 1 || str_eq(name, "floor") == 1 || str_eq(name, "ceil") == 1 || str_eq(name, "round") == 1 || str_eq(name, "exp") == 1 || str_eq(name, "log") == 1 || str_eq(name, "tanh") == 1 || str_eq(name, "tanh_act") == 1 || str_eq(name, "fabs") == 1 || str_eq(name, "fmod") == 1 || str_eq(name, "f64_from_bits") == 1 { return "f64"; };
     if str_eq(name, "f64_to_bits") == 1 { return "i64"; };
     if str_eq(name, "f64_to_i32") == 1 { return "i32"; };
-    if str_eq(name, "now_ms") == 1 || str_eq(name, "sleep_ms") == 1 || str_eq(name, "sleep_us") == 1 || str_eq(name, "time_monotonic_ms") == 1 || str_eq(name, "time_monotonic_ns") == 1 || str_eq(name, "time_monotonic_us") == 1 || str_eq(name, "time_wall_ms") == 1 || str_eq(name, "time_wall_ns") == 1 || str_eq(name, "time_wall_seconds") == 1 || str_eq(name, "time_wall_us") == 1 || str_eq(name, "time_year") == 1 || str_eq(name, "time_month") == 1 || str_eq(name, "time_day") == 1 || str_eq(name, "time_hour") == 1 || str_eq(name, "time_minute") == 1 || str_eq(name, "time_second") == 1 || str_eq(name, "time_weekday") == 1 || str_eq(name, "time_day_of_year") == 1 || str_eq(name, "time_elapsed_ms") == 1 { return "i64"; };
+    if str_eq(name, "now_ms") == 1 || str_eq(name, "sleep_ms") == 1 || str_eq(name, "sleep_us") == 1 || str_eq(name, "time_monotonic_ms") == 1 || str_eq(name, "time_monotonic_ns") == 1 || str_eq(name, "time_monotonic_us") == 1 || str_eq(name, "time_wall_ms") == 1 || str_eq(name, "time_wall_ns") == 1 || str_eq(name, "time_wall_seconds") == 1 || str_eq(name, "time_wall_us") == 1 || str_eq(name, "time_year") == 1 || str_eq(name, "time_month") == 1 || str_eq(name, "time_day") == 1 || str_eq(name, "time_hour") == 1 || str_eq(name, "time_minute") == 1 || str_eq(name, "time_second") == 1 || str_eq(name, "time_weekday") == 1 || str_eq(name, "time_day_of_year") == 1 || str_eq(name, "time_elapsed_ms") == 1 || str_eq(name, "deadline_enter") == 1 || str_eq(name, "deadline_exit") == 1 || str_eq(name, "deadline_poll") == 1 || str_eq(name, "deadline_check") == 1 { return "i64"; };
     if str_eq(name, "ambient_scheduler") == 1 { return "SchedulerCap"; };
     if str_eq(name, "ambient_random") == 1 { return "RandomCap"; };
     if str_eq(name, "random_uniform") == 1 { return "f64"; };
@@ -2394,7 +2394,9 @@ fn lex(src: str) -> Vec<i32> {
                     };
                 };
                 let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
-                tokens.push(tok_new(2, int_lit_value, st));
+                let mut int_tok_v110: Vec<i32> = tok_new(2, int_lit_value, st);
+                tokens.push(int_tok_v110);
+                let mut int_suffix_v110: i64 = 0;
                 // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
                 if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
                     let suf_st: i64 = p;
@@ -2417,7 +2419,9 @@ fn lex(src: str) -> Vec<i32> {
                         // Not actually a suffix; rewind so it lexes as identifier.
                         p = suf_st;
                     };
+                    if is_known == 1 { int_suffix_v110 = int_suffix_code(suf); };
                 };
+                if int_suffix_v110 != 0 { int_tok_v110.push(int_suffix_v110); };
                 if p < slen && str_char_at(src, p) == 123 {
                     tokens.push(tok_new(83, 0, p));
                     p = p + 1;
@@ -3584,81 +3588,27 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         //
         // v0.3.103: Fold bitwise: and(13), or(14), xor(15).
         //
-        // v0.3.147: skip the bitwise fold when either operand is negative.
-        // The while-shift bit-extraction below uses
-        // `ra - (ra/2)*2 == 1` to detect a set LSB. For negative odd ra,
-        // C-style integer division (Nucleor's semantics) rounds toward
-        // zero so `ra/2` underflows: `-1/2 == 0` and `-1 - 0*2 == -1`,
-        // not `1`. The `== 1` check fails, the bit is never recorded as
-        // set, and the entire fold collapses high-bit operands to ~0.
-        // `255 & -1` const-folded to `0` instead of `255`. Adopters
-        // using bitmasks against `-1` (all-ones sentinel) silently
-        // computed wrong values. The runtime LLVM `and i64` is correct
-        // on signed-i64-as-bits — the bug is purely the s1-emulated fold.
-        // Safe fallback: don't fold negative operands; let runtime LLVM
-        // compute it. (The same fold-skip pattern as v0.3.145 div/mod
-        // by zero, using a do_fold flag so the loop counter isn't
-        // touched.)
+        // v1.1.0 audit pass 1 / C-004: fold through the same bitwise
+        // operators that lowering emits. The old self-host emulation used
+        // division-based LSB extraction and had to skip negative operands;
+        // that kept runtime results correct but left the fold path
+        // untested for all-ones sentinels and high-bit masks.
         else if op == 13 || op == 14 || op == 15 {
             let a: i64 = ir_op1(inst);
             let b: i64 = ir_op2(inst);
             if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
                 let va: i64 = cmap_get(cm, a);
                 let vb: i64 = cmap_get(cm, b);
-                let mut do_bit_fold: i64 = 1;
-                if va < 0 { do_bit_fold = 0; };
-                if vb < 0 { do_bit_fold = 0; };
-                if do_bit_fold == 1 {
                 let mut result: i64 = 0;
-                // Use sym_get's hash-style int-pair AND emulation: Nucleor
-                // doesn't expose a `&` operator at this self-host level
-                // either (chicken-and-egg), so do it via while-shift.
-                if op == 13 {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 && rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                } else if op == 14 {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 || rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                } else {
-                    let mut acc: i64 = 0;
-                    let mut bit: i64 = 1;
-                    let mut ra: i64 = va;
-                    let mut rb: i64 = vb;
-                    let mut k: i64 = 0;
-                    while k < 64 {
-                        let bita: i64 = ra - (ra / 2) * 2;
-                        let bitb: i64 = rb - (rb / 2) * 2;
-                        if bita != bitb { acc = wrapping_add(acc, bit); };
-                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
-                        k = k + 1;
-                    };
-                    result = acc;
-                };
+                if op == 13 { result = va & vb; }
+                else if op == 14 { result = va | vb; }
+                else { result = va ^ vb; };
                 vec_set(inst, 0, 0);
                 vec_set(inst, 3, result);
                 vec_set(inst, 4, 0);
                 vec_set(inst, 5, 0);
                 cmap_set(cm, d, result);
                 folded = folded + 1;
-                };
             };
         };
         i = i + 1;
@@ -4019,6 +3969,9 @@ fn expand_deadline(src: str) -> str {
                     };
                     sb_append(sb, "{\n");
                     sb_append(sb, "    let __nuc_dl_start: i64 = time_monotonic_us();\n");
+                    sb_append(sb, "    deadline_enter(__nuc_dl_start, ");
+                    sb_append(sb, str_from_int(dl_value));
+                    sb_append(sb, ");\n");
                     if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
                         sb_append(sb, "    let __nuc_dl_r: ");
                         sb_append(sb, ret_type);
@@ -4027,6 +3980,7 @@ fn expand_deadline(src: str) -> str {
                         sb_append(sb, "(");
                         sb_append(sb, arg_names);
                         sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_exit();\n");
                         sb_append(sb, "    deadline_check(__nuc_dl_start, ");
                         sb_append(sb, str_from_int(dl_value));
                         sb_append(sb, ");\n");
@@ -4037,6 +3991,7 @@ fn expand_deadline(src: str) -> str {
                         sb_append(sb, "(");
                         sb_append(sb, arg_names);
                         sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_exit();\n");
                         sb_append(sb, "    deadline_check(__nuc_dl_start, ");
                         sb_append(sb, str_from_int(dl_value));
                         sb_append(sb, ");\n");
@@ -4881,4 +4836,3 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
     };
     return sb_to_str(sb);
 }
-

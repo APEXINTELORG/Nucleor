@@ -3,8 +3,9 @@
 // Locks that high-level qsim wrappers update qsim_graph repeatably:
 //   1. qsim_graph_clear resets entanglement and gate-DAG state.
 //   2. A fresh qsim run after clear starts with zero graph/DAG counts.
-//   3. CNOT, CZ, and CRK each add one DAG record and one entanglement edge.
-//   4. SWAP records exactly its inherited three-CNOT sequence.
+//   3. CNOT, CZ, and CRK each add one DAG record and add entanglement
+//      only when the input state can physically entangle.
+//   4. SWAP records exactly one logical SWAP gate.
 //   5. CCX remains the documented two control-target records.
 //
 // Expected: rc=0.
@@ -14,7 +15,9 @@ import "stdlib/rods/quantum.nr"
 fn check_clear_resets_both_states() -> i64 {
     qsim_graph_clear();
     let sv: i64 = qsim_init(3);
+    qsim_h(sv, 0);
     qsim_cnot(sv, 0, 1);
+    qsim_h(sv, 2);
     qsim_cz(sv, 1, 2);
     if qsim_entanglement_count() == 0 { return 1; };
     if qsim_gate_dag_size() == 0 { return 2; };
@@ -46,6 +49,8 @@ fn check_fresh_run_after_clear_starts_empty() -> i64 {
 fn check_single_entangling_gate(name_code: i64) -> i64 {
     qsim_graph_clear();
     let sv: i64 = qsim_init(2);
+    qsim_h(sv, 0);
+    if name_code != 0 { qsim_h(sv, 1); };
     if name_code == 0 { qsim_cnot(sv, 0, 1); };
     if name_code == 1 { qsim_cz(sv, 0, 1); };
     if name_code == 2 { qsim_crk(sv, 0, 1, 3); };
@@ -70,11 +75,11 @@ fn check_swap_inherited_record_shape() -> i64 {
     let sv: i64 = qsim_init(2);
     qsim_swap(sv, 0, 1);
 
-    if qsim_entanglement_same(0, 1) != 1 { return 16384; };
-    if qsim_entanglement_count() != 1 { return 32768; };
-    if qsim_gate_dag_size() != 3 { return 65536; };
-    if qsim_gate_dag_depends_on(1, 0) != 1 { return 131072; };
-    if qsim_gate_dag_depends_on(2, 1) != 1 { return 262144; };
+    if qsim_entanglement_same(0, 1) != 0 { return 16384; };
+    if qsim_entanglement_count() != 0 { return 32768; };
+    if qsim_gate_dag_size() != 1 { return 65536; };
+    if qsim_gate_dag_parent_count(0) != 0 { return 131072; };
+    if qsim_gate_dag_parent_at(0, 0) != (0 - 1) { return 262144; };
     return 0;
 }
 

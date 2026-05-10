@@ -142,6 +142,18 @@ function Get-FirstExistingPath([string[]]$Paths) {
     return ""
 }
 
+function Join-ProcessArguments([string[]]$Args) {
+    $escaped = @()
+    foreach ($arg in $Args) {
+        if ($arg -match '[\s"]') {
+            $escaped += ('"' + $arg.Replace('"', '\"') + '"')
+        } else {
+            $escaped += $arg
+        }
+    }
+    return ($escaped -join " ")
+}
+
 function Invoke-CapturedProcess {
     param(
         [string]$FilePath,
@@ -152,8 +164,12 @@ function Invoke-CapturedProcess {
 
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = $FilePath
-    foreach ($arg in $ArgumentList) {
-        [void]$psi.ArgumentList.Add($arg)
+    if ($null -ne $psi.ArgumentList) {
+        foreach ($arg in $ArgumentList) {
+            [void]$psi.ArgumentList.Add($arg)
+        }
+    } else {
+        $psi.Arguments = Join-ProcessArguments $ArgumentList
     }
     $psi.WorkingDirectory = $WorkingDirectory
     $psi.RedirectStandardOutput = $true
@@ -408,7 +424,7 @@ function Run-SelfTest {
     try {
         foreach ($selector in @("string-free", "hash", "all")) {
             $fixtures = Resolve-Fixtures $selector
-            Confirm-SelfTest "selector:$selector" ($fixtures.Count -ge 1) "selector did not resolve"
+            Confirm-SelfTest "selector:$selector" (@($fixtures).Count -ge 1) "selector did not resolve"
         }
 
         $invalidFailed = $false

@@ -33,8 +33,14 @@ fn main() -> i32 {
 
     let labels: TensorI64 = kmeans_f64_predict(&model, &x);
     tensor_i64_print_flat("kmeans labels:", &labels);
+    let mut fail: i64 = 0;
+    if tensor_i64_len(&labels) != 4 { fail = fail + 1; };
+    if tensor_i64_at(&labels, 0, 0) != 0 { fail = fail + 4; };
+    if tensor_i64_at(&labels, 1, 0) != 0 { fail = fail + 8; };
+    if tensor_i64_at(&labels, 2, 0) != 1 { fail = fail + 16; };
+    if tensor_i64_at(&labels, 3, 0) != 1 { fail = fail + 32; };
 
     print("kmeans inertia:");
     print_f64(kmeans_f64_inertia(&model, &x));
-    return 0;
+    return fail as i32;
 }

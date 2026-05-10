@@ -15,12 +15,11 @@
    Local redeclaration removed to prevent layout drift between this
    TU and the canonical layout in nucleor_llvm_rt.c. */
 
+void __nucleor_vec_free(long long handle);
+
 // Free a Vec and its data array. Handle becomes invalid after this call.
 void nuc_vec_free(long long handle) {
-    NVec *v = (NVec *)(void *)(size_t)handle;
-    if (!v) return;
-    if (v->data && v->data != v->inline_data) free(v->data);
-    free(v);
+    __nucleor_vec_free(handle);
 }
 
 // Reset Vec length to 0 without freeing. Keeps allocation for reuse.

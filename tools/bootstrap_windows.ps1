@@ -126,6 +126,7 @@ if (-not (Test-Path -LiteralPath $runtime -PathType Leaf)) {
 
 $clang = Resolve-Clang $ClangPath
 $clangArgs = @(
+    "-O2",
     "-fuse-ld=lld",
     $seed,
     $runtime,

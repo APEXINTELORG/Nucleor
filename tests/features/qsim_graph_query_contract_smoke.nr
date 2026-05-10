@@ -4,7 +4,7 @@
 // qsim_graph helpers after a mixed manual/high-level sequence:
 //   1. parent_count and parent_at expose direct parents.
 //   2. depends_on follows transitive dependencies.
-//   3. SWAP inherits the expected three CNOT records.
+//   3. SWAP records one logical gate, not three internal CNOT records.
 //   4. clear/rebuild resets query state.
 //
 // Expected: rc=0.
@@ -38,14 +38,11 @@ fn check_mixed_query_contract() -> i64 {
     if qsim_gate_dag_depends_on(3, 2) != 1 { return 8192; };
 
     qsim_swap(sv, 0, 3);
-    if qsim_gate_dag_size() != 7 { return 16384; };
+    if qsim_gate_dag_size() != 5 { return 16384; };
     if qsim_gate_dag_parent_count(4) != 1 { return 32768; };
     if qsim_gate_dag_parent_at(4, 0) != 3 { return 65536; };
-    if qsim_gate_dag_parent_count(5) != 1 { return 131072; };
-    if qsim_gate_dag_parent_at(5, 0) != 4 { return 262144; };
-    if qsim_gate_dag_parent_count(6) != 1 { return 524288; };
-    if qsim_gate_dag_parent_at(6, 0) != 5 { return 1048576; };
-    if qsim_gate_dag_depends_on(6, h0) != 1 { return 2097152; };
+    if qsim_gate_dag_parent_at(4, 1) != (0 - 1) { return 131072; };
+    if qsim_gate_dag_depends_on(4, h0) != 1 { return 262144; };
     return 0;
 }
 
