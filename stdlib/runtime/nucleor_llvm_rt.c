@@ -2816,6 +2816,38 @@ long long __nucleor_sym_linear_lookup_idx(NVec *v, const char *name) {
     return -1;
 }
 
+// Forward decls for the runtime helpers we compose below.
+extern long long __nucleor_sym_aux_get(long long sym_handle);
+extern long long __nucleor_hashmap_insert(long long h, const char *key, long long val);
+
+// Full-fledged own_put_i in C: scan, mutate-or-push, sync warm-aux.
+// Replaces the .nr-side own_put_i which previously paid 3-5 FFI calls
+// (lookup + vec_set + sym_aux_get + maybe hashmap_insert + maybe two
+// vec_push). One FFI call now does it all. Same semantics as the
+// .nr version. Used by own_put_i and own_put_s — values are i64 in
+// both (str pointers are stored as i64-cast).
+long long __nucleor_own_put_i_full(NVec *v, const char *key, long long val) {
+    if (!v) return 0;
+    if (key) {
+        int n = v->len;
+        long long *data = v->data;
+        for (int j = n - 2; j >= 0; j -= 2) {
+            const char *k = (const char *)(intptr_t)data[j];
+            if (k == key || (k && strcmp(k, key) == 0)) {
+                data[j + 1] = val;
+                long long h = __nucleor_sym_aux_get((long long)(intptr_t)v);
+                if (h > 0) __nucleor_hashmap_insert(h, key, val);
+                return 0;
+            }
+        }
+    }
+    /* Push (key, val) — falls through to the safe vec_push that
+       handles inline->heap promotion + capacity doubling. */
+    __nucleor_vec_push(v, (long long)(intptr_t)key);
+    __nucleor_vec_push(v, val);
+    return 0;
+}
+
 void __nucleor_vec_pop(NVec *v) {
     NUC_PROFILE_INC(g_p_vec_pop);
     if (!v || v->len <= 0) return;
