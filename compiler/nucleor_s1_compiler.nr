@@ -34930,6 +34930,29 @@ fn cache_v2_file_size_mb(path: str) -> i64 {
 }
 
 #[manual_drop]
+// v1.1.x perf: precompiled-rt.o cache key/path. Returns "" if caching
+// is disabled (env opt-out). The .o is keyed on the rt.c content,
+// alloc.h content, opt level, and clang version proxy (toolchain
+// path). Cache lives in .nuc_cache/ alongside the link logs and
+// content-addressable cache.
+#[manual_drop]
+fn rt_o_cache_path(rt_arg: str, alloc_hdr: str, opt_flag: str) -> str {
+    if str_eq(env_get_or("NUCLEOR_RT_O_CACHE", "1"), "0") == 1 { return ""; };
+    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
+    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let opt_hash: str = str_from_int(fnv1a_64_str(opt_flag));
+    let clang_hash: str = str_from_int(fnv1a_64_str(llvm_clang_path()));
+    let key: str = str_concat("rt-", str_concat(rt_hash, str_concat("-", str_concat(alloc_hash, str_concat("-", str_concat(opt_hash, str_concat("-", clang_hash)))))));
+    return sanitize(str_concat(".nuc_cache/", str_concat(key, host_obj_suffix())));
+}
+
+#[manual_drop]
+fn host_obj_suffix() -> str {
+    if host_is_windows() == 1 { return ".obj"; };
+    return ".o";
+}
+
+#[manual_drop]
 fn native_link_cache_dir(key: str) -> str {
     return sanitize(str_concat("target/.nuc_native_cache/", cache_v2_prefix(key)));
 }
@@ -35557,20 +35580,53 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     };
     let clang_start: i64 = now_ms();
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
-    let mut cmd: str = clang_quoted;
-    // v1.0.1 perf fix (audit-pass-1 integrator): mirror of link_native_module
-    // — `NUCLEOR_LLVM_OPT` selects -O level (default -O0 for typical build
-    // speed; bootstrap_linux.sh pre-bakes -O2 into bin/nucleor itself).
     let opt_flag_raw_iso: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
+    // v1.1.x perf: precompile rt.c -> rt.o once per (rt content, alloc
+    // hdr content, opt level). Saves ~1.2s per cold build because clang
+    // skips re-compiling the 8 KLOC runtime each time. Cache disabled
+    // when extra cfiles are imported (their content isn't keyed) or
+    // when env opt-out is set.
+    let rt_o_path: str = rt_o_cache_path(rt_arg, alloc_hdr, opt_flag_raw_iso);
+    let mut rt_link_arg: str = "";
+    let mut alloc_include_use: str = "";
+    if str_len(rt_o_path) > 0 && str_len(cfiles) == 0 {
+        if fs_exists(rt_o_path) == 0 {
+            let mut rt_compile_cmd: str = clang_quoted;
+            rt_compile_cmd = str_concat(rt_compile_cmd, " ");
+            rt_compile_cmd = str_concat(rt_compile_cmd, opt_flag_raw_iso);
+            rt_compile_cmd = str_concat(rt_compile_cmd, " -c ");
+            rt_compile_cmd = str_concat(rt_compile_cmd, rt_arg_shell);
+            rt_compile_cmd = str_concat(rt_compile_cmd, alloc_include_flag);
+            rt_compile_cmd = str_concat(rt_compile_cmd, " -o ");
+            rt_compile_cmd = str_concat(rt_compile_cmd, host_shell_path(rt_o_path));
+            rt_compile_cmd = str_concat(rt_compile_cmd, " > ");
+            rt_compile_cmd = str_concat(rt_compile_cmd, log_arg);
+            rt_compile_cmd = str_concat(rt_compile_cmd, " 2>&1");
+            let rt_rc: i64 = system(rt_compile_cmd);
+            if rt_rc != 0 {
+                // Fall through to monolithic link
+                rt_link_arg = rt_arg_shell;
+                alloc_include_use = alloc_include_flag;
+            } else {
+                rt_link_arg = host_shell_path(rt_o_path);
+            };
+        } else {
+            rt_link_arg = host_shell_path(rt_o_path);
+        };
+    } else {
+        rt_link_arg = rt_arg_shell;
+        alloc_include_use = alloc_include_flag;
+    };
+    let mut cmd: str = clang_quoted;
     cmd = str_concat(cmd, " ");
     cmd = str_concat(cmd, opt_flag_raw_iso);
     cmd = str_concat(cmd, linker_flag);
     cmd = str_concat(cmd, " ");
     cmd = str_concat(cmd, ll_arg);
     cmd = str_concat(cmd, " ");
-    cmd = str_concat(cmd, rt_arg_shell);
+    cmd = str_concat(cmd, rt_link_arg);
     cmd = str_concat(cmd, cfiles_shell);
-    cmd = str_concat(cmd, alloc_include_flag);
+    cmd = str_concat(cmd, alloc_include_use);
     cmd = str_concat(cmd, " -o ");
     cmd = str_concat(cmd, exe_path);
     cmd = str_concat(cmd, " -Wno-override-module");

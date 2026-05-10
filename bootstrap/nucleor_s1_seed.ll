@@ -6466,992 +6466,998 @@ declare i64 @nuc_diag_col_for_byte(i64)
 @.str.5533 = private unnamed_addr constant [22 x i8] c"target/.nuc_cache_v2/\00"
 @.str.5534 = private unnamed_addr constant [4 x i8] c".ll\00"
 @.str.5535 = private unnamed_addr constant [11 x i8] c"/meta.json\00"
-@.str.5536 = private unnamed_addr constant [26 x i8] c"target/.nuc_native_cache/\00"
-@.str.5537 = private unnamed_addr constant [25 x i8] c"NUCLEOR_NATIVE_EXE_CACHE\00"
-@.str.5538 = private unnamed_addr constant [17 x i8] c"NUCLEOR_LLVM_OPT\00"
-@.str.5539 = private unnamed_addr constant [4 x i8] c"-O0\00"
-@.str.5540 = private unnamed_addr constant [16 x i8] c"native-link-v1|\00"
-@.str.5541 = private unnamed_addr constant [5 x i8] c"|ll=\00"
-@.str.5542 = private unnamed_addr constant [5 x i8] c"|rt=\00"
-@.str.5543 = private unnamed_addr constant [8 x i8] c"|alloc=\00"
-@.str.5544 = private unnamed_addr constant [8 x i8] c"|stack=\00"
-@.str.5545 = private unnamed_addr constant [9 x i8] c"|linker=\00"
-@.str.5546 = private unnamed_addr constant [6 x i8] c"|opt=\00"
-@.str.5547 = private unnamed_addr constant [16 x i8] c"native-link-v2|\00"
-@.str.5548 = private unnamed_addr constant [10 x i8] c"|compile=\00"
-@.str.5549 = private unnamed_addr constant [20 x i8] c"NUCLEOR_CACHE_STATS\00"
-@.str.5550 = private unnamed_addr constant [19 x i8] c"cache stats: hits=\00"
-@.str.5551 = private unnamed_addr constant [9 x i8] c" misses=\00"
-@.str.5552 = private unnamed_addr constant [3 x i8] c"{\0A\00"
-@.str.5553 = private unnamed_addr constant [29 x i8] c"  \22schema\22: \22nuc-cache-v2\22,\0A\00"
-@.str.5554 = private unnamed_addr constant [22 x i8] c"  \22input_filename\22: \22\00"
-@.str.5555 = private unnamed_addr constant [4 x i8] c"\22,\0A\00"
-@.str.5556 = private unnamed_addr constant [13 x i8] c"  \22flags\22: \22\00"
-@.str.5557 = private unnamed_addr constant [24 x i8] c"  \22compiler_version\22: \22\00"
-@.str.5558 = private unnamed_addr constant [14 x i8] c"  \22sha256\22: \22\00"
-@.str.5559 = private unnamed_addr constant [17 x i8] c"  \22timestamp\22: \22\00"
-@.str.5560 = private unnamed_addr constant [15 x i8] c"  \22ll_bytes\22: \00"
-@.str.5561 = private unnamed_addr constant [17 x i8] c"native-cache-v2|\00"
-@.str.5562 = private unnamed_addr constant [15 x i8] c"NUCLEOR_STDLIB\00"
-@.str.5563 = private unnamed_addr constant [14 x i8] c"NUCLEOR_CLANG\00"
-@.str.5564 = private unnamed_addr constant [31 x i8] c"C:\5CProgra~1\5CLLVM\5Cbin\5Cclang.exe\00"
-@.str.5565 = private unnamed_addr constant [36 x i8] c"C:\5CProgram Files\5CLLVM\5Cbin\5Cclang.exe\00"
-@.str.5566 = private unnamed_addr constant [32 x i8] c"C:\5Cmsys64\5Cmingw64\5Cbin\5Cclang.exe\00"
-@.str.5567 = private unnamed_addr constant [6 x i8] c"clang\00"
-@.str.5568 = private unnamed_addr constant [5 x i8] c".exe\00"
-@.str.5569 = private unnamed_addr constant [7 x i8] c" 2>NUL\00"
-@.str.5570 = private unnamed_addr constant [13 x i8] c" 2>/dev/null\00"
-@.str.5571 = private unnamed_addr constant [11 x i8] c"del /F /Q \00"
-@.str.5572 = private unnamed_addr constant [7 x i8] c"rm -f \00"
-@.str.5573 = private unnamed_addr constant [13 x i8] c"rmdir /S /Q \00"
-@.str.5574 = private unnamed_addr constant [8 x i8] c"rm -rf \00"
-@.str.5575 = private unnamed_addr constant [33 x i8] c" -Wl,/STACK:16777216 -Wl,/Brepro\00"
-@.str.5576 = private unnamed_addr constant [61 x i8] c" -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread\00"
-@.str.5577 = private unnamed_addr constant [34 x i8] c"C:\5CProgra~1\5CLLVM\5Cbin\5Clld-link.exe\00"
-@.str.5578 = private unnamed_addr constant [14 x i8] c" -fuse-ld=lld\00"
-@.str.5579 = private unnamed_addr constant [39 x i8] c"C:\5CProgram Files\5CLLVM\5Cbin\5Clld-link.exe\00"
-@.str.5580 = private unnamed_addr constant [10 x i8] c".cachekey\00"
-@.str.5581 = private unnamed_addr constant [8 x i8] c"target/\00"
-@.str.5582 = private unnamed_addr constant [7 x i8] c"target\00"
-@.str.5583 = private unnamed_addr constant [13 x i8] c"mkdir target\00"
-@.str.5584 = private unnamed_addr constant [12 x i8] c"  emitted: \00"
-@.str.5585 = private unnamed_addr constant [8 x i8] c" bytes)\00"
-@.str.5586 = private unnamed_addr constant [29 x i8] c"  native link: skipped (use \00"
-@.str.5587 = private unnamed_addr constant [28 x i8] c" only after a linked build)\00"
-@.str.5588 = private unnamed_addr constant [33 x i8] c"stdlib/runtime/nucleor_llvm_rt.c\00"
-@.str.5589 = private unnamed_addr constant [27 x i8] c"stdlib/runtime/nuc_alloc.h\00"
-@.str.5590 = private unnamed_addr constant [11 x i8] c" -include \00"
-@.str.5591 = private unnamed_addr constant [17 x i8] c"mkdir .nuc_cache\00"
-@.str.5592 = private unnamed_addr constant [23 x i8] c".nuc_cache/clang_link.\00"
-@.str.5593 = private unnamed_addr constant [5 x i8] c".log\00"
-@.str.5594 = private unnamed_addr constant [31 x i8] c"  native link: cache hit (sha=\00"
-@.str.5595 = private unnamed_addr constant [5 x i8] c" -o \00"
-@.str.5596 = private unnamed_addr constant [22 x i8] c" -Wno-override-module\00"
-@.str.5597 = private unnamed_addr constant [4 x i8] c" > \00"
-@.str.5598 = private unnamed_addr constant [6 x i8] c" 2>&1\00"
-@.str.5599 = private unnamed_addr constant [24 x i8] c"used by another process\00"
-@.str.5600 = private unnamed_addr constant [8 x i8] c"LNK1104\00"
-@.str.5601 = private unnamed_addr constant [22 x i8] c"could not open output\00"
-@.str.5602 = private unnamed_addr constant [18 x i8] c"Permission denied\00"
-@.str.5603 = private unnamed_addr constant [30 x i8] c"  COMPILE FAILED (clang exit \00"
-@.str.5604 = private unnamed_addr constant [51 x i8] c" MOD-003 violation(s) \E2\80\94 see error[MOD-003] above\00"
-@.str.5605 = private unnamed_addr constant [64 x i8] c" TYP-005 undefined-fn violation(s) \E2\80\94 see error[TYP-005] above\00"
-@.str.5606 = private unnamed_addr constant [50 x i8] c"  no `fn main` defined \E2\80\94 see error[NR022] above\00"
-@.str.5607 = private unnamed_addr constant [89 x i8] c"  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs\00"
-@.str.5608 = private unnamed_addr constant [16 x i8] c"  link command:\00"
-@.str.5609 = private unnamed_addr constant [5 x i8] c"    \00"
-@.str.5610 = private unnamed_addr constant [201 x i8] c"  note: clang_link.log is EMPTY -- clang likely never started (file lock, missing exe, antivirus, or process-spawn failure). Check that bin/nucleor.exe is not held open by an orphan process and retry.\00"
-@.str.5611 = private unnamed_addr constant [18 x i8] c"  locked output: \00"
-@.str.5612 = private unnamed_addr constant [28 x i8] c"  hint: Stop-Process -Name \00"
-@.str.5613 = private unnamed_addr constant [38 x i8] c" -Force -ErrorAction SilentlyContinue\00"
-@.str.5614 = private unnamed_addr constant [25 x i8] c"  hint: taskkill /F /IM \00"
-@.str.5615 = private unnamed_addr constant [12 x i8] c".exe 2> NUL\00"
-@.str.5616 = private unnamed_addr constant [210 x i8] c"  note: persistent lock after 3 internal retries (150ms apart) usually means an orphan instance of the output exe is still running, an AV scanner is mid-scan, or another build is touching the same target path.\00"
-@.str.5617 = private unnamed_addr constant [13 x i8] c"  compiled: \00"
-@.str.5618 = private unnamed_addr constant [43 x i8] c"ERROR: native link cannot read emitted IR \00"
-@.str.5619 = private unnamed_addr constant [17 x i8] c"module-graph-v2|\00"
-@.str.5620 = private unnamed_addr constant [21 x i8] c".nuc_cache/modgraph_\00"
-@.str.5621 = private unnamed_addr constant [10 x i8] c".manifest\00"
-@.str.5622 = private unnamed_addr constant [10 x i8] c".resolved\00"
-@.str.5623 = private unnamed_addr constant [11 x i8] c".max_depth\00"
-@.str.5624 = private unnamed_addr constant [458 x i8] c"ERROR: `use path as Alias` import aliases are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the alias tail after rewriting the path, so adopter code could believe `Alias` was bound when only the original flattened module symbols were imported. Workaround: import the module path directly and call the existing exported names, or use `import \22...\22` for the current flat namespace model. Tracked for RFC-0018 resolver phase 2.\00"
-@.str.5625 = private unnamed_addr constant [81 x i8] c"nucleor: `use ... as ...` aliases not yet supported (see ERROR diagnostic above)\00"
-@.str.5626 = private unnamed_addr constant [381 x i8] c"ERROR: glob imports `use path::*` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver stopped before `*`, built the wrong rewritten path, and the build could continue without importing the requested names. Workaround: import the module path directly with `use std::foo` / `import \22...\22` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.\00"
-@.str.5627 = private unnamed_addr constant [81 x i8] c"nucleor: `use ...::*` glob import not yet supported (see ERROR diagnostic above)\00"
-@.str.5628 = private unnamed_addr constant [384 x i8] c"ERROR: selective import lists `use path::{a, b}` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the list tail after rewriting the path, so selected bindings were not actually introduced. Workaround: import the module path directly with `use std::foo` / `import \22...\22` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.\00"
-@.str.5629 = private unnamed_addr constant [90 x i8] c"nucleor: `use ...::{...}` selective import not yet supported (see ERROR diagnostic above)\00"
-@.str.5630 = private unnamed_addr constant [6 x i8] c"std::\00"
-@.str.5631 = private unnamed_addr constant [13 x i8] c"stdlib/rods/\00"
-@.str.5632 = private unnamed_addr constant [8 x i8] c"crate::\00"
-@.str.5633 = private unnamed_addr constant [8 x i8] c"super::\00"
-@.str.5634 = private unnamed_addr constant [4 x i8] c"../\00"
-@.str.5635 = private unnamed_addr constant [4 x i8] c".nr\00"
-@.str.5636 = private unnamed_addr constant [9 x i8] c"pub use \00"
-@.str.5637 = private unnamed_addr constant [344 x i8] c"ERROR: `pub use ...` re-exports are not yet supported in Nucleor. Pre-v0.7.18 `pub use` at module scope was silently preserved and then ignored by the parser, so no re-export binding was created. Workaround: import the target module directly at each use site or expose a `pub fn` wrapper from the module. Tracked for RFC-0018 resolver phase 2.\00"
-@.str.5638 = private unnamed_addr constant [76 x i8] c"nucleor: `pub use` re-export not yet supported (see ERROR diagnostic above)\00"
-@.str.5639 = private unnamed_addr constant [8 x i8] c"import \00"
-@.str.5640 = private unnamed_addr constant [8 x i8] c"// mod \00"
-@.str.5641 = private unnamed_addr constant [31 x i8] c" { ... } (inlined block-form)\0A\00"
-@.str.5642 = private unnamed_addr constant [40 x i8] c"error[MOD-005]: import cycle detected: \00"
-@.str.5643 = private unnamed_addr constant [49 x i8] c"nucleor: import cycle (MOD-005); see error above\00"
-@.str.5644 = private unnamed_addr constant [32 x i8] c"// ERROR: cannot read use path \00"
-@.str.5645 = private unnamed_addr constant [67 x i8] c"error[PARSE-IMPORT-EMPTY]: empty import path `import \22\22;` at byte \00"
-@.str.5646 = private unnamed_addr constant [95 x i8] c". An import directive must name a non-empty path. Pre-fix the empty path was silently dropped.\00"
-@.str.5647 = private unnamed_addr constant [27 x i8] c"nucleor: empty import path\00"
-@.str.5648 = private unnamed_addr constant [30 x i8] c"// ERROR: cannot read import \00"
-@.str.5649 = private unnamed_addr constant [94 x i8] c"error[PARSE-IMPORT-001]: `import` requires a quoted path `import \22path/to/file.nr\22;` at byte \00"
-@.str.5650 = private unnamed_addr constant [136 x i8] c". Pre-fix unquoted forms like `import foo;` or `import stdlib/rods/strings.nr;` were silently passed through to the parser and dropped.\00"
-@.str.5651 = private unnamed_addr constant [30 x i8] c"nucleor: unquoted import path\00"
-@.str.5652 = private unnamed_addr constant [5 x i8] c" in \00"
-@.str.5653 = private unnamed_addr constant [136 x i8] c". Nucleor source must not contain embedded NUL bytes; pre-fix file_read_string truncated at the first NUL and compiled only the prefix.\00"
-@.str.5654 = private unnamed_addr constant [38 x i8] c"nucleor: NUL byte in source (LEX-002)\00"
-@.str.5655 = private unnamed_addr constant [23 x i8] c"nucleor_s1_compiler.nr\00"
-@.str.5656 = private unnamed_addr constant [23 x i8] c"nucleor_tools_suite.nr\00"
-@.str.5657 = private unnamed_addr constant [10 x i8] c"\0Aimport \22\00"
-@.str.5658 = private unnamed_addr constant [6 x i8] c"\0Ause \00"
-@.str.5659 = private unnamed_addr constant [6 x i8] c"\0Amod \00"
-@.str.5660 = private unnamed_addr constant [10 x i8] c"\0Apub use \00"
-@.str.5661 = private unnamed_addr constant [9 x i8] c"import \22\00"
-@.str.5662 = private unnamed_addr constant [14 x i8] c"compile_error\00"
-@.str.5663 = private unnamed_addr constant [3 x i8] c"!(\00"
-@.str.5664 = private unnamed_addr constant [387 x i8] c"ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.\00"
-@.str.5665 = private unnamed_addr constant [312 x i8] c"       This is the canonical compile_error! semantic \E2\80\94 it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.\00"
-@.str.5666 = private unnamed_addr constant [42 x i8] c"nucleor: compile_error! invoked in source\00"
-@.str.5667 = private unnamed_addr constant [38 x i8] c"audit: @differentiable fns in build: \00"
-@.str.5668 = private unnamed_addr constant [10 x i8] c"@differen\00"
-@.str.5669 = private unnamed_addr constant [7 x i8] c"tiable\00"
-@.str.5670 = private unnamed_addr constant [30 x i8] c"audit:   differentiable fns: \00"
-@.str.5671 = private unnamed_addr constant [5 x i8] c"@ene\00"
-@.str.5672 = private unnamed_addr constant [5 x i8] c"rgy(\00"
-@.str.5673 = private unnamed_addr constant [34 x i8] c"audit: @energy budgets in build: \00"
-@.str.5674 = private unnamed_addr constant [25 x i8] c"audit:   energy values: \00"
-@.str.5675 = private unnamed_addr constant [7 x i8] c"@therm\00"
-@.str.5676 = private unnamed_addr constant [4 x i8] c"al(\00"
-@.str.5677 = private unnamed_addr constant [35 x i8] c"audit: @thermal budgets in build: \00"
-@.str.5678 = private unnamed_addr constant [26 x i8] c"audit:   thermal values: \00"
-@.str.5679 = private unnamed_addr constant [7 x i8] c"@photo\00"
-@.str.5680 = private unnamed_addr constant [4 x i8] c"nic\00"
-@.str.5681 = private unnamed_addr constant [32 x i8] c"audit: @photonic fns in build: \00"
-@.str.5682 = private unnamed_addr constant [5 x i8] c"nic[\00"
-@.str.5683 = private unnamed_addr constant [28 x i8] c"audit:   photonic devices: \00"
-@.str.5684 = private unnamed_addr constant [10 x i8] c"@neuromor\00"
-@.str.5685 = private unnamed_addr constant [5 x i8] c"phic\00"
-@.str.5686 = private unnamed_addr constant [36 x i8] c"audit: @neuromorphic fns in build: \00"
-@.str.5687 = private unnamed_addr constant [6 x i8] c"phic[\00"
-@.str.5688 = private unnamed_addr constant [32 x i8] c"audit:   neuromorphic devices: \00"
-@.str.5689 = private unnamed_addr constant [6 x i8] c"@encl\00"
-@.str.5690 = private unnamed_addr constant [5 x i8] c"ave(\00"
-@.str.5691 = private unnamed_addr constant [31 x i8] c"audit: @enclave fns in build: \00"
-@.str.5692 = private unnamed_addr constant [19 x i8] c"audit:   engines: \00"
-@.str.5693 = private unnamed_addr constant [6 x i8] c"@atte\00"
-@.str.5694 = private unnamed_addr constant [5 x i8] c"sted\00"
-@.str.5695 = private unnamed_addr constant [32 x i8] c"audit: @attested fns in build: \00"
-@.str.5696 = private unnamed_addr constant [24 x i8] c"audit:   attested fns: \00"
-@.str.5697 = private unnamed_addr constant [6 x i8] c"@auth\00"
-@.str.5698 = private unnamed_addr constant [6 x i8] c"ored(\00"
-@.str.5699 = private unnamed_addr constant [32 x i8] c"audit: @authored fns in build: \00"
-@.str.5700 = private unnamed_addr constant [19 x i8] c"audit:   authors: \00"
-@.str.5701 = private unnamed_addr constant [5 x i8] c"@pol\00"
-@.str.5702 = private unnamed_addr constant [5 x i8] c"icy(\00"
-@.str.5703 = private unnamed_addr constant [32 x i8] c"audit: @policy decls in build: \00"
-@.str.5704 = private unnamed_addr constant [20 x i8] c"audit:   policies: \00"
-@.str.5705 = private unnamed_addr constant [5 x i8] c"@wit\00"
-@.str.5706 = private unnamed_addr constant [5 x i8] c"hin(\00"
-@.str.5707 = private unnamed_addr constant [45 x i8] c"audit: @within timing constraints in build: \00"
-@.str.5708 = private unnamed_addr constant [25 x i8] c"audit:   timing values: \00"
-@.str.5709 = private unnamed_addr constant [6 x i8] c": fix\00"
-@.str.5710 = private unnamed_addr constant [4 x i8] c"ed<\00"
-@.str.5711 = private unnamed_addr constant [7 x i8] c"-> fix\00"
-@.str.5712 = private unnamed_addr constant [7 x i8] c": ufix\00"
-@.str.5713 = private unnamed_addr constant [8 x i8] c"-> ufix\00"
-@.str.5714 = private unnamed_addr constant [58 x i8] c"audit: fixed<I,F>/ufixed<I,F> type-position occurrences: \00"
-@.str.5715 = private unnamed_addr constant [10 x i8] c"wrapping \00"
-@.str.5716 = private unnamed_addr constant [12 x i8] c"saturating \00"
-@.str.5717 = private unnamed_addr constant [6 x i8] c"#wrap\00"
-@.str.5718 = private unnamed_addr constant [5 x i8] c"#sat\00"
-@.str.5719 = private unnamed_addr constant [6 x i8] c"#trap\00"
-@.str.5720 = private unnamed_addr constant [5 x i8] c"wrap\00"
-@.str.5721 = private unnamed_addr constant [7 x i8] c"ping {\00"
-@.str.5722 = private unnamed_addr constant [6 x i8] c"satur\00"
-@.str.5723 = private unnamed_addr constant [8 x i8] c"ating {\00"
-@.str.5724 = private unnamed_addr constant [6 x i8] c"check\00"
-@.str.5725 = private unnamed_addr constant [5 x i8] c"ed {\00"
-@.str.5726 = private unnamed_addr constant [56 x i8] c"audit: per-BinOp OverflowMode usages (block + inline): \00"
-@.str.5727 = private unnamed_addr constant [6 x i8] c"Pose<\00"
-@.str.5728 = private unnamed_addr constant [5 x i8] c": Po\00"
-@.str.5729 = private unnamed_addr constant [4 x i8] c"se<\00"
-@.str.5730 = private unnamed_addr constant [6 x i8] c"-> Po\00"
-@.str.5731 = private unnamed_addr constant [57 x i8] c"audit: Pose<F> phantom-frame type-position occurrences: \00"
-@.str.5732 = private unnamed_addr constant [6 x i8] c": Fra\00"
-@.str.5733 = private unnamed_addr constant [4 x i8] c"me_\00"
-@.str.5734 = private unnamed_addr constant [48 x i8] c"audit: Frame_* marker uses (let/arg position): \00"
-@.str.5735 = private unnamed_addr constant [6 x i8] c"Mass<\00"
-@.str.5736 = private unnamed_addr constant [8 x i8] c"Length<\00"
-@.str.5737 = private unnamed_addr constant [7 x i8] c"Force<\00"
-@.str.5738 = private unnamed_addr constant [14 x i8] c"Acceleration<\00"
-@.str.5739 = private unnamed_addr constant [5 x i8] c": un\00"
-@.str.5740 = private unnamed_addr constant [4 x i8] c"it<\00"
-@.str.5741 = private unnamed_addr constant [6 x i8] c"-> un\00"
-@.str.5742 = private unnamed_addr constant [5 x i8] c": Ma\00"
-@.str.5743 = private unnamed_addr constant [4 x i8] c"ss<\00"
-@.str.5744 = private unnamed_addr constant [6 x i8] c": Len\00"
-@.str.5745 = private unnamed_addr constant [5 x i8] c"gth<\00"
-@.str.5746 = private unnamed_addr constant [6 x i8] c": For\00"
-@.str.5747 = private unnamed_addr constant [4 x i8] c"ce<\00"
-@.str.5748 = private unnamed_addr constant [11 x i8] c": Accelera\00"
-@.str.5749 = private unnamed_addr constant [6 x i8] c"tion<\00"
-@.str.5750 = private unnamed_addr constant [59 x i8] c"audit: unit<T,[...]> typed-dim type-position occurrences: \00"
-@.str.5751 = private unnamed_addr constant [8 x i8] c"target.\00"
-@.str.5752 = private unnamed_addr constant [9 x i8] c"target.h\00"
-@.str.5753 = private unnamed_addr constant [4 x i8] c"as(\00"
-@.str.5754 = private unnamed_addr constant [4 x i8] c"os(\00"
-@.str.5755 = private unnamed_addr constant [55 x i8] c"audit: target.has()/target.os() compile-time queries: \00"
-@.str.5756 = private unnamed_addr constant [10 x i8] c"MemSpace_\00"
-@.str.5757 = private unnamed_addr constant [8 x i8] c": MemSp\00"
-@.str.5758 = private unnamed_addr constant [5 x i8] c"ace_\00"
-@.str.5759 = private unnamed_addr constant [8 x i8] c", MemSp\00"
-@.str.5760 = private unnamed_addr constant [46 x i8] c"audit: MemSpace_* type-position occurrences: \00"
-@.str.5761 = private unnamed_addr constant [7 x i8] c"Model<\00"
-@.str.5762 = private unnamed_addr constant [5 x i8] c": Mo\00"
-@.str.5763 = private unnamed_addr constant [5 x i8] c"del<\00"
-@.str.5764 = private unnamed_addr constant [6 x i8] c"-> Mo\00"
-@.str.5765 = private unnamed_addr constant [62 x i8] c"audit: Model<Arch,...> provenance type-position occurrences: \00"
-@.str.5766 = private unnamed_addr constant [27 x i8] c"audit: @hot fns in build: \00"
-@.str.5767 = private unnamed_addr constant [19 x i8] c"audit:   hot fns: \00"
-@.str.5768 = private unnamed_addr constant [32 x i8] c"audit: @const_fn fns in build: \00"
-@.str.5769 = private unnamed_addr constant [24 x i8] c"audit:   const_fn fns: \00"
-@.str.5770 = private unnamed_addr constant [9 x i8] c"#[max_de\00"
-@.str.5771 = private unnamed_addr constant [4 x i8] c"pth\00"
-@.str.5772 = private unnamed_addr constant [35 x i8] c"audit: #[max_depth] fns in build: \00"
-@.str.5773 = private unnamed_addr constant [25 x i8] c"audit:   max_depth fns: \00"
-@.str.5774 = private unnamed_addr constant [8 x i8] c"#[deadl\00"
-@.str.5775 = private unnamed_addr constant [4 x i8] c"ine\00"
-@.str.5776 = private unnamed_addr constant [34 x i8] c"audit: #[deadline] fns in build: \00"
-@.str.5777 = private unnamed_addr constant [24 x i8] c"audit:   deadline fns: \00"
-@.str.5778 = private unnamed_addr constant [3 x i8] c"<'\00"
-@.str.5779 = private unnamed_addr constant [2 x i8] c"a\00"
-@.str.5780 = private unnamed_addr constant [2 x i8] c"b\00"
-@.str.5781 = private unnamed_addr constant [3 x i8] c"&'\00"
-@.str.5782 = private unnamed_addr constant [55 x i8] c"warning[BR-7]: lifetime annotations present in build: \00"
-@.str.5783 = private unnamed_addr constant [404 x i8] c"  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly but are NOT yet enforced by the borrow checker. Runtime safety is not statically guaranteed for functions / structs / impls using `<'a>` syntax. Phase 2 will add simple single-input single-output lifetime checking; Phase 4 promotes this warning to a hard error. Track via tests/err/_unimplemented/README.md once the closure-phase log lands.\00"
-@.str.5784 = private unnamed_addr constant [6 x i8] c"free(\00"
-@.str.5785 = private unnamed_addr constant [57 x i8] c"warning[OWN-012]: explicit free calls present in build: \00"
-@.str.5786 = private unnamed_addr constant [454 x i8] c"  Per RFC-0062 G-4 Phase 3 (v1.0): explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline: do not access a vec/map after passing it to its free helper. IR-level use-after-drop tracking is post-v1.0 hardening. Recommended: prefer auto-drop (default-on as of v0.8.x via RFC-0042/G-1 Phase 2b-3) which inserts cleanup automatically; mark fns `#[manual_\00"
-@.str.5787 = private unnamed_addr constant [56 x i8] c"drop]` only when explicit lifetime control is required.\00"
-@.str.5788 = private unnamed_addr constant [7 x i8] c"c_void\00"
-@.str.5789 = private unnamed_addr constant [11 x i8] c"-> *const \00"
-@.str.5790 = private unnamed_addr constant [65 x i8] c"warning[FFI-NULL]: raw-pointer return types in extern fn decls: \00"
-@.str.5791 = private unnamed_addr constant [468 x i8] c"  Per RFC-0062 G-5 Phase 3 (v1.0): extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 \C2\A73.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Per-fn null-check inference is post-v1.0 hardening. Reference: docs/ffi-conventions.md \C2\A71.\00"
-@.str.5792 = private unnamed_addr constant [57 x i8] c"warning[FFI-DIRECT]: `extern fn` declarations in build: \00"
-@.str.5793 = private unnamed_addr constant [364 x i8] c"  Per RFC-0062 G-9 Phase 3 (v1.0): direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline: treat every `extern fn` call site as an unsafe surface. `#[allow(direct_ffi)]` enforcement and bounds-check insertion at call sites are post-v1.0 hardening. Reference: docs/ffi-conventions.md \C2\A72.\00"
-@.str.5794 = private unnamed_addr constant [3 x i8] c"<&\00"
-@.str.5795 = private unnamed_addr constant [56 x i8] c"warning[ALIAS-G3]: Vec-of-reference patterns in build: \00"
-@.str.5796 = private unnamed_addr constant [404 x i8] c"  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing \E2\80\94 store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening. Reference: docs/heap-aliasing-evidence.md.\00"
-@.str.5797 = private unnamed_addr constant [6 x i8] c"qsim_\00"
-@.str.5798 = private unnamed_addr constant [5 x i8] c"cnot\00"
-@.str.5799 = private unnamed_addr constant [11 x i8] c"qsim_gate_\00"
-@.str.5800 = private unnamed_addr constant [7 x i8] c"record\00"
-@.str.5801 = private unnamed_addr constant [6 x i8] c"chomp\00"
-@.str.5802 = private unnamed_addr constant [50 x i8] c"info[QM-89-ROBO-8]: Wave 3 final Tier C surface: \00"
-@.str.5803 = private unnamed_addr constant [949 x i8] c"  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_cnot/CZ/CRK register entanglement only when populated control/target branches can actually entangle, and qsim_swap is a primitive statevector permutation with one SWAP DAG event. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 \E2\80\94 CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A\E2\81\BB\C2\B9\E2\88\87F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.\00"
-@.str.5804 = private unnamed_addr constant [8 x i8] c"tensor_\00"
-@.str.5805 = private unnamed_addr constant [3 x i8] c"nd\00"
-@.str.5806 = private unnamed_addr constant [12 x i8] c"transformer\00"
-@.str.5807 = private unnamed_addr constant [5 x i8] c"nuc_\00"
-@.str.5808 = private unnamed_addr constant [5 x i8] c"ssm_\00"
-@.str.5809 = private unnamed_addr constant [65 x i8] c"info[ML-G2-3-5-6-10]: Tensor/ML/Autodiff rod surface in source: \00"
-@.str.5810 = private unnamed_addr constant [768 x i8] c"  Per RFC sister gaps ML-2, ML-3, ML-5, ML-6, ML-10 (Tensor/ML/Autodiff): tensor_nd is missing 2D matmul (ML-2) and transpose (ML-3) \E2\80\94 workaround: use 3D matmul with batch=1 dim and pre-transpose data manually. SSM rods have no backward / gradient paths (ML-5) \E2\80\94 autodiff via these is forward-only. Quantize lacks FP8 gemv and grouped quantization (ML-6); dequant for int8 / ternary missing (ML-7). Transformer has no causal mask, no encoder-decoder (ML-10) \E2\80\94 only encoder-only attention is implemented. Phase 2b adds the missing primitives. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source. Reference: docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md ML-2/3/5/6/10.\00"
-@.str.5811 = private unnamed_addr constant [6 x i8] c"math_\00"
-@.str.5812 = private unnamed_addr constant [5 x i8] c"abs(\00"
-@.str.5813 = private unnamed_addr constant [9 x i8] c"checked_\00"
-@.str.5814 = private unnamed_addr constant [68 x i8] c"info[NUM-G289]: numeric-correctness annotations / calls in source: \00"
-@.str.5815 = private unnamed_addr constant [768 x i8] c"  Per RFC sister gaps NUM-G2, NUM-G8, NUM-G9 (Numeric Correctness): math_abs(i64::MIN) silently returns i64::MIN in non-strict mode (NUM-G2 \E2\80\94 `0 - i64::MIN` overflows; math_pow_int and math_gcd inherit the bug). checked_* family uses a single global static int for the overflow flag, NOT thread-safe (NUM-G8 \E2\80\94 concurrent calls race; flag overwritten between call and read). @const_fn attribute is silently ignored \E2\80\94 no comptime evaluation, no error if body contains non-const operations (NUM-G9). Phase 2b: panic-on-saturate for math_abs, thread-local checked flag, real comptime evaluation for @const_fn. Phase 4 v1.0 hard-error promotion. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md NUM-G2, NUM-G8, NUM-G9.\00"
-@.str.5816 = private unnamed_addr constant [9 x i8] c"clifford\00"
-@.str.5817 = private unnamed_addr constant [11 x i8] c"kinematics\00"
-@.str.5818 = private unnamed_addr constant [7 x i8] c"frame_\00"
-@.str.5819 = private unnamed_addr constant [4 x i8] c"tag\00"
-@.str.5820 = private unnamed_addr constant [62 x i8] c"info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: \00"
-@.str.5821 = private unnamed_addr constant [1373 x i8] c"  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. ROBO-7 frame typing v0838: the compiler-side FRAME-001 phantom-tag mismatch check is live at let-binding sites for `Pose<Frame_*>`-style annotations (`Frame_Unknown` is the migration sentinel; untagged Pose handles still bypass the check by construction). Adopters who opt in get a Mars-Climate-Orbiter-style rejection at compile time instead of a silent runtime miscompute. Phase 2b expands the check across struct-init, function-call, and binop paths and adds broader Clifford weight-enumerator/property invariants; Phase 4 promotes the FRAME-001 surface to v1.0 hard-error across the kinematics / tf / se3 rods. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; for frame typing, prefer `Pose<Frame_X>`-tagged annotations over bare `Pose` to opt into the check. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.\00"
-@.str.5822 = private unnamed_addr constant [66 x i8] c"info[LAW-G123]: `@law(...)` algebraic-law annotations in source: \00"
-@.str.5823 = private unnamed_addr constant [1180 x i8] c"  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`, `distributive_over`, `inverse`) plus schema hard errors for deprecated aliases, unsupported canonical forms, float/approximate modifiers, and unknown law names. The IR-level `opt_law_rewrite_block` is gated by the `@audit(law_opt_required)` + `@audit(check_laws_passed)` predicate pair (LAW-003 fail-closed when only opt_required is present) AND by the v0845 `law_opt_phase2_proof_validated` IR-level sentinel (always 0 in Phase 1 so no rewrites fire even if both audits are present). Fusion law generation, Arbitrary-driven broad property tests, float-law safeguards (currently LAW-004 fail-closed), and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.\00"
-@.str.5824 = private unnamed_addr constant [8 x i8] c"@audit(\00"
-@.str.5825 = private unnamed_addr constant [17 x i8] c"law_opt_required\00"
-@.str.5826 = private unnamed_addr constant [18 x i8] c"check_laws_passed\00"
-@.str.5827 = private unnamed_addr constant [176 x i8] c"info[LAW-AUDIT-GATE]: optimizer rewrite gate opted in (`@audit(law_opt_required)`) and proof-audit attribute present (`@audit(check_laws_passed)`); eligible @law annotations: \00"
-@.str.5828 = private unnamed_addr constant [845 x i8] c"  Per RFC sister gap LAW-3 Phase 2-prep (local-claude2 v0842): a source declaring `@audit(law_opt_required)` is asking the optimizer to use its law metadata for low-risk rewrites; the matching `@audit(check_laws_passed)` attribute declares the user has run `nuc test --check-laws` and observed PASS. Today the eligibility report fires; the IR-level rewrite pass `opt_law_rewrite_block` remains a no-op, so no semantics change yet. Phase 2 ships the first concrete rewrite (`f(a, identity) \E2\86\92 a` for `@law(identity = N)` on integer fns) gated on this exact eligibility predicate. Adopter discipline: never add `@audit(check_laws_passed)` without first running `--check-laws` and observing PASS, and never add `@audit(law_opt_required)` to a file whose law family hasn't been audited. Reference: docs/rfcs/v1_PUNCHLIST.md Algebraic Laws Phase 2.\00"
-@.str.5829 = private unnamed_addr constant [210 x i8] c"error[LAW-003]: source declares `@audit(law_opt_required)` but is missing `@audit(check_laws_passed)`; run `nuc test --check-laws`, observe PASS, then add the audit attribute before enabling the optimizer gate\00"
-@.str.5830 = private unnamed_addr constant [65 x i8] c"nucleor: LAW-003 optimizer rewrite gate without check-laws audit\00"
-@.str.5831 = private unnamed_addr constant [6 x i8] c"@cfg(\00"
-@.str.5832 = private unnamed_addr constant [8 x i8] c"feature\00"
-@.str.5833 = private unnamed_addr constant [53 x i8] c"info[PKG-5]: `@cfg(feature = ...)` gates in source: \00"
-@.str.5834 = private unnamed_addr constant [665 x i8] c"  Per RFC sister gap PKG-5 (Module/Packaging): conditional compilation `@cfg(feature = \22X\22)` is parsed but the gate is NOT honored \E2\80\94 the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Phase 2b adds proper feature-gating in the lowering pass; Phase 4 promotes adopter use to a hard requirement (gates that don't match active features become a hard error). Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection \E2\80\94 use module-level imports or runtime checks. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-5.\00"
-@.str.5835 = private unnamed_addr constant [7 x i8] c"#[dead\00"
-@.str.5836 = private unnamed_addr constant [5 x i8] c"line\00"
-@.str.5837 = private unnamed_addr constant [6 x i8] c"#[no_\00"
-@.str.5838 = private unnamed_addr constant [7 x i8] c"alloc]\00"
-@.str.5839 = private unnamed_addr constant [7 x i8] c"panic]\00"
-@.str.5840 = private unnamed_addr constant [4 x i8] c"#[i\00"
-@.str.5841 = private unnamed_addr constant [4 x i8] c"sr]\00"
-@.str.5842 = private unnamed_addr constant [61 x i8] c"info[RT-G135]: real-time/determinism annotations in source: \00"
-@.str.5843 = private unnamed_addr constant [1565 x i8] c"  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \22...\22` reach is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] now installs a runtime deadline context, polls deadline inner loops, keeps an exit check for straight-line work, and still uses heuristic RT-004 estimates rather than certified WCET. RT-G6: no embedded sysroot \E2\80\94 #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.\00"
-@.str.5844 = private unnamed_addr constant [8 x i8] c"cancel_\00"
-@.str.5845 = private unnamed_addr constant [6 x i8] c"token\00"
-@.str.5846 = private unnamed_addr constant [9 x i8] c"channel_\00"
-@.str.5847 = private unnamed_addr constant [5 x i8] c"send\00"
-@.str.5848 = private unnamed_addr constant [52 x i8] c"info[CONC-G12]: concurrency-rod surface in source: \00"
-@.str.5849 = private unnamed_addr constant [638 x i8] c"  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency rod's `cancel_token` (C-1) is a linker bomb on Linux (extern fn declared, body absent in nucleor_llvm_rt.c POSIX path) and POSIX channel helpers (C-2) are silent no-op stubs that lose all messages. Programs using these on Linux either fail at link time or run with broken concurrency. Phase 2b adds the missing POSIX implementations; Phase 4 enforces a CI gate that builds + smokes a concurrency test on Linux. Adopter discipline today: avoid these helpers if targeting Linux. Reference: docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md C-1, C-2.\00"
-@.str.5850 = private unnamed_addr constant [6 x i8] c"pure \00"
-@.str.5851 = private unnamed_addr constant [58 x i8] c"info[EFF-G123]: effect/capability annotations in source: \00"
-@.str.5852 = private unnamed_addr constant [3099 x i8] c"  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains up to depth=8 (v0845 lane 2 raised the requires bound from 3 to match the restricts path), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. Cross-module flat-namespace `import \22...\22` requires + restricts direct and bounded transitive enforcement is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_requires_direct_calls` and `enforce_restricts_block_effects` run, so the same diagnostics fire whether the rowed/builtin callee lives in the entry source or an imported sibling rod (v0845 lane 2 probe). Same-file `impl` method effect enforcement also lands via the same path: substring-search on `callee(` accidentally covers `obj.method(...)` call sites, so a method declared with `requires [...]` mismatched against its same-file caller's row, a method whose body reaches a builtin under an incompatible caller row, and a `restricts [...] { obj.method(); }` block reaching method-internal I/O all surface EFF-001/EFF-003 (v0845 lane 2 / queue 2B). The substring approach cannot disambiguate same-name methods on different `impl` blocks; when the source declares a method name twice with distinct rows, enforcement fails open at that name (skipping the row check and falling through to the body walk) so adopter code does not false-positive on the un-rowed impl. Receiver-type-aware resolution for the ambiguous-name case is Phase 4 / RFC-0033 broader effect-row subtyping. The remaining open surface is beyond depth=8 chains, ambiguous-name same-file methods (fail-open since v0845), closures and function-pointer effect capture, broader RFC-0033 effect-row subtyping, and selective `use path::{a, b}` / glob `use path::*` import surfaces (resolver phase 2). Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.\00"
-@.str.5853 = private unnamed_addr constant [44 x i8] c"info[T-3-CAST]: `as char` casts in source: \00"
-@.str.5854 = private unnamed_addr constant [505 x i8] c"  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF), and non-constant casts now fail closed unless the exact binding is guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800` in the same then-branch. The i64-everywhere char ABI remains open until broader char distinctness lands. Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.\00"
-@.str.5855 = private unnamed_addr constant [5 x i8] c", ..\00"
-@.str.5856 = private unnamed_addr constant [4 x i8] c"[..\00"
-@.str.5857 = private unnamed_addr constant [75 x i8] c"error[MATCH-009]: slice pattern contains more than one dot-dot rest marker\00"
-@.str.5858 = private unnamed_addr constant [495 x i8] c"ERROR: slice patterns with rest binding (the dot-dot rest element inside slice match brackets `[a , .. , b]`) are not yet supported in Nucleor. Pre-v0.8.34 surfaced as wrong-class range-expression diagnostic because the parser hit token 58 inside the slice pattern brackets and routed to the range halt. Workaround: rewrite as explicit indexing using vec_len + vec_get. Tracked for forward-roadmap (full slice-pattern matcher with rest binding). Sister to Q1 / Q9 from PARALLEL_AGENT_PUNCHLIST.\00"
-@.str.5859 = private unnamed_addr constant [89 x i8] c"nucleor: slice patterns with rest binding not yet supported (see ERROR diagnostic above)\00"
-@.str.5860 = private unnamed_addr constant [56 x i8] c"warning[SEND-G6]: HashMap/Cell/RefCell types in build: \00"
-@.str.5861 = private unnamed_addr constant [527 x i8] c"  Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> Sendable propagation is not yet enforced \E2\80\94 the v1.0 contract is Sendable iff K and V are Sendable AND hasher is Sendable. Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). spawn-call sites may silently accept these today \E2\80\94 adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set. Closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md \C2\A74.\00"
-@.str.5862 = private unnamed_addr constant [6 x i8] c"move \00"
-@.str.5863 = private unnamed_addr constant [67 x i8] c"warning[SEND-G6-CLOSURE]: `move |...|` capture closures in build: \00"
-@.str.5864 = private unnamed_addr constant [519 x i8] c"  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md \C2\A74 case 2.\00"
-@.str.5865 = private unnamed_addr constant [51 x i8] c"warning[UNSAFE-G7]: `unsafe { }` blocks in build: \00"
-@.str.5866 = private unnamed_addr constant [464 x i8] c"  Per RFC-0062 G-7 Phase 3 (v1.0): the OSS compiler self-host source contains zero unsafe blocks; any unsafe block in adopter code is a manual-audit surface. Each unsafe block bypasses borrow-checking, lifetime-tracking, and bounds-check insertion within its body. Adopter discipline: justify each unsafe block in a comment naming the invariant being preserved. `#[allow(unsafe)]` attribute enforcement is post-v1.0 hardening. Reference: RFC-0003 \C2\A7unsafe blocks.\00"
-@.str.5867 = private unnamed_addr constant [14 x i8] c"NUC_AUTO_DROP\00"
-@.str.5868 = private unnamed_addr constant [9 x i8] c"_DEFAULT\00"
-@.str.5869 = private unnamed_addr constant [91 x i8] c"info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 \E2\80\94 Phase 2b-3 default-flip ENABLED for this build.\00"
-@.str.5870 = private unnamed_addr constant [346 x i8] c"  Per RFC-0062 G-1 Phase 2b-3 experiment: every fn auto-drops local Vec / HashMap / Box / String / VecDeque unless `#[manual_drop]` opt-out is present. Adopter discipline: this is an experimental flip mode for validating code against the future default. Remove the env var or set it to anything other than \221\22 to revert to v0.x opt-in semantics.\00"
-@.str.5871 = private unnamed_addr constant [6 x i8] c"push(\00"
-@.str.5872 = private unnamed_addr constant [5 x i8] c"set(\00"
-@.str.5873 = private unnamed_addr constant [67 x i8] c"warning[G3-HANDOFF-RISK]: vec_push / vec_set call sites in build: \00"
-@.str.5874 = private unnamed_addr constant [700 x i8] c"  Per RFC-0062 G-3 Phase 2b: under default-flip (NUC_AUTO_DROP_DEFAULT=1), local Vec values handed off via `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)` get auto-dropped at fn exit, leaving the receiver with a DANGLING POINTER. This is a silent miscompute \E2\80\94 the guard from v0.8.68 catches double-free but NOT dangling pointers from handoff. Adopter discipline TODAY: any fn whose body contains `vec_push(<param-name>, <local-vec>)` should carry `#[manual_drop]` to suppress auto-drop on the local. Phase 2b proper dataflow handoff detection will automate this; until then, treat every vec_push call site as a manual review point. Reference: docs/g3-handoff-dataflow-design.md.\00"
-@.str.5875 = private unnamed_addr constant [64 x i8] c"info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: \00"
-@.str.5876 = private unnamed_addr constant [182 x i8] c"  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP \E2\80\94 every fn still requires explicit `#[auto_\00"
-@.str.5877 = private unnamed_addr constant [367 x i8] c"drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN \C2\A73 G-1.\00"
-@.str.5878 = private unnamed_addr constant [7 x i8] c"match \00"
-@.str.5879 = private unnamed_addr constant [43 x i8] c"info[CFG-G8]: match expressions in build: \00"
-@.str.5880 = private unnamed_addr constant [557 x i8] c"  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions) can have arms that diverge in move/borrow behavior \E2\80\94 one arm consumes a value, another borrows it. The move tracker today is conservative on simple cases but doesn't fully reason about arm-level divergence. Phase 2b adds move-state join analysis at every control-flow join point; Phase 4 promotes mixed-arm patterns to deny-by-default with `#[allow(divergent_move)]` opt-out. Adopter discipline today: keep arm-level move/borrow behavior consistent (all arms borrow, or all arms consume).\00"
-@.str.5881 = private unnamed_addr constant [11 x i8] c".nuc_cache\00"
-@.str.5882 = private unnamed_addr constant [15 x i8] c"#link_windows \00"
-@.str.5883 = private unnamed_addr constant [4 x i8] c" -l\00"
-@.str.5884 = private unnamed_addr constant [13 x i8] c"#link_posix \00"
-@.str.5885 = private unnamed_addr constant [7 x i8] c"#link \00"
-@.str.5886 = private unnamed_addr constant [8 x i8] c"#cfile \00"
-@.str.5887 = private unnamed_addr constant [10 x i8] c"#libpath \00"
-@.str.5888 = private unnamed_addr constant [4 x i8] c" -L\00"
-@.str.5889 = private unnamed_addr constant [29 x i8] c"ERROR: invalid output name: \00"
-@.str.5890 = private unnamed_addr constant [11 x i8] c"  source: \00"
-@.str.5891 = private unnamed_addr constant [32 x i8] c"  mode: fast (ownership + type)\00"
-@.str.5892 = private unnamed_addr constant [30 x i8] c"  mode: llvm-only (--no-link)\00"
-@.str.5893 = private unnamed_addr constant [17 x i8] c"cache: hit (sha=\00"
-@.str.5894 = private unnamed_addr constant [8 x i8] c", size \00"
-@.str.5895 = private unnamed_addr constant [5 x i8] c" MB)\00"
-@.str.5896 = private unnamed_addr constant [6 x i8] c"total\00"
-@.str.5897 = private unnamed_addr constant [37 x i8] c"error[NR022]: source file is empty: \00"
-@.str.5898 = private unnamed_addr constant [164 x i8] c"  Nucleor expects every binary build to have a `fn main() -> i32` entry point. Add a main function, or compile this file only as part of a larger imported program.\00"
-@.str.5899 = private unnamed_addr constant [20 x i8] c"ERROR: cannot read \00"
-@.str.5900 = private unnamed_addr constant [38 x i8] c"  incremental: module graph cache hit\00"
-@.str.5901 = private unnamed_addr constant [15 x i8] c"resolve_source\00"
-@.str.5902 = private unnamed_addr constant [38 x i8] c"cache: disabled (sha=none, size 0 MB)\00"
-@.str.5903 = private unnamed_addr constant [10 x i8] c"preflight\00"
-@.str.5904 = private unnamed_addr constant [4 x i8] c"lex\00"
-@.str.5905 = private unnamed_addr constant [40 x i8] c"error[TYP-041]: duplicate struct decl `\00"
-@.str.5906 = private unnamed_addr constant [15 x i8] c"  Two `struct \00"
-@.str.5907 = private unnamed_addr constant [307 x i8] c"` decls in this compile unit. Nucleor's collection pass keeps both, but only the FIRST one wins for field-offset / construction; the second's fields are unreachable. Adopters refactoring across files (rename `Foo` to `Bar`, miss one) or running translators that emit duplicate decls hit silent miscompiles.\00"
-@.str.5908 = private unnamed_addr constant [54 x i8] c"  Workaround: rename or remove the duplicate `struct \00"
-@.str.5909 = private unnamed_addr constant [92 x i8] c"`. If both shapes are needed (e.g. version-skew between modules), give them distinct names.\00"
-@.str.5910 = private unnamed_addr constant [24 x i8] c"duplicate struct decl: \00"
-@.str.5911 = private unnamed_addr constant [38 x i8] c"error[TYP-041]: duplicate enum decl `\00"
-@.str.5912 = private unnamed_addr constant [13 x i8] c"  Two `enum \00"
-@.str.5913 = private unnamed_addr constant [195 x i8] c"` decls in this compile unit. Same hazard as duplicate-struct: only the FIRST wins for variant resolution; the second's variants are unreachable. Sister to v0.6.27 dup-variant-within-enum check.\00"
-@.str.5914 = private unnamed_addr constant [52 x i8] c"  Workaround: rename or remove the duplicate `enum \00"
-@.str.5915 = private unnamed_addr constant [22 x i8] c"duplicate enum decl: \00"
-@.str.5916 = private unnamed_addr constant [14 x i8] c"collect_decls\00"
-@.str.5917 = private unnamed_addr constant [5 x i8] c"From\00"
-@.str.5918 = private unnamed_addr constant [14 x i8] c"collect_impls\00"
-@.str.5919 = private unnamed_addr constant [11 x i8] c"` method `\00"
-@.str.5920 = private unnamed_addr constant [43 x i8] c"` has more #[require(...)] preconditions (\00"
-@.str.5921 = private unnamed_addr constant [31 x i8] c") than the trait declaration (\00"
-@.str.5922 = private unnamed_addr constant [54 x i8] c"). Liskov: subtype must not strengthen preconditions.\00"
-@.str.5923 = private unnamed_addr constant [44 x i8] c"` has fewer #[ensure(...)] postconditions (\00"
-@.str.5924 = private unnamed_addr constant [51 x i8] c"). Liskov: subtype must not weaken postconditions.\00"
-@.str.5925 = private unnamed_addr constant [7 x i8] c"source\00"
-@.str.5926 = private unnamed_addr constant [13 x i8] c"collect_pure\00"
-@.str.5927 = private unnamed_addr constant [588 x i8] c"error[ATOMIC-006]: atomic helpers (atomic_load / atomic_store / atomic_fetch_* / atomic_compare_exchange) inside closure bodies are not currently supported. The closure-lowering path does not yet inherit the parent fn's enum-variant scope, so `MemOrder::SeqCst` (and similar) dispatch fails \E2\80\94 pre-v0.4.280 this produced a misleading `vec_get OOB` compiler PANIC. Workaround: call the atomic helper directly from a regular fn body instead of wrapping it in a closure. This is a temporary limitation; full closure+atomic support lands when the closure sym-table inheritance ship goes in.\00"
-@.str.5928 = private unnamed_addr constant [13 x i8] c"safe-release\00"
-@.str.5929 = private unnamed_addr constant [5 x i8] c"cert\00"
-@.str.5930 = private unnamed_addr constant [40 x i8] c"error[CONTRACT-009]: NUCLEOR_DBC_MODE=`\00"
-@.str.5931 = private unnamed_addr constant [265 x i8] c"` is not a recognized DbC build mode. Recognized values: `debug` (default; full runtime checks), `safe-release` (require only \E2\80\94 input validation), `release` (no checks; max perf), `cert` (no checks; reserved for future static-proof). Unset to default to `debug`.\00"
-@.str.5932 = private unnamed_addr constant [74 x i8] c"error[CONTRACT-010]: `old(...)` is not valid in `#[require(...)]` on `fn \00"
-@.str.5933 = private unnamed_addr constant [272 x i8] c"`. Preconditions run BEFORE the function body, so there is no prior state to snapshot. `old(...)` is only meaningful in `#[ensure(...)]` (postconditions reference fn-entry state). Move the check into `#[ensure]`, or compare directly against the parameter without `old()`.\00"
-@.str.5934 = private unnamed_addr constant [10 x i8] c"  --> fn \00"
-@.str.5935 = private unnamed_addr constant [24 x i8] c"@<#[require] attribute>\00"
-@.str.5936 = private unnamed_addr constant [47 x i8] c"error[CONTRACT-011]: `#[require(...)]` on `fn \00"
-@.str.5937 = private unnamed_addr constant [36 x i8] c"` references undefined identifier `\00"
-@.str.5938 = private unnamed_addr constant [257 x i8] c"`. Pre-conditions can only reference fn parameters, module-level constants, type or enum variant names, and the DbC keywords (`true`, `false`, `null`, `Some`, `None`, `Ok`, `Err`). Check spelling, or rewrite the predicate to compare against a fn parameter.\00"
-@.str.5939 = private unnamed_addr constant [46 x i8] c"error[CONTRACT-008]: `#[ensure(...)]` on `fn \00"
-@.str.5940 = private unnamed_addr constant [29 x i8] c"` references `result`, but `\00"
-@.str.5941 = private unnamed_addr constant [243 x i8] c"` has no return type. The fn does not produce a value to bind `result` against. Either remove the `result` reference from the ensure predicate, or add a return type to the fn (e.g. `-> i64`) if you intended the ensure to assert on the output.\00"
-@.str.5942 = private unnamed_addr constant [23 x i8] c"@<#[ensure] attribute>\00"
-@.str.5943 = private unnamed_addr constant [27 x i8] c"error[CONTRACT-006]: `old(\00"
-@.str.5944 = private unnamed_addr constant [16 x i8] c")` over param `\00"
-@.str.5945 = private unnamed_addr constant [366 x i8] c"` captures the i64-ABI heap pointer, not a deep snapshot. The pointer is the same one the body mutates \E2\80\94 so `old(...)` aliases the post-mutation value and ensure semantics are wrong. Hoist a manual snapshot before the body (e.g. `let len_initial: i64 = vec_len(v);`) and reference that scalar in the ensure predicate, or mark the fn with `#[no_check]` to opt out.\00"
-@.str.5946 = private unnamed_addr constant [13 x i8] c"@<old() arg>\00"
-@.str.5947 = private unnamed_addr constant [6 x i8] c"lower\00"
-@.str.5948 = private unnamed_addr constant [4 x i8] c"opt\00"
-@.str.5949 = private unnamed_addr constant [14 x i8] c"  functions: \00"
-@.str.5950 = private unnamed_addr constant [12 x i8] c"  strings: \00"
-@.str.5951 = private unnamed_addr constant [14 x i8] c"  optimized: \00"
-@.str.5952 = private unnamed_addr constant [14 x i8] c" instructions\00"
-@.str.5953 = private unnamed_addr constant [5 x i8] c"emit\00"
-@.str.5954 = private unnamed_addr constant [28 x i8] c"cache: miss -> stored (sha=\00"
-@.str.5955 = private unnamed_addr constant [32 x i8] c"cache: miss -> not stored (sha=\00"
-@.str.5956 = private unnamed_addr constant [13 x i8] c", size 0 MB)\00"
-@.str.5957 = private unnamed_addr constant [32 x i8] c"compiler/nucleor_s1_compiler.nr\00"
-@.str.5958 = private unnamed_addr constant [32 x i8] c"compiler\5Cnucleor_s1_compiler.nr\00"
-@.str.5959 = private unnamed_addr constant [32 x i8] c"compiler/nucleor_tools_suite.nr\00"
-@.str.5960 = private unnamed_addr constant [32 x i8] c"compiler\5Cnucleor_tools_suite.nr\00"
-@.str.5961 = private unnamed_addr constant [18 x i8] c".\5Cbin\5Cnucleor.exe\00"
-@.str.5962 = private unnamed_addr constant [16 x i8] c"bin\5Cnucleor.exe\00"
-@.str.5963 = private unnamed_addr constant [12 x i8] c"bin/nucleor\00"
-@.str.5964 = private unnamed_addr constant [16 x i8] c"bin/nucleor.exe\00"
-@.str.5965 = private unnamed_addr constant [8 x i8] c" build \00"
-@.str.5966 = private unnamed_addr constant [11 x i8] c" --no-link\00"
-@.str.5967 = private unnamed_addr constant [12 x i8] c" --no-cache\00"
-@.str.5968 = private unnamed_addr constant [15 x i8] c" --cache-stats\00"
-@.str.5969 = private unnamed_addr constant [15 x i8] c" --time-passes\00"
-@.str.5970 = private unnamed_addr constant [13 x i8] c"total_native\00"
-@.str.5971 = private unnamed_addr constant [4 x i8] c"dev\00"
-@.str.5972 = private unnamed_addr constant [5 x i8] c"ice=\00"
-@.str.5973 = private unnamed_addr constant [6 x i8] c"pub f\00"
-@.str.5974 = private unnamed_addr constant [3 x i8] c") \00"
-@.str.5975 = private unnamed_addr constant [4 x i8] c"-> \00"
-@.str.5976 = private unnamed_addr constant [3 x i8] c"\0A\0A\00"
-@.str.5977 = private unnamed_addr constant [52 x i8] c"    let __nuc_dl_start: i64 = time_monotonic_us();\0A\00"
-@.str.5978 = private unnamed_addr constant [36 x i8] c"    deadline_enter(__nuc_dl_start, \00"
-@.str.5979 = private unnamed_addr constant [4 x i8] c");\0A\00"
-@.str.5980 = private unnamed_addr constant [21 x i8] c"    let __nuc_dl_r: \00"
-@.str.5981 = private unnamed_addr constant [22 x i8] c"    deadline_exit();\0A\00"
-@.str.5982 = private unnamed_addr constant [36 x i8] c"    deadline_check(__nuc_dl_start, \00"
-@.str.5983 = private unnamed_addr constant [24 x i8] c"    return __nuc_dl_r;\0A\00"
-@.str.5984 = private unnamed_addr constant [16 x i8] c"__nuc_md_inner_\00"
-@.str.5985 = private unnamed_addr constant [21 x i8] c"    max_depth_enter(\00"
-@.str.5986 = private unnamed_addr constant [21 x i8] c"    let __nuc_md_r: \00"
-@.str.5987 = private unnamed_addr constant [6 x i8] c"self.\00"
-@.str.5988 = private unnamed_addr constant [20 x i8] c"    max_depth_exit(\00"
-@.str.5989 = private unnamed_addr constant [24 x i8] c"    return __nuc_md_r;\0A\00"
-@.str.5990 = private unnamed_addr constant [651 x i8] c"ERROR: `async { ... }` block expression is not yet supported in Nucleor. Pre-v0.7.9 surfaced as wrong-class `error[TYP-005]: undefined function async()` because expand_async_strip_keyword only handles `async fn` (not `async {`), and parse_primary then treats `async` as a fn call. Workaround: drop the `async` keyword \E2\80\94 Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle. Tracked for forward-roadmap (full Future-trait async-block lowering is sister to V1.x async/Future infrastructure).\00"
-@.str.5991 = private unnamed_addr constant [89 x i8] c"nucleor: `async { ... }` block expression not yet supported (see ERROR diagnostic above)\00"
-@.str.5992 = private unnamed_addr constant [12 x i8] c"#[deadline \00"
-@.str.5993 = private unnamed_addr constant [12 x i8] c"#[deadline=\00"
-@.str.5994 = private unnamed_addr constant [10 x i8] c"<unknown>\00"
-@.str.5995 = private unnamed_addr constant [7 x i8] c".await\00"
-@.str.5996 = private unnamed_addr constant [6 x i8] c": i64\00"
-@.str.5997 = private unnamed_addr constant [23 x i8] c") -> i64 {\0A    return \00"
-@.str.5998 = private unnamed_addr constant [6 x i8] c";\0A}\0A\0A\00"
-@.str.5999 = private unnamed_addr constant [8 x i8] c".iter()\00"
-@.str.6000 = private unnamed_addr constant [13 x i8] c".into_iter()\00"
-@.str.6001 = private unnamed_addr constant [6 x i8] c"_f64(\00"
-@.str.6002 = private unnamed_addr constant [6 x i8] c"_f32(\00"
-@.str.6003 = private unnamed_addr constant [6 x i8] c"sqrt(\00"
-@.str.6004 = private unnamed_addr constant [5 x i8] c"exp(\00"
-@.str.6005 = private unnamed_addr constant [5 x i8] c"log(\00"
-@.str.6006 = private unnamed_addr constant [6 x i8] c"tanh(\00"
-@.str.6007 = private unnamed_addr constant [12 x i8] c"f32_to_str(\00"
-@.str.6008 = private unnamed_addr constant [18 x i8] c"impl Display for \00"
-@.str.6009 = private unnamed_addr constant [7 x i8] c"__fmt(\00"
-@.str.6010 = private unnamed_addr constant [30 x i8] c"ERROR: error[FMT-002]: type '\00"
-@.str.6011 = private unnamed_addr constant [38 x i8] c"' does not implement Display for '{}'\00"
-@.str.6012 = private unnamed_addr constant [56 x i8] c"nucleor: FMT-002 missing Display impl for struct format\00"
-@.str.6013 = private unnamed_addr constant [3 x i8] c":i\00"
-@.str.6014 = private unnamed_addr constant [3 x i8] c":s\00"
-@.str.6015 = private unnamed_addr constant [3 x i8] c":f\00"
-@.str.6016 = private unnamed_addr constant [3 x i8] c":?\00"
-@.str.6017 = private unnamed_addr constant [29 x i8] c"str_concat(\22\5C\22\22, str_concat(\00"
-@.str.6018 = private unnamed_addr constant [9 x i8] c", \22\5C\22\22))\00"
-@.str.6019 = private unnamed_addr constant [22 x i8] c"vec_to_debug_str_str(\00"
-@.str.6020 = private unnamed_addr constant [29 x i8] c"vec_to_debug_str_option_i64(\00"
-@.str.6021 = private unnamed_addr constant [22 x i8] c"vec_to_debug_str_i64(\00"
-@.str.6022 = private unnamed_addr constant [25 x i8] c"option_to_debug_str_i64(\00"
-@.str.6023 = private unnamed_addr constant [25 x i8] c"result_to_debug_str_i64(\00"
-@.str.6024 = private unnamed_addr constant [3 x i8] c" }\00"
-@.str.6025 = private unnamed_addr constant [18 x i8] c"int_to_hex_upper(\00"
-@.str.6026 = private unnamed_addr constant [12 x i8] c"int_to_oct(\00"
-@.str.6027 = private unnamed_addr constant [12 x i8] c"int_to_bin(\00"
-@.str.6028 = private unnamed_addr constant [21 x i8] c"f64_to_str_sci_prec(\00"
-@.str.6029 = private unnamed_addr constant [16 x i8] c"f64_to_str_sci(\00"
-@.str.6030 = private unnamed_addr constant [27 x i8] c"f64_to_str_sci_prec_upper(\00"
-@.str.6031 = private unnamed_addr constant [22 x i8] c"f64_to_str_sci_upper(\00"
-@.str.6032 = private unnamed_addr constant [3 x i8] c"0x\00"
-@.str.6033 = private unnamed_addr constant [3 x i8] c"0o\00"
-@.str.6034 = private unnamed_addr constant [3 x i8] c"0b\00"
-@.str.6035 = private unnamed_addr constant [13 x i8] c"str_concat(\22\00"
-@.str.6036 = private unnamed_addr constant [4 x i8] c"\22, \00"
-@.str.6037 = private unnamed_addr constant [17 x i8] c"f64_to_str_prec(\00"
-@.str.6038 = private unnamed_addr constant [17 x i8] c"f32_to_str_prec(\00"
-@.str.6039 = private unnamed_addr constant [23 x i8] c"int_to_str_force_sign(\00"
-@.str.6040 = private unnamed_addr constant [9 x i8] c"_to_str(\00"
-@.str.6041 = private unnamed_addr constant [14 x i8] c"_to_str_prec(\00"
-@.str.6042 = private unnamed_addr constant [12 x i8] c"str_center(\00"
-@.str.6043 = private unnamed_addr constant [31 x i8] c"ERROR: Rust named format-arg `\00"
-@.str.6044 = private unnamed_addr constant [279 x i8] c" = <expr>` (e.g. `format!(\22{x}\22, x = 5)`) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.43 surfaced as wrong-class `error[TYP-005]: undefined function '<name>()'` because the expander used `x = 5` as the value to format and parsed `x` as an unbound identifier.\00"
-@.str.6045 = private unnamed_addr constant [72 x i8] c"       Workaround: use the explicit-positional form \E2\80\94 `format!(\22{}\22, \00"
-@.str.6046 = private unnamed_addr constant [193 x i8] c")` (drop the named binding; the value already has a name in the calling scope). Tracked for forward-roadmap (named-arg substrate is part of the same RFC 2795 work as inline + positional args).\00"
-@.str.6047 = private unnamed_addr constant [28 x i8] c"nucleor: named format-arg `\00"
-@.str.6048 = private unnamed_addr constant [10 x i8] c"print(\22\22)\00"
-@.str.6049 = private unnamed_addr constant [11 x i8] c"eprint(\22\22)\00"
-@.str.6050 = private unnamed_addr constant [15 x i8] c"eprint_raw(\22\22)\00"
-@.str.6051 = private unnamed_addr constant [14 x i8] c"print_raw(\22\22)\00"
-@.str.6052 = private unnamed_addr constant [39 x i8] c"ERROR: Rust 1.58+ inline format-arg `{\00"
-@.str.6053 = private unnamed_addr constant [217 x i8] c"}` (where `<name>` resolves to a binding in the calling scope) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.41 surfaced as wrong-class \22format string has more `{}` placeholders than args supplied\22.\00"
-@.str.6054 = private unnamed_addr constant [65 x i8] c"       Workaround: use the explicit-arg form \E2\80\94 `format!(\22{}\22, \00"
-@.str.6055 = private unnamed_addr constant [270 x i8] c")` (or `println!`/`print!`/etc.). For multiple inline args, list each as a separate trailing arg in the same order they appear in the format string. Tracked for forward-roadmap (lex-time inline-arg rewrite at `{name}` \E2\86\92 `{}` + appended `name` arg, per Rust RFC 2795).\00"
-@.str.6056 = private unnamed_addr constant [30 x i8] c"nucleor: inline format-arg `{\00"
-@.str.6057 = private unnamed_addr constant [50 x i8] c"}` not yet supported (see ERROR diagnostic above)\00"
-@.str.6058 = private unnamed_addr constant [37 x i8] c"ERROR: Rust positional format-arg `{\00"
-@.str.6059 = private unnamed_addr constant [22 x i8] c"}` (referencing arg #\00"
-@.str.6060 = private unnamed_addr constant [101 x i8] c" by index, allowing reuse like `{0} {1} {0}`) is not yet supported in Nucleor's textual macro layer.\00"
-@.str.6061 = private unnamed_addr constant [326 x i8] c"       Workaround: write the args linearly in `{}` order \E2\80\94 `format!(\22{} {}\22, a, b)` instead of `format!(\22{0} {1}\22, a, b)`. For repeated refs, write the value once and bind it: `let r = a; format!(\22{} {} {}\22, r, b, r)`. Tracked for forward-roadmap (positional-arg substrate is part of the same RFC 2795 work as inline args).\00"
-@.str.6062 = private unnamed_addr constant [34 x i8] c"nucleor: positional format-arg `{\00"
-@.str.6063 = private unnamed_addr constant [83 x i8] c"ERROR: format string has more `{}` placeholders than args supplied. Format body: `\00"
-@.str.6064 = private unnamed_addr constant [19 x i8] c"`. Args supplied: \00"
-@.str.6065 = private unnamed_addr constant [85 x i8] c". Pre-v0.4.70 missing args were rendered as the literal text `<MISSING>` at runtime.\00"
-@.str.6066 = private unnamed_addr constant [46 x i8] c"nucleor: format placeholder count > arg count\00"
-@.str.6067 = private unnamed_addr constant [42 x i8] c"ERROR: error[FMT-003]: format string has \00"
-@.str.6068 = private unnamed_addr constant [26 x i8] c" `{}` placeholder(s) but \00"
-@.str.6069 = private unnamed_addr constant [24 x i8] c" argument(s) supplied; \00"
-@.str.6070 = private unnamed_addr constant [61 x i8] c" extra argument(s) would be silently dropped. Format body: `\00"
-@.str.6071 = private unnamed_addr constant [77 x i8] c"`. Either add `{}` placeholders for the extras or remove them from the call.\00"
-@.str.6072 = private unnamed_addr constant [79 x i8] c"nucleor: FMT-003 format args > placeholders (extras would be silently dropped)\00"
-@.str.6073 = private unnamed_addr constant [12 x i8] c"eprint_raw(\00"
-@.str.6074 = private unnamed_addr constant [11 x i8] c"print_raw(\00"
-@.str.6075 = private unnamed_addr constant [6 x i8] c"if !(\00"
-@.str.6076 = private unnamed_addr constant [5 x i8] c") { \00"
-@.str.6077 = private unnamed_addr constant [4 x i8] c"; }\00"
-@.str.6078 = private unnamed_addr constant [7 x i8] c"if !((\00"
-@.str.6079 = private unnamed_addr constant [6 x i8] c")) { \00"
-@.str.6080 = private unnamed_addr constant [13 x i8] c")) { panic(\22\00"
-@.str.6081 = private unnamed_addr constant [14 x i8] c"! failed\22); }\00"
-@.str.6082 = private unnamed_addr constant [4 x i8] c"vec\00"
-@.str.6083 = private unnamed_addr constant [105 x i8] c"{ let mut __nuc_vec: Vec<i64> = Vec::new(); let mut __nuc_repeat_i: i64 = 0; let __nuc_repeat_n: i64 = (\00"
-@.str.6084 = private unnamed_addr constant [66 x i8] c") as i64; while __nuc_repeat_i < __nuc_repeat_n { __nuc_vec.push(\00"
-@.str.6085 = private unnamed_addr constant [55 x i8] c"); __nuc_repeat_i = __nuc_repeat_i + 1; }; __nuc_vec }\00"
-@.str.6086 = private unnamed_addr constant [45 x i8] c"{ let mut __nuc_vec: Vec<i64> = Vec::new(); \00"
-@.str.6087 = private unnamed_addr constant [16 x i8] c"__nuc_vec.push(\00"
-@.str.6088 = private unnamed_addr constant [4 x i8] c"); \00"
-@.str.6089 = private unnamed_addr constant [12 x i8] c"__nuc_vec }\00"
-@.str.6090 = private unnamed_addr constant [7 x i8] c"format\00"
-@.str.6091 = private unnamed_addr constant [12 x i8] c"unreachable\00"
-@.str.6092 = private unnamed_addr constant [5 x i8] c"todo\00"
-@.str.6093 = private unnamed_addr constant [14 x i8] c"unimplemented\00"
-@.str.6094 = private unnamed_addr constant [5 x i8] c"file\00"
-@.str.6095 = private unnamed_addr constant [7 x i8] c"column\00"
-@.str.6096 = private unnamed_addr constant [12 x i8] c"module_path\00"
-@.str.6097 = private unnamed_addr constant [10 x i8] c"stringify\00"
-@.str.6098 = private unnamed_addr constant [7 x i8] c"concat\00"
-@.str.6099 = private unnamed_addr constant [4 x i8] c"env\00"
-@.str.6100 = private unnamed_addr constant [11 x i8] c"option_env\00"
-@.str.6101 = private unnamed_addr constant [12 x i8] c"include_str\00"
-@.str.6102 = private unnamed_addr constant [14 x i8] c"include_bytes\00"
-@.str.6103 = private unnamed_addr constant [29 x i8] c"ERROR: Rust built-in macro `\00"
-@.str.6104 = private unnamed_addr constant [192 x i8] c"!(...)` is not yet supported in Nucleor. Pre-v0.7.20 surfaced as wrong-class NR020 / TYP-005. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).\00"
-@.str.6105 = private unnamed_addr constant [250 x i8] c"       Workarounds: file!/line!/column!/module_path!/stringify! \E2\86\92 hard-coded literal; concat! \E2\86\92 str_concat at runtime or single literal; env!/option_env! \E2\86\92 args_get / wrapper script; include_str!/include_bytes! \E2\86\92 file_read_string at runtime.\00"
-@.str.6106 = private unnamed_addr constant [26 x i8] c"nucleor: built-in macro `\00"
-@.str.6107 = private unnamed_addr constant [55 x i8] c"!(...)` not yet supported (see ERROR diagnostic above)\00"
-@.str.6108 = private unnamed_addr constant [55 x i8] c"ERROR: user-defined or unrecognized macro invocation `\00"
-@.str.6109 = private unnamed_addr constant [771 x i8] c"!(...)` is not supported in Nucleor. Pre-v0.8.28 surfaced as wrong-class `error[TYP-002]: unary \5C`!\5C` requires a \5C`bool\5C` operand (got i32)` because the unrecognized macro name was left in the expanded output with the `!` preserved, and the expression parser then read `!` as unary NOT applied to the following argument. Workaround: rewrite the macro body as a regular fn \E2\80\94 replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.). Tracked for forward-roadmap (declarative `macro_rules!` substrate is a v1.x ship).\00"
-@.str.6110 = private unnamed_addr constant [25 x i8] c"nucleor: unknown macro `\00"
-@.str.6111 = private unnamed_addr constant [51 x i8] c"!(...)` not supported (see ERROR diagnostic above)\00"
-@.str.6112 = private unnamed_addr constant [43 x i8] c"\22internal error: entered unreachable code\22\00"
-@.str.6113 = private unnamed_addr constant [22 x i8] c"\22not yet implemented\22\00"
-@.str.6114 = private unnamed_addr constant [18 x i8] c"\22not implemented\22\00"
-@.str.6115 = private unnamed_addr constant [6 x i8] c"pubfn\00"
-@.str.6116 = private unnamed_addr constant [26 x i8] c"use of undefined value '@\00"
-@.str.6117 = private unnamed_addr constant [41 x i8] c"error[MOD-003]: cannot call private fn '\00"
-@.str.6118 = private unnamed_addr constant [36 x i8] c"' from outside its declaring module\00"
-@.str.6119 = private unnamed_addr constant [20 x i8] c"  --> declared in: \00"
-@.str.6120 = private unnamed_addr constant [66 x i8] c"  hint: add `pub` to the fn declaration to expose it cross-module\00"
-@.str.6121 = private unnamed_addr constant [22 x i8] c"error[TYP-005]: `vec_\00"
-@.str.6122 = private unnamed_addr constant [59 x i8] c"(...)` is not a top-level fn \E2\80\94 use the method form `vec.\00"
-@.str.6123 = private unnamed_addr constant [119 x i8] c"(&value)` instead. The method-dispatch path resolves to the correct type-specific runtime helper (e.g. `__nucleor_vec_\00"
-@.str.6124 = private unnamed_addr constant [64 x i8] c"_i64` for `Vec<i64>`); the bare fn-form bypasses that dispatch.\00"
-@.str.6125 = private unnamed_addr constant [55 x i8] c"                Pre-v0.6.40 the diag said `no method .\00"
-@.str.6126 = private unnamed_addr constant [76 x i8] c"()`, which was misleading \E2\80\94 the method exists, only the fn-form does not.\00"
-@.str.6127 = private unnamed_addr constant [56 x i8] c"error[TYP-005]: receiver type `Vec<T>` has no method `.\00"
-@.str.6128 = private unnamed_addr constant [29 x i8] c"()`. (Internal symbol: `vec_\00"
-@.str.6129 = private unnamed_addr constant [17 x i8] c"                \00"
-@.str.6130 = private unnamed_addr constant [100 x i8] c"`. The kind-8 method-dispatch catch-all lowered the call to a synthetic helper that doesn't exist.)\00"
-@.str.6131 = private unnamed_addr constant [317 x i8] c"                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.\00"
-@.str.6132 = private unnamed_addr constant [37 x i8] c"error[TYP-005]: undefined function `\00"
-@.str.6133 = private unnamed_addr constant [80 x i8] c"()`. Check spelling, or import the rod that defines it. (raised at clang link.)\00"
-@.str.6134 = private unnamed_addr constant [8 x i8] c"LNK1561\00"
-@.str.6135 = private unnamed_addr constant [26 x i8] c"subsystem must be defined\00"
-@.str.6136 = private unnamed_addr constant [30 x i8] c"undefined reference to `main'\00"
-@.str.6137 = private unnamed_addr constant [31 x i8] c"undefined reference to `_main'\00"
-@.str.6138 = private unnamed_addr constant [35 x i8] c"Undefined symbols for architecture\00"
-@.str.6139 = private unnamed_addr constant [6 x i8] c"_main\00"
-@.str.6140 = private unnamed_addr constant [313 x i8] c"error[NR022]: no `fn main()` defined in this build unit. Nucleor expects every binary build to have a `fn main() -> i32` entry point. Either add one (`fn main() -> i32 { 0 }`), or build the file as part of a larger program that already has main, or use `nuc check` if you only want to type-check without linking.\00"
-@.str.6141 = private unnamed_addr constant [8 x i8] c"__priv_\00"
-@.str.6142 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
-@.str.6143 = private unnamed_addr constant [6 x i8] c"1.1.0\00"
-@.str.6144 = private unnamed_addr constant [5 x i8] c"llvm\00"
-@.str.6145 = private unnamed_addr constant [9 x i8] c"nucleor \00"
-@.str.6146 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
-@.str.6147 = private unnamed_addr constant [10 x i8] c" backend)\00"
-@.str.6148 = private unnamed_addr constant [6 x i8] c"build\00"
-@.str.6149 = private unnamed_addr constant [11 x i8] c"build-fast\00"
-@.str.6150 = private unnamed_addr constant [13 x i8] c"build-strict\00"
-@.str.6151 = private unnamed_addr constant [13 x i8] c"build-shared\00"
-@.str.6152 = private unnamed_addr constant [4 x i8] c"run\00"
-@.str.6153 = private unnamed_addr constant [11 x i8] c"build-wasm\00"
-@.str.6154 = private unnamed_addr constant [10 x i8] c"build-ptx\00"
-@.str.6155 = private unnamed_addr constant [6 x i8] c"audit\00"
-@.str.6156 = private unnamed_addr constant [7 x i8] c"policy\00"
-@.str.6157 = private unnamed_addr constant [8 x i8] c"certify\00"
-@.str.6158 = private unnamed_addr constant [10 x i8] c"translate\00"
-@.str.6159 = private unnamed_addr constant [5 x i8] c"test\00"
-@.str.6160 = private unnamed_addr constant [6 x i8] c"bench\00"
-@.str.6161 = private unnamed_addr constant [8 x i8] c"summary\00"
-@.str.6162 = private unnamed_addr constant [7 x i8] c"impact\00"
-@.str.6163 = private unnamed_addr constant [6 x i8] c"query\00"
-@.str.6164 = private unnamed_addr constant [9 x i8] c"evidence\00"
-@.str.6165 = private unnamed_addr constant [4 x i8] c"abi\00"
-@.str.6166 = private unnamed_addr constant [20 x i8] c"verify-reproducible\00"
-@.str.6167 = private unnamed_addr constant [13 x i8] c"Nucleor.toml\00"
-@.str.6168 = private unnamed_addr constant [8 x i8] c"entry=\22\00"
-@.str.6169 = private unnamed_addr constant [14 x i8] c"nucleor_tools\00"
-@.str.6170 = private unnamed_addr constant [9 x i8] c".\5Ctarget\00"
-@.str.6171 = private unnamed_addr constant [6 x i8] c".\5Cbin\00"
-@.str.6172 = private unnamed_addr constant [3 x i8] c".\5C\00"
-@.str.6173 = private unnamed_addr constant [3 x i8] c"./\00"
-@.str.6174 = private unnamed_addr constant [49 x i8] c"ERROR: cannot find required tools-suite binary: \00"
-@.str.6175 = private unnamed_addr constant [91 x i8] c"       rebuild with: nuc build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache\00"
-@.str.6176 = private unnamed_addr constant [7 x i8] c"pushd \00"
-@.str.6177 = private unnamed_addr constant [5 x i8] c" && \00"
-@.str.6178 = private unnamed_addr constant [9 x i8] c"NUC_HOME\00"
-@.str.6179 = private unnamed_addr constant [13 x i8] c"LOCALAPPDATA\00"
-@.str.6180 = private unnamed_addr constant [9 x i8] c"\5CNucleor\00"
-@.str.6181 = private unnamed_addr constant [5 x i8] c"HOME\00"
-@.str.6182 = private unnamed_addr constant [10 x i8] c"/.nucleor\00"
-@.str.6183 = private unnamed_addr constant [9 x i8] c".nucleor\00"
-@.str.6184 = private unnamed_addr constant [7 x i8] c"/tools\00"
-@.str.6185 = private unnamed_addr constant [5 x i8] c"/bin\00"
-@.str.6186 = private unnamed_addr constant [8 x i8] c".tar.gz\00"
-@.str.6187 = private unnamed_addr constant [5 x i8] c".tgz\00"
-@.str.6188 = private unnamed_addr constant [5 x i8] c".zip\00"
-@.str.6189 = private unnamed_addr constant [30 x i8] c"Usage: nuc tools <subcommand>\00"
-@.str.6190 = private unnamed_addr constant [13 x i8] c"Subcommands:\00"
-@.str.6191 = private unnamed_addr constant [77 x i8] c"  install <url> [--no-verify]   Download + extract a tool from a release URL\00"
-@.str.6192 = private unnamed_addr constant [57 x i8] c"  uninstall <name>              Remove an installed tool\00"
-@.str.6193 = private unnamed_addr constant [53 x i8] c"  list                          List installed tools\00"
-@.str.6194 = private unnamed_addr constant [57 x i8] c"  home                          Print resolved $NUC_HOME\00"
-@.str.6195 = private unnamed_addr constant [69 x i8] c"Tools install under $NUC_HOME/tools/<name>/ and a shim is written to\00"
-@.str.6196 = private unnamed_addr constant [67 x i8] c"$NUC_HOME/bin/<name>.cmd (Windows) or $NUC_HOME/bin/<name> (Unix).\00"
-@.str.6197 = private unnamed_addr constant [71 x i8] c"Add $NUC_HOME/bin to PATH once and any tool installed via this command\00"
-@.str.6198 = private unnamed_addr constant [42 x i8] c"becomes invokable as <name> in any shell.\00"
-@.str.6199 = private unnamed_addr constant [78 x i8] c"Default $NUC_HOME: %LOCALAPPDATA%\5CNucleor (Windows) or $HOME/.nucleor (Unix).\00"
-@.str.6200 = private unnamed_addr constant [35 x i8] c"Override via the NUC_HOME env var.\00"
-@.str.6201 = private unnamed_addr constant [40 x i8] c"ERROR: nuc tools install requires a URL\00"
-@.str.6202 = private unnamed_addr constant [44 x i8] c"ERROR: cannot derive a tool name from URL: \00"
-@.str.6203 = private unnamed_addr constant [27 x i8] c"nuc tools install: name = \00"
-@.str.6204 = private unnamed_addr constant [27 x i8] c"                   url  = \00"
-@.str.6205 = private unnamed_addr constant [27 x i8] c"                   dest = \00"
-@.str.6206 = private unnamed_addr constant [76 x i8] c"powershell -NoProfile -Command \22New-Item -ItemType Directory -Force -Path '\00"
-@.str.6207 = private unnamed_addr constant [14 x i8] c"' | Out-Null\22\00"
-@.str.6208 = private unnamed_addr constant [11 x i8] c"/.download\00"
-@.str.6209 = private unnamed_addr constant [16 x i8] c"curl -fsSL -o \22\00"
-@.str.6210 = private unnamed_addr constant [4 x i8] c"\22 \22\00"
-@.str.6211 = private unnamed_addr constant [24 x i8] c"  fetching: curl -fsSL \00"
-@.str.6212 = private unnamed_addr constant [33 x i8] c"ERROR: download failed (curl rc=\00"
-@.str.6213 = private unnamed_addr constant [68 x i8] c"  verifying: cosign verify-blob (production releases must add this)\00"
-@.str.6214 = private unnamed_addr constant [77 x i8] c"  NOTE: v1 of `nuc tools install` is opt-in cosign. Skipping verify for now.\00"
-@.str.6215 = private unnamed_addr constant [61 x i8] c"        See RFC-NRT-002 for the v2 mandatory-verify roadmap.\00"
-@.str.6216 = private unnamed_addr constant [35 x i8] c"  verifying: SKIPPED (--no-verify)\00"
-@.str.6217 = private unnamed_addr constant [33 x i8] c"  extracting: Expand-Archive -> \00"
-@.str.6218 = private unnamed_addr constant [55 x i8] c"powershell -NoProfile -Command \22Expand-Archive -Path '\00"
-@.str.6219 = private unnamed_addr constant [21 x i8] c"' -DestinationPath '\00"
-@.str.6220 = private unnamed_addr constant [10 x i8] c"' -Force\22\00"
-@.str.6221 = private unnamed_addr constant [30 x i8] c"ERROR: extraction failed (rc=\00"
-@.str.6222 = private unnamed_addr constant [27 x i8] c"  extracting: tar -xzf -> \00"
-@.str.6223 = private unnamed_addr constant [11 x i8] c"tar -xzf \22\00"
-@.str.6224 = private unnamed_addr constant [7 x i8] c"\22 -C \22\00"
-@.str.6225 = private unnamed_addr constant [37 x i8] c"  installing: single-file binary -> \00"
-@.str.6226 = private unnamed_addr constant [57 x i8] c"powershell -NoProfile -Command \22Move-Item -Force -Path '\00"
-@.str.6227 = private unnamed_addr constant [17 x i8] c"' -Destination '\00"
-@.str.6228 = private unnamed_addr constant [8 x i8] c".exe' \22\00"
-@.str.6229 = private unnamed_addr constant [27 x i8] c"ERROR: install failed (rc=\00"
-@.str.6230 = private unnamed_addr constant [5 x i8] c".cmd\00"
-@.str.6231 = private unnamed_addr constant [13 x i8] c"@echo off\0D\0A\22\00"
-@.str.6232 = private unnamed_addr constant [7 x i8] c"\22 %*\0D\0A\00"
-@.str.6233 = private unnamed_addr constant [32 x i8] c"ERROR: failed to write shim at \00"
-@.str.6234 = private unnamed_addr constant [11 x i8] c"  shim:   \00"
-@.str.6235 = private unnamed_addr constant [11 x i8] c"  target: \00"
-@.str.6236 = private unnamed_addr constant [12 x i8] c"Installed `\00"
-@.str.6237 = private unnamed_addr constant [6 x i8] c"Add `\00"
-@.str.6238 = private unnamed_addr constant [27 x i8] c"` to PATH (once) and run `\00"
-@.str.6239 = private unnamed_addr constant [28 x i8] c" --version` from any shell.\00"
-@.str.6240 = private unnamed_addr constant [48 x i8] c"ERROR: nuc tools uninstall requires a tool name\00"
-@.str.6241 = private unnamed_addr constant [22 x i8] c"nuc tools uninstall: \00"
-@.str.6242 = private unnamed_addr constant [13 x i8] c"  removing: \00"
-@.str.6243 = private unnamed_addr constant [68 x i8] c"powershell -NoProfile -Command \22Remove-Item -Recurse -Force -Path '\00"
-@.str.6244 = private unnamed_addr constant [33 x i8] c"' -ErrorAction SilentlyContinue\22\00"
-@.str.6245 = private unnamed_addr constant [59 x i8] c"powershell -NoProfile -Command \22Remove-Item -Force -Path '\00"
-@.str.6246 = private unnamed_addr constant [14 x i8] c"Uninstalled `\00"
-@.str.6247 = private unnamed_addr constant [23 x i8] c"Tools installed under \00"
-@.str.6248 = private unnamed_addr constant [48 x i8] c"powershell -NoProfile -Command \22if (Test-Path '\00"
-@.str.6249 = private unnamed_addr constant [32 x i8] c"') { Get-ChildItem -Directory '\00"
-@.str.6250 = private unnamed_addr constant [94 x i8] c"' | ForEach-Object { '  ' + $_.Name } } else { '  (none -- tools home does not exist yet)' }\22\00"
-@.str.6251 = private unnamed_addr constant [5 x i8] c"help\00"
-@.str.6252 = private unnamed_addr constant [7 x i8] c"--help\00"
-@.str.6253 = private unnamed_addr constant [3 x i8] c"-h\00"
-@.str.6254 = private unnamed_addr constant [5 x i8] c"home\00"
-@.str.6255 = private unnamed_addr constant [5 x i8] c"list\00"
-@.str.6256 = private unnamed_addr constant [10 x i8] c"uninstall\00"
-@.str.6257 = private unnamed_addr constant [8 x i8] c"install\00"
-@.str.6258 = private unnamed_addr constant [12 x i8] c"--no-verify\00"
-@.str.6259 = private unnamed_addr constant [38 x i8] c"ERROR: unknown nuc tools subcommand: \00"
-@.str.6260 = private unnamed_addr constant [7 x i8] c"int8_t\00"
-@.str.6261 = private unnamed_addr constant [8 x i8] c"int16_t\00"
-@.str.6262 = private unnamed_addr constant [8 x i8] c"int32_t\00"
-@.str.6263 = private unnamed_addr constant [8 x i8] c"int64_t\00"
-@.str.6264 = private unnamed_addr constant [9 x i8] c"intptr_t\00"
-@.str.6265 = private unnamed_addr constant [8 x i8] c"uint8_t\00"
-@.str.6266 = private unnamed_addr constant [9 x i8] c"uint16_t\00"
-@.str.6267 = private unnamed_addr constant [9 x i8] c"uint32_t\00"
-@.str.6268 = private unnamed_addr constant [9 x i8] c"uint64_t\00"
-@.str.6269 = private unnamed_addr constant [10 x i8] c"uintptr_t\00"
-@.str.6270 = private unnamed_addr constant [6 x i8] c"void*\00"
-@.str.6271 = private unnamed_addr constant [12 x i8] c"const char*\00"
-@.str.6272 = private unnamed_addr constant [12 x i8] c"pub struct \00"
-@.str.6273 = private unnamed_addr constant [10 x i8] c"#[export]\00"
-@.str.6274 = private unnamed_addr constant [47 x i8] c"usage: nuc gen-headers <input.nr> [-o <out.h>]\00"
-@.str.6275 = private unnamed_addr constant [3 x i8] c"-o\00"
-@.str.6276 = private unnamed_addr constant [3 x i8] c".h\00"
-@.str.6277 = private unnamed_addr constant [30 x i8] c"nuc gen-headers: cannot read \00"
-@.str.6278 = private unnamed_addr constant [40 x i8] c"// Generated by `nuc gen-headers` from \00"
-@.str.6279 = private unnamed_addr constant [81 x i8] c"\0A// Edits will be lost; regenerate after extern fn / #[repr(C)] struct changes.\0A\00"
-@.str.6280 = private unnamed_addr constant [31 x i8] c"#ifndef NUCLEOR_GEN_HEADERS_H\0A\00"
-@.str.6281 = private unnamed_addr constant [31 x i8] c"#define NUCLEOR_GEN_HEADERS_H\0A\00"
-@.str.6282 = private unnamed_addr constant [21 x i8] c"#include <stdint.h>\0A\00"
-@.str.6283 = private unnamed_addr constant [23 x i8] c"#include <stdbool.h>\0A\0A\00"
-@.str.6284 = private unnamed_addr constant [41 x i8] c"#ifdef __cplusplus\0Aextern \22C\22 {\0A#endif\0A\0A\00"
-@.str.6285 = private unnamed_addr constant [16 x i8] c"typedef struct \00"
-@.str.6286 = private unnamed_addr constant [3 x i8] c";\0A\00"
-@.str.6287 = private unnamed_addr constant [3 x i8] c"} \00"
-@.str.6288 = private unnamed_addr constant [4 x i8] c";\0A\0A\00"
-@.str.6289 = private unnamed_addr constant [54 x i8] c"// === #[export] \E2\80\94 Nucleor fns callable from C ===\0A\00"
-@.str.6290 = private unnamed_addr constant [30 x i8] c"\0A#ifdef __cplusplus\0A}\0A#endif\0A\00"
-@.str.6291 = private unnamed_addr constant [33 x i8] c"#endif // NUCLEOR_GEN_HEADERS_H\0A\00"
-@.str.6292 = private unnamed_addr constant [24 x i8] c"nuc gen-headers: wrote \00"
-@.str.6293 = private unnamed_addr constant [24 x i8] c" #[repr(C)] struct(s), \00"
-@.str.6294 = private unnamed_addr constant [18 x i8] c" extern decl(s), \00"
-@.str.6295 = private unnamed_addr constant [23 x i8] c" #[export] decl(s) to \00"
-@.str.6296 = private unnamed_addr constant [19 x i8] c"The Zen of Nucleor\00"
-@.str.6297 = private unnamed_addr constant [54 x i8] c"Units are not optional. Ask the Mars Climate Orbiter.\00"
-@.str.6298 = private unnamed_addr constant [52 x i8] c"Effects are declared, not discovered in production.\00"
-@.str.6299 = private unnamed_addr constant [44 x i8] c"If it compiles, the dimensions are correct.\00"
-@.str.6300 = private unnamed_addr constant [55 x i8] c"Governance is not overhead. Governance is the product.\00"
-@.str.6301 = private unnamed_addr constant [39 x i8] c"Unsafe is a confession, not a feature.\00"
-@.str.6302 = private unnamed_addr constant [53 x i8] c"Trust is earned per-session, not granted per-binary.\00"
-@.str.6303 = private unnamed_addr constant [50 x i8] c"The audit trail is the only history that matters.\00"
-@.str.6304 = private unnamed_addr constant [45 x i8] c"Memory is borrowed. Responsibility is owned.\00"
-@.str.6305 = private unnamed_addr constant [44 x i8] c"A taint you can see is a taint you can fix.\00"
-@.str.6306 = private unnamed_addr constant [38 x i8] c"Correctness is faster than debugging.\00"
-@.str.6307 = private unnamed_addr constant [55 x i8] c"Criticality is not an accident. It is a design choice.\00"
-@.str.6308 = private unnamed_addr constant [23 x i8] c"Know your k-effective.\00"
-@.str.6309 = private unnamed_addr constant [46 x i8] c"  +-----------------------------------------+\00"
-@.str.6310 = private unnamed_addr constant [46 x i8] c"  |  Mars Climate Orbiter - September 1999  |\00"
-@.str.6311 = private unnamed_addr constant [46 x i8] c"  |                                         |\00"
-@.str.6312 = private unnamed_addr constant [46 x i8] c"  |  Lockheed Martin: pound-force-seconds   |\00"
-@.str.6313 = private unnamed_addr constant [46 x i8] c"  |  NASA JPL:        newton-seconds        |\00"
-@.str.6314 = private unnamed_addr constant [46 x i8] c"  |  Cost: $327,600,000                     |\00"
-@.str.6315 = private unnamed_addr constant [46 x i8] c"  |  Root cause: unit mismatch              |\00"
-@.str.6316 = private unnamed_addr constant [46 x i8] c"  |  Nucleor status: PREVENTED AT COMPILE   |\00"
-@.str.6317 = private unnamed_addr constant [46 x i8] c"  |  \22This is why we exist.\22                |\00"
-@.str.6318 = private unnamed_addr constant [8 x i8] c"--cache\00"
-@.str.6319 = private unnamed_addr constant [71 x i8] c"clean: removing compilation cache (target/.nuc_cache_v2/, .nuc_cache/)\00"
-@.str.6320 = private unnamed_addr constant [14 x i8] c".nuc_cache_v2\00"
-@.str.6321 = private unnamed_addr constant [12 x i8] c"clean: done\00"
-@.str.6322 = private unnamed_addr constant [55 x i8] c"clean: removing build artifacts (target/, .nuc_cache/)\00"
-@.str.6323 = private unnamed_addr constant [18 x i8] c"Nucleor Compiler \00"
-@.str.6324 = private unnamed_addr constant [43 x i8] c"The governance-native programming language\00"
-@.str.6325 = private unnamed_addr constant [43 x i8] c"Usage: nuc <command> [source.nr] [options]\00"
-@.str.6326 = private unnamed_addr constant [16 x i8] c"Build commands:\00"
-@.str.6327 = private unnamed_addr constant [62 x i8] c"  init [name]            Scaffold a project with Nucleor.toml\00"
-@.str.6328 = private unnamed_addr constant [77 x i8] c"  build [file]           Compile to native binary (ownership + type, cached)\00"
-@.str.6329 = private unnamed_addr constant [61 x i8] c"  build-fast [file]      Alias of the fast core compile path\00"
-@.str.6330 = private unnamed_addr constant [81 x i8] c"  build-strict [file]    Compile through the full delegated strict checker stack\00"
-@.str.6331 = private unnamed_addr constant [84 x i8] c"  build-shared [file]    Compile a shared library (.dll/.lib) from `pub fn` exports\00"
-@.str.6332 = private unnamed_addr constant [41 x i8] c"  run [file]             Compile and run\00"
-@.str.6333 = private unnamed_addr constant [65 x i8] c"  emit [file]            Emit LLVM IR only (alias for --no-link)\00"
-@.str.6334 = private unnamed_addr constant [56 x i8] c"  build-wasm [file]      Compile to WebAssembly (.wasm)\00"
-@.str.6335 = private unnamed_addr constant [54 x i8] c"  build-ptx [file]       Compile to NVIDIA PTX (.ptx)\00"
-@.str.6336 = private unnamed_addr constant [101 x i8] c"  verify-reproducible [file]  Build twice with --no-cache and assert byte-identical IR (RFC-NRT-003)\00"
-@.str.6337 = private unnamed_addr constant [93 x i8] c"    --provenance <path>  Embed a SLSA JSON attestation in the .nucprov section (RFC-NRT-001)\00"
-@.str.6338 = private unnamed_addr constant [46 x i8] c"    -o, --out <name>     Set output base name\00"
-@.str.6339 = private unnamed_addr constant [51 x i8] c"    --emit llvm          Keep the LLVM IR artifact\00"
-@.str.6340 = private unnamed_addr constant [61 x i8] c"    --no-link            Stop after writing target/<name>.ll\00"
-@.str.6341 = private unnamed_addr constant [57 x i8] c"    --time-passes        Print per-phase compile timings\00"
-@.str.6342 = private unnamed_addr constant [83 x i8] c"    --no-cache           Disable resolved-source and content-addressed LLVM caches\00"
-@.str.6343 = private unnamed_addr constant [70 x i8] c"    --cache-stats        Print cache hit/miss counters for this build\00"
-@.str.6344 = private unnamed_addr constant [20 x i8] c"Developer commands:\00"
-@.str.6345 = private unnamed_addr constant [64 x i8] c"  test [file]            Build and run @test / test_* functions\00"
-@.str.6346 = private unnamed_addr constant [68 x i8] c"    --list               List discovered tests without running them\00"
-@.str.6347 = private unnamed_addr constant [87 x i8] c"    --check-laws         Generate bounded checks for low-risk integer @law annotations\00"
-@.str.6348 = private unnamed_addr constant [64 x i8] c"  bench [file]           Build once and benchmark repeated runs\00"
-@.str.6349 = private unnamed_addr constant [62 x i8] c"    --iterations <n>     Number of measured runs (default 10)\00"
-@.str.6350 = private unnamed_addr constant [73 x i8] c"    --warmup <n>         Number of warmup runs before timing (default 1)\00"
-@.str.6351 = private unnamed_addr constant [59 x i8] c"  perf [file]            Compile-path performance analysis\00"
-@.str.6352 = private unnamed_addr constant [59 x i8] c"    --json               Output machine-readable perf data\00"
-@.str.6353 = private unnamed_addr constant [68 x i8] c"  bootstrap [subcmd]     Self-host bootstrap status / corpus report\00"
-@.str.6354 = private unnamed_addr constant [62 x i8] c"    status               Report example and runtime readiness\00"
-@.str.6355 = private unnamed_addr constant [47 x i8] c"    dump-corpus          List .nr corpus files\00"
-@.str.6356 = private unnamed_addr constant [64 x i8] c"    --json               Output machine-readable bootstrap data\00"
-@.str.6357 = private unnamed_addr constant [55 x i8] c"  stage-dump <stage>     Dump compiler stage summaries\00"
-@.str.6358 = private unnamed_addr constant [28 x i8] c"    tokens|ast|typed|ir|all\00"
-@.str.6359 = private unnamed_addr constant [55 x i8] c"  summary [file]         Compact module interface card\00"
-@.str.6360 = private unnamed_addr constant [54 x i8] c"    --json               Output summary lines as JSON\00"
-@.str.6361 = private unnamed_addr constant [59 x i8] c"  query [file]           Machine-readable module interface\00"
-@.str.6362 = private unnamed_addr constant [72 x i8] c"  abi [file]             Inspect import/export ABI for C / Rust interop\00"
-@.str.6363 = private unnamed_addr constant [72 x i8] c"    --exports            Inspect `pub fn` export ABI instead of imports\00"
-@.str.6364 = private unnamed_addr constant [58 x i8] c"    --json               Output machine-readable ABI data\00"
-@.str.6365 = private unnamed_addr constant [74 x i8] c"    --c-header           Emit C declarations for the selected ABI surface\00"
-@.str.6366 = private unnamed_addr constant [91 x i8] c"    --rust-extern        Emit Rust unsafe extern declarations for the selected ABI surface\00"
-@.str.6367 = private unnamed_addr constant [52 x i8] c"  evidence [file]        Governance evidence report\00"
-@.str.6368 = private unnamed_addr constant [60 x i8] c"  impact [file] <fn>     Reverse call impact for a function\00"
-@.str.6369 = private unnamed_addr constant [53 x i8] c"    --fn <name>          Specify the target function\00"
-@.str.6370 = private unnamed_addr constant [56 x i8] c"  graph [file]           Source-level call/effect graph\00"
-@.str.6371 = private unnamed_addr constant [60 x i8] c"    --json               Output machine-readable graph data\00"
-@.str.6372 = private unnamed_addr constant [86 x i8] c"  doc [file]             Render /// + //! doc comments as Markdown or HTML (RFC-0029)\00"
-@.str.6373 = private unnamed_addr constant [57 x i8] c"    --out <file>         Write to file instead of stdout\00"
-@.str.6374 = private unnamed_addr constant [86 x i8] c"    --html               Emit standalone HTML (auto-detected from .html / .htm --out)\00"
-@.str.6375 = private unnamed_addr constant [87 x i8] c"    --test-list          Enumerate ```nucleor code blocks for doc-test discoverability\00"
-@.str.6376 = private unnamed_addr constant [56 x i8] c"  profile run <binary>   Timed binary execution profile\00"
-@.str.6377 = private unnamed_addr constant [56 x i8] c"    --iterations <n>     Repeat the profile run N times\00"
-@.str.6378 = private unnamed_addr constant [74 x i8] c"  lock [manifest]        Write Nucleor.lock for local/workspace manifests\00"
-@.str.6379 = private unnamed_addr constant [61 x i8] c"    --json               Output machine-readable lock status\00"
-@.str.6380 = private unnamed_addr constant [84 x i8] c"  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock\00"
-@.str.6381 = private unnamed_addr constant [72 x i8] c"  publish [manifest]     Copy a package into a local registry directory\00"
-@.str.6382 = private unnamed_addr constant [68 x i8] c"    --registry <dir>     Registry root (default: .nucleor/registry)\00"
-@.str.6383 = private unnamed_addr constant [74 x i8] c"  registry [subcmd]      List/search/inspect packages in a local registry\00"
-@.str.6384 = private unnamed_addr constant [32 x i8] c"    list|search|versions|verify\00"
-@.str.6385 = private unnamed_addr constant [66 x i8] c"  sage <subcmd> <file>   Sage_NS prove / certificate / gap checks\00"
-@.str.6386 = private unnamed_addr constant [27 x i8] c"    prove|certificate|gaps\00"
-@.str.6387 = private unnamed_addr constant [19 x i8] c"Analysis commands:\00"
-@.str.6388 = private unnamed_addr constant [65 x i8] c"  check [file] [flags]   Run all checkers and report diagnostics\00"
-@.str.6389 = private unnamed_addr constant [50 x i8] c"    --json               Output JSONL diagnostics\00"
-@.str.6390 = private unnamed_addr constant [45 x i8] c"    --sarif              Output SARIF v2.1.0\00"
-@.str.6391 = private unnamed_addr constant [84 x i8] c"    --check=<checkers>   Run specific checkers (ownership,type,source,taint,effect)\00"
-@.str.6392 = private unnamed_addr constant [70 x i8] c"    --review             Enable review surface (nucleor_review.jsonl)\00"
-@.str.6393 = private unnamed_addr constant [70 x i8] c"    --review-filter=<f>  Filter: findings, function=<name>, <checker>\00"
-@.str.6394 = private unnamed_addr constant [91 x i8] c"  explain <CODE>         Explain a compiler error code (e.g. NR031, OWN-G4-USE-AFTER-DROP)\00"
-@.str.6395 = private unnamed_addr constant [58 x i8] c"    --json               Output a JSON explanation object\00"
-@.str.6396 = private unnamed_addr constant [21 x i8] c"Governance commands:\00"
-@.str.6397 = private unnamed_addr constant [58 x i8] c"  audit [file]           Provenance and governance report\00"
-@.str.6398 = private unnamed_addr constant [83 x i8] c"  policy [file] [level]  Policy compliance (default, no_extern, no_system, strict)\00"
-@.str.6399 = private unnamed_addr constant [66 x i8] c"  certify [file]         Compile + produce certification manifest\00"
-@.str.6400 = private unnamed_addr constant [63 x i8] c"  translate [file]       Parse, validate, and summarize source\00"
-@.str.6401 = private unnamed_addr constant [19 x i8] c"Project utilities:\00"
-@.str.6402 = private unnamed_addr constant [73 x i8] c"  clean                  Remove target/ and .nuc_cache/ from the project\00"
-@.str.6403 = private unnamed_addr constant [75 x i8] c"  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only\00"
-@.str.6404 = private unnamed_addr constant [79 x i8] c"  scram                  Alias for `clean` (emergency shutdown of build state)\00"
-@.str.6405 = private unnamed_addr constant [76 x i8] c"  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)\00"
-@.str.6406 = private unnamed_addr constant [90 x i8] c"  gen-headers <input.nr> [-o <out.h>]  Emit C decls for #[export] / #[repr(C)] (RFC-0011)\00"
-@.str.6407 = private unnamed_addr constant [58 x i8] c"  zen                    The design principles of Nucleor\00"
-@.str.6408 = private unnamed_addr constant [81 x i8] c"  mco                    Mars Climate Orbiter - why we ship dimensional analysis\00"
-@.str.6409 = private unnamed_addr constant [14 x i8] c"Project mode:\00"
-@.str.6410 = private unnamed_addr constant [73 x i8] c"  If [file] is omitted and ./Nucleor.toml exists, [build].entry is used.\00"
-@.str.6411 = private unnamed_addr constant [38 x i8] c"Legacy: nuc <source.nr> <output_name>\00"
-@.str.6412 = private unnamed_addr constant [10 x i8] c"--version\00"
-@.str.6413 = private unnamed_addr constant [3 x i8] c"-v\00"
-@.str.6414 = private unnamed_addr constant [3 x i8] c"-V\00"
-@.str.6415 = private unnamed_addr constant [8 x i8] c"version\00"
-@.str.6416 = private unnamed_addr constant [8 x i8] c"explain\00"
-@.str.6417 = private unnamed_addr constant [11 x i8] c"--lsp-mode\00"
-@.str.6418 = private unnamed_addr constant [489 x i8] c"{\22server\22:\22nucleor-lsp\22,\22version\22:\22v0.8.150\22,\22phase\22:\22A0\22,\22capabilities\22:{\22textDocumentSync\22:{\22openClose\22:true,\22change\22:1},\22diagnosticProvider\22:{\22interFileDependencies\22:false,\22workspaceDiagnostics\22:false},\22hoverProvider\22:false,\22definitionProvider\22:false,\22completionProvider\22:{\22triggerCharacters\22:[\22.\22]},\22codeActionProvider\22:true,\22documentFormattingProvider\22:true},\22phaseA0\22:\22capabilities-advertisement-only; real LSP base protocol lands in Phase A1 (needs raw stdin byte-read primitive)\22}\00"
-@.str.6419 = private unnamed_addr constant [10 x i8] c"bootstrap\00"
-@.str.6420 = private unnamed_addr constant [11 x i8] c"stage-dump\00"
-@.str.6421 = private unnamed_addr constant [5 x i8] c"lock\00"
-@.str.6422 = private unnamed_addr constant [6 x i8] c"tools\00"
-@.str.6423 = private unnamed_addr constant [7 x i8] c"update\00"
-@.str.6424 = private unnamed_addr constant [8 x i8] c"publish\00"
-@.str.6425 = private unnamed_addr constant [9 x i8] c"registry\00"
-@.str.6426 = private unnamed_addr constant [4 x i8] c"fix\00"
-@.str.6427 = private unnamed_addr constant [4 x i8] c"doc\00"
-@.str.6428 = private unnamed_addr constant [12 x i8] c"gen-headers\00"
-@.str.6429 = private unnamed_addr constant [8 x i8] c"profile\00"
-@.str.6430 = private unnamed_addr constant [5 x i8] c"sage\00"
-@.str.6431 = private unnamed_addr constant [4 x i8] c"zen\00"
-@.str.6432 = private unnamed_addr constant [4 x i8] c"mco\00"
-@.str.6433 = private unnamed_addr constant [6 x i8] c"clean\00"
-@.str.6434 = private unnamed_addr constant [6 x i8] c"scram\00"
-@.str.6435 = private unnamed_addr constant [5 x i8] c"init\00"
-@.str.6436 = private unnamed_addr constant [10 x i8] c"myproject\00"
-@.str.6437 = private unnamed_addr constant [5 x i8] c"/src\00"
-@.str.6438 = private unnamed_addr constant [8 x i8] c"/target\00"
-@.str.6439 = private unnamed_addr constant [19 x i8] c"[package]\0Aname = \22\00"
-@.str.6440 = private unnamed_addr constant [52 x i8] c"\22\0Aversion = \220.1.0\22\0A\0A[build]\0Aentry = \22src/main.nr\22\0A\00"
-@.str.6441 = private unnamed_addr constant [14 x i8] c"/Nucleor.toml\00"
-@.str.6442 = private unnamed_addr constant [13 x i8] c"/src/main.nr\00"
-@.str.6443 = private unnamed_addr constant [66 x i8] c"fn main() -> i64 {\0A    print(\22Hello, Nucleor!\22);\0A    return 0;\0A}\0A\00"
-@.str.6444 = private unnamed_addr constant [20 x i8] c"  Created project: \00"
-@.str.6445 = private unnamed_addr constant [16 x i8] c"  To build: cd \00"
-@.str.6446 = private unnamed_addr constant [14 x i8] c" && nuc build\00"
-@.str.6447 = private unnamed_addr constant [16 x i8] c"  To run:   cd \00"
-@.str.6448 = private unnamed_addr constant [12 x i8] c" && nuc run\00"
-@.str.6449 = private unnamed_addr constant [19 x i8] c"  manifest entry: \00"
-@.str.6450 = private unnamed_addr constant [43 x i8] c"Usage: nuc <command> <source.nr> [options]\00"
-@.str.6451 = private unnamed_addr constant [70 x i8] c"  note: or run the command from a project directory with Nucleor.toml\00"
-@.str.6452 = private unnamed_addr constant [6 x i8] c"-test\00"
-@.str.6453 = private unnamed_addr constant [7 x i8] c"-bench\00"
-@.str.6454 = private unnamed_addr constant [14 x i8] c"--time-passes\00"
-@.str.6455 = private unnamed_addr constant [11 x i8] c"--no-cache\00"
-@.str.6456 = private unnamed_addr constant [14 x i8] c"--cache-stats\00"
-@.str.6457 = private unnamed_addr constant [10 x i8] c"--release\00"
-@.str.6458 = private unnamed_addr constant [4 x i8] c"-O3\00"
-@.str.6459 = private unnamed_addr constant [7 x i8] c"--tier\00"
-@.str.6460 = private unnamed_addr constant [44 x i8] c"ERROR: --tier requires a value (0, 1, or 2)\00"
-@.str.6461 = private unnamed_addr constant [4 x i8] c"-O1\00"
-@.str.6462 = private unnamed_addr constant [34 x i8] c"ERROR: unsupported --tier value: \00"
-@.str.6463 = private unnamed_addr constant [27 x i8] c"       expected 0, 1, or 2\00"
-@.str.6464 = private unnamed_addr constant [8 x i8] c"--tier=\00"
-@.str.6465 = private unnamed_addr constant [13 x i8] c"--provenance\00"
-@.str.6466 = private unnamed_addr constant [51 x i8] c"ERROR: --provenance requires a path to a JSON file\00"
-@.str.6467 = private unnamed_addr constant [14 x i8] c"--provenance=\00"
-@.str.6468 = private unnamed_addr constant [7 x i8] c"--list\00"
-@.str.6469 = private unnamed_addr constant [13 x i8] c"--iterations\00"
-@.str.6470 = private unnamed_addr constant [37 x i8] c"ERROR: --iterations requires a value\00"
-@.str.6471 = private unnamed_addr constant [14 x i8] c"--iterations=\00"
-@.str.6472 = private unnamed_addr constant [9 x i8] c"--warmup\00"
-@.str.6473 = private unnamed_addr constant [33 x i8] c"ERROR: --warmup requires a value\00"
-@.str.6474 = private unnamed_addr constant [10 x i8] c"--warmup=\00"
-@.str.6475 = private unnamed_addr constant [6 x i8] c"--out\00"
-@.str.6476 = private unnamed_addr constant [9 x i8] c"--output\00"
-@.str.6477 = private unnamed_addr constant [34 x i8] c"ERROR: -o requires an output name\00"
-@.str.6478 = private unnamed_addr constant [10 x i8] c"--no-link\00"
-@.str.6479 = private unnamed_addr constant [12 x i8] c"--emit=llvm\00"
-@.str.6480 = private unnamed_addr constant [7 x i8] c"--emit\00"
-@.str.6481 = private unnamed_addr constant [39 x i8] c"ERROR: --emit requires a target (llvm)\00"
-@.str.6482 = private unnamed_addr constant [7 x i8] c"native\00"
-@.str.6483 = private unnamed_addr constant [33 x i8] c"ERROR: unsupported emit target: \00"
-@.str.6484 = private unnamed_addr constant [22 x i8] c"ERROR: unknown flag: \00"
-@.str.6485 = private unnamed_addr constant [52 x i8] c"       run `nuc help` for the supported build flags\00"
-@.str.6486 = private unnamed_addr constant [65 x i8] c"ERROR: output name must contain only letters, digits, '_' or '-'\00"
-@.str.6487 = private unnamed_addr constant [41 x i8] c"ERROR: run cannot be used with --no-link\00"
-@.str.6488 = private unnamed_addr constant [8 x i8] c"target\5C\00"
-@.str.6489 = private unnamed_addr constant [10 x i8] c"./target/\00"
-@.str.6490 = private unnamed_addr constant [26 x i8] c"nuc run: child exited rc=\00"
-@.str.6491 = private unnamed_addr constant [7 x i8] c" from \00"
-@.str.6492 = private unnamed_addr constant [246 x i8] c"  note: rc=-1/4294967295 indicates the child process never started (Windows spawn failure: file-lock, antivirus, missing exe, or process-spawn failure). Retried 2 times. Try killing orphan nucleor.exe / clang.exe / <out>.exe processes and rerun.\00"
-@.str.6493 = private unnamed_addr constant [9 x i8] c"_repro_a\00"
-@.str.6494 = private unnamed_addr constant [9 x i8] c"_repro_b\00"
-@.str.6495 = private unnamed_addr constant [51 x i8] c"verify-reproducible: first build failed; aborting.\00"
-@.str.6496 = private unnamed_addr constant [52 x i8] c"verify-reproducible: second build failed; aborting.\00"
-@.str.6497 = private unnamed_addr constant [44 x i8] c"verify-reproducible: cannot read IR outputs\00"
-@.str.6498 = private unnamed_addr constant [31 x i8] c"verify-reproducible: source = \00"
-@.str.6499 = private unnamed_addr constant [16 x i8] c"  IR  build A: \00"
-@.str.6500 = private unnamed_addr constant [14 x i8] c" bytes, hash=\00"
-@.str.6501 = private unnamed_addr constant [16 x i8] c"  IR  build B: \00"
-@.str.6502 = private unnamed_addr constant [16 x i8] c"  EXE build A: \00"
-@.str.6503 = private unnamed_addr constant [16 x i8] c"  EXE build B: \00"
-@.str.6504 = private unnamed_addr constant [27 x i8] c"  EXE diff: byte-identical\00"
-@.str.6505 = private unnamed_addr constant [19 x i8] c"  EXE diff: DIFFER\00"
-@.str.6506 = private unnamed_addr constant [53 x i8] c"  EXE: skipped (one or both linked binaries missing)\00"
-@.str.6507 = private unnamed_addr constant [60 x i8] c"PASS: byte-identical IR + EXE across two cold-cache builds.\00"
-@.str.6508 = private unnamed_addr constant [65 x i8] c"  This file satisfies the RFC-NRT-003 reproducibility invariant.\00"
-@.str.6509 = private unnamed_addr constant [47 x i8] c"  Suitable for SLSA-Build-Level-3 attestation.\00"
-@.str.6510 = private unnamed_addr constant [25 x i8] c"FAIL: IR outputs differ.\00"
-@.str.6511 = private unnamed_addr constant [52 x i8] c"  Determinism break in the compiler. Common causes:\00"
-@.str.6512 = private unnamed_addr constant [41 x i8] c"    - timestamps in cached intermediates\00"
-@.str.6513 = private unnamed_addr constant [52 x i8] c"    - hash-table iteration order in symbol lowering\00"
-@.str.6514 = private unnamed_addr constant [42 x i8] c"    - absolute build paths embedded in IR\00"
-@.str.6515 = private unnamed_addr constant [45 x i8] c"    - random seeding in an optimization pass\00"
-@.str.6516 = private unnamed_addr constant [43 x i8] c"FAIL: IR identical but EXE outputs differ.\00"
-@.str.6517 = private unnamed_addr constant [50 x i8] c"  Determinism break in the linker. Common causes:\00"
-@.str.6518 = private unnamed_addr constant [57 x i8] c"    - PE/COFF timestamp not suppressed (use -Wl,/Brepro)\00"
-@.str.6519 = private unnamed_addr constant [52 x i8] c"    - ELF build-id varies (use -Wl,--build-id=none)\00"
-@.str.6520 = private unnamed_addr constant [39 x i8] c"    - debug info embeds absolute paths\00"
-@.str.6521 = private unnamed_addr constant [18 x i8] c"Unknown command: \00"
+@.str.5536 = private unnamed_addr constant [19 x i8] c"NUCLEOR_RT_O_CACHE\00"
+@.str.5537 = private unnamed_addr constant [4 x i8] c"rt-\00"
+@.str.5538 = private unnamed_addr constant [12 x i8] c".nuc_cache/\00"
+@.str.5539 = private unnamed_addr constant [5 x i8] c".obj\00"
+@.str.5540 = private unnamed_addr constant [3 x i8] c".o\00"
+@.str.5541 = private unnamed_addr constant [26 x i8] c"target/.nuc_native_cache/\00"
+@.str.5542 = private unnamed_addr constant [25 x i8] c"NUCLEOR_NATIVE_EXE_CACHE\00"
+@.str.5543 = private unnamed_addr constant [17 x i8] c"NUCLEOR_LLVM_OPT\00"
+@.str.5544 = private unnamed_addr constant [4 x i8] c"-O0\00"
+@.str.5545 = private unnamed_addr constant [16 x i8] c"native-link-v1|\00"
+@.str.5546 = private unnamed_addr constant [5 x i8] c"|ll=\00"
+@.str.5547 = private unnamed_addr constant [5 x i8] c"|rt=\00"
+@.str.5548 = private unnamed_addr constant [8 x i8] c"|alloc=\00"
+@.str.5549 = private unnamed_addr constant [8 x i8] c"|stack=\00"
+@.str.5550 = private unnamed_addr constant [9 x i8] c"|linker=\00"
+@.str.5551 = private unnamed_addr constant [6 x i8] c"|opt=\00"
+@.str.5552 = private unnamed_addr constant [16 x i8] c"native-link-v2|\00"
+@.str.5553 = private unnamed_addr constant [10 x i8] c"|compile=\00"
+@.str.5554 = private unnamed_addr constant [20 x i8] c"NUCLEOR_CACHE_STATS\00"
+@.str.5555 = private unnamed_addr constant [19 x i8] c"cache stats: hits=\00"
+@.str.5556 = private unnamed_addr constant [9 x i8] c" misses=\00"
+@.str.5557 = private unnamed_addr constant [3 x i8] c"{\0A\00"
+@.str.5558 = private unnamed_addr constant [29 x i8] c"  \22schema\22: \22nuc-cache-v2\22,\0A\00"
+@.str.5559 = private unnamed_addr constant [22 x i8] c"  \22input_filename\22: \22\00"
+@.str.5560 = private unnamed_addr constant [4 x i8] c"\22,\0A\00"
+@.str.5561 = private unnamed_addr constant [13 x i8] c"  \22flags\22: \22\00"
+@.str.5562 = private unnamed_addr constant [24 x i8] c"  \22compiler_version\22: \22\00"
+@.str.5563 = private unnamed_addr constant [14 x i8] c"  \22sha256\22: \22\00"
+@.str.5564 = private unnamed_addr constant [17 x i8] c"  \22timestamp\22: \22\00"
+@.str.5565 = private unnamed_addr constant [15 x i8] c"  \22ll_bytes\22: \00"
+@.str.5566 = private unnamed_addr constant [17 x i8] c"native-cache-v2|\00"
+@.str.5567 = private unnamed_addr constant [15 x i8] c"NUCLEOR_STDLIB\00"
+@.str.5568 = private unnamed_addr constant [14 x i8] c"NUCLEOR_CLANG\00"
+@.str.5569 = private unnamed_addr constant [31 x i8] c"C:\5CProgra~1\5CLLVM\5Cbin\5Cclang.exe\00"
+@.str.5570 = private unnamed_addr constant [36 x i8] c"C:\5CProgram Files\5CLLVM\5Cbin\5Cclang.exe\00"
+@.str.5571 = private unnamed_addr constant [32 x i8] c"C:\5Cmsys64\5Cmingw64\5Cbin\5Cclang.exe\00"
+@.str.5572 = private unnamed_addr constant [6 x i8] c"clang\00"
+@.str.5573 = private unnamed_addr constant [5 x i8] c".exe\00"
+@.str.5574 = private unnamed_addr constant [7 x i8] c" 2>NUL\00"
+@.str.5575 = private unnamed_addr constant [13 x i8] c" 2>/dev/null\00"
+@.str.5576 = private unnamed_addr constant [11 x i8] c"del /F /Q \00"
+@.str.5577 = private unnamed_addr constant [7 x i8] c"rm -f \00"
+@.str.5578 = private unnamed_addr constant [13 x i8] c"rmdir /S /Q \00"
+@.str.5579 = private unnamed_addr constant [8 x i8] c"rm -rf \00"
+@.str.5580 = private unnamed_addr constant [33 x i8] c" -Wl,/STACK:16777216 -Wl,/Brepro\00"
+@.str.5581 = private unnamed_addr constant [61 x i8] c" -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread\00"
+@.str.5582 = private unnamed_addr constant [34 x i8] c"C:\5CProgra~1\5CLLVM\5Cbin\5Clld-link.exe\00"
+@.str.5583 = private unnamed_addr constant [14 x i8] c" -fuse-ld=lld\00"
+@.str.5584 = private unnamed_addr constant [39 x i8] c"C:\5CProgram Files\5CLLVM\5Cbin\5Clld-link.exe\00"
+@.str.5585 = private unnamed_addr constant [10 x i8] c".cachekey\00"
+@.str.5586 = private unnamed_addr constant [8 x i8] c"target/\00"
+@.str.5587 = private unnamed_addr constant [7 x i8] c"target\00"
+@.str.5588 = private unnamed_addr constant [13 x i8] c"mkdir target\00"
+@.str.5589 = private unnamed_addr constant [12 x i8] c"  emitted: \00"
+@.str.5590 = private unnamed_addr constant [8 x i8] c" bytes)\00"
+@.str.5591 = private unnamed_addr constant [29 x i8] c"  native link: skipped (use \00"
+@.str.5592 = private unnamed_addr constant [28 x i8] c" only after a linked build)\00"
+@.str.5593 = private unnamed_addr constant [33 x i8] c"stdlib/runtime/nucleor_llvm_rt.c\00"
+@.str.5594 = private unnamed_addr constant [27 x i8] c"stdlib/runtime/nuc_alloc.h\00"
+@.str.5595 = private unnamed_addr constant [11 x i8] c" -include \00"
+@.str.5596 = private unnamed_addr constant [17 x i8] c"mkdir .nuc_cache\00"
+@.str.5597 = private unnamed_addr constant [23 x i8] c".nuc_cache/clang_link.\00"
+@.str.5598 = private unnamed_addr constant [5 x i8] c".log\00"
+@.str.5599 = private unnamed_addr constant [31 x i8] c"  native link: cache hit (sha=\00"
+@.str.5600 = private unnamed_addr constant [5 x i8] c" -o \00"
+@.str.5601 = private unnamed_addr constant [22 x i8] c" -Wno-override-module\00"
+@.str.5602 = private unnamed_addr constant [4 x i8] c" > \00"
+@.str.5603 = private unnamed_addr constant [6 x i8] c" 2>&1\00"
+@.str.5604 = private unnamed_addr constant [24 x i8] c"used by another process\00"
+@.str.5605 = private unnamed_addr constant [8 x i8] c"LNK1104\00"
+@.str.5606 = private unnamed_addr constant [22 x i8] c"could not open output\00"
+@.str.5607 = private unnamed_addr constant [18 x i8] c"Permission denied\00"
+@.str.5608 = private unnamed_addr constant [30 x i8] c"  COMPILE FAILED (clang exit \00"
+@.str.5609 = private unnamed_addr constant [51 x i8] c" MOD-003 violation(s) \E2\80\94 see error[MOD-003] above\00"
+@.str.5610 = private unnamed_addr constant [64 x i8] c" TYP-005 undefined-fn violation(s) \E2\80\94 see error[TYP-005] above\00"
+@.str.5611 = private unnamed_addr constant [50 x i8] c"  no `fn main` defined \E2\80\94 see error[NR022] above\00"
+@.str.5612 = private unnamed_addr constant [89 x i8] c"  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs\00"
+@.str.5613 = private unnamed_addr constant [16 x i8] c"  link command:\00"
+@.str.5614 = private unnamed_addr constant [5 x i8] c"    \00"
+@.str.5615 = private unnamed_addr constant [201 x i8] c"  note: clang_link.log is EMPTY -- clang likely never started (file lock, missing exe, antivirus, or process-spawn failure). Check that bin/nucleor.exe is not held open by an orphan process and retry.\00"
+@.str.5616 = private unnamed_addr constant [18 x i8] c"  locked output: \00"
+@.str.5617 = private unnamed_addr constant [28 x i8] c"  hint: Stop-Process -Name \00"
+@.str.5618 = private unnamed_addr constant [38 x i8] c" -Force -ErrorAction SilentlyContinue\00"
+@.str.5619 = private unnamed_addr constant [25 x i8] c"  hint: taskkill /F /IM \00"
+@.str.5620 = private unnamed_addr constant [12 x i8] c".exe 2> NUL\00"
+@.str.5621 = private unnamed_addr constant [210 x i8] c"  note: persistent lock after 3 internal retries (150ms apart) usually means an orphan instance of the output exe is still running, an AV scanner is mid-scan, or another build is touching the same target path.\00"
+@.str.5622 = private unnamed_addr constant [13 x i8] c"  compiled: \00"
+@.str.5623 = private unnamed_addr constant [43 x i8] c"ERROR: native link cannot read emitted IR \00"
+@.str.5624 = private unnamed_addr constant [5 x i8] c" -c \00"
+@.str.5625 = private unnamed_addr constant [17 x i8] c"module-graph-v2|\00"
+@.str.5626 = private unnamed_addr constant [21 x i8] c".nuc_cache/modgraph_\00"
+@.str.5627 = private unnamed_addr constant [10 x i8] c".manifest\00"
+@.str.5628 = private unnamed_addr constant [10 x i8] c".resolved\00"
+@.str.5629 = private unnamed_addr constant [11 x i8] c".max_depth\00"
+@.str.5630 = private unnamed_addr constant [458 x i8] c"ERROR: `use path as Alias` import aliases are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the alias tail after rewriting the path, so adopter code could believe `Alias` was bound when only the original flattened module symbols were imported. Workaround: import the module path directly and call the existing exported names, or use `import \22...\22` for the current flat namespace model. Tracked for RFC-0018 resolver phase 2.\00"
+@.str.5631 = private unnamed_addr constant [81 x i8] c"nucleor: `use ... as ...` aliases not yet supported (see ERROR diagnostic above)\00"
+@.str.5632 = private unnamed_addr constant [381 x i8] c"ERROR: glob imports `use path::*` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver stopped before `*`, built the wrong rewritten path, and the build could continue without importing the requested names. Workaround: import the module path directly with `use std::foo` / `import \22...\22` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.\00"
+@.str.5633 = private unnamed_addr constant [81 x i8] c"nucleor: `use ...::*` glob import not yet supported (see ERROR diagnostic above)\00"
+@.str.5634 = private unnamed_addr constant [384 x i8] c"ERROR: selective import lists `use path::{a, b}` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the list tail after rewriting the path, so selected bindings were not actually introduced. Workaround: import the module path directly with `use std::foo` / `import \22...\22` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.\00"
+@.str.5635 = private unnamed_addr constant [90 x i8] c"nucleor: `use ...::{...}` selective import not yet supported (see ERROR diagnostic above)\00"
+@.str.5636 = private unnamed_addr constant [6 x i8] c"std::\00"
+@.str.5637 = private unnamed_addr constant [13 x i8] c"stdlib/rods/\00"
+@.str.5638 = private unnamed_addr constant [8 x i8] c"crate::\00"
+@.str.5639 = private unnamed_addr constant [8 x i8] c"super::\00"
+@.str.5640 = private unnamed_addr constant [4 x i8] c"../\00"
+@.str.5641 = private unnamed_addr constant [4 x i8] c".nr\00"
+@.str.5642 = private unnamed_addr constant [9 x i8] c"pub use \00"
+@.str.5643 = private unnamed_addr constant [344 x i8] c"ERROR: `pub use ...` re-exports are not yet supported in Nucleor. Pre-v0.7.18 `pub use` at module scope was silently preserved and then ignored by the parser, so no re-export binding was created. Workaround: import the target module directly at each use site or expose a `pub fn` wrapper from the module. Tracked for RFC-0018 resolver phase 2.\00"
+@.str.5644 = private unnamed_addr constant [76 x i8] c"nucleor: `pub use` re-export not yet supported (see ERROR diagnostic above)\00"
+@.str.5645 = private unnamed_addr constant [8 x i8] c"import \00"
+@.str.5646 = private unnamed_addr constant [8 x i8] c"// mod \00"
+@.str.5647 = private unnamed_addr constant [31 x i8] c" { ... } (inlined block-form)\0A\00"
+@.str.5648 = private unnamed_addr constant [40 x i8] c"error[MOD-005]: import cycle detected: \00"
+@.str.5649 = private unnamed_addr constant [49 x i8] c"nucleor: import cycle (MOD-005); see error above\00"
+@.str.5650 = private unnamed_addr constant [32 x i8] c"// ERROR: cannot read use path \00"
+@.str.5651 = private unnamed_addr constant [67 x i8] c"error[PARSE-IMPORT-EMPTY]: empty import path `import \22\22;` at byte \00"
+@.str.5652 = private unnamed_addr constant [95 x i8] c". An import directive must name a non-empty path. Pre-fix the empty path was silently dropped.\00"
+@.str.5653 = private unnamed_addr constant [27 x i8] c"nucleor: empty import path\00"
+@.str.5654 = private unnamed_addr constant [30 x i8] c"// ERROR: cannot read import \00"
+@.str.5655 = private unnamed_addr constant [94 x i8] c"error[PARSE-IMPORT-001]: `import` requires a quoted path `import \22path/to/file.nr\22;` at byte \00"
+@.str.5656 = private unnamed_addr constant [136 x i8] c". Pre-fix unquoted forms like `import foo;` or `import stdlib/rods/strings.nr;` were silently passed through to the parser and dropped.\00"
+@.str.5657 = private unnamed_addr constant [30 x i8] c"nucleor: unquoted import path\00"
+@.str.5658 = private unnamed_addr constant [5 x i8] c" in \00"
+@.str.5659 = private unnamed_addr constant [136 x i8] c". Nucleor source must not contain embedded NUL bytes; pre-fix file_read_string truncated at the first NUL and compiled only the prefix.\00"
+@.str.5660 = private unnamed_addr constant [38 x i8] c"nucleor: NUL byte in source (LEX-002)\00"
+@.str.5661 = private unnamed_addr constant [23 x i8] c"nucleor_s1_compiler.nr\00"
+@.str.5662 = private unnamed_addr constant [23 x i8] c"nucleor_tools_suite.nr\00"
+@.str.5663 = private unnamed_addr constant [10 x i8] c"\0Aimport \22\00"
+@.str.5664 = private unnamed_addr constant [6 x i8] c"\0Ause \00"
+@.str.5665 = private unnamed_addr constant [6 x i8] c"\0Amod \00"
+@.str.5666 = private unnamed_addr constant [10 x i8] c"\0Apub use \00"
+@.str.5667 = private unnamed_addr constant [9 x i8] c"import \22\00"
+@.str.5668 = private unnamed_addr constant [14 x i8] c"compile_error\00"
+@.str.5669 = private unnamed_addr constant [3 x i8] c"!(\00"
+@.str.5670 = private unnamed_addr constant [387 x i8] c"ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.\00"
+@.str.5671 = private unnamed_addr constant [312 x i8] c"       This is the canonical compile_error! semantic \E2\80\94 it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.\00"
+@.str.5672 = private unnamed_addr constant [42 x i8] c"nucleor: compile_error! invoked in source\00"
+@.str.5673 = private unnamed_addr constant [38 x i8] c"audit: @differentiable fns in build: \00"
+@.str.5674 = private unnamed_addr constant [10 x i8] c"@differen\00"
+@.str.5675 = private unnamed_addr constant [7 x i8] c"tiable\00"
+@.str.5676 = private unnamed_addr constant [30 x i8] c"audit:   differentiable fns: \00"
+@.str.5677 = private unnamed_addr constant [5 x i8] c"@ene\00"
+@.str.5678 = private unnamed_addr constant [5 x i8] c"rgy(\00"
+@.str.5679 = private unnamed_addr constant [34 x i8] c"audit: @energy budgets in build: \00"
+@.str.5680 = private unnamed_addr constant [25 x i8] c"audit:   energy values: \00"
+@.str.5681 = private unnamed_addr constant [7 x i8] c"@therm\00"
+@.str.5682 = private unnamed_addr constant [4 x i8] c"al(\00"
+@.str.5683 = private unnamed_addr constant [35 x i8] c"audit: @thermal budgets in build: \00"
+@.str.5684 = private unnamed_addr constant [26 x i8] c"audit:   thermal values: \00"
+@.str.5685 = private unnamed_addr constant [7 x i8] c"@photo\00"
+@.str.5686 = private unnamed_addr constant [4 x i8] c"nic\00"
+@.str.5687 = private unnamed_addr constant [32 x i8] c"audit: @photonic fns in build: \00"
+@.str.5688 = private unnamed_addr constant [5 x i8] c"nic[\00"
+@.str.5689 = private unnamed_addr constant [28 x i8] c"audit:   photonic devices: \00"
+@.str.5690 = private unnamed_addr constant [10 x i8] c"@neuromor\00"
+@.str.5691 = private unnamed_addr constant [5 x i8] c"phic\00"
+@.str.5692 = private unnamed_addr constant [36 x i8] c"audit: @neuromorphic fns in build: \00"
+@.str.5693 = private unnamed_addr constant [6 x i8] c"phic[\00"
+@.str.5694 = private unnamed_addr constant [32 x i8] c"audit:   neuromorphic devices: \00"
+@.str.5695 = private unnamed_addr constant [6 x i8] c"@encl\00"
+@.str.5696 = private unnamed_addr constant [5 x i8] c"ave(\00"
+@.str.5697 = private unnamed_addr constant [31 x i8] c"audit: @enclave fns in build: \00"
+@.str.5698 = private unnamed_addr constant [19 x i8] c"audit:   engines: \00"
+@.str.5699 = private unnamed_addr constant [6 x i8] c"@atte\00"
+@.str.5700 = private unnamed_addr constant [5 x i8] c"sted\00"
+@.str.5701 = private unnamed_addr constant [32 x i8] c"audit: @attested fns in build: \00"
+@.str.5702 = private unnamed_addr constant [24 x i8] c"audit:   attested fns: \00"
+@.str.5703 = private unnamed_addr constant [6 x i8] c"@auth\00"
+@.str.5704 = private unnamed_addr constant [6 x i8] c"ored(\00"
+@.str.5705 = private unnamed_addr constant [32 x i8] c"audit: @authored fns in build: \00"
+@.str.5706 = private unnamed_addr constant [19 x i8] c"audit:   authors: \00"
+@.str.5707 = private unnamed_addr constant [5 x i8] c"@pol\00"
+@.str.5708 = private unnamed_addr constant [5 x i8] c"icy(\00"
+@.str.5709 = private unnamed_addr constant [32 x i8] c"audit: @policy decls in build: \00"
+@.str.5710 = private unnamed_addr constant [20 x i8] c"audit:   policies: \00"
+@.str.5711 = private unnamed_addr constant [5 x i8] c"@wit\00"
+@.str.5712 = private unnamed_addr constant [5 x i8] c"hin(\00"
+@.str.5713 = private unnamed_addr constant [45 x i8] c"audit: @within timing constraints in build: \00"
+@.str.5714 = private unnamed_addr constant [25 x i8] c"audit:   timing values: \00"
+@.str.5715 = private unnamed_addr constant [6 x i8] c": fix\00"
+@.str.5716 = private unnamed_addr constant [4 x i8] c"ed<\00"
+@.str.5717 = private unnamed_addr constant [7 x i8] c"-> fix\00"
+@.str.5718 = private unnamed_addr constant [7 x i8] c": ufix\00"
+@.str.5719 = private unnamed_addr constant [8 x i8] c"-> ufix\00"
+@.str.5720 = private unnamed_addr constant [58 x i8] c"audit: fixed<I,F>/ufixed<I,F> type-position occurrences: \00"
+@.str.5721 = private unnamed_addr constant [10 x i8] c"wrapping \00"
+@.str.5722 = private unnamed_addr constant [12 x i8] c"saturating \00"
+@.str.5723 = private unnamed_addr constant [6 x i8] c"#wrap\00"
+@.str.5724 = private unnamed_addr constant [5 x i8] c"#sat\00"
+@.str.5725 = private unnamed_addr constant [6 x i8] c"#trap\00"
+@.str.5726 = private unnamed_addr constant [5 x i8] c"wrap\00"
+@.str.5727 = private unnamed_addr constant [7 x i8] c"ping {\00"
+@.str.5728 = private unnamed_addr constant [6 x i8] c"satur\00"
+@.str.5729 = private unnamed_addr constant [8 x i8] c"ating {\00"
+@.str.5730 = private unnamed_addr constant [6 x i8] c"check\00"
+@.str.5731 = private unnamed_addr constant [5 x i8] c"ed {\00"
+@.str.5732 = private unnamed_addr constant [56 x i8] c"audit: per-BinOp OverflowMode usages (block + inline): \00"
+@.str.5733 = private unnamed_addr constant [6 x i8] c"Pose<\00"
+@.str.5734 = private unnamed_addr constant [5 x i8] c": Po\00"
+@.str.5735 = private unnamed_addr constant [4 x i8] c"se<\00"
+@.str.5736 = private unnamed_addr constant [6 x i8] c"-> Po\00"
+@.str.5737 = private unnamed_addr constant [57 x i8] c"audit: Pose<F> phantom-frame type-position occurrences: \00"
+@.str.5738 = private unnamed_addr constant [6 x i8] c": Fra\00"
+@.str.5739 = private unnamed_addr constant [4 x i8] c"me_\00"
+@.str.5740 = private unnamed_addr constant [48 x i8] c"audit: Frame_* marker uses (let/arg position): \00"
+@.str.5741 = private unnamed_addr constant [6 x i8] c"Mass<\00"
+@.str.5742 = private unnamed_addr constant [8 x i8] c"Length<\00"
+@.str.5743 = private unnamed_addr constant [7 x i8] c"Force<\00"
+@.str.5744 = private unnamed_addr constant [14 x i8] c"Acceleration<\00"
+@.str.5745 = private unnamed_addr constant [5 x i8] c": un\00"
+@.str.5746 = private unnamed_addr constant [4 x i8] c"it<\00"
+@.str.5747 = private unnamed_addr constant [6 x i8] c"-> un\00"
+@.str.5748 = private unnamed_addr constant [5 x i8] c": Ma\00"
+@.str.5749 = private unnamed_addr constant [4 x i8] c"ss<\00"
+@.str.5750 = private unnamed_addr constant [6 x i8] c": Len\00"
+@.str.5751 = private unnamed_addr constant [5 x i8] c"gth<\00"
+@.str.5752 = private unnamed_addr constant [6 x i8] c": For\00"
+@.str.5753 = private unnamed_addr constant [4 x i8] c"ce<\00"
+@.str.5754 = private unnamed_addr constant [11 x i8] c": Accelera\00"
+@.str.5755 = private unnamed_addr constant [6 x i8] c"tion<\00"
+@.str.5756 = private unnamed_addr constant [59 x i8] c"audit: unit<T,[...]> typed-dim type-position occurrences: \00"
+@.str.5757 = private unnamed_addr constant [8 x i8] c"target.\00"
+@.str.5758 = private unnamed_addr constant [9 x i8] c"target.h\00"
+@.str.5759 = private unnamed_addr constant [4 x i8] c"as(\00"
+@.str.5760 = private unnamed_addr constant [4 x i8] c"os(\00"
+@.str.5761 = private unnamed_addr constant [55 x i8] c"audit: target.has()/target.os() compile-time queries: \00"
+@.str.5762 = private unnamed_addr constant [10 x i8] c"MemSpace_\00"
+@.str.5763 = private unnamed_addr constant [8 x i8] c": MemSp\00"
+@.str.5764 = private unnamed_addr constant [5 x i8] c"ace_\00"
+@.str.5765 = private unnamed_addr constant [8 x i8] c", MemSp\00"
+@.str.5766 = private unnamed_addr constant [46 x i8] c"audit: MemSpace_* type-position occurrences: \00"
+@.str.5767 = private unnamed_addr constant [7 x i8] c"Model<\00"
+@.str.5768 = private unnamed_addr constant [5 x i8] c": Mo\00"
+@.str.5769 = private unnamed_addr constant [5 x i8] c"del<\00"
+@.str.5770 = private unnamed_addr constant [6 x i8] c"-> Mo\00"
+@.str.5771 = private unnamed_addr constant [62 x i8] c"audit: Model<Arch,...> provenance type-position occurrences: \00"
+@.str.5772 = private unnamed_addr constant [27 x i8] c"audit: @hot fns in build: \00"
+@.str.5773 = private unnamed_addr constant [19 x i8] c"audit:   hot fns: \00"
+@.str.5774 = private unnamed_addr constant [32 x i8] c"audit: @const_fn fns in build: \00"
+@.str.5775 = private unnamed_addr constant [24 x i8] c"audit:   const_fn fns: \00"
+@.str.5776 = private unnamed_addr constant [9 x i8] c"#[max_de\00"
+@.str.5777 = private unnamed_addr constant [4 x i8] c"pth\00"
+@.str.5778 = private unnamed_addr constant [35 x i8] c"audit: #[max_depth] fns in build: \00"
+@.str.5779 = private unnamed_addr constant [25 x i8] c"audit:   max_depth fns: \00"
+@.str.5780 = private unnamed_addr constant [8 x i8] c"#[deadl\00"
+@.str.5781 = private unnamed_addr constant [4 x i8] c"ine\00"
+@.str.5782 = private unnamed_addr constant [34 x i8] c"audit: #[deadline] fns in build: \00"
+@.str.5783 = private unnamed_addr constant [24 x i8] c"audit:   deadline fns: \00"
+@.str.5784 = private unnamed_addr constant [3 x i8] c"<'\00"
+@.str.5785 = private unnamed_addr constant [2 x i8] c"a\00"
+@.str.5786 = private unnamed_addr constant [2 x i8] c"b\00"
+@.str.5787 = private unnamed_addr constant [3 x i8] c"&'\00"
+@.str.5788 = private unnamed_addr constant [55 x i8] c"warning[BR-7]: lifetime annotations present in build: \00"
+@.str.5789 = private unnamed_addr constant [404 x i8] c"  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly but are NOT yet enforced by the borrow checker. Runtime safety is not statically guaranteed for functions / structs / impls using `<'a>` syntax. Phase 2 will add simple single-input single-output lifetime checking; Phase 4 promotes this warning to a hard error. Track via tests/err/_unimplemented/README.md once the closure-phase log lands.\00"
+@.str.5790 = private unnamed_addr constant [6 x i8] c"free(\00"
+@.str.5791 = private unnamed_addr constant [57 x i8] c"warning[OWN-012]: explicit free calls present in build: \00"
+@.str.5792 = private unnamed_addr constant [454 x i8] c"  Per RFC-0062 G-4 Phase 3 (v1.0): explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline: do not access a vec/map after passing it to its free helper. IR-level use-after-drop tracking is post-v1.0 hardening. Recommended: prefer auto-drop (default-on as of v0.8.x via RFC-0042/G-1 Phase 2b-3) which inserts cleanup automatically; mark fns `#[manual_\00"
+@.str.5793 = private unnamed_addr constant [56 x i8] c"drop]` only when explicit lifetime control is required.\00"
+@.str.5794 = private unnamed_addr constant [7 x i8] c"c_void\00"
+@.str.5795 = private unnamed_addr constant [11 x i8] c"-> *const \00"
+@.str.5796 = private unnamed_addr constant [65 x i8] c"warning[FFI-NULL]: raw-pointer return types in extern fn decls: \00"
+@.str.5797 = private unnamed_addr constant [468 x i8] c"  Per RFC-0062 G-5 Phase 3 (v1.0): extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 \C2\A73.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Per-fn null-check inference is post-v1.0 hardening. Reference: docs/ffi-conventions.md \C2\A71.\00"
+@.str.5798 = private unnamed_addr constant [57 x i8] c"warning[FFI-DIRECT]: `extern fn` declarations in build: \00"
+@.str.5799 = private unnamed_addr constant [364 x i8] c"  Per RFC-0062 G-9 Phase 3 (v1.0): direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline: treat every `extern fn` call site as an unsafe surface. `#[allow(direct_ffi)]` enforcement and bounds-check insertion at call sites are post-v1.0 hardening. Reference: docs/ffi-conventions.md \C2\A72.\00"
+@.str.5800 = private unnamed_addr constant [3 x i8] c"<&\00"
+@.str.5801 = private unnamed_addr constant [56 x i8] c"warning[ALIAS-G3]: Vec-of-reference patterns in build: \00"
+@.str.5802 = private unnamed_addr constant [404 x i8] c"  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing \E2\80\94 store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening. Reference: docs/heap-aliasing-evidence.md.\00"
+@.str.5803 = private unnamed_addr constant [6 x i8] c"qsim_\00"
+@.str.5804 = private unnamed_addr constant [5 x i8] c"cnot\00"
+@.str.5805 = private unnamed_addr constant [11 x i8] c"qsim_gate_\00"
+@.str.5806 = private unnamed_addr constant [7 x i8] c"record\00"
+@.str.5807 = private unnamed_addr constant [6 x i8] c"chomp\00"
+@.str.5808 = private unnamed_addr constant [50 x i8] c"info[QM-89-ROBO-8]: Wave 3 final Tier C surface: \00"
+@.str.5809 = private unnamed_addr constant [949 x i8] c"  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_cnot/CZ/CRK register entanglement only when populated control/target branches can actually entangle, and qsim_swap is a primitive statevector permutation with one SWAP DAG event. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 \E2\80\94 CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A\E2\81\BB\C2\B9\E2\88\87F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.\00"
+@.str.5810 = private unnamed_addr constant [8 x i8] c"tensor_\00"
+@.str.5811 = private unnamed_addr constant [3 x i8] c"nd\00"
+@.str.5812 = private unnamed_addr constant [12 x i8] c"transformer\00"
+@.str.5813 = private unnamed_addr constant [5 x i8] c"nuc_\00"
+@.str.5814 = private unnamed_addr constant [5 x i8] c"ssm_\00"
+@.str.5815 = private unnamed_addr constant [65 x i8] c"info[ML-G2-3-5-6-10]: Tensor/ML/Autodiff rod surface in source: \00"
+@.str.5816 = private unnamed_addr constant [768 x i8] c"  Per RFC sister gaps ML-2, ML-3, ML-5, ML-6, ML-10 (Tensor/ML/Autodiff): tensor_nd is missing 2D matmul (ML-2) and transpose (ML-3) \E2\80\94 workaround: use 3D matmul with batch=1 dim and pre-transpose data manually. SSM rods have no backward / gradient paths (ML-5) \E2\80\94 autodiff via these is forward-only. Quantize lacks FP8 gemv and grouped quantization (ML-6); dequant for int8 / ternary missing (ML-7). Transformer has no causal mask, no encoder-decoder (ML-10) \E2\80\94 only encoder-only attention is implemented. Phase 2b adds the missing primitives. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source. Reference: docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md ML-2/3/5/6/10.\00"
+@.str.5817 = private unnamed_addr constant [6 x i8] c"math_\00"
+@.str.5818 = private unnamed_addr constant [5 x i8] c"abs(\00"
+@.str.5819 = private unnamed_addr constant [9 x i8] c"checked_\00"
+@.str.5820 = private unnamed_addr constant [68 x i8] c"info[NUM-G289]: numeric-correctness annotations / calls in source: \00"
+@.str.5821 = private unnamed_addr constant [768 x i8] c"  Per RFC sister gaps NUM-G2, NUM-G8, NUM-G9 (Numeric Correctness): math_abs(i64::MIN) silently returns i64::MIN in non-strict mode (NUM-G2 \E2\80\94 `0 - i64::MIN` overflows; math_pow_int and math_gcd inherit the bug). checked_* family uses a single global static int for the overflow flag, NOT thread-safe (NUM-G8 \E2\80\94 concurrent calls race; flag overwritten between call and read). @const_fn attribute is silently ignored \E2\80\94 no comptime evaluation, no error if body contains non-const operations (NUM-G9). Phase 2b: panic-on-saturate for math_abs, thread-local checked flag, real comptime evaluation for @const_fn. Phase 4 v1.0 hard-error promotion. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md NUM-G2, NUM-G8, NUM-G9.\00"
+@.str.5822 = private unnamed_addr constant [9 x i8] c"clifford\00"
+@.str.5823 = private unnamed_addr constant [11 x i8] c"kinematics\00"
+@.str.5824 = private unnamed_addr constant [7 x i8] c"frame_\00"
+@.str.5825 = private unnamed_addr constant [4 x i8] c"tag\00"
+@.str.5826 = private unnamed_addr constant [62 x i8] c"info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: \00"
+@.str.5827 = private unnamed_addr constant [1373 x i8] c"  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. ROBO-7 frame typing v0838: the compiler-side FRAME-001 phantom-tag mismatch check is live at let-binding sites for `Pose<Frame_*>`-style annotations (`Frame_Unknown` is the migration sentinel; untagged Pose handles still bypass the check by construction). Adopters who opt in get a Mars-Climate-Orbiter-style rejection at compile time instead of a silent runtime miscompute. Phase 2b expands the check across struct-init, function-call, and binop paths and adds broader Clifford weight-enumerator/property invariants; Phase 4 promotes the FRAME-001 surface to v1.0 hard-error across the kinematics / tf / se3 rods. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; for frame typing, prefer `Pose<Frame_X>`-tagged annotations over bare `Pose` to opt into the check. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.\00"
+@.str.5828 = private unnamed_addr constant [66 x i8] c"info[LAW-G123]: `@law(...)` algebraic-law annotations in source: \00"
+@.str.5829 = private unnamed_addr constant [1180 x i8] c"  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`, `distributive_over`, `inverse`) plus schema hard errors for deprecated aliases, unsupported canonical forms, float/approximate modifiers, and unknown law names. The IR-level `opt_law_rewrite_block` is gated by the `@audit(law_opt_required)` + `@audit(check_laws_passed)` predicate pair (LAW-003 fail-closed when only opt_required is present) AND by the v0845 `law_opt_phase2_proof_validated` IR-level sentinel (always 0 in Phase 1 so no rewrites fire even if both audits are present). Fusion law generation, Arbitrary-driven broad property tests, float-law safeguards (currently LAW-004 fail-closed), and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.\00"
+@.str.5830 = private unnamed_addr constant [8 x i8] c"@audit(\00"
+@.str.5831 = private unnamed_addr constant [17 x i8] c"law_opt_required\00"
+@.str.5832 = private unnamed_addr constant [18 x i8] c"check_laws_passed\00"
+@.str.5833 = private unnamed_addr constant [176 x i8] c"info[LAW-AUDIT-GATE]: optimizer rewrite gate opted in (`@audit(law_opt_required)`) and proof-audit attribute present (`@audit(check_laws_passed)`); eligible @law annotations: \00"
+@.str.5834 = private unnamed_addr constant [845 x i8] c"  Per RFC sister gap LAW-3 Phase 2-prep (local-claude2 v0842): a source declaring `@audit(law_opt_required)` is asking the optimizer to use its law metadata for low-risk rewrites; the matching `@audit(check_laws_passed)` attribute declares the user has run `nuc test --check-laws` and observed PASS. Today the eligibility report fires; the IR-level rewrite pass `opt_law_rewrite_block` remains a no-op, so no semantics change yet. Phase 2 ships the first concrete rewrite (`f(a, identity) \E2\86\92 a` for `@law(identity = N)` on integer fns) gated on this exact eligibility predicate. Adopter discipline: never add `@audit(check_laws_passed)` without first running `--check-laws` and observing PASS, and never add `@audit(law_opt_required)` to a file whose law family hasn't been audited. Reference: docs/rfcs/v1_PUNCHLIST.md Algebraic Laws Phase 2.\00"
+@.str.5835 = private unnamed_addr constant [210 x i8] c"error[LAW-003]: source declares `@audit(law_opt_required)` but is missing `@audit(check_laws_passed)`; run `nuc test --check-laws`, observe PASS, then add the audit attribute before enabling the optimizer gate\00"
+@.str.5836 = private unnamed_addr constant [65 x i8] c"nucleor: LAW-003 optimizer rewrite gate without check-laws audit\00"
+@.str.5837 = private unnamed_addr constant [6 x i8] c"@cfg(\00"
+@.str.5838 = private unnamed_addr constant [8 x i8] c"feature\00"
+@.str.5839 = private unnamed_addr constant [53 x i8] c"info[PKG-5]: `@cfg(feature = ...)` gates in source: \00"
+@.str.5840 = private unnamed_addr constant [665 x i8] c"  Per RFC sister gap PKG-5 (Module/Packaging): conditional compilation `@cfg(feature = \22X\22)` is parsed but the gate is NOT honored \E2\80\94 the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Phase 2b adds proper feature-gating in the lowering pass; Phase 4 promotes adopter use to a hard requirement (gates that don't match active features become a hard error). Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection \E2\80\94 use module-level imports or runtime checks. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-5.\00"
+@.str.5841 = private unnamed_addr constant [7 x i8] c"#[dead\00"
+@.str.5842 = private unnamed_addr constant [5 x i8] c"line\00"
+@.str.5843 = private unnamed_addr constant [6 x i8] c"#[no_\00"
+@.str.5844 = private unnamed_addr constant [7 x i8] c"alloc]\00"
+@.str.5845 = private unnamed_addr constant [7 x i8] c"panic]\00"
+@.str.5846 = private unnamed_addr constant [4 x i8] c"#[i\00"
+@.str.5847 = private unnamed_addr constant [4 x i8] c"sr]\00"
+@.str.5848 = private unnamed_addr constant [61 x i8] c"info[RT-G135]: real-time/determinism annotations in source: \00"
+@.str.5849 = private unnamed_addr constant [1565 x i8] c"  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \22...\22` reach is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] now installs a runtime deadline context, polls deadline inner loops, keeps an exit check for straight-line work, and still uses heuristic RT-004 estimates rather than certified WCET. RT-G6: no embedded sysroot \E2\80\94 #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.\00"
+@.str.5850 = private unnamed_addr constant [8 x i8] c"cancel_\00"
+@.str.5851 = private unnamed_addr constant [6 x i8] c"token\00"
+@.str.5852 = private unnamed_addr constant [9 x i8] c"channel_\00"
+@.str.5853 = private unnamed_addr constant [5 x i8] c"send\00"
+@.str.5854 = private unnamed_addr constant [52 x i8] c"info[CONC-G12]: concurrency-rod surface in source: \00"
+@.str.5855 = private unnamed_addr constant [638 x i8] c"  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency rod's `cancel_token` (C-1) is a linker bomb on Linux (extern fn declared, body absent in nucleor_llvm_rt.c POSIX path) and POSIX channel helpers (C-2) are silent no-op stubs that lose all messages. Programs using these on Linux either fail at link time or run with broken concurrency. Phase 2b adds the missing POSIX implementations; Phase 4 enforces a CI gate that builds + smokes a concurrency test on Linux. Adopter discipline today: avoid these helpers if targeting Linux. Reference: docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md C-1, C-2.\00"
+@.str.5856 = private unnamed_addr constant [6 x i8] c"pure \00"
+@.str.5857 = private unnamed_addr constant [58 x i8] c"info[EFF-G123]: effect/capability annotations in source: \00"
+@.str.5858 = private unnamed_addr constant [3099 x i8] c"  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains up to depth=8 (v0845 lane 2 raised the requires bound from 3 to match the restricts path), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. Cross-module flat-namespace `import \22...\22` requires + restricts direct and bounded transitive enforcement is closed via the resolved-source pre-pass \E2\80\94 imported fn declarations and bodies are textually inlined before `enforce_requires_direct_calls` and `enforce_restricts_block_effects` run, so the same diagnostics fire whether the rowed/builtin callee lives in the entry source or an imported sibling rod (v0845 lane 2 probe). Same-file `impl` method effect enforcement also lands via the same path: substring-search on `callee(` accidentally covers `obj.method(...)` call sites, so a method declared with `requires [...]` mismatched against its same-file caller's row, a method whose body reaches a builtin under an incompatible caller row, and a `restricts [...] { obj.method(); }` block reaching method-internal I/O all surface EFF-001/EFF-003 (v0845 lane 2 / queue 2B). The substring approach cannot disambiguate same-name methods on different `impl` blocks; when the source declares a method name twice with distinct rows, enforcement fails open at that name (skipping the row check and falling through to the body walk) so adopter code does not false-positive on the un-rowed impl. Receiver-type-aware resolution for the ambiguous-name case is Phase 4 / RFC-0033 broader effect-row subtyping. The remaining open surface is beyond depth=8 chains, ambiguous-name same-file methods (fail-open since v0845), closures and function-pointer effect capture, broader RFC-0033 effect-row subtyping, and selective `use path::{a, b}` / glob `use path::*` import surfaces (resolver phase 2). Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.\00"
+@.str.5859 = private unnamed_addr constant [44 x i8] c"info[T-3-CAST]: `as char` casts in source: \00"
+@.str.5860 = private unnamed_addr constant [505 x i8] c"  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF), and non-constant casts now fail closed unless the exact binding is guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800` in the same then-branch. The i64-everywhere char ABI remains open until broader char distinctness lands. Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.\00"
+@.str.5861 = private unnamed_addr constant [5 x i8] c", ..\00"
+@.str.5862 = private unnamed_addr constant [4 x i8] c"[..\00"
+@.str.5863 = private unnamed_addr constant [75 x i8] c"error[MATCH-009]: slice pattern contains more than one dot-dot rest marker\00"
+@.str.5864 = private unnamed_addr constant [495 x i8] c"ERROR: slice patterns with rest binding (the dot-dot rest element inside slice match brackets `[a , .. , b]`) are not yet supported in Nucleor. Pre-v0.8.34 surfaced as wrong-class range-expression diagnostic because the parser hit token 58 inside the slice pattern brackets and routed to the range halt. Workaround: rewrite as explicit indexing using vec_len + vec_get. Tracked for forward-roadmap (full slice-pattern matcher with rest binding). Sister to Q1 / Q9 from PARALLEL_AGENT_PUNCHLIST.\00"
+@.str.5865 = private unnamed_addr constant [89 x i8] c"nucleor: slice patterns with rest binding not yet supported (see ERROR diagnostic above)\00"
+@.str.5866 = private unnamed_addr constant [56 x i8] c"warning[SEND-G6]: HashMap/Cell/RefCell types in build: \00"
+@.str.5867 = private unnamed_addr constant [527 x i8] c"  Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> Sendable propagation is not yet enforced \E2\80\94 the v1.0 contract is Sendable iff K and V are Sendable AND hasher is Sendable. Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). spawn-call sites may silently accept these today \E2\80\94 adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set. Closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md \C2\A74.\00"
+@.str.5868 = private unnamed_addr constant [6 x i8] c"move \00"
+@.str.5869 = private unnamed_addr constant [67 x i8] c"warning[SEND-G6-CLOSURE]: `move |...|` capture closures in build: \00"
+@.str.5870 = private unnamed_addr constant [519 x i8] c"  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md \C2\A74 case 2.\00"
+@.str.5871 = private unnamed_addr constant [51 x i8] c"warning[UNSAFE-G7]: `unsafe { }` blocks in build: \00"
+@.str.5872 = private unnamed_addr constant [464 x i8] c"  Per RFC-0062 G-7 Phase 3 (v1.0): the OSS compiler self-host source contains zero unsafe blocks; any unsafe block in adopter code is a manual-audit surface. Each unsafe block bypasses borrow-checking, lifetime-tracking, and bounds-check insertion within its body. Adopter discipline: justify each unsafe block in a comment naming the invariant being preserved. `#[allow(unsafe)]` attribute enforcement is post-v1.0 hardening. Reference: RFC-0003 \C2\A7unsafe blocks.\00"
+@.str.5873 = private unnamed_addr constant [14 x i8] c"NUC_AUTO_DROP\00"
+@.str.5874 = private unnamed_addr constant [9 x i8] c"_DEFAULT\00"
+@.str.5875 = private unnamed_addr constant [91 x i8] c"info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 \E2\80\94 Phase 2b-3 default-flip ENABLED for this build.\00"
+@.str.5876 = private unnamed_addr constant [346 x i8] c"  Per RFC-0062 G-1 Phase 2b-3 experiment: every fn auto-drops local Vec / HashMap / Box / String / VecDeque unless `#[manual_drop]` opt-out is present. Adopter discipline: this is an experimental flip mode for validating code against the future default. Remove the env var or set it to anything other than \221\22 to revert to v0.x opt-in semantics.\00"
+@.str.5877 = private unnamed_addr constant [6 x i8] c"push(\00"
+@.str.5878 = private unnamed_addr constant [5 x i8] c"set(\00"
+@.str.5879 = private unnamed_addr constant [67 x i8] c"warning[G3-HANDOFF-RISK]: vec_push / vec_set call sites in build: \00"
+@.str.5880 = private unnamed_addr constant [700 x i8] c"  Per RFC-0062 G-3 Phase 2b: under default-flip (NUC_AUTO_DROP_DEFAULT=1), local Vec values handed off via `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)` get auto-dropped at fn exit, leaving the receiver with a DANGLING POINTER. This is a silent miscompute \E2\80\94 the guard from v0.8.68 catches double-free but NOT dangling pointers from handoff. Adopter discipline TODAY: any fn whose body contains `vec_push(<param-name>, <local-vec>)` should carry `#[manual_drop]` to suppress auto-drop on the local. Phase 2b proper dataflow handoff detection will automate this; until then, treat every vec_push call site as a manual review point. Reference: docs/g3-handoff-dataflow-design.md.\00"
+@.str.5881 = private unnamed_addr constant [64 x i8] c"info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: \00"
+@.str.5882 = private unnamed_addr constant [182 x i8] c"  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP \E2\80\94 every fn still requires explicit `#[auto_\00"
+@.str.5883 = private unnamed_addr constant [367 x i8] c"drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN \C2\A73 G-1.\00"
+@.str.5884 = private unnamed_addr constant [7 x i8] c"match \00"
+@.str.5885 = private unnamed_addr constant [43 x i8] c"info[CFG-G8]: match expressions in build: \00"
+@.str.5886 = private unnamed_addr constant [557 x i8] c"  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions) can have arms that diverge in move/borrow behavior \E2\80\94 one arm consumes a value, another borrows it. The move tracker today is conservative on simple cases but doesn't fully reason about arm-level divergence. Phase 2b adds move-state join analysis at every control-flow join point; Phase 4 promotes mixed-arm patterns to deny-by-default with `#[allow(divergent_move)]` opt-out. Adopter discipline today: keep arm-level move/borrow behavior consistent (all arms borrow, or all arms consume).\00"
+@.str.5887 = private unnamed_addr constant [11 x i8] c".nuc_cache\00"
+@.str.5888 = private unnamed_addr constant [15 x i8] c"#link_windows \00"
+@.str.5889 = private unnamed_addr constant [4 x i8] c" -l\00"
+@.str.5890 = private unnamed_addr constant [13 x i8] c"#link_posix \00"
+@.str.5891 = private unnamed_addr constant [7 x i8] c"#link \00"
+@.str.5892 = private unnamed_addr constant [8 x i8] c"#cfile \00"
+@.str.5893 = private unnamed_addr constant [10 x i8] c"#libpath \00"
+@.str.5894 = private unnamed_addr constant [4 x i8] c" -L\00"
+@.str.5895 = private unnamed_addr constant [29 x i8] c"ERROR: invalid output name: \00"
+@.str.5896 = private unnamed_addr constant [11 x i8] c"  source: \00"
+@.str.5897 = private unnamed_addr constant [32 x i8] c"  mode: fast (ownership + type)\00"
+@.str.5898 = private unnamed_addr constant [30 x i8] c"  mode: llvm-only (--no-link)\00"
+@.str.5899 = private unnamed_addr constant [17 x i8] c"cache: hit (sha=\00"
+@.str.5900 = private unnamed_addr constant [8 x i8] c", size \00"
+@.str.5901 = private unnamed_addr constant [5 x i8] c" MB)\00"
+@.str.5902 = private unnamed_addr constant [6 x i8] c"total\00"
+@.str.5903 = private unnamed_addr constant [37 x i8] c"error[NR022]: source file is empty: \00"
+@.str.5904 = private unnamed_addr constant [164 x i8] c"  Nucleor expects every binary build to have a `fn main() -> i32` entry point. Add a main function, or compile this file only as part of a larger imported program.\00"
+@.str.5905 = private unnamed_addr constant [20 x i8] c"ERROR: cannot read \00"
+@.str.5906 = private unnamed_addr constant [38 x i8] c"  incremental: module graph cache hit\00"
+@.str.5907 = private unnamed_addr constant [15 x i8] c"resolve_source\00"
+@.str.5908 = private unnamed_addr constant [38 x i8] c"cache: disabled (sha=none, size 0 MB)\00"
+@.str.5909 = private unnamed_addr constant [10 x i8] c"preflight\00"
+@.str.5910 = private unnamed_addr constant [4 x i8] c"lex\00"
+@.str.5911 = private unnamed_addr constant [40 x i8] c"error[TYP-041]: duplicate struct decl `\00"
+@.str.5912 = private unnamed_addr constant [15 x i8] c"  Two `struct \00"
+@.str.5913 = private unnamed_addr constant [307 x i8] c"` decls in this compile unit. Nucleor's collection pass keeps both, but only the FIRST one wins for field-offset / construction; the second's fields are unreachable. Adopters refactoring across files (rename `Foo` to `Bar`, miss one) or running translators that emit duplicate decls hit silent miscompiles.\00"
+@.str.5914 = private unnamed_addr constant [54 x i8] c"  Workaround: rename or remove the duplicate `struct \00"
+@.str.5915 = private unnamed_addr constant [92 x i8] c"`. If both shapes are needed (e.g. version-skew between modules), give them distinct names.\00"
+@.str.5916 = private unnamed_addr constant [24 x i8] c"duplicate struct decl: \00"
+@.str.5917 = private unnamed_addr constant [38 x i8] c"error[TYP-041]: duplicate enum decl `\00"
+@.str.5918 = private unnamed_addr constant [13 x i8] c"  Two `enum \00"
+@.str.5919 = private unnamed_addr constant [195 x i8] c"` decls in this compile unit. Same hazard as duplicate-struct: only the FIRST wins for variant resolution; the second's variants are unreachable. Sister to v0.6.27 dup-variant-within-enum check.\00"
+@.str.5920 = private unnamed_addr constant [52 x i8] c"  Workaround: rename or remove the duplicate `enum \00"
+@.str.5921 = private unnamed_addr constant [22 x i8] c"duplicate enum decl: \00"
+@.str.5922 = private unnamed_addr constant [14 x i8] c"collect_decls\00"
+@.str.5923 = private unnamed_addr constant [5 x i8] c"From\00"
+@.str.5924 = private unnamed_addr constant [14 x i8] c"collect_impls\00"
+@.str.5925 = private unnamed_addr constant [11 x i8] c"` method `\00"
+@.str.5926 = private unnamed_addr constant [43 x i8] c"` has more #[require(...)] preconditions (\00"
+@.str.5927 = private unnamed_addr constant [31 x i8] c") than the trait declaration (\00"
+@.str.5928 = private unnamed_addr constant [54 x i8] c"). Liskov: subtype must not strengthen preconditions.\00"
+@.str.5929 = private unnamed_addr constant [44 x i8] c"` has fewer #[ensure(...)] postconditions (\00"
+@.str.5930 = private unnamed_addr constant [51 x i8] c"). Liskov: subtype must not weaken postconditions.\00"
+@.str.5931 = private unnamed_addr constant [7 x i8] c"source\00"
+@.str.5932 = private unnamed_addr constant [13 x i8] c"collect_pure\00"
+@.str.5933 = private unnamed_addr constant [588 x i8] c"error[ATOMIC-006]: atomic helpers (atomic_load / atomic_store / atomic_fetch_* / atomic_compare_exchange) inside closure bodies are not currently supported. The closure-lowering path does not yet inherit the parent fn's enum-variant scope, so `MemOrder::SeqCst` (and similar) dispatch fails \E2\80\94 pre-v0.4.280 this produced a misleading `vec_get OOB` compiler PANIC. Workaround: call the atomic helper directly from a regular fn body instead of wrapping it in a closure. This is a temporary limitation; full closure+atomic support lands when the closure sym-table inheritance ship goes in.\00"
+@.str.5934 = private unnamed_addr constant [13 x i8] c"safe-release\00"
+@.str.5935 = private unnamed_addr constant [5 x i8] c"cert\00"
+@.str.5936 = private unnamed_addr constant [40 x i8] c"error[CONTRACT-009]: NUCLEOR_DBC_MODE=`\00"
+@.str.5937 = private unnamed_addr constant [265 x i8] c"` is not a recognized DbC build mode. Recognized values: `debug` (default; full runtime checks), `safe-release` (require only \E2\80\94 input validation), `release` (no checks; max perf), `cert` (no checks; reserved for future static-proof). Unset to default to `debug`.\00"
+@.str.5938 = private unnamed_addr constant [74 x i8] c"error[CONTRACT-010]: `old(...)` is not valid in `#[require(...)]` on `fn \00"
+@.str.5939 = private unnamed_addr constant [272 x i8] c"`. Preconditions run BEFORE the function body, so there is no prior state to snapshot. `old(...)` is only meaningful in `#[ensure(...)]` (postconditions reference fn-entry state). Move the check into `#[ensure]`, or compare directly against the parameter without `old()`.\00"
+@.str.5940 = private unnamed_addr constant [10 x i8] c"  --> fn \00"
+@.str.5941 = private unnamed_addr constant [24 x i8] c"@<#[require] attribute>\00"
+@.str.5942 = private unnamed_addr constant [47 x i8] c"error[CONTRACT-011]: `#[require(...)]` on `fn \00"
+@.str.5943 = private unnamed_addr constant [36 x i8] c"` references undefined identifier `\00"
+@.str.5944 = private unnamed_addr constant [257 x i8] c"`. Pre-conditions can only reference fn parameters, module-level constants, type or enum variant names, and the DbC keywords (`true`, `false`, `null`, `Some`, `None`, `Ok`, `Err`). Check spelling, or rewrite the predicate to compare against a fn parameter.\00"
+@.str.5945 = private unnamed_addr constant [46 x i8] c"error[CONTRACT-008]: `#[ensure(...)]` on `fn \00"
+@.str.5946 = private unnamed_addr constant [29 x i8] c"` references `result`, but `\00"
+@.str.5947 = private unnamed_addr constant [243 x i8] c"` has no return type. The fn does not produce a value to bind `result` against. Either remove the `result` reference from the ensure predicate, or add a return type to the fn (e.g. `-> i64`) if you intended the ensure to assert on the output.\00"
+@.str.5948 = private unnamed_addr constant [23 x i8] c"@<#[ensure] attribute>\00"
+@.str.5949 = private unnamed_addr constant [27 x i8] c"error[CONTRACT-006]: `old(\00"
+@.str.5950 = private unnamed_addr constant [16 x i8] c")` over param `\00"
+@.str.5951 = private unnamed_addr constant [366 x i8] c"` captures the i64-ABI heap pointer, not a deep snapshot. The pointer is the same one the body mutates \E2\80\94 so `old(...)` aliases the post-mutation value and ensure semantics are wrong. Hoist a manual snapshot before the body (e.g. `let len_initial: i64 = vec_len(v);`) and reference that scalar in the ensure predicate, or mark the fn with `#[no_check]` to opt out.\00"
+@.str.5952 = private unnamed_addr constant [13 x i8] c"@<old() arg>\00"
+@.str.5953 = private unnamed_addr constant [6 x i8] c"lower\00"
+@.str.5954 = private unnamed_addr constant [4 x i8] c"opt\00"
+@.str.5955 = private unnamed_addr constant [14 x i8] c"  functions: \00"
+@.str.5956 = private unnamed_addr constant [12 x i8] c"  strings: \00"
+@.str.5957 = private unnamed_addr constant [14 x i8] c"  optimized: \00"
+@.str.5958 = private unnamed_addr constant [14 x i8] c" instructions\00"
+@.str.5959 = private unnamed_addr constant [5 x i8] c"emit\00"
+@.str.5960 = private unnamed_addr constant [28 x i8] c"cache: miss -> stored (sha=\00"
+@.str.5961 = private unnamed_addr constant [32 x i8] c"cache: miss -> not stored (sha=\00"
+@.str.5962 = private unnamed_addr constant [13 x i8] c", size 0 MB)\00"
+@.str.5963 = private unnamed_addr constant [32 x i8] c"compiler/nucleor_s1_compiler.nr\00"
+@.str.5964 = private unnamed_addr constant [32 x i8] c"compiler\5Cnucleor_s1_compiler.nr\00"
+@.str.5965 = private unnamed_addr constant [32 x i8] c"compiler/nucleor_tools_suite.nr\00"
+@.str.5966 = private unnamed_addr constant [32 x i8] c"compiler\5Cnucleor_tools_suite.nr\00"
+@.str.5967 = private unnamed_addr constant [18 x i8] c".\5Cbin\5Cnucleor.exe\00"
+@.str.5968 = private unnamed_addr constant [16 x i8] c"bin\5Cnucleor.exe\00"
+@.str.5969 = private unnamed_addr constant [12 x i8] c"bin/nucleor\00"
+@.str.5970 = private unnamed_addr constant [16 x i8] c"bin/nucleor.exe\00"
+@.str.5971 = private unnamed_addr constant [8 x i8] c" build \00"
+@.str.5972 = private unnamed_addr constant [11 x i8] c" --no-link\00"
+@.str.5973 = private unnamed_addr constant [12 x i8] c" --no-cache\00"
+@.str.5974 = private unnamed_addr constant [15 x i8] c" --cache-stats\00"
+@.str.5975 = private unnamed_addr constant [15 x i8] c" --time-passes\00"
+@.str.5976 = private unnamed_addr constant [13 x i8] c"total_native\00"
+@.str.5977 = private unnamed_addr constant [4 x i8] c"dev\00"
+@.str.5978 = private unnamed_addr constant [5 x i8] c"ice=\00"
+@.str.5979 = private unnamed_addr constant [6 x i8] c"pub f\00"
+@.str.5980 = private unnamed_addr constant [3 x i8] c") \00"
+@.str.5981 = private unnamed_addr constant [4 x i8] c"-> \00"
+@.str.5982 = private unnamed_addr constant [3 x i8] c"\0A\0A\00"
+@.str.5983 = private unnamed_addr constant [52 x i8] c"    let __nuc_dl_start: i64 = time_monotonic_us();\0A\00"
+@.str.5984 = private unnamed_addr constant [36 x i8] c"    deadline_enter(__nuc_dl_start, \00"
+@.str.5985 = private unnamed_addr constant [4 x i8] c");\0A\00"
+@.str.5986 = private unnamed_addr constant [21 x i8] c"    let __nuc_dl_r: \00"
+@.str.5987 = private unnamed_addr constant [22 x i8] c"    deadline_exit();\0A\00"
+@.str.5988 = private unnamed_addr constant [36 x i8] c"    deadline_check(__nuc_dl_start, \00"
+@.str.5989 = private unnamed_addr constant [24 x i8] c"    return __nuc_dl_r;\0A\00"
+@.str.5990 = private unnamed_addr constant [16 x i8] c"__nuc_md_inner_\00"
+@.str.5991 = private unnamed_addr constant [21 x i8] c"    max_depth_enter(\00"
+@.str.5992 = private unnamed_addr constant [21 x i8] c"    let __nuc_md_r: \00"
+@.str.5993 = private unnamed_addr constant [6 x i8] c"self.\00"
+@.str.5994 = private unnamed_addr constant [20 x i8] c"    max_depth_exit(\00"
+@.str.5995 = private unnamed_addr constant [24 x i8] c"    return __nuc_md_r;\0A\00"
+@.str.5996 = private unnamed_addr constant [651 x i8] c"ERROR: `async { ... }` block expression is not yet supported in Nucleor. Pre-v0.7.9 surfaced as wrong-class `error[TYP-005]: undefined function async()` because expand_async_strip_keyword only handles `async fn` (not `async {`), and parse_primary then treats `async` as a fn call. Workaround: drop the `async` keyword \E2\80\94 Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle. Tracked for forward-roadmap (full Future-trait async-block lowering is sister to V1.x async/Future infrastructure).\00"
+@.str.5997 = private unnamed_addr constant [89 x i8] c"nucleor: `async { ... }` block expression not yet supported (see ERROR diagnostic above)\00"
+@.str.5998 = private unnamed_addr constant [12 x i8] c"#[deadline \00"
+@.str.5999 = private unnamed_addr constant [12 x i8] c"#[deadline=\00"
+@.str.6000 = private unnamed_addr constant [10 x i8] c"<unknown>\00"
+@.str.6001 = private unnamed_addr constant [7 x i8] c".await\00"
+@.str.6002 = private unnamed_addr constant [6 x i8] c": i64\00"
+@.str.6003 = private unnamed_addr constant [23 x i8] c") -> i64 {\0A    return \00"
+@.str.6004 = private unnamed_addr constant [6 x i8] c";\0A}\0A\0A\00"
+@.str.6005 = private unnamed_addr constant [8 x i8] c".iter()\00"
+@.str.6006 = private unnamed_addr constant [13 x i8] c".into_iter()\00"
+@.str.6007 = private unnamed_addr constant [6 x i8] c"_f64(\00"
+@.str.6008 = private unnamed_addr constant [6 x i8] c"_f32(\00"
+@.str.6009 = private unnamed_addr constant [6 x i8] c"sqrt(\00"
+@.str.6010 = private unnamed_addr constant [5 x i8] c"exp(\00"
+@.str.6011 = private unnamed_addr constant [5 x i8] c"log(\00"
+@.str.6012 = private unnamed_addr constant [6 x i8] c"tanh(\00"
+@.str.6013 = private unnamed_addr constant [12 x i8] c"f32_to_str(\00"
+@.str.6014 = private unnamed_addr constant [18 x i8] c"impl Display for \00"
+@.str.6015 = private unnamed_addr constant [7 x i8] c"__fmt(\00"
+@.str.6016 = private unnamed_addr constant [30 x i8] c"ERROR: error[FMT-002]: type '\00"
+@.str.6017 = private unnamed_addr constant [38 x i8] c"' does not implement Display for '{}'\00"
+@.str.6018 = private unnamed_addr constant [56 x i8] c"nucleor: FMT-002 missing Display impl for struct format\00"
+@.str.6019 = private unnamed_addr constant [3 x i8] c":i\00"
+@.str.6020 = private unnamed_addr constant [3 x i8] c":s\00"
+@.str.6021 = private unnamed_addr constant [3 x i8] c":f\00"
+@.str.6022 = private unnamed_addr constant [3 x i8] c":?\00"
+@.str.6023 = private unnamed_addr constant [29 x i8] c"str_concat(\22\5C\22\22, str_concat(\00"
+@.str.6024 = private unnamed_addr constant [9 x i8] c", \22\5C\22\22))\00"
+@.str.6025 = private unnamed_addr constant [22 x i8] c"vec_to_debug_str_str(\00"
+@.str.6026 = private unnamed_addr constant [29 x i8] c"vec_to_debug_str_option_i64(\00"
+@.str.6027 = private unnamed_addr constant [22 x i8] c"vec_to_debug_str_i64(\00"
+@.str.6028 = private unnamed_addr constant [25 x i8] c"option_to_debug_str_i64(\00"
+@.str.6029 = private unnamed_addr constant [25 x i8] c"result_to_debug_str_i64(\00"
+@.str.6030 = private unnamed_addr constant [3 x i8] c" }\00"
+@.str.6031 = private unnamed_addr constant [18 x i8] c"int_to_hex_upper(\00"
+@.str.6032 = private unnamed_addr constant [12 x i8] c"int_to_oct(\00"
+@.str.6033 = private unnamed_addr constant [12 x i8] c"int_to_bin(\00"
+@.str.6034 = private unnamed_addr constant [21 x i8] c"f64_to_str_sci_prec(\00"
+@.str.6035 = private unnamed_addr constant [16 x i8] c"f64_to_str_sci(\00"
+@.str.6036 = private unnamed_addr constant [27 x i8] c"f64_to_str_sci_prec_upper(\00"
+@.str.6037 = private unnamed_addr constant [22 x i8] c"f64_to_str_sci_upper(\00"
+@.str.6038 = private unnamed_addr constant [3 x i8] c"0x\00"
+@.str.6039 = private unnamed_addr constant [3 x i8] c"0o\00"
+@.str.6040 = private unnamed_addr constant [3 x i8] c"0b\00"
+@.str.6041 = private unnamed_addr constant [13 x i8] c"str_concat(\22\00"
+@.str.6042 = private unnamed_addr constant [4 x i8] c"\22, \00"
+@.str.6043 = private unnamed_addr constant [17 x i8] c"f64_to_str_prec(\00"
+@.str.6044 = private unnamed_addr constant [17 x i8] c"f32_to_str_prec(\00"
+@.str.6045 = private unnamed_addr constant [23 x i8] c"int_to_str_force_sign(\00"
+@.str.6046 = private unnamed_addr constant [9 x i8] c"_to_str(\00"
+@.str.6047 = private unnamed_addr constant [14 x i8] c"_to_str_prec(\00"
+@.str.6048 = private unnamed_addr constant [12 x i8] c"str_center(\00"
+@.str.6049 = private unnamed_addr constant [31 x i8] c"ERROR: Rust named format-arg `\00"
+@.str.6050 = private unnamed_addr constant [279 x i8] c" = <expr>` (e.g. `format!(\22{x}\22, x = 5)`) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.43 surfaced as wrong-class `error[TYP-005]: undefined function '<name>()'` because the expander used `x = 5` as the value to format and parsed `x` as an unbound identifier.\00"
+@.str.6051 = private unnamed_addr constant [72 x i8] c"       Workaround: use the explicit-positional form \E2\80\94 `format!(\22{}\22, \00"
+@.str.6052 = private unnamed_addr constant [193 x i8] c")` (drop the named binding; the value already has a name in the calling scope). Tracked for forward-roadmap (named-arg substrate is part of the same RFC 2795 work as inline + positional args).\00"
+@.str.6053 = private unnamed_addr constant [28 x i8] c"nucleor: named format-arg `\00"
+@.str.6054 = private unnamed_addr constant [10 x i8] c"print(\22\22)\00"
+@.str.6055 = private unnamed_addr constant [11 x i8] c"eprint(\22\22)\00"
+@.str.6056 = private unnamed_addr constant [15 x i8] c"eprint_raw(\22\22)\00"
+@.str.6057 = private unnamed_addr constant [14 x i8] c"print_raw(\22\22)\00"
+@.str.6058 = private unnamed_addr constant [39 x i8] c"ERROR: Rust 1.58+ inline format-arg `{\00"
+@.str.6059 = private unnamed_addr constant [217 x i8] c"}` (where `<name>` resolves to a binding in the calling scope) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.41 surfaced as wrong-class \22format string has more `{}` placeholders than args supplied\22.\00"
+@.str.6060 = private unnamed_addr constant [65 x i8] c"       Workaround: use the explicit-arg form \E2\80\94 `format!(\22{}\22, \00"
+@.str.6061 = private unnamed_addr constant [270 x i8] c")` (or `println!`/`print!`/etc.). For multiple inline args, list each as a separate trailing arg in the same order they appear in the format string. Tracked for forward-roadmap (lex-time inline-arg rewrite at `{name}` \E2\86\92 `{}` + appended `name` arg, per Rust RFC 2795).\00"
+@.str.6062 = private unnamed_addr constant [30 x i8] c"nucleor: inline format-arg `{\00"
+@.str.6063 = private unnamed_addr constant [50 x i8] c"}` not yet supported (see ERROR diagnostic above)\00"
+@.str.6064 = private unnamed_addr constant [37 x i8] c"ERROR: Rust positional format-arg `{\00"
+@.str.6065 = private unnamed_addr constant [22 x i8] c"}` (referencing arg #\00"
+@.str.6066 = private unnamed_addr constant [101 x i8] c" by index, allowing reuse like `{0} {1} {0}`) is not yet supported in Nucleor's textual macro layer.\00"
+@.str.6067 = private unnamed_addr constant [326 x i8] c"       Workaround: write the args linearly in `{}` order \E2\80\94 `format!(\22{} {}\22, a, b)` instead of `format!(\22{0} {1}\22, a, b)`. For repeated refs, write the value once and bind it: `let r = a; format!(\22{} {} {}\22, r, b, r)`. Tracked for forward-roadmap (positional-arg substrate is part of the same RFC 2795 work as inline args).\00"
+@.str.6068 = private unnamed_addr constant [34 x i8] c"nucleor: positional format-arg `{\00"
+@.str.6069 = private unnamed_addr constant [83 x i8] c"ERROR: format string has more `{}` placeholders than args supplied. Format body: `\00"
+@.str.6070 = private unnamed_addr constant [19 x i8] c"`. Args supplied: \00"
+@.str.6071 = private unnamed_addr constant [85 x i8] c". Pre-v0.4.70 missing args were rendered as the literal text `<MISSING>` at runtime.\00"
+@.str.6072 = private unnamed_addr constant [46 x i8] c"nucleor: format placeholder count > arg count\00"
+@.str.6073 = private unnamed_addr constant [42 x i8] c"ERROR: error[FMT-003]: format string has \00"
+@.str.6074 = private unnamed_addr constant [26 x i8] c" `{}` placeholder(s) but \00"
+@.str.6075 = private unnamed_addr constant [24 x i8] c" argument(s) supplied; \00"
+@.str.6076 = private unnamed_addr constant [61 x i8] c" extra argument(s) would be silently dropped. Format body: `\00"
+@.str.6077 = private unnamed_addr constant [77 x i8] c"`. Either add `{}` placeholders for the extras or remove them from the call.\00"
+@.str.6078 = private unnamed_addr constant [79 x i8] c"nucleor: FMT-003 format args > placeholders (extras would be silently dropped)\00"
+@.str.6079 = private unnamed_addr constant [12 x i8] c"eprint_raw(\00"
+@.str.6080 = private unnamed_addr constant [11 x i8] c"print_raw(\00"
+@.str.6081 = private unnamed_addr constant [6 x i8] c"if !(\00"
+@.str.6082 = private unnamed_addr constant [5 x i8] c") { \00"
+@.str.6083 = private unnamed_addr constant [4 x i8] c"; }\00"
+@.str.6084 = private unnamed_addr constant [7 x i8] c"if !((\00"
+@.str.6085 = private unnamed_addr constant [6 x i8] c")) { \00"
+@.str.6086 = private unnamed_addr constant [13 x i8] c")) { panic(\22\00"
+@.str.6087 = private unnamed_addr constant [14 x i8] c"! failed\22); }\00"
+@.str.6088 = private unnamed_addr constant [4 x i8] c"vec\00"
+@.str.6089 = private unnamed_addr constant [105 x i8] c"{ let mut __nuc_vec: Vec<i64> = Vec::new(); let mut __nuc_repeat_i: i64 = 0; let __nuc_repeat_n: i64 = (\00"
+@.str.6090 = private unnamed_addr constant [66 x i8] c") as i64; while __nuc_repeat_i < __nuc_repeat_n { __nuc_vec.push(\00"
+@.str.6091 = private unnamed_addr constant [55 x i8] c"); __nuc_repeat_i = __nuc_repeat_i + 1; }; __nuc_vec }\00"
+@.str.6092 = private unnamed_addr constant [45 x i8] c"{ let mut __nuc_vec: Vec<i64> = Vec::new(); \00"
+@.str.6093 = private unnamed_addr constant [16 x i8] c"__nuc_vec.push(\00"
+@.str.6094 = private unnamed_addr constant [4 x i8] c"); \00"
+@.str.6095 = private unnamed_addr constant [12 x i8] c"__nuc_vec }\00"
+@.str.6096 = private unnamed_addr constant [7 x i8] c"format\00"
+@.str.6097 = private unnamed_addr constant [12 x i8] c"unreachable\00"
+@.str.6098 = private unnamed_addr constant [5 x i8] c"todo\00"
+@.str.6099 = private unnamed_addr constant [14 x i8] c"unimplemented\00"
+@.str.6100 = private unnamed_addr constant [5 x i8] c"file\00"
+@.str.6101 = private unnamed_addr constant [7 x i8] c"column\00"
+@.str.6102 = private unnamed_addr constant [12 x i8] c"module_path\00"
+@.str.6103 = private unnamed_addr constant [10 x i8] c"stringify\00"
+@.str.6104 = private unnamed_addr constant [7 x i8] c"concat\00"
+@.str.6105 = private unnamed_addr constant [4 x i8] c"env\00"
+@.str.6106 = private unnamed_addr constant [11 x i8] c"option_env\00"
+@.str.6107 = private unnamed_addr constant [12 x i8] c"include_str\00"
+@.str.6108 = private unnamed_addr constant [14 x i8] c"include_bytes\00"
+@.str.6109 = private unnamed_addr constant [29 x i8] c"ERROR: Rust built-in macro `\00"
+@.str.6110 = private unnamed_addr constant [192 x i8] c"!(...)` is not yet supported in Nucleor. Pre-v0.7.20 surfaced as wrong-class NR020 / TYP-005. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).\00"
+@.str.6111 = private unnamed_addr constant [250 x i8] c"       Workarounds: file!/line!/column!/module_path!/stringify! \E2\86\92 hard-coded literal; concat! \E2\86\92 str_concat at runtime or single literal; env!/option_env! \E2\86\92 args_get / wrapper script; include_str!/include_bytes! \E2\86\92 file_read_string at runtime.\00"
+@.str.6112 = private unnamed_addr constant [26 x i8] c"nucleor: built-in macro `\00"
+@.str.6113 = private unnamed_addr constant [55 x i8] c"!(...)` not yet supported (see ERROR diagnostic above)\00"
+@.str.6114 = private unnamed_addr constant [55 x i8] c"ERROR: user-defined or unrecognized macro invocation `\00"
+@.str.6115 = private unnamed_addr constant [771 x i8] c"!(...)` is not supported in Nucleor. Pre-v0.8.28 surfaced as wrong-class `error[TYP-002]: unary \5C`!\5C` requires a \5C`bool\5C` operand (got i32)` because the unrecognized macro name was left in the expanded output with the `!` preserved, and the expression parser then read `!` as unary NOT applied to the following argument. Workaround: rewrite the macro body as a regular fn \E2\80\94 replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.). Tracked for forward-roadmap (declarative `macro_rules!` substrate is a v1.x ship).\00"
+@.str.6116 = private unnamed_addr constant [25 x i8] c"nucleor: unknown macro `\00"
+@.str.6117 = private unnamed_addr constant [51 x i8] c"!(...)` not supported (see ERROR diagnostic above)\00"
+@.str.6118 = private unnamed_addr constant [43 x i8] c"\22internal error: entered unreachable code\22\00"
+@.str.6119 = private unnamed_addr constant [22 x i8] c"\22not yet implemented\22\00"
+@.str.6120 = private unnamed_addr constant [18 x i8] c"\22not implemented\22\00"
+@.str.6121 = private unnamed_addr constant [6 x i8] c"pubfn\00"
+@.str.6122 = private unnamed_addr constant [26 x i8] c"use of undefined value '@\00"
+@.str.6123 = private unnamed_addr constant [41 x i8] c"error[MOD-003]: cannot call private fn '\00"
+@.str.6124 = private unnamed_addr constant [36 x i8] c"' from outside its declaring module\00"
+@.str.6125 = private unnamed_addr constant [20 x i8] c"  --> declared in: \00"
+@.str.6126 = private unnamed_addr constant [66 x i8] c"  hint: add `pub` to the fn declaration to expose it cross-module\00"
+@.str.6127 = private unnamed_addr constant [22 x i8] c"error[TYP-005]: `vec_\00"
+@.str.6128 = private unnamed_addr constant [59 x i8] c"(...)` is not a top-level fn \E2\80\94 use the method form `vec.\00"
+@.str.6129 = private unnamed_addr constant [119 x i8] c"(&value)` instead. The method-dispatch path resolves to the correct type-specific runtime helper (e.g. `__nucleor_vec_\00"
+@.str.6130 = private unnamed_addr constant [64 x i8] c"_i64` for `Vec<i64>`); the bare fn-form bypasses that dispatch.\00"
+@.str.6131 = private unnamed_addr constant [55 x i8] c"                Pre-v0.6.40 the diag said `no method .\00"
+@.str.6132 = private unnamed_addr constant [76 x i8] c"()`, which was misleading \E2\80\94 the method exists, only the fn-form does not.\00"
+@.str.6133 = private unnamed_addr constant [56 x i8] c"error[TYP-005]: receiver type `Vec<T>` has no method `.\00"
+@.str.6134 = private unnamed_addr constant [29 x i8] c"()`. (Internal symbol: `vec_\00"
+@.str.6135 = private unnamed_addr constant [17 x i8] c"                \00"
+@.str.6136 = private unnamed_addr constant [100 x i8] c"`. The kind-8 method-dispatch catch-all lowered the call to a synthetic helper that doesn't exist.)\00"
+@.str.6137 = private unnamed_addr constant [317 x i8] c"                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.\00"
+@.str.6138 = private unnamed_addr constant [37 x i8] c"error[TYP-005]: undefined function `\00"
+@.str.6139 = private unnamed_addr constant [80 x i8] c"()`. Check spelling, or import the rod that defines it. (raised at clang link.)\00"
+@.str.6140 = private unnamed_addr constant [8 x i8] c"LNK1561\00"
+@.str.6141 = private unnamed_addr constant [26 x i8] c"subsystem must be defined\00"
+@.str.6142 = private unnamed_addr constant [30 x i8] c"undefined reference to `main'\00"
+@.str.6143 = private unnamed_addr constant [31 x i8] c"undefined reference to `_main'\00"
+@.str.6144 = private unnamed_addr constant [35 x i8] c"Undefined symbols for architecture\00"
+@.str.6145 = private unnamed_addr constant [6 x i8] c"_main\00"
+@.str.6146 = private unnamed_addr constant [313 x i8] c"error[NR022]: no `fn main()` defined in this build unit. Nucleor expects every binary build to have a `fn main() -> i32` entry point. Either add one (`fn main() -> i32 { 0 }`), or build the file as part of a larger program that already has main, or use `nuc check` if you only want to type-check without linking.\00"
+@.str.6147 = private unnamed_addr constant [8 x i8] c"__priv_\00"
+@.str.6148 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
+@.str.6149 = private unnamed_addr constant [6 x i8] c"1.1.0\00"
+@.str.6150 = private unnamed_addr constant [5 x i8] c"llvm\00"
+@.str.6151 = private unnamed_addr constant [9 x i8] c"nucleor \00"
+@.str.6152 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
+@.str.6153 = private unnamed_addr constant [10 x i8] c" backend)\00"
+@.str.6154 = private unnamed_addr constant [6 x i8] c"build\00"
+@.str.6155 = private unnamed_addr constant [11 x i8] c"build-fast\00"
+@.str.6156 = private unnamed_addr constant [13 x i8] c"build-strict\00"
+@.str.6157 = private unnamed_addr constant [13 x i8] c"build-shared\00"
+@.str.6158 = private unnamed_addr constant [4 x i8] c"run\00"
+@.str.6159 = private unnamed_addr constant [11 x i8] c"build-wasm\00"
+@.str.6160 = private unnamed_addr constant [10 x i8] c"build-ptx\00"
+@.str.6161 = private unnamed_addr constant [6 x i8] c"audit\00"
+@.str.6162 = private unnamed_addr constant [7 x i8] c"policy\00"
+@.str.6163 = private unnamed_addr constant [8 x i8] c"certify\00"
+@.str.6164 = private unnamed_addr constant [10 x i8] c"translate\00"
+@.str.6165 = private unnamed_addr constant [5 x i8] c"test\00"
+@.str.6166 = private unnamed_addr constant [6 x i8] c"bench\00"
+@.str.6167 = private unnamed_addr constant [8 x i8] c"summary\00"
+@.str.6168 = private unnamed_addr constant [7 x i8] c"impact\00"
+@.str.6169 = private unnamed_addr constant [6 x i8] c"query\00"
+@.str.6170 = private unnamed_addr constant [9 x i8] c"evidence\00"
+@.str.6171 = private unnamed_addr constant [4 x i8] c"abi\00"
+@.str.6172 = private unnamed_addr constant [20 x i8] c"verify-reproducible\00"
+@.str.6173 = private unnamed_addr constant [13 x i8] c"Nucleor.toml\00"
+@.str.6174 = private unnamed_addr constant [8 x i8] c"entry=\22\00"
+@.str.6175 = private unnamed_addr constant [14 x i8] c"nucleor_tools\00"
+@.str.6176 = private unnamed_addr constant [9 x i8] c".\5Ctarget\00"
+@.str.6177 = private unnamed_addr constant [6 x i8] c".\5Cbin\00"
+@.str.6178 = private unnamed_addr constant [3 x i8] c".\5C\00"
+@.str.6179 = private unnamed_addr constant [3 x i8] c"./\00"
+@.str.6180 = private unnamed_addr constant [49 x i8] c"ERROR: cannot find required tools-suite binary: \00"
+@.str.6181 = private unnamed_addr constant [91 x i8] c"       rebuild with: nuc build compiler/nucleor_tools_suite.nr -o nucleor_tools --no-cache\00"
+@.str.6182 = private unnamed_addr constant [7 x i8] c"pushd \00"
+@.str.6183 = private unnamed_addr constant [5 x i8] c" && \00"
+@.str.6184 = private unnamed_addr constant [9 x i8] c"NUC_HOME\00"
+@.str.6185 = private unnamed_addr constant [13 x i8] c"LOCALAPPDATA\00"
+@.str.6186 = private unnamed_addr constant [9 x i8] c"\5CNucleor\00"
+@.str.6187 = private unnamed_addr constant [5 x i8] c"HOME\00"
+@.str.6188 = private unnamed_addr constant [10 x i8] c"/.nucleor\00"
+@.str.6189 = private unnamed_addr constant [9 x i8] c".nucleor\00"
+@.str.6190 = private unnamed_addr constant [7 x i8] c"/tools\00"
+@.str.6191 = private unnamed_addr constant [5 x i8] c"/bin\00"
+@.str.6192 = private unnamed_addr constant [8 x i8] c".tar.gz\00"
+@.str.6193 = private unnamed_addr constant [5 x i8] c".tgz\00"
+@.str.6194 = private unnamed_addr constant [5 x i8] c".zip\00"
+@.str.6195 = private unnamed_addr constant [30 x i8] c"Usage: nuc tools <subcommand>\00"
+@.str.6196 = private unnamed_addr constant [13 x i8] c"Subcommands:\00"
+@.str.6197 = private unnamed_addr constant [77 x i8] c"  install <url> [--no-verify]   Download + extract a tool from a release URL\00"
+@.str.6198 = private unnamed_addr constant [57 x i8] c"  uninstall <name>              Remove an installed tool\00"
+@.str.6199 = private unnamed_addr constant [53 x i8] c"  list                          List installed tools\00"
+@.str.6200 = private unnamed_addr constant [57 x i8] c"  home                          Print resolved $NUC_HOME\00"
+@.str.6201 = private unnamed_addr constant [69 x i8] c"Tools install under $NUC_HOME/tools/<name>/ and a shim is written to\00"
+@.str.6202 = private unnamed_addr constant [67 x i8] c"$NUC_HOME/bin/<name>.cmd (Windows) or $NUC_HOME/bin/<name> (Unix).\00"
+@.str.6203 = private unnamed_addr constant [71 x i8] c"Add $NUC_HOME/bin to PATH once and any tool installed via this command\00"
+@.str.6204 = private unnamed_addr constant [42 x i8] c"becomes invokable as <name> in any shell.\00"
+@.str.6205 = private unnamed_addr constant [78 x i8] c"Default $NUC_HOME: %LOCALAPPDATA%\5CNucleor (Windows) or $HOME/.nucleor (Unix).\00"
+@.str.6206 = private unnamed_addr constant [35 x i8] c"Override via the NUC_HOME env var.\00"
+@.str.6207 = private unnamed_addr constant [40 x i8] c"ERROR: nuc tools install requires a URL\00"
+@.str.6208 = private unnamed_addr constant [44 x i8] c"ERROR: cannot derive a tool name from URL: \00"
+@.str.6209 = private unnamed_addr constant [27 x i8] c"nuc tools install: name = \00"
+@.str.6210 = private unnamed_addr constant [27 x i8] c"                   url  = \00"
+@.str.6211 = private unnamed_addr constant [27 x i8] c"                   dest = \00"
+@.str.6212 = private unnamed_addr constant [76 x i8] c"powershell -NoProfile -Command \22New-Item -ItemType Directory -Force -Path '\00"
+@.str.6213 = private unnamed_addr constant [14 x i8] c"' | Out-Null\22\00"
+@.str.6214 = private unnamed_addr constant [11 x i8] c"/.download\00"
+@.str.6215 = private unnamed_addr constant [16 x i8] c"curl -fsSL -o \22\00"
+@.str.6216 = private unnamed_addr constant [4 x i8] c"\22 \22\00"
+@.str.6217 = private unnamed_addr constant [24 x i8] c"  fetching: curl -fsSL \00"
+@.str.6218 = private unnamed_addr constant [33 x i8] c"ERROR: download failed (curl rc=\00"
+@.str.6219 = private unnamed_addr constant [68 x i8] c"  verifying: cosign verify-blob (production releases must add this)\00"
+@.str.6220 = private unnamed_addr constant [77 x i8] c"  NOTE: v1 of `nuc tools install` is opt-in cosign. Skipping verify for now.\00"
+@.str.6221 = private unnamed_addr constant [61 x i8] c"        See RFC-NRT-002 for the v2 mandatory-verify roadmap.\00"
+@.str.6222 = private unnamed_addr constant [35 x i8] c"  verifying: SKIPPED (--no-verify)\00"
+@.str.6223 = private unnamed_addr constant [33 x i8] c"  extracting: Expand-Archive -> \00"
+@.str.6224 = private unnamed_addr constant [55 x i8] c"powershell -NoProfile -Command \22Expand-Archive -Path '\00"
+@.str.6225 = private unnamed_addr constant [21 x i8] c"' -DestinationPath '\00"
+@.str.6226 = private unnamed_addr constant [10 x i8] c"' -Force\22\00"
+@.str.6227 = private unnamed_addr constant [30 x i8] c"ERROR: extraction failed (rc=\00"
+@.str.6228 = private unnamed_addr constant [27 x i8] c"  extracting: tar -xzf -> \00"
+@.str.6229 = private unnamed_addr constant [11 x i8] c"tar -xzf \22\00"
+@.str.6230 = private unnamed_addr constant [7 x i8] c"\22 -C \22\00"
+@.str.6231 = private unnamed_addr constant [37 x i8] c"  installing: single-file binary -> \00"
+@.str.6232 = private unnamed_addr constant [57 x i8] c"powershell -NoProfile -Command \22Move-Item -Force -Path '\00"
+@.str.6233 = private unnamed_addr constant [17 x i8] c"' -Destination '\00"
+@.str.6234 = private unnamed_addr constant [8 x i8] c".exe' \22\00"
+@.str.6235 = private unnamed_addr constant [27 x i8] c"ERROR: install failed (rc=\00"
+@.str.6236 = private unnamed_addr constant [5 x i8] c".cmd\00"
+@.str.6237 = private unnamed_addr constant [13 x i8] c"@echo off\0D\0A\22\00"
+@.str.6238 = private unnamed_addr constant [7 x i8] c"\22 %*\0D\0A\00"
+@.str.6239 = private unnamed_addr constant [32 x i8] c"ERROR: failed to write shim at \00"
+@.str.6240 = private unnamed_addr constant [11 x i8] c"  shim:   \00"
+@.str.6241 = private unnamed_addr constant [11 x i8] c"  target: \00"
+@.str.6242 = private unnamed_addr constant [12 x i8] c"Installed `\00"
+@.str.6243 = private unnamed_addr constant [6 x i8] c"Add `\00"
+@.str.6244 = private unnamed_addr constant [27 x i8] c"` to PATH (once) and run `\00"
+@.str.6245 = private unnamed_addr constant [28 x i8] c" --version` from any shell.\00"
+@.str.6246 = private unnamed_addr constant [48 x i8] c"ERROR: nuc tools uninstall requires a tool name\00"
+@.str.6247 = private unnamed_addr constant [22 x i8] c"nuc tools uninstall: \00"
+@.str.6248 = private unnamed_addr constant [13 x i8] c"  removing: \00"
+@.str.6249 = private unnamed_addr constant [68 x i8] c"powershell -NoProfile -Command \22Remove-Item -Recurse -Force -Path '\00"
+@.str.6250 = private unnamed_addr constant [33 x i8] c"' -ErrorAction SilentlyContinue\22\00"
+@.str.6251 = private unnamed_addr constant [59 x i8] c"powershell -NoProfile -Command \22Remove-Item -Force -Path '\00"
+@.str.6252 = private unnamed_addr constant [14 x i8] c"Uninstalled `\00"
+@.str.6253 = private unnamed_addr constant [23 x i8] c"Tools installed under \00"
+@.str.6254 = private unnamed_addr constant [48 x i8] c"powershell -NoProfile -Command \22if (Test-Path '\00"
+@.str.6255 = private unnamed_addr constant [32 x i8] c"') { Get-ChildItem -Directory '\00"
+@.str.6256 = private unnamed_addr constant [94 x i8] c"' | ForEach-Object { '  ' + $_.Name } } else { '  (none -- tools home does not exist yet)' }\22\00"
+@.str.6257 = private unnamed_addr constant [5 x i8] c"help\00"
+@.str.6258 = private unnamed_addr constant [7 x i8] c"--help\00"
+@.str.6259 = private unnamed_addr constant [3 x i8] c"-h\00"
+@.str.6260 = private unnamed_addr constant [5 x i8] c"home\00"
+@.str.6261 = private unnamed_addr constant [5 x i8] c"list\00"
+@.str.6262 = private unnamed_addr constant [10 x i8] c"uninstall\00"
+@.str.6263 = private unnamed_addr constant [8 x i8] c"install\00"
+@.str.6264 = private unnamed_addr constant [12 x i8] c"--no-verify\00"
+@.str.6265 = private unnamed_addr constant [38 x i8] c"ERROR: unknown nuc tools subcommand: \00"
+@.str.6266 = private unnamed_addr constant [7 x i8] c"int8_t\00"
+@.str.6267 = private unnamed_addr constant [8 x i8] c"int16_t\00"
+@.str.6268 = private unnamed_addr constant [8 x i8] c"int32_t\00"
+@.str.6269 = private unnamed_addr constant [8 x i8] c"int64_t\00"
+@.str.6270 = private unnamed_addr constant [9 x i8] c"intptr_t\00"
+@.str.6271 = private unnamed_addr constant [8 x i8] c"uint8_t\00"
+@.str.6272 = private unnamed_addr constant [9 x i8] c"uint16_t\00"
+@.str.6273 = private unnamed_addr constant [9 x i8] c"uint32_t\00"
+@.str.6274 = private unnamed_addr constant [9 x i8] c"uint64_t\00"
+@.str.6275 = private unnamed_addr constant [10 x i8] c"uintptr_t\00"
+@.str.6276 = private unnamed_addr constant [6 x i8] c"void*\00"
+@.str.6277 = private unnamed_addr constant [12 x i8] c"const char*\00"
+@.str.6278 = private unnamed_addr constant [12 x i8] c"pub struct \00"
+@.str.6279 = private unnamed_addr constant [10 x i8] c"#[export]\00"
+@.str.6280 = private unnamed_addr constant [47 x i8] c"usage: nuc gen-headers <input.nr> [-o <out.h>]\00"
+@.str.6281 = private unnamed_addr constant [3 x i8] c"-o\00"
+@.str.6282 = private unnamed_addr constant [3 x i8] c".h\00"
+@.str.6283 = private unnamed_addr constant [30 x i8] c"nuc gen-headers: cannot read \00"
+@.str.6284 = private unnamed_addr constant [40 x i8] c"// Generated by `nuc gen-headers` from \00"
+@.str.6285 = private unnamed_addr constant [81 x i8] c"\0A// Edits will be lost; regenerate after extern fn / #[repr(C)] struct changes.\0A\00"
+@.str.6286 = private unnamed_addr constant [31 x i8] c"#ifndef NUCLEOR_GEN_HEADERS_H\0A\00"
+@.str.6287 = private unnamed_addr constant [31 x i8] c"#define NUCLEOR_GEN_HEADERS_H\0A\00"
+@.str.6288 = private unnamed_addr constant [21 x i8] c"#include <stdint.h>\0A\00"
+@.str.6289 = private unnamed_addr constant [23 x i8] c"#include <stdbool.h>\0A\0A\00"
+@.str.6290 = private unnamed_addr constant [41 x i8] c"#ifdef __cplusplus\0Aextern \22C\22 {\0A#endif\0A\0A\00"
+@.str.6291 = private unnamed_addr constant [16 x i8] c"typedef struct \00"
+@.str.6292 = private unnamed_addr constant [3 x i8] c";\0A\00"
+@.str.6293 = private unnamed_addr constant [3 x i8] c"} \00"
+@.str.6294 = private unnamed_addr constant [4 x i8] c";\0A\0A\00"
+@.str.6295 = private unnamed_addr constant [54 x i8] c"// === #[export] \E2\80\94 Nucleor fns callable from C ===\0A\00"
+@.str.6296 = private unnamed_addr constant [30 x i8] c"\0A#ifdef __cplusplus\0A}\0A#endif\0A\00"
+@.str.6297 = private unnamed_addr constant [33 x i8] c"#endif // NUCLEOR_GEN_HEADERS_H\0A\00"
+@.str.6298 = private unnamed_addr constant [24 x i8] c"nuc gen-headers: wrote \00"
+@.str.6299 = private unnamed_addr constant [24 x i8] c" #[repr(C)] struct(s), \00"
+@.str.6300 = private unnamed_addr constant [18 x i8] c" extern decl(s), \00"
+@.str.6301 = private unnamed_addr constant [23 x i8] c" #[export] decl(s) to \00"
+@.str.6302 = private unnamed_addr constant [19 x i8] c"The Zen of Nucleor\00"
+@.str.6303 = private unnamed_addr constant [54 x i8] c"Units are not optional. Ask the Mars Climate Orbiter.\00"
+@.str.6304 = private unnamed_addr constant [52 x i8] c"Effects are declared, not discovered in production.\00"
+@.str.6305 = private unnamed_addr constant [44 x i8] c"If it compiles, the dimensions are correct.\00"
+@.str.6306 = private unnamed_addr constant [55 x i8] c"Governance is not overhead. Governance is the product.\00"
+@.str.6307 = private unnamed_addr constant [39 x i8] c"Unsafe is a confession, not a feature.\00"
+@.str.6308 = private unnamed_addr constant [53 x i8] c"Trust is earned per-session, not granted per-binary.\00"
+@.str.6309 = private unnamed_addr constant [50 x i8] c"The audit trail is the only history that matters.\00"
+@.str.6310 = private unnamed_addr constant [45 x i8] c"Memory is borrowed. Responsibility is owned.\00"
+@.str.6311 = private unnamed_addr constant [44 x i8] c"A taint you can see is a taint you can fix.\00"
+@.str.6312 = private unnamed_addr constant [38 x i8] c"Correctness is faster than debugging.\00"
+@.str.6313 = private unnamed_addr constant [55 x i8] c"Criticality is not an accident. It is a design choice.\00"
+@.str.6314 = private unnamed_addr constant [23 x i8] c"Know your k-effective.\00"
+@.str.6315 = private unnamed_addr constant [46 x i8] c"  +-----------------------------------------+\00"
+@.str.6316 = private unnamed_addr constant [46 x i8] c"  |  Mars Climate Orbiter - September 1999  |\00"
+@.str.6317 = private unnamed_addr constant [46 x i8] c"  |                                         |\00"
+@.str.6318 = private unnamed_addr constant [46 x i8] c"  |  Lockheed Martin: pound-force-seconds   |\00"
+@.str.6319 = private unnamed_addr constant [46 x i8] c"  |  NASA JPL:        newton-seconds        |\00"
+@.str.6320 = private unnamed_addr constant [46 x i8] c"  |  Cost: $327,600,000                     |\00"
+@.str.6321 = private unnamed_addr constant [46 x i8] c"  |  Root cause: unit mismatch              |\00"
+@.str.6322 = private unnamed_addr constant [46 x i8] c"  |  Nucleor status: PREVENTED AT COMPILE   |\00"
+@.str.6323 = private unnamed_addr constant [46 x i8] c"  |  \22This is why we exist.\22                |\00"
+@.str.6324 = private unnamed_addr constant [8 x i8] c"--cache\00"
+@.str.6325 = private unnamed_addr constant [71 x i8] c"clean: removing compilation cache (target/.nuc_cache_v2/, .nuc_cache/)\00"
+@.str.6326 = private unnamed_addr constant [14 x i8] c".nuc_cache_v2\00"
+@.str.6327 = private unnamed_addr constant [12 x i8] c"clean: done\00"
+@.str.6328 = private unnamed_addr constant [55 x i8] c"clean: removing build artifacts (target/, .nuc_cache/)\00"
+@.str.6329 = private unnamed_addr constant [18 x i8] c"Nucleor Compiler \00"
+@.str.6330 = private unnamed_addr constant [43 x i8] c"The governance-native programming language\00"
+@.str.6331 = private unnamed_addr constant [43 x i8] c"Usage: nuc <command> [source.nr] [options]\00"
+@.str.6332 = private unnamed_addr constant [16 x i8] c"Build commands:\00"
+@.str.6333 = private unnamed_addr constant [62 x i8] c"  init [name]            Scaffold a project with Nucleor.toml\00"
+@.str.6334 = private unnamed_addr constant [77 x i8] c"  build [file]           Compile to native binary (ownership + type, cached)\00"
+@.str.6335 = private unnamed_addr constant [61 x i8] c"  build-fast [file]      Alias of the fast core compile path\00"
+@.str.6336 = private unnamed_addr constant [81 x i8] c"  build-strict [file]    Compile through the full delegated strict checker stack\00"
+@.str.6337 = private unnamed_addr constant [84 x i8] c"  build-shared [file]    Compile a shared library (.dll/.lib) from `pub fn` exports\00"
+@.str.6338 = private unnamed_addr constant [41 x i8] c"  run [file]             Compile and run\00"
+@.str.6339 = private unnamed_addr constant [65 x i8] c"  emit [file]            Emit LLVM IR only (alias for --no-link)\00"
+@.str.6340 = private unnamed_addr constant [56 x i8] c"  build-wasm [file]      Compile to WebAssembly (.wasm)\00"
+@.str.6341 = private unnamed_addr constant [54 x i8] c"  build-ptx [file]       Compile to NVIDIA PTX (.ptx)\00"
+@.str.6342 = private unnamed_addr constant [101 x i8] c"  verify-reproducible [file]  Build twice with --no-cache and assert byte-identical IR (RFC-NRT-003)\00"
+@.str.6343 = private unnamed_addr constant [93 x i8] c"    --provenance <path>  Embed a SLSA JSON attestation in the .nucprov section (RFC-NRT-001)\00"
+@.str.6344 = private unnamed_addr constant [46 x i8] c"    -o, --out <name>     Set output base name\00"
+@.str.6345 = private unnamed_addr constant [51 x i8] c"    --emit llvm          Keep the LLVM IR artifact\00"
+@.str.6346 = private unnamed_addr constant [61 x i8] c"    --no-link            Stop after writing target/<name>.ll\00"
+@.str.6347 = private unnamed_addr constant [57 x i8] c"    --time-passes        Print per-phase compile timings\00"
+@.str.6348 = private unnamed_addr constant [83 x i8] c"    --no-cache           Disable resolved-source and content-addressed LLVM caches\00"
+@.str.6349 = private unnamed_addr constant [70 x i8] c"    --cache-stats        Print cache hit/miss counters for this build\00"
+@.str.6350 = private unnamed_addr constant [20 x i8] c"Developer commands:\00"
+@.str.6351 = private unnamed_addr constant [64 x i8] c"  test [file]            Build and run @test / test_* functions\00"
+@.str.6352 = private unnamed_addr constant [68 x i8] c"    --list               List discovered tests without running them\00"
+@.str.6353 = private unnamed_addr constant [87 x i8] c"    --check-laws         Generate bounded checks for low-risk integer @law annotations\00"
+@.str.6354 = private unnamed_addr constant [64 x i8] c"  bench [file]           Build once and benchmark repeated runs\00"
+@.str.6355 = private unnamed_addr constant [62 x i8] c"    --iterations <n>     Number of measured runs (default 10)\00"
+@.str.6356 = private unnamed_addr constant [73 x i8] c"    --warmup <n>         Number of warmup runs before timing (default 1)\00"
+@.str.6357 = private unnamed_addr constant [59 x i8] c"  perf [file]            Compile-path performance analysis\00"
+@.str.6358 = private unnamed_addr constant [59 x i8] c"    --json               Output machine-readable perf data\00"
+@.str.6359 = private unnamed_addr constant [68 x i8] c"  bootstrap [subcmd]     Self-host bootstrap status / corpus report\00"
+@.str.6360 = private unnamed_addr constant [62 x i8] c"    status               Report example and runtime readiness\00"
+@.str.6361 = private unnamed_addr constant [47 x i8] c"    dump-corpus          List .nr corpus files\00"
+@.str.6362 = private unnamed_addr constant [64 x i8] c"    --json               Output machine-readable bootstrap data\00"
+@.str.6363 = private unnamed_addr constant [55 x i8] c"  stage-dump <stage>     Dump compiler stage summaries\00"
+@.str.6364 = private unnamed_addr constant [28 x i8] c"    tokens|ast|typed|ir|all\00"
+@.str.6365 = private unnamed_addr constant [55 x i8] c"  summary [file]         Compact module interface card\00"
+@.str.6366 = private unnamed_addr constant [54 x i8] c"    --json               Output summary lines as JSON\00"
+@.str.6367 = private unnamed_addr constant [59 x i8] c"  query [file]           Machine-readable module interface\00"
+@.str.6368 = private unnamed_addr constant [72 x i8] c"  abi [file]             Inspect import/export ABI for C / Rust interop\00"
+@.str.6369 = private unnamed_addr constant [72 x i8] c"    --exports            Inspect `pub fn` export ABI instead of imports\00"
+@.str.6370 = private unnamed_addr constant [58 x i8] c"    --json               Output machine-readable ABI data\00"
+@.str.6371 = private unnamed_addr constant [74 x i8] c"    --c-header           Emit C declarations for the selected ABI surface\00"
+@.str.6372 = private unnamed_addr constant [91 x i8] c"    --rust-extern        Emit Rust unsafe extern declarations for the selected ABI surface\00"
+@.str.6373 = private unnamed_addr constant [52 x i8] c"  evidence [file]        Governance evidence report\00"
+@.str.6374 = private unnamed_addr constant [60 x i8] c"  impact [file] <fn>     Reverse call impact for a function\00"
+@.str.6375 = private unnamed_addr constant [53 x i8] c"    --fn <name>          Specify the target function\00"
+@.str.6376 = private unnamed_addr constant [56 x i8] c"  graph [file]           Source-level call/effect graph\00"
+@.str.6377 = private unnamed_addr constant [60 x i8] c"    --json               Output machine-readable graph data\00"
+@.str.6378 = private unnamed_addr constant [86 x i8] c"  doc [file]             Render /// + //! doc comments as Markdown or HTML (RFC-0029)\00"
+@.str.6379 = private unnamed_addr constant [57 x i8] c"    --out <file>         Write to file instead of stdout\00"
+@.str.6380 = private unnamed_addr constant [86 x i8] c"    --html               Emit standalone HTML (auto-detected from .html / .htm --out)\00"
+@.str.6381 = private unnamed_addr constant [87 x i8] c"    --test-list          Enumerate ```nucleor code blocks for doc-test discoverability\00"
+@.str.6382 = private unnamed_addr constant [56 x i8] c"  profile run <binary>   Timed binary execution profile\00"
+@.str.6383 = private unnamed_addr constant [56 x i8] c"    --iterations <n>     Repeat the profile run N times\00"
+@.str.6384 = private unnamed_addr constant [74 x i8] c"  lock [manifest]        Write Nucleor.lock for local/workspace manifests\00"
+@.str.6385 = private unnamed_addr constant [61 x i8] c"    --json               Output machine-readable lock status\00"
+@.str.6386 = private unnamed_addr constant [84 x i8] c"  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock\00"
+@.str.6387 = private unnamed_addr constant [72 x i8] c"  publish [manifest]     Copy a package into a local registry directory\00"
+@.str.6388 = private unnamed_addr constant [68 x i8] c"    --registry <dir>     Registry root (default: .nucleor/registry)\00"
+@.str.6389 = private unnamed_addr constant [74 x i8] c"  registry [subcmd]      List/search/inspect packages in a local registry\00"
+@.str.6390 = private unnamed_addr constant [32 x i8] c"    list|search|versions|verify\00"
+@.str.6391 = private unnamed_addr constant [66 x i8] c"  sage <subcmd> <file>   Sage_NS prove / certificate / gap checks\00"
+@.str.6392 = private unnamed_addr constant [27 x i8] c"    prove|certificate|gaps\00"
+@.str.6393 = private unnamed_addr constant [19 x i8] c"Analysis commands:\00"
+@.str.6394 = private unnamed_addr constant [65 x i8] c"  check [file] [flags]   Run all checkers and report diagnostics\00"
+@.str.6395 = private unnamed_addr constant [50 x i8] c"    --json               Output JSONL diagnostics\00"
+@.str.6396 = private unnamed_addr constant [45 x i8] c"    --sarif              Output SARIF v2.1.0\00"
+@.str.6397 = private unnamed_addr constant [84 x i8] c"    --check=<checkers>   Run specific checkers (ownership,type,source,taint,effect)\00"
+@.str.6398 = private unnamed_addr constant [70 x i8] c"    --review             Enable review surface (nucleor_review.jsonl)\00"
+@.str.6399 = private unnamed_addr constant [70 x i8] c"    --review-filter=<f>  Filter: findings, function=<name>, <checker>\00"
+@.str.6400 = private unnamed_addr constant [91 x i8] c"  explain <CODE>         Explain a compiler error code (e.g. NR031, OWN-G4-USE-AFTER-DROP)\00"
+@.str.6401 = private unnamed_addr constant [58 x i8] c"    --json               Output a JSON explanation object\00"
+@.str.6402 = private unnamed_addr constant [21 x i8] c"Governance commands:\00"
+@.str.6403 = private unnamed_addr constant [58 x i8] c"  audit [file]           Provenance and governance report\00"
+@.str.6404 = private unnamed_addr constant [83 x i8] c"  policy [file] [level]  Policy compliance (default, no_extern, no_system, strict)\00"
+@.str.6405 = private unnamed_addr constant [66 x i8] c"  certify [file]         Compile + produce certification manifest\00"
+@.str.6406 = private unnamed_addr constant [63 x i8] c"  translate [file]       Parse, validate, and summarize source\00"
+@.str.6407 = private unnamed_addr constant [19 x i8] c"Project utilities:\00"
+@.str.6408 = private unnamed_addr constant [73 x i8] c"  clean                  Remove target/ and .nuc_cache/ from the project\00"
+@.str.6409 = private unnamed_addr constant [75 x i8] c"  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only\00"
+@.str.6410 = private unnamed_addr constant [79 x i8] c"  scram                  Alias for `clean` (emergency shutdown of build state)\00"
+@.str.6411 = private unnamed_addr constant [76 x i8] c"  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)\00"
+@.str.6412 = private unnamed_addr constant [90 x i8] c"  gen-headers <input.nr> [-o <out.h>]  Emit C decls for #[export] / #[repr(C)] (RFC-0011)\00"
+@.str.6413 = private unnamed_addr constant [58 x i8] c"  zen                    The design principles of Nucleor\00"
+@.str.6414 = private unnamed_addr constant [81 x i8] c"  mco                    Mars Climate Orbiter - why we ship dimensional analysis\00"
+@.str.6415 = private unnamed_addr constant [14 x i8] c"Project mode:\00"
+@.str.6416 = private unnamed_addr constant [73 x i8] c"  If [file] is omitted and ./Nucleor.toml exists, [build].entry is used.\00"
+@.str.6417 = private unnamed_addr constant [38 x i8] c"Legacy: nuc <source.nr> <output_name>\00"
+@.str.6418 = private unnamed_addr constant [10 x i8] c"--version\00"
+@.str.6419 = private unnamed_addr constant [3 x i8] c"-v\00"
+@.str.6420 = private unnamed_addr constant [3 x i8] c"-V\00"
+@.str.6421 = private unnamed_addr constant [8 x i8] c"version\00"
+@.str.6422 = private unnamed_addr constant [8 x i8] c"explain\00"
+@.str.6423 = private unnamed_addr constant [11 x i8] c"--lsp-mode\00"
+@.str.6424 = private unnamed_addr constant [489 x i8] c"{\22server\22:\22nucleor-lsp\22,\22version\22:\22v0.8.150\22,\22phase\22:\22A0\22,\22capabilities\22:{\22textDocumentSync\22:{\22openClose\22:true,\22change\22:1},\22diagnosticProvider\22:{\22interFileDependencies\22:false,\22workspaceDiagnostics\22:false},\22hoverProvider\22:false,\22definitionProvider\22:false,\22completionProvider\22:{\22triggerCharacters\22:[\22.\22]},\22codeActionProvider\22:true,\22documentFormattingProvider\22:true},\22phaseA0\22:\22capabilities-advertisement-only; real LSP base protocol lands in Phase A1 (needs raw stdin byte-read primitive)\22}\00"
+@.str.6425 = private unnamed_addr constant [10 x i8] c"bootstrap\00"
+@.str.6426 = private unnamed_addr constant [11 x i8] c"stage-dump\00"
+@.str.6427 = private unnamed_addr constant [5 x i8] c"lock\00"
+@.str.6428 = private unnamed_addr constant [6 x i8] c"tools\00"
+@.str.6429 = private unnamed_addr constant [7 x i8] c"update\00"
+@.str.6430 = private unnamed_addr constant [8 x i8] c"publish\00"
+@.str.6431 = private unnamed_addr constant [9 x i8] c"registry\00"
+@.str.6432 = private unnamed_addr constant [4 x i8] c"fix\00"
+@.str.6433 = private unnamed_addr constant [4 x i8] c"doc\00"
+@.str.6434 = private unnamed_addr constant [12 x i8] c"gen-headers\00"
+@.str.6435 = private unnamed_addr constant [8 x i8] c"profile\00"
+@.str.6436 = private unnamed_addr constant [5 x i8] c"sage\00"
+@.str.6437 = private unnamed_addr constant [4 x i8] c"zen\00"
+@.str.6438 = private unnamed_addr constant [4 x i8] c"mco\00"
+@.str.6439 = private unnamed_addr constant [6 x i8] c"clean\00"
+@.str.6440 = private unnamed_addr constant [6 x i8] c"scram\00"
+@.str.6441 = private unnamed_addr constant [5 x i8] c"init\00"
+@.str.6442 = private unnamed_addr constant [10 x i8] c"myproject\00"
+@.str.6443 = private unnamed_addr constant [5 x i8] c"/src\00"
+@.str.6444 = private unnamed_addr constant [8 x i8] c"/target\00"
+@.str.6445 = private unnamed_addr constant [19 x i8] c"[package]\0Aname = \22\00"
+@.str.6446 = private unnamed_addr constant [52 x i8] c"\22\0Aversion = \220.1.0\22\0A\0A[build]\0Aentry = \22src/main.nr\22\0A\00"
+@.str.6447 = private unnamed_addr constant [14 x i8] c"/Nucleor.toml\00"
+@.str.6448 = private unnamed_addr constant [13 x i8] c"/src/main.nr\00"
+@.str.6449 = private unnamed_addr constant [66 x i8] c"fn main() -> i64 {\0A    print(\22Hello, Nucleor!\22);\0A    return 0;\0A}\0A\00"
+@.str.6450 = private unnamed_addr constant [20 x i8] c"  Created project: \00"
+@.str.6451 = private unnamed_addr constant [16 x i8] c"  To build: cd \00"
+@.str.6452 = private unnamed_addr constant [14 x i8] c" && nuc build\00"
+@.str.6453 = private unnamed_addr constant [16 x i8] c"  To run:   cd \00"
+@.str.6454 = private unnamed_addr constant [12 x i8] c" && nuc run\00"
+@.str.6455 = private unnamed_addr constant [19 x i8] c"  manifest entry: \00"
+@.str.6456 = private unnamed_addr constant [43 x i8] c"Usage: nuc <command> <source.nr> [options]\00"
+@.str.6457 = private unnamed_addr constant [70 x i8] c"  note: or run the command from a project directory with Nucleor.toml\00"
+@.str.6458 = private unnamed_addr constant [6 x i8] c"-test\00"
+@.str.6459 = private unnamed_addr constant [7 x i8] c"-bench\00"
+@.str.6460 = private unnamed_addr constant [14 x i8] c"--time-passes\00"
+@.str.6461 = private unnamed_addr constant [11 x i8] c"--no-cache\00"
+@.str.6462 = private unnamed_addr constant [14 x i8] c"--cache-stats\00"
+@.str.6463 = private unnamed_addr constant [10 x i8] c"--release\00"
+@.str.6464 = private unnamed_addr constant [4 x i8] c"-O3\00"
+@.str.6465 = private unnamed_addr constant [7 x i8] c"--tier\00"
+@.str.6466 = private unnamed_addr constant [44 x i8] c"ERROR: --tier requires a value (0, 1, or 2)\00"
+@.str.6467 = private unnamed_addr constant [4 x i8] c"-O1\00"
+@.str.6468 = private unnamed_addr constant [34 x i8] c"ERROR: unsupported --tier value: \00"
+@.str.6469 = private unnamed_addr constant [27 x i8] c"       expected 0, 1, or 2\00"
+@.str.6470 = private unnamed_addr constant [8 x i8] c"--tier=\00"
+@.str.6471 = private unnamed_addr constant [13 x i8] c"--provenance\00"
+@.str.6472 = private unnamed_addr constant [51 x i8] c"ERROR: --provenance requires a path to a JSON file\00"
+@.str.6473 = private unnamed_addr constant [14 x i8] c"--provenance=\00"
+@.str.6474 = private unnamed_addr constant [7 x i8] c"--list\00"
+@.str.6475 = private unnamed_addr constant [13 x i8] c"--iterations\00"
+@.str.6476 = private unnamed_addr constant [37 x i8] c"ERROR: --iterations requires a value\00"
+@.str.6477 = private unnamed_addr constant [14 x i8] c"--iterations=\00"
+@.str.6478 = private unnamed_addr constant [9 x i8] c"--warmup\00"
+@.str.6479 = private unnamed_addr constant [33 x i8] c"ERROR: --warmup requires a value\00"
+@.str.6480 = private unnamed_addr constant [10 x i8] c"--warmup=\00"
+@.str.6481 = private unnamed_addr constant [6 x i8] c"--out\00"
+@.str.6482 = private unnamed_addr constant [9 x i8] c"--output\00"
+@.str.6483 = private unnamed_addr constant [34 x i8] c"ERROR: -o requires an output name\00"
+@.str.6484 = private unnamed_addr constant [10 x i8] c"--no-link\00"
+@.str.6485 = private unnamed_addr constant [12 x i8] c"--emit=llvm\00"
+@.str.6486 = private unnamed_addr constant [7 x i8] c"--emit\00"
+@.str.6487 = private unnamed_addr constant [39 x i8] c"ERROR: --emit requires a target (llvm)\00"
+@.str.6488 = private unnamed_addr constant [7 x i8] c"native\00"
+@.str.6489 = private unnamed_addr constant [33 x i8] c"ERROR: unsupported emit target: \00"
+@.str.6490 = private unnamed_addr constant [22 x i8] c"ERROR: unknown flag: \00"
+@.str.6491 = private unnamed_addr constant [52 x i8] c"       run `nuc help` for the supported build flags\00"
+@.str.6492 = private unnamed_addr constant [65 x i8] c"ERROR: output name must contain only letters, digits, '_' or '-'\00"
+@.str.6493 = private unnamed_addr constant [41 x i8] c"ERROR: run cannot be used with --no-link\00"
+@.str.6494 = private unnamed_addr constant [8 x i8] c"target\5C\00"
+@.str.6495 = private unnamed_addr constant [10 x i8] c"./target/\00"
+@.str.6496 = private unnamed_addr constant [26 x i8] c"nuc run: child exited rc=\00"
+@.str.6497 = private unnamed_addr constant [7 x i8] c" from \00"
+@.str.6498 = private unnamed_addr constant [246 x i8] c"  note: rc=-1/4294967295 indicates the child process never started (Windows spawn failure: file-lock, antivirus, missing exe, or process-spawn failure). Retried 2 times. Try killing orphan nucleor.exe / clang.exe / <out>.exe processes and rerun.\00"
+@.str.6499 = private unnamed_addr constant [9 x i8] c"_repro_a\00"
+@.str.6500 = private unnamed_addr constant [9 x i8] c"_repro_b\00"
+@.str.6501 = private unnamed_addr constant [51 x i8] c"verify-reproducible: first build failed; aborting.\00"
+@.str.6502 = private unnamed_addr constant [52 x i8] c"verify-reproducible: second build failed; aborting.\00"
+@.str.6503 = private unnamed_addr constant [44 x i8] c"verify-reproducible: cannot read IR outputs\00"
+@.str.6504 = private unnamed_addr constant [31 x i8] c"verify-reproducible: source = \00"
+@.str.6505 = private unnamed_addr constant [16 x i8] c"  IR  build A: \00"
+@.str.6506 = private unnamed_addr constant [14 x i8] c" bytes, hash=\00"
+@.str.6507 = private unnamed_addr constant [16 x i8] c"  IR  build B: \00"
+@.str.6508 = private unnamed_addr constant [16 x i8] c"  EXE build A: \00"
+@.str.6509 = private unnamed_addr constant [16 x i8] c"  EXE build B: \00"
+@.str.6510 = private unnamed_addr constant [27 x i8] c"  EXE diff: byte-identical\00"
+@.str.6511 = private unnamed_addr constant [19 x i8] c"  EXE diff: DIFFER\00"
+@.str.6512 = private unnamed_addr constant [53 x i8] c"  EXE: skipped (one or both linked binaries missing)\00"
+@.str.6513 = private unnamed_addr constant [60 x i8] c"PASS: byte-identical IR + EXE across two cold-cache builds.\00"
+@.str.6514 = private unnamed_addr constant [65 x i8] c"  This file satisfies the RFC-NRT-003 reproducibility invariant.\00"
+@.str.6515 = private unnamed_addr constant [47 x i8] c"  Suitable for SLSA-Build-Level-3 attestation.\00"
+@.str.6516 = private unnamed_addr constant [25 x i8] c"FAIL: IR outputs differ.\00"
+@.str.6517 = private unnamed_addr constant [52 x i8] c"  Determinism break in the compiler. Common causes:\00"
+@.str.6518 = private unnamed_addr constant [41 x i8] c"    - timestamps in cached intermediates\00"
+@.str.6519 = private unnamed_addr constant [52 x i8] c"    - hash-table iteration order in symbol lowering\00"
+@.str.6520 = private unnamed_addr constant [42 x i8] c"    - absolute build paths embedded in IR\00"
+@.str.6521 = private unnamed_addr constant [45 x i8] c"    - random seeding in an optimization pass\00"
+@.str.6522 = private unnamed_addr constant [43 x i8] c"FAIL: IR identical but EXE outputs differ.\00"
+@.str.6523 = private unnamed_addr constant [50 x i8] c"  Determinism break in the linker. Common causes:\00"
+@.str.6524 = private unnamed_addr constant [57 x i8] c"    - PE/COFF timestamp not suppressed (use -Wl,/Brepro)\00"
+@.str.6525 = private unnamed_addr constant [52 x i8] c"    - ELF build-id varies (use -Wl,--build-id=none)\00"
+@.str.6526 = private unnamed_addr constant [39 x i8] c"    - debug info embeds absolute paths\00"
+@.str.6527 = private unnamed_addr constant [18 x i8] c"Unknown command: \00"
 
 @.nucleor_provenance_data = constant [1 x i8] c"\00", section ".nucprov", align 1
 @llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section "llvm.metadata"
@@ -299873,12 +299879,137 @@ L4:
   ret i64 %r.13
 }
 
+define i64 @rt_o_cache_path(i64 %p.0, i64 %p.1, i64 %p.2) {
+bb.entry:
+  %r.14 = alloca i64
+  %r.19 = alloca i64
+  %r.24 = alloca i64
+  %r.28 = alloca i64
+  %r.32 = alloca i64
+  %r.0 = alloca i64
+  %r.1 = add i64 %p.0, 0
+  store i64 %r.1, ptr %r.0
+  %r.2 = alloca i64
+  %r.3 = add i64 %p.1, 0
+  store i64 %r.3, ptr %r.2
+  %r.4 = alloca i64
+  %r.5 = add i64 %p.2, 0
+  store i64 %r.5, ptr %r.4
+  %r.6 = ptrtoint ptr @.str.5536 to i64
+  %r.7 = ptrtoint ptr @.str.1 to i64
+  %r.8.a0 = inttoptr i64 %r.6 to ptr
+  %r.8.a1 = inttoptr i64 %r.7 to ptr
+  %r.8 = call i64 @__nucleor_env_get_or(ptr %r.8.a0, ptr %r.8.a1)
+  %r.9 = ptrtoint ptr @.str.0 to i64
+  %r.10.a0 = inttoptr i64 %r.8 to ptr
+  %r.10.a1 = inttoptr i64 %r.9 to ptr
+  %r.10 = call i64 @__nucleor_str_eq(ptr %r.10.a0, ptr %r.10.a1)
+  %r.11 = add i64 1, 0
+  %r.12.cmp = icmp eq i64 %r.10, %r.11
+  %r.12 = zext i1 %r.12.cmp to i64
+  %br.12.cond = icmp ne i64 %r.12, 0
+  br i1 %br.12.cond, label %L0, label %L2
+L0:
+  %r.13 = ptrtoint ptr @.str.136 to i64
+  ret i64 %r.13
+L2:
+  %r.15 = load i64, ptr %r.0
+  %r.16.a0 = inttoptr i64 %r.15 to ptr
+  %r.16.rv = call ptr @__nucleor_file_read_string(ptr %r.16.a0)
+  %r.16 = ptrtoint ptr %r.16.rv to i64
+  %r.17.a0 = inttoptr i64 %r.16 to ptr
+  %r.17 = call i64 @__nucleor_fnv1a_64_str(ptr %r.17.a0)
+  %r.18 = call i64 @str_from_int(i64 %r.17)
+  store i64 %r.18, ptr %r.14
+  %r.20 = load i64, ptr %r.2
+  %r.21.a0 = inttoptr i64 %r.20 to ptr
+  %r.21.rv = call ptr @__nucleor_file_read_string(ptr %r.21.a0)
+  %r.21 = ptrtoint ptr %r.21.rv to i64
+  %r.22.a0 = inttoptr i64 %r.21 to ptr
+  %r.22 = call i64 @__nucleor_fnv1a_64_str(ptr %r.22.a0)
+  %r.23 = call i64 @str_from_int(i64 %r.22)
+  store i64 %r.23, ptr %r.19
+  %r.25 = load i64, ptr %r.4
+  %r.26.a0 = inttoptr i64 %r.25 to ptr
+  %r.26 = call i64 @__nucleor_fnv1a_64_str(ptr %r.26.a0)
+  %r.27 = call i64 @str_from_int(i64 %r.26)
+  store i64 %r.27, ptr %r.24
+  %r.29 = call i64 @llvm_clang_path()
+  %r.30.a0 = inttoptr i64 %r.29 to ptr
+  %r.30 = call i64 @__nucleor_fnv1a_64_str(ptr %r.30.a0)
+  %r.31 = call i64 @str_from_int(i64 %r.30)
+  store i64 %r.31, ptr %r.28
+  %r.33 = ptrtoint ptr @.str.5537 to i64
+  %r.34 = load i64, ptr %r.14
+  %r.35 = ptrtoint ptr @.str.21 to i64
+  %r.36 = load i64, ptr %r.19
+  %r.38 = load i64, ptr %r.24
+  %r.40 = load i64, ptr %r.28
+  %r.41.a0 = inttoptr i64 %r.35 to ptr
+  %r.41.a1 = inttoptr i64 %r.40 to ptr
+  %r.41.rv = call ptr @__nucleor_str_concat(ptr %r.41.a0, ptr %r.41.a1)
+  %r.41 = ptrtoint ptr %r.41.rv to i64
+  %r.42.a0 = inttoptr i64 %r.38 to ptr
+  %r.42.a1 = inttoptr i64 %r.41 to ptr
+  %r.42.rv = call ptr @__nucleor_str_concat(ptr %r.42.a0, ptr %r.42.a1)
+  %r.42 = ptrtoint ptr %r.42.rv to i64
+  %r.43.a0 = inttoptr i64 %r.35 to ptr
+  %r.43.a1 = inttoptr i64 %r.42 to ptr
+  %r.43.rv = call ptr @__nucleor_str_concat(ptr %r.43.a0, ptr %r.43.a1)
+  %r.43 = ptrtoint ptr %r.43.rv to i64
+  %r.44.a0 = inttoptr i64 %r.36 to ptr
+  %r.44.a1 = inttoptr i64 %r.43 to ptr
+  %r.44.rv = call ptr @__nucleor_str_concat(ptr %r.44.a0, ptr %r.44.a1)
+  %r.44 = ptrtoint ptr %r.44.rv to i64
+  %r.45.a0 = inttoptr i64 %r.35 to ptr
+  %r.45.a1 = inttoptr i64 %r.44 to ptr
+  %r.45.rv = call ptr @__nucleor_str_concat(ptr %r.45.a0, ptr %r.45.a1)
+  %r.45 = ptrtoint ptr %r.45.rv to i64
+  %r.46.a0 = inttoptr i64 %r.34 to ptr
+  %r.46.a1 = inttoptr i64 %r.45 to ptr
+  %r.46.rv = call ptr @__nucleor_str_concat(ptr %r.46.a0, ptr %r.46.a1)
+  %r.46 = ptrtoint ptr %r.46.rv to i64
+  %r.47.a0 = inttoptr i64 %r.33 to ptr
+  %r.47.a1 = inttoptr i64 %r.46 to ptr
+  %r.47.rv = call ptr @__nucleor_str_concat(ptr %r.47.a0, ptr %r.47.a1)
+  %r.47 = ptrtoint ptr %r.47.rv to i64
+  store i64 %r.47, ptr %r.32
+  %r.48 = ptrtoint ptr @.str.5538 to i64
+  %r.49 = load i64, ptr %r.32
+  %r.50 = call i64 @host_obj_suffix()
+  %r.51.a0 = inttoptr i64 %r.49 to ptr
+  %r.51.a1 = inttoptr i64 %r.50 to ptr
+  %r.51.rv = call ptr @__nucleor_str_concat(ptr %r.51.a0, ptr %r.51.a1)
+  %r.51 = ptrtoint ptr %r.51.rv to i64
+  %r.52.a0 = inttoptr i64 %r.48 to ptr
+  %r.52.a1 = inttoptr i64 %r.51 to ptr
+  %r.52.rv = call ptr @__nucleor_str_concat(ptr %r.52.a0, ptr %r.52.a1)
+  %r.52 = ptrtoint ptr %r.52.rv to i64
+  ret i64 %r.52
+}
+
+define i64 @host_obj_suffix() {
+bb.entry:
+  %r.0 = call i64 @host_is_windows()
+  %r.1 = add i64 1, 0
+  %r.2.cmp = icmp eq i64 %r.0, %r.1
+  %r.2 = zext i1 %r.2.cmp to i64
+  %br.2.cond = icmp ne i64 %r.2, 0
+  br i1 %br.2.cond, label %L0, label %L2
+L0:
+  %r.3 = ptrtoint ptr @.str.5539 to i64
+  ret i64 %r.3
+L2:
+  %r.4 = ptrtoint ptr @.str.5540 to i64
+  ret i64 %r.4
+}
+
 define i64 @native_link_cache_dir(i64 %p.0) {
 bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.5536 to i64
+  %r.2 = ptrtoint ptr @.str.5541 to i64
   %r.3 = load i64, ptr %r.0
   %r.4 = call i64 @cache_v2_prefix(i64 %r.3)
   %r.5.a0 = inttoptr i64 %r.2 to ptr
@@ -299924,7 +300055,7 @@ bb.entry:
   %r.4 = alloca i64
   %r.5 = add i64 %p.2, 0
   store i64 %r.5, ptr %r.4
-  %r.6 = ptrtoint ptr @.str.5537 to i64
+  %r.6 = ptrtoint ptr @.str.5542 to i64
   %r.7 = ptrtoint ptr @.str.1 to i64
   %r.8.a0 = inttoptr i64 %r.6 to ptr
   %r.8.a1 = inttoptr i64 %r.7 to ptr
@@ -300025,8 +300156,8 @@ bb.entry:
   %r.22 = call i64 @__nucleor_fnv1a_64_str(ptr %r.22.a0)
   %r.23 = call i64 @str_from_int(i64 %r.22)
   store i64 %r.23, ptr %r.19
-  %r.25 = ptrtoint ptr @.str.5538 to i64
-  %r.26 = ptrtoint ptr @.str.5539 to i64
+  %r.25 = ptrtoint ptr @.str.5543 to i64
+  %r.26 = ptrtoint ptr @.str.5544 to i64
   %r.27.a0 = inttoptr i64 %r.25 to ptr
   %r.27.a1 = inttoptr i64 %r.26 to ptr
   %r.27 = call i64 @__nucleor_env_get_or(ptr %r.27.a0, ptr %r.27.a1)
@@ -300034,7 +300165,7 @@ bb.entry:
   %r.29 = call i64 @__nucleor_sb_new()
   store i64 %r.29, ptr %r.28
   %r.30 = load i64, ptr %r.28
-  %r.31 = ptrtoint ptr @.str.5540 to i64
+  %r.31 = ptrtoint ptr @.str.5545 to i64
   %r.32.a1 = inttoptr i64 %r.31 to ptr
   call void @__nucleor_sb_append(i64 %r.30, ptr %r.32.a1)
   %r.32 = add i64 0, 0
@@ -300044,7 +300175,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.33, ptr %r.35.a1)
   %r.35 = add i64 0, 0
   %r.36 = load i64, ptr %r.28
-  %r.37 = ptrtoint ptr @.str.5541 to i64
+  %r.37 = ptrtoint ptr @.str.5546 to i64
   %r.38.a1 = inttoptr i64 %r.37 to ptr
   call void @__nucleor_sb_append(i64 %r.36, ptr %r.38.a1)
   %r.38 = add i64 0, 0
@@ -300054,7 +300185,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.39, ptr %r.41.a1)
   %r.41 = add i64 0, 0
   %r.42 = load i64, ptr %r.28
-  %r.43 = ptrtoint ptr @.str.5542 to i64
+  %r.43 = ptrtoint ptr @.str.5547 to i64
   %r.44.a1 = inttoptr i64 %r.43 to ptr
   call void @__nucleor_sb_append(i64 %r.42, ptr %r.44.a1)
   %r.44 = add i64 0, 0
@@ -300064,7 +300195,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.45, ptr %r.47.a1)
   %r.47 = add i64 0, 0
   %r.48 = load i64, ptr %r.28
-  %r.49 = ptrtoint ptr @.str.5543 to i64
+  %r.49 = ptrtoint ptr @.str.5548 to i64
   %r.50.a1 = inttoptr i64 %r.49 to ptr
   call void @__nucleor_sb_append(i64 %r.48, ptr %r.50.a1)
   %r.50 = add i64 0, 0
@@ -300074,7 +300205,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.51, ptr %r.53.a1)
   %r.53 = add i64 0, 0
   %r.54 = load i64, ptr %r.28
-  %r.55 = ptrtoint ptr @.str.5544 to i64
+  %r.55 = ptrtoint ptr @.str.5549 to i64
   %r.56.a1 = inttoptr i64 %r.55 to ptr
   call void @__nucleor_sb_append(i64 %r.54, ptr %r.56.a1)
   %r.56 = add i64 0, 0
@@ -300084,7 +300215,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.57, ptr %r.59.a1)
   %r.59 = add i64 0, 0
   %r.60 = load i64, ptr %r.28
-  %r.61 = ptrtoint ptr @.str.5545 to i64
+  %r.61 = ptrtoint ptr @.str.5550 to i64
   %r.62.a1 = inttoptr i64 %r.61 to ptr
   call void @__nucleor_sb_append(i64 %r.60, ptr %r.62.a1)
   %r.62 = add i64 0, 0
@@ -300094,7 +300225,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.63, ptr %r.65.a1)
   %r.65 = add i64 0, 0
   %r.66 = load i64, ptr %r.28
-  %r.67 = ptrtoint ptr @.str.5546 to i64
+  %r.67 = ptrtoint ptr @.str.5551 to i64
   %r.68.a1 = inttoptr i64 %r.67 to ptr
   call void @__nucleor_sb_append(i64 %r.66, ptr %r.68.a1)
   %r.68 = add i64 0, 0
@@ -300161,8 +300292,8 @@ L2:
   %r.23 = call i64 @__nucleor_fnv1a_64_str(ptr %r.23.a0)
   %r.24 = call i64 @str_from_int(i64 %r.23)
   store i64 %r.24, ptr %r.20
-  %r.26 = ptrtoint ptr @.str.5538 to i64
-  %r.27 = ptrtoint ptr @.str.5539 to i64
+  %r.26 = ptrtoint ptr @.str.5543 to i64
+  %r.27 = ptrtoint ptr @.str.5544 to i64
   %r.28.a0 = inttoptr i64 %r.26 to ptr
   %r.28.a1 = inttoptr i64 %r.27 to ptr
   %r.28 = call i64 @__nucleor_env_get_or(ptr %r.28.a0, ptr %r.28.a1)
@@ -300170,7 +300301,7 @@ L2:
   %r.30 = call i64 @__nucleor_sb_new()
   store i64 %r.30, ptr %r.29
   %r.31 = load i64, ptr %r.29
-  %r.32 = ptrtoint ptr @.str.5547 to i64
+  %r.32 = ptrtoint ptr @.str.5552 to i64
   %r.33.a1 = inttoptr i64 %r.32 to ptr
   call void @__nucleor_sb_append(i64 %r.31, ptr %r.33.a1)
   %r.33 = add i64 0, 0
@@ -300180,7 +300311,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.34, ptr %r.36.a1)
   %r.36 = add i64 0, 0
   %r.37 = load i64, ptr %r.29
-  %r.38 = ptrtoint ptr @.str.5548 to i64
+  %r.38 = ptrtoint ptr @.str.5553 to i64
   %r.39.a1 = inttoptr i64 %r.38 to ptr
   call void @__nucleor_sb_append(i64 %r.37, ptr %r.39.a1)
   %r.39 = add i64 0, 0
@@ -300190,7 +300321,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.40, ptr %r.42.a1)
   %r.42 = add i64 0, 0
   %r.43 = load i64, ptr %r.29
-  %r.44 = ptrtoint ptr @.str.5542 to i64
+  %r.44 = ptrtoint ptr @.str.5547 to i64
   %r.45.a1 = inttoptr i64 %r.44 to ptr
   call void @__nucleor_sb_append(i64 %r.43, ptr %r.45.a1)
   %r.45 = add i64 0, 0
@@ -300200,7 +300331,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.46, ptr %r.48.a1)
   %r.48 = add i64 0, 0
   %r.49 = load i64, ptr %r.29
-  %r.50 = ptrtoint ptr @.str.5543 to i64
+  %r.50 = ptrtoint ptr @.str.5548 to i64
   %r.51.a1 = inttoptr i64 %r.50 to ptr
   call void @__nucleor_sb_append(i64 %r.49, ptr %r.51.a1)
   %r.51 = add i64 0, 0
@@ -300210,7 +300341,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.52, ptr %r.54.a1)
   %r.54 = add i64 0, 0
   %r.55 = load i64, ptr %r.29
-  %r.56 = ptrtoint ptr @.str.5544 to i64
+  %r.56 = ptrtoint ptr @.str.5549 to i64
   %r.57.a1 = inttoptr i64 %r.56 to ptr
   call void @__nucleor_sb_append(i64 %r.55, ptr %r.57.a1)
   %r.57 = add i64 0, 0
@@ -300220,7 +300351,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.58, ptr %r.60.a1)
   %r.60 = add i64 0, 0
   %r.61 = load i64, ptr %r.29
-  %r.62 = ptrtoint ptr @.str.5545 to i64
+  %r.62 = ptrtoint ptr @.str.5550 to i64
   %r.63.a1 = inttoptr i64 %r.62 to ptr
   call void @__nucleor_sb_append(i64 %r.61, ptr %r.63.a1)
   %r.63 = add i64 0, 0
@@ -300230,7 +300361,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.64, ptr %r.66.a1)
   %r.66 = add i64 0, 0
   %r.67 = load i64, ptr %r.29
-  %r.68 = ptrtoint ptr @.str.5546 to i64
+  %r.68 = ptrtoint ptr @.str.5551 to i64
   %r.69.a1 = inttoptr i64 %r.68 to ptr
   call void @__nucleor_sb_append(i64 %r.67, ptr %r.69.a1)
   %r.69 = add i64 0, 0
@@ -300295,7 +300426,7 @@ L5:
 
 define i64 @cache_v2_stats_enabled() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.5549 to i64
+  %r.0 = ptrtoint ptr @.str.5554 to i64
   %r.1 = ptrtoint ptr @.str.0 to i64
   %r.2.a0 = inttoptr i64 %r.0 to ptr
   %r.2.a1 = inttoptr i64 %r.1 to ptr
@@ -300333,10 +300464,10 @@ bb.entry:
   %br.6.cond = icmp ne i64 %r.6, 0
   br i1 %br.6.cond, label %L0, label %L1
 L0:
-  %r.8 = ptrtoint ptr @.str.5550 to i64
+  %r.8 = ptrtoint ptr @.str.5555 to i64
   %r.9 = load i64, ptr %r.0
   %r.10 = call i64 @str_from_int(i64 %r.9)
-  %r.11 = ptrtoint ptr @.str.5551 to i64
+  %r.11 = ptrtoint ptr @.str.5556 to i64
   %r.12 = load i64, ptr %r.2
   %r.13 = call i64 @str_from_int(i64 %r.12)
   %r.14.a0 = inttoptr i64 %r.11 to ptr
@@ -300386,17 +300517,17 @@ bb.entry:
   %r.11 = call i64 @__nucleor_sb_new()
   store i64 %r.11, ptr %r.10
   %r.12 = load i64, ptr %r.10
-  %r.13 = ptrtoint ptr @.str.5552 to i64
+  %r.13 = ptrtoint ptr @.str.5557 to i64
   %r.14.a1 = inttoptr i64 %r.13 to ptr
   call void @__nucleor_sb_append(i64 %r.12, ptr %r.14.a1)
   %r.14 = add i64 0, 0
   %r.15 = load i64, ptr %r.10
-  %r.16 = ptrtoint ptr @.str.5553 to i64
+  %r.16 = ptrtoint ptr @.str.5558 to i64
   %r.17.a1 = inttoptr i64 %r.16 to ptr
   call void @__nucleor_sb_append(i64 %r.15, ptr %r.17.a1)
   %r.17 = add i64 0, 0
   %r.18 = load i64, ptr %r.10
-  %r.19 = ptrtoint ptr @.str.5554 to i64
+  %r.19 = ptrtoint ptr @.str.5559 to i64
   %r.20.a1 = inttoptr i64 %r.19 to ptr
   call void @__nucleor_sb_append(i64 %r.18, ptr %r.20.a1)
   %r.20 = add i64 0, 0
@@ -300407,12 +300538,12 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.21, ptr %r.24.a1)
   %r.24 = add i64 0, 0
   %r.25 = load i64, ptr %r.10
-  %r.26 = ptrtoint ptr @.str.5555 to i64
+  %r.26 = ptrtoint ptr @.str.5560 to i64
   %r.27.a1 = inttoptr i64 %r.26 to ptr
   call void @__nucleor_sb_append(i64 %r.25, ptr %r.27.a1)
   %r.27 = add i64 0, 0
   %r.28 = load i64, ptr %r.10
-  %r.29 = ptrtoint ptr @.str.5556 to i64
+  %r.29 = ptrtoint ptr @.str.5561 to i64
   %r.30.a1 = inttoptr i64 %r.29 to ptr
   call void @__nucleor_sb_append(i64 %r.28, ptr %r.30.a1)
   %r.30 = add i64 0, 0
@@ -300427,7 +300558,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.35, ptr %r.37.a1)
   %r.37 = add i64 0, 0
   %r.38 = load i64, ptr %r.10
-  %r.39 = ptrtoint ptr @.str.5557 to i64
+  %r.39 = ptrtoint ptr @.str.5562 to i64
   %r.40.a1 = inttoptr i64 %r.39 to ptr
   call void @__nucleor_sb_append(i64 %r.38, ptr %r.40.a1)
   %r.40 = add i64 0, 0
@@ -300442,7 +300573,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.45, ptr %r.47.a1)
   %r.47 = add i64 0, 0
   %r.48 = load i64, ptr %r.10
-  %r.49 = ptrtoint ptr @.str.5558 to i64
+  %r.49 = ptrtoint ptr @.str.5563 to i64
   %r.50.a1 = inttoptr i64 %r.49 to ptr
   call void @__nucleor_sb_append(i64 %r.48, ptr %r.50.a1)
   %r.50 = add i64 0, 0
@@ -300456,7 +300587,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.54, ptr %r.56.a1)
   %r.56 = add i64 0, 0
   %r.57 = load i64, ptr %r.10
-  %r.58 = ptrtoint ptr @.str.5559 to i64
+  %r.58 = ptrtoint ptr @.str.5564 to i64
   %r.59.a1 = inttoptr i64 %r.58 to ptr
   call void @__nucleor_sb_append(i64 %r.57, ptr %r.59.a1)
   %r.59 = add i64 0, 0
@@ -300472,7 +300603,7 @@ bb.entry:
   call void @__nucleor_sb_append(i64 %r.64, ptr %r.66.a1)
   %r.66 = add i64 0, 0
   %r.67 = load i64, ptr %r.10
-  %r.68 = ptrtoint ptr @.str.5560 to i64
+  %r.68 = ptrtoint ptr @.str.5565 to i64
   %r.69.a1 = inttoptr i64 %r.68 to ptr
   call void @__nucleor_sb_append(i64 %r.67, ptr %r.69.a1)
   %r.69 = add i64 0, 0
@@ -300647,7 +300778,7 @@ bb.entry:
   %r.8 = call i64 @__nucleor_sb_new()
   store i64 %r.8, ptr %r.7
   %r.9 = load i64, ptr %r.7
-  %r.10 = ptrtoint ptr @.str.5561 to i64
+  %r.10 = ptrtoint ptr @.str.5566 to i64
   %r.11.a1 = inttoptr i64 %r.10 to ptr
   call void @__nucleor_sb_append(i64 %r.9, ptr %r.11.a1)
   %r.11 = add i64 0, 0
@@ -300838,7 +300969,7 @@ L0:
   %r.8 = load i64, ptr %r.2
   ret i64 %r.8
 L2:
-  %r.10 = ptrtoint ptr @.str.5562 to i64
+  %r.10 = ptrtoint ptr @.str.5567 to i64
   %r.11 = ptrtoint ptr @.str.136 to i64
   %r.12.a0 = inttoptr i64 %r.10 to ptr
   %r.12.a1 = inttoptr i64 %r.11 to ptr
@@ -300947,7 +301078,7 @@ bb.entry:
   %r.12 = alloca i64
   %r.19 = alloca i64
   %r.26 = alloca i64
-  %r.1 = ptrtoint ptr @.str.5563 to i64
+  %r.1 = ptrtoint ptr @.str.5568 to i64
   %r.2 = ptrtoint ptr @.str.136 to i64
   %r.3.a0 = inttoptr i64 %r.1 to ptr
   %r.3.a1 = inttoptr i64 %r.2 to ptr
@@ -300972,7 +301103,7 @@ L2:
   %br.11.cond = icmp ne i64 %r.11, 0
   br i1 %br.11.cond, label %L3, label %L5
 L3:
-  %r.13 = ptrtoint ptr @.str.5564 to i64
+  %r.13 = ptrtoint ptr @.str.5569 to i64
   store i64 %r.13, ptr %r.12
   %r.14 = load i64, ptr %r.12
   %r.15 = call i64 @path_exists(i64 %r.14)
@@ -300985,7 +301116,7 @@ L6:
   %r.18 = load i64, ptr %r.12
   ret i64 %r.18
 L8:
-  %r.20 = ptrtoint ptr @.str.5565 to i64
+  %r.20 = ptrtoint ptr @.str.5570 to i64
   store i64 %r.20, ptr %r.19
   %r.21 = load i64, ptr %r.19
   %r.22 = call i64 @path_exists(i64 %r.21)
@@ -300998,7 +301129,7 @@ L9:
   %r.25 = load i64, ptr %r.19
   ret i64 %r.25
 L11:
-  %r.27 = ptrtoint ptr @.str.5566 to i64
+  %r.27 = ptrtoint ptr @.str.5571 to i64
   store i64 %r.27, ptr %r.26
   %r.28 = load i64, ptr %r.26
   %r.29 = call i64 @path_exists(i64 %r.28)
@@ -301013,7 +301144,7 @@ L12:
 L14:
   br label %L5
 L5:
-  %r.33 = ptrtoint ptr @.str.5567 to i64
+  %r.33 = ptrtoint ptr @.str.5572 to i64
   ret i64 %r.33
 }
 
@@ -301075,7 +301206,7 @@ bb.entry:
   %br.2.cond = icmp ne i64 %r.2, 0
   br i1 %br.2.cond, label %L0, label %L2
 L0:
-  %r.3 = ptrtoint ptr @.str.5568 to i64
+  %r.3 = ptrtoint ptr @.str.5573 to i64
   ret i64 %r.3
 L2:
   %r.4 = ptrtoint ptr @.str.136 to i64
@@ -301188,10 +301319,10 @@ bb.entry:
   %br.2.cond = icmp ne i64 %r.2, 0
   br i1 %br.2.cond, label %L0, label %L2
 L0:
-  %r.3 = ptrtoint ptr @.str.5569 to i64
+  %r.3 = ptrtoint ptr @.str.5574 to i64
   ret i64 %r.3
 L2:
-  %r.4 = ptrtoint ptr @.str.5570 to i64
+  %r.4 = ptrtoint ptr @.str.5575 to i64
   ret i64 %r.4
 }
 
@@ -301207,9 +301338,9 @@ bb.entry:
   %br.4.cond = icmp ne i64 %r.4, 0
   br i1 %br.4.cond, label %L0, label %L2
 L0:
-  %r.5 = ptrtoint ptr @.str.5571 to i64
+  %r.5 = ptrtoint ptr @.str.5576 to i64
   %r.6 = load i64, ptr %r.0
-  %r.7 = ptrtoint ptr @.str.5569 to i64
+  %r.7 = ptrtoint ptr @.str.5574 to i64
   %r.8.a0 = inttoptr i64 %r.6 to ptr
   %r.8.a1 = inttoptr i64 %r.7 to ptr
   %r.8.rv = call ptr @__nucleor_str_concat(ptr %r.8.a0, ptr %r.8.a1)
@@ -301222,9 +301353,9 @@ L0:
   %r.10 = call i64 @__nucleor_system(ptr %r.10.a0)
   ret i64 %r.10
 L2:
-  %r.11 = ptrtoint ptr @.str.5572 to i64
+  %r.11 = ptrtoint ptr @.str.5577 to i64
   %r.12 = load i64, ptr %r.0
-  %r.13 = ptrtoint ptr @.str.5570 to i64
+  %r.13 = ptrtoint ptr @.str.5575 to i64
   %r.14.a0 = inttoptr i64 %r.12 to ptr
   %r.14.a1 = inttoptr i64 %r.13 to ptr
   %r.14.rv = call ptr @__nucleor_str_concat(ptr %r.14.a0, ptr %r.14.a1)
@@ -301250,9 +301381,9 @@ bb.entry:
   %br.4.cond = icmp ne i64 %r.4, 0
   br i1 %br.4.cond, label %L0, label %L2
 L0:
-  %r.5 = ptrtoint ptr @.str.5573 to i64
+  %r.5 = ptrtoint ptr @.str.5578 to i64
   %r.6 = load i64, ptr %r.0
-  %r.7 = ptrtoint ptr @.str.5569 to i64
+  %r.7 = ptrtoint ptr @.str.5574 to i64
   %r.8.a0 = inttoptr i64 %r.6 to ptr
   %r.8.a1 = inttoptr i64 %r.7 to ptr
   %r.8.rv = call ptr @__nucleor_str_concat(ptr %r.8.a0, ptr %r.8.a1)
@@ -301265,9 +301396,9 @@ L0:
   %r.10 = call i64 @__nucleor_system(ptr %r.10.a0)
   ret i64 %r.10
 L2:
-  %r.11 = ptrtoint ptr @.str.5574 to i64
+  %r.11 = ptrtoint ptr @.str.5579 to i64
   %r.12 = load i64, ptr %r.0
-  %r.13 = ptrtoint ptr @.str.5570 to i64
+  %r.13 = ptrtoint ptr @.str.5575 to i64
   %r.14.a0 = inttoptr i64 %r.12 to ptr
   %r.14.a1 = inttoptr i64 %r.13 to ptr
   %r.14.rv = call ptr @__nucleor_str_concat(ptr %r.14.a0, ptr %r.14.a1)
@@ -301290,10 +301421,10 @@ bb.entry:
   %br.2.cond = icmp ne i64 %r.2, 0
   br i1 %br.2.cond, label %L0, label %L2
 L0:
-  %r.3 = ptrtoint ptr @.str.5575 to i64
+  %r.3 = ptrtoint ptr @.str.5580 to i64
   ret i64 %r.3
 L2:
-  %r.4 = ptrtoint ptr @.str.5576 to i64
+  %r.4 = ptrtoint ptr @.str.5581 to i64
   ret i64 %r.4
 }
 
@@ -301306,7 +301437,7 @@ bb.entry:
   %br.2.cond = icmp ne i64 %r.2, 0
   br i1 %br.2.cond, label %L0, label %L2
 L0:
-  %r.3 = ptrtoint ptr @.str.5577 to i64
+  %r.3 = ptrtoint ptr @.str.5582 to i64
   %r.4.a0 = inttoptr i64 %r.3 to ptr
   %r.4 = call i64 @__nucleor_fs_exists(ptr %r.4.a0)
   %r.5 = add i64 1, 0
@@ -301315,10 +301446,10 @@ L0:
   %br.6.cond = icmp ne i64 %r.6, 0
   br i1 %br.6.cond, label %L3, label %L5
 L3:
-  %r.7 = ptrtoint ptr @.str.5578 to i64
+  %r.7 = ptrtoint ptr @.str.5583 to i64
   ret i64 %r.7
 L5:
-  %r.8 = ptrtoint ptr @.str.5579 to i64
+  %r.8 = ptrtoint ptr @.str.5584 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   %r.9 = call i64 @__nucleor_fs_exists(ptr %r.9.a0)
   %r.10 = add i64 1, 0
@@ -301327,7 +301458,7 @@ L5:
   %br.11.cond = icmp ne i64 %r.11, 0
   br i1 %br.11.cond, label %L6, label %L8
 L6:
-  %r.12 = ptrtoint ptr @.str.5578 to i64
+  %r.12 = ptrtoint ptr @.str.5583 to i64
   ret i64 %r.12
 L8:
   br label %L2
@@ -301359,7 +301490,7 @@ bb.entry:
   br i1 %br.9.cond, label %L0, label %L2
 L0:
   %r.11 = load i64, ptr %r.0
-  %r.12 = ptrtoint ptr @.str.5580 to i64
+  %r.12 = ptrtoint ptr @.str.5585 to i64
   %r.13.a0 = inttoptr i64 %r.11 to ptr
   %r.13.a1 = inttoptr i64 %r.12 to ptr
   %r.13.rv = call ptr @__nucleor_str_concat(ptr %r.13.a0, ptr %r.13.a1)
@@ -301453,7 +301584,7 @@ bb.entry:
   br i1 %br.9.cond, label %L0, label %L2
 L0:
   %r.11 = load i64, ptr %r.2
-  %r.12 = ptrtoint ptr @.str.5580 to i64
+  %r.12 = ptrtoint ptr @.str.5585 to i64
   %r.13.a0 = inttoptr i64 %r.11 to ptr
   %r.13.a1 = inttoptr i64 %r.12 to ptr
   %r.13.rv = call ptr @__nucleor_str_concat(ptr %r.13.a0, ptr %r.13.a1)
@@ -301609,7 +301740,7 @@ bb.entry:
   %r.10 = alloca i64
   %r.11 = add i64 %p.5, 0
   store i64 %r.11, ptr %r.10
-  %r.13 = ptrtoint ptr @.str.5581 to i64
+  %r.13 = ptrtoint ptr @.str.5586 to i64
   %r.14 = load i64, ptr %r.2
   %r.15 = ptrtoint ptr @.str.5534 to i64
   %r.16.a0 = inttoptr i64 %r.14 to ptr
@@ -301621,7 +301752,7 @@ bb.entry:
   %r.17.rv = call ptr @__nucleor_str_concat(ptr %r.17.a0, ptr %r.17.a1)
   %r.17 = ptrtoint ptr %r.17.rv to i64
   store i64 %r.17, ptr %r.12
-  %r.19 = ptrtoint ptr @.str.5582 to i64
+  %r.19 = ptrtoint ptr @.str.5587 to i64
   %r.20 = call i64 @host_target_path_sep()
   %r.21.a0 = inttoptr i64 %r.19 to ptr
   %r.21.a1 = inttoptr i64 %r.20 to ptr
@@ -301640,7 +301771,7 @@ bb.entry:
   store i64 %r.25, ptr %r.18
   %r.27 = call i64 @host_null_redirect()
   store i64 %r.27, ptr %r.26
-  %r.28 = ptrtoint ptr @.str.5583 to i64
+  %r.28 = ptrtoint ptr @.str.5588 to i64
   %r.29 = load i64, ptr %r.26
   %r.30.a0 = inttoptr i64 %r.28 to ptr
   %r.30.a1 = inttoptr i64 %r.29 to ptr
@@ -301652,14 +301783,14 @@ bb.entry:
   %r.33 = load i64, ptr %r.0
   %r.34 = load i64, ptr %r.6
   %r.35 = call i64 @write_ll_artifact_if_needed(i64 %r.32, i64 %r.33, i64 %r.34)
-  %r.36 = ptrtoint ptr @.str.5584 to i64
+  %r.36 = ptrtoint ptr @.str.5589 to i64
   %r.37 = load i64, ptr %r.12
   %r.38 = ptrtoint ptr @.str.4724 to i64
   %r.39 = load i64, ptr %r.0
   %r.40.a0 = inttoptr i64 %r.39 to ptr
   %r.40 = call i64 @__nucleor_str_len(ptr %r.40.a0)
   %r.41 = call i64 @str_from_int(i64 %r.40)
-  %r.42 = ptrtoint ptr @.str.5585 to i64
+  %r.42 = ptrtoint ptr @.str.5590 to i64
   %r.43.a0 = inttoptr i64 %r.41 to ptr
   %r.43.a1 = inttoptr i64 %r.42 to ptr
   %r.43.rv = call ptr @__nucleor_str_concat(ptr %r.43.a0, ptr %r.43.a1)
@@ -301686,9 +301817,9 @@ bb.entry:
   %br.50.cond = icmp ne i64 %r.50, 0
   br i1 %br.50.cond, label %L0, label %L2
 L0:
-  %r.51 = ptrtoint ptr @.str.5586 to i64
+  %r.51 = ptrtoint ptr @.str.5591 to i64
   %r.52 = load i64, ptr %r.18
-  %r.53 = ptrtoint ptr @.str.5587 to i64
+  %r.53 = ptrtoint ptr @.str.5592 to i64
   %r.54.a0 = inttoptr i64 %r.52 to ptr
   %r.54.a1 = inttoptr i64 %r.53 to ptr
   %r.54.rv = call ptr @__nucleor_str_concat(ptr %r.54.a0, ptr %r.54.a1)
@@ -301721,7 +301852,7 @@ L2:
   %r.72.a0 = inttoptr i64 %r.70 to ptr
   %r.72 = call i64 @__nucleor_vec_get(ptr %r.72.a0, i64 %r.71)
   store i64 %r.72, ptr %r.69
-  %r.74 = ptrtoint ptr @.str.5588 to i64
+  %r.74 = ptrtoint ptr @.str.5593 to i64
   %r.75 = call i64 @resolve_toolchain_path(i64 %r.74)
   store i64 %r.75, ptr %r.73
   %r.77 = load i64, ptr %r.12
@@ -301736,10 +301867,10 @@ L2:
   %r.86 = load i64, ptr %r.69
   %r.87 = call i64 @host_shell_path(i64 %r.86)
   store i64 %r.87, ptr %r.85
-  %r.89 = ptrtoint ptr @.str.5589 to i64
+  %r.89 = ptrtoint ptr @.str.5594 to i64
   %r.90 = call i64 @resolve_toolchain_path(i64 %r.89)
   store i64 %r.90, ptr %r.88
-  %r.92 = ptrtoint ptr @.str.5590 to i64
+  %r.92 = ptrtoint ptr @.str.5595 to i64
   %r.93 = load i64, ptr %r.88
   %r.94 = call i64 @host_shell_path(i64 %r.93)
   %r.95.a0 = inttoptr i64 %r.92 to ptr
@@ -301753,7 +301884,7 @@ L2:
   store i64 %r.99, ptr %r.98
   %r.101 = call i64 @host_fast_link_flag()
   store i64 %r.101, ptr %r.100
-  %r.102 = ptrtoint ptr @.str.5591 to i64
+  %r.102 = ptrtoint ptr @.str.5596 to i64
   %r.103 = load i64, ptr %r.26
   %r.104.a0 = inttoptr i64 %r.102 to ptr
   %r.104.a1 = inttoptr i64 %r.103 to ptr
@@ -301761,9 +301892,9 @@ L2:
   %r.104 = ptrtoint ptr %r.104.rv to i64
   %r.105.a0 = inttoptr i64 %r.104 to ptr
   %r.105 = call i64 @__nucleor_system(ptr %r.105.a0)
-  %r.107 = ptrtoint ptr @.str.5592 to i64
+  %r.107 = ptrtoint ptr @.str.5597 to i64
   %r.108 = load i64, ptr %r.2
-  %r.109 = ptrtoint ptr @.str.5593 to i64
+  %r.109 = ptrtoint ptr @.str.5598 to i64
   %r.110.a0 = inttoptr i64 %r.108 to ptr
   %r.110.a1 = inttoptr i64 %r.109 to ptr
   %r.110.rv = call ptr @__nucleor_str_concat(ptr %r.110.a0, ptr %r.110.a1)
@@ -301838,7 +301969,7 @@ L9:
   %br.152.cond = icmp ne i64 %r.152, 0
   br i1 %br.152.cond, label %L12, label %L14
 L12:
-  %r.153 = ptrtoint ptr @.str.5594 to i64
+  %r.153 = ptrtoint ptr @.str.5599 to i64
   %r.154 = load i64, ptr %r.115
   %r.155 = call i64 @cache_v2_prefix(i64 %r.154)
   %r.156 = ptrtoint ptr @.str.390 to i64
@@ -301854,7 +301985,7 @@ L12:
   call void @__nucleor_print_str(ptr %r.159.a0)
   %r.159 = add i64 0, 0
   %r.160 = load i64, ptr %r.10
-  %r.161 = ptrtoint ptr @.str.5567 to i64
+  %r.161 = ptrtoint ptr @.str.5572 to i64
   %r.162 = add i64 0, 0
   %r.163 = call i64 @print_phase_time(i64 %r.160, i64 %r.161, i64 %r.162)
   ret i64 %r.162
@@ -301877,8 +302008,8 @@ L5:
   %r.172.rv = call ptr @__nucleor_str_concat(ptr %r.172.a0, ptr %r.172.a1)
   %r.172 = ptrtoint ptr %r.172.rv to i64
   store i64 %r.172, ptr %r.167
-  %r.174 = ptrtoint ptr @.str.5538 to i64
-  %r.175 = ptrtoint ptr @.str.5539 to i64
+  %r.174 = ptrtoint ptr @.str.5543 to i64
+  %r.175 = ptrtoint ptr @.str.5544 to i64
   %r.176.a0 = inttoptr i64 %r.174 to ptr
   %r.176.a1 = inttoptr i64 %r.175 to ptr
   %r.176 = call i64 @__nucleor_env_get_or(ptr %r.176.a0, ptr %r.176.a1)
@@ -301899,16 +302030,16 @@ L5:
   %r.188 = load i64, ptr %r.79
   %r.189 = load i64, ptr %r.82
   %r.190 = load i64, ptr %r.91
-  %r.191 = ptrtoint ptr @.str.5595 to i64
+  %r.191 = ptrtoint ptr @.str.5600 to i64
   %r.192 = load i64, ptr %r.18
-  %r.193 = ptrtoint ptr @.str.5596 to i64
+  %r.193 = ptrtoint ptr @.str.5601 to i64
   %r.194 = load i64, ptr %r.98
   %r.195 = ptrtoint ptr @.str.254 to i64
   %r.196 = load i64, ptr %r.85
   %r.197 = load i64, ptr %r.61
-  %r.198 = ptrtoint ptr @.str.5597 to i64
+  %r.198 = ptrtoint ptr @.str.5602 to i64
   %r.199 = load i64, ptr %r.112
-  %r.200 = ptrtoint ptr @.str.5598 to i64
+  %r.200 = ptrtoint ptr @.str.5603 to i64
   %r.201.a0 = inttoptr i64 %r.199 to ptr
   %r.201.a1 = inttoptr i64 %r.200 to ptr
   %r.201.rv = call ptr @__nucleor_str_concat(ptr %r.201.a0, ptr %r.201.a1)
@@ -302109,7 +302240,7 @@ L35:
   br i1 %br.272.cond, label %L38, label %L40
 L38:
   %r.274 = load i64, ptr %r.266
-  %r.275 = ptrtoint ptr @.str.5599 to i64
+  %r.275 = ptrtoint ptr @.str.5604 to i64
   %r.276.a0 = inttoptr i64 %r.274 to ptr
   %r.276.a1 = inttoptr i64 %r.275 to ptr
   %r.276 = call i64 @__nucleor_str_contains(ptr %r.276.a0, ptr %r.276.a1)
@@ -302127,7 +302258,7 @@ L41:
   br label %L43
 L42:
   %r.283 = load i64, ptr %r.266
-  %r.284 = ptrtoint ptr @.str.5600 to i64
+  %r.284 = ptrtoint ptr @.str.5605 to i64
   %r.285.a0 = inttoptr i64 %r.283 to ptr
   %r.285.a1 = inttoptr i64 %r.284 to ptr
   %r.285 = call i64 @__nucleor_str_contains(ptr %r.285.a0, ptr %r.285.a1)
@@ -302152,7 +302283,7 @@ L44:
   br label %L46
 L45:
   %r.295 = load i64, ptr %r.266
-  %r.296 = ptrtoint ptr @.str.5601 to i64
+  %r.296 = ptrtoint ptr @.str.5606 to i64
   %r.297.a0 = inttoptr i64 %r.295 to ptr
   %r.297.a1 = inttoptr i64 %r.296 to ptr
   %r.297 = call i64 @__nucleor_str_contains(ptr %r.297.a0, ptr %r.297.a1)
@@ -302177,7 +302308,7 @@ L47:
   br label %L49
 L48:
   %r.307 = load i64, ptr %r.266
-  %r.308 = ptrtoint ptr @.str.5602 to i64
+  %r.308 = ptrtoint ptr @.str.5607 to i64
   %r.309.a0 = inttoptr i64 %r.307 to ptr
   %r.309.a1 = inttoptr i64 %r.308 to ptr
   %r.309 = call i64 @__nucleor_str_contains(ptr %r.309.a0, ptr %r.309.a1)
@@ -302262,7 +302393,7 @@ L62:
   %r.346 = ptrtoint ptr %r.346.rv to i64
   store i64 %r.346, ptr %r.344
   %r.348 = load i64, ptr %r.344
-  %r.349 = ptrtoint ptr @.str.5599 to i64
+  %r.349 = ptrtoint ptr @.str.5604 to i64
   %r.350.a0 = inttoptr i64 %r.348 to ptr
   %r.350.a1 = inttoptr i64 %r.349 to ptr
   %r.350 = call i64 @__nucleor_str_contains(ptr %r.350.a0, ptr %r.350.a1)
@@ -302280,7 +302411,7 @@ L65:
   br label %L67
 L66:
   %r.357 = load i64, ptr %r.344
-  %r.358 = ptrtoint ptr @.str.5600 to i64
+  %r.358 = ptrtoint ptr @.str.5605 to i64
   %r.359.a0 = inttoptr i64 %r.357 to ptr
   %r.359.a1 = inttoptr i64 %r.358 to ptr
   %r.359 = call i64 @__nucleor_str_contains(ptr %r.359.a0, ptr %r.359.a1)
@@ -302305,7 +302436,7 @@ L68:
   br label %L70
 L69:
   %r.369 = load i64, ptr %r.344
-  %r.370 = ptrtoint ptr @.str.5601 to i64
+  %r.370 = ptrtoint ptr @.str.5606 to i64
   %r.371.a0 = inttoptr i64 %r.369 to ptr
   %r.371.a1 = inttoptr i64 %r.370 to ptr
   %r.371 = call i64 @__nucleor_str_contains(ptr %r.371.a0, ptr %r.371.a1)
@@ -302330,7 +302461,7 @@ L71:
   br label %L73
 L72:
   %r.381 = load i64, ptr %r.344
-  %r.382 = ptrtoint ptr @.str.5602 to i64
+  %r.382 = ptrtoint ptr @.str.5607 to i64
   %r.383.a0 = inttoptr i64 %r.381 to ptr
   %r.383.a1 = inttoptr i64 %r.382 to ptr
   %r.383 = call i64 @__nucleor_str_contains(ptr %r.383.a0, ptr %r.383.a1)
@@ -302390,7 +302521,7 @@ L40:
   br label %L37
 L37:
   %r.400 = load i64, ptr %r.10
-  %r.401 = ptrtoint ptr @.str.5567 to i64
+  %r.401 = ptrtoint ptr @.str.5572 to i64
   %r.402 = call i64 @__nucleor_now_ms()
   %r.403 = load i64, ptr %r.165
   %r.404.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.402, i64 %r.403)
@@ -302496,7 +302627,7 @@ L96:
   %br.452.cond = icmp ne i64 %r.452, 0
   br i1 %br.452.cond, label %L97, label %L98
 L97:
-  %r.453 = ptrtoint ptr @.str.5603 to i64
+  %r.453 = ptrtoint ptr @.str.5608 to i64
   %r.454 = load i64, ptr %r.219
   %r.455 = call i64 @str_from_int(i64 %r.454)
   %r.456 = ptrtoint ptr @.str.390 to i64
@@ -302521,7 +302652,7 @@ L100:
   %r.463 = ptrtoint ptr @.str.3950 to i64
   %r.464 = load i64, ptr %r.415
   %r.465 = call i64 @str_from_int(i64 %r.464)
-  %r.466 = ptrtoint ptr @.str.5604 to i64
+  %r.466 = ptrtoint ptr @.str.5609 to i64
   %r.467.a0 = inttoptr i64 %r.465 to ptr
   %r.467.a1 = inttoptr i64 %r.466 to ptr
   %r.467.rv = call ptr @__nucleor_str_concat(ptr %r.467.a0, ptr %r.467.a1)
@@ -302545,7 +302676,7 @@ L103:
   %r.473 = ptrtoint ptr @.str.3950 to i64
   %r.474 = load i64, ptr %r.419
   %r.475 = call i64 @str_from_int(i64 %r.474)
-  %r.476 = ptrtoint ptr @.str.5605 to i64
+  %r.476 = ptrtoint ptr @.str.5610 to i64
   %r.477.a0 = inttoptr i64 %r.475 to ptr
   %r.477.a1 = inttoptr i64 %r.476 to ptr
   %r.477.rv = call ptr @__nucleor_str_concat(ptr %r.477.a0, ptr %r.477.a1)
@@ -302566,7 +302697,7 @@ L105:
   %br.482.cond = icmp ne i64 %r.482, 0
   br i1 %br.482.cond, label %L106, label %L108
 L106:
-  %r.483 = ptrtoint ptr @.str.5606 to i64
+  %r.483 = ptrtoint ptr @.str.5611 to i64
   %r.484.a0 = inttoptr i64 %r.483 to ptr
   call void @__nucleor_print_str(ptr %r.484.a0)
   %r.484 = add i64 0, 0
@@ -302597,7 +302728,7 @@ L112:
   %br.491.cond = icmp ne i64 %r.491, 0
   br i1 %br.491.cond, label %L113, label %L115
 L113:
-  %r.492 = ptrtoint ptr @.str.5607 to i64
+  %r.492 = ptrtoint ptr @.str.5612 to i64
   %r.493.a0 = inttoptr i64 %r.492 to ptr
   call void @__nucleor_print_str(ptr %r.493.a0)
   %r.493 = add i64 0, 0
@@ -302605,7 +302736,7 @@ L113:
 L115:
   br label %L99
 L98:
-  %r.494 = ptrtoint ptr @.str.5603 to i64
+  %r.494 = ptrtoint ptr @.str.5608 to i64
   %r.495 = load i64, ptr %r.219
   %r.496 = call i64 @str_from_int(i64 %r.495)
   %r.497 = ptrtoint ptr @.str.390 to i64
@@ -302622,11 +302753,11 @@ L98:
   %r.500 = add i64 0, 0
   br label %L99
 L99:
-  %r.501 = ptrtoint ptr @.str.5608 to i64
+  %r.501 = ptrtoint ptr @.str.5613 to i64
   %r.502.a0 = inttoptr i64 %r.501 to ptr
   call void @__nucleor_print_str(ptr %r.502.a0)
   %r.502 = add i64 0, 0
-  %r.503 = ptrtoint ptr @.str.5609 to i64
+  %r.503 = ptrtoint ptr @.str.5614 to i64
   %r.504 = load i64, ptr %r.181
   %r.505.a0 = inttoptr i64 %r.503 to ptr
   %r.505.a1 = inttoptr i64 %r.504 to ptr
@@ -302644,7 +302775,7 @@ L99:
   %br.510.cond = icmp ne i64 %r.510, 0
   br i1 %br.510.cond, label %L116, label %L118
 L116:
-  %r.511 = ptrtoint ptr @.str.5610 to i64
+  %r.511 = ptrtoint ptr @.str.5615 to i64
   %r.512.a0 = inttoptr i64 %r.511 to ptr
   call void @__nucleor_print_str(ptr %r.512.a0)
   %r.512 = add i64 0, 0
@@ -302663,7 +302794,7 @@ L118:
   br i1 %br.520.cond, label %L119, label %L120
 L119:
   %r.521 = load i64, ptr %r.406
-  %r.522 = ptrtoint ptr @.str.5599 to i64
+  %r.522 = ptrtoint ptr @.str.5604 to i64
   %r.523.a0 = inttoptr i64 %r.521 to ptr
   %r.523.a1 = inttoptr i64 %r.522 to ptr
   %r.523 = call i64 @__nucleor_str_contains(ptr %r.523.a0, ptr %r.523.a1)
@@ -302681,7 +302812,7 @@ L122:
   br label %L124
 L123:
   %r.530 = load i64, ptr %r.406
-  %r.531 = ptrtoint ptr @.str.5600 to i64
+  %r.531 = ptrtoint ptr @.str.5605 to i64
   %r.532.a0 = inttoptr i64 %r.530 to ptr
   %r.532.a1 = inttoptr i64 %r.531 to ptr
   %r.532 = call i64 @__nucleor_str_contains(ptr %r.532.a0, ptr %r.532.a1)
@@ -302706,7 +302837,7 @@ L125:
   br label %L127
 L126:
   %r.542 = load i64, ptr %r.406
-  %r.543 = ptrtoint ptr @.str.5601 to i64
+  %r.543 = ptrtoint ptr @.str.5606 to i64
   %r.544.a0 = inttoptr i64 %r.542 to ptr
   %r.544.a1 = inttoptr i64 %r.543 to ptr
   %r.544 = call i64 @__nucleor_str_contains(ptr %r.544.a0, ptr %r.544.a1)
@@ -302731,7 +302862,7 @@ L128:
   br label %L130
 L129:
   %r.554 = load i64, ptr %r.406
-  %r.555 = ptrtoint ptr @.str.5602 to i64
+  %r.555 = ptrtoint ptr @.str.5607 to i64
   %r.556.a0 = inttoptr i64 %r.554 to ptr
   %r.556.a1 = inttoptr i64 %r.555 to ptr
   %r.556 = call i64 @__nucleor_str_contains(ptr %r.556.a0, ptr %r.556.a1)
@@ -302776,7 +302907,7 @@ L133:
   %br.572.cond = icmp ne i64 %r.572, 0
   br i1 %br.572.cond, label %L134, label %L136
 L134:
-  %r.573 = ptrtoint ptr @.str.5611 to i64
+  %r.573 = ptrtoint ptr @.str.5616 to i64
   %r.574 = load i64, ptr %r.18
   %r.575.a0 = inttoptr i64 %r.573 to ptr
   %r.575.a1 = inttoptr i64 %r.574 to ptr
@@ -302890,7 +303021,7 @@ L154:
   %r.623.a0 = inttoptr i64 %r.618 to ptr
   %r.623.rv = call ptr @__nucleor_str_substring(ptr %r.623.a0, i64 %r.621, i64 %r.622)
   %r.623 = ptrtoint ptr %r.623.rv to i64
-  %r.624 = ptrtoint ptr @.str.5568 to i64
+  %r.624 = ptrtoint ptr @.str.5573 to i64
   %r.625.a0 = inttoptr i64 %r.623 to ptr
   %r.625.a1 = inttoptr i64 %r.624 to ptr
   %r.625 = call i64 @__nucleor_str_eq(ptr %r.625.a0, ptr %r.625.a1)
@@ -302946,9 +303077,9 @@ L161:
 L162:
   %r.645 = load i64, ptr %r.639
   store i64 %r.645, ptr %r.635
-  %r.646 = ptrtoint ptr @.str.5612 to i64
+  %r.646 = ptrtoint ptr @.str.5617 to i64
   %r.647 = load i64, ptr %r.635
-  %r.648 = ptrtoint ptr @.str.5613 to i64
+  %r.648 = ptrtoint ptr @.str.5618 to i64
   %r.649.a0 = inttoptr i64 %r.647 to ptr
   %r.649.a1 = inttoptr i64 %r.648 to ptr
   %r.649.rv = call ptr @__nucleor_str_concat(ptr %r.649.a0, ptr %r.649.a1)
@@ -302960,9 +303091,9 @@ L162:
   %r.651.a0 = inttoptr i64 %r.650 to ptr
   call void @__nucleor_print_str(ptr %r.651.a0)
   %r.651 = add i64 0, 0
-  %r.652 = ptrtoint ptr @.str.5614 to i64
+  %r.652 = ptrtoint ptr @.str.5619 to i64
   %r.653 = load i64, ptr %r.635
-  %r.654 = ptrtoint ptr @.str.5615 to i64
+  %r.654 = ptrtoint ptr @.str.5620 to i64
   %r.655.a0 = inttoptr i64 %r.653 to ptr
   %r.655.a1 = inttoptr i64 %r.654 to ptr
   %r.655.rv = call ptr @__nucleor_str_concat(ptr %r.655.a0, ptr %r.655.a1)
@@ -302974,7 +303105,7 @@ L162:
   %r.657.a0 = inttoptr i64 %r.656 to ptr
   call void @__nucleor_print_str(ptr %r.657.a0)
   %r.657 = add i64 0, 0
-  %r.658 = ptrtoint ptr @.str.5616 to i64
+  %r.658 = ptrtoint ptr @.str.5621 to i64
   %r.659.a0 = inttoptr i64 %r.658 to ptr
   call void @__nucleor_print_str(ptr %r.659.a0)
   %r.659 = add i64 0, 0
@@ -302998,7 +303129,7 @@ L163:
   %r.666 = add i64 0, 0
   br label %L165
 L165:
-  %r.667 = ptrtoint ptr @.str.5617 to i64
+  %r.667 = ptrtoint ptr @.str.5622 to i64
   %r.668 = load i64, ptr %r.18
   %r.669.a0 = inttoptr i64 %r.667 to ptr
   %r.669.a1 = inttoptr i64 %r.668 to ptr
@@ -303041,10 +303172,16 @@ bb.entry:
   %r.143 = alloca i64
   %r.145 = alloca i64
   %r.151 = alloca i64
-  %r.153 = alloca i64
-  %r.214 = alloca i64
-  %r.226 = alloca i64
-  %r.248 = alloca i64
+  %r.155 = alloca i64
+  %r.160 = alloca i64
+  %r.162 = alloca i64
+  %r.168 = alloca i64
+  %r.183 = alloca i64
+  %r.216 = alloca i64
+  %r.230 = alloca i64
+  %r.289 = alloca i64
+  %r.301 = alloca i64
+  %r.323 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -303071,7 +303208,7 @@ bb.entry:
   %br.15.cond = icmp ne i64 %r.15, 0
   br i1 %br.15.cond, label %L0, label %L2
 L0:
-  %r.16 = ptrtoint ptr @.str.5618 to i64
+  %r.16 = ptrtoint ptr @.str.5623 to i64
   %r.17 = load i64, ptr %r.10
   %r.18.a0 = inttoptr i64 %r.16 to ptr
   %r.18.a1 = inttoptr i64 %r.17 to ptr
@@ -303083,7 +303220,7 @@ L0:
   %r.20 = add i64 1, 0
   ret i64 %r.20
 L2:
-  %r.22 = ptrtoint ptr @.str.5582 to i64
+  %r.22 = ptrtoint ptr @.str.5587 to i64
   %r.23 = call i64 @host_target_path_sep()
   %r.24.a0 = inttoptr i64 %r.22 to ptr
   %r.24.a1 = inttoptr i64 %r.23 to ptr
@@ -303102,7 +303239,7 @@ L2:
   store i64 %r.28, ptr %r.21
   %r.30 = call i64 @host_null_redirect()
   store i64 %r.30, ptr %r.29
-  %r.31 = ptrtoint ptr @.str.5583 to i64
+  %r.31 = ptrtoint ptr @.str.5588 to i64
   %r.32 = load i64, ptr %r.29
   %r.33.a0 = inttoptr i64 %r.31 to ptr
   %r.33.a1 = inttoptr i64 %r.32 to ptr
@@ -303128,7 +303265,7 @@ L2:
   %r.49.a0 = inttoptr i64 %r.47 to ptr
   %r.49 = call i64 @__nucleor_vec_get(ptr %r.49.a0, i64 %r.48)
   store i64 %r.49, ptr %r.46
-  %r.51 = ptrtoint ptr @.str.5588 to i64
+  %r.51 = ptrtoint ptr @.str.5593 to i64
   %r.52 = call i64 @resolve_toolchain_path(i64 %r.51)
   store i64 %r.52, ptr %r.50
   %r.54 = load i64, ptr %r.10
@@ -303143,10 +303280,10 @@ L2:
   %r.63 = load i64, ptr %r.46
   %r.64 = call i64 @host_shell_path(i64 %r.63)
   store i64 %r.64, ptr %r.62
-  %r.66 = ptrtoint ptr @.str.5589 to i64
+  %r.66 = ptrtoint ptr @.str.5594 to i64
   %r.67 = call i64 @resolve_toolchain_path(i64 %r.66)
   store i64 %r.67, ptr %r.65
-  %r.69 = ptrtoint ptr @.str.5590 to i64
+  %r.69 = ptrtoint ptr @.str.5595 to i64
   %r.70 = load i64, ptr %r.65
   %r.71 = call i64 @host_shell_path(i64 %r.70)
   %r.72.a0 = inttoptr i64 %r.69 to ptr
@@ -303160,7 +303297,7 @@ L2:
   store i64 %r.76, ptr %r.75
   %r.78 = call i64 @host_fast_link_flag()
   store i64 %r.78, ptr %r.77
-  %r.79 = ptrtoint ptr @.str.5591 to i64
+  %r.79 = ptrtoint ptr @.str.5596 to i64
   %r.80 = load i64, ptr %r.29
   %r.81.a0 = inttoptr i64 %r.79 to ptr
   %r.81.a1 = inttoptr i64 %r.80 to ptr
@@ -303168,9 +303305,9 @@ L2:
   %r.81 = ptrtoint ptr %r.81.rv to i64
   %r.82.a0 = inttoptr i64 %r.81 to ptr
   %r.82 = call i64 @__nucleor_system(ptr %r.82.a0)
-  %r.84 = ptrtoint ptr @.str.5592 to i64
+  %r.84 = ptrtoint ptr @.str.5597 to i64
   %r.85 = load i64, ptr %r.2
-  %r.86 = ptrtoint ptr @.str.5593 to i64
+  %r.86 = ptrtoint ptr @.str.5598 to i64
   %r.87.a0 = inttoptr i64 %r.85 to ptr
   %r.87.a1 = inttoptr i64 %r.86 to ptr
   %r.87.rv = call ptr @__nucleor_str_concat(ptr %r.87.a0, ptr %r.87.a1)
@@ -303250,7 +303387,7 @@ L9:
   %br.130.cond = icmp ne i64 %r.130, 0
   br i1 %br.130.cond, label %L12, label %L14
 L12:
-  %r.131 = ptrtoint ptr @.str.5594 to i64
+  %r.131 = ptrtoint ptr @.str.5599 to i64
   %r.132 = load i64, ptr %r.92
   %r.133 = call i64 @cache_v2_prefix(i64 %r.132)
   %r.134 = ptrtoint ptr @.str.390 to i64
@@ -303266,7 +303403,7 @@ L12:
   call void @__nucleor_print_str(ptr %r.137.a0)
   %r.137 = add i64 0, 0
   %r.138 = load i64, ptr %r.8
-  %r.139 = ptrtoint ptr @.str.5567 to i64
+  %r.139 = ptrtoint ptr @.str.5572 to i64
   %r.140 = add i64 0, 0
   %r.141 = call i64 @print_phase_time(i64 %r.138, i64 %r.139, i64 %r.140)
   ret i64 %r.140
@@ -303289,246 +303426,406 @@ L8:
   %r.150.rv = call ptr @__nucleor_str_concat(ptr %r.150.a0, ptr %r.150.a1)
   %r.150 = ptrtoint ptr %r.150.rv to i64
   store i64 %r.150, ptr %r.145
-  %r.152 = load i64, ptr %r.145
-  store i64 %r.152, ptr %r.151
-  %r.154 = ptrtoint ptr @.str.5538 to i64
-  %r.155 = ptrtoint ptr @.str.5539 to i64
-  %r.156.a0 = inttoptr i64 %r.154 to ptr
-  %r.156.a1 = inttoptr i64 %r.155 to ptr
-  %r.156 = call i64 @__nucleor_env_get_or(ptr %r.156.a0, ptr %r.156.a1)
-  store i64 %r.156, ptr %r.153
-  %r.157 = load i64, ptr %r.151
-  %r.158 = ptrtoint ptr @.str.254 to i64
-  %r.159.a0 = inttoptr i64 %r.157 to ptr
-  %r.159.a1 = inttoptr i64 %r.158 to ptr
-  %r.159.rv = call ptr @__nucleor_str_concat(ptr %r.159.a0, ptr %r.159.a1)
-  %r.159 = ptrtoint ptr %r.159.rv to i64
-  store i64 %r.159, ptr %r.151
-  %r.160 = load i64, ptr %r.151
-  %r.161 = load i64, ptr %r.153
-  %r.162.a0 = inttoptr i64 %r.160 to ptr
-  %r.162.a1 = inttoptr i64 %r.161 to ptr
-  %r.162.rv = call ptr @__nucleor_str_concat(ptr %r.162.a0, ptr %r.162.a1)
-  %r.162 = ptrtoint ptr %r.162.rv to i64
-  store i64 %r.162, ptr %r.151
-  %r.163 = load i64, ptr %r.151
-  %r.164 = load i64, ptr %r.77
-  %r.165.a0 = inttoptr i64 %r.163 to ptr
-  %r.165.a1 = inttoptr i64 %r.164 to ptr
-  %r.165.rv = call ptr @__nucleor_str_concat(ptr %r.165.a0, ptr %r.165.a1)
-  %r.165 = ptrtoint ptr %r.165.rv to i64
-  store i64 %r.165, ptr %r.151
-  %r.166 = load i64, ptr %r.151
-  %r.167 = ptrtoint ptr @.str.254 to i64
-  %r.168.a0 = inttoptr i64 %r.166 to ptr
-  %r.168.a1 = inttoptr i64 %r.158 to ptr
-  %r.168.rv = call ptr @__nucleor_str_concat(ptr %r.168.a0, ptr %r.168.a1)
-  %r.168 = ptrtoint ptr %r.168.rv to i64
-  store i64 %r.168, ptr %r.151
-  %r.169 = load i64, ptr %r.151
-  %r.170 = load i64, ptr %r.53
-  %r.171.a0 = inttoptr i64 %r.169 to ptr
-  %r.171.a1 = inttoptr i64 %r.170 to ptr
-  %r.171.rv = call ptr @__nucleor_str_concat(ptr %r.171.a0, ptr %r.171.a1)
-  %r.171 = ptrtoint ptr %r.171.rv to i64
-  store i64 %r.171, ptr %r.151
-  %r.172 = load i64, ptr %r.151
-  %r.173 = ptrtoint ptr @.str.254 to i64
-  %r.174.a0 = inttoptr i64 %r.172 to ptr
-  %r.174.a1 = inttoptr i64 %r.158 to ptr
-  %r.174.rv = call ptr @__nucleor_str_concat(ptr %r.174.a0, ptr %r.174.a1)
-  %r.174 = ptrtoint ptr %r.174.rv to i64
-  store i64 %r.174, ptr %r.151
-  %r.175 = load i64, ptr %r.151
-  %r.176 = load i64, ptr %r.56
-  %r.177.a0 = inttoptr i64 %r.175 to ptr
-  %r.177.a1 = inttoptr i64 %r.176 to ptr
-  %r.177.rv = call ptr @__nucleor_str_concat(ptr %r.177.a0, ptr %r.177.a1)
-  %r.177 = ptrtoint ptr %r.177.rv to i64
-  store i64 %r.177, ptr %r.151
-  %r.178 = load i64, ptr %r.151
-  %r.179 = load i64, ptr %r.59
-  %r.180.a0 = inttoptr i64 %r.178 to ptr
-  %r.180.a1 = inttoptr i64 %r.179 to ptr
-  %r.180.rv = call ptr @__nucleor_str_concat(ptr %r.180.a0, ptr %r.180.a1)
-  %r.180 = ptrtoint ptr %r.180.rv to i64
-  store i64 %r.180, ptr %r.151
-  %r.181 = load i64, ptr %r.151
-  %r.182 = load i64, ptr %r.68
-  %r.183.a0 = inttoptr i64 %r.181 to ptr
-  %r.183.a1 = inttoptr i64 %r.182 to ptr
-  %r.183.rv = call ptr @__nucleor_str_concat(ptr %r.183.a0, ptr %r.183.a1)
-  %r.183 = ptrtoint ptr %r.183.rv to i64
-  store i64 %r.183, ptr %r.151
-  %r.184 = load i64, ptr %r.151
-  %r.185 = ptrtoint ptr @.str.5595 to i64
-  %r.186.a0 = inttoptr i64 %r.184 to ptr
-  %r.186.a1 = inttoptr i64 %r.185 to ptr
-  %r.186.rv = call ptr @__nucleor_str_concat(ptr %r.186.a0, ptr %r.186.a1)
-  %r.186 = ptrtoint ptr %r.186.rv to i64
-  store i64 %r.186, ptr %r.151
-  %r.187 = load i64, ptr %r.151
-  %r.188 = load i64, ptr %r.21
-  %r.189.a0 = inttoptr i64 %r.187 to ptr
-  %r.189.a1 = inttoptr i64 %r.188 to ptr
-  %r.189.rv = call ptr @__nucleor_str_concat(ptr %r.189.a0, ptr %r.189.a1)
-  %r.189 = ptrtoint ptr %r.189.rv to i64
-  store i64 %r.189, ptr %r.151
-  %r.190 = load i64, ptr %r.151
-  %r.191 = ptrtoint ptr @.str.5596 to i64
-  %r.192.a0 = inttoptr i64 %r.190 to ptr
-  %r.192.a1 = inttoptr i64 %r.191 to ptr
-  %r.192.rv = call ptr @__nucleor_str_concat(ptr %r.192.a0, ptr %r.192.a1)
-  %r.192 = ptrtoint ptr %r.192.rv to i64
-  store i64 %r.192, ptr %r.151
-  %r.193 = load i64, ptr %r.151
-  %r.194 = load i64, ptr %r.75
-  %r.195.a0 = inttoptr i64 %r.193 to ptr
-  %r.195.a1 = inttoptr i64 %r.194 to ptr
-  %r.195.rv = call ptr @__nucleor_str_concat(ptr %r.195.a0, ptr %r.195.a1)
-  %r.195 = ptrtoint ptr %r.195.rv to i64
-  store i64 %r.195, ptr %r.151
-  %r.196 = load i64, ptr %r.151
-  %r.197 = ptrtoint ptr @.str.254 to i64
-  %r.198.a0 = inttoptr i64 %r.196 to ptr
-  %r.198.a1 = inttoptr i64 %r.158 to ptr
-  %r.198.rv = call ptr @__nucleor_str_concat(ptr %r.198.a0, ptr %r.198.a1)
-  %r.198 = ptrtoint ptr %r.198.rv to i64
-  store i64 %r.198, ptr %r.151
-  %r.199 = load i64, ptr %r.151
-  %r.200 = load i64, ptr %r.62
-  %r.201.a0 = inttoptr i64 %r.199 to ptr
-  %r.201.a1 = inttoptr i64 %r.200 to ptr
-  %r.201.rv = call ptr @__nucleor_str_concat(ptr %r.201.a0, ptr %r.201.a1)
-  %r.201 = ptrtoint ptr %r.201.rv to i64
-  store i64 %r.201, ptr %r.151
-  %r.202 = load i64, ptr %r.151
-  %r.203 = load i64, ptr %r.38
-  %r.204.a0 = inttoptr i64 %r.202 to ptr
-  %r.204.a1 = inttoptr i64 %r.203 to ptr
-  %r.204.rv = call ptr @__nucleor_str_concat(ptr %r.204.a0, ptr %r.204.a1)
-  %r.204 = ptrtoint ptr %r.204.rv to i64
-  store i64 %r.204, ptr %r.151
-  %r.205 = load i64, ptr %r.151
-  %r.206 = ptrtoint ptr @.str.5597 to i64
-  %r.207.a0 = inttoptr i64 %r.205 to ptr
-  %r.207.a1 = inttoptr i64 %r.206 to ptr
-  %r.207.rv = call ptr @__nucleor_str_concat(ptr %r.207.a0, ptr %r.207.a1)
-  %r.207 = ptrtoint ptr %r.207.rv to i64
-  store i64 %r.207, ptr %r.151
-  %r.208 = load i64, ptr %r.151
-  %r.209 = load i64, ptr %r.89
-  %r.210.a0 = inttoptr i64 %r.208 to ptr
-  %r.210.a1 = inttoptr i64 %r.209 to ptr
-  %r.210.rv = call ptr @__nucleor_str_concat(ptr %r.210.a0, ptr %r.210.a1)
-  %r.210 = ptrtoint ptr %r.210.rv to i64
-  store i64 %r.210, ptr %r.151
-  %r.211 = load i64, ptr %r.151
-  %r.212 = ptrtoint ptr @.str.5598 to i64
-  %r.213.a0 = inttoptr i64 %r.211 to ptr
-  %r.213.a1 = inttoptr i64 %r.212 to ptr
-  %r.213.rv = call ptr @__nucleor_str_concat(ptr %r.213.a0, ptr %r.213.a1)
-  %r.213 = ptrtoint ptr %r.213.rv to i64
-  store i64 %r.213, ptr %r.151
-  %r.215 = load i64, ptr %r.151
-  %r.216.a0 = inttoptr i64 %r.215 to ptr
-  %r.216 = call i64 @__nucleor_system(ptr %r.216.a0)
-  store i64 %r.216, ptr %r.214
-  %r.217 = load i64, ptr %r.8
-  %r.218 = ptrtoint ptr @.str.5567 to i64
-  %r.219 = call i64 @__nucleor_now_ms()
-  %r.220 = load i64, ptr %r.143
-  %r.221.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.219, i64 %r.220)
-  %r.221 = extractvalue { i64, i1 } %r.221.ov, 0
-  %r.221.of = extractvalue { i64, i1 } %r.221.ov, 1
-  br i1 %r.221.of, label %L15, label %L16
+  %r.152 = ptrtoint ptr @.str.5543 to i64
+  %r.153 = ptrtoint ptr @.str.5544 to i64
+  %r.154.a0 = inttoptr i64 %r.152 to ptr
+  %r.154.a1 = inttoptr i64 %r.153 to ptr
+  %r.154 = call i64 @__nucleor_env_get_or(ptr %r.154.a0, ptr %r.154.a1)
+  store i64 %r.154, ptr %r.151
+  %r.156 = load i64, ptr %r.50
+  %r.157 = load i64, ptr %r.65
+  %r.158 = load i64, ptr %r.151
+  %r.159 = call i64 @rt_o_cache_path(i64 %r.156, i64 %r.157, i64 %r.158)
+  store i64 %r.159, ptr %r.155
+  %r.161 = ptrtoint ptr @.str.136 to i64
+  store i64 %r.161, ptr %r.160
+  %r.163 = ptrtoint ptr @.str.136 to i64
+  store i64 %r.161, ptr %r.162
+  %r.164 = load i64, ptr %r.155
+  %r.165.a0 = inttoptr i64 %r.164 to ptr
+  %r.165 = call i64 @__nucleor_str_len(ptr %r.165.a0)
+  %r.166 = add i64 0, 0
+  %r.167.cmp = icmp sgt i64 %r.165, %r.166
+  %r.167 = zext i1 %r.167.cmp to i64
+  %r.169 = add i64 0, 0
+  %r.170.cmp = icmp ne i64 %r.167, %r.166
+  %r.170 = zext i1 %r.170.cmp to i64
+  %br.170.cond = icmp ne i64 %r.170, 0
+  br i1 %br.170.cond, label %L15, label %L16
 L15:
-  %r.221.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
+  %r.171 = load i64, ptr %r.42
+  %r.172.a0 = inttoptr i64 %r.171 to ptr
+  %r.172 = call i64 @__nucleor_str_len(ptr %r.172.a0)
+  %r.173 = add i64 0, 0
+  %r.174.cmp = icmp eq i64 %r.172, %r.173
+  %r.174 = zext i1 %r.174.cmp to i64
+  %r.175 = add i64 0, 0
+  %r.176.cmp = icmp ne i64 %r.174, %r.173
+  %r.176 = zext i1 %r.176.cmp to i64
+  store i64 %r.176, ptr %r.168
+  br label %L17
 L16:
-  %r.222 = call i64 @print_phase_time(i64 %r.217, i64 %r.218, i64 %r.221)
-  %r.223 = load i64, ptr %r.214
-  %r.224 = add i64 0, 0
-  %r.225.cmp = icmp ne i64 %r.223, %r.224
-  %r.225 = zext i1 %r.225.cmp to i64
-  %br.225.cond = icmp ne i64 %r.225, 0
-  br i1 %br.225.cond, label %L17, label %L19
+  %r.177 = add i64 0, 0
+  store i64 %r.177, ptr %r.168
+  br label %L17
 L17:
-  %r.227 = load i64, ptr %r.10
-  %r.228.a0 = inttoptr i64 %r.227 to ptr
-  %r.228.rv = call ptr @__nucleor_file_read_string(ptr %r.228.a0)
-  %r.228 = ptrtoint ptr %r.228.rv to i64
-  store i64 %r.228, ptr %r.226
-  %r.229 = load i64, ptr %r.226
-  %r.230.a0 = inttoptr i64 %r.229 to ptr
-  %r.230 = call i64 @__nucleor_str_len(ptr %r.230.a0)
-  %r.231 = add i64 0, 0
-  %r.232.cmp = icmp eq i64 %r.230, %r.231
-  %r.232 = zext i1 %r.232.cmp to i64
-  %br.232.cond = icmp ne i64 %r.232, 0
-  br i1 %br.232.cond, label %L20, label %L22
+  %r.178 = load i64, ptr %r.168
+  %br.178.cond = icmp ne i64 %r.178, 0
+  br i1 %br.178.cond, label %L18, label %L19
+L18:
+  %r.179 = load i64, ptr %r.155
+  %r.180.a0 = inttoptr i64 %r.179 to ptr
+  %r.180 = call i64 @__nucleor_fs_exists(ptr %r.180.a0)
+  %r.181 = add i64 0, 0
+  %r.182.cmp = icmp eq i64 %r.180, %r.181
+  %r.182 = zext i1 %r.182.cmp to i64
+  %br.182.cond = icmp ne i64 %r.182, 0
+  br i1 %br.182.cond, label %L21, label %L22
+L21:
+  %r.184 = load i64, ptr %r.145
+  store i64 %r.184, ptr %r.183
+  %r.185 = load i64, ptr %r.183
+  %r.186 = ptrtoint ptr @.str.254 to i64
+  %r.187.a0 = inttoptr i64 %r.185 to ptr
+  %r.187.a1 = inttoptr i64 %r.186 to ptr
+  %r.187.rv = call ptr @__nucleor_str_concat(ptr %r.187.a0, ptr %r.187.a1)
+  %r.187 = ptrtoint ptr %r.187.rv to i64
+  store i64 %r.187, ptr %r.183
+  %r.188 = load i64, ptr %r.183
+  %r.189 = load i64, ptr %r.151
+  %r.190.a0 = inttoptr i64 %r.188 to ptr
+  %r.190.a1 = inttoptr i64 %r.189 to ptr
+  %r.190.rv = call ptr @__nucleor_str_concat(ptr %r.190.a0, ptr %r.190.a1)
+  %r.190 = ptrtoint ptr %r.190.rv to i64
+  store i64 %r.190, ptr %r.183
+  %r.191 = load i64, ptr %r.183
+  %r.192 = ptrtoint ptr @.str.5624 to i64
+  %r.193.a0 = inttoptr i64 %r.191 to ptr
+  %r.193.a1 = inttoptr i64 %r.192 to ptr
+  %r.193.rv = call ptr @__nucleor_str_concat(ptr %r.193.a0, ptr %r.193.a1)
+  %r.193 = ptrtoint ptr %r.193.rv to i64
+  store i64 %r.193, ptr %r.183
+  %r.194 = load i64, ptr %r.183
+  %r.195 = load i64, ptr %r.56
+  %r.196.a0 = inttoptr i64 %r.194 to ptr
+  %r.196.a1 = inttoptr i64 %r.195 to ptr
+  %r.196.rv = call ptr @__nucleor_str_concat(ptr %r.196.a0, ptr %r.196.a1)
+  %r.196 = ptrtoint ptr %r.196.rv to i64
+  store i64 %r.196, ptr %r.183
+  %r.197 = load i64, ptr %r.183
+  %r.198 = load i64, ptr %r.68
+  %r.199.a0 = inttoptr i64 %r.197 to ptr
+  %r.199.a1 = inttoptr i64 %r.198 to ptr
+  %r.199.rv = call ptr @__nucleor_str_concat(ptr %r.199.a0, ptr %r.199.a1)
+  %r.199 = ptrtoint ptr %r.199.rv to i64
+  store i64 %r.199, ptr %r.183
+  %r.200 = load i64, ptr %r.183
+  %r.201 = ptrtoint ptr @.str.5600 to i64
+  %r.202.a0 = inttoptr i64 %r.200 to ptr
+  %r.202.a1 = inttoptr i64 %r.201 to ptr
+  %r.202.rv = call ptr @__nucleor_str_concat(ptr %r.202.a0, ptr %r.202.a1)
+  %r.202 = ptrtoint ptr %r.202.rv to i64
+  store i64 %r.202, ptr %r.183
+  %r.203 = load i64, ptr %r.183
+  %r.204 = load i64, ptr %r.155
+  %r.205 = call i64 @host_shell_path(i64 %r.204)
+  %r.206.a0 = inttoptr i64 %r.203 to ptr
+  %r.206.a1 = inttoptr i64 %r.205 to ptr
+  %r.206.rv = call ptr @__nucleor_str_concat(ptr %r.206.a0, ptr %r.206.a1)
+  %r.206 = ptrtoint ptr %r.206.rv to i64
+  store i64 %r.206, ptr %r.183
+  %r.207 = load i64, ptr %r.183
+  %r.208 = ptrtoint ptr @.str.5602 to i64
+  %r.209.a0 = inttoptr i64 %r.207 to ptr
+  %r.209.a1 = inttoptr i64 %r.208 to ptr
+  %r.209.rv = call ptr @__nucleor_str_concat(ptr %r.209.a0, ptr %r.209.a1)
+  %r.209 = ptrtoint ptr %r.209.rv to i64
+  store i64 %r.209, ptr %r.183
+  %r.210 = load i64, ptr %r.183
+  %r.211 = load i64, ptr %r.89
+  %r.212.a0 = inttoptr i64 %r.210 to ptr
+  %r.212.a1 = inttoptr i64 %r.211 to ptr
+  %r.212.rv = call ptr @__nucleor_str_concat(ptr %r.212.a0, ptr %r.212.a1)
+  %r.212 = ptrtoint ptr %r.212.rv to i64
+  store i64 %r.212, ptr %r.183
+  %r.213 = load i64, ptr %r.183
+  %r.214 = ptrtoint ptr @.str.5603 to i64
+  %r.215.a0 = inttoptr i64 %r.213 to ptr
+  %r.215.a1 = inttoptr i64 %r.214 to ptr
+  %r.215.rv = call ptr @__nucleor_str_concat(ptr %r.215.a0, ptr %r.215.a1)
+  %r.215 = ptrtoint ptr %r.215.rv to i64
+  store i64 %r.215, ptr %r.183
+  %r.217 = load i64, ptr %r.183
+  %r.218.a0 = inttoptr i64 %r.217 to ptr
+  %r.218 = call i64 @__nucleor_system(ptr %r.218.a0)
+  store i64 %r.218, ptr %r.216
+  %r.219 = load i64, ptr %r.216
+  %r.220 = add i64 0, 0
+  %r.221.cmp = icmp ne i64 %r.219, %r.220
+  %r.221 = zext i1 %r.221.cmp to i64
+  %br.221.cond = icmp ne i64 %r.221, 0
+  br i1 %br.221.cond, label %L24, label %L25
+L24:
+  %r.222 = load i64, ptr %r.56
+  store i64 %r.222, ptr %r.160
+  %r.223 = load i64, ptr %r.68
+  store i64 %r.223, ptr %r.162
+  br label %L26
+L25:
+  %r.224 = load i64, ptr %r.155
+  %r.225 = call i64 @host_shell_path(i64 %r.224)
+  store i64 %r.225, ptr %r.160
+  br label %L26
+L26:
+  br label %L23
+L22:
+  %r.226 = load i64, ptr %r.155
+  %r.227 = call i64 @host_shell_path(i64 %r.226)
+  store i64 %r.227, ptr %r.160
+  br label %L23
+L23:
+  br label %L20
+L19:
+  %r.228 = load i64, ptr %r.56
+  store i64 %r.228, ptr %r.160
+  %r.229 = load i64, ptr %r.68
+  store i64 %r.229, ptr %r.162
+  br label %L20
 L20:
-  %r.233 = ptrtoint ptr @.str.5603 to i64
-  %r.234 = load i64, ptr %r.214
-  %r.235 = call i64 @str_from_int(i64 %r.234)
-  %r.236 = ptrtoint ptr @.str.390 to i64
+  %r.231 = load i64, ptr %r.145
+  store i64 %r.231, ptr %r.230
+  %r.232 = load i64, ptr %r.230
+  %r.233 = ptrtoint ptr @.str.254 to i64
+  %r.234.a0 = inttoptr i64 %r.232 to ptr
+  %r.234.a1 = inttoptr i64 %r.233 to ptr
+  %r.234.rv = call ptr @__nucleor_str_concat(ptr %r.234.a0, ptr %r.234.a1)
+  %r.234 = ptrtoint ptr %r.234.rv to i64
+  store i64 %r.234, ptr %r.230
+  %r.235 = load i64, ptr %r.230
+  %r.236 = load i64, ptr %r.151
   %r.237.a0 = inttoptr i64 %r.235 to ptr
   %r.237.a1 = inttoptr i64 %r.236 to ptr
   %r.237.rv = call ptr @__nucleor_str_concat(ptr %r.237.a0, ptr %r.237.a1)
   %r.237 = ptrtoint ptr %r.237.rv to i64
-  %r.238.a0 = inttoptr i64 %r.233 to ptr
-  %r.238.a1 = inttoptr i64 %r.237 to ptr
-  %r.238.rv = call ptr @__nucleor_str_concat(ptr %r.238.a0, ptr %r.238.a1)
-  %r.238 = ptrtoint ptr %r.238.rv to i64
-  %r.239.a0 = inttoptr i64 %r.238 to ptr
-  call void @__nucleor_print_str(ptr %r.239.a0)
-  %r.239 = add i64 0, 0
-  %r.240 = add i64 1, 0
-  ret i64 %r.240
-L22:
-  %r.241 = load i64, ptr %r.226
-  %r.242 = load i64, ptr %r.2
-  %r.243 = load i64, ptr %r.4
-  %r.244 = load i64, ptr %r.6
-  %r.245 = add i64 1, 0
-  %r.246 = load i64, ptr %r.8
-  %r.247 = call i64 @link_native_module(i64 %r.241, i64 %r.242, i64 %r.243, i64 %r.244, i64 %r.245, i64 %r.246)
-  ret i64 %r.247
-L19:
-  %r.249 = load i64, ptr %r.83
-  %r.250.a0 = inttoptr i64 %r.249 to ptr
-  %r.250.rv = call ptr @__nucleor_file_read_string(ptr %r.250.a0)
-  %r.250 = ptrtoint ptr %r.250.rv to i64
-  store i64 %r.250, ptr %r.248
-  %r.251 = load i64, ptr %r.248
-  %r.252.a0 = inttoptr i64 %r.251 to ptr
-  %r.252 = call i64 @__nucleor_str_len(ptr %r.252.a0)
-  %r.253 = add i64 0, 0
-  %r.254.cmp = icmp sgt i64 %r.252, %r.253
-  %r.254 = zext i1 %r.254.cmp to i64
-  %br.254.cond = icmp ne i64 %r.254, 0
-  br i1 %br.254.cond, label %L23, label %L25
-L23:
-  %r.255 = load i64, ptr %r.248
-  %r.256.a0 = inttoptr i64 %r.255 to ptr
-  call void @__nucleor_print_str(ptr %r.256.a0)
-  %r.256 = add i64 0, 0
-  br label %L25
-L25:
-  %r.257 = ptrtoint ptr @.str.5617 to i64
-  %r.258 = load i64, ptr %r.21
-  %r.259.a0 = inttoptr i64 %r.257 to ptr
-  %r.259.a1 = inttoptr i64 %r.258 to ptr
-  %r.259.rv = call ptr @__nucleor_str_concat(ptr %r.259.a0, ptr %r.259.a1)
-  %r.259 = ptrtoint ptr %r.259.rv to i64
-  %r.260.a0 = inttoptr i64 %r.259 to ptr
-  call void @__nucleor_print_str(ptr %r.260.a0)
-  %r.260 = add i64 0, 0
-  %r.261 = load i64, ptr %r.92
-  %r.262 = load i64, ptr %r.21
-  %r.263 = call i64 @native_link_cache_store(i64 %r.261, i64 %r.262)
-  %r.264 = add i64 0, 0
-  ret i64 %r.264
+  store i64 %r.237, ptr %r.230
+  %r.238 = load i64, ptr %r.230
+  %r.239 = load i64, ptr %r.77
+  %r.240.a0 = inttoptr i64 %r.238 to ptr
+  %r.240.a1 = inttoptr i64 %r.239 to ptr
+  %r.240.rv = call ptr @__nucleor_str_concat(ptr %r.240.a0, ptr %r.240.a1)
+  %r.240 = ptrtoint ptr %r.240.rv to i64
+  store i64 %r.240, ptr %r.230
+  %r.241 = load i64, ptr %r.230
+  %r.242 = ptrtoint ptr @.str.254 to i64
+  %r.243.a0 = inttoptr i64 %r.241 to ptr
+  %r.243.a1 = inttoptr i64 %r.233 to ptr
+  %r.243.rv = call ptr @__nucleor_str_concat(ptr %r.243.a0, ptr %r.243.a1)
+  %r.243 = ptrtoint ptr %r.243.rv to i64
+  store i64 %r.243, ptr %r.230
+  %r.244 = load i64, ptr %r.230
+  %r.245 = load i64, ptr %r.53
+  %r.246.a0 = inttoptr i64 %r.244 to ptr
+  %r.246.a1 = inttoptr i64 %r.245 to ptr
+  %r.246.rv = call ptr @__nucleor_str_concat(ptr %r.246.a0, ptr %r.246.a1)
+  %r.246 = ptrtoint ptr %r.246.rv to i64
+  store i64 %r.246, ptr %r.230
+  %r.247 = load i64, ptr %r.230
+  %r.248 = ptrtoint ptr @.str.254 to i64
+  %r.249.a0 = inttoptr i64 %r.247 to ptr
+  %r.249.a1 = inttoptr i64 %r.233 to ptr
+  %r.249.rv = call ptr @__nucleor_str_concat(ptr %r.249.a0, ptr %r.249.a1)
+  %r.249 = ptrtoint ptr %r.249.rv to i64
+  store i64 %r.249, ptr %r.230
+  %r.250 = load i64, ptr %r.230
+  %r.251 = load i64, ptr %r.160
+  %r.252.a0 = inttoptr i64 %r.250 to ptr
+  %r.252.a1 = inttoptr i64 %r.251 to ptr
+  %r.252.rv = call ptr @__nucleor_str_concat(ptr %r.252.a0, ptr %r.252.a1)
+  %r.252 = ptrtoint ptr %r.252.rv to i64
+  store i64 %r.252, ptr %r.230
+  %r.253 = load i64, ptr %r.230
+  %r.254 = load i64, ptr %r.59
+  %r.255.a0 = inttoptr i64 %r.253 to ptr
+  %r.255.a1 = inttoptr i64 %r.254 to ptr
+  %r.255.rv = call ptr @__nucleor_str_concat(ptr %r.255.a0, ptr %r.255.a1)
+  %r.255 = ptrtoint ptr %r.255.rv to i64
+  store i64 %r.255, ptr %r.230
+  %r.256 = load i64, ptr %r.230
+  %r.257 = load i64, ptr %r.162
+  %r.258.a0 = inttoptr i64 %r.256 to ptr
+  %r.258.a1 = inttoptr i64 %r.257 to ptr
+  %r.258.rv = call ptr @__nucleor_str_concat(ptr %r.258.a0, ptr %r.258.a1)
+  %r.258 = ptrtoint ptr %r.258.rv to i64
+  store i64 %r.258, ptr %r.230
+  %r.259 = load i64, ptr %r.230
+  %r.260 = ptrtoint ptr @.str.5600 to i64
+  %r.261.a0 = inttoptr i64 %r.259 to ptr
+  %r.261.a1 = inttoptr i64 %r.260 to ptr
+  %r.261.rv = call ptr @__nucleor_str_concat(ptr %r.261.a0, ptr %r.261.a1)
+  %r.261 = ptrtoint ptr %r.261.rv to i64
+  store i64 %r.261, ptr %r.230
+  %r.262 = load i64, ptr %r.230
+  %r.263 = load i64, ptr %r.21
+  %r.264.a0 = inttoptr i64 %r.262 to ptr
+  %r.264.a1 = inttoptr i64 %r.263 to ptr
+  %r.264.rv = call ptr @__nucleor_str_concat(ptr %r.264.a0, ptr %r.264.a1)
+  %r.264 = ptrtoint ptr %r.264.rv to i64
+  store i64 %r.264, ptr %r.230
+  %r.265 = load i64, ptr %r.230
+  %r.266 = ptrtoint ptr @.str.5601 to i64
+  %r.267.a0 = inttoptr i64 %r.265 to ptr
+  %r.267.a1 = inttoptr i64 %r.266 to ptr
+  %r.267.rv = call ptr @__nucleor_str_concat(ptr %r.267.a0, ptr %r.267.a1)
+  %r.267 = ptrtoint ptr %r.267.rv to i64
+  store i64 %r.267, ptr %r.230
+  %r.268 = load i64, ptr %r.230
+  %r.269 = load i64, ptr %r.75
+  %r.270.a0 = inttoptr i64 %r.268 to ptr
+  %r.270.a1 = inttoptr i64 %r.269 to ptr
+  %r.270.rv = call ptr @__nucleor_str_concat(ptr %r.270.a0, ptr %r.270.a1)
+  %r.270 = ptrtoint ptr %r.270.rv to i64
+  store i64 %r.270, ptr %r.230
+  %r.271 = load i64, ptr %r.230
+  %r.272 = ptrtoint ptr @.str.254 to i64
+  %r.273.a0 = inttoptr i64 %r.271 to ptr
+  %r.273.a1 = inttoptr i64 %r.233 to ptr
+  %r.273.rv = call ptr @__nucleor_str_concat(ptr %r.273.a0, ptr %r.273.a1)
+  %r.273 = ptrtoint ptr %r.273.rv to i64
+  store i64 %r.273, ptr %r.230
+  %r.274 = load i64, ptr %r.230
+  %r.275 = load i64, ptr %r.62
+  %r.276.a0 = inttoptr i64 %r.274 to ptr
+  %r.276.a1 = inttoptr i64 %r.275 to ptr
+  %r.276.rv = call ptr @__nucleor_str_concat(ptr %r.276.a0, ptr %r.276.a1)
+  %r.276 = ptrtoint ptr %r.276.rv to i64
+  store i64 %r.276, ptr %r.230
+  %r.277 = load i64, ptr %r.230
+  %r.278 = load i64, ptr %r.38
+  %r.279.a0 = inttoptr i64 %r.277 to ptr
+  %r.279.a1 = inttoptr i64 %r.278 to ptr
+  %r.279.rv = call ptr @__nucleor_str_concat(ptr %r.279.a0, ptr %r.279.a1)
+  %r.279 = ptrtoint ptr %r.279.rv to i64
+  store i64 %r.279, ptr %r.230
+  %r.280 = load i64, ptr %r.230
+  %r.281 = ptrtoint ptr @.str.5602 to i64
+  %r.282.a0 = inttoptr i64 %r.280 to ptr
+  %r.282.a1 = inttoptr i64 %r.281 to ptr
+  %r.282.rv = call ptr @__nucleor_str_concat(ptr %r.282.a0, ptr %r.282.a1)
+  %r.282 = ptrtoint ptr %r.282.rv to i64
+  store i64 %r.282, ptr %r.230
+  %r.283 = load i64, ptr %r.230
+  %r.284 = load i64, ptr %r.89
+  %r.285.a0 = inttoptr i64 %r.283 to ptr
+  %r.285.a1 = inttoptr i64 %r.284 to ptr
+  %r.285.rv = call ptr @__nucleor_str_concat(ptr %r.285.a0, ptr %r.285.a1)
+  %r.285 = ptrtoint ptr %r.285.rv to i64
+  store i64 %r.285, ptr %r.230
+  %r.286 = load i64, ptr %r.230
+  %r.287 = ptrtoint ptr @.str.5603 to i64
+  %r.288.a0 = inttoptr i64 %r.286 to ptr
+  %r.288.a1 = inttoptr i64 %r.287 to ptr
+  %r.288.rv = call ptr @__nucleor_str_concat(ptr %r.288.a0, ptr %r.288.a1)
+  %r.288 = ptrtoint ptr %r.288.rv to i64
+  store i64 %r.288, ptr %r.230
+  %r.290 = load i64, ptr %r.230
+  %r.291.a0 = inttoptr i64 %r.290 to ptr
+  %r.291 = call i64 @__nucleor_system(ptr %r.291.a0)
+  store i64 %r.291, ptr %r.289
+  %r.292 = load i64, ptr %r.8
+  %r.293 = ptrtoint ptr @.str.5572 to i64
+  %r.294 = call i64 @__nucleor_now_ms()
+  %r.295 = load i64, ptr %r.143
+  %r.296.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.294, i64 %r.295)
+  %r.296 = extractvalue { i64, i1 } %r.296.ov, 0
+  %r.296.of = extractvalue { i64, i1 } %r.296.ov, 1
+  br i1 %r.296.of, label %L27, label %L28
+L27:
+  %r.296.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+  unreachable
+L28:
+  %r.297 = call i64 @print_phase_time(i64 %r.292, i64 %r.293, i64 %r.296)
+  %r.298 = load i64, ptr %r.289
+  %r.299 = add i64 0, 0
+  %r.300.cmp = icmp ne i64 %r.298, %r.299
+  %r.300 = zext i1 %r.300.cmp to i64
+  %br.300.cond = icmp ne i64 %r.300, 0
+  br i1 %br.300.cond, label %L29, label %L31
+L29:
+  %r.302 = load i64, ptr %r.10
+  %r.303.a0 = inttoptr i64 %r.302 to ptr
+  %r.303.rv = call ptr @__nucleor_file_read_string(ptr %r.303.a0)
+  %r.303 = ptrtoint ptr %r.303.rv to i64
+  store i64 %r.303, ptr %r.301
+  %r.304 = load i64, ptr %r.301
+  %r.305.a0 = inttoptr i64 %r.304 to ptr
+  %r.305 = call i64 @__nucleor_str_len(ptr %r.305.a0)
+  %r.306 = add i64 0, 0
+  %r.307.cmp = icmp eq i64 %r.305, %r.306
+  %r.307 = zext i1 %r.307.cmp to i64
+  %br.307.cond = icmp ne i64 %r.307, 0
+  br i1 %br.307.cond, label %L32, label %L34
+L32:
+  %r.308 = ptrtoint ptr @.str.5608 to i64
+  %r.309 = load i64, ptr %r.289
+  %r.310 = call i64 @str_from_int(i64 %r.309)
+  %r.311 = ptrtoint ptr @.str.390 to i64
+  %r.312.a0 = inttoptr i64 %r.310 to ptr
+  %r.312.a1 = inttoptr i64 %r.311 to ptr
+  %r.312.rv = call ptr @__nucleor_str_concat(ptr %r.312.a0, ptr %r.312.a1)
+  %r.312 = ptrtoint ptr %r.312.rv to i64
+  %r.313.a0 = inttoptr i64 %r.308 to ptr
+  %r.313.a1 = inttoptr i64 %r.312 to ptr
+  %r.313.rv = call ptr @__nucleor_str_concat(ptr %r.313.a0, ptr %r.313.a1)
+  %r.313 = ptrtoint ptr %r.313.rv to i64
+  %r.314.a0 = inttoptr i64 %r.313 to ptr
+  call void @__nucleor_print_str(ptr %r.314.a0)
+  %r.314 = add i64 0, 0
+  %r.315 = add i64 1, 0
+  ret i64 %r.315
+L34:
+  %r.316 = load i64, ptr %r.301
+  %r.317 = load i64, ptr %r.2
+  %r.318 = load i64, ptr %r.4
+  %r.319 = load i64, ptr %r.6
+  %r.320 = add i64 1, 0
+  %r.321 = load i64, ptr %r.8
+  %r.322 = call i64 @link_native_module(i64 %r.316, i64 %r.317, i64 %r.318, i64 %r.319, i64 %r.320, i64 %r.321)
+  ret i64 %r.322
+L31:
+  %r.324 = load i64, ptr %r.83
+  %r.325.a0 = inttoptr i64 %r.324 to ptr
+  %r.325.rv = call ptr @__nucleor_file_read_string(ptr %r.325.a0)
+  %r.325 = ptrtoint ptr %r.325.rv to i64
+  store i64 %r.325, ptr %r.323
+  %r.326 = load i64, ptr %r.323
+  %r.327.a0 = inttoptr i64 %r.326 to ptr
+  %r.327 = call i64 @__nucleor_str_len(ptr %r.327.a0)
+  %r.328 = add i64 0, 0
+  %r.329.cmp = icmp sgt i64 %r.327, %r.328
+  %r.329 = zext i1 %r.329.cmp to i64
+  %br.329.cond = icmp ne i64 %r.329, 0
+  br i1 %br.329.cond, label %L35, label %L37
+L35:
+  %r.330 = load i64, ptr %r.323
+  %r.331.a0 = inttoptr i64 %r.330 to ptr
+  call void @__nucleor_print_str(ptr %r.331.a0)
+  %r.331 = add i64 0, 0
+  br label %L37
+L37:
+  %r.332 = ptrtoint ptr @.str.5622 to i64
+  %r.333 = load i64, ptr %r.21
+  %r.334.a0 = inttoptr i64 %r.332 to ptr
+  %r.334.a1 = inttoptr i64 %r.333 to ptr
+  %r.334.rv = call ptr @__nucleor_str_concat(ptr %r.334.a0, ptr %r.334.a1)
+  %r.334 = ptrtoint ptr %r.334.rv to i64
+  %r.335.a0 = inttoptr i64 %r.334 to ptr
+  call void @__nucleor_print_str(ptr %r.335.a0)
+  %r.335 = add i64 0, 0
+  %r.336 = load i64, ptr %r.92
+  %r.337 = load i64, ptr %r.21
+  %r.338 = call i64 @native_link_cache_store(i64 %r.336, i64 %r.337)
+  %r.339 = add i64 0, 0
+  ret i64 %r.339
 }
 
 define i64 @extract_dir(i64 %p.0) {
@@ -304445,7 +304742,7 @@ L12:
   %r.35 = load i64, ptr %r.29
   ret i64 %r.35
 L14:
-  %r.37 = ptrtoint ptr @.str.5562 to i64
+  %r.37 = ptrtoint ptr @.str.5567 to i64
   %r.38 = ptrtoint ptr @.str.136 to i64
   %r.39.a0 = inttoptr i64 %r.37 to ptr
   %r.39.a1 = inttoptr i64 %r.38 to ptr
@@ -304982,7 +305279,7 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.5619 to i64
+  %r.2 = ptrtoint ptr @.str.5625 to i64
   %r.3 = call i64 @compiler_version_label()
   %r.4 = ptrtoint ptr @.str.235 to i64
   %r.5 = load i64, ptr %r.0
@@ -305007,10 +305304,10 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.5620 to i64
+  %r.2 = ptrtoint ptr @.str.5626 to i64
   %r.3 = load i64, ptr %r.0
   %r.4 = call i64 @module_graph_cache_id(i64 %r.3)
-  %r.5 = ptrtoint ptr @.str.5621 to i64
+  %r.5 = ptrtoint ptr @.str.5627 to i64
   %r.6.a0 = inttoptr i64 %r.4 to ptr
   %r.6.a1 = inttoptr i64 %r.5 to ptr
   %r.6.rv = call ptr @__nucleor_str_concat(ptr %r.6.a0, ptr %r.6.a1)
@@ -305027,10 +305324,10 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.5620 to i64
+  %r.2 = ptrtoint ptr @.str.5626 to i64
   %r.3 = load i64, ptr %r.0
   %r.4 = call i64 @module_graph_cache_id(i64 %r.3)
-  %r.5 = ptrtoint ptr @.str.5622 to i64
+  %r.5 = ptrtoint ptr @.str.5628 to i64
   %r.6.a0 = inttoptr i64 %r.4 to ptr
   %r.6.a1 = inttoptr i64 %r.5 to ptr
   %r.6.rv = call ptr @__nucleor_str_concat(ptr %r.6.a0, ptr %r.6.a1)
@@ -305047,10 +305344,10 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.5620 to i64
+  %r.2 = ptrtoint ptr @.str.5626 to i64
   %r.3 = load i64, ptr %r.0
   %r.4 = call i64 @module_graph_cache_id(i64 %r.3)
-  %r.5 = ptrtoint ptr @.str.5623 to i64
+  %r.5 = ptrtoint ptr @.str.5629 to i64
   %r.6.a0 = inttoptr i64 %r.4 to ptr
   %r.6.a1 = inttoptr i64 %r.5 to ptr
   %r.6.rv = call ptr @__nucleor_str_concat(ptr %r.6.a0, ptr %r.6.a1)
@@ -305347,11 +305644,11 @@ L42:
   %br.110.cond = icmp ne i64 %r.110, 0
   br i1 %br.110.cond, label %L43, label %L45
 L43:
-  %r.111 = ptrtoint ptr @.str.5624 to i64
+  %r.111 = ptrtoint ptr @.str.5630 to i64
   %r.112.a0 = inttoptr i64 %r.111 to ptr
   call void @__nucleor_print_str(ptr %r.112.a0)
   %r.112 = add i64 0, 0
-  %r.113 = ptrtoint ptr @.str.5625 to i64
+  %r.113 = ptrtoint ptr @.str.5631 to i64
   %r.114.a0 = inttoptr i64 %r.113 to ptr
   %r.114 = call i64 @__nucleor_panic(ptr %r.114.a0)
   br label %L45
@@ -305389,11 +305686,11 @@ L48:
   %br.129.cond = icmp ne i64 %r.129, 0
   br i1 %br.129.cond, label %L49, label %L51
 L49:
-  %r.130 = ptrtoint ptr @.str.5626 to i64
+  %r.130 = ptrtoint ptr @.str.5632 to i64
   %r.131.a0 = inttoptr i64 %r.130 to ptr
   call void @__nucleor_print_str(ptr %r.131.a0)
   %r.131 = add i64 0, 0
-  %r.132 = ptrtoint ptr @.str.5627 to i64
+  %r.132 = ptrtoint ptr @.str.5633 to i64
   %r.133.a0 = inttoptr i64 %r.132 to ptr
   %r.133 = call i64 @__nucleor_panic(ptr %r.133.a0)
   br label %L51
@@ -305431,11 +305728,11 @@ L54:
   %br.148.cond = icmp ne i64 %r.148, 0
   br i1 %br.148.cond, label %L55, label %L57
 L55:
-  %r.149 = ptrtoint ptr @.str.5628 to i64
+  %r.149 = ptrtoint ptr @.str.5634 to i64
   %r.150.a0 = inttoptr i64 %r.149 to ptr
   call void @__nucleor_print_str(ptr %r.150.a0)
   %r.150 = add i64 0, 0
-  %r.151 = ptrtoint ptr @.str.5629 to i64
+  %r.151 = ptrtoint ptr @.str.5635 to i64
   %r.152.a0 = inttoptr i64 %r.151 to ptr
   %r.152 = call i64 @__nucleor_panic(ptr %r.152.a0)
   br label %L57
@@ -305456,7 +305753,7 @@ L57:
   %r.164 = add i64 0, 0
   store i64 %r.164, ptr %r.163
   %r.165 = load i64, ptr %r.153
-  %r.166 = ptrtoint ptr @.str.5630 to i64
+  %r.166 = ptrtoint ptr @.str.5636 to i64
   %r.167 = call i64 @str_starts_with(i64 %r.165, i64 %r.166)
   %r.168 = add i64 1, 0
   %r.169.cmp = icmp eq i64 %r.167, %r.168
@@ -305464,14 +305761,14 @@ L57:
   %br.169.cond = icmp ne i64 %r.169, 0
   br i1 %br.169.cond, label %L58, label %L59
 L58:
-  %r.170 = ptrtoint ptr @.str.5631 to i64
+  %r.170 = ptrtoint ptr @.str.5637 to i64
   store i64 %r.170, ptr %r.161
   %r.171 = add i64 5, 0
   store i64 %r.171, ptr %r.163
   br label %L60
 L59:
   %r.172 = load i64, ptr %r.153
-  %r.173 = ptrtoint ptr @.str.5632 to i64
+  %r.173 = ptrtoint ptr @.str.5638 to i64
   %r.174 = call i64 @str_starts_with(i64 %r.172, i64 %r.173)
   %r.175 = add i64 1, 0
   %r.176.cmp = icmp eq i64 %r.174, %r.175
@@ -305486,7 +305783,7 @@ L61:
   br label %L63
 L62:
   %r.179 = load i64, ptr %r.153
-  %r.180 = ptrtoint ptr @.str.5633 to i64
+  %r.180 = ptrtoint ptr @.str.5639 to i64
   %r.181 = call i64 @str_starts_with(i64 %r.179, i64 %r.180)
   %r.182 = add i64 1, 0
   %r.183.cmp = icmp eq i64 %r.181, %r.182
@@ -305494,7 +305791,7 @@ L62:
   %br.183.cond = icmp ne i64 %r.183, 0
   br i1 %br.183.cond, label %L64, label %L65
 L64:
-  %r.184 = ptrtoint ptr @.str.5634 to i64
+  %r.184 = ptrtoint ptr @.str.5640 to i64
   store i64 %r.184, ptr %r.161
   %r.185 = add i64 7, 0
   store i64 %r.185, ptr %r.163
@@ -305644,7 +305941,7 @@ L82:
   br label %L67
 L69:
   %r.243 = load i64, ptr %r.187
-  %r.244 = ptrtoint ptr @.str.5635 to i64
+  %r.244 = ptrtoint ptr @.str.5641 to i64
   %r.245.a1 = inttoptr i64 %r.244 to ptr
   call void @__nucleor_sb_append(i64 %r.243, ptr %r.245.a1)
   %r.245 = add i64 0, 0
@@ -305912,7 +306209,7 @@ L23:
 L24:
   %r.86 = load i64, ptr %r.0
   %r.87 = load i64, ptr %r.40
-  %r.88 = ptrtoint ptr @.str.5636 to i64
+  %r.88 = ptrtoint ptr @.str.5642 to i64
   %r.89 = call i64 @str_eq_at(i64 %r.86, i64 %r.87, i64 %r.88)
   %r.90 = add i64 1, 0
   %r.91.cmp = icmp eq i64 %r.89, %r.90
@@ -305931,11 +306228,11 @@ L26:
   %br.95.cond = icmp ne i64 %r.95, 0
   br i1 %br.95.cond, label %L27, label %L29
 L27:
-  %r.96 = ptrtoint ptr @.str.5637 to i64
+  %r.96 = ptrtoint ptr @.str.5643 to i64
   %r.97.a0 = inttoptr i64 %r.96 to ptr
   call void @__nucleor_print_str(ptr %r.97.a0)
   %r.97 = add i64 0, 0
-  %r.98 = ptrtoint ptr @.str.5638 to i64
+  %r.98 = ptrtoint ptr @.str.5644 to i64
   %r.99.a0 = inttoptr i64 %r.98 to ptr
   %r.99 = call i64 @__nucleor_panic(ptr %r.99.a0)
   br label %L29
@@ -305952,7 +306249,7 @@ L29:
 L30:
   %r.106 = load i64, ptr %r.0
   %r.107 = load i64, ptr %r.40
-  %r.108 = ptrtoint ptr @.str.5639 to i64
+  %r.108 = ptrtoint ptr @.str.5645 to i64
   %r.109 = call i64 @str_eq_at(i64 %r.106, i64 %r.107, i64 %r.108)
   %r.110 = add i64 1, 0
   %r.111.cmp = icmp eq i64 %r.109, %r.110
@@ -306779,7 +307076,7 @@ L181:
   %r.438 = ptrtoint ptr %r.438.rv to i64
   store i64 %r.438, ptr %r.432
   %r.439 = load i64, ptr %r.10
-  %r.440 = ptrtoint ptr @.str.5640 to i64
+  %r.440 = ptrtoint ptr @.str.5646 to i64
   %r.441.a1 = inttoptr i64 %r.440 to ptr
   call void @__nucleor_sb_append(i64 %r.439, ptr %r.441.a1)
   %r.441 = add i64 0, 0
@@ -306794,7 +307091,7 @@ L181:
   call void @__nucleor_sb_append(i64 %r.442, ptr %r.447.a1)
   %r.447 = add i64 0, 0
   %r.448 = load i64, ptr %r.10
-  %r.449 = ptrtoint ptr @.str.5641 to i64
+  %r.449 = ptrtoint ptr @.str.5647 to i64
   %r.450.a1 = inttoptr i64 %r.449 to ptr
   call void @__nucleor_sb_append(i64 %r.448, ptr %r.450.a1)
   %r.450 = add i64 0, 0
@@ -306960,7 +307257,7 @@ L206:
   %r.520.a0 = inttoptr i64 %r.517 to ptr
   %r.520.rv = call ptr @__nucleor_str_substring(ptr %r.520.a0, i64 %r.518, i64 %r.519)
   %r.520 = ptrtoint ptr %r.520.rv to i64
-  %r.521 = ptrtoint ptr @.str.5635 to i64
+  %r.521 = ptrtoint ptr @.str.5641 to i64
   %r.522.a0 = inttoptr i64 %r.520 to ptr
   %r.522.a1 = inttoptr i64 %r.521 to ptr
   %r.522.rv = call ptr @__nucleor_str_concat(ptr %r.522.a0, ptr %r.522.a1)
@@ -307136,7 +307433,7 @@ L233:
   %r.594.rv = call ptr @__nucleor_str_concat(ptr %r.594.a0, ptr %r.594.a1)
   %r.594 = ptrtoint ptr %r.594.rv to i64
   store i64 %r.594, ptr %r.573
-  %r.595 = ptrtoint ptr @.str.5642 to i64
+  %r.595 = ptrtoint ptr @.str.5648 to i64
   %r.596 = load i64, ptr %r.573
   %r.597.a0 = inttoptr i64 %r.595 to ptr
   %r.597.a1 = inttoptr i64 %r.596 to ptr
@@ -307145,7 +307442,7 @@ L233:
   %r.598.a0 = inttoptr i64 %r.597 to ptr
   call void @__nucleor_print_str(ptr %r.598.a0)
   %r.598 = add i64 0, 0
-  %r.599 = ptrtoint ptr @.str.5643 to i64
+  %r.599 = ptrtoint ptr @.str.5649 to i64
   %r.600.a0 = inttoptr i64 %r.599 to ptr
   %r.600 = call i64 @__nucleor_panic(ptr %r.600.a0)
   br label %L230
@@ -307217,7 +307514,7 @@ L239:
   br label %L241
 L240:
   %r.644 = load i64, ptr %r.10
-  %r.645 = ptrtoint ptr @.str.5644 to i64
+  %r.645 = ptrtoint ptr @.str.5650 to i64
   %r.646 = load i64, ptr %r.532
   %r.647.a0 = inttoptr i64 %r.645 to ptr
   %r.647.a1 = inttoptr i64 %r.646 to ptr
@@ -307338,10 +307635,10 @@ L252:
   %br.693.cond = icmp ne i64 %r.693, 0
   br i1 %br.693.cond, label %L258, label %L260
 L258:
-  %r.694 = ptrtoint ptr @.str.5645 to i64
+  %r.694 = ptrtoint ptr @.str.5651 to i64
   %r.695 = load i64, ptr %r.15
   %r.696 = call i64 @str_from_int(i64 %r.695)
-  %r.697 = ptrtoint ptr @.str.5646 to i64
+  %r.697 = ptrtoint ptr @.str.5652 to i64
   %r.698.a0 = inttoptr i64 %r.696 to ptr
   %r.698.a1 = inttoptr i64 %r.697 to ptr
   %r.698.rv = call ptr @__nucleor_str_concat(ptr %r.698.a0, ptr %r.698.a1)
@@ -307353,7 +307650,7 @@ L258:
   %r.700.a0 = inttoptr i64 %r.699 to ptr
   call void @__nucleor_print_str(ptr %r.700.a0)
   %r.700 = add i64 0, 0
-  %r.701 = ptrtoint ptr @.str.5647 to i64
+  %r.701 = ptrtoint ptr @.str.5653 to i64
   %r.702.a0 = inttoptr i64 %r.701 to ptr
   %r.702 = call i64 @__nucleor_panic(ptr %r.702.a0)
   br label %L260
@@ -307512,7 +307809,7 @@ L282:
   %r.768.rv = call ptr @__nucleor_str_concat(ptr %r.768.a0, ptr %r.768.a1)
   %r.768 = ptrtoint ptr %r.768.rv to i64
   store i64 %r.768, ptr %r.747
-  %r.769 = ptrtoint ptr @.str.5642 to i64
+  %r.769 = ptrtoint ptr @.str.5648 to i64
   %r.770 = load i64, ptr %r.747
   %r.771.a0 = inttoptr i64 %r.769 to ptr
   %r.771.a1 = inttoptr i64 %r.770 to ptr
@@ -307521,7 +307818,7 @@ L282:
   %r.772.a0 = inttoptr i64 %r.771 to ptr
   call void @__nucleor_print_str(ptr %r.772.a0)
   %r.772 = add i64 0, 0
-  %r.773 = ptrtoint ptr @.str.5643 to i64
+  %r.773 = ptrtoint ptr @.str.5649 to i64
   %r.774.a0 = inttoptr i64 %r.773 to ptr
   %r.774 = call i64 @__nucleor_panic(ptr %r.774.a0)
   br label %L279
@@ -307593,7 +307890,7 @@ L288:
   br label %L290
 L289:
   %r.818 = load i64, ptr %r.10
-  %r.819 = ptrtoint ptr @.str.5648 to i64
+  %r.819 = ptrtoint ptr @.str.5654 to i64
   %r.820 = load i64, ptr %r.703
   %r.821.a0 = inttoptr i64 %r.819 to ptr
   %r.821.a1 = inttoptr i64 %r.820 to ptr
@@ -307620,10 +307917,10 @@ L246:
   %br.828.cond = icmp ne i64 %r.828, 0
   br i1 %br.828.cond, label %L291, label %L293
 L291:
-  %r.829 = ptrtoint ptr @.str.5649 to i64
+  %r.829 = ptrtoint ptr @.str.5655 to i64
   %r.830 = load i64, ptr %r.15
   %r.831 = call i64 @str_from_int(i64 %r.830)
-  %r.832 = ptrtoint ptr @.str.5650 to i64
+  %r.832 = ptrtoint ptr @.str.5656 to i64
   %r.833.a0 = inttoptr i64 %r.831 to ptr
   %r.833.a1 = inttoptr i64 %r.832 to ptr
   %r.833.rv = call ptr @__nucleor_str_concat(ptr %r.833.a0, ptr %r.833.a1)
@@ -307635,7 +307932,7 @@ L291:
   %r.835.a0 = inttoptr i64 %r.834 to ptr
   call void @__nucleor_print_str(ptr %r.835.a0)
   %r.835 = add i64 0, 0
-  %r.836 = ptrtoint ptr @.str.5651 to i64
+  %r.836 = ptrtoint ptr @.str.5657 to i64
   %r.837.a0 = inttoptr i64 %r.836 to ptr
   %r.837 = call i64 @__nucleor_panic(ptr %r.837.a0)
   br label %L293
@@ -307796,9 +308093,9 @@ L0:
   %r.13 = ptrtoint ptr @.str.180 to i64
   %r.14 = load i64, ptr %r.7
   %r.15 = call i64 @str_from_int(i64 %r.14)
-  %r.16 = ptrtoint ptr @.str.5652 to i64
+  %r.16 = ptrtoint ptr @.str.5658 to i64
   %r.17 = load i64, ptr %r.0
-  %r.18 = ptrtoint ptr @.str.5653 to i64
+  %r.18 = ptrtoint ptr @.str.5659 to i64
   %r.19.a0 = inttoptr i64 %r.17 to ptr
   %r.19.a1 = inttoptr i64 %r.18 to ptr
   %r.19.rv = call ptr @__nucleor_str_concat(ptr %r.19.a0, ptr %r.19.a1)
@@ -307818,7 +308115,7 @@ L0:
   %r.23.a0 = inttoptr i64 %r.22 to ptr
   call void @__nucleor_print_str(ptr %r.23.a0)
   %r.23 = add i64 0, 0
-  %r.24 = ptrtoint ptr @.str.5654 to i64
+  %r.24 = ptrtoint ptr @.str.5660 to i64
   %r.25.a0 = inttoptr i64 %r.24 to ptr
   %r.25 = call i64 @__nucleor_panic(ptr %r.25.a0)
   br label %L2
@@ -308125,7 +308422,7 @@ bb.entry:
   %r.14 = call i64 @module_graph_max_depth_source_path(i64 %r.13)
   store i64 %r.14, ptr %r.12
   %r.16 = load i64, ptr %r.0
-  %r.17 = ptrtoint ptr @.str.5655 to i64
+  %r.17 = ptrtoint ptr @.str.5661 to i64
   %r.18.a0 = inttoptr i64 %r.16 to ptr
   %r.18.a1 = inttoptr i64 %r.17 to ptr
   %r.18 = call i64 @__nucleor_str_ends_with(ptr %r.18.a0, ptr %r.18.a1)
@@ -308140,7 +308437,7 @@ L0:
   br label %L2
 L1:
   %r.23 = load i64, ptr %r.0
-  %r.24 = ptrtoint ptr @.str.5656 to i64
+  %r.24 = ptrtoint ptr @.str.5662 to i64
   %r.25.a0 = inttoptr i64 %r.23 to ptr
   %r.25.a1 = inttoptr i64 %r.24 to ptr
   %r.25 = call i64 @__nucleor_str_ends_with(ptr %r.25.a0, ptr %r.25.a1)
@@ -308418,7 +308715,7 @@ L35:
   %r.166 = ptrtoint ptr @.str.136 to i64
   store i64 %r.166, ptr %r.165
   %r.167 = load i64, ptr %r.129
-  %r.168 = ptrtoint ptr @.str.5657 to i64
+  %r.168 = ptrtoint ptr @.str.5663 to i64
   %r.169.a0 = inttoptr i64 %r.167 to ptr
   %r.169.a1 = inttoptr i64 %r.168 to ptr
   %r.169 = call i64 @__nucleor_str_contains(ptr %r.169.a0, ptr %r.169.a1)
@@ -308432,7 +308729,7 @@ L35:
   br i1 %br.174.cond, label %L36, label %L37
 L36:
   %r.175 = load i64, ptr %r.129
-  %r.176 = ptrtoint ptr @.str.5658 to i64
+  %r.176 = ptrtoint ptr @.str.5664 to i64
   %r.177.a0 = inttoptr i64 %r.175 to ptr
   %r.177.a1 = inttoptr i64 %r.176 to ptr
   %r.177 = call i64 @__nucleor_str_contains(ptr %r.177.a0, ptr %r.177.a1)
@@ -308457,7 +308754,7 @@ L38:
   br i1 %br.186.cond, label %L39, label %L40
 L39:
   %r.187 = load i64, ptr %r.129
-  %r.188 = ptrtoint ptr @.str.5659 to i64
+  %r.188 = ptrtoint ptr @.str.5665 to i64
   %r.189.a0 = inttoptr i64 %r.187 to ptr
   %r.189.a1 = inttoptr i64 %r.188 to ptr
   %r.189 = call i64 @__nucleor_str_contains(ptr %r.189.a0, ptr %r.189.a1)
@@ -308482,7 +308779,7 @@ L41:
   br i1 %br.198.cond, label %L42, label %L43
 L42:
   %r.199 = load i64, ptr %r.129
-  %r.200 = ptrtoint ptr @.str.5660 to i64
+  %r.200 = ptrtoint ptr @.str.5666 to i64
   %r.201.a0 = inttoptr i64 %r.199 to ptr
   %r.201.a1 = inttoptr i64 %r.200 to ptr
   %r.201 = call i64 @__nucleor_str_contains(ptr %r.201.a0, ptr %r.201.a1)
@@ -308507,7 +308804,7 @@ L44:
   br i1 %br.210.cond, label %L45, label %L46
 L45:
   %r.211 = load i64, ptr %r.129
-  %r.212 = ptrtoint ptr @.str.5661 to i64
+  %r.212 = ptrtoint ptr @.str.5667 to i64
   %r.213 = call i64 @str_starts_with(i64 %r.211, i64 %r.212)
   %r.214 = add i64 0, 0
   %r.215.cmp = icmp eq i64 %r.213, %r.214
@@ -308576,7 +308873,7 @@ L53:
   br i1 %br.246.cond, label %L54, label %L55
 L54:
   %r.247 = load i64, ptr %r.129
-  %r.248 = ptrtoint ptr @.str.5636 to i64
+  %r.248 = ptrtoint ptr @.str.5642 to i64
   %r.249 = call i64 @str_starts_with(i64 %r.247, i64 %r.248)
   %r.250 = add i64 0, 0
   %r.251.cmp = icmp eq i64 %r.249, %r.250
@@ -308609,8 +308906,8 @@ L58:
   store i64 %r.263, ptr %r.165
   br label %L59
 L59:
-  %r.265 = ptrtoint ptr @.str.5662 to i64
-  %r.266 = ptrtoint ptr @.str.5663 to i64
+  %r.265 = ptrtoint ptr @.str.5668 to i64
+  %r.266 = ptrtoint ptr @.str.5669 to i64
   %r.267.a0 = inttoptr i64 %r.265 to ptr
   %r.267.a1 = inttoptr i64 %r.266 to ptr
   %r.267.rv = call ptr @__nucleor_str_concat(ptr %r.267.a0, ptr %r.267.a1)
@@ -308634,15 +308931,15 @@ L60:
   %br.275.cond = icmp ne i64 %r.275, 0
   br i1 %br.275.cond, label %L63, label %L65
 L63:
-  %r.276 = ptrtoint ptr @.str.5664 to i64
+  %r.276 = ptrtoint ptr @.str.5670 to i64
   %r.277.a0 = inttoptr i64 %r.276 to ptr
   call void @__nucleor_print_str(ptr %r.277.a0)
   %r.277 = add i64 0, 0
-  %r.278 = ptrtoint ptr @.str.5665 to i64
+  %r.278 = ptrtoint ptr @.str.5671 to i64
   %r.279.a0 = inttoptr i64 %r.278 to ptr
   call void @__nucleor_print_str(ptr %r.279.a0)
   %r.279 = add i64 0, 0
-  %r.280 = ptrtoint ptr @.str.5666 to i64
+  %r.280 = ptrtoint ptr @.str.5672 to i64
   %r.281.a0 = inttoptr i64 %r.280 to ptr
   %r.281 = call i64 @__nucleor_panic(ptr %r.281.a0)
   br label %L65
@@ -308689,7 +308986,7 @@ L69:
   %br.302.cond = icmp ne i64 %r.302, 0
   br i1 %br.302.cond, label %L72, label %L74
 L72:
-  %r.303 = ptrtoint ptr @.str.5667 to i64
+  %r.303 = ptrtoint ptr @.str.5673 to i64
   %r.304 = load i64, ptr %r.297
   %r.305 = call i64 @str_from_int(i64 %r.304)
   %r.306.a0 = inttoptr i64 %r.303 to ptr
@@ -308700,8 +308997,8 @@ L72:
   call void @__nucleor_print_str(ptr %r.307.a0)
   %r.307 = add i64 0, 0
   %r.309 = load i64, ptr %r.284
-  %r.310 = ptrtoint ptr @.str.5668 to i64
-  %r.311 = ptrtoint ptr @.str.5669 to i64
+  %r.310 = ptrtoint ptr @.str.5674 to i64
+  %r.311 = ptrtoint ptr @.str.5675 to i64
   %r.312.a0 = inttoptr i64 %r.310 to ptr
   %r.312.a1 = inttoptr i64 %r.311 to ptr
   %r.312.rv = call ptr @__nucleor_str_concat(ptr %r.312.a0, ptr %r.312.a1)
@@ -308717,7 +309014,7 @@ L72:
   %br.317.cond = icmp ne i64 %r.317, 0
   br i1 %br.317.cond, label %L75, label %L77
 L75:
-  %r.318 = ptrtoint ptr @.str.5670 to i64
+  %r.318 = ptrtoint ptr @.str.5676 to i64
   %r.319 = load i64, ptr %r.308
   %r.320.a0 = inttoptr i64 %r.318 to ptr
   %r.320.a1 = inttoptr i64 %r.319 to ptr
@@ -308731,8 +309028,8 @@ L77:
   br label %L74
 L74:
   %r.323 = load i64, ptr %r.284
-  %r.324 = ptrtoint ptr @.str.5671 to i64
-  %r.325 = ptrtoint ptr @.str.5672 to i64
+  %r.324 = ptrtoint ptr @.str.5677 to i64
+  %r.325 = ptrtoint ptr @.str.5678 to i64
   %r.326.a0 = inttoptr i64 %r.324 to ptr
   %r.326.a1 = inttoptr i64 %r.325 to ptr
   %r.326.rv = call ptr @__nucleor_str_concat(ptr %r.326.a0, ptr %r.326.a1)
@@ -308746,7 +309043,7 @@ L74:
   %br.330.cond = icmp ne i64 %r.330, 0
   br i1 %br.330.cond, label %L78, label %L80
 L78:
-  %r.331 = ptrtoint ptr @.str.5673 to i64
+  %r.331 = ptrtoint ptr @.str.5679 to i64
   %r.332 = load i64, ptr %r.322
   %r.333 = call i64 @str_from_int(i64 %r.332)
   %r.334.a0 = inttoptr i64 %r.331 to ptr
@@ -308757,8 +309054,8 @@ L78:
   call void @__nucleor_print_str(ptr %r.335.a0)
   %r.335 = add i64 0, 0
   %r.337 = load i64, ptr %r.284
-  %r.338 = ptrtoint ptr @.str.5671 to i64
-  %r.339 = ptrtoint ptr @.str.5672 to i64
+  %r.338 = ptrtoint ptr @.str.5677 to i64
+  %r.339 = ptrtoint ptr @.str.5678 to i64
   %r.340.a0 = inttoptr i64 %r.338 to ptr
   %r.340.a1 = inttoptr i64 %r.339 to ptr
   %r.340.rv = call ptr @__nucleor_str_concat(ptr %r.340.a0, ptr %r.340.a1)
@@ -308774,7 +309071,7 @@ L78:
   %br.345.cond = icmp ne i64 %r.345, 0
   br i1 %br.345.cond, label %L81, label %L83
 L81:
-  %r.346 = ptrtoint ptr @.str.5674 to i64
+  %r.346 = ptrtoint ptr @.str.5680 to i64
   %r.347 = load i64, ptr %r.336
   %r.348.a0 = inttoptr i64 %r.346 to ptr
   %r.348.a1 = inttoptr i64 %r.347 to ptr
@@ -308788,8 +309085,8 @@ L83:
   br label %L80
 L80:
   %r.351 = load i64, ptr %r.284
-  %r.352 = ptrtoint ptr @.str.5675 to i64
-  %r.353 = ptrtoint ptr @.str.5676 to i64
+  %r.352 = ptrtoint ptr @.str.5681 to i64
+  %r.353 = ptrtoint ptr @.str.5682 to i64
   %r.354.a0 = inttoptr i64 %r.352 to ptr
   %r.354.a1 = inttoptr i64 %r.353 to ptr
   %r.354.rv = call ptr @__nucleor_str_concat(ptr %r.354.a0, ptr %r.354.a1)
@@ -308803,7 +309100,7 @@ L80:
   %br.358.cond = icmp ne i64 %r.358, 0
   br i1 %br.358.cond, label %L84, label %L86
 L84:
-  %r.359 = ptrtoint ptr @.str.5677 to i64
+  %r.359 = ptrtoint ptr @.str.5683 to i64
   %r.360 = load i64, ptr %r.350
   %r.361 = call i64 @str_from_int(i64 %r.360)
   %r.362.a0 = inttoptr i64 %r.359 to ptr
@@ -308814,8 +309111,8 @@ L84:
   call void @__nucleor_print_str(ptr %r.363.a0)
   %r.363 = add i64 0, 0
   %r.365 = load i64, ptr %r.284
-  %r.366 = ptrtoint ptr @.str.5675 to i64
-  %r.367 = ptrtoint ptr @.str.5676 to i64
+  %r.366 = ptrtoint ptr @.str.5681 to i64
+  %r.367 = ptrtoint ptr @.str.5682 to i64
   %r.368.a0 = inttoptr i64 %r.366 to ptr
   %r.368.a1 = inttoptr i64 %r.367 to ptr
   %r.368.rv = call ptr @__nucleor_str_concat(ptr %r.368.a0, ptr %r.368.a1)
@@ -308831,7 +309128,7 @@ L84:
   %br.373.cond = icmp ne i64 %r.373, 0
   br i1 %br.373.cond, label %L87, label %L89
 L87:
-  %r.374 = ptrtoint ptr @.str.5678 to i64
+  %r.374 = ptrtoint ptr @.str.5684 to i64
   %r.375 = load i64, ptr %r.364
   %r.376.a0 = inttoptr i64 %r.374 to ptr
   %r.376.a1 = inttoptr i64 %r.375 to ptr
@@ -308845,8 +309142,8 @@ L89:
   br label %L86
 L86:
   %r.379 = load i64, ptr %r.284
-  %r.380 = ptrtoint ptr @.str.5679 to i64
-  %r.381 = ptrtoint ptr @.str.5680 to i64
+  %r.380 = ptrtoint ptr @.str.5685 to i64
+  %r.381 = ptrtoint ptr @.str.5686 to i64
   %r.382.a0 = inttoptr i64 %r.380 to ptr
   %r.382.a1 = inttoptr i64 %r.381 to ptr
   %r.382.rv = call ptr @__nucleor_str_concat(ptr %r.382.a0, ptr %r.382.a1)
@@ -308860,7 +309157,7 @@ L86:
   %br.386.cond = icmp ne i64 %r.386, 0
   br i1 %br.386.cond, label %L90, label %L92
 L90:
-  %r.387 = ptrtoint ptr @.str.5681 to i64
+  %r.387 = ptrtoint ptr @.str.5687 to i64
   %r.388 = load i64, ptr %r.378
   %r.389 = call i64 @str_from_int(i64 %r.388)
   %r.390.a0 = inttoptr i64 %r.387 to ptr
@@ -308871,8 +309168,8 @@ L90:
   call void @__nucleor_print_str(ptr %r.391.a0)
   %r.391 = add i64 0, 0
   %r.393 = load i64, ptr %r.284
-  %r.394 = ptrtoint ptr @.str.5679 to i64
-  %r.395 = ptrtoint ptr @.str.5682 to i64
+  %r.394 = ptrtoint ptr @.str.5685 to i64
+  %r.395 = ptrtoint ptr @.str.5688 to i64
   %r.396.a0 = inttoptr i64 %r.394 to ptr
   %r.396.a1 = inttoptr i64 %r.395 to ptr
   %r.396.rv = call ptr @__nucleor_str_concat(ptr %r.396.a0, ptr %r.396.a1)
@@ -308888,7 +309185,7 @@ L90:
   %br.401.cond = icmp ne i64 %r.401, 0
   br i1 %br.401.cond, label %L93, label %L95
 L93:
-  %r.402 = ptrtoint ptr @.str.5683 to i64
+  %r.402 = ptrtoint ptr @.str.5689 to i64
   %r.403 = load i64, ptr %r.392
   %r.404.a0 = inttoptr i64 %r.402 to ptr
   %r.404.a1 = inttoptr i64 %r.403 to ptr
@@ -308902,8 +309199,8 @@ L95:
   br label %L92
 L92:
   %r.407 = load i64, ptr %r.284
-  %r.408 = ptrtoint ptr @.str.5684 to i64
-  %r.409 = ptrtoint ptr @.str.5685 to i64
+  %r.408 = ptrtoint ptr @.str.5690 to i64
+  %r.409 = ptrtoint ptr @.str.5691 to i64
   %r.410.a0 = inttoptr i64 %r.408 to ptr
   %r.410.a1 = inttoptr i64 %r.409 to ptr
   %r.410.rv = call ptr @__nucleor_str_concat(ptr %r.410.a0, ptr %r.410.a1)
@@ -308917,7 +309214,7 @@ L92:
   %br.414.cond = icmp ne i64 %r.414, 0
   br i1 %br.414.cond, label %L96, label %L98
 L96:
-  %r.415 = ptrtoint ptr @.str.5686 to i64
+  %r.415 = ptrtoint ptr @.str.5692 to i64
   %r.416 = load i64, ptr %r.406
   %r.417 = call i64 @str_from_int(i64 %r.416)
   %r.418.a0 = inttoptr i64 %r.415 to ptr
@@ -308928,8 +309225,8 @@ L96:
   call void @__nucleor_print_str(ptr %r.419.a0)
   %r.419 = add i64 0, 0
   %r.421 = load i64, ptr %r.284
-  %r.422 = ptrtoint ptr @.str.5684 to i64
-  %r.423 = ptrtoint ptr @.str.5687 to i64
+  %r.422 = ptrtoint ptr @.str.5690 to i64
+  %r.423 = ptrtoint ptr @.str.5693 to i64
   %r.424.a0 = inttoptr i64 %r.422 to ptr
   %r.424.a1 = inttoptr i64 %r.423 to ptr
   %r.424.rv = call ptr @__nucleor_str_concat(ptr %r.424.a0, ptr %r.424.a1)
@@ -308945,7 +309242,7 @@ L96:
   %br.429.cond = icmp ne i64 %r.429, 0
   br i1 %br.429.cond, label %L99, label %L101
 L99:
-  %r.430 = ptrtoint ptr @.str.5688 to i64
+  %r.430 = ptrtoint ptr @.str.5694 to i64
   %r.431 = load i64, ptr %r.420
   %r.432.a0 = inttoptr i64 %r.430 to ptr
   %r.432.a1 = inttoptr i64 %r.431 to ptr
@@ -308959,8 +309256,8 @@ L101:
   br label %L98
 L98:
   %r.435 = load i64, ptr %r.284
-  %r.436 = ptrtoint ptr @.str.5689 to i64
-  %r.437 = ptrtoint ptr @.str.5690 to i64
+  %r.436 = ptrtoint ptr @.str.5695 to i64
+  %r.437 = ptrtoint ptr @.str.5696 to i64
   %r.438.a0 = inttoptr i64 %r.436 to ptr
   %r.438.a1 = inttoptr i64 %r.437 to ptr
   %r.438.rv = call ptr @__nucleor_str_concat(ptr %r.438.a0, ptr %r.438.a1)
@@ -308974,7 +309271,7 @@ L98:
   %br.442.cond = icmp ne i64 %r.442, 0
   br i1 %br.442.cond, label %L102, label %L104
 L102:
-  %r.443 = ptrtoint ptr @.str.5691 to i64
+  %r.443 = ptrtoint ptr @.str.5697 to i64
   %r.444 = load i64, ptr %r.434
   %r.445 = call i64 @str_from_int(i64 %r.444)
   %r.446.a0 = inttoptr i64 %r.443 to ptr
@@ -308985,8 +309282,8 @@ L102:
   call void @__nucleor_print_str(ptr %r.447.a0)
   %r.447 = add i64 0, 0
   %r.449 = load i64, ptr %r.284
-  %r.450 = ptrtoint ptr @.str.5689 to i64
-  %r.451 = ptrtoint ptr @.str.5690 to i64
+  %r.450 = ptrtoint ptr @.str.5695 to i64
+  %r.451 = ptrtoint ptr @.str.5696 to i64
   %r.452.a0 = inttoptr i64 %r.450 to ptr
   %r.452.a1 = inttoptr i64 %r.451 to ptr
   %r.452.rv = call ptr @__nucleor_str_concat(ptr %r.452.a0, ptr %r.452.a1)
@@ -309002,7 +309299,7 @@ L102:
   %br.457.cond = icmp ne i64 %r.457, 0
   br i1 %br.457.cond, label %L105, label %L107
 L105:
-  %r.458 = ptrtoint ptr @.str.5692 to i64
+  %r.458 = ptrtoint ptr @.str.5698 to i64
   %r.459 = load i64, ptr %r.448
   %r.460.a0 = inttoptr i64 %r.458 to ptr
   %r.460.a1 = inttoptr i64 %r.459 to ptr
@@ -309016,8 +309313,8 @@ L107:
   br label %L104
 L104:
   %r.463 = load i64, ptr %r.284
-  %r.464 = ptrtoint ptr @.str.5693 to i64
-  %r.465 = ptrtoint ptr @.str.5694 to i64
+  %r.464 = ptrtoint ptr @.str.5699 to i64
+  %r.465 = ptrtoint ptr @.str.5700 to i64
   %r.466.a0 = inttoptr i64 %r.464 to ptr
   %r.466.a1 = inttoptr i64 %r.465 to ptr
   %r.466.rv = call ptr @__nucleor_str_concat(ptr %r.466.a0, ptr %r.466.a1)
@@ -309031,7 +309328,7 @@ L104:
   %br.470.cond = icmp ne i64 %r.470, 0
   br i1 %br.470.cond, label %L108, label %L110
 L108:
-  %r.471 = ptrtoint ptr @.str.5695 to i64
+  %r.471 = ptrtoint ptr @.str.5701 to i64
   %r.472 = load i64, ptr %r.462
   %r.473 = call i64 @str_from_int(i64 %r.472)
   %r.474.a0 = inttoptr i64 %r.471 to ptr
@@ -309042,8 +309339,8 @@ L108:
   call void @__nucleor_print_str(ptr %r.475.a0)
   %r.475 = add i64 0, 0
   %r.477 = load i64, ptr %r.284
-  %r.478 = ptrtoint ptr @.str.5693 to i64
-  %r.479 = ptrtoint ptr @.str.5694 to i64
+  %r.478 = ptrtoint ptr @.str.5699 to i64
+  %r.479 = ptrtoint ptr @.str.5700 to i64
   %r.480.a0 = inttoptr i64 %r.478 to ptr
   %r.480.a1 = inttoptr i64 %r.479 to ptr
   %r.480.rv = call ptr @__nucleor_str_concat(ptr %r.480.a0, ptr %r.480.a1)
@@ -309059,7 +309356,7 @@ L108:
   %br.485.cond = icmp ne i64 %r.485, 0
   br i1 %br.485.cond, label %L111, label %L113
 L111:
-  %r.486 = ptrtoint ptr @.str.5696 to i64
+  %r.486 = ptrtoint ptr @.str.5702 to i64
   %r.487 = load i64, ptr %r.476
   %r.488.a0 = inttoptr i64 %r.486 to ptr
   %r.488.a1 = inttoptr i64 %r.487 to ptr
@@ -309073,8 +309370,8 @@ L113:
   br label %L110
 L110:
   %r.491 = load i64, ptr %r.284
-  %r.492 = ptrtoint ptr @.str.5697 to i64
-  %r.493 = ptrtoint ptr @.str.5698 to i64
+  %r.492 = ptrtoint ptr @.str.5703 to i64
+  %r.493 = ptrtoint ptr @.str.5704 to i64
   %r.494.a0 = inttoptr i64 %r.492 to ptr
   %r.494.a1 = inttoptr i64 %r.493 to ptr
   %r.494.rv = call ptr @__nucleor_str_concat(ptr %r.494.a0, ptr %r.494.a1)
@@ -309088,7 +309385,7 @@ L110:
   %br.498.cond = icmp ne i64 %r.498, 0
   br i1 %br.498.cond, label %L114, label %L116
 L114:
-  %r.499 = ptrtoint ptr @.str.5699 to i64
+  %r.499 = ptrtoint ptr @.str.5705 to i64
   %r.500 = load i64, ptr %r.490
   %r.501 = call i64 @str_from_int(i64 %r.500)
   %r.502.a0 = inttoptr i64 %r.499 to ptr
@@ -309099,8 +309396,8 @@ L114:
   call void @__nucleor_print_str(ptr %r.503.a0)
   %r.503 = add i64 0, 0
   %r.505 = load i64, ptr %r.284
-  %r.506 = ptrtoint ptr @.str.5697 to i64
-  %r.507 = ptrtoint ptr @.str.5698 to i64
+  %r.506 = ptrtoint ptr @.str.5703 to i64
+  %r.507 = ptrtoint ptr @.str.5704 to i64
   %r.508.a0 = inttoptr i64 %r.506 to ptr
   %r.508.a1 = inttoptr i64 %r.507 to ptr
   %r.508.rv = call ptr @__nucleor_str_concat(ptr %r.508.a0, ptr %r.508.a1)
@@ -309116,7 +309413,7 @@ L114:
   %br.513.cond = icmp ne i64 %r.513, 0
   br i1 %br.513.cond, label %L117, label %L119
 L117:
-  %r.514 = ptrtoint ptr @.str.5700 to i64
+  %r.514 = ptrtoint ptr @.str.5706 to i64
   %r.515 = load i64, ptr %r.504
   %r.516.a0 = inttoptr i64 %r.514 to ptr
   %r.516.a1 = inttoptr i64 %r.515 to ptr
@@ -309130,8 +309427,8 @@ L119:
   br label %L116
 L116:
   %r.519 = load i64, ptr %r.284
-  %r.520 = ptrtoint ptr @.str.5701 to i64
-  %r.521 = ptrtoint ptr @.str.5702 to i64
+  %r.520 = ptrtoint ptr @.str.5707 to i64
+  %r.521 = ptrtoint ptr @.str.5708 to i64
   %r.522.a0 = inttoptr i64 %r.520 to ptr
   %r.522.a1 = inttoptr i64 %r.521 to ptr
   %r.522.rv = call ptr @__nucleor_str_concat(ptr %r.522.a0, ptr %r.522.a1)
@@ -309145,7 +309442,7 @@ L116:
   %br.526.cond = icmp ne i64 %r.526, 0
   br i1 %br.526.cond, label %L120, label %L122
 L120:
-  %r.527 = ptrtoint ptr @.str.5703 to i64
+  %r.527 = ptrtoint ptr @.str.5709 to i64
   %r.528 = load i64, ptr %r.518
   %r.529 = call i64 @str_from_int(i64 %r.528)
   %r.530.a0 = inttoptr i64 %r.527 to ptr
@@ -309156,8 +309453,8 @@ L120:
   call void @__nucleor_print_str(ptr %r.531.a0)
   %r.531 = add i64 0, 0
   %r.533 = load i64, ptr %r.284
-  %r.534 = ptrtoint ptr @.str.5701 to i64
-  %r.535 = ptrtoint ptr @.str.5702 to i64
+  %r.534 = ptrtoint ptr @.str.5707 to i64
+  %r.535 = ptrtoint ptr @.str.5708 to i64
   %r.536.a0 = inttoptr i64 %r.534 to ptr
   %r.536.a1 = inttoptr i64 %r.535 to ptr
   %r.536.rv = call ptr @__nucleor_str_concat(ptr %r.536.a0, ptr %r.536.a1)
@@ -309173,7 +309470,7 @@ L120:
   %br.541.cond = icmp ne i64 %r.541, 0
   br i1 %br.541.cond, label %L123, label %L125
 L123:
-  %r.542 = ptrtoint ptr @.str.5704 to i64
+  %r.542 = ptrtoint ptr @.str.5710 to i64
   %r.543 = load i64, ptr %r.532
   %r.544.a0 = inttoptr i64 %r.542 to ptr
   %r.544.a1 = inttoptr i64 %r.543 to ptr
@@ -309187,8 +309484,8 @@ L125:
   br label %L122
 L122:
   %r.547 = load i64, ptr %r.284
-  %r.548 = ptrtoint ptr @.str.5705 to i64
-  %r.549 = ptrtoint ptr @.str.5706 to i64
+  %r.548 = ptrtoint ptr @.str.5711 to i64
+  %r.549 = ptrtoint ptr @.str.5712 to i64
   %r.550.a0 = inttoptr i64 %r.548 to ptr
   %r.550.a1 = inttoptr i64 %r.549 to ptr
   %r.550.rv = call ptr @__nucleor_str_concat(ptr %r.550.a0, ptr %r.550.a1)
@@ -309202,7 +309499,7 @@ L122:
   %br.554.cond = icmp ne i64 %r.554, 0
   br i1 %br.554.cond, label %L126, label %L128
 L126:
-  %r.555 = ptrtoint ptr @.str.5707 to i64
+  %r.555 = ptrtoint ptr @.str.5713 to i64
   %r.556 = load i64, ptr %r.546
   %r.557 = call i64 @str_from_int(i64 %r.556)
   %r.558.a0 = inttoptr i64 %r.555 to ptr
@@ -309213,8 +309510,8 @@ L126:
   call void @__nucleor_print_str(ptr %r.559.a0)
   %r.559 = add i64 0, 0
   %r.561 = load i64, ptr %r.284
-  %r.562 = ptrtoint ptr @.str.5705 to i64
-  %r.563 = ptrtoint ptr @.str.5706 to i64
+  %r.562 = ptrtoint ptr @.str.5711 to i64
+  %r.563 = ptrtoint ptr @.str.5712 to i64
   %r.564.a0 = inttoptr i64 %r.562 to ptr
   %r.564.a1 = inttoptr i64 %r.563 to ptr
   %r.564.rv = call ptr @__nucleor_str_concat(ptr %r.564.a0, ptr %r.564.a1)
@@ -309230,7 +309527,7 @@ L126:
   %br.569.cond = icmp ne i64 %r.569, 0
   br i1 %br.569.cond, label %L129, label %L131
 L129:
-  %r.570 = ptrtoint ptr @.str.5708 to i64
+  %r.570 = ptrtoint ptr @.str.5714 to i64
   %r.571 = load i64, ptr %r.560
   %r.572.a0 = inttoptr i64 %r.570 to ptr
   %r.572.a1 = inttoptr i64 %r.571 to ptr
@@ -309255,8 +309552,8 @@ L128:
   br i1 %br.578.cond, label %L132, label %L134
 L132:
   %r.580 = load i64, ptr %r.284
-  %r.581 = ptrtoint ptr @.str.5709 to i64
-  %r.582 = ptrtoint ptr @.str.5710 to i64
+  %r.581 = ptrtoint ptr @.str.5715 to i64
+  %r.582 = ptrtoint ptr @.str.5716 to i64
   %r.583.a0 = inttoptr i64 %r.581 to ptr
   %r.583.a1 = inttoptr i64 %r.582 to ptr
   %r.583.rv = call ptr @__nucleor_str_concat(ptr %r.583.a0, ptr %r.583.a1)
@@ -309264,8 +309561,8 @@ L132:
   %r.584 = call i64 @simple_attribute_audit_count(i64 %r.580, i64 %r.583)
   store i64 %r.584, ptr %r.579
   %r.586 = load i64, ptr %r.284
-  %r.587 = ptrtoint ptr @.str.5711 to i64
-  %r.588 = ptrtoint ptr @.str.5710 to i64
+  %r.587 = ptrtoint ptr @.str.5717 to i64
+  %r.588 = ptrtoint ptr @.str.5716 to i64
   %r.589.a0 = inttoptr i64 %r.587 to ptr
   %r.589.a1 = inttoptr i64 %r.582 to ptr
   %r.589.rv = call ptr @__nucleor_str_concat(ptr %r.589.a0, ptr %r.589.a1)
@@ -309273,8 +309570,8 @@ L132:
   %r.590 = call i64 @simple_attribute_audit_count(i64 %r.586, i64 %r.589)
   store i64 %r.590, ptr %r.585
   %r.592 = load i64, ptr %r.284
-  %r.593 = ptrtoint ptr @.str.5712 to i64
-  %r.594 = ptrtoint ptr @.str.5710 to i64
+  %r.593 = ptrtoint ptr @.str.5718 to i64
+  %r.594 = ptrtoint ptr @.str.5716 to i64
   %r.595.a0 = inttoptr i64 %r.593 to ptr
   %r.595.a1 = inttoptr i64 %r.582 to ptr
   %r.595.rv = call ptr @__nucleor_str_concat(ptr %r.595.a0, ptr %r.595.a1)
@@ -309282,8 +309579,8 @@ L132:
   %r.596 = call i64 @simple_attribute_audit_count(i64 %r.592, i64 %r.595)
   store i64 %r.596, ptr %r.591
   %r.598 = load i64, ptr %r.284
-  %r.599 = ptrtoint ptr @.str.5713 to i64
-  %r.600 = ptrtoint ptr @.str.5710 to i64
+  %r.599 = ptrtoint ptr @.str.5719 to i64
+  %r.600 = ptrtoint ptr @.str.5716 to i64
   %r.601.a0 = inttoptr i64 %r.599 to ptr
   %r.601.a1 = inttoptr i64 %r.582 to ptr
   %r.601.rv = call ptr @__nucleor_str_concat(ptr %r.601.a0, ptr %r.601.a1)
@@ -309326,7 +309623,7 @@ L140:
   %br.613.cond = icmp ne i64 %r.613, 0
   br i1 %br.613.cond, label %L141, label %L143
 L141:
-  %r.614 = ptrtoint ptr @.str.5714 to i64
+  %r.614 = ptrtoint ptr @.str.5720 to i64
   %r.615 = load i64, ptr %r.603
   %r.616 = call i64 @str_from_int(i64 %r.615)
   %r.617.a0 = inttoptr i64 %r.614 to ptr
@@ -309341,7 +309638,7 @@ L143:
   br label %L134
 L134:
   %r.619 = load i64, ptr %r.284
-  %r.620 = ptrtoint ptr @.str.5715 to i64
+  %r.620 = ptrtoint ptr @.str.5721 to i64
   %r.621.a0 = inttoptr i64 %r.619 to ptr
   %r.621.a1 = inttoptr i64 %r.620 to ptr
   %r.621 = call i64 @__nucleor_str_index_of(ptr %r.621.a0, ptr %r.621.a1)
@@ -309359,7 +309656,7 @@ L144:
   br label %L146
 L145:
   %r.628 = load i64, ptr %r.284
-  %r.629 = ptrtoint ptr @.str.5716 to i64
+  %r.629 = ptrtoint ptr @.str.5722 to i64
   %r.630.a0 = inttoptr i64 %r.628 to ptr
   %r.630.a1 = inttoptr i64 %r.629 to ptr
   %r.630 = call i64 @__nucleor_str_index_of(ptr %r.630.a0, ptr %r.630.a1)
@@ -309384,7 +309681,7 @@ L147:
   br label %L149
 L148:
   %r.640 = load i64, ptr %r.284
-  %r.641 = ptrtoint ptr @.str.5717 to i64
+  %r.641 = ptrtoint ptr @.str.5723 to i64
   %r.642.a0 = inttoptr i64 %r.640 to ptr
   %r.642.a1 = inttoptr i64 %r.641 to ptr
   %r.642 = call i64 @__nucleor_str_index_of(ptr %r.642.a0, ptr %r.642.a1)
@@ -309409,7 +309706,7 @@ L150:
   br label %L152
 L151:
   %r.652 = load i64, ptr %r.284
-  %r.653 = ptrtoint ptr @.str.5718 to i64
+  %r.653 = ptrtoint ptr @.str.5724 to i64
   %r.654.a0 = inttoptr i64 %r.652 to ptr
   %r.654.a1 = inttoptr i64 %r.653 to ptr
   %r.654 = call i64 @__nucleor_str_index_of(ptr %r.654.a0, ptr %r.654.a1)
@@ -309434,7 +309731,7 @@ L153:
   br label %L155
 L154:
   %r.664 = load i64, ptr %r.284
-  %r.665 = ptrtoint ptr @.str.5719 to i64
+  %r.665 = ptrtoint ptr @.str.5725 to i64
   %r.666.a0 = inttoptr i64 %r.664 to ptr
   %r.666.a1 = inttoptr i64 %r.665 to ptr
   %r.666 = call i64 @__nucleor_str_index_of(ptr %r.666.a0, ptr %r.666.a1)
@@ -309452,8 +309749,8 @@ L155:
   br i1 %br.671.cond, label %L156, label %L158
 L156:
   %r.673 = load i64, ptr %r.284
-  %r.674 = ptrtoint ptr @.str.5720 to i64
-  %r.675 = ptrtoint ptr @.str.5721 to i64
+  %r.674 = ptrtoint ptr @.str.5726 to i64
+  %r.675 = ptrtoint ptr @.str.5727 to i64
   %r.676.a0 = inttoptr i64 %r.674 to ptr
   %r.676.a1 = inttoptr i64 %r.675 to ptr
   %r.676.rv = call ptr @__nucleor_str_concat(ptr %r.676.a0, ptr %r.676.a1)
@@ -309461,8 +309758,8 @@ L156:
   %r.677 = call i64 @simple_attribute_audit_count(i64 %r.673, i64 %r.676)
   store i64 %r.677, ptr %r.672
   %r.679 = load i64, ptr %r.284
-  %r.680 = ptrtoint ptr @.str.5722 to i64
-  %r.681 = ptrtoint ptr @.str.5723 to i64
+  %r.680 = ptrtoint ptr @.str.5728 to i64
+  %r.681 = ptrtoint ptr @.str.5729 to i64
   %r.682.a0 = inttoptr i64 %r.680 to ptr
   %r.682.a1 = inttoptr i64 %r.681 to ptr
   %r.682.rv = call ptr @__nucleor_str_concat(ptr %r.682.a0, ptr %r.682.a1)
@@ -309470,8 +309767,8 @@ L156:
   %r.683 = call i64 @simple_attribute_audit_count(i64 %r.679, i64 %r.682)
   store i64 %r.683, ptr %r.678
   %r.685 = load i64, ptr %r.284
-  %r.686 = ptrtoint ptr @.str.5724 to i64
-  %r.687 = ptrtoint ptr @.str.5725 to i64
+  %r.686 = ptrtoint ptr @.str.5730 to i64
+  %r.687 = ptrtoint ptr @.str.5731 to i64
   %r.688.a0 = inttoptr i64 %r.686 to ptr
   %r.688.a1 = inttoptr i64 %r.687 to ptr
   %r.688.rv = call ptr @__nucleor_str_concat(ptr %r.688.a0, ptr %r.688.a1)
@@ -309479,15 +309776,15 @@ L156:
   %r.689 = call i64 @simple_attribute_audit_count(i64 %r.685, i64 %r.688)
   store i64 %r.689, ptr %r.684
   %r.691 = load i64, ptr %r.284
-  %r.692 = ptrtoint ptr @.str.5717 to i64
+  %r.692 = ptrtoint ptr @.str.5723 to i64
   %r.693 = call i64 @simple_attribute_audit_count(i64 %r.691, i64 %r.692)
   store i64 %r.693, ptr %r.690
   %r.695 = load i64, ptr %r.284
-  %r.696 = ptrtoint ptr @.str.5718 to i64
+  %r.696 = ptrtoint ptr @.str.5724 to i64
   %r.697 = call i64 @simple_attribute_audit_count(i64 %r.695, i64 %r.696)
   store i64 %r.697, ptr %r.694
   %r.699 = load i64, ptr %r.284
-  %r.700 = ptrtoint ptr @.str.5719 to i64
+  %r.700 = ptrtoint ptr @.str.5725 to i64
   %r.701 = call i64 @simple_attribute_audit_count(i64 %r.699, i64 %r.700)
   store i64 %r.701, ptr %r.698
   %r.703 = load i64, ptr %r.672
@@ -309544,7 +309841,7 @@ L168:
   %br.716.cond = icmp ne i64 %r.716, 0
   br i1 %br.716.cond, label %L169, label %L171
 L169:
-  %r.717 = ptrtoint ptr @.str.5726 to i64
+  %r.717 = ptrtoint ptr @.str.5732 to i64
   %r.718 = load i64, ptr %r.702
   %r.719 = call i64 @str_from_int(i64 %r.718)
   %r.720.a0 = inttoptr i64 %r.717 to ptr
@@ -309559,7 +309856,7 @@ L171:
   br label %L158
 L158:
   %r.722 = load i64, ptr %r.284
-  %r.723 = ptrtoint ptr @.str.5727 to i64
+  %r.723 = ptrtoint ptr @.str.5733 to i64
   %r.724.a0 = inttoptr i64 %r.722 to ptr
   %r.724.a1 = inttoptr i64 %r.723 to ptr
   %r.724 = call i64 @__nucleor_str_index_of(ptr %r.724.a0, ptr %r.724.a1)
@@ -309595,8 +309892,8 @@ L174:
   br i1 %br.738.cond, label %L175, label %L177
 L175:
   %r.740 = load i64, ptr %r.284
-  %r.741 = ptrtoint ptr @.str.5728 to i64
-  %r.742 = ptrtoint ptr @.str.5729 to i64
+  %r.741 = ptrtoint ptr @.str.5734 to i64
+  %r.742 = ptrtoint ptr @.str.5735 to i64
   %r.743.a0 = inttoptr i64 %r.741 to ptr
   %r.743.a1 = inttoptr i64 %r.742 to ptr
   %r.743.rv = call ptr @__nucleor_str_concat(ptr %r.743.a0, ptr %r.743.a1)
@@ -309604,8 +309901,8 @@ L175:
   %r.744 = call i64 @simple_attribute_audit_count(i64 %r.740, i64 %r.743)
   store i64 %r.744, ptr %r.739
   %r.746 = load i64, ptr %r.284
-  %r.747 = ptrtoint ptr @.str.5730 to i64
-  %r.748 = ptrtoint ptr @.str.5729 to i64
+  %r.747 = ptrtoint ptr @.str.5736 to i64
+  %r.748 = ptrtoint ptr @.str.5735 to i64
   %r.749.a0 = inttoptr i64 %r.747 to ptr
   %r.749.a1 = inttoptr i64 %r.742 to ptr
   %r.749.rv = call ptr @__nucleor_str_concat(ptr %r.749.a0, ptr %r.749.a1)
@@ -309630,7 +309927,7 @@ L179:
   %br.757.cond = icmp ne i64 %r.757, 0
   br i1 %br.757.cond, label %L180, label %L182
 L180:
-  %r.758 = ptrtoint ptr @.str.5731 to i64
+  %r.758 = ptrtoint ptr @.str.5737 to i64
   %r.759 = load i64, ptr %r.751
   %r.760 = call i64 @str_from_int(i64 %r.759)
   %r.761.a0 = inttoptr i64 %r.758 to ptr
@@ -309643,8 +309940,8 @@ L180:
   br label %L182
 L182:
   %r.764 = load i64, ptr %r.284
-  %r.765 = ptrtoint ptr @.str.5732 to i64
-  %r.766 = ptrtoint ptr @.str.5733 to i64
+  %r.765 = ptrtoint ptr @.str.5738 to i64
+  %r.766 = ptrtoint ptr @.str.5739 to i64
   %r.767.a0 = inttoptr i64 %r.765 to ptr
   %r.767.a1 = inttoptr i64 %r.766 to ptr
   %r.767.rv = call ptr @__nucleor_str_concat(ptr %r.767.a0, ptr %r.767.a1)
@@ -309658,7 +309955,7 @@ L182:
   %br.771.cond = icmp ne i64 %r.771, 0
   br i1 %br.771.cond, label %L183, label %L185
 L183:
-  %r.772 = ptrtoint ptr @.str.5734 to i64
+  %r.772 = ptrtoint ptr @.str.5740 to i64
   %r.773 = load i64, ptr %r.763
   %r.774 = call i64 @str_from_int(i64 %r.773)
   %r.775.a0 = inttoptr i64 %r.772 to ptr
@@ -309691,7 +309988,7 @@ L186:
   br label %L188
 L187:
   %r.786 = load i64, ptr %r.284
-  %r.787 = ptrtoint ptr @.str.5735 to i64
+  %r.787 = ptrtoint ptr @.str.5741 to i64
   %r.788.a0 = inttoptr i64 %r.786 to ptr
   %r.788.a1 = inttoptr i64 %r.787 to ptr
   %r.788 = call i64 @__nucleor_str_index_of(ptr %r.788.a0, ptr %r.788.a1)
@@ -309716,7 +310013,7 @@ L189:
   br label %L191
 L190:
   %r.798 = load i64, ptr %r.284
-  %r.799 = ptrtoint ptr @.str.5736 to i64
+  %r.799 = ptrtoint ptr @.str.5742 to i64
   %r.800.a0 = inttoptr i64 %r.798 to ptr
   %r.800.a1 = inttoptr i64 %r.799 to ptr
   %r.800 = call i64 @__nucleor_str_index_of(ptr %r.800.a0, ptr %r.800.a1)
@@ -309741,7 +310038,7 @@ L192:
   br label %L194
 L193:
   %r.810 = load i64, ptr %r.284
-  %r.811 = ptrtoint ptr @.str.5737 to i64
+  %r.811 = ptrtoint ptr @.str.5743 to i64
   %r.812.a0 = inttoptr i64 %r.810 to ptr
   %r.812.a1 = inttoptr i64 %r.811 to ptr
   %r.812 = call i64 @__nucleor_str_index_of(ptr %r.812.a0, ptr %r.812.a1)
@@ -309766,7 +310063,7 @@ L195:
   br label %L197
 L196:
   %r.822 = load i64, ptr %r.284
-  %r.823 = ptrtoint ptr @.str.5738 to i64
+  %r.823 = ptrtoint ptr @.str.5744 to i64
   %r.824.a0 = inttoptr i64 %r.822 to ptr
   %r.824.a1 = inttoptr i64 %r.823 to ptr
   %r.824 = call i64 @__nucleor_str_index_of(ptr %r.824.a0, ptr %r.824.a1)
@@ -309784,8 +310081,8 @@ L197:
   br i1 %br.829.cond, label %L198, label %L200
 L198:
   %r.831 = load i64, ptr %r.284
-  %r.832 = ptrtoint ptr @.str.5739 to i64
-  %r.833 = ptrtoint ptr @.str.5740 to i64
+  %r.832 = ptrtoint ptr @.str.5745 to i64
+  %r.833 = ptrtoint ptr @.str.5746 to i64
   %r.834.a0 = inttoptr i64 %r.832 to ptr
   %r.834.a1 = inttoptr i64 %r.833 to ptr
   %r.834.rv = call ptr @__nucleor_str_concat(ptr %r.834.a0, ptr %r.834.a1)
@@ -309793,8 +310090,8 @@ L198:
   %r.835 = call i64 @simple_attribute_audit_count(i64 %r.831, i64 %r.834)
   store i64 %r.835, ptr %r.830
   %r.837 = load i64, ptr %r.284
-  %r.838 = ptrtoint ptr @.str.5741 to i64
-  %r.839 = ptrtoint ptr @.str.5740 to i64
+  %r.838 = ptrtoint ptr @.str.5747 to i64
+  %r.839 = ptrtoint ptr @.str.5746 to i64
   %r.840.a0 = inttoptr i64 %r.838 to ptr
   %r.840.a1 = inttoptr i64 %r.833 to ptr
   %r.840.rv = call ptr @__nucleor_str_concat(ptr %r.840.a0, ptr %r.840.a1)
@@ -309802,8 +310099,8 @@ L198:
   %r.841 = call i64 @simple_attribute_audit_count(i64 %r.837, i64 %r.840)
   store i64 %r.841, ptr %r.836
   %r.843 = load i64, ptr %r.284
-  %r.844 = ptrtoint ptr @.str.5742 to i64
-  %r.845 = ptrtoint ptr @.str.5743 to i64
+  %r.844 = ptrtoint ptr @.str.5748 to i64
+  %r.845 = ptrtoint ptr @.str.5749 to i64
   %r.846.a0 = inttoptr i64 %r.844 to ptr
   %r.846.a1 = inttoptr i64 %r.845 to ptr
   %r.846.rv = call ptr @__nucleor_str_concat(ptr %r.846.a0, ptr %r.846.a1)
@@ -309811,8 +310108,8 @@ L198:
   %r.847 = call i64 @simple_attribute_audit_count(i64 %r.843, i64 %r.846)
   store i64 %r.847, ptr %r.842
   %r.849 = load i64, ptr %r.284
-  %r.850 = ptrtoint ptr @.str.5744 to i64
-  %r.851 = ptrtoint ptr @.str.5745 to i64
+  %r.850 = ptrtoint ptr @.str.5750 to i64
+  %r.851 = ptrtoint ptr @.str.5751 to i64
   %r.852.a0 = inttoptr i64 %r.850 to ptr
   %r.852.a1 = inttoptr i64 %r.851 to ptr
   %r.852.rv = call ptr @__nucleor_str_concat(ptr %r.852.a0, ptr %r.852.a1)
@@ -309820,8 +310117,8 @@ L198:
   %r.853 = call i64 @simple_attribute_audit_count(i64 %r.849, i64 %r.852)
   store i64 %r.853, ptr %r.848
   %r.855 = load i64, ptr %r.284
-  %r.856 = ptrtoint ptr @.str.5746 to i64
-  %r.857 = ptrtoint ptr @.str.5747 to i64
+  %r.856 = ptrtoint ptr @.str.5752 to i64
+  %r.857 = ptrtoint ptr @.str.5753 to i64
   %r.858.a0 = inttoptr i64 %r.856 to ptr
   %r.858.a1 = inttoptr i64 %r.857 to ptr
   %r.858.rv = call ptr @__nucleor_str_concat(ptr %r.858.a0, ptr %r.858.a1)
@@ -309829,8 +310126,8 @@ L198:
   %r.859 = call i64 @simple_attribute_audit_count(i64 %r.855, i64 %r.858)
   store i64 %r.859, ptr %r.854
   %r.861 = load i64, ptr %r.284
-  %r.862 = ptrtoint ptr @.str.5748 to i64
-  %r.863 = ptrtoint ptr @.str.5749 to i64
+  %r.862 = ptrtoint ptr @.str.5754 to i64
+  %r.863 = ptrtoint ptr @.str.5755 to i64
   %r.864.a0 = inttoptr i64 %r.862 to ptr
   %r.864.a1 = inttoptr i64 %r.863 to ptr
   %r.864.rv = call ptr @__nucleor_str_concat(ptr %r.864.a0, ptr %r.864.a1)
@@ -309891,7 +310188,7 @@ L210:
   %br.880.cond = icmp ne i64 %r.880, 0
   br i1 %br.880.cond, label %L211, label %L213
 L211:
-  %r.881 = ptrtoint ptr @.str.5750 to i64
+  %r.881 = ptrtoint ptr @.str.5756 to i64
   %r.882 = load i64, ptr %r.866
   %r.883 = call i64 @str_from_int(i64 %r.882)
   %r.884.a0 = inttoptr i64 %r.881 to ptr
@@ -309906,7 +310203,7 @@ L213:
   br label %L200
 L200:
   %r.886 = load i64, ptr %r.284
-  %r.887 = ptrtoint ptr @.str.5751 to i64
+  %r.887 = ptrtoint ptr @.str.5757 to i64
   %r.888.a0 = inttoptr i64 %r.886 to ptr
   %r.888.a1 = inttoptr i64 %r.887 to ptr
   %r.888 = call i64 @__nucleor_str_index_of(ptr %r.888.a0, ptr %r.888.a1)
@@ -309917,8 +310214,8 @@ L200:
   br i1 %br.890.cond, label %L214, label %L216
 L214:
   %r.892 = load i64, ptr %r.284
-  %r.893 = ptrtoint ptr @.str.5752 to i64
-  %r.894 = ptrtoint ptr @.str.5753 to i64
+  %r.893 = ptrtoint ptr @.str.5758 to i64
+  %r.894 = ptrtoint ptr @.str.5759 to i64
   %r.895.a0 = inttoptr i64 %r.893 to ptr
   %r.895.a1 = inttoptr i64 %r.894 to ptr
   %r.895.rv = call ptr @__nucleor_str_concat(ptr %r.895.a0, ptr %r.895.a1)
@@ -309926,8 +310223,8 @@ L214:
   %r.896 = call i64 @simple_attribute_audit_count(i64 %r.892, i64 %r.895)
   store i64 %r.896, ptr %r.891
   %r.898 = load i64, ptr %r.284
-  %r.899 = ptrtoint ptr @.str.5751 to i64
-  %r.900 = ptrtoint ptr @.str.5754 to i64
+  %r.899 = ptrtoint ptr @.str.5757 to i64
+  %r.900 = ptrtoint ptr @.str.5760 to i64
   %r.901.a0 = inttoptr i64 %r.899 to ptr
   %r.901.a1 = inttoptr i64 %r.900 to ptr
   %r.901.rv = call ptr @__nucleor_str_concat(ptr %r.901.a0, ptr %r.901.a1)
@@ -309952,7 +310249,7 @@ L218:
   %br.909.cond = icmp ne i64 %r.909, 0
   br i1 %br.909.cond, label %L219, label %L221
 L219:
-  %r.910 = ptrtoint ptr @.str.5755 to i64
+  %r.910 = ptrtoint ptr @.str.5761 to i64
   %r.911 = load i64, ptr %r.903
   %r.912 = call i64 @str_from_int(i64 %r.911)
   %r.913.a0 = inttoptr i64 %r.910 to ptr
@@ -309967,7 +310264,7 @@ L221:
   br label %L216
 L216:
   %r.915 = load i64, ptr %r.284
-  %r.916 = ptrtoint ptr @.str.5756 to i64
+  %r.916 = ptrtoint ptr @.str.5762 to i64
   %r.917.a0 = inttoptr i64 %r.915 to ptr
   %r.917.a1 = inttoptr i64 %r.916 to ptr
   %r.917 = call i64 @__nucleor_str_index_of(ptr %r.917.a0, ptr %r.917.a1)
@@ -309978,8 +310275,8 @@ L216:
   br i1 %br.919.cond, label %L222, label %L224
 L222:
   %r.921 = load i64, ptr %r.284
-  %r.922 = ptrtoint ptr @.str.5757 to i64
-  %r.923 = ptrtoint ptr @.str.5758 to i64
+  %r.922 = ptrtoint ptr @.str.5763 to i64
+  %r.923 = ptrtoint ptr @.str.5764 to i64
   %r.924.a0 = inttoptr i64 %r.922 to ptr
   %r.924.a1 = inttoptr i64 %r.923 to ptr
   %r.924.rv = call ptr @__nucleor_str_concat(ptr %r.924.a0, ptr %r.924.a1)
@@ -309987,8 +310284,8 @@ L222:
   %r.925 = call i64 @simple_attribute_audit_count(i64 %r.921, i64 %r.924)
   store i64 %r.925, ptr %r.920
   %r.927 = load i64, ptr %r.284
-  %r.928 = ptrtoint ptr @.str.5759 to i64
-  %r.929 = ptrtoint ptr @.str.5758 to i64
+  %r.928 = ptrtoint ptr @.str.5765 to i64
+  %r.929 = ptrtoint ptr @.str.5764 to i64
   %r.930.a0 = inttoptr i64 %r.928 to ptr
   %r.930.a1 = inttoptr i64 %r.923 to ptr
   %r.930.rv = call ptr @__nucleor_str_concat(ptr %r.930.a0, ptr %r.930.a1)
@@ -310013,7 +310310,7 @@ L226:
   %br.938.cond = icmp ne i64 %r.938, 0
   br i1 %br.938.cond, label %L227, label %L229
 L227:
-  %r.939 = ptrtoint ptr @.str.5760 to i64
+  %r.939 = ptrtoint ptr @.str.5766 to i64
   %r.940 = load i64, ptr %r.932
   %r.941 = call i64 @str_from_int(i64 %r.940)
   %r.942.a0 = inttoptr i64 %r.939 to ptr
@@ -310028,7 +310325,7 @@ L229:
   br label %L224
 L224:
   %r.944 = load i64, ptr %r.284
-  %r.945 = ptrtoint ptr @.str.5761 to i64
+  %r.945 = ptrtoint ptr @.str.5767 to i64
   %r.946.a0 = inttoptr i64 %r.944 to ptr
   %r.946.a1 = inttoptr i64 %r.945 to ptr
   %r.946 = call i64 @__nucleor_str_index_of(ptr %r.946.a0, ptr %r.946.a1)
@@ -310039,8 +310336,8 @@ L224:
   br i1 %br.948.cond, label %L230, label %L232
 L230:
   %r.950 = load i64, ptr %r.284
-  %r.951 = ptrtoint ptr @.str.5762 to i64
-  %r.952 = ptrtoint ptr @.str.5763 to i64
+  %r.951 = ptrtoint ptr @.str.5768 to i64
+  %r.952 = ptrtoint ptr @.str.5769 to i64
   %r.953.a0 = inttoptr i64 %r.951 to ptr
   %r.953.a1 = inttoptr i64 %r.952 to ptr
   %r.953.rv = call ptr @__nucleor_str_concat(ptr %r.953.a0, ptr %r.953.a1)
@@ -310048,8 +310345,8 @@ L230:
   %r.954 = call i64 @simple_attribute_audit_count(i64 %r.950, i64 %r.953)
   store i64 %r.954, ptr %r.949
   %r.956 = load i64, ptr %r.284
-  %r.957 = ptrtoint ptr @.str.5764 to i64
-  %r.958 = ptrtoint ptr @.str.5763 to i64
+  %r.957 = ptrtoint ptr @.str.5770 to i64
+  %r.958 = ptrtoint ptr @.str.5769 to i64
   %r.959.a0 = inttoptr i64 %r.957 to ptr
   %r.959.a1 = inttoptr i64 %r.952 to ptr
   %r.959.rv = call ptr @__nucleor_str_concat(ptr %r.959.a0, ptr %r.959.a1)
@@ -310074,7 +310371,7 @@ L234:
   %br.967.cond = icmp ne i64 %r.967, 0
   br i1 %br.967.cond, label %L235, label %L237
 L235:
-  %r.968 = ptrtoint ptr @.str.5765 to i64
+  %r.968 = ptrtoint ptr @.str.5771 to i64
   %r.969 = load i64, ptr %r.961
   %r.970 = call i64 @str_from_int(i64 %r.969)
   %r.971.a0 = inttoptr i64 %r.968 to ptr
@@ -310104,7 +310401,7 @@ L232:
   %br.981.cond = icmp ne i64 %r.981, 0
   br i1 %br.981.cond, label %L238, label %L240
 L238:
-  %r.982 = ptrtoint ptr @.str.5766 to i64
+  %r.982 = ptrtoint ptr @.str.5772 to i64
   %r.983 = load i64, ptr %r.973
   %r.984 = call i64 @str_from_int(i64 %r.983)
   %r.985.a0 = inttoptr i64 %r.982 to ptr
@@ -310132,7 +310429,7 @@ L238:
   %br.996.cond = icmp ne i64 %r.996, 0
   br i1 %br.996.cond, label %L241, label %L243
 L241:
-  %r.997 = ptrtoint ptr @.str.5767 to i64
+  %r.997 = ptrtoint ptr @.str.5773 to i64
   %r.998 = load i64, ptr %r.987
   %r.999.a0 = inttoptr i64 %r.997 to ptr
   %r.999.a1 = inttoptr i64 %r.998 to ptr
@@ -310161,7 +310458,7 @@ L240:
   %br.1009.cond = icmp ne i64 %r.1009, 0
   br i1 %br.1009.cond, label %L244, label %L246
 L244:
-  %r.1010 = ptrtoint ptr @.str.5768 to i64
+  %r.1010 = ptrtoint ptr @.str.5774 to i64
   %r.1011 = load i64, ptr %r.1001
   %r.1012 = call i64 @str_from_int(i64 %r.1011)
   %r.1013.a0 = inttoptr i64 %r.1010 to ptr
@@ -310189,7 +310486,7 @@ L244:
   %br.1024.cond = icmp ne i64 %r.1024, 0
   br i1 %br.1024.cond, label %L247, label %L249
 L247:
-  %r.1025 = ptrtoint ptr @.str.5769 to i64
+  %r.1025 = ptrtoint ptr @.str.5775 to i64
   %r.1026 = load i64, ptr %r.1015
   %r.1027.a0 = inttoptr i64 %r.1025 to ptr
   %r.1027.a1 = inttoptr i64 %r.1026 to ptr
@@ -310203,8 +310500,8 @@ L249:
   br label %L246
 L246:
   %r.1030 = load i64, ptr %r.284
-  %r.1031 = ptrtoint ptr @.str.5770 to i64
-  %r.1032 = ptrtoint ptr @.str.5771 to i64
+  %r.1031 = ptrtoint ptr @.str.5776 to i64
+  %r.1032 = ptrtoint ptr @.str.5777 to i64
   %r.1033.a0 = inttoptr i64 %r.1031 to ptr
   %r.1033.a1 = inttoptr i64 %r.1032 to ptr
   %r.1033.rv = call ptr @__nucleor_str_concat(ptr %r.1033.a0, ptr %r.1033.a1)
@@ -310218,7 +310515,7 @@ L246:
   %br.1037.cond = icmp ne i64 %r.1037, 0
   br i1 %br.1037.cond, label %L250, label %L252
 L250:
-  %r.1038 = ptrtoint ptr @.str.5772 to i64
+  %r.1038 = ptrtoint ptr @.str.5778 to i64
   %r.1039 = load i64, ptr %r.1029
   %r.1040 = call i64 @str_from_int(i64 %r.1039)
   %r.1041.a0 = inttoptr i64 %r.1038 to ptr
@@ -310229,8 +310526,8 @@ L250:
   call void @__nucleor_print_str(ptr %r.1042.a0)
   %r.1042 = add i64 0, 0
   %r.1044 = load i64, ptr %r.284
-  %r.1045 = ptrtoint ptr @.str.5770 to i64
-  %r.1046 = ptrtoint ptr @.str.5771 to i64
+  %r.1045 = ptrtoint ptr @.str.5776 to i64
+  %r.1046 = ptrtoint ptr @.str.5777 to i64
   %r.1047.a0 = inttoptr i64 %r.1045 to ptr
   %r.1047.a1 = inttoptr i64 %r.1046 to ptr
   %r.1047.rv = call ptr @__nucleor_str_concat(ptr %r.1047.a0, ptr %r.1047.a1)
@@ -310246,7 +310543,7 @@ L250:
   %br.1052.cond = icmp ne i64 %r.1052, 0
   br i1 %br.1052.cond, label %L253, label %L255
 L253:
-  %r.1053 = ptrtoint ptr @.str.5773 to i64
+  %r.1053 = ptrtoint ptr @.str.5779 to i64
   %r.1054 = load i64, ptr %r.1043
   %r.1055.a0 = inttoptr i64 %r.1053 to ptr
   %r.1055.a1 = inttoptr i64 %r.1054 to ptr
@@ -310260,8 +310557,8 @@ L255:
   br label %L252
 L252:
   %r.1058 = load i64, ptr %r.284
-  %r.1059 = ptrtoint ptr @.str.5774 to i64
-  %r.1060 = ptrtoint ptr @.str.5775 to i64
+  %r.1059 = ptrtoint ptr @.str.5780 to i64
+  %r.1060 = ptrtoint ptr @.str.5781 to i64
   %r.1061.a0 = inttoptr i64 %r.1059 to ptr
   %r.1061.a1 = inttoptr i64 %r.1060 to ptr
   %r.1061.rv = call ptr @__nucleor_str_concat(ptr %r.1061.a0, ptr %r.1061.a1)
@@ -310275,7 +310572,7 @@ L252:
   %br.1065.cond = icmp ne i64 %r.1065, 0
   br i1 %br.1065.cond, label %L256, label %L258
 L256:
-  %r.1066 = ptrtoint ptr @.str.5776 to i64
+  %r.1066 = ptrtoint ptr @.str.5782 to i64
   %r.1067 = load i64, ptr %r.1057
   %r.1068 = call i64 @str_from_int(i64 %r.1067)
   %r.1069.a0 = inttoptr i64 %r.1066 to ptr
@@ -310286,8 +310583,8 @@ L256:
   call void @__nucleor_print_str(ptr %r.1070.a0)
   %r.1070 = add i64 0, 0
   %r.1072 = load i64, ptr %r.284
-  %r.1073 = ptrtoint ptr @.str.5774 to i64
-  %r.1074 = ptrtoint ptr @.str.5775 to i64
+  %r.1073 = ptrtoint ptr @.str.5780 to i64
+  %r.1074 = ptrtoint ptr @.str.5781 to i64
   %r.1075.a0 = inttoptr i64 %r.1073 to ptr
   %r.1075.a1 = inttoptr i64 %r.1074 to ptr
   %r.1075.rv = call ptr @__nucleor_str_concat(ptr %r.1075.a0, ptr %r.1075.a1)
@@ -310303,7 +310600,7 @@ L256:
   %br.1080.cond = icmp ne i64 %r.1080, 0
   br i1 %br.1080.cond, label %L259, label %L261
 L259:
-  %r.1081 = ptrtoint ptr @.str.5777 to i64
+  %r.1081 = ptrtoint ptr @.str.5783 to i64
   %r.1082 = load i64, ptr %r.1071
   %r.1083.a0 = inttoptr i64 %r.1081 to ptr
   %r.1083.a1 = inttoptr i64 %r.1082 to ptr
@@ -310317,19 +310614,19 @@ L261:
   br label %L258
 L258:
   %r.1086 = load i64, ptr %r.284
-  %r.1087 = ptrtoint ptr @.str.5778 to i64
-  %r.1088 = ptrtoint ptr @.str.5779 to i64
+  %r.1087 = ptrtoint ptr @.str.5784 to i64
+  %r.1088 = ptrtoint ptr @.str.5785 to i64
   %r.1089.a0 = inttoptr i64 %r.1087 to ptr
   %r.1089.a1 = inttoptr i64 %r.1088 to ptr
   %r.1089.rv = call ptr @__nucleor_str_concat(ptr %r.1089.a0, ptr %r.1089.a1)
   %r.1089 = ptrtoint ptr %r.1089.rv to i64
-  %r.1090 = ptrtoint ptr @.str.5778 to i64
-  %r.1091 = ptrtoint ptr @.str.5780 to i64
+  %r.1090 = ptrtoint ptr @.str.5784 to i64
+  %r.1091 = ptrtoint ptr @.str.5786 to i64
   %r.1092.a0 = inttoptr i64 %r.1087 to ptr
   %r.1092.a1 = inttoptr i64 %r.1091 to ptr
   %r.1092.rv = call ptr @__nucleor_str_concat(ptr %r.1092.a0, ptr %r.1092.a1)
   %r.1092 = ptrtoint ptr %r.1092.rv to i64
-  %r.1093 = ptrtoint ptr @.str.5781 to i64
+  %r.1093 = ptrtoint ptr @.str.5787 to i64
   %r.1094 = ptrtoint ptr @.str.549 to i64
   %r.1095.a0 = inttoptr i64 %r.1093 to ptr
   %r.1095.a1 = inttoptr i64 %r.1094 to ptr
@@ -310344,7 +310641,7 @@ L258:
   %br.1099.cond = icmp ne i64 %r.1099, 0
   br i1 %br.1099.cond, label %L262, label %L264
 L262:
-  %r.1100 = ptrtoint ptr @.str.5782 to i64
+  %r.1100 = ptrtoint ptr @.str.5788 to i64
   %r.1101 = load i64, ptr %r.1085
   %r.1102 = call i64 @str_from_int(i64 %r.1101)
   %r.1103.a0 = inttoptr i64 %r.1100 to ptr
@@ -310354,7 +310651,7 @@ L262:
   %r.1104.a0 = inttoptr i64 %r.1103 to ptr
   call void @__nucleor_print_str(ptr %r.1104.a0)
   %r.1104 = add i64 0, 0
-  %r.1105 = ptrtoint ptr @.str.5783 to i64
+  %r.1105 = ptrtoint ptr @.str.5789 to i64
   %r.1106.a0 = inttoptr i64 %r.1105 to ptr
   call void @__nucleor_print_str(ptr %r.1106.a0)
   %r.1106 = add i64 0, 0
@@ -310362,7 +310659,7 @@ L262:
 L264:
   %r.1108 = load i64, ptr %r.284
   %r.1109 = ptrtoint ptr @.str.4712 to i64
-  %r.1110 = ptrtoint ptr @.str.5784 to i64
+  %r.1110 = ptrtoint ptr @.str.5790 to i64
   %r.1111.a0 = inttoptr i64 %r.1109 to ptr
   %r.1111.a1 = inttoptr i64 %r.1110 to ptr
   %r.1111.rv = call ptr @__nucleor_str_concat(ptr %r.1111.a0, ptr %r.1111.a1)
@@ -310371,7 +310668,7 @@ L264:
   store i64 %r.1112, ptr %r.1107
   %r.1114 = load i64, ptr %r.284
   %r.1115 = ptrtoint ptr @.str.4821 to i64
-  %r.1116 = ptrtoint ptr @.str.5784 to i64
+  %r.1116 = ptrtoint ptr @.str.5790 to i64
   %r.1117.a0 = inttoptr i64 %r.1115 to ptr
   %r.1117.a1 = inttoptr i64 %r.1110 to ptr
   %r.1117.rv = call ptr @__nucleor_str_concat(ptr %r.1117.a0, ptr %r.1117.a1)
@@ -310396,7 +310693,7 @@ L266:
   %br.1125.cond = icmp ne i64 %r.1125, 0
   br i1 %br.1125.cond, label %L267, label %L269
 L267:
-  %r.1126 = ptrtoint ptr @.str.5785 to i64
+  %r.1126 = ptrtoint ptr @.str.5791 to i64
   %r.1127 = load i64, ptr %r.1119
   %r.1128 = call i64 @str_from_int(i64 %r.1127)
   %r.1129.a0 = inttoptr i64 %r.1126 to ptr
@@ -310406,8 +310703,8 @@ L267:
   %r.1130.a0 = inttoptr i64 %r.1129 to ptr
   call void @__nucleor_print_str(ptr %r.1130.a0)
   %r.1130 = add i64 0, 0
-  %r.1131 = ptrtoint ptr @.str.5786 to i64
-  %r.1132 = ptrtoint ptr @.str.5787 to i64
+  %r.1131 = ptrtoint ptr @.str.5792 to i64
+  %r.1132 = ptrtoint ptr @.str.5793 to i64
   %r.1133.a0 = inttoptr i64 %r.1131 to ptr
   %r.1133.a1 = inttoptr i64 %r.1132 to ptr
   %r.1133.rv = call ptr @__nucleor_str_concat(ptr %r.1133.a0, ptr %r.1133.a1)
@@ -310419,18 +310716,18 @@ L267:
 L269:
   %r.1136 = load i64, ptr %r.284
   %r.1137 = ptrtoint ptr @.str.3978 to i64
-  %r.1138 = ptrtoint ptr @.str.5788 to i64
+  %r.1138 = ptrtoint ptr @.str.5794 to i64
   %r.1139.a0 = inttoptr i64 %r.1137 to ptr
   %r.1139.a1 = inttoptr i64 %r.1138 to ptr
   %r.1139.rv = call ptr @__nucleor_str_concat(ptr %r.1139.a0, ptr %r.1139.a1)
   %r.1139 = ptrtoint ptr %r.1139.rv to i64
   %r.1140 = ptrtoint ptr @.str.3979 to i64
-  %r.1141 = ptrtoint ptr @.str.5788 to i64
+  %r.1141 = ptrtoint ptr @.str.5794 to i64
   %r.1142.a0 = inttoptr i64 %r.1140 to ptr
   %r.1142.a1 = inttoptr i64 %r.1138 to ptr
   %r.1142.rv = call ptr @__nucleor_str_concat(ptr %r.1142.a0, ptr %r.1142.a1)
   %r.1142 = ptrtoint ptr %r.1142.rv to i64
-  %r.1143 = ptrtoint ptr @.str.5789 to i64
+  %r.1143 = ptrtoint ptr @.str.5795 to i64
   %r.1144 = ptrtoint ptr @.str.26 to i64
   %r.1145.a0 = inttoptr i64 %r.1143 to ptr
   %r.1145.a1 = inttoptr i64 %r.1144 to ptr
@@ -310445,7 +310742,7 @@ L269:
   %br.1149.cond = icmp ne i64 %r.1149, 0
   br i1 %br.1149.cond, label %L270, label %L272
 L270:
-  %r.1150 = ptrtoint ptr @.str.5790 to i64
+  %r.1150 = ptrtoint ptr @.str.5796 to i64
   %r.1151 = load i64, ptr %r.1135
   %r.1152 = call i64 @str_from_int(i64 %r.1151)
   %r.1153.a0 = inttoptr i64 %r.1150 to ptr
@@ -310455,7 +310752,7 @@ L270:
   %r.1154.a0 = inttoptr i64 %r.1153 to ptr
   call void @__nucleor_print_str(ptr %r.1154.a0)
   %r.1154 = add i64 0, 0
-  %r.1155 = ptrtoint ptr @.str.5791 to i64
+  %r.1155 = ptrtoint ptr @.str.5797 to i64
   %r.1156.a0 = inttoptr i64 %r.1155 to ptr
   call void @__nucleor_print_str(ptr %r.1156.a0)
   %r.1156 = add i64 0, 0
@@ -310477,7 +310774,7 @@ L272:
   %br.1165.cond = icmp ne i64 %r.1165, 0
   br i1 %br.1165.cond, label %L273, label %L275
 L273:
-  %r.1166 = ptrtoint ptr @.str.5792 to i64
+  %r.1166 = ptrtoint ptr @.str.5798 to i64
   %r.1167 = load i64, ptr %r.1157
   %r.1168 = call i64 @str_from_int(i64 %r.1167)
   %r.1169.a0 = inttoptr i64 %r.1166 to ptr
@@ -310487,7 +310784,7 @@ L273:
   %r.1170.a0 = inttoptr i64 %r.1169 to ptr
   call void @__nucleor_print_str(ptr %r.1170.a0)
   %r.1170 = add i64 0, 0
-  %r.1171 = ptrtoint ptr @.str.5793 to i64
+  %r.1171 = ptrtoint ptr @.str.5799 to i64
   %r.1172.a0 = inttoptr i64 %r.1171 to ptr
   call void @__nucleor_print_str(ptr %r.1172.a0)
   %r.1172 = add i64 0, 0
@@ -310498,7 +310795,7 @@ L275:
   store i64 %r.1175, ptr %r.1173
   %r.1177 = load i64, ptr %r.1173
   %r.1178 = ptrtoint ptr @.str.4115 to i64
-  %r.1179 = ptrtoint ptr @.str.5794 to i64
+  %r.1179 = ptrtoint ptr @.str.5800 to i64
   %r.1180.a0 = inttoptr i64 %r.1178 to ptr
   %r.1180.a1 = inttoptr i64 %r.1179 to ptr
   %r.1180.rv = call ptr @__nucleor_str_concat(ptr %r.1180.a0, ptr %r.1180.a1)
@@ -310512,7 +310809,7 @@ L275:
   %br.1184.cond = icmp ne i64 %r.1184, 0
   br i1 %br.1184.cond, label %L276, label %L278
 L276:
-  %r.1185 = ptrtoint ptr @.str.5795 to i64
+  %r.1185 = ptrtoint ptr @.str.5801 to i64
   %r.1186 = load i64, ptr %r.1176
   %r.1187 = call i64 @str_from_int(i64 %r.1186)
   %r.1188.a0 = inttoptr i64 %r.1185 to ptr
@@ -310522,15 +310819,15 @@ L276:
   %r.1189.a0 = inttoptr i64 %r.1188 to ptr
   call void @__nucleor_print_str(ptr %r.1189.a0)
   %r.1189 = add i64 0, 0
-  %r.1190 = ptrtoint ptr @.str.5796 to i64
+  %r.1190 = ptrtoint ptr @.str.5802 to i64
   %r.1191.a0 = inttoptr i64 %r.1190 to ptr
   call void @__nucleor_print_str(ptr %r.1191.a0)
   %r.1191 = add i64 0, 0
   br label %L278
 L278:
   %r.1193 = load i64, ptr %r.284
-  %r.1194 = ptrtoint ptr @.str.5797 to i64
-  %r.1195 = ptrtoint ptr @.str.5798 to i64
+  %r.1194 = ptrtoint ptr @.str.5803 to i64
+  %r.1195 = ptrtoint ptr @.str.5804 to i64
   %r.1196.a0 = inttoptr i64 %r.1194 to ptr
   %r.1196.a1 = inttoptr i64 %r.1195 to ptr
   %r.1196.rv = call ptr @__nucleor_str_concat(ptr %r.1196.a0, ptr %r.1196.a1)
@@ -310555,8 +310852,8 @@ L281:
   %r.1203 = load i64, ptr %r.1200
   store i64 %r.1203, ptr %r.1192
   %r.1205 = load i64, ptr %r.284
-  %r.1206 = ptrtoint ptr @.str.5799 to i64
-  %r.1207 = ptrtoint ptr @.str.5800 to i64
+  %r.1206 = ptrtoint ptr @.str.5805 to i64
+  %r.1207 = ptrtoint ptr @.str.5806 to i64
   %r.1208.a0 = inttoptr i64 %r.1206 to ptr
   %r.1208.a1 = inttoptr i64 %r.1207 to ptr
   %r.1208.rv = call ptr @__nucleor_str_concat(ptr %r.1208.a0, ptr %r.1208.a1)
@@ -310581,7 +310878,7 @@ L284:
   %r.1215 = load i64, ptr %r.1212
   store i64 %r.1215, ptr %r.1204
   %r.1217 = load i64, ptr %r.284
-  %r.1218 = ptrtoint ptr @.str.5801 to i64
+  %r.1218 = ptrtoint ptr @.str.5807 to i64
   %r.1219 = ptrtoint ptr @.str.237 to i64
   %r.1220.a0 = inttoptr i64 %r.1218 to ptr
   %r.1220.a1 = inttoptr i64 %r.1219 to ptr
@@ -310663,8 +310960,8 @@ L294:
   br i1 %br.1254.cond, label %L297, label %L298
 L297:
   %r.1256 = load i64, ptr %r.284
-  %r.1257 = ptrtoint ptr @.str.5797 to i64
-  %r.1258 = ptrtoint ptr @.str.5798 to i64
+  %r.1257 = ptrtoint ptr @.str.5803 to i64
+  %r.1258 = ptrtoint ptr @.str.5804 to i64
   %r.1259.a0 = inttoptr i64 %r.1257 to ptr
   %r.1259.a1 = inttoptr i64 %r.1258 to ptr
   %r.1259.rv = call ptr @__nucleor_str_concat(ptr %r.1259.a0, ptr %r.1259.a1)
@@ -310687,8 +310984,8 @@ L299:
   br i1 %br.1266.cond, label %L300, label %L301
 L300:
   %r.1268 = load i64, ptr %r.284
-  %r.1269 = ptrtoint ptr @.str.5799 to i64
-  %r.1270 = ptrtoint ptr @.str.5800 to i64
+  %r.1269 = ptrtoint ptr @.str.5805 to i64
+  %r.1270 = ptrtoint ptr @.str.5806 to i64
   %r.1271.a0 = inttoptr i64 %r.1269 to ptr
   %r.1271.a1 = inttoptr i64 %r.1270 to ptr
   %r.1271.rv = call ptr @__nucleor_str_concat(ptr %r.1271.a0, ptr %r.1271.a1)
@@ -310711,7 +311008,7 @@ L302:
   br i1 %br.1278.cond, label %L303, label %L304
 L303:
   %r.1280 = load i64, ptr %r.284
-  %r.1281 = ptrtoint ptr @.str.5801 to i64
+  %r.1281 = ptrtoint ptr @.str.5807 to i64
   %r.1282 = ptrtoint ptr @.str.237 to i64
   %r.1283.a0 = inttoptr i64 %r.1281 to ptr
   %r.1283.a1 = inttoptr i64 %r.1282 to ptr
@@ -310754,7 +311051,7 @@ L309:
   %br.1295.cond = icmp ne i64 %r.1295, 0
   br i1 %br.1295.cond, label %L310, label %L312
 L310:
-  %r.1296 = ptrtoint ptr @.str.5802 to i64
+  %r.1296 = ptrtoint ptr @.str.5808 to i64
   %r.1297 = load i64, ptr %r.1287
   %r.1298 = call i64 @str_from_int(i64 %r.1297)
   %r.1299.a0 = inttoptr i64 %r.1296 to ptr
@@ -310764,7 +311061,7 @@ L310:
   %r.1300.a0 = inttoptr i64 %r.1299 to ptr
   call void @__nucleor_print_str(ptr %r.1300.a0)
   %r.1300 = add i64 0, 0
-  %r.1301 = ptrtoint ptr @.str.5803 to i64
+  %r.1301 = ptrtoint ptr @.str.5809 to i64
   %r.1302.a0 = inttoptr i64 %r.1301 to ptr
   call void @__nucleor_print_str(ptr %r.1302.a0)
   %r.1302 = add i64 0, 0
@@ -310773,8 +311070,8 @@ L312:
   br label %L296
 L296:
   %r.1304 = load i64, ptr %r.284
-  %r.1305 = ptrtoint ptr @.str.5804 to i64
-  %r.1306 = ptrtoint ptr @.str.5805 to i64
+  %r.1305 = ptrtoint ptr @.str.5810 to i64
+  %r.1306 = ptrtoint ptr @.str.5811 to i64
   %r.1307.a0 = inttoptr i64 %r.1305 to ptr
   %r.1307.a1 = inttoptr i64 %r.1306 to ptr
   %r.1307.rv = call ptr @__nucleor_str_concat(ptr %r.1307.a0, ptr %r.1307.a1)
@@ -310799,8 +311096,8 @@ L315:
   %r.1314 = load i64, ptr %r.1311
   store i64 %r.1314, ptr %r.1303
   %r.1316 = load i64, ptr %r.284
-  %r.1317 = ptrtoint ptr @.str.5806 to i64
-  %r.1318 = ptrtoint ptr @.str.5635 to i64
+  %r.1317 = ptrtoint ptr @.str.5812 to i64
+  %r.1318 = ptrtoint ptr @.str.5641 to i64
   %r.1319.a0 = inttoptr i64 %r.1317 to ptr
   %r.1319.a1 = inttoptr i64 %r.1318 to ptr
   %r.1319.rv = call ptr @__nucleor_str_concat(ptr %r.1319.a0, ptr %r.1319.a1)
@@ -310825,8 +311122,8 @@ L318:
   %r.1326 = load i64, ptr %r.1323
   store i64 %r.1326, ptr %r.1315
   %r.1328 = load i64, ptr %r.284
-  %r.1329 = ptrtoint ptr @.str.5807 to i64
-  %r.1330 = ptrtoint ptr @.str.5808 to i64
+  %r.1329 = ptrtoint ptr @.str.5813 to i64
+  %r.1330 = ptrtoint ptr @.str.5814 to i64
   %r.1331.a0 = inttoptr i64 %r.1329 to ptr
   %r.1331.a1 = inttoptr i64 %r.1330 to ptr
   %r.1331.rv = call ptr @__nucleor_str_concat(ptr %r.1331.a0, ptr %r.1331.a1)
@@ -310907,8 +311204,8 @@ L328:
   br i1 %br.1365.cond, label %L331, label %L332
 L331:
   %r.1367 = load i64, ptr %r.284
-  %r.1368 = ptrtoint ptr @.str.5804 to i64
-  %r.1369 = ptrtoint ptr @.str.5805 to i64
+  %r.1368 = ptrtoint ptr @.str.5810 to i64
+  %r.1369 = ptrtoint ptr @.str.5811 to i64
   %r.1370.a0 = inttoptr i64 %r.1368 to ptr
   %r.1370.a1 = inttoptr i64 %r.1369 to ptr
   %r.1370.rv = call ptr @__nucleor_str_concat(ptr %r.1370.a0, ptr %r.1370.a1)
@@ -310931,8 +311228,8 @@ L333:
   br i1 %br.1377.cond, label %L334, label %L335
 L334:
   %r.1379 = load i64, ptr %r.284
-  %r.1380 = ptrtoint ptr @.str.5806 to i64
-  %r.1381 = ptrtoint ptr @.str.5635 to i64
+  %r.1380 = ptrtoint ptr @.str.5812 to i64
+  %r.1381 = ptrtoint ptr @.str.5641 to i64
   %r.1382.a0 = inttoptr i64 %r.1380 to ptr
   %r.1382.a1 = inttoptr i64 %r.1381 to ptr
   %r.1382.rv = call ptr @__nucleor_str_concat(ptr %r.1382.a0, ptr %r.1382.a1)
@@ -310955,8 +311252,8 @@ L336:
   br i1 %br.1389.cond, label %L337, label %L338
 L337:
   %r.1391 = load i64, ptr %r.284
-  %r.1392 = ptrtoint ptr @.str.5807 to i64
-  %r.1393 = ptrtoint ptr @.str.5808 to i64
+  %r.1392 = ptrtoint ptr @.str.5813 to i64
+  %r.1393 = ptrtoint ptr @.str.5814 to i64
   %r.1394.a0 = inttoptr i64 %r.1392 to ptr
   %r.1394.a1 = inttoptr i64 %r.1393 to ptr
   %r.1394.rv = call ptr @__nucleor_str_concat(ptr %r.1394.a0, ptr %r.1394.a1)
@@ -310998,7 +311295,7 @@ L343:
   %br.1406.cond = icmp ne i64 %r.1406, 0
   br i1 %br.1406.cond, label %L344, label %L346
 L344:
-  %r.1407 = ptrtoint ptr @.str.5809 to i64
+  %r.1407 = ptrtoint ptr @.str.5815 to i64
   %r.1408 = load i64, ptr %r.1398
   %r.1409 = call i64 @str_from_int(i64 %r.1408)
   %r.1410.a0 = inttoptr i64 %r.1407 to ptr
@@ -311008,7 +311305,7 @@ L344:
   %r.1411.a0 = inttoptr i64 %r.1410 to ptr
   call void @__nucleor_print_str(ptr %r.1411.a0)
   %r.1411 = add i64 0, 0
-  %r.1412 = ptrtoint ptr @.str.5810 to i64
+  %r.1412 = ptrtoint ptr @.str.5816 to i64
   %r.1413.a0 = inttoptr i64 %r.1412 to ptr
   call void @__nucleor_print_str(ptr %r.1413.a0)
   %r.1413 = add i64 0, 0
@@ -311017,8 +311314,8 @@ L346:
   br label %L330
 L330:
   %r.1415 = load i64, ptr %r.284
-  %r.1416 = ptrtoint ptr @.str.5811 to i64
-  %r.1417 = ptrtoint ptr @.str.5812 to i64
+  %r.1416 = ptrtoint ptr @.str.5817 to i64
+  %r.1417 = ptrtoint ptr @.str.5818 to i64
   %r.1418.a0 = inttoptr i64 %r.1416 to ptr
   %r.1418.a1 = inttoptr i64 %r.1417 to ptr
   %r.1418.rv = call ptr @__nucleor_str_concat(ptr %r.1418.a0, ptr %r.1418.a1)
@@ -311043,7 +311340,7 @@ L349:
   %r.1425 = load i64, ptr %r.1422
   store i64 %r.1425, ptr %r.1414
   %r.1427 = load i64, ptr %r.284
-  %r.1428 = ptrtoint ptr @.str.5813 to i64
+  %r.1428 = ptrtoint ptr @.str.5819 to i64
   %r.1429 = ptrtoint ptr @.str.136 to i64
   %r.1430.a0 = inttoptr i64 %r.1428 to ptr
   %r.1430.a1 = inttoptr i64 %r.1429 to ptr
@@ -311151,8 +311448,8 @@ L362:
   br i1 %br.1476.cond, label %L365, label %L366
 L365:
   %r.1478 = load i64, ptr %r.284
-  %r.1479 = ptrtoint ptr @.str.5811 to i64
-  %r.1480 = ptrtoint ptr @.str.5812 to i64
+  %r.1479 = ptrtoint ptr @.str.5817 to i64
+  %r.1480 = ptrtoint ptr @.str.5818 to i64
   %r.1481.a0 = inttoptr i64 %r.1479 to ptr
   %r.1481.a1 = inttoptr i64 %r.1480 to ptr
   %r.1481.rv = call ptr @__nucleor_str_concat(ptr %r.1481.a0, ptr %r.1481.a1)
@@ -311175,7 +311472,7 @@ L367:
   br i1 %br.1488.cond, label %L368, label %L369
 L368:
   %r.1490 = load i64, ptr %r.284
-  %r.1491 = ptrtoint ptr @.str.5813 to i64
+  %r.1491 = ptrtoint ptr @.str.5819 to i64
   %r.1492 = ptrtoint ptr @.str.136 to i64
   %r.1493.a0 = inttoptr i64 %r.1491 to ptr
   %r.1493.a1 = inttoptr i64 %r.1492 to ptr
@@ -311242,7 +311539,7 @@ L377:
   %br.1517.cond = icmp ne i64 %r.1517, 0
   br i1 %br.1517.cond, label %L378, label %L380
 L378:
-  %r.1518 = ptrtoint ptr @.str.5814 to i64
+  %r.1518 = ptrtoint ptr @.str.5820 to i64
   %r.1519 = load i64, ptr %r.1509
   %r.1520 = call i64 @str_from_int(i64 %r.1519)
   %r.1521.a0 = inttoptr i64 %r.1518 to ptr
@@ -311252,7 +311549,7 @@ L378:
   %r.1522.a0 = inttoptr i64 %r.1521 to ptr
   call void @__nucleor_print_str(ptr %r.1522.a0)
   %r.1522 = add i64 0, 0
-  %r.1523 = ptrtoint ptr @.str.5815 to i64
+  %r.1523 = ptrtoint ptr @.str.5821 to i64
   %r.1524.a0 = inttoptr i64 %r.1523 to ptr
   call void @__nucleor_print_str(ptr %r.1524.a0)
   %r.1524 = add i64 0, 0
@@ -311261,8 +311558,8 @@ L380:
   br label %L364
 L364:
   %r.1526 = load i64, ptr %r.284
-  %r.1527 = ptrtoint ptr @.str.5816 to i64
-  %r.1528 = ptrtoint ptr @.str.5635 to i64
+  %r.1527 = ptrtoint ptr @.str.5822 to i64
+  %r.1528 = ptrtoint ptr @.str.5641 to i64
   %r.1529.a0 = inttoptr i64 %r.1527 to ptr
   %r.1529.a1 = inttoptr i64 %r.1528 to ptr
   %r.1529.rv = call ptr @__nucleor_str_concat(ptr %r.1529.a0, ptr %r.1529.a1)
@@ -311287,8 +311584,8 @@ L383:
   %r.1536 = load i64, ptr %r.1533
   store i64 %r.1536, ptr %r.1525
   %r.1538 = load i64, ptr %r.284
-  %r.1539 = ptrtoint ptr @.str.5817 to i64
-  %r.1540 = ptrtoint ptr @.str.5635 to i64
+  %r.1539 = ptrtoint ptr @.str.5823 to i64
+  %r.1540 = ptrtoint ptr @.str.5641 to i64
   %r.1541.a0 = inttoptr i64 %r.1539 to ptr
   %r.1541.a1 = inttoptr i64 %r.1540 to ptr
   %r.1541.rv = call ptr @__nucleor_str_concat(ptr %r.1541.a0, ptr %r.1541.a1)
@@ -311313,8 +311610,8 @@ L386:
   %r.1548 = load i64, ptr %r.1545
   store i64 %r.1548, ptr %r.1537
   %r.1550 = load i64, ptr %r.284
-  %r.1551 = ptrtoint ptr @.str.5818 to i64
-  %r.1552 = ptrtoint ptr @.str.5819 to i64
+  %r.1551 = ptrtoint ptr @.str.5824 to i64
+  %r.1552 = ptrtoint ptr @.str.5825 to i64
   %r.1553.a0 = inttoptr i64 %r.1551 to ptr
   %r.1553.a1 = inttoptr i64 %r.1552 to ptr
   %r.1553.rv = call ptr @__nucleor_str_concat(ptr %r.1553.a0, ptr %r.1553.a1)
@@ -311395,8 +311692,8 @@ L396:
   br i1 %br.1587.cond, label %L399, label %L400
 L399:
   %r.1589 = load i64, ptr %r.284
-  %r.1590 = ptrtoint ptr @.str.5816 to i64
-  %r.1591 = ptrtoint ptr @.str.5635 to i64
+  %r.1590 = ptrtoint ptr @.str.5822 to i64
+  %r.1591 = ptrtoint ptr @.str.5641 to i64
   %r.1592.a0 = inttoptr i64 %r.1590 to ptr
   %r.1592.a1 = inttoptr i64 %r.1591 to ptr
   %r.1592.rv = call ptr @__nucleor_str_concat(ptr %r.1592.a0, ptr %r.1592.a1)
@@ -311419,8 +311716,8 @@ L401:
   br i1 %br.1599.cond, label %L402, label %L403
 L402:
   %r.1601 = load i64, ptr %r.284
-  %r.1602 = ptrtoint ptr @.str.5817 to i64
-  %r.1603 = ptrtoint ptr @.str.5635 to i64
+  %r.1602 = ptrtoint ptr @.str.5823 to i64
+  %r.1603 = ptrtoint ptr @.str.5641 to i64
   %r.1604.a0 = inttoptr i64 %r.1602 to ptr
   %r.1604.a1 = inttoptr i64 %r.1603 to ptr
   %r.1604.rv = call ptr @__nucleor_str_concat(ptr %r.1604.a0, ptr %r.1604.a1)
@@ -311443,8 +311740,8 @@ L404:
   br i1 %br.1611.cond, label %L405, label %L406
 L405:
   %r.1613 = load i64, ptr %r.284
-  %r.1614 = ptrtoint ptr @.str.5818 to i64
-  %r.1615 = ptrtoint ptr @.str.5819 to i64
+  %r.1614 = ptrtoint ptr @.str.5824 to i64
+  %r.1615 = ptrtoint ptr @.str.5825 to i64
   %r.1616.a0 = inttoptr i64 %r.1614 to ptr
   %r.1616.a1 = inttoptr i64 %r.1615 to ptr
   %r.1616.rv = call ptr @__nucleor_str_concat(ptr %r.1616.a0, ptr %r.1616.a1)
@@ -311486,7 +311783,7 @@ L411:
   %br.1628.cond = icmp ne i64 %r.1628, 0
   br i1 %br.1628.cond, label %L412, label %L414
 L412:
-  %r.1629 = ptrtoint ptr @.str.5820 to i64
+  %r.1629 = ptrtoint ptr @.str.5826 to i64
   %r.1630 = load i64, ptr %r.1620
   %r.1631 = call i64 @str_from_int(i64 %r.1630)
   %r.1632.a0 = inttoptr i64 %r.1629 to ptr
@@ -311496,7 +311793,7 @@ L412:
   %r.1633.a0 = inttoptr i64 %r.1632 to ptr
   call void @__nucleor_print_str(ptr %r.1633.a0)
   %r.1633 = add i64 0, 0
-  %r.1634 = ptrtoint ptr @.str.5821 to i64
+  %r.1634 = ptrtoint ptr @.str.5827 to i64
   %r.1635.a0 = inttoptr i64 %r.1634 to ptr
   call void @__nucleor_print_str(ptr %r.1635.a0)
   %r.1635 = add i64 0, 0
@@ -311553,7 +311850,7 @@ L418:
   %br.1659.cond = icmp ne i64 %r.1659, 0
   br i1 %br.1659.cond, label %L421, label %L423
 L421:
-  %r.1660 = ptrtoint ptr @.str.5822 to i64
+  %r.1660 = ptrtoint ptr @.str.5828 to i64
   %r.1661 = load i64, ptr %r.1651
   %r.1662 = call i64 @str_from_int(i64 %r.1661)
   %r.1663.a0 = inttoptr i64 %r.1660 to ptr
@@ -311563,7 +311860,7 @@ L421:
   %r.1664.a0 = inttoptr i64 %r.1663 to ptr
   call void @__nucleor_print_str(ptr %r.1664.a0)
   %r.1664 = add i64 0, 0
-  %r.1665 = ptrtoint ptr @.str.5823 to i64
+  %r.1665 = ptrtoint ptr @.str.5829 to i64
   %r.1666.a0 = inttoptr i64 %r.1665 to ptr
   call void @__nucleor_print_str(ptr %r.1666.a0)
   %r.1666 = add i64 0, 0
@@ -311575,8 +311872,8 @@ L420:
   %r.1669 = call i64 @strip_strings_and_line_comments(i64 %r.1668)
   store i64 %r.1669, ptr %r.1667
   %r.1671 = load i64, ptr %r.1667
-  %r.1672 = ptrtoint ptr @.str.5824 to i64
-  %r.1673 = ptrtoint ptr @.str.5825 to i64
+  %r.1672 = ptrtoint ptr @.str.5830 to i64
+  %r.1673 = ptrtoint ptr @.str.5831 to i64
   %r.1674.a0 = inttoptr i64 %r.1672 to ptr
   %r.1674.a1 = inttoptr i64 %r.1673 to ptr
   %r.1674.rv = call ptr @__nucleor_str_concat(ptr %r.1674.a0, ptr %r.1674.a1)
@@ -311608,8 +311905,8 @@ L426:
   br i1 %br.1684.cond, label %L427, label %L429
 L427:
   %r.1686 = load i64, ptr %r.1667
-  %r.1687 = ptrtoint ptr @.str.5824 to i64
-  %r.1688 = ptrtoint ptr @.str.5826 to i64
+  %r.1687 = ptrtoint ptr @.str.5830 to i64
+  %r.1688 = ptrtoint ptr @.str.5832 to i64
   %r.1689.a0 = inttoptr i64 %r.1687 to ptr
   %r.1689.a1 = inttoptr i64 %r.1688 to ptr
   %r.1689.rv = call ptr @__nucleor_str_concat(ptr %r.1689.a0, ptr %r.1689.a1)
@@ -311664,7 +311961,7 @@ L437:
 L438:
   %r.1711 = load i64, ptr %r.1704
   store i64 %r.1711, ptr %r.1700
-  %r.1712 = ptrtoint ptr @.str.5827 to i64
+  %r.1712 = ptrtoint ptr @.str.5833 to i64
   %r.1713 = load i64, ptr %r.1700
   %r.1714 = call i64 @str_from_int(i64 %r.1713)
   %r.1715.a0 = inttoptr i64 %r.1712 to ptr
@@ -311674,17 +311971,17 @@ L438:
   %r.1716.a0 = inttoptr i64 %r.1715 to ptr
   call void @__nucleor_print_str(ptr %r.1716.a0)
   %r.1716 = add i64 0, 0
-  %r.1717 = ptrtoint ptr @.str.5828 to i64
+  %r.1717 = ptrtoint ptr @.str.5834 to i64
   %r.1718.a0 = inttoptr i64 %r.1717 to ptr
   call void @__nucleor_print_str(ptr %r.1718.a0)
   %r.1718 = add i64 0, 0
   br label %L435
 L434:
-  %r.1719 = ptrtoint ptr @.str.5829 to i64
+  %r.1719 = ptrtoint ptr @.str.5835 to i64
   %r.1720.a0 = inttoptr i64 %r.1719 to ptr
   call void @__nucleor_print_str(ptr %r.1720.a0)
   %r.1720 = add i64 0, 0
-  %r.1721 = ptrtoint ptr @.str.5830 to i64
+  %r.1721 = ptrtoint ptr @.str.5836 to i64
   %r.1722.a0 = inttoptr i64 %r.1721 to ptr
   %r.1722 = call i64 @__nucleor_panic(ptr %r.1722.a0)
   br label %L435
@@ -311692,8 +311989,8 @@ L435:
   br label %L429
 L429:
   %r.1724 = load i64, ptr %r.284
-  %r.1725 = ptrtoint ptr @.str.5831 to i64
-  %r.1726 = ptrtoint ptr @.str.5832 to i64
+  %r.1725 = ptrtoint ptr @.str.5837 to i64
+  %r.1726 = ptrtoint ptr @.str.5838 to i64
   %r.1727.a0 = inttoptr i64 %r.1725 to ptr
   %r.1727.a1 = inttoptr i64 %r.1726 to ptr
   %r.1727.rv = call ptr @__nucleor_str_concat(ptr %r.1727.a0, ptr %r.1727.a1)
@@ -311725,8 +312022,8 @@ L441:
   br i1 %br.1737.cond, label %L442, label %L444
 L442:
   %r.1739 = load i64, ptr %r.284
-  %r.1740 = ptrtoint ptr @.str.5831 to i64
-  %r.1741 = ptrtoint ptr @.str.5832 to i64
+  %r.1740 = ptrtoint ptr @.str.5837 to i64
+  %r.1741 = ptrtoint ptr @.str.5838 to i64
   %r.1742.a0 = inttoptr i64 %r.1740 to ptr
   %r.1742.a1 = inttoptr i64 %r.1741 to ptr
   %r.1742.rv = call ptr @__nucleor_str_concat(ptr %r.1742.a0, ptr %r.1742.a1)
@@ -311740,7 +312037,7 @@ L442:
   %br.1746.cond = icmp ne i64 %r.1746, 0
   br i1 %br.1746.cond, label %L445, label %L447
 L445:
-  %r.1747 = ptrtoint ptr @.str.5833 to i64
+  %r.1747 = ptrtoint ptr @.str.5839 to i64
   %r.1748 = load i64, ptr %r.1738
   %r.1749 = call i64 @str_from_int(i64 %r.1748)
   %r.1750.a0 = inttoptr i64 %r.1747 to ptr
@@ -311750,7 +312047,7 @@ L445:
   %r.1751.a0 = inttoptr i64 %r.1750 to ptr
   call void @__nucleor_print_str(ptr %r.1751.a0)
   %r.1751 = add i64 0, 0
-  %r.1752 = ptrtoint ptr @.str.5834 to i64
+  %r.1752 = ptrtoint ptr @.str.5840 to i64
   %r.1753.a0 = inttoptr i64 %r.1752 to ptr
   call void @__nucleor_print_str(ptr %r.1753.a0)
   %r.1753 = add i64 0, 0
@@ -311759,8 +312056,8 @@ L447:
   br label %L444
 L444:
   %r.1755 = load i64, ptr %r.284
-  %r.1756 = ptrtoint ptr @.str.5835 to i64
-  %r.1757 = ptrtoint ptr @.str.5836 to i64
+  %r.1756 = ptrtoint ptr @.str.5841 to i64
+  %r.1757 = ptrtoint ptr @.str.5842 to i64
   %r.1758.a0 = inttoptr i64 %r.1756 to ptr
   %r.1758.a1 = inttoptr i64 %r.1757 to ptr
   %r.1758.rv = call ptr @__nucleor_str_concat(ptr %r.1758.a0, ptr %r.1758.a1)
@@ -311785,8 +312082,8 @@ L450:
   %r.1765 = load i64, ptr %r.1762
   store i64 %r.1765, ptr %r.1754
   %r.1767 = load i64, ptr %r.284
-  %r.1768 = ptrtoint ptr @.str.5837 to i64
-  %r.1769 = ptrtoint ptr @.str.5838 to i64
+  %r.1768 = ptrtoint ptr @.str.5843 to i64
+  %r.1769 = ptrtoint ptr @.str.5844 to i64
   %r.1770.a0 = inttoptr i64 %r.1768 to ptr
   %r.1770.a1 = inttoptr i64 %r.1769 to ptr
   %r.1770.rv = call ptr @__nucleor_str_concat(ptr %r.1770.a0, ptr %r.1770.a1)
@@ -311811,8 +312108,8 @@ L453:
   %r.1777 = load i64, ptr %r.1774
   store i64 %r.1777, ptr %r.1766
   %r.1779 = load i64, ptr %r.284
-  %r.1780 = ptrtoint ptr @.str.5837 to i64
-  %r.1781 = ptrtoint ptr @.str.5839 to i64
+  %r.1780 = ptrtoint ptr @.str.5843 to i64
+  %r.1781 = ptrtoint ptr @.str.5845 to i64
   %r.1782.a0 = inttoptr i64 %r.1780 to ptr
   %r.1782.a1 = inttoptr i64 %r.1781 to ptr
   %r.1782.rv = call ptr @__nucleor_str_concat(ptr %r.1782.a0, ptr %r.1782.a1)
@@ -311837,8 +312134,8 @@ L456:
   %r.1789 = load i64, ptr %r.1786
   store i64 %r.1789, ptr %r.1778
   %r.1791 = load i64, ptr %r.284
-  %r.1792 = ptrtoint ptr @.str.5840 to i64
-  %r.1793 = ptrtoint ptr @.str.5841 to i64
+  %r.1792 = ptrtoint ptr @.str.5846 to i64
+  %r.1793 = ptrtoint ptr @.str.5847 to i64
   %r.1794.a0 = inttoptr i64 %r.1792 to ptr
   %r.1794.a1 = inttoptr i64 %r.1793 to ptr
   %r.1794.rv = call ptr @__nucleor_str_concat(ptr %r.1794.a0, ptr %r.1794.a1)
@@ -311940,8 +312237,8 @@ L469:
   br i1 %br.1838.cond, label %L472, label %L473
 L472:
   %r.1840 = load i64, ptr %r.284
-  %r.1841 = ptrtoint ptr @.str.5835 to i64
-  %r.1842 = ptrtoint ptr @.str.5836 to i64
+  %r.1841 = ptrtoint ptr @.str.5841 to i64
+  %r.1842 = ptrtoint ptr @.str.5842 to i64
   %r.1843.a0 = inttoptr i64 %r.1841 to ptr
   %r.1843.a1 = inttoptr i64 %r.1842 to ptr
   %r.1843.rv = call ptr @__nucleor_str_concat(ptr %r.1843.a0, ptr %r.1843.a1)
@@ -311964,8 +312261,8 @@ L474:
   br i1 %br.1850.cond, label %L475, label %L476
 L475:
   %r.1852 = load i64, ptr %r.284
-  %r.1853 = ptrtoint ptr @.str.5837 to i64
-  %r.1854 = ptrtoint ptr @.str.5838 to i64
+  %r.1853 = ptrtoint ptr @.str.5843 to i64
+  %r.1854 = ptrtoint ptr @.str.5844 to i64
   %r.1855.a0 = inttoptr i64 %r.1853 to ptr
   %r.1855.a1 = inttoptr i64 %r.1854 to ptr
   %r.1855.rv = call ptr @__nucleor_str_concat(ptr %r.1855.a0, ptr %r.1855.a1)
@@ -311988,8 +312285,8 @@ L477:
   br i1 %br.1862.cond, label %L478, label %L479
 L478:
   %r.1864 = load i64, ptr %r.284
-  %r.1865 = ptrtoint ptr @.str.5837 to i64
-  %r.1866 = ptrtoint ptr @.str.5839 to i64
+  %r.1865 = ptrtoint ptr @.str.5843 to i64
+  %r.1866 = ptrtoint ptr @.str.5845 to i64
   %r.1867.a0 = inttoptr i64 %r.1865 to ptr
   %r.1867.a1 = inttoptr i64 %r.1866 to ptr
   %r.1867.rv = call ptr @__nucleor_str_concat(ptr %r.1867.a0, ptr %r.1867.a1)
@@ -312012,8 +312309,8 @@ L480:
   br i1 %br.1874.cond, label %L481, label %L482
 L481:
   %r.1876 = load i64, ptr %r.284
-  %r.1877 = ptrtoint ptr @.str.5840 to i64
-  %r.1878 = ptrtoint ptr @.str.5841 to i64
+  %r.1877 = ptrtoint ptr @.str.5846 to i64
+  %r.1878 = ptrtoint ptr @.str.5847 to i64
   %r.1879.a0 = inttoptr i64 %r.1877 to ptr
   %r.1879.a1 = inttoptr i64 %r.1878 to ptr
   %r.1879.rv = call ptr @__nucleor_str_concat(ptr %r.1879.a0, ptr %r.1879.a1)
@@ -312064,7 +312361,7 @@ L489:
   %br.1893.cond = icmp ne i64 %r.1893, 0
   br i1 %br.1893.cond, label %L490, label %L492
 L490:
-  %r.1894 = ptrtoint ptr @.str.5842 to i64
+  %r.1894 = ptrtoint ptr @.str.5848 to i64
   %r.1895 = load i64, ptr %r.1883
   %r.1896 = call i64 @str_from_int(i64 %r.1895)
   %r.1897.a0 = inttoptr i64 %r.1894 to ptr
@@ -312074,7 +312371,7 @@ L490:
   %r.1898.a0 = inttoptr i64 %r.1897 to ptr
   call void @__nucleor_print_str(ptr %r.1898.a0)
   %r.1898 = add i64 0, 0
-  %r.1899 = ptrtoint ptr @.str.5843 to i64
+  %r.1899 = ptrtoint ptr @.str.5849 to i64
   %r.1900.a0 = inttoptr i64 %r.1899 to ptr
   call void @__nucleor_print_str(ptr %r.1900.a0)
   %r.1900 = add i64 0, 0
@@ -312084,7 +312381,7 @@ L492:
 L471:
   %r.1902 = load i64, ptr %r.284
   %r.1903 = ptrtoint ptr @.str.4576 to i64
-  %r.1904 = ptrtoint ptr @.str.5635 to i64
+  %r.1904 = ptrtoint ptr @.str.5641 to i64
   %r.1905.a0 = inttoptr i64 %r.1903 to ptr
   %r.1905.a1 = inttoptr i64 %r.1904 to ptr
   %r.1905.rv = call ptr @__nucleor_str_concat(ptr %r.1905.a0, ptr %r.1905.a1)
@@ -312109,8 +312406,8 @@ L495:
   %r.1912 = load i64, ptr %r.1909
   store i64 %r.1912, ptr %r.1901
   %r.1914 = load i64, ptr %r.284
-  %r.1915 = ptrtoint ptr @.str.5844 to i64
-  %r.1916 = ptrtoint ptr @.str.5845 to i64
+  %r.1915 = ptrtoint ptr @.str.5850 to i64
+  %r.1916 = ptrtoint ptr @.str.5851 to i64
   %r.1917.a0 = inttoptr i64 %r.1915 to ptr
   %r.1917.a1 = inttoptr i64 %r.1916 to ptr
   %r.1917.rv = call ptr @__nucleor_str_concat(ptr %r.1917.a0, ptr %r.1917.a1)
@@ -312135,8 +312432,8 @@ L498:
   %r.1924 = load i64, ptr %r.1921
   store i64 %r.1924, ptr %r.1913
   %r.1926 = load i64, ptr %r.284
-  %r.1927 = ptrtoint ptr @.str.5846 to i64
-  %r.1928 = ptrtoint ptr @.str.5847 to i64
+  %r.1927 = ptrtoint ptr @.str.5852 to i64
+  %r.1928 = ptrtoint ptr @.str.5853 to i64
   %r.1929.a0 = inttoptr i64 %r.1927 to ptr
   %r.1929.a1 = inttoptr i64 %r.1928 to ptr
   %r.1929.rv = call ptr @__nucleor_str_concat(ptr %r.1929.a0, ptr %r.1929.a1)
@@ -312218,7 +312515,7 @@ L508:
 L511:
   %r.1965 = load i64, ptr %r.284
   %r.1966 = ptrtoint ptr @.str.4576 to i64
-  %r.1967 = ptrtoint ptr @.str.5635 to i64
+  %r.1967 = ptrtoint ptr @.str.5641 to i64
   %r.1968.a0 = inttoptr i64 %r.1966 to ptr
   %r.1968.a1 = inttoptr i64 %r.1967 to ptr
   %r.1968.rv = call ptr @__nucleor_str_concat(ptr %r.1968.a0, ptr %r.1968.a1)
@@ -312241,8 +312538,8 @@ L513:
   br i1 %br.1975.cond, label %L514, label %L515
 L514:
   %r.1977 = load i64, ptr %r.284
-  %r.1978 = ptrtoint ptr @.str.5844 to i64
-  %r.1979 = ptrtoint ptr @.str.5845 to i64
+  %r.1978 = ptrtoint ptr @.str.5850 to i64
+  %r.1979 = ptrtoint ptr @.str.5851 to i64
   %r.1980.a0 = inttoptr i64 %r.1978 to ptr
   %r.1980.a1 = inttoptr i64 %r.1979 to ptr
   %r.1980.rv = call ptr @__nucleor_str_concat(ptr %r.1980.a0, ptr %r.1980.a1)
@@ -312265,8 +312562,8 @@ L516:
   br i1 %br.1987.cond, label %L517, label %L518
 L517:
   %r.1989 = load i64, ptr %r.284
-  %r.1990 = ptrtoint ptr @.str.5846 to i64
-  %r.1991 = ptrtoint ptr @.str.5847 to i64
+  %r.1990 = ptrtoint ptr @.str.5852 to i64
+  %r.1991 = ptrtoint ptr @.str.5853 to i64
   %r.1992.a0 = inttoptr i64 %r.1990 to ptr
   %r.1992.a1 = inttoptr i64 %r.1991 to ptr
   %r.1992.rv = call ptr @__nucleor_str_concat(ptr %r.1992.a0, ptr %r.1992.a1)
@@ -312308,7 +312605,7 @@ L523:
   %br.2004.cond = icmp ne i64 %r.2004, 0
   br i1 %br.2004.cond, label %L524, label %L526
 L524:
-  %r.2005 = ptrtoint ptr @.str.5848 to i64
+  %r.2005 = ptrtoint ptr @.str.5854 to i64
   %r.2006 = load i64, ptr %r.1996
   %r.2007 = call i64 @str_from_int(i64 %r.2006)
   %r.2008.a0 = inttoptr i64 %r.2005 to ptr
@@ -312318,7 +312615,7 @@ L524:
   %r.2009.a0 = inttoptr i64 %r.2008 to ptr
   call void @__nucleor_print_str(ptr %r.2009.a0)
   %r.2009 = add i64 0, 0
-  %r.2010 = ptrtoint ptr @.str.5849 to i64
+  %r.2010 = ptrtoint ptr @.str.5855 to i64
   %r.2011.a0 = inttoptr i64 %r.2010 to ptr
   call void @__nucleor_print_str(ptr %r.2011.a0)
   %r.2011 = add i64 0, 0
@@ -312327,7 +312624,7 @@ L526:
   br label %L510
 L510:
   %r.2013 = load i64, ptr %r.284
-  %r.2014 = ptrtoint ptr @.str.5850 to i64
+  %r.2014 = ptrtoint ptr @.str.5856 to i64
   %r.2015 = ptrtoint ptr @.str.4026 to i64
   %r.2016.a0 = inttoptr i64 %r.2014 to ptr
   %r.2016.a1 = inttoptr i64 %r.2015 to ptr
@@ -312589,7 +312886,7 @@ L560:
   br i1 %br.2134.cond, label %L563, label %L564
 L563:
   %r.2136 = load i64, ptr %r.284
-  %r.2137 = ptrtoint ptr @.str.5850 to i64
+  %r.2137 = ptrtoint ptr @.str.5856 to i64
   %r.2138 = ptrtoint ptr @.str.4026 to i64
   %r.2139.a0 = inttoptr i64 %r.2137 to ptr
   %r.2139.a1 = inttoptr i64 %r.2138 to ptr
@@ -312682,7 +312979,7 @@ L573:
   %br.2175.cond = icmp ne i64 %r.2175, 0
   br i1 %br.2175.cond, label %L574, label %L576
 L574:
-  %r.2176 = ptrtoint ptr @.str.5851 to i64
+  %r.2176 = ptrtoint ptr @.str.5857 to i64
   %r.2177 = load i64, ptr %r.2167
   %r.2178 = call i64 @str_from_int(i64 %r.2177)
   %r.2179.a0 = inttoptr i64 %r.2176 to ptr
@@ -312692,7 +312989,7 @@ L574:
   %r.2180.a0 = inttoptr i64 %r.2179 to ptr
   call void @__nucleor_print_str(ptr %r.2180.a0)
   %r.2180 = add i64 0, 0
-  %r.2181 = ptrtoint ptr @.str.5852 to i64
+  %r.2181 = ptrtoint ptr @.str.5858 to i64
   %r.2182.a0 = inttoptr i64 %r.2181 to ptr
   call void @__nucleor_print_str(ptr %r.2182.a0)
   %r.2182 = add i64 0, 0
@@ -312749,7 +313046,7 @@ L580:
   %br.2206.cond = icmp ne i64 %r.2206, 0
   br i1 %br.2206.cond, label %L583, label %L585
 L583:
-  %r.2207 = ptrtoint ptr @.str.5853 to i64
+  %r.2207 = ptrtoint ptr @.str.5859 to i64
   %r.2208 = load i64, ptr %r.2198
   %r.2209 = call i64 @str_from_int(i64 %r.2208)
   %r.2210.a0 = inttoptr i64 %r.2207 to ptr
@@ -312759,7 +313056,7 @@ L583:
   %r.2211.a0 = inttoptr i64 %r.2210 to ptr
   call void @__nucleor_print_str(ptr %r.2211.a0)
   %r.2211 = add i64 0, 0
-  %r.2212 = ptrtoint ptr @.str.5854 to i64
+  %r.2212 = ptrtoint ptr @.str.5860 to i64
   %r.2213.a0 = inttoptr i64 %r.2212 to ptr
   call void @__nucleor_print_str(ptr %r.2213.a0)
   %r.2213 = add i64 0, 0
@@ -312768,7 +313065,7 @@ L585:
   br label %L582
 L582:
   %r.2215 = load i64, ptr %r.284
-  %r.2216 = ptrtoint ptr @.str.5855 to i64
+  %r.2216 = ptrtoint ptr @.str.5861 to i64
   %r.2217 = ptrtoint ptr @.str.476 to i64
   %r.2218.a0 = inttoptr i64 %r.2216 to ptr
   %r.2218.a1 = inttoptr i64 %r.2217 to ptr
@@ -312794,7 +313091,7 @@ L588:
   %r.2225 = load i64, ptr %r.2222
   store i64 %r.2225, ptr %r.2214
   %r.2227 = load i64, ptr %r.284
-  %r.2228 = ptrtoint ptr @.str.5855 to i64
+  %r.2228 = ptrtoint ptr @.str.5861 to i64
   %r.2229 = ptrtoint ptr @.str.424 to i64
   %r.2230.a0 = inttoptr i64 %r.2228 to ptr
   %r.2230.a1 = inttoptr i64 %r.2229 to ptr
@@ -312820,7 +313117,7 @@ L591:
   %r.2237 = load i64, ptr %r.2234
   store i64 %r.2237, ptr %r.2226
   %r.2239 = load i64, ptr %r.284
-  %r.2240 = ptrtoint ptr @.str.5856 to i64
+  %r.2240 = ptrtoint ptr @.str.5862 to i64
   %r.2241 = ptrtoint ptr @.str.476 to i64
   %r.2242.a0 = inttoptr i64 %r.2240 to ptr
   %r.2242.a1 = inttoptr i64 %r.2241 to ptr
@@ -312873,7 +313170,7 @@ L597:
   %br.2262.cond = icmp ne i64 %r.2262, 0
   br i1 %br.2262.cond, label %L598, label %L600
 L598:
-  %r.2263 = ptrtoint ptr @.str.5857 to i64
+  %r.2263 = ptrtoint ptr @.str.5863 to i64
   %r.2264.a0 = inttoptr i64 %r.2263 to ptr
   call void @__nucleor_print_str(ptr %r.2264.a0)
   %r.2264 = add i64 0, 0
@@ -312931,11 +313228,11 @@ L606:
   %br.2289.cond = icmp ne i64 %r.2289, 0
   br i1 %br.2289.cond, label %L607, label %L609
 L607:
-  %r.2290 = ptrtoint ptr @.str.5858 to i64
+  %r.2290 = ptrtoint ptr @.str.5864 to i64
   %r.2291.a0 = inttoptr i64 %r.2290 to ptr
   call void @__nucleor_print_str(ptr %r.2291.a0)
   %r.2291 = add i64 0, 0
-  %r.2292 = ptrtoint ptr @.str.5859 to i64
+  %r.2292 = ptrtoint ptr @.str.5865 to i64
   %r.2293.a0 = inttoptr i64 %r.2292 to ptr
   %r.2293 = call i64 @__nucleor_panic(ptr %r.2293.a0)
   br label %L609
@@ -313068,7 +313365,7 @@ L625:
   %br.2351.cond = icmp ne i64 %r.2351, 0
   br i1 %br.2351.cond, label %L626, label %L628
 L626:
-  %r.2352 = ptrtoint ptr @.str.5860 to i64
+  %r.2352 = ptrtoint ptr @.str.5866 to i64
   %r.2353 = load i64, ptr %r.2331
   %r.2354 = call i64 @str_from_int(i64 %r.2353)
   %r.2355.a0 = inttoptr i64 %r.2352 to ptr
@@ -313078,7 +313375,7 @@ L626:
   %r.2356.a0 = inttoptr i64 %r.2355 to ptr
   call void @__nucleor_print_str(ptr %r.2356.a0)
   %r.2356 = add i64 0, 0
-  %r.2357 = ptrtoint ptr @.str.5861 to i64
+  %r.2357 = ptrtoint ptr @.str.5867 to i64
   %r.2358.a0 = inttoptr i64 %r.2357 to ptr
   call void @__nucleor_print_str(ptr %r.2358.a0)
   %r.2358 = add i64 0, 0
@@ -313087,7 +313384,7 @@ L628:
   br label %L621
 L621:
   %r.2360 = load i64, ptr %r.284
-  %r.2361 = ptrtoint ptr @.str.5862 to i64
+  %r.2361 = ptrtoint ptr @.str.5868 to i64
   %r.2362 = ptrtoint ptr @.str.235 to i64
   %r.2363.a0 = inttoptr i64 %r.2361 to ptr
   %r.2363.a1 = inttoptr i64 %r.2362 to ptr
@@ -313120,7 +313417,7 @@ L631:
   br i1 %br.2373.cond, label %L632, label %L634
 L632:
   %r.2375 = load i64, ptr %r.284
-  %r.2376 = ptrtoint ptr @.str.5862 to i64
+  %r.2376 = ptrtoint ptr @.str.5868 to i64
   %r.2377 = ptrtoint ptr @.str.235 to i64
   %r.2378.a0 = inttoptr i64 %r.2376 to ptr
   %r.2378.a1 = inttoptr i64 %r.2377 to ptr
@@ -313135,7 +313432,7 @@ L632:
   %br.2382.cond = icmp ne i64 %r.2382, 0
   br i1 %br.2382.cond, label %L635, label %L637
 L635:
-  %r.2383 = ptrtoint ptr @.str.5863 to i64
+  %r.2383 = ptrtoint ptr @.str.5869 to i64
   %r.2384 = load i64, ptr %r.2374
   %r.2385 = call i64 @str_from_int(i64 %r.2384)
   %r.2386.a0 = inttoptr i64 %r.2383 to ptr
@@ -313145,7 +313442,7 @@ L635:
   %r.2387.a0 = inttoptr i64 %r.2386 to ptr
   call void @__nucleor_print_str(ptr %r.2387.a0)
   %r.2387 = add i64 0, 0
-  %r.2388 = ptrtoint ptr @.str.5864 to i64
+  %r.2388 = ptrtoint ptr @.str.5870 to i64
   %r.2389.a0 = inttoptr i64 %r.2388 to ptr
   call void @__nucleor_print_str(ptr %r.2389.a0)
   %r.2389 = add i64 0, 0
@@ -313169,7 +313466,7 @@ L634:
   %br.2398.cond = icmp ne i64 %r.2398, 0
   br i1 %br.2398.cond, label %L638, label %L640
 L638:
-  %r.2399 = ptrtoint ptr @.str.5865 to i64
+  %r.2399 = ptrtoint ptr @.str.5871 to i64
   %r.2400 = load i64, ptr %r.2390
   %r.2401 = call i64 @str_from_int(i64 %r.2400)
   %r.2402.a0 = inttoptr i64 %r.2399 to ptr
@@ -313179,14 +313476,14 @@ L638:
   %r.2403.a0 = inttoptr i64 %r.2402 to ptr
   call void @__nucleor_print_str(ptr %r.2403.a0)
   %r.2403 = add i64 0, 0
-  %r.2404 = ptrtoint ptr @.str.5866 to i64
+  %r.2404 = ptrtoint ptr @.str.5872 to i64
   %r.2405.a0 = inttoptr i64 %r.2404 to ptr
   call void @__nucleor_print_str(ptr %r.2405.a0)
   %r.2405 = add i64 0, 0
   br label %L640
 L640:
-  %r.2407 = ptrtoint ptr @.str.5867 to i64
-  %r.2408 = ptrtoint ptr @.str.5868 to i64
+  %r.2407 = ptrtoint ptr @.str.5873 to i64
+  %r.2408 = ptrtoint ptr @.str.5874 to i64
   %r.2409.a0 = inttoptr i64 %r.2407 to ptr
   %r.2409.a1 = inttoptr i64 %r.2408 to ptr
   %r.2409.rv = call ptr @__nucleor_str_concat(ptr %r.2409.a0, ptr %r.2409.a1)
@@ -313207,17 +313504,17 @@ L640:
   %br.2416.cond = icmp ne i64 %r.2416, 0
   br i1 %br.2416.cond, label %L641, label %L643
 L641:
-  %r.2417 = ptrtoint ptr @.str.5869 to i64
+  %r.2417 = ptrtoint ptr @.str.5875 to i64
   %r.2418.a0 = inttoptr i64 %r.2417 to ptr
   call void @__nucleor_print_str(ptr %r.2418.a0)
   %r.2418 = add i64 0, 0
-  %r.2419 = ptrtoint ptr @.str.5870 to i64
+  %r.2419 = ptrtoint ptr @.str.5876 to i64
   %r.2420.a0 = inttoptr i64 %r.2419 to ptr
   call void @__nucleor_print_str(ptr %r.2420.a0)
   %r.2420 = add i64 0, 0
   %r.2422 = load i64, ptr %r.284
   %r.2423 = ptrtoint ptr @.str.4712 to i64
-  %r.2424 = ptrtoint ptr @.str.5871 to i64
+  %r.2424 = ptrtoint ptr @.str.5877 to i64
   %r.2425.a0 = inttoptr i64 %r.2423 to ptr
   %r.2425.a1 = inttoptr i64 %r.2424 to ptr
   %r.2425.rv = call ptr @__nucleor_str_concat(ptr %r.2425.a0, ptr %r.2425.a1)
@@ -313233,7 +313530,7 @@ L641:
 L644:
   %r.2430 = load i64, ptr %r.284
   %r.2431 = ptrtoint ptr @.str.4712 to i64
-  %r.2432 = ptrtoint ptr @.str.5871 to i64
+  %r.2432 = ptrtoint ptr @.str.5877 to i64
   %r.2433.a0 = inttoptr i64 %r.2431 to ptr
   %r.2433.a1 = inttoptr i64 %r.2432 to ptr
   %r.2433.rv = call ptr @__nucleor_str_concat(ptr %r.2433.a0, ptr %r.2433.a1)
@@ -313250,7 +313547,7 @@ L646:
   store i64 %r.2436, ptr %r.2421
   %r.2438 = load i64, ptr %r.284
   %r.2439 = ptrtoint ptr @.str.4712 to i64
-  %r.2440 = ptrtoint ptr @.str.5872 to i64
+  %r.2440 = ptrtoint ptr @.str.5878 to i64
   %r.2441.a0 = inttoptr i64 %r.2439 to ptr
   %r.2441.a1 = inttoptr i64 %r.2440 to ptr
   %r.2441.rv = call ptr @__nucleor_str_concat(ptr %r.2441.a0, ptr %r.2441.a1)
@@ -313266,7 +313563,7 @@ L646:
 L647:
   %r.2446 = load i64, ptr %r.284
   %r.2447 = ptrtoint ptr @.str.4712 to i64
-  %r.2448 = ptrtoint ptr @.str.5872 to i64
+  %r.2448 = ptrtoint ptr @.str.5878 to i64
   %r.2449.a0 = inttoptr i64 %r.2447 to ptr
   %r.2449.a1 = inttoptr i64 %r.2448 to ptr
   %r.2449.rv = call ptr @__nucleor_str_concat(ptr %r.2449.a0, ptr %r.2449.a1)
@@ -313299,7 +313596,7 @@ L651:
   %br.2459.cond = icmp ne i64 %r.2459, 0
   br i1 %br.2459.cond, label %L652, label %L654
 L652:
-  %r.2460 = ptrtoint ptr @.str.5873 to i64
+  %r.2460 = ptrtoint ptr @.str.5879 to i64
   %r.2461 = load i64, ptr %r.2453
   %r.2462 = call i64 @str_from_int(i64 %r.2461)
   %r.2463.a0 = inttoptr i64 %r.2460 to ptr
@@ -313309,7 +313606,7 @@ L652:
   %r.2464.a0 = inttoptr i64 %r.2463 to ptr
   call void @__nucleor_print_str(ptr %r.2464.a0)
   %r.2464 = add i64 0, 0
-  %r.2465 = ptrtoint ptr @.str.5874 to i64
+  %r.2465 = ptrtoint ptr @.str.5880 to i64
   %r.2466.a0 = inttoptr i64 %r.2465 to ptr
   call void @__nucleor_print_str(ptr %r.2466.a0)
   %r.2466 = add i64 0, 0
@@ -313333,7 +313630,7 @@ L643:
   %br.2475.cond = icmp ne i64 %r.2475, 0
   br i1 %br.2475.cond, label %L655, label %L657
 L655:
-  %r.2476 = ptrtoint ptr @.str.5875 to i64
+  %r.2476 = ptrtoint ptr @.str.5881 to i64
   %r.2477 = load i64, ptr %r.2467
   %r.2478 = call i64 @str_from_int(i64 %r.2477)
   %r.2479.a0 = inttoptr i64 %r.2476 to ptr
@@ -313343,8 +313640,8 @@ L655:
   %r.2480.a0 = inttoptr i64 %r.2479 to ptr
   call void @__nucleor_print_str(ptr %r.2480.a0)
   %r.2480 = add i64 0, 0
-  %r.2481 = ptrtoint ptr @.str.5876 to i64
-  %r.2482 = ptrtoint ptr @.str.5877 to i64
+  %r.2481 = ptrtoint ptr @.str.5882 to i64
+  %r.2482 = ptrtoint ptr @.str.5883 to i64
   %r.2483.a0 = inttoptr i64 %r.2481 to ptr
   %r.2483.a1 = inttoptr i64 %r.2482 to ptr
   %r.2483.rv = call ptr @__nucleor_str_concat(ptr %r.2483.a0, ptr %r.2483.a1)
@@ -313355,7 +313652,7 @@ L655:
   br label %L657
 L657:
   %r.2486 = load i64, ptr %r.284
-  %r.2487 = ptrtoint ptr @.str.5878 to i64
+  %r.2487 = ptrtoint ptr @.str.5884 to i64
   %r.2488 = ptrtoint ptr @.str.136 to i64
   %r.2489.a0 = inttoptr i64 %r.2487 to ptr
   %r.2489.a1 = inttoptr i64 %r.2488 to ptr
@@ -313370,7 +313667,7 @@ L657:
   %br.2493.cond = icmp ne i64 %r.2493, 0
   br i1 %br.2493.cond, label %L658, label %L660
 L658:
-  %r.2494 = ptrtoint ptr @.str.5879 to i64
+  %r.2494 = ptrtoint ptr @.str.5885 to i64
   %r.2495 = load i64, ptr %r.2485
   %r.2496 = call i64 @str_from_int(i64 %r.2495)
   %r.2497.a0 = inttoptr i64 %r.2494 to ptr
@@ -313380,7 +313677,7 @@ L658:
   %r.2498.a0 = inttoptr i64 %r.2497 to ptr
   call void @__nucleor_print_str(ptr %r.2498.a0)
   %r.2498 = add i64 0, 0
-  %r.2499 = ptrtoint ptr @.str.5880 to i64
+  %r.2499 = ptrtoint ptr @.str.5886 to i64
   %r.2500.a0 = inttoptr i64 %r.2499 to ptr
   call void @__nucleor_print_str(ptr %r.2500.a0)
   %r.2500 = add i64 0, 0
@@ -313446,7 +313743,7 @@ L666:
   %br.2536.cond = icmp ne i64 %r.2536, 0
   br i1 %br.2536.cond, label %L667, label %L669
 L667:
-  %r.2537 = ptrtoint ptr @.str.5881 to i64
+  %r.2537 = ptrtoint ptr @.str.5887 to i64
   %r.2538.a0 = inttoptr i64 %r.2537 to ptr
   %r.2538 = call i64 @__nucleor_fs_create_dir_all(ptr %r.2538.a0)
   %r.2539 = load i64, ptr %r.6
@@ -313785,7 +314082,7 @@ L27:
 L30:
   %r.95 = load i64, ptr %r.0
   %r.96 = load i64, ptr %r.38
-  %r.97 = ptrtoint ptr @.str.5882 to i64
+  %r.97 = ptrtoint ptr @.str.5888 to i64
   %r.98 = call i64 @str_eq_at(i64 %r.95, i64 %r.96, i64 %r.97)
   %r.99 = add i64 1, 0
   %r.100.cmp = icmp eq i64 %r.98, %r.99
@@ -313965,7 +314262,7 @@ L56:
   br i1 %br.168.cond, label %L62, label %L64
 L62:
   %r.169 = load i64, ptr %r.4
-  %r.170 = ptrtoint ptr @.str.5883 to i64
+  %r.170 = ptrtoint ptr @.str.5889 to i64
   %r.171.a1 = inttoptr i64 %r.170 to ptr
   call void @__nucleor_sb_append(i64 %r.169, ptr %r.171.a1)
   %r.171 = add i64 0, 0
@@ -313997,7 +314294,7 @@ L34:
 L65:
   %r.184 = load i64, ptr %r.0
   %r.185 = load i64, ptr %r.38
-  %r.186 = ptrtoint ptr @.str.5884 to i64
+  %r.186 = ptrtoint ptr @.str.5890 to i64
   %r.187 = call i64 @str_eq_at(i64 %r.184, i64 %r.185, i64 %r.186)
   %r.188 = add i64 1, 0
   %r.189.cmp = icmp eq i64 %r.187, %r.188
@@ -314177,7 +314474,7 @@ L91:
   br i1 %br.257.cond, label %L97, label %L99
 L97:
   %r.258 = load i64, ptr %r.4
-  %r.259 = ptrtoint ptr @.str.5883 to i64
+  %r.259 = ptrtoint ptr @.str.5889 to i64
   %r.260.a1 = inttoptr i64 %r.259 to ptr
   call void @__nucleor_sb_append(i64 %r.258, ptr %r.260.a1)
   %r.260 = add i64 0, 0
@@ -314209,7 +314506,7 @@ L69:
 L100:
   %r.273 = load i64, ptr %r.0
   %r.274 = load i64, ptr %r.38
-  %r.275 = ptrtoint ptr @.str.5885 to i64
+  %r.275 = ptrtoint ptr @.str.5891 to i64
   %r.276 = call i64 @str_eq_at(i64 %r.273, i64 %r.274, i64 %r.275)
   %r.277 = add i64 1, 0
   %r.278.cmp = icmp eq i64 %r.276, %r.277
@@ -314382,7 +314679,7 @@ L131:
   br label %L124
 L126:
   %r.344 = load i64, ptr %r.4
-  %r.345 = ptrtoint ptr @.str.5883 to i64
+  %r.345 = ptrtoint ptr @.str.5889 to i64
   %r.346.a1 = inttoptr i64 %r.345 to ptr
   call void @__nucleor_sb_append(i64 %r.344, ptr %r.346.a1)
   %r.346 = add i64 0, 0
@@ -314412,7 +314709,7 @@ L104:
 L132:
   %r.359 = load i64, ptr %r.0
   %r.360 = load i64, ptr %r.38
-  %r.361 = ptrtoint ptr @.str.5886 to i64
+  %r.361 = ptrtoint ptr @.str.5892 to i64
   %r.362 = call i64 @str_eq_at(i64 %r.359, i64 %r.360, i64 %r.361)
   %r.363 = add i64 1, 0
   %r.364.cmp = icmp eq i64 %r.362, %r.363
@@ -314718,7 +315015,7 @@ L136:
 L179:
   %r.492 = load i64, ptr %r.0
   %r.493 = load i64, ptr %r.38
-  %r.494 = ptrtoint ptr @.str.5887 to i64
+  %r.494 = ptrtoint ptr @.str.5893 to i64
   %r.495 = call i64 @str_eq_at(i64 %r.492, i64 %r.493, i64 %r.494)
   %r.496 = add i64 1, 0
   %r.497.cmp = icmp eq i64 %r.495, %r.496
@@ -314891,7 +315188,7 @@ L210:
   br label %L203
 L205:
   %r.563 = load i64, ptr %r.8
-  %r.564 = ptrtoint ptr @.str.5888 to i64
+  %r.564 = ptrtoint ptr @.str.5894 to i64
   %r.565.a1 = inttoptr i64 %r.564 to ptr
   call void @__nucleor_sb_append(i64 %r.563, ptr %r.565.a1)
   %r.565 = add i64 0, 0
@@ -315195,7 +315492,7 @@ bb.entry:
   %br.18.cond = icmp ne i64 %r.18, 0
   br i1 %br.18.cond, label %L0, label %L2
 L0:
-  %r.19 = ptrtoint ptr @.str.5889 to i64
+  %r.19 = ptrtoint ptr @.str.5895 to i64
   %r.20 = load i64, ptr %r.2
   %r.21.a0 = inttoptr i64 %r.19 to ptr
   %r.21.a1 = inttoptr i64 %r.20 to ptr
@@ -315244,7 +315541,7 @@ L3:
   br i1 %br.48.cond, label %L6, label %L7
 L6:
   %r.49 = load i64, ptr %r.35
-  %r.50 = ptrtoint ptr @.str.5661 to i64
+  %r.50 = ptrtoint ptr @.str.5667 to i64
   %r.51 = call i64 @str_starts_with(i64 %r.49, i64 %r.50)
   %r.52 = add i64 1, 0
   %r.53.cmp = icmp eq i64 %r.51, %r.52
@@ -315268,7 +315565,7 @@ L9:
   br label %L11
 L10:
   %r.60 = load i64, ptr %r.35
-  %r.61 = ptrtoint ptr @.str.5657 to i64
+  %r.61 = ptrtoint ptr @.str.5663 to i64
   %r.62.a0 = inttoptr i64 %r.60 to ptr
   %r.62.a1 = inttoptr i64 %r.61 to ptr
   %r.62 = call i64 @__nucleor_str_contains(ptr %r.62.a0, ptr %r.62.a1)
@@ -315338,14 +315635,14 @@ L18:
   %br.92.cond = icmp ne i64 %r.92, 0
   br i1 %br.92.cond, label %L21, label %L23
 L21:
-  %r.93 = ptrtoint ptr @.str.5890 to i64
+  %r.93 = ptrtoint ptr @.str.5896 to i64
   %r.94 = load i64, ptr %r.0
   %r.95 = ptrtoint ptr @.str.4724 to i64
   %r.96 = load i64, ptr %r.35
   %r.97.a0 = inttoptr i64 %r.96 to ptr
   %r.97 = call i64 @__nucleor_str_len(ptr %r.97.a0)
   %r.98 = call i64 @str_from_int(i64 %r.97)
-  %r.99 = ptrtoint ptr @.str.5585 to i64
+  %r.99 = ptrtoint ptr @.str.5590 to i64
   %r.100.a0 = inttoptr i64 %r.98 to ptr
   %r.100.a1 = inttoptr i64 %r.99 to ptr
   %r.100.rv = call ptr @__nucleor_str_concat(ptr %r.100.a0, ptr %r.100.a1)
@@ -315372,7 +315669,7 @@ L21:
   %br.107.cond = icmp ne i64 %r.107, 0
   br i1 %br.107.cond, label %L24, label %L26
 L24:
-  %r.108 = ptrtoint ptr @.str.5891 to i64
+  %r.108 = ptrtoint ptr @.str.5897 to i64
   %r.109.a0 = inttoptr i64 %r.108 to ptr
   call void @__nucleor_print_str(ptr %r.109.a0)
   %r.109 = add i64 0, 0
@@ -315385,20 +315682,20 @@ L26:
   %br.112.cond = icmp ne i64 %r.112, 0
   br i1 %br.112.cond, label %L27, label %L29
 L27:
-  %r.113 = ptrtoint ptr @.str.5892 to i64
+  %r.113 = ptrtoint ptr @.str.5898 to i64
   %r.114.a0 = inttoptr i64 %r.113 to ptr
   call void @__nucleor_print_str(ptr %r.114.a0)
   %r.114 = add i64 0, 0
   br label %L29
 L29:
-  %r.115 = ptrtoint ptr @.str.5893 to i64
+  %r.115 = ptrtoint ptr @.str.5899 to i64
   %r.116 = load i64, ptr %r.26
   %r.117 = call i64 @cache_v2_prefix(i64 %r.116)
-  %r.118 = ptrtoint ptr @.str.5894 to i64
+  %r.118 = ptrtoint ptr @.str.5900 to i64
   %r.119 = load i64, ptr %r.28
   %r.120 = call i64 @cache_v2_file_size_mb(i64 %r.119)
   %r.121 = call i64 @str_from_int(i64 %r.120)
-  %r.122 = ptrtoint ptr @.str.5895 to i64
+  %r.122 = ptrtoint ptr @.str.5901 to i64
   %r.123.a0 = inttoptr i64 %r.121 to ptr
   %r.123.a1 = inttoptr i64 %r.122 to ptr
   %r.123.rv = call ptr @__nucleor_str_concat(ptr %r.123.a0, ptr %r.123.a1)
@@ -315418,7 +315715,7 @@ L29:
   %r.127.a0 = inttoptr i64 %r.126 to ptr
   call void @__nucleor_print_str(ptr %r.127.a0)
   %r.127 = add i64 0, 0
-  %r.129 = ptrtoint ptr @.str.5581 to i64
+  %r.129 = ptrtoint ptr @.str.5586 to i64
   %r.130 = load i64, ptr %r.12
   %r.131 = ptrtoint ptr @.str.5534 to i64
   %r.132.a0 = inttoptr i64 %r.130 to ptr
@@ -315434,14 +315731,14 @@ L29:
   %r.135 = load i64, ptr %r.128
   %r.136 = load i64, ptr %r.26
   %r.137 = call i64 @copy_ll_artifact_if_needed(i64 %r.134, i64 %r.135, i64 %r.136)
-  %r.138 = ptrtoint ptr @.str.5584 to i64
+  %r.138 = ptrtoint ptr @.str.5589 to i64
   %r.139 = load i64, ptr %r.128
   %r.140 = ptrtoint ptr @.str.4724 to i64
   %r.141 = load i64, ptr %r.128
   %r.142.a0 = inttoptr i64 %r.141 to ptr
   %r.142 = call i64 @__nucleor_fs_size(ptr %r.142.a0)
   %r.143 = call i64 @str_from_int(i64 %r.142)
-  %r.144 = ptrtoint ptr @.str.5585 to i64
+  %r.144 = ptrtoint ptr @.str.5590 to i64
   %r.145.a0 = inttoptr i64 %r.143 to ptr
   %r.145.a1 = inttoptr i64 %r.144 to ptr
   %r.145.rv = call ptr @__nucleor_str_concat(ptr %r.145.a0, ptr %r.145.a1)
@@ -315470,7 +315767,7 @@ L29:
   %br.154.cond = icmp ne i64 %r.154, 0
   br i1 %br.154.cond, label %L30, label %L31
 L30:
-  %r.156 = ptrtoint ptr @.str.5582 to i64
+  %r.156 = ptrtoint ptr @.str.5587 to i64
   %r.157 = call i64 @host_target_path_sep()
   %r.158.a0 = inttoptr i64 %r.156 to ptr
   %r.158.a1 = inttoptr i64 %r.157 to ptr
@@ -315487,9 +315784,9 @@ L30:
   %r.162.rv = call ptr @__nucleor_str_concat(ptr %r.162.a0, ptr %r.162.a1)
   %r.162 = ptrtoint ptr %r.162.rv to i64
   store i64 %r.162, ptr %r.155
-  %r.163 = ptrtoint ptr @.str.5586 to i64
+  %r.163 = ptrtoint ptr @.str.5591 to i64
   %r.164 = load i64, ptr %r.155
-  %r.165 = ptrtoint ptr @.str.5587 to i64
+  %r.165 = ptrtoint ptr @.str.5592 to i64
   %r.166.a0 = inttoptr i64 %r.164 to ptr
   %r.166.a1 = inttoptr i64 %r.165 to ptr
   %r.166.rv = call ptr @__nucleor_str_concat(ptr %r.166.a0, ptr %r.166.a1)
@@ -315521,7 +315818,7 @@ L32:
   %r.179 = add i64 0, 0
   %r.180 = call i64 @cache_v2_print_stats(i64 %r.178, i64 %r.179)
   %r.181 = load i64, ptr %r.8
-  %r.182 = ptrtoint ptr @.str.5896 to i64
+  %r.182 = ptrtoint ptr @.str.5902 to i64
   %r.183 = call i64 @__nucleor_now_ms()
   %r.184 = load i64, ptr %r.24
   %r.185.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.183, i64 %r.184)
@@ -315615,7 +315912,7 @@ L43:
   %br.229.cond = icmp ne i64 %r.229, 0
   br i1 %br.229.cond, label %L44, label %L46
 L44:
-  %r.230 = ptrtoint ptr @.str.5897 to i64
+  %r.230 = ptrtoint ptr @.str.5903 to i64
   %r.231 = load i64, ptr %r.0
   %r.232.a0 = inttoptr i64 %r.230 to ptr
   %r.232.a1 = inttoptr i64 %r.231 to ptr
@@ -315624,14 +315921,14 @@ L44:
   %r.233.a0 = inttoptr i64 %r.232 to ptr
   call void @__nucleor_print_str(ptr %r.233.a0)
   %r.233 = add i64 0, 0
-  %r.234 = ptrtoint ptr @.str.5898 to i64
+  %r.234 = ptrtoint ptr @.str.5904 to i64
   %r.235.a0 = inttoptr i64 %r.234 to ptr
   call void @__nucleor_print_str(ptr %r.235.a0)
   %r.235 = add i64 0, 0
   %r.236 = add i64 1, 0
   ret i64 %r.236
 L46:
-  %r.237 = ptrtoint ptr @.str.5899 to i64
+  %r.237 = ptrtoint ptr @.str.5905 to i64
   %r.238 = load i64, ptr %r.0
   %r.239.a0 = inttoptr i64 %r.237 to ptr
   %r.239.a1 = inttoptr i64 %r.238 to ptr
@@ -315643,14 +315940,14 @@ L46:
   %r.241 = add i64 1, 0
   ret i64 %r.241
 L40:
-  %r.242 = ptrtoint ptr @.str.5890 to i64
+  %r.242 = ptrtoint ptr @.str.5896 to i64
   %r.243 = load i64, ptr %r.0
   %r.244 = ptrtoint ptr @.str.4724 to i64
   %r.245 = load i64, ptr %r.194
   %r.246.a0 = inttoptr i64 %r.245 to ptr
   %r.246 = call i64 @__nucleor_str_len(ptr %r.246.a0)
   %r.247 = call i64 @str_from_int(i64 %r.246)
-  %r.248 = ptrtoint ptr @.str.5585 to i64
+  %r.248 = ptrtoint ptr @.str.5590 to i64
   %r.249.a0 = inttoptr i64 %r.247 to ptr
   %r.249.a1 = inttoptr i64 %r.248 to ptr
   %r.249.rv = call ptr @__nucleor_str_concat(ptr %r.249.a0, ptr %r.249.a1)
@@ -315677,7 +315974,7 @@ L40:
   %br.256.cond = icmp ne i64 %r.256, 0
   br i1 %br.256.cond, label %L47, label %L49
 L47:
-  %r.257 = ptrtoint ptr @.str.5891 to i64
+  %r.257 = ptrtoint ptr @.str.5897 to i64
   %r.258.a0 = inttoptr i64 %r.257 to ptr
   call void @__nucleor_print_str(ptr %r.258.a0)
   %r.258 = add i64 0, 0
@@ -315690,7 +315987,7 @@ L49:
   %br.261.cond = icmp ne i64 %r.261, 0
   br i1 %br.261.cond, label %L50, label %L52
 L50:
-  %r.262 = ptrtoint ptr @.str.5892 to i64
+  %r.262 = ptrtoint ptr @.str.5898 to i64
   %r.263.a0 = inttoptr i64 %r.262 to ptr
   call void @__nucleor_print_str(ptr %r.263.a0)
   %r.263 = add i64 0, 0
@@ -315706,7 +316003,7 @@ L52:
   %br.268.cond = icmp ne i64 %r.268, 0
   br i1 %br.268.cond, label %L53, label %L55
 L53:
-  %r.269 = ptrtoint ptr @.str.5900 to i64
+  %r.269 = ptrtoint ptr @.str.5906 to i64
   %r.270.a0 = inttoptr i64 %r.269 to ptr
   call void @__nucleor_print_str(ptr %r.270.a0)
   %r.270 = add i64 0, 0
@@ -315716,7 +316013,7 @@ L55:
   %r.272 = call i64 @__nucleor_compile_src_set(i64 %r.271)
   %r.273 = call i64 @__nucleor_parse_depth_reset()
   %r.274 = load i64, ptr %r.8
-  %r.275 = ptrtoint ptr @.str.5901 to i64
+  %r.275 = ptrtoint ptr @.str.5907 to i64
   %r.276 = call i64 @__nucleor_now_ms()
   %r.277 = load i64, ptr %r.188
   %r.278.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.276, i64 %r.277)
@@ -315760,14 +316057,14 @@ L58:
   %br.299.cond = icmp ne i64 %r.299, 0
   br i1 %br.299.cond, label %L61, label %L63
 L61:
-  %r.300 = ptrtoint ptr @.str.5893 to i64
+  %r.300 = ptrtoint ptr @.str.5899 to i64
   %r.301 = load i64, ptr %r.280
   %r.302 = call i64 @cache_v2_prefix(i64 %r.301)
-  %r.303 = ptrtoint ptr @.str.5894 to i64
+  %r.303 = ptrtoint ptr @.str.5900 to i64
   %r.304 = load i64, ptr %r.284
   %r.305 = call i64 @cache_v2_file_size_mb(i64 %r.304)
   %r.306 = call i64 @str_from_int(i64 %r.305)
-  %r.307 = ptrtoint ptr @.str.5895 to i64
+  %r.307 = ptrtoint ptr @.str.5901 to i64
   %r.308.a0 = inttoptr i64 %r.306 to ptr
   %r.308.a1 = inttoptr i64 %r.307 to ptr
   %r.308.rv = call ptr @__nucleor_str_concat(ptr %r.308.a0, ptr %r.308.a1)
@@ -315787,7 +316084,7 @@ L61:
   %r.312.a0 = inttoptr i64 %r.311 to ptr
   call void @__nucleor_print_str(ptr %r.312.a0)
   %r.312 = add i64 0, 0
-  %r.314 = ptrtoint ptr @.str.5581 to i64
+  %r.314 = ptrtoint ptr @.str.5586 to i64
   %r.315 = load i64, ptr %r.12
   %r.316 = ptrtoint ptr @.str.5534 to i64
   %r.317.a0 = inttoptr i64 %r.315 to ptr
@@ -315803,14 +316100,14 @@ L61:
   %r.320 = load i64, ptr %r.313
   %r.321 = load i64, ptr %r.280
   %r.322 = call i64 @copy_ll_artifact_if_needed(i64 %r.319, i64 %r.320, i64 %r.321)
-  %r.323 = ptrtoint ptr @.str.5584 to i64
+  %r.323 = ptrtoint ptr @.str.5589 to i64
   %r.324 = load i64, ptr %r.313
   %r.325 = ptrtoint ptr @.str.4724 to i64
   %r.326 = load i64, ptr %r.313
   %r.327.a0 = inttoptr i64 %r.326 to ptr
   %r.327 = call i64 @__nucleor_fs_size(ptr %r.327.a0)
   %r.328 = call i64 @str_from_int(i64 %r.327)
-  %r.329 = ptrtoint ptr @.str.5585 to i64
+  %r.329 = ptrtoint ptr @.str.5590 to i64
   %r.330.a0 = inttoptr i64 %r.328 to ptr
   %r.330.a1 = inttoptr i64 %r.329 to ptr
   %r.330.rv = call ptr @__nucleor_str_concat(ptr %r.330.a0, ptr %r.330.a1)
@@ -315839,7 +316136,7 @@ L61:
   %br.339.cond = icmp ne i64 %r.339, 0
   br i1 %br.339.cond, label %L64, label %L65
 L64:
-  %r.341 = ptrtoint ptr @.str.5582 to i64
+  %r.341 = ptrtoint ptr @.str.5587 to i64
   %r.342 = call i64 @host_target_path_sep()
   %r.343.a0 = inttoptr i64 %r.341 to ptr
   %r.343.a1 = inttoptr i64 %r.342 to ptr
@@ -315856,9 +316153,9 @@ L64:
   %r.347.rv = call ptr @__nucleor_str_concat(ptr %r.347.a0, ptr %r.347.a1)
   %r.347 = ptrtoint ptr %r.347.rv to i64
   store i64 %r.347, ptr %r.340
-  %r.348 = ptrtoint ptr @.str.5586 to i64
+  %r.348 = ptrtoint ptr @.str.5591 to i64
   %r.349 = load i64, ptr %r.340
-  %r.350 = ptrtoint ptr @.str.5587 to i64
+  %r.350 = ptrtoint ptr @.str.5592 to i64
   %r.351.a0 = inttoptr i64 %r.349 to ptr
   %r.351.a1 = inttoptr i64 %r.350 to ptr
   %r.351.rv = call ptr @__nucleor_str_concat(ptr %r.351.a0, ptr %r.351.a1)
@@ -315885,7 +316182,7 @@ L66:
   %r.361 = add i64 0, 0
   %r.362 = call i64 @cache_v2_print_stats(i64 %r.360, i64 %r.361)
   %r.363 = load i64, ptr %r.8
-  %r.364 = ptrtoint ptr @.str.5896 to i64
+  %r.364 = ptrtoint ptr @.str.5902 to i64
   %r.365 = call i64 @__nucleor_now_ms()
   %r.366 = load i64, ptr %r.24
   %r.367.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.365, i64 %r.366)
@@ -315902,7 +316199,7 @@ L68:
 L63:
   br label %L60
 L59:
-  %r.370 = ptrtoint ptr @.str.5902 to i64
+  %r.370 = ptrtoint ptr @.str.5908 to i64
   %r.371.a0 = inttoptr i64 %r.370 to ptr
   call void @__nucleor_print_str(ptr %r.371.a0)
   %r.371 = add i64 0, 0
@@ -315922,7 +316219,7 @@ L69:
   ret i64 %r.378
 L71:
   %r.379 = load i64, ptr %r.8
-  %r.380 = ptrtoint ptr @.str.5903 to i64
+  %r.380 = ptrtoint ptr @.str.5909 to i64
   %r.381 = call i64 @__nucleor_now_ms()
   %r.382 = load i64, ptr %r.372
   %r.383.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.381, i64 %r.382)
@@ -316003,7 +316300,7 @@ L82:
   %r.419 = call i64 @lex(i64 %r.418)
   store i64 %r.419, ptr %r.417
   %r.420 = load i64, ptr %r.8
-  %r.421 = ptrtoint ptr @.str.5904 to i64
+  %r.421 = ptrtoint ptr @.str.5910 to i64
   %r.422 = call i64 @__nucleor_now_ms()
   %r.423 = load i64, ptr %r.415
   %r.424.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.422, i64 %r.423)
@@ -316202,7 +316499,7 @@ L98:
   %br.533.cond = icmp ne i64 %r.533, 0
   br i1 %br.533.cond, label %L104, label %L106
 L104:
-  %r.534 = ptrtoint ptr @.str.5905 to i64
+  %r.534 = ptrtoint ptr @.str.5911 to i64
   %r.535 = load i64, ptr %r.505
   %r.536 = ptrtoint ptr @.str.637 to i64
   %r.537.a0 = inttoptr i64 %r.535 to ptr
@@ -316216,9 +316513,9 @@ L104:
   %r.539.a0 = inttoptr i64 %r.538 to ptr
   call void @__nucleor_print_str(ptr %r.539.a0)
   %r.539 = add i64 0, 0
-  %r.540 = ptrtoint ptr @.str.5906 to i64
+  %r.540 = ptrtoint ptr @.str.5912 to i64
   %r.541 = load i64, ptr %r.505
-  %r.542 = ptrtoint ptr @.str.5907 to i64
+  %r.542 = ptrtoint ptr @.str.5913 to i64
   %r.543.a0 = inttoptr i64 %r.541 to ptr
   %r.543.a1 = inttoptr i64 %r.542 to ptr
   %r.543.rv = call ptr @__nucleor_str_concat(ptr %r.543.a0, ptr %r.543.a1)
@@ -316230,9 +316527,9 @@ L104:
   %r.545.a0 = inttoptr i64 %r.544 to ptr
   call void @__nucleor_print_str(ptr %r.545.a0)
   %r.545 = add i64 0, 0
-  %r.546 = ptrtoint ptr @.str.5908 to i64
+  %r.546 = ptrtoint ptr @.str.5914 to i64
   %r.547 = load i64, ptr %r.505
-  %r.548 = ptrtoint ptr @.str.5909 to i64
+  %r.548 = ptrtoint ptr @.str.5915 to i64
   %r.549.a0 = inttoptr i64 %r.547 to ptr
   %r.549.a1 = inttoptr i64 %r.548 to ptr
   %r.549.rv = call ptr @__nucleor_str_concat(ptr %r.549.a0, ptr %r.549.a1)
@@ -316244,7 +316541,7 @@ L104:
   %r.551.a0 = inttoptr i64 %r.550 to ptr
   call void @__nucleor_print_str(ptr %r.551.a0)
   %r.551 = add i64 0, 0
-  %r.552 = ptrtoint ptr @.str.5910 to i64
+  %r.552 = ptrtoint ptr @.str.5916 to i64
   %r.553 = load i64, ptr %r.505
   %r.554.a0 = inttoptr i64 %r.552 to ptr
   %r.554.a1 = inttoptr i64 %r.553 to ptr
@@ -316339,7 +316636,7 @@ L112:
   %br.595.cond = icmp ne i64 %r.595, 0
   br i1 %br.595.cond, label %L118, label %L120
 L118:
-  %r.596 = ptrtoint ptr @.str.5911 to i64
+  %r.596 = ptrtoint ptr @.str.5917 to i64
   %r.597 = load i64, ptr %r.567
   %r.598 = ptrtoint ptr @.str.637 to i64
   %r.599.a0 = inttoptr i64 %r.597 to ptr
@@ -316353,9 +316650,9 @@ L118:
   %r.601.a0 = inttoptr i64 %r.600 to ptr
   call void @__nucleor_print_str(ptr %r.601.a0)
   %r.601 = add i64 0, 0
-  %r.602 = ptrtoint ptr @.str.5912 to i64
+  %r.602 = ptrtoint ptr @.str.5918 to i64
   %r.603 = load i64, ptr %r.567
-  %r.604 = ptrtoint ptr @.str.5913 to i64
+  %r.604 = ptrtoint ptr @.str.5919 to i64
   %r.605.a0 = inttoptr i64 %r.603 to ptr
   %r.605.a1 = inttoptr i64 %r.604 to ptr
   %r.605.rv = call ptr @__nucleor_str_concat(ptr %r.605.a0, ptr %r.605.a1)
@@ -316367,7 +316664,7 @@ L118:
   %r.607.a0 = inttoptr i64 %r.606 to ptr
   call void @__nucleor_print_str(ptr %r.607.a0)
   %r.607 = add i64 0, 0
-  %r.608 = ptrtoint ptr @.str.5914 to i64
+  %r.608 = ptrtoint ptr @.str.5920 to i64
   %r.609 = load i64, ptr %r.567
   %r.610 = ptrtoint ptr @.str.4757 to i64
   %r.611.a0 = inttoptr i64 %r.609 to ptr
@@ -316381,7 +316678,7 @@ L118:
   %r.613.a0 = inttoptr i64 %r.612 to ptr
   call void @__nucleor_print_str(ptr %r.613.a0)
   %r.613 = add i64 0, 0
-  %r.614 = ptrtoint ptr @.str.5915 to i64
+  %r.614 = ptrtoint ptr @.str.5921 to i64
   %r.615 = load i64, ptr %r.567
   %r.616.a0 = inttoptr i64 %r.614 to ptr
   %r.616.a1 = inttoptr i64 %r.615 to ptr
@@ -316453,7 +316750,7 @@ L128:
   br label %L87
 L89:
   %r.643 = load i64, ptr %r.8
-  %r.644 = ptrtoint ptr @.str.5916 to i64
+  %r.644 = ptrtoint ptr @.str.5922 to i64
   %r.645 = call i64 @__nucleor_now_ms()
   %r.646 = load i64, ptr %r.473
   %r.647.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.645, i64 %r.646)
@@ -316606,7 +316903,7 @@ L140:
 L142:
   %r.752 = load i64, ptr %r.669
   %r.753 = call i64 @type_base_name(i64 %r.752)
-  %r.754 = ptrtoint ptr @.str.5917 to i64
+  %r.754 = ptrtoint ptr @.str.5923 to i64
   %r.755.a0 = inttoptr i64 %r.753 to ptr
   %r.755.a1 = inttoptr i64 %r.754 to ptr
   %r.755 = call i64 @__nucleor_str_eq(ptr %r.755.a0, ptr %r.755.a1)
@@ -317145,7 +317442,7 @@ L216:
   br label %L162
 L164:
   %r.1048 = load i64, ptr %r.8
-  %r.1049 = ptrtoint ptr @.str.5918 to i64
+  %r.1049 = ptrtoint ptr @.str.5924 to i64
   %r.1050 = call i64 @__nucleor_now_ms()
   %r.1051 = load i64, ptr %r.653
   %r.1052.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.1050, i64 %r.1051)
@@ -317414,15 +317711,15 @@ L252:
   %r.1195 = load i64, ptr %r.1144
   %r.1196 = ptrtoint ptr @.str.4888 to i64
   %r.1197 = load i64, ptr %r.1148
-  %r.1198 = ptrtoint ptr @.str.5919 to i64
+  %r.1198 = ptrtoint ptr @.str.5925 to i64
   %r.1199 = load i64, ptr %r.1154
-  %r.1200 = ptrtoint ptr @.str.5920 to i64
+  %r.1200 = ptrtoint ptr @.str.5926 to i64
   %r.1201 = load i64, ptr %r.1160
   %r.1202 = call i64 @str_from_int(i64 %r.1201)
-  %r.1203 = ptrtoint ptr @.str.5921 to i64
+  %r.1203 = ptrtoint ptr @.str.5927 to i64
   %r.1204 = load i64, ptr %r.1179
   %r.1205 = call i64 @str_from_int(i64 %r.1204)
-  %r.1206 = ptrtoint ptr @.str.5922 to i64
+  %r.1206 = ptrtoint ptr @.str.5928 to i64
   %r.1207.a0 = inttoptr i64 %r.1205 to ptr
   %r.1207.a1 = inttoptr i64 %r.1206 to ptr
   %r.1207.rv = call ptr @__nucleor_str_concat(ptr %r.1207.a0, ptr %r.1207.a1)
@@ -317498,15 +317795,15 @@ L255:
   %r.1241 = load i64, ptr %r.1144
   %r.1242 = ptrtoint ptr @.str.4888 to i64
   %r.1243 = load i64, ptr %r.1148
-  %r.1244 = ptrtoint ptr @.str.5919 to i64
+  %r.1244 = ptrtoint ptr @.str.5925 to i64
   %r.1245 = load i64, ptr %r.1154
-  %r.1246 = ptrtoint ptr @.str.5923 to i64
+  %r.1246 = ptrtoint ptr @.str.5929 to i64
   %r.1247 = load i64, ptr %r.1167
   %r.1248 = call i64 @str_from_int(i64 %r.1247)
-  %r.1249 = ptrtoint ptr @.str.5921 to i64
+  %r.1249 = ptrtoint ptr @.str.5927 to i64
   %r.1250 = load i64, ptr %r.1183
   %r.1251 = call i64 @str_from_int(i64 %r.1250)
-  %r.1252 = ptrtoint ptr @.str.5924 to i64
+  %r.1252 = ptrtoint ptr @.str.5930 to i64
   %r.1253.a0 = inttoptr i64 %r.1251 to ptr
   %r.1253.a1 = inttoptr i64 %r.1252 to ptr
   %r.1253.rv = call ptr @__nucleor_str_concat(ptr %r.1253.a0, ptr %r.1253.a1)
@@ -317594,11 +317891,11 @@ L238:
   br i1 %br.1287.cond, label %L260, label %L262
 L260:
   %r.1288 = load i64, ptr %r.8
-  %r.1289 = ptrtoint ptr @.str.5925 to i64
+  %r.1289 = ptrtoint ptr @.str.5931 to i64
   %r.1290 = add i64 0, 0
   %r.1291 = call i64 @print_phase_time(i64 %r.1288, i64 %r.1289, i64 %r.1290)
   %r.1292 = load i64, ptr %r.8
-  %r.1293 = ptrtoint ptr @.str.5926 to i64
+  %r.1293 = ptrtoint ptr @.str.5932 to i64
   %r.1294 = add i64 0, 0
   %r.1295 = call i64 @print_phase_time(i64 %r.1292, i64 %r.1293, i64 %r.1294)
   %r.1296 = load i64, ptr %r.8
@@ -317647,7 +317944,7 @@ L262:
   %br.1328.cond = icmp ne i64 %r.1328, 0
   br i1 %br.1328.cond, label %L263, label %L265
 L263:
-  %r.1329 = ptrtoint ptr @.str.5927 to i64
+  %r.1329 = ptrtoint ptr @.str.5933 to i64
   %r.1330.a0 = inttoptr i64 %r.1329 to ptr
   call void @__nucleor_print_str(ptr %r.1330.a0)
   %r.1330 = add i64 0, 0
@@ -317799,7 +318096,7 @@ L281:
   br label %L283
 L282:
   %r.1417 = load i64, ptr %r.1399
-  %r.1418 = ptrtoint ptr @.str.5928 to i64
+  %r.1418 = ptrtoint ptr @.str.5934 to i64
   %r.1419.a0 = inttoptr i64 %r.1417 to ptr
   %r.1419.a1 = inttoptr i64 %r.1418 to ptr
   %r.1419 = call i64 @__nucleor_str_eq(ptr %r.1419.a0, ptr %r.1419.a1)
@@ -317829,7 +318126,7 @@ L287:
   br label %L289
 L288:
   %r.1431 = load i64, ptr %r.1399
-  %r.1432 = ptrtoint ptr @.str.5929 to i64
+  %r.1432 = ptrtoint ptr @.str.5935 to i64
   %r.1433.a0 = inttoptr i64 %r.1431 to ptr
   %r.1433.a1 = inttoptr i64 %r.1432 to ptr
   %r.1433 = call i64 @__nucleor_str_eq(ptr %r.1433.a0, ptr %r.1433.a1)
@@ -317872,9 +318169,9 @@ L280:
   %br.1446.cond = icmp ne i64 %r.1446, 0
   br i1 %br.1446.cond, label %L293, label %L295
 L293:
-  %r.1447 = ptrtoint ptr @.str.5930 to i64
+  %r.1447 = ptrtoint ptr @.str.5936 to i64
   %r.1448 = load i64, ptr %r.1399
-  %r.1449 = ptrtoint ptr @.str.5931 to i64
+  %r.1449 = ptrtoint ptr @.str.5937 to i64
   %r.1450.a0 = inttoptr i64 %r.1448 to ptr
   %r.1450.a1 = inttoptr i64 %r.1449 to ptr
   %r.1450.rv = call ptr @__nucleor_str_concat(ptr %r.1450.a0, ptr %r.1450.a1)
@@ -317908,7 +318205,7 @@ L296:
   br label %L298
 L297:
   %r.1464 = load i64, ptr %r.1399
-  %r.1465 = ptrtoint ptr @.str.5929 to i64
+  %r.1465 = ptrtoint ptr @.str.5935 to i64
   %r.1466.a0 = inttoptr i64 %r.1464 to ptr
   %r.1466.a1 = inttoptr i64 %r.1465 to ptr
   %r.1466 = call i64 @__nucleor_str_eq(ptr %r.1466.a0, ptr %r.1466.a1)
@@ -318170,9 +318467,9 @@ L334:
   %br.1584.cond = icmp ne i64 %r.1584, 0
   br i1 %br.1584.cond, label %L335, label %L337
 L335:
-  %r.1585 = ptrtoint ptr @.str.5932 to i64
+  %r.1585 = ptrtoint ptr @.str.5938 to i64
   %r.1586 = load i64, ptr %r.1563
-  %r.1587 = ptrtoint ptr @.str.5933 to i64
+  %r.1587 = ptrtoint ptr @.str.5939 to i64
   %r.1588.a0 = inttoptr i64 %r.1586 to ptr
   %r.1588.a1 = inttoptr i64 %r.1587 to ptr
   %r.1588.rv = call ptr @__nucleor_str_concat(ptr %r.1588.a0, ptr %r.1588.a1)
@@ -318184,9 +318481,9 @@ L335:
   %r.1590.a0 = inttoptr i64 %r.1589 to ptr
   call void @__nucleor_print_str(ptr %r.1590.a0)
   %r.1590 = add i64 0, 0
-  %r.1591 = ptrtoint ptr @.str.5934 to i64
+  %r.1591 = ptrtoint ptr @.str.5940 to i64
   %r.1592 = load i64, ptr %r.1563
-  %r.1593 = ptrtoint ptr @.str.5935 to i64
+  %r.1593 = ptrtoint ptr @.str.5941 to i64
   %r.1594.a0 = inttoptr i64 %r.1592 to ptr
   %r.1594.a1 = inttoptr i64 %r.1593 to ptr
   %r.1594.rv = call ptr @__nucleor_str_concat(ptr %r.1594.a0, ptr %r.1594.a1)
@@ -318215,11 +318512,11 @@ L337:
   %br.1606.cond = icmp ne i64 %r.1606, 0
   br i1 %br.1606.cond, label %L338, label %L340
 L338:
-  %r.1607 = ptrtoint ptr @.str.5936 to i64
+  %r.1607 = ptrtoint ptr @.str.5942 to i64
   %r.1608 = load i64, ptr %r.1563
-  %r.1609 = ptrtoint ptr @.str.5937 to i64
+  %r.1609 = ptrtoint ptr @.str.5943 to i64
   %r.1610 = load i64, ptr %r.1598
-  %r.1611 = ptrtoint ptr @.str.5938 to i64
+  %r.1611 = ptrtoint ptr @.str.5944 to i64
   %r.1612.a0 = inttoptr i64 %r.1610 to ptr
   %r.1612.a1 = inttoptr i64 %r.1611 to ptr
   %r.1612.rv = call ptr @__nucleor_str_concat(ptr %r.1612.a0, ptr %r.1612.a1)
@@ -318239,9 +318536,9 @@ L338:
   %r.1616.a0 = inttoptr i64 %r.1615 to ptr
   call void @__nucleor_print_str(ptr %r.1616.a0)
   %r.1616 = add i64 0, 0
-  %r.1617 = ptrtoint ptr @.str.5934 to i64
+  %r.1617 = ptrtoint ptr @.str.5940 to i64
   %r.1618 = load i64, ptr %r.1563
-  %r.1619 = ptrtoint ptr @.str.5935 to i64
+  %r.1619 = ptrtoint ptr @.str.5941 to i64
   %r.1620.a0 = inttoptr i64 %r.1618 to ptr
   %r.1620.a1 = inttoptr i64 %r.1619 to ptr
   %r.1620.rv = call ptr @__nucleor_str_concat(ptr %r.1620.a0, ptr %r.1620.a1)
@@ -318403,11 +318700,11 @@ L358:
   %br.1698.cond = icmp ne i64 %r.1698, 0
   br i1 %br.1698.cond, label %L361, label %L363
 L361:
-  %r.1699 = ptrtoint ptr @.str.5939 to i64
+  %r.1699 = ptrtoint ptr @.str.5945 to i64
   %r.1700 = load i64, ptr %r.1669
-  %r.1701 = ptrtoint ptr @.str.5940 to i64
+  %r.1701 = ptrtoint ptr @.str.5946 to i64
   %r.1702 = load i64, ptr %r.1669
-  %r.1703 = ptrtoint ptr @.str.5941 to i64
+  %r.1703 = ptrtoint ptr @.str.5947 to i64
   %r.1704.a0 = inttoptr i64 %r.1702 to ptr
   %r.1704.a1 = inttoptr i64 %r.1703 to ptr
   %r.1704.rv = call ptr @__nucleor_str_concat(ptr %r.1704.a0, ptr %r.1704.a1)
@@ -318427,9 +318724,9 @@ L361:
   %r.1708.a0 = inttoptr i64 %r.1707 to ptr
   call void @__nucleor_print_str(ptr %r.1708.a0)
   %r.1708 = add i64 0, 0
-  %r.1709 = ptrtoint ptr @.str.5934 to i64
+  %r.1709 = ptrtoint ptr @.str.5940 to i64
   %r.1710 = load i64, ptr %r.1669
-  %r.1711 = ptrtoint ptr @.str.5942 to i64
+  %r.1711 = ptrtoint ptr @.str.5948 to i64
   %r.1712.a0 = inttoptr i64 %r.1710 to ptr
   %r.1712.a1 = inttoptr i64 %r.1711 to ptr
   %r.1712.rv = call ptr @__nucleor_str_concat(ptr %r.1712.a0, ptr %r.1712.a1)
@@ -318565,13 +318862,13 @@ L383:
   %r.1772.rv = call ptr @__nucleor_str_trim(ptr %r.1772.a0)
   %r.1772 = ptrtoint ptr %r.1772.rv to i64
   store i64 %r.1772, ptr %r.1770
-  %r.1773 = ptrtoint ptr @.str.5943 to i64
+  %r.1773 = ptrtoint ptr @.str.5949 to i64
   %r.1774 = load i64, ptr %r.1770
-  %r.1775 = ptrtoint ptr @.str.5944 to i64
+  %r.1775 = ptrtoint ptr @.str.5950 to i64
   %r.1776 = load i64, ptr %r.1770
   %r.1777 = ptrtoint ptr @.str.4124 to i64
   %r.1778 = load i64, ptr %r.1756
-  %r.1779 = ptrtoint ptr @.str.5945 to i64
+  %r.1779 = ptrtoint ptr @.str.5951 to i64
   %r.1780.a0 = inttoptr i64 %r.1778 to ptr
   %r.1780.a1 = inttoptr i64 %r.1779 to ptr
   %r.1780.rv = call ptr @__nucleor_str_concat(ptr %r.1780.a0, ptr %r.1780.a1)
@@ -318599,9 +318896,9 @@ L383:
   %r.1786.a0 = inttoptr i64 %r.1785 to ptr
   call void @__nucleor_print_str(ptr %r.1786.a0)
   %r.1786 = add i64 0, 0
-  %r.1787 = ptrtoint ptr @.str.5934 to i64
+  %r.1787 = ptrtoint ptr @.str.5940 to i64
   %r.1788 = load i64, ptr %r.1669
-  %r.1789 = ptrtoint ptr @.str.5946 to i64
+  %r.1789 = ptrtoint ptr @.str.5952 to i64
   %r.1790.a0 = inttoptr i64 %r.1788 to ptr
   %r.1790.a1 = inttoptr i64 %r.1789 to ptr
   %r.1790.rv = call ptr @__nucleor_str_concat(ptr %r.1790.a0, ptr %r.1790.a1)
@@ -318803,7 +319100,7 @@ L395:
   %r.1897 = call i64 @fn_return_map_new(i64 %r.1895, i64 %r.1896)
   store i64 %r.1897, ptr %r.1894
   %r.1899 = load i64, ptr %r.0
-  %r.1900 = ptrtoint ptr @.str.5655 to i64
+  %r.1900 = ptrtoint ptr @.str.5661 to i64
   %r.1901.a0 = inttoptr i64 %r.1899 to ptr
   %r.1901.a1 = inttoptr i64 %r.1900 to ptr
   %r.1901 = call i64 @__nucleor_str_ends_with(ptr %r.1901.a0, ptr %r.1901.a1)
@@ -318975,7 +319272,7 @@ L422:
   br label %L418
 L420:
   %r.1994 = load i64, ptr %r.8
-  %r.1995 = ptrtoint ptr @.str.5947 to i64
+  %r.1995 = ptrtoint ptr @.str.5953 to i64
   %r.1996 = call i64 @__nucleor_now_ms()
   %r.1997 = load i64, ptr %r.1908
   %r.1998.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.1996, i64 %r.1997)
@@ -319033,7 +319330,7 @@ L431:
   br label %L425
 L427:
   %r.2018 = load i64, ptr %r.8
-  %r.2019 = ptrtoint ptr @.str.5948 to i64
+  %r.2019 = ptrtoint ptr @.str.5954 to i64
   %r.2020 = call i64 @__nucleor_now_ms()
   %r.2021 = load i64, ptr %r.2000
   %r.2022.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.2020, i64 %r.2021)
@@ -319045,7 +319342,7 @@ L432:
   unreachable
 L433:
   %r.2023 = call i64 @print_phase_time(i64 %r.2018, i64 %r.2019, i64 %r.2022)
-  %r.2024 = ptrtoint ptr @.str.5949 to i64
+  %r.2024 = ptrtoint ptr @.str.5955 to i64
   %r.2025 = load i64, ptr %r.461
   %r.2026.a0 = inttoptr i64 %r.2025 to ptr
   %r.2026 = call i64 @__nucleor_vec_len(ptr %r.2026.a0)
@@ -319057,7 +319354,7 @@ L433:
   %r.2029.a0 = inttoptr i64 %r.2028 to ptr
   call void @__nucleor_print_str(ptr %r.2029.a0)
   %r.2029 = add i64 0, 0
-  %r.2030 = ptrtoint ptr @.str.5950 to i64
+  %r.2030 = ptrtoint ptr @.str.5956 to i64
   %r.2031 = load i64, ptr %r.451
   %r.2032.a0 = inttoptr i64 %r.2031 to ptr
   %r.2032 = call i64 @__nucleor_vec_len(ptr %r.2032.a0)
@@ -319069,10 +319366,10 @@ L433:
   %r.2035.a0 = inttoptr i64 %r.2034 to ptr
   call void @__nucleor_print_str(ptr %r.2035.a0)
   %r.2035 = add i64 0, 0
-  %r.2036 = ptrtoint ptr @.str.5951 to i64
+  %r.2036 = ptrtoint ptr @.str.5957 to i64
   %r.2037 = load i64, ptr %r.2002
   %r.2038 = call i64 @str_from_int(i64 %r.2037)
-  %r.2039 = ptrtoint ptr @.str.5952 to i64
+  %r.2039 = ptrtoint ptr @.str.5958 to i64
   %r.2040.a0 = inttoptr i64 %r.2038 to ptr
   %r.2040.a1 = inttoptr i64 %r.2039 to ptr
   %r.2040.rv = call ptr @__nucleor_str_concat(ptr %r.2040.a0, ptr %r.2040.a1)
@@ -319094,7 +319391,7 @@ L433:
   %r.2051 = call i64 @emit_module_ext(i64 %r.2046, i64 %r.2047, i64 %r.2048, i64 %r.2049, i64 %r.2050)
   store i64 %r.2051, ptr %r.2045
   %r.2052 = load i64, ptr %r.8
-  %r.2053 = ptrtoint ptr @.str.5953 to i64
+  %r.2053 = ptrtoint ptr @.str.5959 to i64
   %r.2054 = call i64 @__nucleor_now_ms()
   %r.2055 = load i64, ptr %r.2043
   %r.2056.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.2054, i64 %r.2055)
@@ -319174,7 +319471,7 @@ L436:
   %br.2095.cond = icmp ne i64 %r.2095, 0
   br i1 %br.2095.cond, label %L439, label %L440
 L439:
-  %r.2097 = ptrtoint ptr @.str.5581 to i64
+  %r.2097 = ptrtoint ptr @.str.5586 to i64
   %r.2098 = load i64, ptr %r.12
   %r.2099 = ptrtoint ptr @.str.5534 to i64
   %r.2100.a0 = inttoptr i64 %r.2098 to ptr
@@ -319192,14 +319489,14 @@ L439:
   %r.2105 = load i64, ptr %r.2045
   %r.2106 = load i64, ptr %r.2096
   %r.2107 = call i64 @cache_v2_store(i64 %r.2102, i64 %r.2103, i64 %r.2104, i64 %r.2105, i64 %r.2106)
-  %r.2108 = ptrtoint ptr @.str.5954 to i64
+  %r.2108 = ptrtoint ptr @.str.5960 to i64
   %r.2109 = load i64, ptr %r.280
   %r.2110 = call i64 @cache_v2_prefix(i64 %r.2109)
-  %r.2111 = ptrtoint ptr @.str.5894 to i64
+  %r.2111 = ptrtoint ptr @.str.5900 to i64
   %r.2112 = load i64, ptr %r.2045
   %r.2113 = call i64 @cache_v2_size_mb(i64 %r.2112)
   %r.2114 = call i64 @str_from_int(i64 %r.2113)
-  %r.2115 = ptrtoint ptr @.str.5895 to i64
+  %r.2115 = ptrtoint ptr @.str.5901 to i64
   %r.2116.a0 = inttoptr i64 %r.2114 to ptr
   %r.2116.a1 = inttoptr i64 %r.2115 to ptr
   %r.2116.rv = call ptr @__nucleor_str_concat(ptr %r.2116.a0, ptr %r.2116.a1)
@@ -319221,10 +319518,10 @@ L439:
   %r.2120 = add i64 0, 0
   br label %L441
 L440:
-  %r.2121 = ptrtoint ptr @.str.5955 to i64
+  %r.2121 = ptrtoint ptr @.str.5961 to i64
   %r.2122 = load i64, ptr %r.280
   %r.2123 = call i64 @cache_v2_prefix(i64 %r.2122)
-  %r.2124 = ptrtoint ptr @.str.5956 to i64
+  %r.2124 = ptrtoint ptr @.str.5962 to i64
   %r.2125.a0 = inttoptr i64 %r.2123 to ptr
   %r.2125.a1 = inttoptr i64 %r.2124 to ptr
   %r.2125.rv = call ptr @__nucleor_str_concat(ptr %r.2125.a0, ptr %r.2125.a1)
@@ -319249,7 +319546,7 @@ L437:
   br label %L438
 L438:
   %r.2134 = load i64, ptr %r.8
-  %r.2135 = ptrtoint ptr @.str.5896 to i64
+  %r.2135 = ptrtoint ptr @.str.5902 to i64
   %r.2136 = call i64 @__nucleor_now_ms()
   %r.2137 = load i64, ptr %r.24
   %r.2138.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.2136, i64 %r.2137)
@@ -319289,7 +319586,7 @@ bb.entry:
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = load i64, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.5957 to i64
+  %r.3 = ptrtoint ptr @.str.5963 to i64
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
   %r.4 = call i64 @__nucleor_str_contains(ptr %r.4.a0, ptr %r.4.a1)
@@ -319303,7 +319600,7 @@ L0:
   ret i64 %r.7
 L2:
   %r.8 = load i64, ptr %r.0
-  %r.9 = ptrtoint ptr @.str.5958 to i64
+  %r.9 = ptrtoint ptr @.str.5964 to i64
   %r.10.a0 = inttoptr i64 %r.8 to ptr
   %r.10.a1 = inttoptr i64 %r.9 to ptr
   %r.10 = call i64 @__nucleor_str_contains(ptr %r.10.a0, ptr %r.10.a1)
@@ -319317,7 +319614,7 @@ L3:
   ret i64 %r.13
 L5:
   %r.14 = load i64, ptr %r.0
-  %r.15 = ptrtoint ptr @.str.5959 to i64
+  %r.15 = ptrtoint ptr @.str.5965 to i64
   %r.16.a0 = inttoptr i64 %r.14 to ptr
   %r.16.a1 = inttoptr i64 %r.15 to ptr
   %r.16 = call i64 @__nucleor_str_contains(ptr %r.16.a0, ptr %r.16.a1)
@@ -319331,7 +319628,7 @@ L6:
   ret i64 %r.19
 L8:
   %r.20 = load i64, ptr %r.0
-  %r.21 = ptrtoint ptr @.str.5960 to i64
+  %r.21 = ptrtoint ptr @.str.5966 to i64
   %r.22.a0 = inttoptr i64 %r.20 to ptr
   %r.22.a1 = inttoptr i64 %r.21 to ptr
   %r.22 = call i64 @__nucleor_str_contains(ptr %r.22.a0, ptr %r.22.a1)
@@ -319398,7 +319695,7 @@ L2:
   %br.12.cond = icmp ne i64 %r.12, 0
   br i1 %br.12.cond, label %L3, label %L5
 L3:
-  %r.14 = ptrtoint ptr @.str.5961 to i64
+  %r.14 = ptrtoint ptr @.str.5967 to i64
   store i64 %r.14, ptr %r.13
   %r.15 = load i64, ptr %r.13
   %r.16 = call i64 @path_exists(i64 %r.15)
@@ -319411,7 +319708,7 @@ L6:
   %r.19 = load i64, ptr %r.13
   ret i64 %r.19
 L8:
-  %r.21 = ptrtoint ptr @.str.5962 to i64
+  %r.21 = ptrtoint ptr @.str.5968 to i64
   store i64 %r.21, ptr %r.20
   %r.22 = load i64, ptr %r.20
   %r.23 = call i64 @path_exists(i64 %r.22)
@@ -319426,7 +319723,7 @@ L9:
 L11:
   br label %L5
 L5:
-  %r.28 = ptrtoint ptr @.str.5963 to i64
+  %r.28 = ptrtoint ptr @.str.5969 to i64
   store i64 %r.28, ptr %r.27
   %r.29 = load i64, ptr %r.27
   %r.30 = call i64 @path_exists(i64 %r.29)
@@ -319439,7 +319736,7 @@ L12:
   %r.33 = load i64, ptr %r.27
   ret i64 %r.33
 L14:
-  %r.35 = ptrtoint ptr @.str.5964 to i64
+  %r.35 = ptrtoint ptr @.str.5970 to i64
   store i64 %r.35, ptr %r.34
   %r.36 = load i64, ptr %r.34
   %r.37 = call i64 @path_exists(i64 %r.36)
@@ -319566,7 +319863,7 @@ L11:
   %br.61.cond = icmp ne i64 %r.61, 0
   br i1 %br.61.cond, label %L12, label %L14
 L12:
-  %r.62 = ptrtoint ptr @.str.5889 to i64
+  %r.62 = ptrtoint ptr @.str.5895 to i64
   %r.63 = load i64, ptr %r.2
   %r.64.a0 = inttoptr i64 %r.62 to ptr
   %r.64.a1 = inttoptr i64 %r.63 to ptr
@@ -319590,7 +319887,7 @@ L14:
   br i1 %br.73.cond, label %L15, label %L16
 L15:
   %r.74 = load i64, ptr %r.67
-  %r.75 = ptrtoint ptr @.str.5965 to i64
+  %r.75 = ptrtoint ptr @.str.5971 to i64
   %r.76 = load i64, ptr %r.0
   %r.77 = call i64 @host_shell_path(i64 %r.76)
   %r.78.a0 = inttoptr i64 %r.75 to ptr
@@ -319603,7 +319900,7 @@ L15:
   %r.79 = ptrtoint ptr %r.79.rv to i64
   store i64 %r.79, ptr %r.69
   %r.80 = load i64, ptr %r.69
-  %r.81 = ptrtoint ptr @.str.5595 to i64
+  %r.81 = ptrtoint ptr @.str.5600 to i64
   %r.82 = load i64, ptr %r.55
   %r.83.a0 = inttoptr i64 %r.81 to ptr
   %r.83.a1 = inttoptr i64 %r.82 to ptr
@@ -319618,7 +319915,7 @@ L15:
 L16:
   %r.85 = load i64, ptr %r.67
   %r.86 = call i64 @child_shell_quote(i64 %r.85)
-  %r.87 = ptrtoint ptr @.str.5965 to i64
+  %r.87 = ptrtoint ptr @.str.5971 to i64
   %r.88 = load i64, ptr %r.0
   %r.89 = call i64 @child_shell_quote(i64 %r.88)
   %r.90.a0 = inttoptr i64 %r.87 to ptr
@@ -319631,7 +319928,7 @@ L16:
   %r.91 = ptrtoint ptr %r.91.rv to i64
   store i64 %r.91, ptr %r.69
   %r.92 = load i64, ptr %r.69
-  %r.93 = ptrtoint ptr @.str.5595 to i64
+  %r.93 = ptrtoint ptr @.str.5600 to i64
   %r.94 = load i64, ptr %r.55
   %r.95 = call i64 @child_shell_quote(i64 %r.94)
   %r.96.a0 = inttoptr i64 %r.93 to ptr
@@ -319646,7 +319943,7 @@ L16:
   br label %L17
 L17:
   %r.98 = load i64, ptr %r.69
-  %r.99 = ptrtoint ptr @.str.5966 to i64
+  %r.99 = ptrtoint ptr @.str.5972 to i64
   %r.100.a0 = inttoptr i64 %r.98 to ptr
   %r.100.a1 = inttoptr i64 %r.99 to ptr
   %r.100.rv = call ptr @__nucleor_str_concat(ptr %r.100.a0, ptr %r.100.a1)
@@ -319660,7 +319957,7 @@ L17:
   br i1 %br.103.cond, label %L18, label %L20
 L18:
   %r.104 = load i64, ptr %r.69
-  %r.105 = ptrtoint ptr @.str.5967 to i64
+  %r.105 = ptrtoint ptr @.str.5973 to i64
   %r.106.a0 = inttoptr i64 %r.104 to ptr
   %r.106.a1 = inttoptr i64 %r.105 to ptr
   %r.106.rv = call ptr @__nucleor_str_concat(ptr %r.106.a0, ptr %r.106.a1)
@@ -319676,7 +319973,7 @@ L20:
   br i1 %br.109.cond, label %L21, label %L23
 L21:
   %r.110 = load i64, ptr %r.69
-  %r.111 = ptrtoint ptr @.str.5968 to i64
+  %r.111 = ptrtoint ptr @.str.5974 to i64
   %r.112.a0 = inttoptr i64 %r.110 to ptr
   %r.112.a1 = inttoptr i64 %r.111 to ptr
   %r.112.rv = call ptr @__nucleor_str_concat(ptr %r.112.a0, ptr %r.112.a1)
@@ -319692,7 +319989,7 @@ L23:
   br i1 %br.115.cond, label %L24, label %L26
 L24:
   %r.116 = load i64, ptr %r.69
-  %r.117 = ptrtoint ptr @.str.5969 to i64
+  %r.117 = ptrtoint ptr @.str.5975 to i64
   %r.118.a0 = inttoptr i64 %r.116 to ptr
   %r.118.a1 = inttoptr i64 %r.117 to ptr
   %r.118.rv = call ptr @__nucleor_str_concat(ptr %r.118.a0, ptr %r.118.a1)
@@ -319714,7 +320011,7 @@ L27:
   %r.125 = load i64, ptr %r.119
   ret i64 %r.125
 L29:
-  %r.127 = ptrtoint ptr @.str.5581 to i64
+  %r.127 = ptrtoint ptr @.str.5586 to i64
   %r.128 = load i64, ptr %r.55
   %r.129 = ptrtoint ptr @.str.5534 to i64
   %r.130.a0 = inttoptr i64 %r.128 to ptr
@@ -319758,7 +320055,7 @@ L32:
   %br.146.cond = icmp ne i64 %r.146, 0
   br i1 %br.146.cond, label %L33, label %L35
 L33:
-  %r.147 = ptrtoint ptr @.str.5618 to i64
+  %r.147 = ptrtoint ptr @.str.5623 to i64
   %r.148 = load i64, ptr %r.126
   %r.149.a0 = inttoptr i64 %r.147 to ptr
   %r.149.a1 = inttoptr i64 %r.148 to ptr
@@ -319780,7 +320077,7 @@ L35:
   br i1 %br.156.cond, label %L36, label %L38
 L36:
   %r.158 = load i64, ptr %r.126
-  %r.159 = ptrtoint ptr @.str.5580 to i64
+  %r.159 = ptrtoint ptr @.str.5585 to i64
   %r.160.a0 = inttoptr i64 %r.158 to ptr
   %r.160.a1 = inttoptr i64 %r.159 to ptr
   %r.160.rv = call ptr @__nucleor_str_concat(ptr %r.160.a0, ptr %r.160.a1)
@@ -319819,7 +320116,7 @@ L38:
   call void @__nucleor_vec_free(ptr %r.177.a0)
   %r.177 = add i64 0, 0
   %r.178 = load i64, ptr %r.8
-  %r.179 = ptrtoint ptr @.str.5970 to i64
+  %r.179 = ptrtoint ptr @.str.5976 to i64
   %r.180 = call i64 @__nucleor_now_ms()
   %r.181 = load i64, ptr %r.53
   %r.182.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.180, i64 %r.181)
@@ -322792,8 +323089,8 @@ bb.entry:
   store i64 %r.1, ptr %r.0
   %r.3 = add i64 0, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = ptrtoint ptr @.str.5668 to i64
-  %r.6 = ptrtoint ptr @.str.5669 to i64
+  %r.5 = ptrtoint ptr @.str.5674 to i64
+  %r.6 = ptrtoint ptr @.str.5675 to i64
   %r.7.a0 = inttoptr i64 %r.5 to ptr
   %r.7.a1 = inttoptr i64 %r.6 to ptr
   %r.7.rv = call ptr @__nucleor_str_concat(ptr %r.7.a0, ptr %r.7.a1)
@@ -324343,8 +324640,8 @@ L11:
   unreachable
 L12:
   store i64 %r.35, ptr %r.32
-  %r.37 = ptrtoint ptr @.str.5971 to i64
-  %r.38 = ptrtoint ptr @.str.5972 to i64
+  %r.37 = ptrtoint ptr @.str.5977 to i64
+  %r.38 = ptrtoint ptr @.str.5978 to i64
   %r.39.a0 = inttoptr i64 %r.37 to ptr
   %r.39.a1 = inttoptr i64 %r.38 to ptr
   %r.39.rv = call ptr @__nucleor_str_concat(ptr %r.39.a0, ptr %r.39.a1)
@@ -327289,7 +327586,7 @@ L86:
   %r.252.a0 = inttoptr i64 %r.249 to ptr
   %r.252.rv = call ptr @__nucleor_str_substring(ptr %r.252.a0, i64 %r.250, i64 %r.251)
   %r.252 = ptrtoint ptr %r.252.rv to i64
-  %r.253 = ptrtoint ptr @.str.5973 to i64
+  %r.253 = ptrtoint ptr @.str.5979 to i64
   %r.254.a0 = inttoptr i64 %r.252 to ptr
   %r.254.a1 = inttoptr i64 %r.253 to ptr
   %r.254 = call i64 @__nucleor_str_eq(ptr %r.254.a0, ptr %r.254.a1)
@@ -327602,7 +327899,7 @@ L126:
   call void @__nucleor_sb_append(i64 %r.388, ptr %r.390.a1)
   %r.390 = add i64 0, 0
   %r.391 = load i64, ptr %r.5
-  %r.392 = ptrtoint ptr @.str.5974 to i64
+  %r.392 = ptrtoint ptr @.str.5980 to i64
   %r.393.a1 = inttoptr i64 %r.392 to ptr
   call void @__nucleor_sb_append(i64 %r.391, ptr %r.393.a1)
   %r.393 = add i64 0, 0
@@ -327616,7 +327913,7 @@ L126:
   br i1 %br.397.cond, label %L127, label %L129
 L127:
   %r.398 = load i64, ptr %r.5
-  %r.399 = ptrtoint ptr @.str.5975 to i64
+  %r.399 = ptrtoint ptr @.str.5981 to i64
   %r.400.a1 = inttoptr i64 %r.399 to ptr
   call void @__nucleor_sb_append(i64 %r.398, ptr %r.400.a1)
   %r.400 = add i64 0, 0
@@ -327643,7 +327940,7 @@ L129:
   call void @__nucleor_sb_append(i64 %r.407, ptr %r.412.a1)
   %r.412 = add i64 0, 0
   %r.413 = load i64, ptr %r.5
-  %r.414 = ptrtoint ptr @.str.5976 to i64
+  %r.414 = ptrtoint ptr @.str.5982 to i64
   %r.415.a1 = inttoptr i64 %r.414 to ptr
   call void @__nucleor_sb_append(i64 %r.413, ptr %r.415.a1)
   %r.415 = add i64 0, 0
@@ -327668,7 +327965,7 @@ L129:
   call void @__nucleor_sb_append(i64 %r.425, ptr %r.427.a1)
   %r.427 = add i64 0, 0
   %r.428 = load i64, ptr %r.5
-  %r.429 = ptrtoint ptr @.str.5974 to i64
+  %r.429 = ptrtoint ptr @.str.5980 to i64
   %r.430.a1 = inttoptr i64 %r.429 to ptr
   call void @__nucleor_sb_append(i64 %r.428, ptr %r.430.a1)
   %r.430 = add i64 0, 0
@@ -327682,7 +327979,7 @@ L129:
   br i1 %br.434.cond, label %L130, label %L132
 L130:
   %r.435 = load i64, ptr %r.5
-  %r.436 = ptrtoint ptr @.str.5975 to i64
+  %r.436 = ptrtoint ptr @.str.5981 to i64
   %r.437.a1 = inttoptr i64 %r.436 to ptr
   call void @__nucleor_sb_append(i64 %r.435, ptr %r.437.a1)
   %r.437 = add i64 0, 0
@@ -327699,17 +327996,17 @@ L130:
   br label %L132
 L132:
   %r.444 = load i64, ptr %r.5
-  %r.445 = ptrtoint ptr @.str.5552 to i64
+  %r.445 = ptrtoint ptr @.str.5557 to i64
   %r.446.a1 = inttoptr i64 %r.445 to ptr
   call void @__nucleor_sb_append(i64 %r.444, ptr %r.446.a1)
   %r.446 = add i64 0, 0
   %r.447 = load i64, ptr %r.5
-  %r.448 = ptrtoint ptr @.str.5977 to i64
+  %r.448 = ptrtoint ptr @.str.5983 to i64
   %r.449.a1 = inttoptr i64 %r.448 to ptr
   call void @__nucleor_sb_append(i64 %r.447, ptr %r.449.a1)
   %r.449 = add i64 0, 0
   %r.450 = load i64, ptr %r.5
-  %r.451 = ptrtoint ptr @.str.5978 to i64
+  %r.451 = ptrtoint ptr @.str.5984 to i64
   %r.452.a1 = inttoptr i64 %r.451 to ptr
   call void @__nucleor_sb_append(i64 %r.450, ptr %r.452.a1)
   %r.452 = add i64 0, 0
@@ -327720,7 +328017,7 @@ L132:
   call void @__nucleor_sb_append(i64 %r.453, ptr %r.456.a1)
   %r.456 = add i64 0, 0
   %r.457 = load i64, ptr %r.5
-  %r.458 = ptrtoint ptr @.str.5979 to i64
+  %r.458 = ptrtoint ptr @.str.5985 to i64
   %r.459.a1 = inttoptr i64 %r.458 to ptr
   call void @__nucleor_sb_append(i64 %r.457, ptr %r.459.a1)
   %r.459 = add i64 0, 0
@@ -327759,7 +328056,7 @@ L135:
   br i1 %br.475.cond, label %L136, label %L137
 L136:
   %r.476 = load i64, ptr %r.5
-  %r.477 = ptrtoint ptr @.str.5980 to i64
+  %r.477 = ptrtoint ptr @.str.5986 to i64
   %r.478.a1 = inttoptr i64 %r.477 to ptr
   call void @__nucleor_sb_append(i64 %r.476, ptr %r.478.a1)
   %r.478 = add i64 0, 0
@@ -327789,17 +328086,17 @@ L136:
   call void @__nucleor_sb_append(i64 %r.491, ptr %r.493.a1)
   %r.493 = add i64 0, 0
   %r.494 = load i64, ptr %r.5
-  %r.495 = ptrtoint ptr @.str.5979 to i64
+  %r.495 = ptrtoint ptr @.str.5985 to i64
   %r.496.a1 = inttoptr i64 %r.495 to ptr
   call void @__nucleor_sb_append(i64 %r.494, ptr %r.496.a1)
   %r.496 = add i64 0, 0
   %r.497 = load i64, ptr %r.5
-  %r.498 = ptrtoint ptr @.str.5981 to i64
+  %r.498 = ptrtoint ptr @.str.5987 to i64
   %r.499.a1 = inttoptr i64 %r.498 to ptr
   call void @__nucleor_sb_append(i64 %r.497, ptr %r.499.a1)
   %r.499 = add i64 0, 0
   %r.500 = load i64, ptr %r.5
-  %r.501 = ptrtoint ptr @.str.5982 to i64
+  %r.501 = ptrtoint ptr @.str.5988 to i64
   %r.502.a1 = inttoptr i64 %r.501 to ptr
   call void @__nucleor_sb_append(i64 %r.500, ptr %r.502.a1)
   %r.502 = add i64 0, 0
@@ -327810,19 +328107,19 @@ L136:
   call void @__nucleor_sb_append(i64 %r.503, ptr %r.506.a1)
   %r.506 = add i64 0, 0
   %r.507 = load i64, ptr %r.5
-  %r.508 = ptrtoint ptr @.str.5979 to i64
+  %r.508 = ptrtoint ptr @.str.5985 to i64
   %r.509.a1 = inttoptr i64 %r.495 to ptr
   call void @__nucleor_sb_append(i64 %r.507, ptr %r.509.a1)
   %r.509 = add i64 0, 0
   %r.510 = load i64, ptr %r.5
-  %r.511 = ptrtoint ptr @.str.5983 to i64
+  %r.511 = ptrtoint ptr @.str.5989 to i64
   %r.512.a1 = inttoptr i64 %r.511 to ptr
   call void @__nucleor_sb_append(i64 %r.510, ptr %r.512.a1)
   %r.512 = add i64 0, 0
   br label %L138
 L137:
   %r.513 = load i64, ptr %r.5
-  %r.514 = ptrtoint ptr @.str.5609 to i64
+  %r.514 = ptrtoint ptr @.str.5614 to i64
   %r.515.a1 = inttoptr i64 %r.514 to ptr
   call void @__nucleor_sb_append(i64 %r.513, ptr %r.515.a1)
   %r.515 = add i64 0, 0
@@ -327842,17 +328139,17 @@ L137:
   call void @__nucleor_sb_append(i64 %r.522, ptr %r.524.a1)
   %r.524 = add i64 0, 0
   %r.525 = load i64, ptr %r.5
-  %r.526 = ptrtoint ptr @.str.5979 to i64
+  %r.526 = ptrtoint ptr @.str.5985 to i64
   %r.527.a1 = inttoptr i64 %r.526 to ptr
   call void @__nucleor_sb_append(i64 %r.525, ptr %r.527.a1)
   %r.527 = add i64 0, 0
   %r.528 = load i64, ptr %r.5
-  %r.529 = ptrtoint ptr @.str.5981 to i64
+  %r.529 = ptrtoint ptr @.str.5987 to i64
   %r.530.a1 = inttoptr i64 %r.529 to ptr
   call void @__nucleor_sb_append(i64 %r.528, ptr %r.530.a1)
   %r.530 = add i64 0, 0
   %r.531 = load i64, ptr %r.5
-  %r.532 = ptrtoint ptr @.str.5982 to i64
+  %r.532 = ptrtoint ptr @.str.5988 to i64
   %r.533.a1 = inttoptr i64 %r.532 to ptr
   call void @__nucleor_sb_append(i64 %r.531, ptr %r.533.a1)
   %r.533 = add i64 0, 0
@@ -327863,7 +328160,7 @@ L137:
   call void @__nucleor_sb_append(i64 %r.534, ptr %r.537.a1)
   %r.537 = add i64 0, 0
   %r.538 = load i64, ptr %r.5
-  %r.539 = ptrtoint ptr @.str.5979 to i64
+  %r.539 = ptrtoint ptr @.str.5985 to i64
   %r.540.a1 = inttoptr i64 %r.526 to ptr
   call void @__nucleor_sb_append(i64 %r.538, ptr %r.540.a1)
   %r.540 = add i64 0, 0
@@ -329748,7 +330045,7 @@ L85:
   %r.243.a0 = inttoptr i64 %r.241 to ptr
   %r.243 = call i64 @__nucleor_vec_get(ptr %r.243.a0, i64 %r.242)
   store i64 %r.243, ptr %r.240
-  %r.245 = ptrtoint ptr @.str.5984 to i64
+  %r.245 = ptrtoint ptr @.str.5990 to i64
   %r.246 = load i64, ptr %r.220
   %r.247 = call i64 @content_hash(i64 %r.246)
   %r.248 = ptrtoint ptr @.str.237 to i64
@@ -329829,7 +330126,7 @@ L93:
   call void @__nucleor_sb_append(i64 %r.278, ptr %r.280.a1)
   %r.280 = add i64 0, 0
   %r.281 = load i64, ptr %r.10
-  %r.282 = ptrtoint ptr @.str.5974 to i64
+  %r.282 = ptrtoint ptr @.str.5980 to i64
   %r.283.a1 = inttoptr i64 %r.282 to ptr
   call void @__nucleor_sb_append(i64 %r.281, ptr %r.283.a1)
   %r.283 = add i64 0, 0
@@ -329843,7 +330140,7 @@ L93:
   br i1 %br.287.cond, label %L94, label %L96
 L94:
   %r.288 = load i64, ptr %r.10
-  %r.289 = ptrtoint ptr @.str.5975 to i64
+  %r.289 = ptrtoint ptr @.str.5981 to i64
   %r.290.a1 = inttoptr i64 %r.289 to ptr
   call void @__nucleor_sb_append(i64 %r.288, ptr %r.290.a1)
   %r.290 = add i64 0, 0
@@ -329870,7 +330167,7 @@ L96:
   call void @__nucleor_sb_append(i64 %r.297, ptr %r.302.a1)
   %r.302 = add i64 0, 0
   %r.303 = load i64, ptr %r.10
-  %r.304 = ptrtoint ptr @.str.5976 to i64
+  %r.304 = ptrtoint ptr @.str.5982 to i64
   %r.305.a1 = inttoptr i64 %r.304 to ptr
   call void @__nucleor_sb_append(i64 %r.303, ptr %r.305.a1)
   %r.305 = add i64 0, 0
@@ -329895,7 +330192,7 @@ L96:
   call void @__nucleor_sb_append(i64 %r.315, ptr %r.317.a1)
   %r.317 = add i64 0, 0
   %r.318 = load i64, ptr %r.10
-  %r.319 = ptrtoint ptr @.str.5974 to i64
+  %r.319 = ptrtoint ptr @.str.5980 to i64
   %r.320.a1 = inttoptr i64 %r.319 to ptr
   call void @__nucleor_sb_append(i64 %r.318, ptr %r.320.a1)
   %r.320 = add i64 0, 0
@@ -329909,7 +330206,7 @@ L96:
   br i1 %br.324.cond, label %L97, label %L99
 L97:
   %r.325 = load i64, ptr %r.10
-  %r.326 = ptrtoint ptr @.str.5975 to i64
+  %r.326 = ptrtoint ptr @.str.5981 to i64
   %r.327.a1 = inttoptr i64 %r.326 to ptr
   call void @__nucleor_sb_append(i64 %r.325, ptr %r.327.a1)
   %r.327 = add i64 0, 0
@@ -329926,12 +330223,12 @@ L97:
   br label %L99
 L99:
   %r.334 = load i64, ptr %r.10
-  %r.335 = ptrtoint ptr @.str.5552 to i64
+  %r.335 = ptrtoint ptr @.str.5557 to i64
   %r.336.a1 = inttoptr i64 %r.335 to ptr
   call void @__nucleor_sb_append(i64 %r.334, ptr %r.336.a1)
   %r.336 = add i64 0, 0
   %r.337 = load i64, ptr %r.10
-  %r.338 = ptrtoint ptr @.str.5985 to i64
+  %r.338 = ptrtoint ptr @.str.5991 to i64
   %r.339.a1 = inttoptr i64 %r.338 to ptr
   call void @__nucleor_sb_append(i64 %r.337, ptr %r.339.a1)
   %r.339 = add i64 0, 0
@@ -329953,7 +330250,7 @@ L99:
   call void @__nucleor_sb_append(i64 %r.347, ptr %r.350.a1)
   %r.350 = add i64 0, 0
   %r.351 = load i64, ptr %r.10
-  %r.352 = ptrtoint ptr @.str.5979 to i64
+  %r.352 = ptrtoint ptr @.str.5985 to i64
   %r.353.a1 = inttoptr i64 %r.352 to ptr
   call void @__nucleor_sb_append(i64 %r.351, ptr %r.353.a1)
   %r.353 = add i64 0, 0
@@ -330150,7 +330447,7 @@ L128:
   br i1 %br.440.cond, label %L129, label %L130
 L129:
   %r.441 = load i64, ptr %r.10
-  %r.442 = ptrtoint ptr @.str.5986 to i64
+  %r.442 = ptrtoint ptr @.str.5992 to i64
   %r.443.a1 = inttoptr i64 %r.442 to ptr
   call void @__nucleor_sb_append(i64 %r.441, ptr %r.443.a1)
   %r.443 = add i64 0, 0
@@ -330172,7 +330469,7 @@ L129:
   br i1 %br.452.cond, label %L132, label %L133
 L132:
   %r.453 = load i64, ptr %r.10
-  %r.454 = ptrtoint ptr @.str.5987 to i64
+  %r.454 = ptrtoint ptr @.str.5993 to i64
   %r.455.a1 = inttoptr i64 %r.454 to ptr
   call void @__nucleor_sb_append(i64 %r.453, ptr %r.455.a1)
   %r.455 = add i64 0, 0
@@ -330192,7 +330489,7 @@ L132:
   call void @__nucleor_sb_append(i64 %r.462, ptr %r.464.a1)
   %r.464 = add i64 0, 0
   %r.465 = load i64, ptr %r.10
-  %r.466 = ptrtoint ptr @.str.5979 to i64
+  %r.466 = ptrtoint ptr @.str.5985 to i64
   %r.467.a1 = inttoptr i64 %r.466 to ptr
   call void @__nucleor_sb_append(i64 %r.465, ptr %r.467.a1)
   %r.467 = add i64 0, 0
@@ -330233,7 +330530,7 @@ L135:
   call void @__nucleor_sb_append(i64 %r.484, ptr %r.486.a1)
   %r.486 = add i64 0, 0
   %r.487 = load i64, ptr %r.10
-  %r.488 = ptrtoint ptr @.str.5979 to i64
+  %r.488 = ptrtoint ptr @.str.5985 to i64
   %r.489.a1 = inttoptr i64 %r.488 to ptr
   call void @__nucleor_sb_append(i64 %r.487, ptr %r.489.a1)
   %r.489 = add i64 0, 0
@@ -330255,7 +330552,7 @@ L136:
   call void @__nucleor_sb_append(i64 %r.496, ptr %r.498.a1)
   %r.498 = add i64 0, 0
   %r.499 = load i64, ptr %r.10
-  %r.500 = ptrtoint ptr @.str.5979 to i64
+  %r.500 = ptrtoint ptr @.str.5985 to i64
   %r.501.a1 = inttoptr i64 %r.500 to ptr
   call void @__nucleor_sb_append(i64 %r.499, ptr %r.501.a1)
   %r.501 = add i64 0, 0
@@ -330264,7 +330561,7 @@ L137:
   br label %L134
 L134:
   %r.502 = load i64, ptr %r.10
-  %r.503 = ptrtoint ptr @.str.5988 to i64
+  %r.503 = ptrtoint ptr @.str.5994 to i64
   %r.504.a1 = inttoptr i64 %r.503 to ptr
   call void @__nucleor_sb_append(i64 %r.502, ptr %r.504.a1)
   %r.504 = add i64 0, 0
@@ -330275,19 +330572,19 @@ L134:
   call void @__nucleor_sb_append(i64 %r.505, ptr %r.508.a1)
   %r.508 = add i64 0, 0
   %r.509 = load i64, ptr %r.10
-  %r.510 = ptrtoint ptr @.str.5979 to i64
+  %r.510 = ptrtoint ptr @.str.5985 to i64
   %r.511.a1 = inttoptr i64 %r.510 to ptr
   call void @__nucleor_sb_append(i64 %r.509, ptr %r.511.a1)
   %r.511 = add i64 0, 0
   %r.512 = load i64, ptr %r.10
-  %r.513 = ptrtoint ptr @.str.5989 to i64
+  %r.513 = ptrtoint ptr @.str.5995 to i64
   %r.514.a1 = inttoptr i64 %r.513 to ptr
   call void @__nucleor_sb_append(i64 %r.512, ptr %r.514.a1)
   %r.514 = add i64 0, 0
   br label %L131
 L130:
   %r.515 = load i64, ptr %r.10
-  %r.516 = ptrtoint ptr @.str.5609 to i64
+  %r.516 = ptrtoint ptr @.str.5614 to i64
   %r.517.a1 = inttoptr i64 %r.516 to ptr
   call void @__nucleor_sb_append(i64 %r.515, ptr %r.517.a1)
   %r.517 = add i64 0, 0
@@ -330299,7 +330596,7 @@ L130:
   br i1 %br.520.cond, label %L138, label %L139
 L138:
   %r.521 = load i64, ptr %r.10
-  %r.522 = ptrtoint ptr @.str.5987 to i64
+  %r.522 = ptrtoint ptr @.str.5993 to i64
   %r.523.a1 = inttoptr i64 %r.522 to ptr
   call void @__nucleor_sb_append(i64 %r.521, ptr %r.523.a1)
   %r.523 = add i64 0, 0
@@ -330319,7 +330616,7 @@ L138:
   call void @__nucleor_sb_append(i64 %r.530, ptr %r.532.a1)
   %r.532 = add i64 0, 0
   %r.533 = load i64, ptr %r.10
-  %r.534 = ptrtoint ptr @.str.5979 to i64
+  %r.534 = ptrtoint ptr @.str.5985 to i64
   %r.535.a1 = inttoptr i64 %r.534 to ptr
   call void @__nucleor_sb_append(i64 %r.533, ptr %r.535.a1)
   %r.535 = add i64 0, 0
@@ -330360,7 +330657,7 @@ L141:
   call void @__nucleor_sb_append(i64 %r.552, ptr %r.554.a1)
   %r.554 = add i64 0, 0
   %r.555 = load i64, ptr %r.10
-  %r.556 = ptrtoint ptr @.str.5979 to i64
+  %r.556 = ptrtoint ptr @.str.5985 to i64
   %r.557.a1 = inttoptr i64 %r.556 to ptr
   call void @__nucleor_sb_append(i64 %r.555, ptr %r.557.a1)
   %r.557 = add i64 0, 0
@@ -330382,7 +330679,7 @@ L142:
   call void @__nucleor_sb_append(i64 %r.564, ptr %r.566.a1)
   %r.566 = add i64 0, 0
   %r.567 = load i64, ptr %r.10
-  %r.568 = ptrtoint ptr @.str.5979 to i64
+  %r.568 = ptrtoint ptr @.str.5985 to i64
   %r.569.a1 = inttoptr i64 %r.568 to ptr
   call void @__nucleor_sb_append(i64 %r.567, ptr %r.569.a1)
   %r.569 = add i64 0, 0
@@ -330391,7 +330688,7 @@ L143:
   br label %L140
 L140:
   %r.570 = load i64, ptr %r.10
-  %r.571 = ptrtoint ptr @.str.5988 to i64
+  %r.571 = ptrtoint ptr @.str.5994 to i64
   %r.572.a1 = inttoptr i64 %r.571 to ptr
   call void @__nucleor_sb_append(i64 %r.570, ptr %r.572.a1)
   %r.572 = add i64 0, 0
@@ -330402,7 +330699,7 @@ L140:
   call void @__nucleor_sb_append(i64 %r.573, ptr %r.576.a1)
   %r.576 = add i64 0, 0
   %r.577 = load i64, ptr %r.10
-  %r.578 = ptrtoint ptr @.str.5979 to i64
+  %r.578 = ptrtoint ptr @.str.5985 to i64
   %r.579.a1 = inttoptr i64 %r.578 to ptr
   call void @__nucleor_sb_append(i64 %r.577, ptr %r.579.a1)
   %r.579 = add i64 0, 0
@@ -331160,11 +331457,11 @@ L99:
   %br.270.cond = icmp ne i64 %r.270, 0
   br i1 %br.270.cond, label %L100, label %L102
 L100:
-  %r.271 = ptrtoint ptr @.str.5990 to i64
+  %r.271 = ptrtoint ptr @.str.5996 to i64
   %r.272.a0 = inttoptr i64 %r.271 to ptr
   call void @__nucleor_print_str(ptr %r.272.a0)
   %r.272 = add i64 0, 0
-  %r.273 = ptrtoint ptr @.str.5991 to i64
+  %r.273 = ptrtoint ptr @.str.5997 to i64
   %r.274.a0 = inttoptr i64 %r.273 to ptr
   %r.274 = call i64 @__nucleor_panic(ptr %r.274.a0)
   br label %L102
@@ -331668,7 +331965,7 @@ L181:
   %r.496.a0 = inttoptr i64 %r.493 to ptr
   %r.496.rv = call ptr @__nucleor_str_substring(ptr %r.496.a0, i64 %r.494, i64 %r.495)
   %r.496 = ptrtoint ptr %r.496.rv to i64
-  %r.497 = ptrtoint ptr @.str.5992 to i64
+  %r.497 = ptrtoint ptr @.str.5998 to i64
   %r.498.a0 = inttoptr i64 %r.496 to ptr
   %r.498.a1 = inttoptr i64 %r.497 to ptr
   %r.498 = call i64 @__nucleor_str_eq(ptr %r.498.a0, ptr %r.498.a1)
@@ -331709,7 +332006,7 @@ L187:
   %r.515.a0 = inttoptr i64 %r.512 to ptr
   %r.515.rv = call ptr @__nucleor_str_substring(ptr %r.515.a0, i64 %r.513, i64 %r.514)
   %r.515 = ptrtoint ptr %r.515.rv to i64
-  %r.516 = ptrtoint ptr @.str.5993 to i64
+  %r.516 = ptrtoint ptr @.str.5999 to i64
   %r.517.a0 = inttoptr i64 %r.515 to ptr
   %r.517.a1 = inttoptr i64 %r.516 to ptr
   %r.517 = call i64 @__nucleor_str_eq(ptr %r.517.a0, ptr %r.517.a1)
@@ -331965,7 +332262,7 @@ L223:
   store i64 %r.617, ptr %r.613
   br label %L225
 L224:
-  %r.618 = ptrtoint ptr @.str.5994 to i64
+  %r.618 = ptrtoint ptr @.str.6000 to i64
   store i64 %r.618, ptr %r.613
   br label %L225
 L225:
@@ -332544,7 +332841,7 @@ L73:
 L74:
   %r.188 = load i64, ptr %r.0
   %r.189 = load i64, ptr %r.7
-  %r.190 = ptrtoint ptr @.str.5995 to i64
+  %r.190 = ptrtoint ptr @.str.6001 to i64
   %r.191 = call i64 @str_eq_at(i64 %r.188, i64 %r.189, i64 %r.190)
   %r.192 = add i64 1, 0
   %r.193.cmp = icmp eq i64 %r.191, %r.192
@@ -334230,7 +334527,7 @@ L5:
   call void @__nucleor_sb_append(i64 %r.31, ptr %r.35.a1)
   %r.35 = add i64 0, 0
   %r.36 = load i64, ptr %r.6
-  %r.37 = ptrtoint ptr @.str.5996 to i64
+  %r.37 = ptrtoint ptr @.str.6002 to i64
   %r.38.a1 = inttoptr i64 %r.37 to ptr
   call void @__nucleor_sb_append(i64 %r.36, ptr %r.38.a1)
   %r.38 = add i64 0, 0
@@ -334248,7 +334545,7 @@ L7:
   br label %L0
 L2:
   %r.42 = load i64, ptr %r.6
-  %r.43 = ptrtoint ptr @.str.5997 to i64
+  %r.43 = ptrtoint ptr @.str.6003 to i64
   %r.44.a1 = inttoptr i64 %r.43 to ptr
   call void @__nucleor_sb_append(i64 %r.42, ptr %r.44.a1)
   %r.44 = add i64 0, 0
@@ -334258,7 +334555,7 @@ L2:
   call void @__nucleor_sb_append(i64 %r.45, ptr %r.47.a1)
   %r.47 = add i64 0, 0
   %r.48 = load i64, ptr %r.6
-  %r.49 = ptrtoint ptr @.str.5998 to i64
+  %r.49 = ptrtoint ptr @.str.6004 to i64
   %r.50.a1 = inttoptr i64 %r.49 to ptr
   call void @__nucleor_sb_append(i64 %r.48, ptr %r.50.a1)
   %r.50 = add i64 0, 0
@@ -346595,7 +346892,7 @@ L317:
   %r.777.a0 = inttoptr i64 %r.772 to ptr
   %r.777.rv = call ptr @__nucleor_str_substring(ptr %r.777.a0, i64 %r.775, i64 %r.776)
   %r.777 = ptrtoint ptr %r.777.rv to i64
-  %r.778 = ptrtoint ptr @.str.5999 to i64
+  %r.778 = ptrtoint ptr @.str.6005 to i64
   %r.779.a0 = inttoptr i64 %r.777 to ptr
   %r.779.a1 = inttoptr i64 %r.778 to ptr
   %r.779 = call i64 @__nucleor_str_eq(ptr %r.779.a0, ptr %r.779.a1)
@@ -346663,7 +346960,7 @@ L327:
   %r.806.a0 = inttoptr i64 %r.801 to ptr
   %r.806.rv = call ptr @__nucleor_str_substring(ptr %r.806.a0, i64 %r.804, i64 %r.805)
   %r.806 = ptrtoint ptr %r.806.rv to i64
-  %r.807 = ptrtoint ptr @.str.6000 to i64
+  %r.807 = ptrtoint ptr @.str.6006 to i64
   %r.808.a0 = inttoptr i64 %r.806 to ptr
   %r.808.a1 = inttoptr i64 %r.807 to ptr
   %r.808 = call i64 @__nucleor_str_eq(ptr %r.808.a0, ptr %r.808.a1)
@@ -349415,7 +349712,7 @@ L62:
   %r.162 = ptrtoint ptr %r.162.rv to i64
   store i64 %r.162, ptr %r.156
   %r.163 = load i64, ptr %r.156
-  %r.164 = ptrtoint ptr @.str.6001 to i64
+  %r.164 = ptrtoint ptr @.str.6007 to i64
   %r.165.a0 = inttoptr i64 %r.163 to ptr
   %r.165.a1 = inttoptr i64 %r.164 to ptr
   %r.165 = call i64 @__nucleor_str_eq(ptr %r.165.a0, ptr %r.165.a1)
@@ -349433,7 +349730,7 @@ L63:
   br label %L65
 L64:
   %r.172 = load i64, ptr %r.156
-  %r.173 = ptrtoint ptr @.str.6002 to i64
+  %r.173 = ptrtoint ptr @.str.6008 to i64
   %r.174.a0 = inttoptr i64 %r.172 to ptr
   %r.174.a1 = inttoptr i64 %r.173 to ptr
   %r.174 = call i64 @__nucleor_str_eq(ptr %r.174.a0, ptr %r.174.a1)
@@ -350278,7 +350575,7 @@ L205:
   %r.535 = ptrtoint ptr %r.535.rv to i64
   store i64 %r.535, ptr %r.529
   %r.536 = load i64, ptr %r.529
-  %r.537 = ptrtoint ptr @.str.6001 to i64
+  %r.537 = ptrtoint ptr @.str.6007 to i64
   %r.538.a0 = inttoptr i64 %r.536 to ptr
   %r.538.a1 = inttoptr i64 %r.537 to ptr
   %r.538 = call i64 @__nucleor_str_eq(ptr %r.538.a0, ptr %r.538.a1)
@@ -350296,7 +350593,7 @@ L206:
   br label %L208
 L207:
   %r.545 = load i64, ptr %r.529
-  %r.546 = ptrtoint ptr @.str.6002 to i64
+  %r.546 = ptrtoint ptr @.str.6008 to i64
   %r.547.a0 = inttoptr i64 %r.545 to ptr
   %r.547.a1 = inttoptr i64 %r.546 to ptr
   %r.547 = call i64 @__nucleor_str_eq(ptr %r.547.a0, ptr %r.547.a1)
@@ -351472,7 +351769,7 @@ L400:
   %r.1052.a0 = inttoptr i64 %r.1049 to ptr
   %r.1052.rv = call ptr @__nucleor_str_substring(ptr %r.1052.a0, i64 %r.1050, i64 %r.1051)
   %r.1052 = ptrtoint ptr %r.1052.rv to i64
-  %r.1053 = ptrtoint ptr @.str.6003 to i64
+  %r.1053 = ptrtoint ptr @.str.6009 to i64
   %r.1054.a0 = inttoptr i64 %r.1052 to ptr
   %r.1054.a1 = inttoptr i64 %r.1053 to ptr
   %r.1054 = call i64 @__nucleor_str_eq(ptr %r.1054.a0, ptr %r.1054.a1)
@@ -351522,7 +351819,7 @@ L406:
   %r.1075.a0 = inttoptr i64 %r.1072 to ptr
   %r.1075.rv = call ptr @__nucleor_str_substring(ptr %r.1075.a0, i64 %r.1073, i64 %r.1074)
   %r.1075 = ptrtoint ptr %r.1075.rv to i64
-  %r.1076 = ptrtoint ptr @.str.6004 to i64
+  %r.1076 = ptrtoint ptr @.str.6010 to i64
   %r.1077.a0 = inttoptr i64 %r.1075 to ptr
   %r.1077.a1 = inttoptr i64 %r.1076 to ptr
   %r.1077 = call i64 @__nucleor_str_eq(ptr %r.1077.a0, ptr %r.1077.a1)
@@ -351572,7 +351869,7 @@ L412:
   %r.1098.a0 = inttoptr i64 %r.1095 to ptr
   %r.1098.rv = call ptr @__nucleor_str_substring(ptr %r.1098.a0, i64 %r.1096, i64 %r.1097)
   %r.1098 = ptrtoint ptr %r.1098.rv to i64
-  %r.1099 = ptrtoint ptr @.str.6005 to i64
+  %r.1099 = ptrtoint ptr @.str.6011 to i64
   %r.1100.a0 = inttoptr i64 %r.1098 to ptr
   %r.1100.a1 = inttoptr i64 %r.1099 to ptr
   %r.1100 = call i64 @__nucleor_str_eq(ptr %r.1100.a0, ptr %r.1100.a1)
@@ -351622,7 +351919,7 @@ L418:
   %r.1121.a0 = inttoptr i64 %r.1118 to ptr
   %r.1121.rv = call ptr @__nucleor_str_substring(ptr %r.1121.a0, i64 %r.1119, i64 %r.1120)
   %r.1121 = ptrtoint ptr %r.1121.rv to i64
-  %r.1122 = ptrtoint ptr @.str.6006 to i64
+  %r.1122 = ptrtoint ptr @.str.6012 to i64
   %r.1123.a0 = inttoptr i64 %r.1121 to ptr
   %r.1123.a1 = inttoptr i64 %r.1122 to ptr
   %r.1123 = call i64 @__nucleor_str_eq(ptr %r.1123.a0, ptr %r.1123.a1)
@@ -351795,7 +352092,7 @@ L442:
   %r.1196 = ptrtoint ptr %r.1196.rv to i64
   store i64 %r.1196, ptr %r.1190
   %r.1197 = load i64, ptr %r.1190
-  %r.1198 = ptrtoint ptr @.str.6001 to i64
+  %r.1198 = ptrtoint ptr @.str.6007 to i64
   %r.1199.a0 = inttoptr i64 %r.1197 to ptr
   %r.1199.a1 = inttoptr i64 %r.1198 to ptr
   %r.1199 = call i64 @__nucleor_str_eq(ptr %r.1199.a0, ptr %r.1199.a1)
@@ -351813,7 +352110,7 @@ L443:
   br label %L445
 L444:
   %r.1206 = load i64, ptr %r.1190
-  %r.1207 = ptrtoint ptr @.str.6002 to i64
+  %r.1207 = ptrtoint ptr @.str.6008 to i64
   %r.1208.a0 = inttoptr i64 %r.1206 to ptr
   %r.1208.a1 = inttoptr i64 %r.1207 to ptr
   %r.1208 = call i64 @__nucleor_str_eq(ptr %r.1208.a0, ptr %r.1208.a1)
@@ -352076,7 +352373,7 @@ L488:
   %br.1319.cond = icmp ne i64 %r.1319, 0
   br i1 %br.1319.cond, label %L489, label %L491
 L489:
-  %r.1320 = ptrtoint ptr @.str.6007 to i64
+  %r.1320 = ptrtoint ptr @.str.6013 to i64
   %r.1321 = load i64, ptr %r.2
   %r.1322 = ptrtoint ptr @.str.390 to i64
   %r.1323.a0 = inttoptr i64 %r.1321 to ptr
@@ -352458,7 +352755,7 @@ L542:
   %br.1496.cond = icmp ne i64 %r.1496, 0
   br i1 %br.1496.cond, label %L543, label %L545
 L543:
-  %r.1497 = ptrtoint ptr @.str.6007 to i64
+  %r.1497 = ptrtoint ptr @.str.6013 to i64
   %r.1498 = load i64, ptr %r.2
   %r.1499 = ptrtoint ptr @.str.390 to i64
   %r.1500.a0 = inttoptr i64 %r.1498 to ptr
@@ -352557,7 +352854,7 @@ L557:
   %br.1540.cond = icmp ne i64 %r.1540, 0
   br i1 %br.1540.cond, label %L558, label %L560
 L558:
-  %r.1541 = ptrtoint ptr @.str.6007 to i64
+  %r.1541 = ptrtoint ptr @.str.6013 to i64
   %r.1542 = load i64, ptr %r.2
   %r.1543 = ptrtoint ptr @.str.390 to i64
   %r.1544.a0 = inttoptr i64 %r.1542 to ptr
@@ -352641,7 +352938,7 @@ L566:
   br i1 %br.1576.cond, label %L567, label %L569
 L567:
   %r.1577 = load i64, ptr %r.4
-  %r.1578 = ptrtoint ptr @.str.6008 to i64
+  %r.1578 = ptrtoint ptr @.str.6014 to i64
   %r.1579 = load i64, ptr %r.1556
   %r.1580.a0 = inttoptr i64 %r.1578 to ptr
   %r.1580.a1 = inttoptr i64 %r.1579 to ptr
@@ -352657,7 +352954,7 @@ L567:
   br i1 %br.1583.cond, label %L570, label %L572
 L570:
   %r.1584 = load i64, ptr %r.1556
-  %r.1585 = ptrtoint ptr @.str.6009 to i64
+  %r.1585 = ptrtoint ptr @.str.6015 to i64
   %r.1586 = load i64, ptr %r.2
   %r.1587 = ptrtoint ptr @.str.390 to i64
   %r.1588.a0 = inttoptr i64 %r.1586 to ptr
@@ -352674,9 +352971,9 @@ L570:
   %r.1590 = ptrtoint ptr %r.1590.rv to i64
   ret i64 %r.1590
 L572:
-  %r.1591 = ptrtoint ptr @.str.6010 to i64
+  %r.1591 = ptrtoint ptr @.str.6016 to i64
   %r.1592 = load i64, ptr %r.1556
-  %r.1593 = ptrtoint ptr @.str.6011 to i64
+  %r.1593 = ptrtoint ptr @.str.6017 to i64
   %r.1594.a0 = inttoptr i64 %r.1592 to ptr
   %r.1594.a1 = inttoptr i64 %r.1593 to ptr
   %r.1594.rv = call ptr @__nucleor_str_concat(ptr %r.1594.a0, ptr %r.1594.a1)
@@ -352688,7 +352985,7 @@ L572:
   %r.1596.a0 = inttoptr i64 %r.1595 to ptr
   call void @__nucleor_print_str(ptr %r.1596.a0)
   %r.1596 = add i64 0, 0
-  %r.1597 = ptrtoint ptr @.str.6012 to i64
+  %r.1597 = ptrtoint ptr @.str.6018 to i64
   %r.1598.a0 = inttoptr i64 %r.1597 to ptr
   %r.1598 = call i64 @__nucleor_panic(ptr %r.1598.a0)
   br label %L569
@@ -353182,7 +353479,7 @@ L652:
   %br.1816.cond = icmp ne i64 %r.1816, 0
   br i1 %br.1816.cond, label %L653, label %L655
 L653:
-  %r.1817 = ptrtoint ptr @.str.6007 to i64
+  %r.1817 = ptrtoint ptr @.str.6013 to i64
   %r.1818 = load i64, ptr %r.2
   %r.1819 = ptrtoint ptr @.str.390 to i64
   %r.1820.a0 = inttoptr i64 %r.1818 to ptr
@@ -354699,7 +354996,7 @@ L905:
   %br.2463.cond = icmp ne i64 %r.2463, 0
   br i1 %br.2463.cond, label %L906, label %L908
 L906:
-  %r.2464 = ptrtoint ptr @.str.6007 to i64
+  %r.2464 = ptrtoint ptr @.str.6013 to i64
   %r.2465 = load i64, ptr %r.2
   %r.2466 = ptrtoint ptr @.str.390 to i64
   %r.2467.a0 = inttoptr i64 %r.2465 to ptr
@@ -355413,7 +355710,7 @@ L1020:
   %br.2777.cond = icmp ne i64 %r.2777, 0
   br i1 %br.2777.cond, label %L1021, label %L1023
 L1021:
-  %r.2778 = ptrtoint ptr @.str.6007 to i64
+  %r.2778 = ptrtoint ptr @.str.6013 to i64
   %r.2779 = load i64, ptr %r.2
   %r.2780 = ptrtoint ptr @.str.390 to i64
   %r.2781.a0 = inttoptr i64 %r.2779 to ptr
@@ -355892,7 +356189,7 @@ L1096:
   %br.2965.cond = icmp ne i64 %r.2965, 0
   br i1 %br.2965.cond, label %L1097, label %L1099
 L1097:
-  %r.2966 = ptrtoint ptr @.str.6007 to i64
+  %r.2966 = ptrtoint ptr @.str.6013 to i64
   %r.2967 = load i64, ptr %r.2
   %r.2968 = ptrtoint ptr @.str.390 to i64
   %r.2969.a0 = inttoptr i64 %r.2967 to ptr
@@ -356630,7 +356927,7 @@ L1214:
   %br.3296.cond = icmp ne i64 %r.3296, 0
   br i1 %br.3296.cond, label %L1215, label %L1217
 L1215:
-  %r.3297 = ptrtoint ptr @.str.6007 to i64
+  %r.3297 = ptrtoint ptr @.str.6013 to i64
   %r.3298 = load i64, ptr %r.2
   %r.3299 = ptrtoint ptr @.str.390 to i64
   %r.3300.a0 = inttoptr i64 %r.3298 to ptr
@@ -357156,7 +357453,7 @@ L1303:
   %br.3524.cond = icmp ne i64 %r.3524, 0
   br i1 %br.3524.cond, label %L1304, label %L1306
 L1304:
-  %r.3525 = ptrtoint ptr @.str.6007 to i64
+  %r.3525 = ptrtoint ptr @.str.6013 to i64
   %r.3526 = load i64, ptr %r.2
   %r.3527 = ptrtoint ptr @.str.390 to i64
   %r.3528.a0 = inttoptr i64 %r.3526 to ptr
@@ -357215,7 +357512,7 @@ L1228:
   ret i64 %r.3544
 L2:
   %r.3545 = load i64, ptr %r.0
-  %r.3546 = ptrtoint ptr @.str.6013 to i64
+  %r.3546 = ptrtoint ptr @.str.6019 to i64
   %r.3547.a0 = inttoptr i64 %r.3545 to ptr
   %r.3547.a1 = inttoptr i64 %r.3546 to ptr
   %r.3547 = call i64 @__nucleor_str_eq(ptr %r.3547.a0, ptr %r.3547.a1)
@@ -357239,7 +357536,7 @@ L1310:
   ret i64 %r.3554
 L1312:
   %r.3555 = load i64, ptr %r.0
-  %r.3556 = ptrtoint ptr @.str.6014 to i64
+  %r.3556 = ptrtoint ptr @.str.6020 to i64
   %r.3557.a0 = inttoptr i64 %r.3555 to ptr
   %r.3557.a1 = inttoptr i64 %r.3556 to ptr
   %r.3557 = call i64 @__nucleor_str_eq(ptr %r.3557.a0, ptr %r.3557.a1)
@@ -357253,7 +357550,7 @@ L1313:
   ret i64 %r.3560
 L1315:
   %r.3561 = load i64, ptr %r.0
-  %r.3562 = ptrtoint ptr @.str.6015 to i64
+  %r.3562 = ptrtoint ptr @.str.6021 to i64
   %r.3563.a0 = inttoptr i64 %r.3561 to ptr
   %r.3563.a1 = inttoptr i64 %r.3562 to ptr
   %r.3563 = call i64 @__nucleor_str_eq(ptr %r.3563.a0, ptr %r.3563.a1)
@@ -357277,7 +357574,7 @@ L1316:
   ret i64 %r.3570
 L1318:
   %r.3571 = load i64, ptr %r.0
-  %r.3572 = ptrtoint ptr @.str.6016 to i64
+  %r.3572 = ptrtoint ptr @.str.6022 to i64
   %r.3573.a0 = inttoptr i64 %r.3571 to ptr
   %r.3573.a1 = inttoptr i64 %r.3572 to ptr
   %r.3573 = call i64 @__nucleor_str_eq(ptr %r.3573.a0, ptr %r.3573.a1)
@@ -357328,9 +357625,9 @@ L1324:
   %br.3597.cond = icmp ne i64 %r.3597, 0
   br i1 %br.3597.cond, label %L1325, label %L1327
 L1325:
-  %r.3598 = ptrtoint ptr @.str.6017 to i64
+  %r.3598 = ptrtoint ptr @.str.6023 to i64
   %r.3599 = load i64, ptr %r.2
-  %r.3600 = ptrtoint ptr @.str.6018 to i64
+  %r.3600 = ptrtoint ptr @.str.6024 to i64
   %r.3601.a0 = inttoptr i64 %r.3599 to ptr
   %r.3601.a1 = inttoptr i64 %r.3600 to ptr
   %r.3601.rv = call ptr @__nucleor_str_concat(ptr %r.3601.a0, ptr %r.3601.a1)
@@ -357398,7 +357695,7 @@ L1333:
   %br.3634.cond = icmp ne i64 %r.3634, 0
   br i1 %br.3634.cond, label %L1334, label %L1336
 L1334:
-  %r.3635 = ptrtoint ptr @.str.6019 to i64
+  %r.3635 = ptrtoint ptr @.str.6025 to i64
   %r.3636 = load i64, ptr %r.2
   %r.3637 = ptrtoint ptr @.str.390 to i64
   %r.3638.a0 = inttoptr i64 %r.3636 to ptr
@@ -357422,7 +357719,7 @@ L1336:
   %br.3644.cond = icmp ne i64 %r.3644, 0
   br i1 %br.3644.cond, label %L1337, label %L1339
 L1337:
-  %r.3645 = ptrtoint ptr @.str.6020 to i64
+  %r.3645 = ptrtoint ptr @.str.6026 to i64
   %r.3646 = load i64, ptr %r.2
   %r.3647 = ptrtoint ptr @.str.390 to i64
   %r.3648.a0 = inttoptr i64 %r.3646 to ptr
@@ -357435,7 +357732,7 @@ L1337:
   %r.3649 = ptrtoint ptr %r.3649.rv to i64
   ret i64 %r.3649
 L1339:
-  %r.3650 = ptrtoint ptr @.str.6021 to i64
+  %r.3650 = ptrtoint ptr @.str.6027 to i64
   %r.3651 = load i64, ptr %r.2
   %r.3652 = ptrtoint ptr @.str.390 to i64
   %r.3653.a0 = inttoptr i64 %r.3651 to ptr
@@ -357459,7 +357756,7 @@ L1330:
   %br.3659.cond = icmp ne i64 %r.3659, 0
   br i1 %br.3659.cond, label %L1340, label %L1342
 L1340:
-  %r.3660 = ptrtoint ptr @.str.6022 to i64
+  %r.3660 = ptrtoint ptr @.str.6028 to i64
   %r.3661 = load i64, ptr %r.2
   %r.3662 = ptrtoint ptr @.str.390 to i64
   %r.3663.a0 = inttoptr i64 %r.3661 to ptr
@@ -357483,7 +357780,7 @@ L1342:
   %br.3669.cond = icmp ne i64 %r.3669, 0
   br i1 %br.3669.cond, label %L1343, label %L1345
 L1343:
-  %r.3670 = ptrtoint ptr @.str.6023 to i64
+  %r.3670 = ptrtoint ptr @.str.6029 to i64
   %r.3671 = load i64, ptr %r.2
   %r.3672 = ptrtoint ptr @.str.390 to i64
   %r.3673.a0 = inttoptr i64 %r.3671 to ptr
@@ -357689,9 +357986,9 @@ L1364:
   br i1 %br.3771.cond, label %L1365, label %L1366
 L1365:
   %r.3772 = load i64, ptr %r.3693
-  %r.3773 = ptrtoint ptr @.str.6017 to i64
+  %r.3773 = ptrtoint ptr @.str.6023 to i64
   %r.3774 = load i64, ptr %r.3746
-  %r.3775 = ptrtoint ptr @.str.6018 to i64
+  %r.3775 = ptrtoint ptr @.str.6024 to i64
   %r.3776.a0 = inttoptr i64 %r.3774 to ptr
   %r.3776.a1 = inttoptr i64 %r.3775 to ptr
   %r.3776.rv = call ptr @__nucleor_str_concat(ptr %r.3776.a0, ptr %r.3776.a1)
@@ -357745,7 +358042,7 @@ L1369:
   br i1 %br.3795.cond, label %L1371, label %L1372
 L1371:
   %r.3796 = load i64, ptr %r.3693
-  %r.3797 = ptrtoint ptr @.str.6007 to i64
+  %r.3797 = ptrtoint ptr @.str.6013 to i64
   %r.3798 = load i64, ptr %r.3746
   %r.3799 = ptrtoint ptr @.str.390 to i64
   %r.3800.a0 = inttoptr i64 %r.3798 to ptr
@@ -357842,7 +358139,7 @@ L1380:
   br label %L1352
 L1354:
   %r.3831 = load i64, ptr %r.3693
-  %r.3832 = ptrtoint ptr @.str.6024 to i64
+  %r.3832 = ptrtoint ptr @.str.6030 to i64
   %r.3833.a0 = inttoptr i64 %r.3831 to ptr
   call void @__nucleor_vec_push(ptr %r.3833.a0, i64 %r.3832)
   %r.3833 = add i64 0, 0
@@ -359385,7 +359682,7 @@ L1635:
   %br.4475.cond = icmp ne i64 %r.4475, 0
   br i1 %br.4475.cond, label %L1637, label %L1638
 L1637:
-  %r.4476 = ptrtoint ptr @.str.6025 to i64
+  %r.4476 = ptrtoint ptr @.str.6031 to i64
   %r.4477 = load i64, ptr %r.2
   %r.4478 = ptrtoint ptr @.str.390 to i64
   %r.4479.a0 = inttoptr i64 %r.4477 to ptr
@@ -359406,7 +359703,7 @@ L1638:
   %br.4483.cond = icmp ne i64 %r.4483, 0
   br i1 %br.4483.cond, label %L1640, label %L1641
 L1640:
-  %r.4484 = ptrtoint ptr @.str.6026 to i64
+  %r.4484 = ptrtoint ptr @.str.6032 to i64
   %r.4485 = load i64, ptr %r.2
   %r.4486 = ptrtoint ptr @.str.390 to i64
   %r.4487.a0 = inttoptr i64 %r.4485 to ptr
@@ -359427,7 +359724,7 @@ L1641:
   %br.4491.cond = icmp ne i64 %r.4491, 0
   br i1 %br.4491.cond, label %L1643, label %L1645
 L1643:
-  %r.4492 = ptrtoint ptr @.str.6027 to i64
+  %r.4492 = ptrtoint ptr @.str.6033 to i64
   %r.4493 = load i64, ptr %r.2
   %r.4494 = ptrtoint ptr @.str.390 to i64
   %r.4495.a0 = inttoptr i64 %r.4493 to ptr
@@ -359464,7 +359761,7 @@ L1649:
   %r.4504 = load i64, ptr %r.3868
   %r.4505 = call i64 @str_from_int(i64 %r.4504)
   store i64 %r.4505, ptr %r.4503
-  %r.4506 = ptrtoint ptr @.str.6028 to i64
+  %r.4506 = ptrtoint ptr @.str.6034 to i64
   %r.4507 = load i64, ptr %r.2
   %r.4508 = ptrtoint ptr @.str.425 to i64
   %r.4509 = load i64, ptr %r.4503
@@ -359488,7 +359785,7 @@ L1649:
   store i64 %r.4514, ptr %r.4460
   br label %L1651
 L1650:
-  %r.4515 = ptrtoint ptr @.str.6029 to i64
+  %r.4515 = ptrtoint ptr @.str.6035 to i64
   %r.4516 = load i64, ptr %r.2
   %r.4517 = ptrtoint ptr @.str.390 to i64
   %r.4518.a0 = inttoptr i64 %r.4516 to ptr
@@ -359521,7 +359818,7 @@ L1655:
   %r.4527 = load i64, ptr %r.3868
   %r.4528 = call i64 @str_from_int(i64 %r.4527)
   store i64 %r.4528, ptr %r.4526
-  %r.4529 = ptrtoint ptr @.str.6030 to i64
+  %r.4529 = ptrtoint ptr @.str.6036 to i64
   %r.4530 = load i64, ptr %r.2
   %r.4531 = ptrtoint ptr @.str.425 to i64
   %r.4532 = load i64, ptr %r.4526
@@ -359545,7 +359842,7 @@ L1655:
   store i64 %r.4537, ptr %r.4460
   br label %L1657
 L1656:
-  %r.4538 = ptrtoint ptr @.str.6031 to i64
+  %r.4538 = ptrtoint ptr @.str.6037 to i64
   %r.4539 = load i64, ptr %r.2
   %r.4540 = ptrtoint ptr @.str.390 to i64
   %r.4541.a0 = inttoptr i64 %r.4539 to ptr
@@ -359598,7 +359895,7 @@ L1663:
   %br.4560.cond = icmp ne i64 %r.4560, 0
   br i1 %br.4560.cond, label %L1664, label %L1665
 L1664:
-  %r.4561 = ptrtoint ptr @.str.6032 to i64
+  %r.4561 = ptrtoint ptr @.str.6038 to i64
   store i64 %r.4561, ptr %r.4546
   br label %L1666
 L1665:
@@ -359609,7 +359906,7 @@ L1665:
   %br.4564.cond = icmp ne i64 %r.4564, 0
   br i1 %br.4564.cond, label %L1667, label %L1668
 L1667:
-  %r.4565 = ptrtoint ptr @.str.6033 to i64
+  %r.4565 = ptrtoint ptr @.str.6039 to i64
   store i64 %r.4565, ptr %r.4546
   br label %L1669
 L1668:
@@ -359620,7 +359917,7 @@ L1668:
   %br.4568.cond = icmp ne i64 %r.4568, 0
   br i1 %br.4568.cond, label %L1670, label %L1672
 L1670:
-  %r.4569 = ptrtoint ptr @.str.6034 to i64
+  %r.4569 = ptrtoint ptr @.str.6040 to i64
   store i64 %r.4569, ptr %r.4546
   br label %L1672
 L1672:
@@ -359637,9 +359934,9 @@ L1666:
   %br.4573.cond = icmp ne i64 %r.4573, 0
   br i1 %br.4573.cond, label %L1673, label %L1675
 L1673:
-  %r.4574 = ptrtoint ptr @.str.6035 to i64
+  %r.4574 = ptrtoint ptr @.str.6041 to i64
   %r.4575 = load i64, ptr %r.4546
-  %r.4576 = ptrtoint ptr @.str.6036 to i64
+  %r.4576 = ptrtoint ptr @.str.6042 to i64
   %r.4577 = load i64, ptr %r.4460
   %r.4578 = ptrtoint ptr @.str.390 to i64
   %r.4579.a0 = inttoptr i64 %r.4577 to ptr
@@ -359749,7 +360046,7 @@ L1689:
   %r.4623.rv = call ptr @__nucleor_str_substring(ptr %r.4623.a0, i64 %r.4619, i64 %r.4622)
   %r.4623 = ptrtoint ptr %r.4623.rv to i64
   store i64 %r.4623, ptr %r.4617
-  %r.4624 = ptrtoint ptr @.str.6037 to i64
+  %r.4624 = ptrtoint ptr @.str.6043 to i64
   %r.4625 = load i64, ptr %r.4617
   %r.4626 = ptrtoint ptr @.str.425 to i64
   %r.4627 = load i64, ptr %r.4596
@@ -359789,7 +360086,7 @@ L1690:
   %r.4642.a0 = inttoptr i64 %r.4639 to ptr
   %r.4642.rv = call ptr @__nucleor_str_substring(ptr %r.4642.a0, i64 %r.4640, i64 %r.4641)
   %r.4642 = ptrtoint ptr %r.4642.rv to i64
-  %r.4643 = ptrtoint ptr @.str.6007 to i64
+  %r.4643 = ptrtoint ptr @.str.6013 to i64
   %r.4644.a0 = inttoptr i64 %r.4642 to ptr
   %r.4644.a1 = inttoptr i64 %r.4643 to ptr
   %r.4644 = call i64 @__nucleor_str_eq(ptr %r.4644.a0, ptr %r.4644.a1)
@@ -359826,7 +360123,7 @@ L1697:
   %r.4657.rv = call ptr @__nucleor_str_substring(ptr %r.4657.a0, i64 %r.4653, i64 %r.4656)
   %r.4657 = ptrtoint ptr %r.4657.rv to i64
   store i64 %r.4657, ptr %r.4651
-  %r.4658 = ptrtoint ptr @.str.6038 to i64
+  %r.4658 = ptrtoint ptr @.str.6044 to i64
   %r.4659 = load i64, ptr %r.4651
   %r.4660 = ptrtoint ptr @.str.425 to i64
   %r.4661 = load i64, ptr %r.4596
@@ -359918,7 +360215,7 @@ L1708:
   %r.4697.rv = call ptr @__nucleor_str_substring(ptr %r.4697.a0, i64 %r.4693, i64 %r.4696)
   %r.4697 = ptrtoint ptr %r.4697.rv to i64
   store i64 %r.4697, ptr %r.4691
-  %r.4698 = ptrtoint ptr @.str.6039 to i64
+  %r.4698 = ptrtoint ptr @.str.6045 to i64
   %r.4699 = load i64, ptr %r.4691
   %r.4700 = ptrtoint ptr @.str.390 to i64
   %r.4701.a0 = inttoptr i64 %r.4699 to ptr
@@ -359957,7 +360254,7 @@ L1709:
   br i1 %br.4716.cond, label %L1712, label %L1714
 L1712:
   %r.4717 = load i64, ptr %r.4460
-  %r.4718 = ptrtoint ptr @.str.6040 to i64
+  %r.4718 = ptrtoint ptr @.str.6046 to i64
   %r.4719.a0 = inttoptr i64 %r.4717 to ptr
   %r.4719.a1 = inttoptr i64 %r.4718 to ptr
   %r.4719 = call i64 @__nucleor_str_contains(ptr %r.4719.a0, ptr %r.4719.a1)
@@ -359975,7 +360272,7 @@ L1715:
   br label %L1717
 L1716:
   %r.4726 = load i64, ptr %r.4460
-  %r.4727 = ptrtoint ptr @.str.6041 to i64
+  %r.4727 = ptrtoint ptr @.str.6047 to i64
   %r.4728.a0 = inttoptr i64 %r.4726 to ptr
   %r.4728.a1 = inttoptr i64 %r.4727 to ptr
   %r.4728 = call i64 @__nucleor_str_contains(ptr %r.4728.a0, ptr %r.4728.a1)
@@ -360048,7 +360345,7 @@ L1723:
   %br.4754.cond = icmp ne i64 %r.4754, 0
   br i1 %br.4754.cond, label %L1724, label %L1726
 L1724:
-  %r.4755 = ptrtoint ptr @.str.6042 to i64
+  %r.4755 = ptrtoint ptr @.str.6048 to i64
   %r.4756 = load i64, ptr %r.4460
   %r.4757 = ptrtoint ptr @.str.425 to i64
   %r.4758 = load i64, ptr %r.4706
@@ -360956,9 +361253,9 @@ L90:
   %r.278.rv = call ptr @__nucleor_str_substring(ptr %r.278.a0, i64 %r.276, i64 %r.277)
   %r.278 = ptrtoint ptr %r.278.rv to i64
   store i64 %r.278, ptr %r.274
-  %r.279 = ptrtoint ptr @.str.6043 to i64
+  %r.279 = ptrtoint ptr @.str.6049 to i64
   %r.280 = load i64, ptr %r.274
-  %r.281 = ptrtoint ptr @.str.6044 to i64
+  %r.281 = ptrtoint ptr @.str.6050 to i64
   %r.282.a0 = inttoptr i64 %r.280 to ptr
   %r.282.a1 = inttoptr i64 %r.281 to ptr
   %r.282.rv = call ptr @__nucleor_str_concat(ptr %r.282.a0, ptr %r.282.a1)
@@ -360970,9 +361267,9 @@ L90:
   %r.284.a0 = inttoptr i64 %r.283 to ptr
   call void @__nucleor_print_str(ptr %r.284.a0)
   %r.284 = add i64 0, 0
-  %r.285 = ptrtoint ptr @.str.6045 to i64
+  %r.285 = ptrtoint ptr @.str.6051 to i64
   %r.286 = load i64, ptr %r.274
-  %r.287 = ptrtoint ptr @.str.6046 to i64
+  %r.287 = ptrtoint ptr @.str.6052 to i64
   %r.288.a0 = inttoptr i64 %r.286 to ptr
   %r.288.a1 = inttoptr i64 %r.287 to ptr
   %r.288.rv = call ptr @__nucleor_str_concat(ptr %r.288.a0, ptr %r.288.a1)
@@ -360984,7 +361281,7 @@ L90:
   %r.290.a0 = inttoptr i64 %r.289 to ptr
   call void @__nucleor_print_str(ptr %r.290.a0)
   %r.290 = add i64 0, 0
-  %r.291 = ptrtoint ptr @.str.6047 to i64
+  %r.291 = ptrtoint ptr @.str.6053 to i64
   %r.292 = load i64, ptr %r.274
   %r.293 = ptrtoint ptr @.str.651 to i64
   %r.294.a0 = inttoptr i64 %r.292 to ptr
@@ -361030,7 +361327,7 @@ L95:
   %br.306.cond = icmp ne i64 %r.306, 0
   br i1 %br.306.cond, label %L98, label %L100
 L98:
-  %r.307 = ptrtoint ptr @.str.6048 to i64
+  %r.307 = ptrtoint ptr @.str.6054 to i64
   ret i64 %r.307
 L100:
   %r.308 = load i64, ptr %r.2
@@ -361050,7 +361347,7 @@ L103:
   %br.314.cond = icmp ne i64 %r.314, 0
   br i1 %br.314.cond, label %L104, label %L106
 L104:
-  %r.315 = ptrtoint ptr @.str.6049 to i64
+  %r.315 = ptrtoint ptr @.str.6055 to i64
   ret i64 %r.315
 L106:
   %r.316 = load i64, ptr %r.2
@@ -361060,10 +361357,10 @@ L106:
   %br.318.cond = icmp ne i64 %r.318, 0
   br i1 %br.318.cond, label %L107, label %L109
 L107:
-  %r.319 = ptrtoint ptr @.str.6050 to i64
+  %r.319 = ptrtoint ptr @.str.6056 to i64
   ret i64 %r.319
 L109:
-  %r.320 = ptrtoint ptr @.str.6051 to i64
+  %r.320 = ptrtoint ptr @.str.6057 to i64
   ret i64 %r.320
 L97:
   %r.322 = load i64, ptr %r.6
@@ -361798,9 +362095,9 @@ L174:
   %br.645.cond = icmp ne i64 %r.645, 0
   br i1 %br.645.cond, label %L222, label %L224
 L222:
-  %r.646 = ptrtoint ptr @.str.6052 to i64
+  %r.646 = ptrtoint ptr @.str.6058 to i64
   %r.647 = load i64, ptr %r.458
-  %r.648 = ptrtoint ptr @.str.6053 to i64
+  %r.648 = ptrtoint ptr @.str.6059 to i64
   %r.649.a0 = inttoptr i64 %r.647 to ptr
   %r.649.a1 = inttoptr i64 %r.648 to ptr
   %r.649.rv = call ptr @__nucleor_str_concat(ptr %r.649.a0, ptr %r.649.a1)
@@ -361812,9 +362109,9 @@ L222:
   %r.651.a0 = inttoptr i64 %r.650 to ptr
   call void @__nucleor_print_str(ptr %r.651.a0)
   %r.651 = add i64 0, 0
-  %r.652 = ptrtoint ptr @.str.6054 to i64
+  %r.652 = ptrtoint ptr @.str.6060 to i64
   %r.653 = load i64, ptr %r.458
-  %r.654 = ptrtoint ptr @.str.6055 to i64
+  %r.654 = ptrtoint ptr @.str.6061 to i64
   %r.655.a0 = inttoptr i64 %r.653 to ptr
   %r.655.a1 = inttoptr i64 %r.654 to ptr
   %r.655.rv = call ptr @__nucleor_str_concat(ptr %r.655.a0, ptr %r.655.a1)
@@ -361826,9 +362123,9 @@ L222:
   %r.657.a0 = inttoptr i64 %r.656 to ptr
   call void @__nucleor_print_str(ptr %r.657.a0)
   %r.657 = add i64 0, 0
-  %r.658 = ptrtoint ptr @.str.6056 to i64
+  %r.658 = ptrtoint ptr @.str.6062 to i64
   %r.659 = load i64, ptr %r.458
-  %r.660 = ptrtoint ptr @.str.6057 to i64
+  %r.660 = ptrtoint ptr @.str.6063 to i64
   %r.661.a0 = inttoptr i64 %r.659 to ptr
   %r.661.a1 = inttoptr i64 %r.660 to ptr
   %r.661.rv = call ptr @__nucleor_str_concat(ptr %r.661.a0, ptr %r.661.a1)
@@ -361953,11 +362250,11 @@ L230:
   %br.712.cond = icmp ne i64 %r.712, 0
   br i1 %br.712.cond, label %L242, label %L244
 L242:
-  %r.713 = ptrtoint ptr @.str.6058 to i64
+  %r.713 = ptrtoint ptr @.str.6064 to i64
   %r.714 = load i64, ptr %r.458
-  %r.715 = ptrtoint ptr @.str.6059 to i64
+  %r.715 = ptrtoint ptr @.str.6065 to i64
   %r.716 = load i64, ptr %r.458
-  %r.717 = ptrtoint ptr @.str.6060 to i64
+  %r.717 = ptrtoint ptr @.str.6066 to i64
   %r.718.a0 = inttoptr i64 %r.716 to ptr
   %r.718.a1 = inttoptr i64 %r.717 to ptr
   %r.718.rv = call ptr @__nucleor_str_concat(ptr %r.718.a0, ptr %r.718.a1)
@@ -361974,13 +362271,13 @@ L242:
   %r.721.a0 = inttoptr i64 %r.720 to ptr
   call void @__nucleor_print_str(ptr %r.721.a0)
   %r.721 = add i64 0, 0
-  %r.722 = ptrtoint ptr @.str.6061 to i64
+  %r.722 = ptrtoint ptr @.str.6067 to i64
   %r.723.a0 = inttoptr i64 %r.722 to ptr
   call void @__nucleor_print_str(ptr %r.723.a0)
   %r.723 = add i64 0, 0
-  %r.724 = ptrtoint ptr @.str.6062 to i64
+  %r.724 = ptrtoint ptr @.str.6068 to i64
   %r.725 = load i64, ptr %r.458
-  %r.726 = ptrtoint ptr @.str.6057 to i64
+  %r.726 = ptrtoint ptr @.str.6063 to i64
   %r.727.a0 = inttoptr i64 %r.725 to ptr
   %r.727.a1 = inttoptr i64 %r.726 to ptr
   %r.727.rv = call ptr @__nucleor_str_concat(ptr %r.727.a0, ptr %r.727.a1)
@@ -361993,12 +362290,12 @@ L242:
   %r.729 = call i64 @__nucleor_panic(ptr %r.729.a0)
   br label %L244
 L244:
-  %r.730 = ptrtoint ptr @.str.6063 to i64
+  %r.730 = ptrtoint ptr @.str.6069 to i64
   %r.731 = load i64, ptr %r.325
-  %r.732 = ptrtoint ptr @.str.6064 to i64
+  %r.732 = ptrtoint ptr @.str.6070 to i64
   %r.733 = load i64, ptr %r.331
   %r.734 = call i64 @str_from_int(i64 %r.733)
-  %r.735 = ptrtoint ptr @.str.6065 to i64
+  %r.735 = ptrtoint ptr @.str.6071 to i64
   %r.736.a0 = inttoptr i64 %r.734 to ptr
   %r.736.a1 = inttoptr i64 %r.735 to ptr
   %r.736.rv = call ptr @__nucleor_str_concat(ptr %r.736.a0, ptr %r.736.a1)
@@ -362018,7 +362315,7 @@ L244:
   %r.740.a0 = inttoptr i64 %r.739 to ptr
   call void @__nucleor_print_str(ptr %r.740.a0)
   %r.740 = add i64 0, 0
-  %r.741 = ptrtoint ptr @.str.6066 to i64
+  %r.741 = ptrtoint ptr @.str.6072 to i64
   %r.742.a0 = inttoptr i64 %r.741 to ptr
   %r.742 = call i64 @__nucleor_panic(ptr %r.742.a0)
   br label %L167
@@ -362093,18 +362390,18 @@ L252:
   unreachable
 L253:
   store i64 %r.766, ptr %r.763
-  %r.767 = ptrtoint ptr @.str.6067 to i64
+  %r.767 = ptrtoint ptr @.str.6073 to i64
   %r.768 = load i64, ptr %r.344
   %r.769 = call i64 @str_from_int(i64 %r.768)
-  %r.770 = ptrtoint ptr @.str.6068 to i64
+  %r.770 = ptrtoint ptr @.str.6074 to i64
   %r.771 = load i64, ptr %r.331
   %r.772 = call i64 @str_from_int(i64 %r.771)
-  %r.773 = ptrtoint ptr @.str.6069 to i64
+  %r.773 = ptrtoint ptr @.str.6075 to i64
   %r.774 = load i64, ptr %r.763
   %r.775 = call i64 @str_from_int(i64 %r.774)
-  %r.776 = ptrtoint ptr @.str.6070 to i64
+  %r.776 = ptrtoint ptr @.str.6076 to i64
   %r.777 = load i64, ptr %r.325
-  %r.778 = ptrtoint ptr @.str.6071 to i64
+  %r.778 = ptrtoint ptr @.str.6077 to i64
   %r.779.a0 = inttoptr i64 %r.777 to ptr
   %r.779.a1 = inttoptr i64 %r.778 to ptr
   %r.779.rv = call ptr @__nucleor_str_concat(ptr %r.779.a0, ptr %r.779.a1)
@@ -362140,7 +362437,7 @@ L253:
   %r.787.a0 = inttoptr i64 %r.786 to ptr
   call void @__nucleor_print_str(ptr %r.787.a0)
   %r.787 = add i64 0, 0
-  %r.788 = ptrtoint ptr @.str.6072 to i64
+  %r.788 = ptrtoint ptr @.str.6078 to i64
   %r.789.a0 = inttoptr i64 %r.788 to ptr
   %r.789 = call i64 @__nucleor_panic(ptr %r.789.a0)
   br label %L251
@@ -362206,7 +362503,7 @@ L262:
   %br.816.cond = icmp ne i64 %r.816, 0
   br i1 %br.816.cond, label %L263, label %L265
 L263:
-  %r.817 = ptrtoint ptr @.str.6073 to i64
+  %r.817 = ptrtoint ptr @.str.6079 to i64
   %r.818 = load i64, ptr %r.790
   %r.819 = ptrtoint ptr @.str.390 to i64
   %r.820.a0 = inttoptr i64 %r.818 to ptr
@@ -362239,7 +362536,7 @@ L266:
   %r.829 = ptrtoint ptr %r.829.rv to i64
   ret i64 %r.829
 L268:
-  %r.830 = ptrtoint ptr @.str.6074 to i64
+  %r.830 = ptrtoint ptr @.str.6080 to i64
   %r.831 = load i64, ptr %r.790
   %r.832 = ptrtoint ptr @.str.390 to i64
   %r.833.a0 = inttoptr i64 %r.831 to ptr
@@ -364070,7 +364367,7 @@ L281:
   %r.676 = ptrtoint ptr %r.676.rv to i64
   store i64 %r.676, ptr %r.672
   %r.677 = load i64, ptr %r.4
-  %r.678 = ptrtoint ptr @.str.6075 to i64
+  %r.678 = ptrtoint ptr @.str.6081 to i64
   %r.679.a1 = inttoptr i64 %r.678 to ptr
   call void @__nucleor_sb_append(i64 %r.677, ptr %r.679.a1)
   %r.679 = add i64 0, 0
@@ -364080,7 +364377,7 @@ L281:
   call void @__nucleor_sb_append(i64 %r.680, ptr %r.682.a1)
   %r.682 = add i64 0, 0
   %r.683 = load i64, ptr %r.4
-  %r.684 = ptrtoint ptr @.str.6076 to i64
+  %r.684 = ptrtoint ptr @.str.6082 to i64
   %r.685.a1 = inttoptr i64 %r.684 to ptr
   call void @__nucleor_sb_append(i64 %r.683, ptr %r.685.a1)
   %r.685 = add i64 0, 0
@@ -364090,7 +364387,7 @@ L281:
   call void @__nucleor_sb_append(i64 %r.686, ptr %r.688.a1)
   %r.688 = add i64 0, 0
   %r.689 = load i64, ptr %r.4
-  %r.690 = ptrtoint ptr @.str.6077 to i64
+  %r.690 = ptrtoint ptr @.str.6083 to i64
   %r.691.a1 = inttoptr i64 %r.690 to ptr
   call void @__nucleor_sb_append(i64 %r.689, ptr %r.691.a1)
   %r.691 = add i64 0, 0
@@ -364137,7 +364434,7 @@ L288:
   %r.711 = load i64, ptr %r.708
   store i64 %r.711, ptr %r.704
   %r.712 = load i64, ptr %r.4
-  %r.713 = ptrtoint ptr @.str.6078 to i64
+  %r.713 = ptrtoint ptr @.str.6084 to i64
   %r.714.a1 = inttoptr i64 %r.713 to ptr
   call void @__nucleor_sb_append(i64 %r.712, ptr %r.714.a1)
   %r.714 = add i64 0, 0
@@ -364147,7 +364444,7 @@ L288:
   call void @__nucleor_sb_append(i64 %r.715, ptr %r.717.a1)
   %r.717 = add i64 0, 0
   %r.718 = load i64, ptr %r.4
-  %r.719 = ptrtoint ptr @.str.5974 to i64
+  %r.719 = ptrtoint ptr @.str.5980 to i64
   %r.720.a1 = inttoptr i64 %r.719 to ptr
   call void @__nucleor_sb_append(i64 %r.718, ptr %r.720.a1)
   %r.720 = add i64 0, 0
@@ -364167,7 +364464,7 @@ L288:
   call void @__nucleor_sb_append(i64 %r.727, ptr %r.729.a1)
   %r.729 = add i64 0, 0
   %r.730 = load i64, ptr %r.4
-  %r.731 = ptrtoint ptr @.str.6079 to i64
+  %r.731 = ptrtoint ptr @.str.6085 to i64
   %r.732.a1 = inttoptr i64 %r.731 to ptr
   call void @__nucleor_sb_append(i64 %r.730, ptr %r.732.a1)
   %r.732 = add i64 0, 0
@@ -364177,7 +364474,7 @@ L288:
   call void @__nucleor_sb_append(i64 %r.733, ptr %r.735.a1)
   %r.735 = add i64 0, 0
   %r.736 = load i64, ptr %r.4
-  %r.737 = ptrtoint ptr @.str.6077 to i64
+  %r.737 = ptrtoint ptr @.str.6083 to i64
   %r.738.a1 = inttoptr i64 %r.737 to ptr
   call void @__nucleor_sb_append(i64 %r.736, ptr %r.738.a1)
   %r.738 = add i64 0, 0
@@ -364317,7 +364614,7 @@ L308:
   %r.801 = load i64, ptr %r.798
   store i64 %r.801, ptr %r.794
   %r.802 = load i64, ptr %r.4
-  %r.803 = ptrtoint ptr @.str.6078 to i64
+  %r.803 = ptrtoint ptr @.str.6084 to i64
   %r.804.a1 = inttoptr i64 %r.803 to ptr
   call void @__nucleor_sb_append(i64 %r.802, ptr %r.804.a1)
   %r.804 = add i64 0, 0
@@ -364327,7 +364624,7 @@ L308:
   call void @__nucleor_sb_append(i64 %r.805, ptr %r.807.a1)
   %r.807 = add i64 0, 0
   %r.808 = load i64, ptr %r.4
-  %r.809 = ptrtoint ptr @.str.5974 to i64
+  %r.809 = ptrtoint ptr @.str.5980 to i64
   %r.810.a1 = inttoptr i64 %r.809 to ptr
   call void @__nucleor_sb_append(i64 %r.808, ptr %r.810.a1)
   %r.810 = add i64 0, 0
@@ -364347,7 +364644,7 @@ L308:
   call void @__nucleor_sb_append(i64 %r.817, ptr %r.819.a1)
   %r.819 = add i64 0, 0
   %r.820 = load i64, ptr %r.4
-  %r.821 = ptrtoint ptr @.str.6080 to i64
+  %r.821 = ptrtoint ptr @.str.6086 to i64
   %r.822.a1 = inttoptr i64 %r.821 to ptr
   call void @__nucleor_sb_append(i64 %r.820, ptr %r.822.a1)
   %r.822 = add i64 0, 0
@@ -364357,7 +364654,7 @@ L308:
   call void @__nucleor_sb_append(i64 %r.823, ptr %r.825.a1)
   %r.825 = add i64 0, 0
   %r.826 = load i64, ptr %r.4
-  %r.827 = ptrtoint ptr @.str.6081 to i64
+  %r.827 = ptrtoint ptr @.str.6087 to i64
   %r.828.a1 = inttoptr i64 %r.827 to ptr
   call void @__nucleor_sb_append(i64 %r.826, ptr %r.828.a1)
   %r.828 = add i64 0, 0
@@ -364595,7 +364892,7 @@ L336:
   br i1 %br.928.cond, label %L339, label %L341
 L339:
   %r.929 = load i64, ptr %r.267
-  %r.930 = ptrtoint ptr @.str.6082 to i64
+  %r.930 = ptrtoint ptr @.str.6088 to i64
   %r.931.a0 = inttoptr i64 %r.929 to ptr
   %r.931.a1 = inttoptr i64 %r.930 to ptr
   %r.931 = call i64 @__nucleor_str_eq(ptr %r.931.a0, ptr %r.931.a1)
@@ -365463,7 +365760,7 @@ L505:
   %r.1272 = ptrtoint ptr %r.1272.rv to i64
   store i64 %r.1272, ptr %r.1266
   %r.1273 = load i64, ptr %r.4
-  %r.1274 = ptrtoint ptr @.str.6083 to i64
+  %r.1274 = ptrtoint ptr @.str.6089 to i64
   %r.1275.a1 = inttoptr i64 %r.1274 to ptr
   call void @__nucleor_sb_append(i64 %r.1273, ptr %r.1275.a1)
   %r.1275 = add i64 0, 0
@@ -365473,7 +365770,7 @@ L505:
   call void @__nucleor_sb_append(i64 %r.1276, ptr %r.1278.a1)
   %r.1278 = add i64 0, 0
   %r.1279 = load i64, ptr %r.4
-  %r.1280 = ptrtoint ptr @.str.6084 to i64
+  %r.1280 = ptrtoint ptr @.str.6090 to i64
   %r.1281.a1 = inttoptr i64 %r.1280 to ptr
   call void @__nucleor_sb_append(i64 %r.1279, ptr %r.1281.a1)
   %r.1281 = add i64 0, 0
@@ -365483,14 +365780,14 @@ L505:
   call void @__nucleor_sb_append(i64 %r.1282, ptr %r.1284.a1)
   %r.1284 = add i64 0, 0
   %r.1285 = load i64, ptr %r.4
-  %r.1286 = ptrtoint ptr @.str.6085 to i64
+  %r.1286 = ptrtoint ptr @.str.6091 to i64
   %r.1287.a1 = inttoptr i64 %r.1286 to ptr
   call void @__nucleor_sb_append(i64 %r.1285, ptr %r.1287.a1)
   %r.1287 = add i64 0, 0
   br label %L503
 L502:
   %r.1288 = load i64, ptr %r.4
-  %r.1289 = ptrtoint ptr @.str.6086 to i64
+  %r.1289 = ptrtoint ptr @.str.6092 to i64
   %r.1290.a1 = inttoptr i64 %r.1289 to ptr
   call void @__nucleor_sb_append(i64 %r.1288, ptr %r.1290.a1)
   %r.1290 = add i64 0, 0
@@ -365846,7 +366143,7 @@ L572:
   %r.1435 = ptrtoint ptr %r.1435.rv to i64
   store i64 %r.1435, ptr %r.1431
   %r.1436 = load i64, ptr %r.4
-  %r.1437 = ptrtoint ptr @.str.6087 to i64
+  %r.1437 = ptrtoint ptr @.str.6093 to i64
   %r.1438.a1 = inttoptr i64 %r.1437 to ptr
   call void @__nucleor_sb_append(i64 %r.1436, ptr %r.1438.a1)
   %r.1438 = add i64 0, 0
@@ -365856,7 +366153,7 @@ L572:
   call void @__nucleor_sb_append(i64 %r.1439, ptr %r.1441.a1)
   %r.1441 = add i64 0, 0
   %r.1442 = load i64, ptr %r.4
-  %r.1443 = ptrtoint ptr @.str.6088 to i64
+  %r.1443 = ptrtoint ptr @.str.6094 to i64
   %r.1444.a1 = inttoptr i64 %r.1443 to ptr
   call void @__nucleor_sb_append(i64 %r.1442, ptr %r.1444.a1)
   %r.1444 = add i64 0, 0
@@ -366026,7 +366323,7 @@ L581:
   br i1 %br.1510.cond, label %L596, label %L598
 L596:
   %r.1511 = load i64, ptr %r.4
-  %r.1512 = ptrtoint ptr @.str.6087 to i64
+  %r.1512 = ptrtoint ptr @.str.6093 to i64
   %r.1513.a1 = inttoptr i64 %r.1512 to ptr
   call void @__nucleor_sb_append(i64 %r.1511, ptr %r.1513.a1)
   %r.1513 = add i64 0, 0
@@ -366036,14 +366333,14 @@ L596:
   call void @__nucleor_sb_append(i64 %r.1514, ptr %r.1516.a1)
   %r.1516 = add i64 0, 0
   %r.1517 = load i64, ptr %r.4
-  %r.1518 = ptrtoint ptr @.str.6088 to i64
+  %r.1518 = ptrtoint ptr @.str.6094 to i64
   %r.1519.a1 = inttoptr i64 %r.1518 to ptr
   call void @__nucleor_sb_append(i64 %r.1517, ptr %r.1519.a1)
   %r.1519 = add i64 0, 0
   br label %L598
 L598:
   %r.1520 = load i64, ptr %r.4
-  %r.1521 = ptrtoint ptr @.str.6089 to i64
+  %r.1521 = ptrtoint ptr @.str.6095 to i64
   %r.1522.a1 = inttoptr i64 %r.1521 to ptr
   call void @__nucleor_sb_append(i64 %r.1520, ptr %r.1522.a1)
   %r.1522 = add i64 0, 0
@@ -366207,7 +366504,7 @@ L620:
   br label %L622
 L622:
   %r.1586 = load i64, ptr %r.267
-  %r.1587 = ptrtoint ptr @.str.6090 to i64
+  %r.1587 = ptrtoint ptr @.str.6096 to i64
   %r.1588.a0 = inttoptr i64 %r.1586 to ptr
   %r.1588.a1 = inttoptr i64 %r.1587 to ptr
   %r.1588 = call i64 @__nucleor_str_eq(ptr %r.1588.a0, ptr %r.1588.a1)
@@ -366282,7 +366579,7 @@ L635:
   br label %L637
 L637:
   %r.1616 = load i64, ptr %r.267
-  %r.1617 = ptrtoint ptr @.str.6091 to i64
+  %r.1617 = ptrtoint ptr @.str.6097 to i64
   %r.1618.a0 = inttoptr i64 %r.1616 to ptr
   %r.1618.a1 = inttoptr i64 %r.1617 to ptr
   %r.1618 = call i64 @__nucleor_str_eq(ptr %r.1618.a0, ptr %r.1618.a1)
@@ -366297,7 +366594,7 @@ L638:
   br label %L640
 L640:
   %r.1622 = load i64, ptr %r.267
-  %r.1623 = ptrtoint ptr @.str.6092 to i64
+  %r.1623 = ptrtoint ptr @.str.6098 to i64
   %r.1624.a0 = inttoptr i64 %r.1622 to ptr
   %r.1624.a1 = inttoptr i64 %r.1623 to ptr
   %r.1624 = call i64 @__nucleor_str_eq(ptr %r.1624.a0, ptr %r.1624.a1)
@@ -366312,7 +366609,7 @@ L641:
   br label %L643
 L643:
   %r.1628 = load i64, ptr %r.267
-  %r.1629 = ptrtoint ptr @.str.6093 to i64
+  %r.1629 = ptrtoint ptr @.str.6099 to i64
   %r.1630.a0 = inttoptr i64 %r.1628 to ptr
   %r.1630.a1 = inttoptr i64 %r.1629 to ptr
   %r.1630 = call i64 @__nucleor_str_eq(ptr %r.1630.a0, ptr %r.1630.a1)
@@ -366346,7 +366643,7 @@ L648:
   br i1 %br.1641.cond, label %L649, label %L650
 L649:
   %r.1642 = load i64, ptr %r.267
-  %r.1643 = ptrtoint ptr @.str.6094 to i64
+  %r.1643 = ptrtoint ptr @.str.6100 to i64
   %r.1644.a0 = inttoptr i64 %r.1642 to ptr
   %r.1644.a1 = inttoptr i64 %r.1643 to ptr
   %r.1644 = call i64 @__nucleor_str_eq(ptr %r.1644.a0, ptr %r.1644.a1)
@@ -366364,7 +366661,7 @@ L652:
   br label %L654
 L653:
   %r.1651 = load i64, ptr %r.267
-  %r.1652 = ptrtoint ptr @.str.5836 to i64
+  %r.1652 = ptrtoint ptr @.str.5842 to i64
   %r.1653.a0 = inttoptr i64 %r.1651 to ptr
   %r.1653.a1 = inttoptr i64 %r.1652 to ptr
   %r.1653 = call i64 @__nucleor_str_eq(ptr %r.1653.a0, ptr %r.1653.a1)
@@ -366389,7 +366686,7 @@ L655:
   br label %L657
 L656:
   %r.1663 = load i64, ptr %r.267
-  %r.1664 = ptrtoint ptr @.str.6095 to i64
+  %r.1664 = ptrtoint ptr @.str.6101 to i64
   %r.1665.a0 = inttoptr i64 %r.1663 to ptr
   %r.1665.a1 = inttoptr i64 %r.1664 to ptr
   %r.1665 = call i64 @__nucleor_str_eq(ptr %r.1665.a0, ptr %r.1665.a1)
@@ -366414,7 +366711,7 @@ L658:
   br label %L660
 L659:
   %r.1675 = load i64, ptr %r.267
-  %r.1676 = ptrtoint ptr @.str.6096 to i64
+  %r.1676 = ptrtoint ptr @.str.6102 to i64
   %r.1677.a0 = inttoptr i64 %r.1675 to ptr
   %r.1677.a1 = inttoptr i64 %r.1676 to ptr
   %r.1677 = call i64 @__nucleor_str_eq(ptr %r.1677.a0, ptr %r.1677.a1)
@@ -366439,7 +366736,7 @@ L661:
   br label %L663
 L662:
   %r.1687 = load i64, ptr %r.267
-  %r.1688 = ptrtoint ptr @.str.6097 to i64
+  %r.1688 = ptrtoint ptr @.str.6103 to i64
   %r.1689.a0 = inttoptr i64 %r.1687 to ptr
   %r.1689.a1 = inttoptr i64 %r.1688 to ptr
   %r.1689 = call i64 @__nucleor_str_eq(ptr %r.1689.a0, ptr %r.1689.a1)
@@ -366464,7 +366761,7 @@ L664:
   br label %L666
 L665:
   %r.1699 = load i64, ptr %r.267
-  %r.1700 = ptrtoint ptr @.str.6098 to i64
+  %r.1700 = ptrtoint ptr @.str.6104 to i64
   %r.1701.a0 = inttoptr i64 %r.1699 to ptr
   %r.1701.a1 = inttoptr i64 %r.1700 to ptr
   %r.1701 = call i64 @__nucleor_str_eq(ptr %r.1701.a0, ptr %r.1701.a1)
@@ -366489,7 +366786,7 @@ L667:
   br label %L669
 L668:
   %r.1711 = load i64, ptr %r.267
-  %r.1712 = ptrtoint ptr @.str.6099 to i64
+  %r.1712 = ptrtoint ptr @.str.6105 to i64
   %r.1713.a0 = inttoptr i64 %r.1711 to ptr
   %r.1713.a1 = inttoptr i64 %r.1712 to ptr
   %r.1713 = call i64 @__nucleor_str_eq(ptr %r.1713.a0, ptr %r.1713.a1)
@@ -366514,7 +366811,7 @@ L670:
   br label %L672
 L671:
   %r.1723 = load i64, ptr %r.267
-  %r.1724 = ptrtoint ptr @.str.6100 to i64
+  %r.1724 = ptrtoint ptr @.str.6106 to i64
   %r.1725.a0 = inttoptr i64 %r.1723 to ptr
   %r.1725.a1 = inttoptr i64 %r.1724 to ptr
   %r.1725 = call i64 @__nucleor_str_eq(ptr %r.1725.a0, ptr %r.1725.a1)
@@ -366539,7 +366836,7 @@ L673:
   br label %L675
 L674:
   %r.1735 = load i64, ptr %r.267
-  %r.1736 = ptrtoint ptr @.str.6101 to i64
+  %r.1736 = ptrtoint ptr @.str.6107 to i64
   %r.1737.a0 = inttoptr i64 %r.1735 to ptr
   %r.1737.a1 = inttoptr i64 %r.1736 to ptr
   %r.1737 = call i64 @__nucleor_str_eq(ptr %r.1737.a0, ptr %r.1737.a1)
@@ -366564,7 +366861,7 @@ L676:
   br label %L678
 L677:
   %r.1747 = load i64, ptr %r.267
-  %r.1748 = ptrtoint ptr @.str.6102 to i64
+  %r.1748 = ptrtoint ptr @.str.6108 to i64
   %r.1749.a0 = inttoptr i64 %r.1747 to ptr
   %r.1749.a1 = inttoptr i64 %r.1748 to ptr
   %r.1749 = call i64 @__nucleor_str_eq(ptr %r.1749.a0, ptr %r.1749.a1)
@@ -366592,9 +366889,9 @@ L651:
   %br.1758.cond = icmp ne i64 %r.1758, 0
   br i1 %br.1758.cond, label %L679, label %L681
 L679:
-  %r.1759 = ptrtoint ptr @.str.6103 to i64
+  %r.1759 = ptrtoint ptr @.str.6109 to i64
   %r.1760 = load i64, ptr %r.267
-  %r.1761 = ptrtoint ptr @.str.6104 to i64
+  %r.1761 = ptrtoint ptr @.str.6110 to i64
   %r.1762.a0 = inttoptr i64 %r.1760 to ptr
   %r.1762.a1 = inttoptr i64 %r.1761 to ptr
   %r.1762.rv = call ptr @__nucleor_str_concat(ptr %r.1762.a0, ptr %r.1762.a1)
@@ -366606,13 +366903,13 @@ L679:
   %r.1764.a0 = inttoptr i64 %r.1763 to ptr
   call void @__nucleor_print_str(ptr %r.1764.a0)
   %r.1764 = add i64 0, 0
-  %r.1765 = ptrtoint ptr @.str.6105 to i64
+  %r.1765 = ptrtoint ptr @.str.6111 to i64
   %r.1766.a0 = inttoptr i64 %r.1765 to ptr
   call void @__nucleor_print_str(ptr %r.1766.a0)
   %r.1766 = add i64 0, 0
-  %r.1767 = ptrtoint ptr @.str.6106 to i64
+  %r.1767 = ptrtoint ptr @.str.6112 to i64
   %r.1768 = load i64, ptr %r.267
-  %r.1769 = ptrtoint ptr @.str.6107 to i64
+  %r.1769 = ptrtoint ptr @.str.6113 to i64
   %r.1770.a0 = inttoptr i64 %r.1768 to ptr
   %r.1770.a1 = inttoptr i64 %r.1769 to ptr
   %r.1770.rv = call ptr @__nucleor_str_concat(ptr %r.1770.a0, ptr %r.1770.a1)
@@ -366641,9 +366938,9 @@ L683:
   %br.1777.cond = icmp ne i64 %r.1777, 0
   br i1 %br.1777.cond, label %L684, label %L686
 L684:
-  %r.1778 = ptrtoint ptr @.str.6108 to i64
+  %r.1778 = ptrtoint ptr @.str.6114 to i64
   %r.1779 = load i64, ptr %r.267
-  %r.1780 = ptrtoint ptr @.str.6109 to i64
+  %r.1780 = ptrtoint ptr @.str.6115 to i64
   %r.1781.a0 = inttoptr i64 %r.1779 to ptr
   %r.1781.a1 = inttoptr i64 %r.1780 to ptr
   %r.1781.rv = call ptr @__nucleor_str_concat(ptr %r.1781.a0, ptr %r.1781.a1)
@@ -366655,9 +366952,9 @@ L684:
   %r.1783.a0 = inttoptr i64 %r.1782 to ptr
   call void @__nucleor_print_str(ptr %r.1783.a0)
   %r.1783 = add i64 0, 0
-  %r.1784 = ptrtoint ptr @.str.6110 to i64
+  %r.1784 = ptrtoint ptr @.str.6116 to i64
   %r.1785 = load i64, ptr %r.267
-  %r.1786 = ptrtoint ptr @.str.6111 to i64
+  %r.1786 = ptrtoint ptr @.str.6117 to i64
   %r.1787.a0 = inttoptr i64 %r.1785 to ptr
   %r.1787.a1 = inttoptr i64 %r.1786 to ptr
   %r.1787.rv = call ptr @__nucleor_str_concat(ptr %r.1787.a0, ptr %r.1787.a1)
@@ -366990,7 +367287,7 @@ L752:
   %r.1907 = ptrtoint ptr %r.1907.rv to i64
   store i64 %r.1907, ptr %r.1903
   %r.1908 = load i64, ptr %r.267
-  %r.1909 = ptrtoint ptr @.str.6091 to i64
+  %r.1909 = ptrtoint ptr @.str.6097 to i64
   %r.1910.a0 = inttoptr i64 %r.1908 to ptr
   %r.1910.a1 = inttoptr i64 %r.1909 to ptr
   %r.1910 = call i64 @__nucleor_str_eq(ptr %r.1910.a0, ptr %r.1910.a1)
@@ -367023,12 +367320,12 @@ L755:
   %br.1923.cond = icmp ne i64 %r.1923, 0
   br i1 %br.1923.cond, label %L756, label %L758
 L756:
-  %r.1924 = ptrtoint ptr @.str.6112 to i64
+  %r.1924 = ptrtoint ptr @.str.6118 to i64
   store i64 %r.1924, ptr %r.1903
   br label %L758
 L758:
   %r.1925 = load i64, ptr %r.267
-  %r.1926 = ptrtoint ptr @.str.6092 to i64
+  %r.1926 = ptrtoint ptr @.str.6098 to i64
   %r.1927.a0 = inttoptr i64 %r.1925 to ptr
   %r.1927.a1 = inttoptr i64 %r.1926 to ptr
   %r.1927 = call i64 @__nucleor_str_eq(ptr %r.1927.a0, ptr %r.1927.a1)
@@ -367061,12 +367358,12 @@ L761:
   %br.1940.cond = icmp ne i64 %r.1940, 0
   br i1 %br.1940.cond, label %L762, label %L764
 L762:
-  %r.1941 = ptrtoint ptr @.str.6113 to i64
+  %r.1941 = ptrtoint ptr @.str.6119 to i64
   store i64 %r.1941, ptr %r.1903
   br label %L764
 L764:
   %r.1942 = load i64, ptr %r.267
-  %r.1943 = ptrtoint ptr @.str.6093 to i64
+  %r.1943 = ptrtoint ptr @.str.6099 to i64
   %r.1944.a0 = inttoptr i64 %r.1942 to ptr
   %r.1944.a1 = inttoptr i64 %r.1943 to ptr
   %r.1944 = call i64 @__nucleor_str_eq(ptr %r.1944.a0, ptr %r.1944.a1)
@@ -367099,7 +367396,7 @@ L767:
   %br.1957.cond = icmp ne i64 %r.1957, 0
   br i1 %br.1957.cond, label %L768, label %L770
 L768:
-  %r.1958 = ptrtoint ptr @.str.6114 to i64
+  %r.1958 = ptrtoint ptr @.str.6120 to i64
   store i64 %r.1958, ptr %r.1903
   br label %L770
 L770:
@@ -367382,7 +367679,7 @@ L8:
   %r.51.a0 = inttoptr i64 %r.48 to ptr
   %r.51.rv = call ptr @__nucleor_str_substring(ptr %r.51.a0, i64 %r.49, i64 %r.50)
   %r.51 = ptrtoint ptr %r.51.rv to i64
-  %r.52 = ptrtoint ptr @.str.6115 to i64
+  %r.52 = ptrtoint ptr @.str.6121 to i64
   %r.53.a0 = inttoptr i64 %r.51 to ptr
   %r.53.a1 = inttoptr i64 %r.52 to ptr
   %r.53 = call i64 @__nucleor_str_eq(ptr %r.53.a0, ptr %r.53.a1)
@@ -368314,7 +368611,7 @@ bb.entry:
   %r.2 = alloca i64
   %r.3 = add i64 %p.1, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = ptrtoint ptr @.str.6116 to i64
+  %r.5 = ptrtoint ptr @.str.6122 to i64
   store i64 %r.5, ptr %r.4
   %r.7 = load i64, ptr %r.4
   %r.8.a0 = inttoptr i64 %r.7 to ptr
@@ -368542,9 +368839,9 @@ L34:
   %r.107.a0 = inttoptr i64 %r.105 to ptr
   call void @__nucleor_vec_push(ptr %r.107.a0, i64 %r.106)
   %r.107 = add i64 0, 0
-  %r.108 = ptrtoint ptr @.str.6117 to i64
+  %r.108 = ptrtoint ptr @.str.6123 to i64
   %r.109 = load i64, ptr %r.80
-  %r.110 = ptrtoint ptr @.str.6118 to i64
+  %r.110 = ptrtoint ptr @.str.6124 to i64
   %r.111.a0 = inttoptr i64 %r.109 to ptr
   %r.111.a1 = inttoptr i64 %r.110 to ptr
   %r.111.rv = call ptr @__nucleor_str_concat(ptr %r.111.a0, ptr %r.111.a1)
@@ -368556,7 +368853,7 @@ L34:
   %r.113.a0 = inttoptr i64 %r.112 to ptr
   call void @__nucleor_print_str(ptr %r.113.a0)
   %r.113 = add i64 0, 0
-  %r.114 = ptrtoint ptr @.str.6119 to i64
+  %r.114 = ptrtoint ptr @.str.6125 to i64
   %r.115 = load i64, ptr %r.85
   %r.116.a0 = inttoptr i64 %r.114 to ptr
   %r.116.a1 = inttoptr i64 %r.115 to ptr
@@ -368565,7 +368862,7 @@ L34:
   %r.117.a0 = inttoptr i64 %r.116 to ptr
   call void @__nucleor_print_str(ptr %r.117.a0)
   %r.117 = add i64 0, 0
-  %r.118 = ptrtoint ptr @.str.6120 to i64
+  %r.118 = ptrtoint ptr @.str.6126 to i64
   %r.119.a0 = inttoptr i64 %r.118 to ptr
   call void @__nucleor_print_str(ptr %r.119.a0)
   %r.119 = add i64 0, 0
@@ -368675,7 +368972,7 @@ bb.entry:
   %r.2 = alloca i64
   %r.3 = add i64 %p.1, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = ptrtoint ptr @.str.6116 to i64
+  %r.5 = ptrtoint ptr @.str.6122 to i64
   store i64 %r.5, ptr %r.4
   %r.7 = load i64, ptr %r.4
   %r.8.a0 = inttoptr i64 %r.7 to ptr
@@ -369805,13 +370102,13 @@ L153:
   %br.534.cond = icmp ne i64 %r.534, 0
   br i1 %br.534.cond, label %L154, label %L155
 L154:
-  %r.535 = ptrtoint ptr @.str.6121 to i64
+  %r.535 = ptrtoint ptr @.str.6127 to i64
   %r.536 = load i64, ptr %r.243
-  %r.537 = ptrtoint ptr @.str.6122 to i64
+  %r.537 = ptrtoint ptr @.str.6128 to i64
   %r.538 = load i64, ptr %r.243
-  %r.539 = ptrtoint ptr @.str.6123 to i64
+  %r.539 = ptrtoint ptr @.str.6129 to i64
   %r.540 = load i64, ptr %r.243
-  %r.541 = ptrtoint ptr @.str.6124 to i64
+  %r.541 = ptrtoint ptr @.str.6130 to i64
   %r.542.a0 = inttoptr i64 %r.540 to ptr
   %r.542.a1 = inttoptr i64 %r.541 to ptr
   %r.542.rv = call ptr @__nucleor_str_concat(ptr %r.542.a0, ptr %r.542.a1)
@@ -369833,9 +370130,9 @@ L154:
   %r.546.a0 = inttoptr i64 %r.545 to ptr
   call void @__nucleor_print_str(ptr %r.546.a0)
   %r.546 = add i64 0, 0
-  %r.547 = ptrtoint ptr @.str.6125 to i64
+  %r.547 = ptrtoint ptr @.str.6131 to i64
   %r.548 = load i64, ptr %r.243
-  %r.549 = ptrtoint ptr @.str.6126 to i64
+  %r.549 = ptrtoint ptr @.str.6132 to i64
   %r.550.a0 = inttoptr i64 %r.548 to ptr
   %r.550.a1 = inttoptr i64 %r.549 to ptr
   %r.550.rv = call ptr @__nucleor_str_concat(ptr %r.550.a0, ptr %r.550.a1)
@@ -369849,9 +370146,9 @@ L154:
   %r.552 = add i64 0, 0
   br label %L156
 L155:
-  %r.553 = ptrtoint ptr @.str.6127 to i64
+  %r.553 = ptrtoint ptr @.str.6133 to i64
   %r.554 = load i64, ptr %r.243
-  %r.555 = ptrtoint ptr @.str.6128 to i64
+  %r.555 = ptrtoint ptr @.str.6134 to i64
   %r.556.a0 = inttoptr i64 %r.554 to ptr
   %r.556.a1 = inttoptr i64 %r.555 to ptr
   %r.556.rv = call ptr @__nucleor_str_concat(ptr %r.556.a0, ptr %r.556.a1)
@@ -369863,9 +370160,9 @@ L155:
   %r.558.a0 = inttoptr i64 %r.557 to ptr
   call void @__nucleor_print_str(ptr %r.558.a0)
   %r.558 = add i64 0, 0
-  %r.559 = ptrtoint ptr @.str.6129 to i64
+  %r.559 = ptrtoint ptr @.str.6135 to i64
   %r.560 = load i64, ptr %r.243
-  %r.561 = ptrtoint ptr @.str.6130 to i64
+  %r.561 = ptrtoint ptr @.str.6136 to i64
   %r.562.a0 = inttoptr i64 %r.560 to ptr
   %r.562.a1 = inttoptr i64 %r.561 to ptr
   %r.562.rv = call ptr @__nucleor_str_concat(ptr %r.562.a0, ptr %r.562.a1)
@@ -369877,7 +370174,7 @@ L155:
   %r.564.a0 = inttoptr i64 %r.563 to ptr
   call void @__nucleor_print_str(ptr %r.564.a0)
   %r.564 = add i64 0, 0
-  %r.565 = ptrtoint ptr @.str.6131 to i64
+  %r.565 = ptrtoint ptr @.str.6137 to i64
   %r.566.a0 = inttoptr i64 %r.565 to ptr
   call void @__nucleor_print_str(ptr %r.566.a0)
   %r.566 = add i64 0, 0
@@ -369885,9 +370182,9 @@ L155:
 L156:
   br label %L81
 L80:
-  %r.567 = ptrtoint ptr @.str.6132 to i64
+  %r.567 = ptrtoint ptr @.str.6138 to i64
   %r.568 = load i64, ptr %r.80
-  %r.569 = ptrtoint ptr @.str.6133 to i64
+  %r.569 = ptrtoint ptr @.str.6139 to i64
   %r.570.a0 = inttoptr i64 %r.568 to ptr
   %r.570.a1 = inttoptr i64 %r.569 to ptr
   %r.570.rv = call ptr @__nucleor_str_concat(ptr %r.570.a0, ptr %r.570.a1)
@@ -369962,15 +370259,15 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.6134 to i64
+  %r.3 = ptrtoint ptr @.str.6140 to i64
   store i64 %r.3, ptr %r.2
-  %r.5 = ptrtoint ptr @.str.6135 to i64
+  %r.5 = ptrtoint ptr @.str.6141 to i64
   store i64 %r.5, ptr %r.4
-  %r.7 = ptrtoint ptr @.str.6136 to i64
+  %r.7 = ptrtoint ptr @.str.6142 to i64
   store i64 %r.7, ptr %r.6
-  %r.9 = ptrtoint ptr @.str.6137 to i64
+  %r.9 = ptrtoint ptr @.str.6143 to i64
   store i64 %r.9, ptr %r.8
-  %r.11 = ptrtoint ptr @.str.6138 to i64
+  %r.11 = ptrtoint ptr @.str.6144 to i64
   store i64 %r.11, ptr %r.10
   %r.13 = add i64 0, 0
   store i64 %r.13, ptr %r.12
@@ -370133,7 +370430,7 @@ L23:
   br i1 %br.85.cond, label %L24, label %L25
 L24:
   %r.86 = load i64, ptr %r.0
-  %r.87 = ptrtoint ptr @.str.6139 to i64
+  %r.87 = ptrtoint ptr @.str.6145 to i64
   %r.88.a0 = inttoptr i64 %r.86 to ptr
   %r.88.a1 = inttoptr i64 %r.87 to ptr
   %r.88 = call i64 @__nucleor_str_contains(ptr %r.88.a0, ptr %r.88.a1)
@@ -370168,7 +370465,7 @@ L30:
   %r.99 = add i64 0, 0
   ret i64 %r.99
 L32:
-  %r.100 = ptrtoint ptr @.str.6140 to i64
+  %r.100 = ptrtoint ptr @.str.6146 to i64
   %r.101.a0 = inttoptr i64 %r.100 to ptr
   call void @__nucleor_print_str(ptr %r.101.a0)
   %r.101 = add i64 0, 0
@@ -370888,7 +371185,7 @@ L105:
   br i1 %br.270.cond, label %L106, label %L107
 L106:
   %r.271 = load i64, ptr %r.6
-  %r.272 = ptrtoint ptr @.str.6141 to i64
+  %r.272 = ptrtoint ptr @.str.6147 to i64
   %r.273.a1 = inttoptr i64 %r.272 to ptr
   call void @__nucleor_sb_append(i64 %r.271, ptr %r.273.a1)
   %r.273 = add i64 0, 0
@@ -371159,7 +371456,7 @@ L17:
   store i64 %r.38, ptr %r.31
   br label %L15
 L15:
-  %r.40 = ptrtoint ptr @.str.6142 to i64
+  %r.40 = ptrtoint ptr @.str.6148 to i64
   store i64 %r.40, ptr %r.39
   %r.42 = add i64 0, 0
   store i64 %r.42, ptr %r.41
@@ -371238,23 +371535,23 @@ L20:
 
 define i64 @compiler_version_label() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6143 to i64
+  %r.0 = ptrtoint ptr @.str.6149 to i64
   ret i64 %r.0
 }
 
 define i64 @compiler_backend_label() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6144 to i64
+  %r.0 = ptrtoint ptr @.str.6150 to i64
   ret i64 %r.0
 }
 
 define i64 @compiler_identity() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6145 to i64
+  %r.0 = ptrtoint ptr @.str.6151 to i64
   %r.1 = call i64 @compiler_version_label()
-  %r.2 = ptrtoint ptr @.str.6146 to i64
+  %r.2 = ptrtoint ptr @.str.6152 to i64
   %r.3 = call i64 @compiler_backend_label()
-  %r.4 = ptrtoint ptr @.str.6147 to i64
+  %r.4 = ptrtoint ptr @.str.6153 to i64
   %r.5.a0 = inttoptr i64 %r.3 to ptr
   %r.5.a1 = inttoptr i64 %r.4 to ptr
   %r.5.rv = call ptr @__nucleor_str_concat(ptr %r.5.a0, ptr %r.5.a1)
@@ -371350,7 +371647,7 @@ bb.entry:
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = load i64, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.6148 to i64
+  %r.3 = ptrtoint ptr @.str.6154 to i64
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
   %r.4 = call i64 @__nucleor_str_eq(ptr %r.4.a0, ptr %r.4.a1)
@@ -371365,7 +371662,7 @@ L0:
   br label %L2
 L1:
   %r.9 = load i64, ptr %r.0
-  %r.10 = ptrtoint ptr @.str.6149 to i64
+  %r.10 = ptrtoint ptr @.str.6155 to i64
   %r.11.a0 = inttoptr i64 %r.9 to ptr
   %r.11.a1 = inttoptr i64 %r.10 to ptr
   %r.11 = call i64 @__nucleor_str_eq(ptr %r.11.a0, ptr %r.11.a1)
@@ -371387,7 +371684,7 @@ L3:
   br label %L5
 L4:
   %r.19 = load i64, ptr %r.0
-  %r.20 = ptrtoint ptr @.str.6150 to i64
+  %r.20 = ptrtoint ptr @.str.6156 to i64
   %r.21.a0 = inttoptr i64 %r.19 to ptr
   %r.21.a1 = inttoptr i64 %r.20 to ptr
   %r.21 = call i64 @__nucleor_str_eq(ptr %r.21.a0, ptr %r.21.a1)
@@ -371409,7 +371706,7 @@ L6:
   br label %L8
 L7:
   %r.29 = load i64, ptr %r.0
-  %r.30 = ptrtoint ptr @.str.6151 to i64
+  %r.30 = ptrtoint ptr @.str.6157 to i64
   %r.31.a0 = inttoptr i64 %r.29 to ptr
   %r.31.a1 = inttoptr i64 %r.30 to ptr
   %r.31 = call i64 @__nucleor_str_eq(ptr %r.31.a0, ptr %r.31.a1)
@@ -371431,7 +371728,7 @@ L9:
   br label %L11
 L10:
   %r.39 = load i64, ptr %r.0
-  %r.40 = ptrtoint ptr @.str.6152 to i64
+  %r.40 = ptrtoint ptr @.str.6158 to i64
   %r.41.a0 = inttoptr i64 %r.39 to ptr
   %r.41.a1 = inttoptr i64 %r.40 to ptr
   %r.41 = call i64 @__nucleor_str_eq(ptr %r.41.a0, ptr %r.41.a1)
@@ -371453,7 +371750,7 @@ L12:
   br label %L14
 L13:
   %r.49 = load i64, ptr %r.0
-  %r.50 = ptrtoint ptr @.str.5953 to i64
+  %r.50 = ptrtoint ptr @.str.5959 to i64
   %r.51.a0 = inttoptr i64 %r.49 to ptr
   %r.51.a1 = inttoptr i64 %r.50 to ptr
   %r.51 = call i64 @__nucleor_str_eq(ptr %r.51.a0, ptr %r.51.a1)
@@ -371475,7 +371772,7 @@ L15:
   br label %L17
 L16:
   %r.59 = load i64, ptr %r.0
-  %r.60 = ptrtoint ptr @.str.6153 to i64
+  %r.60 = ptrtoint ptr @.str.6159 to i64
   %r.61.a0 = inttoptr i64 %r.59 to ptr
   %r.61.a1 = inttoptr i64 %r.60 to ptr
   %r.61 = call i64 @__nucleor_str_eq(ptr %r.61.a0, ptr %r.61.a1)
@@ -371497,7 +371794,7 @@ L18:
   br label %L20
 L19:
   %r.69 = load i64, ptr %r.0
-  %r.70 = ptrtoint ptr @.str.6154 to i64
+  %r.70 = ptrtoint ptr @.str.6160 to i64
   %r.71.a0 = inttoptr i64 %r.69 to ptr
   %r.71.a1 = inttoptr i64 %r.70 to ptr
   %r.71 = call i64 @__nucleor_str_eq(ptr %r.71.a0, ptr %r.71.a1)
@@ -371519,7 +371816,7 @@ L21:
   br label %L23
 L22:
   %r.79 = load i64, ptr %r.0
-  %r.80 = ptrtoint ptr @.str.5724 to i64
+  %r.80 = ptrtoint ptr @.str.5730 to i64
   %r.81.a0 = inttoptr i64 %r.79 to ptr
   %r.81.a1 = inttoptr i64 %r.80 to ptr
   %r.81 = call i64 @__nucleor_str_eq(ptr %r.81.a0, ptr %r.81.a1)
@@ -371541,7 +371838,7 @@ L24:
   br label %L26
 L25:
   %r.89 = load i64, ptr %r.0
-  %r.90 = ptrtoint ptr @.str.6155 to i64
+  %r.90 = ptrtoint ptr @.str.6161 to i64
   %r.91.a0 = inttoptr i64 %r.89 to ptr
   %r.91.a1 = inttoptr i64 %r.90 to ptr
   %r.91 = call i64 @__nucleor_str_eq(ptr %r.91.a0, ptr %r.91.a1)
@@ -371563,7 +371860,7 @@ L27:
   br label %L29
 L28:
   %r.99 = load i64, ptr %r.0
-  %r.100 = ptrtoint ptr @.str.6156 to i64
+  %r.100 = ptrtoint ptr @.str.6162 to i64
   %r.101.a0 = inttoptr i64 %r.99 to ptr
   %r.101.a1 = inttoptr i64 %r.100 to ptr
   %r.101 = call i64 @__nucleor_str_eq(ptr %r.101.a0, ptr %r.101.a1)
@@ -371585,7 +371882,7 @@ L30:
   br label %L32
 L31:
   %r.109 = load i64, ptr %r.0
-  %r.110 = ptrtoint ptr @.str.6157 to i64
+  %r.110 = ptrtoint ptr @.str.6163 to i64
   %r.111.a0 = inttoptr i64 %r.109 to ptr
   %r.111.a1 = inttoptr i64 %r.110 to ptr
   %r.111 = call i64 @__nucleor_str_eq(ptr %r.111.a0, ptr %r.111.a1)
@@ -371607,7 +371904,7 @@ L33:
   br label %L35
 L34:
   %r.119 = load i64, ptr %r.0
-  %r.120 = ptrtoint ptr @.str.6158 to i64
+  %r.120 = ptrtoint ptr @.str.6164 to i64
   %r.121.a0 = inttoptr i64 %r.119 to ptr
   %r.121.a1 = inttoptr i64 %r.120 to ptr
   %r.121 = call i64 @__nucleor_str_eq(ptr %r.121.a0, ptr %r.121.a1)
@@ -371629,7 +371926,7 @@ L36:
   br label %L38
 L37:
   %r.129 = load i64, ptr %r.0
-  %r.130 = ptrtoint ptr @.str.6159 to i64
+  %r.130 = ptrtoint ptr @.str.6165 to i64
   %r.131.a0 = inttoptr i64 %r.129 to ptr
   %r.131.a1 = inttoptr i64 %r.130 to ptr
   %r.131 = call i64 @__nucleor_str_eq(ptr %r.131.a0, ptr %r.131.a1)
@@ -371651,7 +371948,7 @@ L39:
   br label %L41
 L40:
   %r.139 = load i64, ptr %r.0
-  %r.140 = ptrtoint ptr @.str.6160 to i64
+  %r.140 = ptrtoint ptr @.str.6166 to i64
   %r.141.a0 = inttoptr i64 %r.139 to ptr
   %r.141.a1 = inttoptr i64 %r.140 to ptr
   %r.141 = call i64 @__nucleor_str_eq(ptr %r.141.a0, ptr %r.141.a1)
@@ -371673,7 +371970,7 @@ L42:
   br label %L44
 L43:
   %r.149 = load i64, ptr %r.0
-  %r.150 = ptrtoint ptr @.str.6161 to i64
+  %r.150 = ptrtoint ptr @.str.6167 to i64
   %r.151.a0 = inttoptr i64 %r.149 to ptr
   %r.151.a1 = inttoptr i64 %r.150 to ptr
   %r.151 = call i64 @__nucleor_str_eq(ptr %r.151.a0, ptr %r.151.a1)
@@ -371695,7 +371992,7 @@ L45:
   br label %L47
 L46:
   %r.159 = load i64, ptr %r.0
-  %r.160 = ptrtoint ptr @.str.6162 to i64
+  %r.160 = ptrtoint ptr @.str.6168 to i64
   %r.161.a0 = inttoptr i64 %r.159 to ptr
   %r.161.a1 = inttoptr i64 %r.160 to ptr
   %r.161 = call i64 @__nucleor_str_eq(ptr %r.161.a0, ptr %r.161.a1)
@@ -371717,7 +372014,7 @@ L48:
   br label %L50
 L49:
   %r.169 = load i64, ptr %r.0
-  %r.170 = ptrtoint ptr @.str.6163 to i64
+  %r.170 = ptrtoint ptr @.str.6169 to i64
   %r.171.a0 = inttoptr i64 %r.169 to ptr
   %r.171.a1 = inttoptr i64 %r.170 to ptr
   %r.171 = call i64 @__nucleor_str_eq(ptr %r.171.a0, ptr %r.171.a1)
@@ -371783,7 +372080,7 @@ L57:
   br label %L59
 L58:
   %r.199 = load i64, ptr %r.0
-  %r.200 = ptrtoint ptr @.str.6164 to i64
+  %r.200 = ptrtoint ptr @.str.6170 to i64
   %r.201.a0 = inttoptr i64 %r.199 to ptr
   %r.201.a1 = inttoptr i64 %r.200 to ptr
   %r.201 = call i64 @__nucleor_str_eq(ptr %r.201.a0, ptr %r.201.a1)
@@ -371805,7 +372102,7 @@ L60:
   br label %L62
 L61:
   %r.209 = load i64, ptr %r.0
-  %r.210 = ptrtoint ptr @.str.6165 to i64
+  %r.210 = ptrtoint ptr @.str.6171 to i64
   %r.211.a0 = inttoptr i64 %r.209 to ptr
   %r.211.a1 = inttoptr i64 %r.210 to ptr
   %r.211 = call i64 @__nucleor_str_eq(ptr %r.211.a0, ptr %r.211.a1)
@@ -371827,7 +372124,7 @@ L63:
   br label %L65
 L64:
   %r.219 = load i64, ptr %r.0
-  %r.220 = ptrtoint ptr @.str.6166 to i64
+  %r.220 = ptrtoint ptr @.str.6172 to i64
   %r.221.a0 = inttoptr i64 %r.219 to ptr
   %r.221.a1 = inttoptr i64 %r.220 to ptr
   %r.221 = call i64 @__nucleor_str_eq(ptr %r.221.a0, ptr %r.221.a1)
@@ -371865,7 +372162,7 @@ bb.entry:
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = load i64, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.6148 to i64
+  %r.3 = ptrtoint ptr @.str.6154 to i64
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
   %r.4 = call i64 @__nucleor_str_eq(ptr %r.4.a0, ptr %r.4.a1)
@@ -371880,7 +372177,7 @@ L0:
   br label %L2
 L1:
   %r.9 = load i64, ptr %r.0
-  %r.10 = ptrtoint ptr @.str.6149 to i64
+  %r.10 = ptrtoint ptr @.str.6155 to i64
   %r.11.a0 = inttoptr i64 %r.9 to ptr
   %r.11.a1 = inttoptr i64 %r.10 to ptr
   %r.11 = call i64 @__nucleor_str_eq(ptr %r.11.a0, ptr %r.11.a1)
@@ -371902,7 +372199,7 @@ L3:
   br label %L5
 L4:
   %r.19 = load i64, ptr %r.0
-  %r.20 = ptrtoint ptr @.str.6150 to i64
+  %r.20 = ptrtoint ptr @.str.6156 to i64
   %r.21.a0 = inttoptr i64 %r.19 to ptr
   %r.21.a1 = inttoptr i64 %r.20 to ptr
   %r.21 = call i64 @__nucleor_str_eq(ptr %r.21.a0, ptr %r.21.a1)
@@ -371924,7 +372221,7 @@ L6:
   br label %L8
 L7:
   %r.29 = load i64, ptr %r.0
-  %r.30 = ptrtoint ptr @.str.6151 to i64
+  %r.30 = ptrtoint ptr @.str.6157 to i64
   %r.31.a0 = inttoptr i64 %r.29 to ptr
   %r.31.a1 = inttoptr i64 %r.30 to ptr
   %r.31 = call i64 @__nucleor_str_eq(ptr %r.31.a0, ptr %r.31.a1)
@@ -371946,7 +372243,7 @@ L9:
   br label %L11
 L10:
   %r.39 = load i64, ptr %r.0
-  %r.40 = ptrtoint ptr @.str.6152 to i64
+  %r.40 = ptrtoint ptr @.str.6158 to i64
   %r.41.a0 = inttoptr i64 %r.39 to ptr
   %r.41.a1 = inttoptr i64 %r.40 to ptr
   %r.41 = call i64 @__nucleor_str_eq(ptr %r.41.a0, ptr %r.41.a1)
@@ -371968,7 +372265,7 @@ L12:
   br label %L14
 L13:
   %r.49 = load i64, ptr %r.0
-  %r.50 = ptrtoint ptr @.str.5953 to i64
+  %r.50 = ptrtoint ptr @.str.5959 to i64
   %r.51.a0 = inttoptr i64 %r.49 to ptr
   %r.51.a1 = inttoptr i64 %r.50 to ptr
   %r.51 = call i64 @__nucleor_str_eq(ptr %r.51.a0, ptr %r.51.a1)
@@ -371990,7 +372287,7 @@ L15:
   br label %L17
 L16:
   %r.59 = load i64, ptr %r.0
-  %r.60 = ptrtoint ptr @.str.6153 to i64
+  %r.60 = ptrtoint ptr @.str.6159 to i64
   %r.61.a0 = inttoptr i64 %r.59 to ptr
   %r.61.a1 = inttoptr i64 %r.60 to ptr
   %r.61 = call i64 @__nucleor_str_eq(ptr %r.61.a0, ptr %r.61.a1)
@@ -372012,7 +372309,7 @@ L18:
   br label %L20
 L19:
   %r.69 = load i64, ptr %r.0
-  %r.70 = ptrtoint ptr @.str.6154 to i64
+  %r.70 = ptrtoint ptr @.str.6160 to i64
   %r.71.a0 = inttoptr i64 %r.69 to ptr
   %r.71.a1 = inttoptr i64 %r.70 to ptr
   %r.71 = call i64 @__nucleor_str_eq(ptr %r.71.a0, ptr %r.71.a1)
@@ -372034,7 +372331,7 @@ L21:
   br label %L23
 L22:
   %r.79 = load i64, ptr %r.0
-  %r.80 = ptrtoint ptr @.str.6157 to i64
+  %r.80 = ptrtoint ptr @.str.6163 to i64
   %r.81.a0 = inttoptr i64 %r.79 to ptr
   %r.81.a1 = inttoptr i64 %r.80 to ptr
   %r.81 = call i64 @__nucleor_str_eq(ptr %r.81.a0, ptr %r.81.a1)
@@ -372056,7 +372353,7 @@ L24:
   br label %L26
 L25:
   %r.89 = load i64, ptr %r.0
-  %r.90 = ptrtoint ptr @.str.6159 to i64
+  %r.90 = ptrtoint ptr @.str.6165 to i64
   %r.91.a0 = inttoptr i64 %r.89 to ptr
   %r.91.a1 = inttoptr i64 %r.90 to ptr
   %r.91 = call i64 @__nucleor_str_eq(ptr %r.91.a0, ptr %r.91.a1)
@@ -372078,7 +372375,7 @@ L27:
   br label %L29
 L28:
   %r.99 = load i64, ptr %r.0
-  %r.100 = ptrtoint ptr @.str.6160 to i64
+  %r.100 = ptrtoint ptr @.str.6166 to i64
   %r.101.a0 = inttoptr i64 %r.99 to ptr
   %r.101.a1 = inttoptr i64 %r.100 to ptr
   %r.101 = call i64 @__nucleor_str_eq(ptr %r.101.a0, ptr %r.101.a1)
@@ -372100,7 +372397,7 @@ L30:
   br label %L32
 L31:
   %r.109 = load i64, ptr %r.0
-  %r.110 = ptrtoint ptr @.str.6166 to i64
+  %r.110 = ptrtoint ptr @.str.6172 to i64
   %r.111.a0 = inttoptr i64 %r.109 to ptr
   %r.111.a1 = inttoptr i64 %r.110 to ptr
   %r.111 = call i64 @__nucleor_str_eq(ptr %r.111.a0, ptr %r.111.a1)
@@ -372132,7 +372429,7 @@ bb.entry:
   %r.33 = alloca i64
   %r.37 = alloca i64
   %r.42 = alloca i64
-  %r.1 = ptrtoint ptr @.str.6167 to i64
+  %r.1 = ptrtoint ptr @.str.6173 to i64
   %r.2.a0 = inttoptr i64 %r.1 to ptr
   %r.2.rv = call ptr @__nucleor_file_read_string(ptr %r.2.a0)
   %r.2 = ptrtoint ptr %r.2.rv to i64
@@ -372152,7 +372449,7 @@ L2:
   %r.9 = load i64, ptr %r.0
   %r.10 = call i64 @strip_spaces(i64 %r.9)
   store i64 %r.10, ptr %r.8
-  %r.12 = ptrtoint ptr @.str.6168 to i64
+  %r.12 = ptrtoint ptr @.str.6174 to i64
   store i64 %r.12, ptr %r.11
   %r.14 = load i64, ptr %r.8
   %r.15.a0 = inttoptr i64 %r.14 to ptr
@@ -372335,11 +372632,11 @@ bb.entry:
   %br.13.cond = icmp ne i64 %r.13, 0
   br i1 %br.13.cond, label %L0, label %L2
 L0:
-  %r.14 = ptrtoint ptr @.str.5582 to i64
+  %r.14 = ptrtoint ptr @.str.5587 to i64
   store i64 %r.14, ptr %r.8
   br label %L2
 L2:
-  %r.16 = ptrtoint ptr @.str.6169 to i64
+  %r.16 = ptrtoint ptr @.str.6175 to i64
   %r.17 = call i64 @host_exe_suffix()
   %r.18.a0 = inttoptr i64 %r.16 to ptr
   %r.18.a1 = inttoptr i64 %r.17 to ptr
@@ -372359,7 +372656,7 @@ L2:
   %r.24 = ptrtoint ptr %r.24.rv to i64
   %r.25 = call i64 @host_shell_path(i64 %r.24)
   store i64 %r.25, ptr %r.19
-  %r.27 = ptrtoint ptr @.str.6170 to i64
+  %r.27 = ptrtoint ptr @.str.6176 to i64
   %r.28 = call i64 @host_target_path_sep()
   %r.29.a0 = inttoptr i64 %r.27 to ptr
   %r.29.a1 = inttoptr i64 %r.28 to ptr
@@ -372372,7 +372669,7 @@ L2:
   %r.31 = ptrtoint ptr %r.31.rv to i64
   %r.32 = call i64 @host_shell_path(i64 %r.31)
   store i64 %r.32, ptr %r.26
-  %r.34 = ptrtoint ptr @.str.6171 to i64
+  %r.34 = ptrtoint ptr @.str.6177 to i64
   %r.35 = call i64 @host_target_path_sep()
   %r.36.a0 = inttoptr i64 %r.34 to ptr
   %r.36.a1 = inttoptr i64 %r.35 to ptr
@@ -372392,11 +372689,11 @@ L2:
   %br.43.cond = icmp ne i64 %r.43, 0
   br i1 %br.43.cond, label %L3, label %L4
 L3:
-  %r.45 = ptrtoint ptr @.str.6172 to i64
+  %r.45 = ptrtoint ptr @.str.6178 to i64
   store i64 %r.45, ptr %r.44
   br label %L5
 L4:
-  %r.46 = ptrtoint ptr @.str.6173 to i64
+  %r.46 = ptrtoint ptr @.str.6179 to i64
   store i64 %r.46, ptr %r.44
   br label %L5
 L5:
@@ -372503,7 +372800,7 @@ L13:
   %br.88.cond = icmp ne i64 %r.88, 0
   br i1 %br.88.cond, label %L20, label %L22
 L20:
-  %r.89 = ptrtoint ptr @.str.6174 to i64
+  %r.89 = ptrtoint ptr @.str.6180 to i64
   %r.90 = load i64, ptr %r.15
   %r.91.a0 = inttoptr i64 %r.89 to ptr
   %r.91.a1 = inttoptr i64 %r.90 to ptr
@@ -372512,7 +372809,7 @@ L20:
   %r.92.a0 = inttoptr i64 %r.91 to ptr
   call void @__nucleor_print_str(ptr %r.92.a0)
   %r.92 = add i64 0, 0
-  %r.93 = ptrtoint ptr @.str.6175 to i64
+  %r.93 = ptrtoint ptr @.str.6181 to i64
   %r.94.a0 = inttoptr i64 %r.93 to ptr
   call void @__nucleor_print_str(ptr %r.94.a0)
   %r.94 = add i64 0, 0
@@ -372534,10 +372831,10 @@ L23:
   %r.106 = call i64 @posix_drive_to_windows(i64 %r.105)
   %r.107 = call i64 @host_shell_path(i64 %r.106)
   store i64 %r.107, ptr %r.104
-  %r.108 = ptrtoint ptr @.str.6176 to i64
+  %r.108 = ptrtoint ptr @.str.6182 to i64
   %r.109 = load i64, ptr %r.104
   %r.110 = call i64 @core_shell_quote(i64 %r.109)
-  %r.111 = ptrtoint ptr @.str.6177 to i64
+  %r.111 = ptrtoint ptr @.str.6183 to i64
   %r.112 = load i64, ptr %r.96
   %r.113 = load i64, ptr %r.51
   %r.114.a0 = inttoptr i64 %r.112 to ptr
@@ -372723,7 +373020,7 @@ bb.entry:
   %r.0 = alloca i64
   %r.9 = alloca i64
   %r.20 = alloca i64
-  %r.1 = ptrtoint ptr @.str.6178 to i64
+  %r.1 = ptrtoint ptr @.str.6184 to i64
   %r.2 = ptrtoint ptr @.str.136 to i64
   %r.3.a0 = inttoptr i64 %r.1 to ptr
   %r.3.a1 = inttoptr i64 %r.2 to ptr
@@ -372741,7 +373038,7 @@ L0:
   %r.8 = load i64, ptr %r.0
   ret i64 %r.8
 L2:
-  %r.10 = ptrtoint ptr @.str.6179 to i64
+  %r.10 = ptrtoint ptr @.str.6185 to i64
   %r.11 = ptrtoint ptr @.str.136 to i64
   %r.12.a0 = inttoptr i64 %r.10 to ptr
   %r.12.a1 = inttoptr i64 %r.11 to ptr
@@ -372757,14 +373054,14 @@ L2:
   br i1 %br.16.cond, label %L3, label %L5
 L3:
   %r.17 = load i64, ptr %r.9
-  %r.18 = ptrtoint ptr @.str.6180 to i64
+  %r.18 = ptrtoint ptr @.str.6186 to i64
   %r.19.a0 = inttoptr i64 %r.17 to ptr
   %r.19.a1 = inttoptr i64 %r.18 to ptr
   %r.19.rv = call ptr @__nucleor_str_concat(ptr %r.19.a0, ptr %r.19.a1)
   %r.19 = ptrtoint ptr %r.19.rv to i64
   ret i64 %r.19
 L5:
-  %r.21 = ptrtoint ptr @.str.6181 to i64
+  %r.21 = ptrtoint ptr @.str.6187 to i64
   %r.22 = ptrtoint ptr @.str.136 to i64
   %r.23.a0 = inttoptr i64 %r.21 to ptr
   %r.23.a1 = inttoptr i64 %r.22 to ptr
@@ -372780,14 +373077,14 @@ L5:
   br i1 %br.27.cond, label %L6, label %L8
 L6:
   %r.28 = load i64, ptr %r.20
-  %r.29 = ptrtoint ptr @.str.6182 to i64
+  %r.29 = ptrtoint ptr @.str.6188 to i64
   %r.30.a0 = inttoptr i64 %r.28 to ptr
   %r.30.a1 = inttoptr i64 %r.29 to ptr
   %r.30.rv = call ptr @__nucleor_str_concat(ptr %r.30.a0, ptr %r.30.a1)
   %r.30 = ptrtoint ptr %r.30.rv to i64
   ret i64 %r.30
 L8:
-  %r.31 = ptrtoint ptr @.str.6183 to i64
+  %r.31 = ptrtoint ptr @.str.6189 to i64
   ret i64 %r.31
 }
 
@@ -372797,7 +373094,7 @@ bb.entry:
   %r.1 = call i64 @nuc_home_path()
   store i64 %r.1, ptr %r.0
   %r.2 = load i64, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.6184 to i64
+  %r.3 = ptrtoint ptr @.str.6190 to i64
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
   %r.4.rv = call ptr @__nucleor_str_concat(ptr %r.4.a0, ptr %r.4.a1)
@@ -372811,7 +373108,7 @@ bb.entry:
   %r.1 = call i64 @nuc_home_path()
   store i64 %r.1, ptr %r.0
   %r.2 = load i64, ptr %r.0
-  %r.3 = ptrtoint ptr @.str.6185 to i64
+  %r.3 = ptrtoint ptr @.str.6191 to i64
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
   %r.4.rv = call ptr @__nucleor_str_concat(ptr %r.4.a0, ptr %r.4.a1)
@@ -373004,7 +373301,7 @@ L15:
   %r.71 = ptrtoint ptr %r.71.rv to i64
   store i64 %r.71, ptr %r.67
   %r.72 = load i64, ptr %r.67
-  %r.73 = ptrtoint ptr @.str.6186 to i64
+  %r.73 = ptrtoint ptr @.str.6192 to i64
   %r.74.a0 = inttoptr i64 %r.72 to ptr
   %r.74.a1 = inttoptr i64 %r.73 to ptr
   %r.74 = call i64 @__nucleor_str_ends_with(ptr %r.74.a0, ptr %r.74.a1)
@@ -373034,7 +373331,7 @@ L32:
   ret i64 %r.83
 L30:
   %r.84 = load i64, ptr %r.67
-  %r.85 = ptrtoint ptr @.str.6187 to i64
+  %r.85 = ptrtoint ptr @.str.6193 to i64
   %r.86.a0 = inttoptr i64 %r.84 to ptr
   %r.86.a1 = inttoptr i64 %r.85 to ptr
   %r.86 = call i64 @__nucleor_str_ends_with(ptr %r.86.a0, ptr %r.86.a1)
@@ -373064,7 +373361,7 @@ L37:
   ret i64 %r.95
 L35:
   %r.96 = load i64, ptr %r.67
-  %r.97 = ptrtoint ptr @.str.6188 to i64
+  %r.97 = ptrtoint ptr @.str.6194 to i64
   %r.98.a0 = inttoptr i64 %r.96 to ptr
   %r.98.a1 = inttoptr i64 %r.97 to ptr
   %r.98 = call i64 @__nucleor_str_ends_with(ptr %r.98.a0, ptr %r.98.a1)
@@ -373094,7 +373391,7 @@ L42:
   ret i64 %r.107
 L40:
   %r.108 = load i64, ptr %r.67
-  %r.109 = ptrtoint ptr @.str.5568 to i64
+  %r.109 = ptrtoint ptr @.str.5573 to i64
   %r.110.a0 = inttoptr i64 %r.108 to ptr
   %r.110.a1 = inttoptr i64 %r.109 to ptr
   %r.110 = call i64 @__nucleor_str_ends_with(ptr %r.110.a0, ptr %r.110.a1)
@@ -373129,7 +373426,7 @@ L45:
 
 define i64 @tools_print_help() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6189 to i64
+  %r.0 = ptrtoint ptr @.str.6195 to i64
   %r.1.a0 = inttoptr i64 %r.0 to ptr
   call void @__nucleor_print_str(ptr %r.1.a0)
   %r.1 = add i64 0, 0
@@ -373137,53 +373434,53 @@ bb.entry:
   %r.3.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.3.a0)
   %r.3 = add i64 0, 0
-  %r.4 = ptrtoint ptr @.str.6190 to i64
+  %r.4 = ptrtoint ptr @.str.6196 to i64
   %r.5.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.5.a0)
   %r.5 = add i64 0, 0
-  %r.6 = ptrtoint ptr @.str.6191 to i64
+  %r.6 = ptrtoint ptr @.str.6197 to i64
   %r.7.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.7.a0)
   %r.7 = add i64 0, 0
-  %r.8 = ptrtoint ptr @.str.6192 to i64
+  %r.8 = ptrtoint ptr @.str.6198 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   call void @__nucleor_print_str(ptr %r.9.a0)
   %r.9 = add i64 0, 0
-  %r.10 = ptrtoint ptr @.str.6193 to i64
+  %r.10 = ptrtoint ptr @.str.6199 to i64
   %r.11.a0 = inttoptr i64 %r.10 to ptr
   call void @__nucleor_print_str(ptr %r.11.a0)
   %r.11 = add i64 0, 0
-  %r.12 = ptrtoint ptr @.str.6194 to i64
+  %r.12 = ptrtoint ptr @.str.6200 to i64
   %r.13.a0 = inttoptr i64 %r.12 to ptr
   call void @__nucleor_print_str(ptr %r.13.a0)
   %r.13 = add i64 0, 0
   %r.15.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.15.a0)
   %r.15 = add i64 0, 0
-  %r.16 = ptrtoint ptr @.str.6195 to i64
+  %r.16 = ptrtoint ptr @.str.6201 to i64
   %r.17.a0 = inttoptr i64 %r.16 to ptr
   call void @__nucleor_print_str(ptr %r.17.a0)
   %r.17 = add i64 0, 0
-  %r.18 = ptrtoint ptr @.str.6196 to i64
+  %r.18 = ptrtoint ptr @.str.6202 to i64
   %r.19.a0 = inttoptr i64 %r.18 to ptr
   call void @__nucleor_print_str(ptr %r.19.a0)
   %r.19 = add i64 0, 0
-  %r.20 = ptrtoint ptr @.str.6197 to i64
+  %r.20 = ptrtoint ptr @.str.6203 to i64
   %r.21.a0 = inttoptr i64 %r.20 to ptr
   call void @__nucleor_print_str(ptr %r.21.a0)
   %r.21 = add i64 0, 0
-  %r.22 = ptrtoint ptr @.str.6198 to i64
+  %r.22 = ptrtoint ptr @.str.6204 to i64
   %r.23.a0 = inttoptr i64 %r.22 to ptr
   call void @__nucleor_print_str(ptr %r.23.a0)
   %r.23 = add i64 0, 0
   %r.25.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.25.a0)
   %r.25 = add i64 0, 0
-  %r.26 = ptrtoint ptr @.str.6199 to i64
+  %r.26 = ptrtoint ptr @.str.6205 to i64
   %r.27.a0 = inttoptr i64 %r.26 to ptr
   call void @__nucleor_print_str(ptr %r.27.a0)
   %r.27 = add i64 0, 0
-  %r.28 = ptrtoint ptr @.str.6200 to i64
+  %r.28 = ptrtoint ptr @.str.6206 to i64
   %r.29.a0 = inttoptr i64 %r.28 to ptr
   call void @__nucleor_print_str(ptr %r.29.a0)
   %r.29 = add i64 0, 0
@@ -373229,7 +373526,7 @@ bb.entry:
   %br.7.cond = icmp ne i64 %r.7, 0
   br i1 %br.7.cond, label %L0, label %L2
 L0:
-  %r.8 = ptrtoint ptr @.str.6201 to i64
+  %r.8 = ptrtoint ptr @.str.6207 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   call void @__nucleor_print_str(ptr %r.9.a0)
   %r.9 = add i64 0, 0
@@ -373248,7 +373545,7 @@ L2:
   %br.17.cond = icmp ne i64 %r.17, 0
   br i1 %br.17.cond, label %L3, label %L5
 L3:
-  %r.18 = ptrtoint ptr @.str.6202 to i64
+  %r.18 = ptrtoint ptr @.str.6208 to i64
   %r.19 = load i64, ptr %r.0
   %r.20.a0 = inttoptr i64 %r.18 to ptr
   %r.20.a1 = inttoptr i64 %r.19 to ptr
@@ -373276,7 +373573,7 @@ L5:
   store i64 %r.30, ptr %r.25
   %r.32 = call i64 @tools_bin()
   store i64 %r.32, ptr %r.31
-  %r.33 = ptrtoint ptr @.str.6203 to i64
+  %r.33 = ptrtoint ptr @.str.6209 to i64
   %r.34 = load i64, ptr %r.11
   %r.35.a0 = inttoptr i64 %r.33 to ptr
   %r.35.a1 = inttoptr i64 %r.34 to ptr
@@ -373285,7 +373582,7 @@ L5:
   %r.36.a0 = inttoptr i64 %r.35 to ptr
   call void @__nucleor_print_str(ptr %r.36.a0)
   %r.36 = add i64 0, 0
-  %r.37 = ptrtoint ptr @.str.6204 to i64
+  %r.37 = ptrtoint ptr @.str.6210 to i64
   %r.38 = load i64, ptr %r.0
   %r.39.a0 = inttoptr i64 %r.37 to ptr
   %r.39.a1 = inttoptr i64 %r.38 to ptr
@@ -373294,7 +373591,7 @@ L5:
   %r.40.a0 = inttoptr i64 %r.39 to ptr
   call void @__nucleor_print_str(ptr %r.40.a0)
   %r.40 = add i64 0, 0
-  %r.41 = ptrtoint ptr @.str.6205 to i64
+  %r.41 = ptrtoint ptr @.str.6211 to i64
   %r.42 = load i64, ptr %r.25
   %r.43.a0 = inttoptr i64 %r.41 to ptr
   %r.43.a1 = inttoptr i64 %r.42 to ptr
@@ -373303,9 +373600,9 @@ L5:
   %r.44.a0 = inttoptr i64 %r.43 to ptr
   call void @__nucleor_print_str(ptr %r.44.a0)
   %r.44 = add i64 0, 0
-  %r.45 = ptrtoint ptr @.str.6206 to i64
+  %r.45 = ptrtoint ptr @.str.6212 to i64
   %r.46 = load i64, ptr %r.25
-  %r.47 = ptrtoint ptr @.str.6207 to i64
+  %r.47 = ptrtoint ptr @.str.6213 to i64
   %r.48.a0 = inttoptr i64 %r.46 to ptr
   %r.48.a1 = inttoptr i64 %r.47 to ptr
   %r.48.rv = call ptr @__nucleor_str_concat(ptr %r.48.a0, ptr %r.48.a1)
@@ -373316,9 +373613,9 @@ L5:
   %r.49 = ptrtoint ptr %r.49.rv to i64
   %r.50.a0 = inttoptr i64 %r.49 to ptr
   %r.50 = call i64 @__nucleor_system(ptr %r.50.a0)
-  %r.51 = ptrtoint ptr @.str.6206 to i64
+  %r.51 = ptrtoint ptr @.str.6212 to i64
   %r.52 = load i64, ptr %r.31
-  %r.53 = ptrtoint ptr @.str.6207 to i64
+  %r.53 = ptrtoint ptr @.str.6213 to i64
   %r.54.a0 = inttoptr i64 %r.52 to ptr
   %r.54.a1 = inttoptr i64 %r.47 to ptr
   %r.54.rv = call ptr @__nucleor_str_concat(ptr %r.54.a0, ptr %r.54.a1)
@@ -373330,15 +373627,15 @@ L5:
   %r.56.a0 = inttoptr i64 %r.55 to ptr
   %r.56 = call i64 @__nucleor_system(ptr %r.56.a0)
   %r.58 = load i64, ptr %r.25
-  %r.59 = ptrtoint ptr @.str.6208 to i64
+  %r.59 = ptrtoint ptr @.str.6214 to i64
   %r.60.a0 = inttoptr i64 %r.58 to ptr
   %r.60.a1 = inttoptr i64 %r.59 to ptr
   %r.60.rv = call ptr @__nucleor_str_concat(ptr %r.60.a0, ptr %r.60.a1)
   %r.60 = ptrtoint ptr %r.60.rv to i64
   store i64 %r.60, ptr %r.57
-  %r.62 = ptrtoint ptr @.str.6209 to i64
+  %r.62 = ptrtoint ptr @.str.6215 to i64
   %r.63 = load i64, ptr %r.57
-  %r.64 = ptrtoint ptr @.str.6210 to i64
+  %r.64 = ptrtoint ptr @.str.6216 to i64
   %r.65 = load i64, ptr %r.0
   %r.66 = ptrtoint ptr @.str.159 to i64
   %r.67.a0 = inttoptr i64 %r.65 to ptr
@@ -373358,7 +373655,7 @@ L5:
   %r.70.rv = call ptr @__nucleor_str_concat(ptr %r.70.a0, ptr %r.70.a1)
   %r.70 = ptrtoint ptr %r.70.rv to i64
   store i64 %r.70, ptr %r.61
-  %r.71 = ptrtoint ptr @.str.6211 to i64
+  %r.71 = ptrtoint ptr @.str.6217 to i64
   %r.72 = load i64, ptr %r.0
   %r.73.a0 = inttoptr i64 %r.71 to ptr
   %r.73.a1 = inttoptr i64 %r.72 to ptr
@@ -373378,7 +373675,7 @@ L5:
   %br.80.cond = icmp ne i64 %r.80, 0
   br i1 %br.80.cond, label %L6, label %L8
 L6:
-  %r.81 = ptrtoint ptr @.str.6212 to i64
+  %r.81 = ptrtoint ptr @.str.6218 to i64
   %r.82 = load i64, ptr %r.75
   %r.83 = call i64 @str_from_int(i64 %r.82)
   %r.84 = ptrtoint ptr @.str.390 to i64
@@ -373403,28 +373700,28 @@ L8:
   %br.91.cond = icmp ne i64 %r.91, 0
   br i1 %br.91.cond, label %L9, label %L10
 L9:
-  %r.92 = ptrtoint ptr @.str.6213 to i64
+  %r.92 = ptrtoint ptr @.str.6219 to i64
   %r.93.a0 = inttoptr i64 %r.92 to ptr
   call void @__nucleor_print_str(ptr %r.93.a0)
   %r.93 = add i64 0, 0
-  %r.94 = ptrtoint ptr @.str.6214 to i64
+  %r.94 = ptrtoint ptr @.str.6220 to i64
   %r.95.a0 = inttoptr i64 %r.94 to ptr
   call void @__nucleor_print_str(ptr %r.95.a0)
   %r.95 = add i64 0, 0
-  %r.96 = ptrtoint ptr @.str.6215 to i64
+  %r.96 = ptrtoint ptr @.str.6221 to i64
   %r.97.a0 = inttoptr i64 %r.96 to ptr
   call void @__nucleor_print_str(ptr %r.97.a0)
   %r.97 = add i64 0, 0
   br label %L11
 L10:
-  %r.98 = ptrtoint ptr @.str.6216 to i64
+  %r.98 = ptrtoint ptr @.str.6222 to i64
   %r.99.a0 = inttoptr i64 %r.98 to ptr
   call void @__nucleor_print_str(ptr %r.99.a0)
   %r.99 = add i64 0, 0
   br label %L11
 L11:
   %r.100 = load i64, ptr %r.0
-  %r.101 = ptrtoint ptr @.str.6188 to i64
+  %r.101 = ptrtoint ptr @.str.6194 to i64
   %r.102.a0 = inttoptr i64 %r.100 to ptr
   %r.102.a1 = inttoptr i64 %r.101 to ptr
   %r.102 = call i64 @__nucleor_str_ends_with(ptr %r.102.a0, ptr %r.102.a1)
@@ -373434,7 +373731,7 @@ L11:
   %br.104.cond = icmp ne i64 %r.104, 0
   br i1 %br.104.cond, label %L12, label %L13
 L12:
-  %r.105 = ptrtoint ptr @.str.6217 to i64
+  %r.105 = ptrtoint ptr @.str.6223 to i64
   %r.106 = load i64, ptr %r.25
   %r.107.a0 = inttoptr i64 %r.105 to ptr
   %r.107.a1 = inttoptr i64 %r.106 to ptr
@@ -373443,11 +373740,11 @@ L12:
   %r.108.a0 = inttoptr i64 %r.107 to ptr
   call void @__nucleor_print_str(ptr %r.108.a0)
   %r.108 = add i64 0, 0
-  %r.110 = ptrtoint ptr @.str.6218 to i64
+  %r.110 = ptrtoint ptr @.str.6224 to i64
   %r.111 = load i64, ptr %r.57
-  %r.112 = ptrtoint ptr @.str.6219 to i64
+  %r.112 = ptrtoint ptr @.str.6225 to i64
   %r.113 = load i64, ptr %r.25
-  %r.114 = ptrtoint ptr @.str.6220 to i64
+  %r.114 = ptrtoint ptr @.str.6226 to i64
   %r.115.a0 = inttoptr i64 %r.113 to ptr
   %r.115.a1 = inttoptr i64 %r.114 to ptr
   %r.115.rv = call ptr @__nucleor_str_concat(ptr %r.115.a0, ptr %r.115.a1)
@@ -373476,7 +373773,7 @@ L12:
   %br.124.cond = icmp ne i64 %r.124, 0
   br i1 %br.124.cond, label %L15, label %L17
 L15:
-  %r.125 = ptrtoint ptr @.str.6221 to i64
+  %r.125 = ptrtoint ptr @.str.6227 to i64
   %r.126 = load i64, ptr %r.119
   %r.127 = call i64 @str_from_int(i64 %r.126)
   %r.128 = ptrtoint ptr @.str.390 to i64
@@ -373497,7 +373794,7 @@ L17:
   br label %L14
 L13:
   %r.133 = load i64, ptr %r.0
-  %r.134 = ptrtoint ptr @.str.6186 to i64
+  %r.134 = ptrtoint ptr @.str.6192 to i64
   %r.135.a0 = inttoptr i64 %r.133 to ptr
   %r.135.a1 = inttoptr i64 %r.134 to ptr
   %r.135 = call i64 @__nucleor_str_ends_with(ptr %r.135.a0, ptr %r.135.a1)
@@ -373515,7 +373812,7 @@ L18:
   br label %L20
 L19:
   %r.142 = load i64, ptr %r.0
-  %r.143 = ptrtoint ptr @.str.6187 to i64
+  %r.143 = ptrtoint ptr @.str.6193 to i64
   %r.144.a0 = inttoptr i64 %r.142 to ptr
   %r.144.a1 = inttoptr i64 %r.143 to ptr
   %r.144 = call i64 @__nucleor_str_ends_with(ptr %r.144.a0, ptr %r.144.a1)
@@ -373532,7 +373829,7 @@ L20:
   %br.149.cond = icmp ne i64 %r.149, 0
   br i1 %br.149.cond, label %L21, label %L22
 L21:
-  %r.150 = ptrtoint ptr @.str.6222 to i64
+  %r.150 = ptrtoint ptr @.str.6228 to i64
   %r.151 = load i64, ptr %r.25
   %r.152.a0 = inttoptr i64 %r.150 to ptr
   %r.152.a1 = inttoptr i64 %r.151 to ptr
@@ -373541,9 +373838,9 @@ L21:
   %r.153.a0 = inttoptr i64 %r.152 to ptr
   call void @__nucleor_print_str(ptr %r.153.a0)
   %r.153 = add i64 0, 0
-  %r.155 = ptrtoint ptr @.str.6223 to i64
+  %r.155 = ptrtoint ptr @.str.6229 to i64
   %r.156 = load i64, ptr %r.57
-  %r.157 = ptrtoint ptr @.str.6224 to i64
+  %r.157 = ptrtoint ptr @.str.6230 to i64
   %r.158 = load i64, ptr %r.25
   %r.159 = ptrtoint ptr @.str.159 to i64
   %r.160.a0 = inttoptr i64 %r.158 to ptr
@@ -373574,7 +373871,7 @@ L21:
   %br.169.cond = icmp ne i64 %r.169, 0
   br i1 %br.169.cond, label %L24, label %L26
 L24:
-  %r.170 = ptrtoint ptr @.str.6221 to i64
+  %r.170 = ptrtoint ptr @.str.6227 to i64
   %r.171 = load i64, ptr %r.164
   %r.172 = call i64 @str_from_int(i64 %r.171)
   %r.173 = ptrtoint ptr @.str.390 to i64
@@ -373594,7 +373891,7 @@ L24:
 L26:
   br label %L23
 L22:
-  %r.178 = ptrtoint ptr @.str.6225 to i64
+  %r.178 = ptrtoint ptr @.str.6231 to i64
   %r.179 = load i64, ptr %r.25
   %r.180.a0 = inttoptr i64 %r.178 to ptr
   %r.180.a1 = inttoptr i64 %r.179 to ptr
@@ -373603,13 +373900,13 @@ L22:
   %r.181.a0 = inttoptr i64 %r.180 to ptr
   call void @__nucleor_print_str(ptr %r.181.a0)
   %r.181 = add i64 0, 0
-  %r.183 = ptrtoint ptr @.str.6226 to i64
+  %r.183 = ptrtoint ptr @.str.6232 to i64
   %r.184 = load i64, ptr %r.57
-  %r.185 = ptrtoint ptr @.str.6227 to i64
+  %r.185 = ptrtoint ptr @.str.6233 to i64
   %r.186 = load i64, ptr %r.25
   %r.187 = ptrtoint ptr @.str.4748 to i64
   %r.188 = load i64, ptr %r.11
-  %r.189 = ptrtoint ptr @.str.6228 to i64
+  %r.189 = ptrtoint ptr @.str.6234 to i64
   %r.190.a0 = inttoptr i64 %r.188 to ptr
   %r.190.a1 = inttoptr i64 %r.189 to ptr
   %r.190.rv = call ptr @__nucleor_str_concat(ptr %r.190.a0, ptr %r.190.a1)
@@ -373646,7 +373943,7 @@ L22:
   %br.201.cond = icmp ne i64 %r.201, 0
   br i1 %br.201.cond, label %L27, label %L29
 L27:
-  %r.202 = ptrtoint ptr @.str.6229 to i64
+  %r.202 = ptrtoint ptr @.str.6235 to i64
   %r.203 = load i64, ptr %r.196
   %r.204 = call i64 @str_from_int(i64 %r.203)
   %r.205 = ptrtoint ptr @.str.390 to i64
@@ -373671,7 +373968,7 @@ L14:
   %r.211 = load i64, ptr %r.25
   %r.212 = ptrtoint ptr @.str.4748 to i64
   %r.213 = load i64, ptr %r.11
-  %r.214 = ptrtoint ptr @.str.5568 to i64
+  %r.214 = ptrtoint ptr @.str.5573 to i64
   %r.215.a0 = inttoptr i64 %r.213 to ptr
   %r.215.a1 = inttoptr i64 %r.214 to ptr
   %r.215.rv = call ptr @__nucleor_str_concat(ptr %r.215.a0, ptr %r.215.a1)
@@ -373719,7 +374016,7 @@ L30:
   br label %L32
 L31:
   %r.235 = load i64, ptr %r.0
-  %r.236 = ptrtoint ptr @.str.5568 to i64
+  %r.236 = ptrtoint ptr @.str.5573 to i64
   %r.237.a0 = inttoptr i64 %r.235 to ptr
   %r.237.a1 = inttoptr i64 %r.236 to ptr
   %r.237 = call i64 @__nucleor_str_ends_with(ptr %r.237.a0, ptr %r.237.a1)
@@ -373747,7 +374044,7 @@ L35:
   %r.246 = load i64, ptr %r.31
   %r.247 = ptrtoint ptr @.str.4748 to i64
   %r.248 = load i64, ptr %r.11
-  %r.249 = ptrtoint ptr @.str.6230 to i64
+  %r.249 = ptrtoint ptr @.str.6236 to i64
   %r.250.a0 = inttoptr i64 %r.248 to ptr
   %r.250.a1 = inttoptr i64 %r.249 to ptr
   %r.250.rv = call ptr @__nucleor_str_concat(ptr %r.250.a0, ptr %r.250.a1)
@@ -373761,9 +374058,9 @@ L35:
   %r.252.rv = call ptr @__nucleor_str_concat(ptr %r.252.a0, ptr %r.252.a1)
   %r.252 = ptrtoint ptr %r.252.rv to i64
   store i64 %r.252, ptr %r.245
-  %r.254 = ptrtoint ptr @.str.6231 to i64
+  %r.254 = ptrtoint ptr @.str.6237 to i64
   %r.255 = load i64, ptr %r.224
-  %r.256 = ptrtoint ptr @.str.6232 to i64
+  %r.256 = ptrtoint ptr @.str.6238 to i64
   %r.257.a0 = inttoptr i64 %r.255 to ptr
   %r.257.a1 = inttoptr i64 %r.256 to ptr
   %r.257.rv = call ptr @__nucleor_str_concat(ptr %r.257.a0, ptr %r.257.a1)
@@ -373787,7 +374084,7 @@ L35:
   %br.265.cond = icmp ne i64 %r.265, 0
   br i1 %br.265.cond, label %L36, label %L38
 L36:
-  %r.266 = ptrtoint ptr @.str.6233 to i64
+  %r.266 = ptrtoint ptr @.str.6239 to i64
   %r.267 = load i64, ptr %r.245
   %r.268.a0 = inttoptr i64 %r.266 to ptr
   %r.268.a1 = inttoptr i64 %r.267 to ptr
@@ -373799,7 +374096,7 @@ L36:
   %r.270 = add i64 1, 0
   ret i64 %r.270
 L38:
-  %r.271 = ptrtoint ptr @.str.6234 to i64
+  %r.271 = ptrtoint ptr @.str.6240 to i64
   %r.272 = load i64, ptr %r.245
   %r.273.a0 = inttoptr i64 %r.271 to ptr
   %r.273.a1 = inttoptr i64 %r.272 to ptr
@@ -373808,7 +374105,7 @@ L38:
   %r.274.a0 = inttoptr i64 %r.273 to ptr
   call void @__nucleor_print_str(ptr %r.274.a0)
   %r.274 = add i64 0, 0
-  %r.275 = ptrtoint ptr @.str.6235 to i64
+  %r.275 = ptrtoint ptr @.str.6241 to i64
   %r.276 = load i64, ptr %r.224
   %r.277.a0 = inttoptr i64 %r.275 to ptr
   %r.277.a1 = inttoptr i64 %r.276 to ptr
@@ -373821,7 +374118,7 @@ L38:
   %r.280.a0 = inttoptr i64 %r.279 to ptr
   call void @__nucleor_print_str(ptr %r.280.a0)
   %r.280 = add i64 0, 0
-  %r.281 = ptrtoint ptr @.str.6236 to i64
+  %r.281 = ptrtoint ptr @.str.6242 to i64
   %r.282 = load i64, ptr %r.11
   %r.283 = ptrtoint ptr @.str.4757 to i64
   %r.284.a0 = inttoptr i64 %r.282 to ptr
@@ -373835,11 +374132,11 @@ L38:
   %r.286.a0 = inttoptr i64 %r.285 to ptr
   call void @__nucleor_print_str(ptr %r.286.a0)
   %r.286 = add i64 0, 0
-  %r.287 = ptrtoint ptr @.str.6237 to i64
+  %r.287 = ptrtoint ptr @.str.6243 to i64
   %r.288 = load i64, ptr %r.31
-  %r.289 = ptrtoint ptr @.str.6238 to i64
+  %r.289 = ptrtoint ptr @.str.6244 to i64
   %r.290 = load i64, ptr %r.11
-  %r.291 = ptrtoint ptr @.str.6239 to i64
+  %r.291 = ptrtoint ptr @.str.6245 to i64
   %r.292.a0 = inttoptr i64 %r.290 to ptr
   %r.292.a1 = inttoptr i64 %r.291 to ptr
   %r.292.rv = call ptr @__nucleor_str_concat(ptr %r.292.a0, ptr %r.292.a1)
@@ -373876,7 +374173,7 @@ bb.entry:
   %br.5.cond = icmp ne i64 %r.5, 0
   br i1 %br.5.cond, label %L0, label %L2
 L0:
-  %r.6 = ptrtoint ptr @.str.6240 to i64
+  %r.6 = ptrtoint ptr @.str.6246 to i64
   %r.7.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.7.a0)
   %r.7 = add i64 0, 0
@@ -373897,7 +374194,7 @@ L2:
   store i64 %r.14, ptr %r.9
   %r.16 = call i64 @tools_bin()
   %r.18 = load i64, ptr %r.0
-  %r.19 = ptrtoint ptr @.str.6230 to i64
+  %r.19 = ptrtoint ptr @.str.6236 to i64
   %r.20.a0 = inttoptr i64 %r.18 to ptr
   %r.20.a1 = inttoptr i64 %r.19 to ptr
   %r.20.rv = call ptr @__nucleor_str_concat(ptr %r.20.a0, ptr %r.20.a1)
@@ -373911,7 +374208,7 @@ L2:
   %r.22.rv = call ptr @__nucleor_str_concat(ptr %r.22.a0, ptr %r.22.a1)
   %r.22 = ptrtoint ptr %r.22.rv to i64
   store i64 %r.22, ptr %r.15
-  %r.23 = ptrtoint ptr @.str.6241 to i64
+  %r.23 = ptrtoint ptr @.str.6247 to i64
   %r.24 = load i64, ptr %r.0
   %r.25.a0 = inttoptr i64 %r.23 to ptr
   %r.25.a1 = inttoptr i64 %r.24 to ptr
@@ -373920,7 +374217,7 @@ L2:
   %r.26.a0 = inttoptr i64 %r.25 to ptr
   call void @__nucleor_print_str(ptr %r.26.a0)
   %r.26 = add i64 0, 0
-  %r.27 = ptrtoint ptr @.str.6242 to i64
+  %r.27 = ptrtoint ptr @.str.6248 to i64
   %r.28 = load i64, ptr %r.9
   %r.29.a0 = inttoptr i64 %r.27 to ptr
   %r.29.a1 = inttoptr i64 %r.28 to ptr
@@ -373929,9 +374226,9 @@ L2:
   %r.30.a0 = inttoptr i64 %r.29 to ptr
   call void @__nucleor_print_str(ptr %r.30.a0)
   %r.30 = add i64 0, 0
-  %r.31 = ptrtoint ptr @.str.6243 to i64
+  %r.31 = ptrtoint ptr @.str.6249 to i64
   %r.32 = load i64, ptr %r.9
-  %r.33 = ptrtoint ptr @.str.6244 to i64
+  %r.33 = ptrtoint ptr @.str.6250 to i64
   %r.34.a0 = inttoptr i64 %r.32 to ptr
   %r.34.a1 = inttoptr i64 %r.33 to ptr
   %r.34.rv = call ptr @__nucleor_str_concat(ptr %r.34.a0, ptr %r.34.a1)
@@ -373950,7 +374247,7 @@ L2:
   %r.40.a0 = inttoptr i64 %r.39 to ptr
   call void @__nucleor_print_str(ptr %r.40.a0)
   %r.40 = add i64 0, 0
-  %r.41 = ptrtoint ptr @.str.6245 to i64
+  %r.41 = ptrtoint ptr @.str.6251 to i64
   %r.42 = load i64, ptr %r.15
   %r.44.a0 = inttoptr i64 %r.42 to ptr
   %r.44.a1 = inttoptr i64 %r.33 to ptr
@@ -373962,7 +374259,7 @@ L2:
   %r.45 = ptrtoint ptr %r.45.rv to i64
   %r.46.a0 = inttoptr i64 %r.45 to ptr
   %r.46 = call i64 @__nucleor_system(ptr %r.46.a0)
-  %r.47 = ptrtoint ptr @.str.6246 to i64
+  %r.47 = ptrtoint ptr @.str.6252 to i64
   %r.48 = load i64, ptr %r.0
   %r.49 = ptrtoint ptr @.str.4757 to i64
   %r.50.a0 = inttoptr i64 %r.48 to ptr
@@ -373987,7 +374284,7 @@ bb.entry:
   %r.12 = alloca i64
   %r.1 = call i64 @tools_home()
   store i64 %r.1, ptr %r.0
-  %r.2 = ptrtoint ptr @.str.6247 to i64
+  %r.2 = ptrtoint ptr @.str.6253 to i64
   %r.3 = load i64, ptr %r.0
   %r.4.a0 = inttoptr i64 %r.2 to ptr
   %r.4.a1 = inttoptr i64 %r.3 to ptr
@@ -373996,9 +374293,9 @@ bb.entry:
   %r.5.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.5.a0)
   %r.5 = add i64 0, 0
-  %r.7 = ptrtoint ptr @.str.6248 to i64
+  %r.7 = ptrtoint ptr @.str.6254 to i64
   %r.8 = load i64, ptr %r.0
-  %r.9 = ptrtoint ptr @.str.6249 to i64
+  %r.9 = ptrtoint ptr @.str.6255 to i64
   %r.10.a0 = inttoptr i64 %r.8 to ptr
   %r.10.a1 = inttoptr i64 %r.9 to ptr
   %r.10.rv = call ptr @__nucleor_str_concat(ptr %r.10.a0, ptr %r.10.a1)
@@ -374010,7 +374307,7 @@ bb.entry:
   store i64 %r.11, ptr %r.6
   %r.13 = load i64, ptr %r.6
   %r.14 = load i64, ptr %r.0
-  %r.15 = ptrtoint ptr @.str.6250 to i64
+  %r.15 = ptrtoint ptr @.str.6256 to i64
   %r.16.a0 = inttoptr i64 %r.14 to ptr
   %r.16.a1 = inttoptr i64 %r.15 to ptr
   %r.16.rv = call ptr @__nucleor_str_concat(ptr %r.16.a0, ptr %r.16.a1)
@@ -374053,7 +374350,7 @@ L2:
   %r.8 = ptrtoint ptr %r.8.rv to i64
   store i64 %r.8, ptr %r.6
   %r.9 = load i64, ptr %r.6
-  %r.10 = ptrtoint ptr @.str.6251 to i64
+  %r.10 = ptrtoint ptr @.str.6257 to i64
   %r.11.a0 = inttoptr i64 %r.9 to ptr
   %r.11.a1 = inttoptr i64 %r.10 to ptr
   %r.11 = call i64 @__nucleor_str_eq(ptr %r.11.a0, ptr %r.11.a1)
@@ -374068,7 +374365,7 @@ L3:
   br label %L5
 L4:
   %r.16 = load i64, ptr %r.6
-  %r.17 = ptrtoint ptr @.str.6252 to i64
+  %r.17 = ptrtoint ptr @.str.6258 to i64
   %r.18.a0 = inttoptr i64 %r.16 to ptr
   %r.18.a1 = inttoptr i64 %r.17 to ptr
   %r.18 = call i64 @__nucleor_str_eq(ptr %r.18.a0, ptr %r.18.a1)
@@ -374090,7 +374387,7 @@ L6:
   br label %L8
 L7:
   %r.26 = load i64, ptr %r.6
-  %r.27 = ptrtoint ptr @.str.6253 to i64
+  %r.27 = ptrtoint ptr @.str.6259 to i64
   %r.28.a0 = inttoptr i64 %r.26 to ptr
   %r.28.a1 = inttoptr i64 %r.27 to ptr
   %r.28 = call i64 @__nucleor_str_eq(ptr %r.28.a0, ptr %r.28.a1)
@@ -374108,7 +374405,7 @@ L9:
   ret i64 %r.32
 L11:
   %r.33 = load i64, ptr %r.6
-  %r.34 = ptrtoint ptr @.str.6254 to i64
+  %r.34 = ptrtoint ptr @.str.6260 to i64
   %r.35.a0 = inttoptr i64 %r.33 to ptr
   %r.35.a1 = inttoptr i64 %r.34 to ptr
   %r.35 = call i64 @__nucleor_str_eq(ptr %r.35.a0, ptr %r.35.a1)
@@ -374123,7 +374420,7 @@ L12:
   ret i64 %r.38
 L14:
   %r.39 = load i64, ptr %r.6
-  %r.40 = ptrtoint ptr @.str.6255 to i64
+  %r.40 = ptrtoint ptr @.str.6261 to i64
   %r.41.a0 = inttoptr i64 %r.39 to ptr
   %r.41.a1 = inttoptr i64 %r.40 to ptr
   %r.41 = call i64 @__nucleor_str_eq(ptr %r.41.a0, ptr %r.41.a1)
@@ -374134,7 +374431,7 @@ L15:
   ret i64 %r.42
 L17:
   %r.43 = load i64, ptr %r.6
-  %r.44 = ptrtoint ptr @.str.6256 to i64
+  %r.44 = ptrtoint ptr @.str.6262 to i64
   %r.45.a0 = inttoptr i64 %r.43 to ptr
   %r.45.a1 = inttoptr i64 %r.44 to ptr
   %r.45 = call i64 @__nucleor_str_eq(ptr %r.45.a0, ptr %r.45.a1)
@@ -374148,7 +374445,7 @@ L18:
   %br.48.cond = icmp ne i64 %r.48, 0
   br i1 %br.48.cond, label %L21, label %L23
 L21:
-  %r.49 = ptrtoint ptr @.str.6240 to i64
+  %r.49 = ptrtoint ptr @.str.6246 to i64
   %r.50.a0 = inttoptr i64 %r.49 to ptr
   call void @__nucleor_print_str(ptr %r.50.a0)
   %r.50 = add i64 0, 0
@@ -374162,7 +374459,7 @@ L23:
   ret i64 %r.54
 L20:
   %r.55 = load i64, ptr %r.6
-  %r.56 = ptrtoint ptr @.str.6257 to i64
+  %r.56 = ptrtoint ptr @.str.6263 to i64
   %r.57.a0 = inttoptr i64 %r.55 to ptr
   %r.57.a1 = inttoptr i64 %r.56 to ptr
   %r.57 = call i64 @__nucleor_str_eq(ptr %r.57.a0, ptr %r.57.a1)
@@ -374176,7 +374473,7 @@ L24:
   %br.60.cond = icmp ne i64 %r.60, 0
   br i1 %br.60.cond, label %L27, label %L29
 L27:
-  %r.61 = ptrtoint ptr @.str.6201 to i64
+  %r.61 = ptrtoint ptr @.str.6207 to i64
   %r.62.a0 = inttoptr i64 %r.61 to ptr
   call void @__nucleor_print_str(ptr %r.62.a0)
   %r.62 = add i64 0, 0
@@ -374203,7 +374500,7 @@ L31:
   %r.74 = load i64, ptr %r.69
   %r.75.rv = call ptr @__nucleor_args_get(i64 %r.74)
   %r.75 = ptrtoint ptr %r.75.rv to i64
-  %r.76 = ptrtoint ptr @.str.6258 to i64
+  %r.76 = ptrtoint ptr @.str.6264 to i64
   %r.77.a0 = inttoptr i64 %r.75 to ptr
   %r.77.a1 = inttoptr i64 %r.76 to ptr
   %r.77 = call i64 @__nucleor_str_eq(ptr %r.77.a0, ptr %r.77.a1)
@@ -374235,7 +374532,7 @@ L32:
   %r.86 = call i64 @tools_install(i64 %r.84, i64 %r.85)
   ret i64 %r.86
 L26:
-  %r.87 = ptrtoint ptr @.str.6259 to i64
+  %r.87 = ptrtoint ptr @.str.6265 to i64
   %r.88 = load i64, ptr %r.6
   %r.89.a0 = inttoptr i64 %r.87 to ptr
   %r.89.a1 = inttoptr i64 %r.88 to ptr
@@ -374346,7 +374643,7 @@ bb.entry:
   %br.9.cond = icmp ne i64 %r.9, 0
   br i1 %br.9.cond, label %L0, label %L2
 L0:
-  %r.10 = ptrtoint ptr @.str.6260 to i64
+  %r.10 = ptrtoint ptr @.str.6266 to i64
   ret i64 %r.10
 L2:
   %r.11 = load i64, ptr %r.2
@@ -374360,7 +374657,7 @@ L2:
   %br.15.cond = icmp ne i64 %r.15, 0
   br i1 %br.15.cond, label %L3, label %L5
 L3:
-  %r.16 = ptrtoint ptr @.str.6261 to i64
+  %r.16 = ptrtoint ptr @.str.6267 to i64
   ret i64 %r.16
 L5:
   %r.17 = load i64, ptr %r.2
@@ -374374,7 +374671,7 @@ L5:
   %br.21.cond = icmp ne i64 %r.21, 0
   br i1 %br.21.cond, label %L6, label %L8
 L6:
-  %r.22 = ptrtoint ptr @.str.6262 to i64
+  %r.22 = ptrtoint ptr @.str.6268 to i64
   ret i64 %r.22
 L8:
   %r.23 = load i64, ptr %r.2
@@ -374388,7 +374685,7 @@ L8:
   %br.27.cond = icmp ne i64 %r.27, 0
   br i1 %br.27.cond, label %L9, label %L11
 L9:
-  %r.28 = ptrtoint ptr @.str.6263 to i64
+  %r.28 = ptrtoint ptr @.str.6269 to i64
   ret i64 %r.28
 L11:
   %r.29 = load i64, ptr %r.2
@@ -374402,7 +374699,7 @@ L11:
   %br.33.cond = icmp ne i64 %r.33, 0
   br i1 %br.33.cond, label %L12, label %L14
 L12:
-  %r.34 = ptrtoint ptr @.str.6264 to i64
+  %r.34 = ptrtoint ptr @.str.6270 to i64
   ret i64 %r.34
 L14:
   %r.35 = load i64, ptr %r.2
@@ -374416,7 +374713,7 @@ L14:
   %br.39.cond = icmp ne i64 %r.39, 0
   br i1 %br.39.cond, label %L15, label %L17
 L15:
-  %r.40 = ptrtoint ptr @.str.6265 to i64
+  %r.40 = ptrtoint ptr @.str.6271 to i64
   ret i64 %r.40
 L17:
   %r.41 = load i64, ptr %r.2
@@ -374430,7 +374727,7 @@ L17:
   %br.45.cond = icmp ne i64 %r.45, 0
   br i1 %br.45.cond, label %L18, label %L20
 L18:
-  %r.46 = ptrtoint ptr @.str.6266 to i64
+  %r.46 = ptrtoint ptr @.str.6272 to i64
   ret i64 %r.46
 L20:
   %r.47 = load i64, ptr %r.2
@@ -374444,7 +374741,7 @@ L20:
   %br.51.cond = icmp ne i64 %r.51, 0
   br i1 %br.51.cond, label %L21, label %L23
 L21:
-  %r.52 = ptrtoint ptr @.str.6267 to i64
+  %r.52 = ptrtoint ptr @.str.6273 to i64
   ret i64 %r.52
 L23:
   %r.53 = load i64, ptr %r.2
@@ -374458,7 +374755,7 @@ L23:
   %br.57.cond = icmp ne i64 %r.57, 0
   br i1 %br.57.cond, label %L24, label %L26
 L24:
-  %r.58 = ptrtoint ptr @.str.6268 to i64
+  %r.58 = ptrtoint ptr @.str.6274 to i64
   ret i64 %r.58
 L26:
   %r.59 = load i64, ptr %r.2
@@ -374472,7 +374769,7 @@ L26:
   %br.63.cond = icmp ne i64 %r.63, 0
   br i1 %br.63.cond, label %L27, label %L29
 L27:
-  %r.64 = ptrtoint ptr @.str.6269 to i64
+  %r.64 = ptrtoint ptr @.str.6275 to i64
   ret i64 %r.64
 L29:
   %r.65 = load i64, ptr %r.2
@@ -374528,7 +374825,7 @@ L38:
   %br.87.cond = icmp ne i64 %r.87, 0
   br i1 %br.87.cond, label %L39, label %L41
 L39:
-  %r.88 = ptrtoint ptr @.str.6267 to i64
+  %r.88 = ptrtoint ptr @.str.6273 to i64
   ret i64 %r.88
 L41:
   %r.89 = load i64, ptr %r.2
@@ -374542,7 +374839,7 @@ L41:
   %br.93.cond = icmp ne i64 %r.93, 0
   br i1 %br.93.cond, label %L42, label %L44
 L42:
-  %r.94 = ptrtoint ptr @.str.6270 to i64
+  %r.94 = ptrtoint ptr @.str.6276 to i64
   ret i64 %r.94
 L44:
   %r.95 = load i64, ptr %r.2
@@ -374556,7 +374853,7 @@ L44:
   %br.99.cond = icmp ne i64 %r.99, 0
   br i1 %br.99.cond, label %L45, label %L47
 L45:
-  %r.100 = ptrtoint ptr @.str.6271 to i64
+  %r.100 = ptrtoint ptr @.str.6277 to i64
   ret i64 %r.100
 L47:
   %r.101 = load i64, ptr %r.2
@@ -375129,7 +375426,7 @@ L65:
 L68:
   %r.181 = load i64, ptr %r.98
   %r.182 = load i64, ptr %r.106
-  %r.183 = ptrtoint ptr @.str.6272 to i64
+  %r.183 = ptrtoint ptr @.str.6278 to i64
   %r.184 = call i64 @str_eq_at(i64 %r.181, i64 %r.182, i64 %r.183)
   %r.185 = add i64 1, 0
   %r.186.cmp = icmp eq i64 %r.184, %r.185
@@ -377451,7 +377748,7 @@ L115:
   br label %L113
 L112:
   %r.288 = load i64, ptr %r.255
-  %r.289 = ptrtoint ptr @.str.6273 to i64
+  %r.289 = ptrtoint ptr @.str.6279 to i64
   %r.290.a0 = inttoptr i64 %r.288 to ptr
   %r.290.a1 = inttoptr i64 %r.289 to ptr
   %r.290 = call i64 @__nucleor_str_eq(ptr %r.290.a0, ptr %r.290.a1)
@@ -378791,7 +379088,7 @@ bb.entry:
   %br.4.cond = icmp ne i64 %r.4, 0
   br i1 %br.4.cond, label %L0, label %L2
 L0:
-  %r.5 = ptrtoint ptr @.str.6274 to i64
+  %r.5 = ptrtoint ptr @.str.6280 to i64
   %r.6.a0 = inttoptr i64 %r.5 to ptr
   call void @__nucleor_print_str(ptr %r.6.a0)
   %r.6 = add i64 0, 0
@@ -378820,7 +379117,7 @@ L4:
   %r.20 = ptrtoint ptr %r.20.rv to i64
   store i64 %r.20, ptr %r.18
   %r.21 = load i64, ptr %r.18
-  %r.22 = ptrtoint ptr @.str.6275 to i64
+  %r.22 = ptrtoint ptr @.str.6281 to i64
   %r.23.a0 = inttoptr i64 %r.21 to ptr
   %r.23.a1 = inttoptr i64 %r.22 to ptr
   %r.23 = call i64 @__nucleor_str_eq(ptr %r.23.a0, ptr %r.23.a1)
@@ -378935,7 +379232,7 @@ L26:
   %r.64.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
   unreachable
 L27:
-  %r.65 = ptrtoint ptr @.str.5635 to i64
+  %r.65 = ptrtoint ptr @.str.5641 to i64
   %r.66 = call i64 @str_eq_at(i64 %r.61, i64 %r.64, i64 %r.65)
   %r.67 = add i64 1, 0
   %r.68.cmp = icmp eq i64 %r.66, %r.67
@@ -378969,7 +379266,7 @@ L32:
   %r.78.a0 = inttoptr i64 %r.73 to ptr
   %r.78.rv = call ptr @__nucleor_str_substring(ptr %r.78.a0, i64 %r.74, i64 %r.77)
   %r.78 = ptrtoint ptr %r.78.rv to i64
-  %r.79 = ptrtoint ptr @.str.6276 to i64
+  %r.79 = ptrtoint ptr @.str.6282 to i64
   %r.80.a0 = inttoptr i64 %r.78 to ptr
   %r.80.a1 = inttoptr i64 %r.79 to ptr
   %r.80.rv = call ptr @__nucleor_str_concat(ptr %r.80.a0, ptr %r.80.a1)
@@ -378978,7 +379275,7 @@ L32:
   br label %L30
 L29:
   %r.81 = load i64, ptr %r.8
-  %r.82 = ptrtoint ptr @.str.6276 to i64
+  %r.82 = ptrtoint ptr @.str.6282 to i64
   %r.83.a0 = inttoptr i64 %r.81 to ptr
   %r.83.a1 = inttoptr i64 %r.82 to ptr
   %r.83.rv = call ptr @__nucleor_str_concat(ptr %r.83.a0, ptr %r.83.a1)
@@ -379002,7 +379299,7 @@ L22:
   %br.90.cond = icmp ne i64 %r.90, 0
   br i1 %br.90.cond, label %L33, label %L35
 L33:
-  %r.91 = ptrtoint ptr @.str.6277 to i64
+  %r.91 = ptrtoint ptr @.str.6283 to i64
   %r.92 = load i64, ptr %r.8
   %r.93.a0 = inttoptr i64 %r.91 to ptr
   %r.93.a1 = inttoptr i64 %r.92 to ptr
@@ -379017,7 +379314,7 @@ L35:
   %r.97 = call i64 @__nucleor_sb_new()
   store i64 %r.97, ptr %r.96
   %r.98 = load i64, ptr %r.96
-  %r.99 = ptrtoint ptr @.str.6278 to i64
+  %r.99 = ptrtoint ptr @.str.6284 to i64
   %r.100.a1 = inttoptr i64 %r.99 to ptr
   call void @__nucleor_sb_append(i64 %r.98, ptr %r.100.a1)
   %r.100 = add i64 0, 0
@@ -379027,32 +379324,32 @@ L35:
   call void @__nucleor_sb_append(i64 %r.101, ptr %r.103.a1)
   %r.103 = add i64 0, 0
   %r.104 = load i64, ptr %r.96
-  %r.105 = ptrtoint ptr @.str.6279 to i64
+  %r.105 = ptrtoint ptr @.str.6285 to i64
   %r.106.a1 = inttoptr i64 %r.105 to ptr
   call void @__nucleor_sb_append(i64 %r.104, ptr %r.106.a1)
   %r.106 = add i64 0, 0
   %r.107 = load i64, ptr %r.96
-  %r.108 = ptrtoint ptr @.str.6280 to i64
+  %r.108 = ptrtoint ptr @.str.6286 to i64
   %r.109.a1 = inttoptr i64 %r.108 to ptr
   call void @__nucleor_sb_append(i64 %r.107, ptr %r.109.a1)
   %r.109 = add i64 0, 0
   %r.110 = load i64, ptr %r.96
-  %r.111 = ptrtoint ptr @.str.6281 to i64
+  %r.111 = ptrtoint ptr @.str.6287 to i64
   %r.112.a1 = inttoptr i64 %r.111 to ptr
   call void @__nucleor_sb_append(i64 %r.110, ptr %r.112.a1)
   %r.112 = add i64 0, 0
   %r.113 = load i64, ptr %r.96
-  %r.114 = ptrtoint ptr @.str.6282 to i64
+  %r.114 = ptrtoint ptr @.str.6288 to i64
   %r.115.a1 = inttoptr i64 %r.114 to ptr
   call void @__nucleor_sb_append(i64 %r.113, ptr %r.115.a1)
   %r.115 = add i64 0, 0
   %r.116 = load i64, ptr %r.96
-  %r.117 = ptrtoint ptr @.str.6283 to i64
+  %r.117 = ptrtoint ptr @.str.6289 to i64
   %r.118.a1 = inttoptr i64 %r.117 to ptr
   call void @__nucleor_sb_append(i64 %r.116, ptr %r.118.a1)
   %r.118 = add i64 0, 0
   %r.119 = load i64, ptr %r.96
-  %r.120 = ptrtoint ptr @.str.6284 to i64
+  %r.120 = ptrtoint ptr @.str.6290 to i64
   %r.121.a1 = inttoptr i64 %r.120 to ptr
   call void @__nucleor_sb_append(i64 %r.119, ptr %r.121.a1)
   %r.121 = add i64 0, 0
@@ -379095,7 +379392,7 @@ L37:
   br i1 %br.146.cond, label %L39, label %L41
 L39:
   %r.147 = load i64, ptr %r.96
-  %r.148 = ptrtoint ptr @.str.6285 to i64
+  %r.148 = ptrtoint ptr @.str.6291 to i64
   %r.149.a1 = inttoptr i64 %r.148 to ptr
   call void @__nucleor_sb_append(i64 %r.147, ptr %r.149.a1)
   %r.149 = add i64 0, 0
@@ -379162,7 +379459,7 @@ L48:
   br i1 %br.180.cond, label %L49, label %L51
 L49:
   %r.181 = load i64, ptr %r.96
-  %r.182 = ptrtoint ptr @.str.5609 to i64
+  %r.182 = ptrtoint ptr @.str.5614 to i64
   %r.183.a1 = inttoptr i64 %r.182 to ptr
   call void @__nucleor_sb_append(i64 %r.181, ptr %r.183.a1)
   %r.183 = add i64 0, 0
@@ -379182,7 +379479,7 @@ L49:
   call void @__nucleor_sb_append(i64 %r.190, ptr %r.192.a1)
   %r.192 = add i64 0, 0
   %r.193 = load i64, ptr %r.96
-  %r.194 = ptrtoint ptr @.str.6286 to i64
+  %r.194 = ptrtoint ptr @.str.6292 to i64
   %r.195.a1 = inttoptr i64 %r.194 to ptr
   call void @__nucleor_sb_append(i64 %r.193, ptr %r.195.a1)
   %r.195 = add i64 0, 0
@@ -379202,7 +379499,7 @@ L53:
   br label %L42
 L44:
   %r.199 = load i64, ptr %r.96
-  %r.200 = ptrtoint ptr @.str.6287 to i64
+  %r.200 = ptrtoint ptr @.str.6293 to i64
   %r.201.a1 = inttoptr i64 %r.200 to ptr
   call void @__nucleor_sb_append(i64 %r.199, ptr %r.201.a1)
   %r.201 = add i64 0, 0
@@ -379212,7 +379509,7 @@ L44:
   call void @__nucleor_sb_append(i64 %r.202, ptr %r.204.a1)
   %r.204 = add i64 0, 0
   %r.205 = load i64, ptr %r.96
-  %r.206 = ptrtoint ptr @.str.6288 to i64
+  %r.206 = ptrtoint ptr @.str.6294 to i64
   %r.207.a1 = inttoptr i64 %r.206 to ptr
   call void @__nucleor_sb_append(i64 %r.205, ptr %r.207.a1)
   %r.207 = add i64 0, 0
@@ -380588,7 +380885,7 @@ L260:
   br label %L261
 L261:
   %r.789 = load i64, ptr %r.96
-  %r.790 = ptrtoint ptr @.str.5979 to i64
+  %r.790 = ptrtoint ptr @.str.5985 to i64
   %r.791.a1 = inttoptr i64 %r.790 to ptr
   call void @__nucleor_sb_append(i64 %r.789, ptr %r.791.a1)
   %r.791 = add i64 0, 0
@@ -380625,7 +380922,7 @@ L60:
   br i1 %br.808.cond, label %L264, label %L266
 L264:
   %r.809 = load i64, ptr %r.96
-  %r.810 = ptrtoint ptr @.str.6289 to i64
+  %r.810 = ptrtoint ptr @.str.6295 to i64
   %r.811.a1 = inttoptr i64 %r.810 to ptr
   call void @__nucleor_sb_append(i64 %r.809, ptr %r.811.a1)
   %r.811 = add i64 0, 0
@@ -380708,7 +381005,7 @@ L275:
   call void @__nucleor_sb_append(i64 %r.845, ptr %r.847.a1)
   %r.847 = add i64 0, 0
   %r.848 = load i64, ptr %r.96
-  %r.849 = ptrtoint ptr @.str.5979 to i64
+  %r.849 = ptrtoint ptr @.str.5985 to i64
   %r.850.a1 = inttoptr i64 %r.849 to ptr
   call void @__nucleor_sb_append(i64 %r.848, ptr %r.850.a1)
   %r.850 = add i64 0, 0
@@ -380737,12 +381034,12 @@ L279:
   br label %L267
 L269:
   %r.857 = load i64, ptr %r.96
-  %r.858 = ptrtoint ptr @.str.6290 to i64
+  %r.858 = ptrtoint ptr @.str.6296 to i64
   %r.859.a1 = inttoptr i64 %r.858 to ptr
   call void @__nucleor_sb_append(i64 %r.857, ptr %r.859.a1)
   %r.859 = add i64 0, 0
   %r.860 = load i64, ptr %r.96
-  %r.861 = ptrtoint ptr @.str.6291 to i64
+  %r.861 = ptrtoint ptr @.str.6297 to i64
   %r.862.a1 = inttoptr i64 %r.861 to ptr
   call void @__nucleor_sb_append(i64 %r.860, ptr %r.862.a1)
   %r.862 = add i64 0, 0
@@ -380768,14 +381065,14 @@ L269:
   %br.876.cond = icmp ne i64 %r.876, 0
   br i1 %br.876.cond, label %L280, label %L281
 L280:
-  %r.877 = ptrtoint ptr @.str.6292 to i64
+  %r.877 = ptrtoint ptr @.str.6298 to i64
   %r.878 = load i64, ptr %r.125
   %r.879 = call i64 @str_from_int(i64 %r.878)
-  %r.880 = ptrtoint ptr @.str.6293 to i64
+  %r.880 = ptrtoint ptr @.str.6299 to i64
   %r.881 = load i64, ptr %r.868
-  %r.882 = ptrtoint ptr @.str.6294 to i64
+  %r.882 = ptrtoint ptr @.str.6300 to i64
   %r.883 = load i64, ptr %r.871
-  %r.884 = ptrtoint ptr @.str.6295 to i64
+  %r.884 = ptrtoint ptr @.str.6301 to i64
   %r.885 = load i64, ptr %r.11
   %r.886.a0 = inttoptr i64 %r.884 to ptr
   %r.886.a1 = inttoptr i64 %r.885 to ptr
@@ -380810,11 +381107,11 @@ L280:
   %r.893 = add i64 0, 0
   br label %L282
 L281:
-  %r.894 = ptrtoint ptr @.str.6292 to i64
+  %r.894 = ptrtoint ptr @.str.6298 to i64
   %r.895 = load i64, ptr %r.868
-  %r.896 = ptrtoint ptr @.str.6294 to i64
+  %r.896 = ptrtoint ptr @.str.6300 to i64
   %r.897 = load i64, ptr %r.871
-  %r.898 = ptrtoint ptr @.str.6295 to i64
+  %r.898 = ptrtoint ptr @.str.6301 to i64
   %r.899 = load i64, ptr %r.11
   %r.900.a0 = inttoptr i64 %r.898 to ptr
   %r.900.a1 = inttoptr i64 %r.899 to ptr
@@ -380847,7 +381144,7 @@ L282:
 
 define i64 @run_zen_command() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6296 to i64
+  %r.0 = ptrtoint ptr @.str.6302 to i64
   %r.1.a0 = inttoptr i64 %r.0 to ptr
   call void @__nucleor_print_str(ptr %r.1.a0)
   %r.1 = add i64 0, 0
@@ -380855,51 +381152,51 @@ bb.entry:
   %r.3.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.3.a0)
   %r.3 = add i64 0, 0
-  %r.4 = ptrtoint ptr @.str.6297 to i64
+  %r.4 = ptrtoint ptr @.str.6303 to i64
   %r.5.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.5.a0)
   %r.5 = add i64 0, 0
-  %r.6 = ptrtoint ptr @.str.6298 to i64
+  %r.6 = ptrtoint ptr @.str.6304 to i64
   %r.7.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.7.a0)
   %r.7 = add i64 0, 0
-  %r.8 = ptrtoint ptr @.str.6299 to i64
+  %r.8 = ptrtoint ptr @.str.6305 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   call void @__nucleor_print_str(ptr %r.9.a0)
   %r.9 = add i64 0, 0
-  %r.10 = ptrtoint ptr @.str.6300 to i64
+  %r.10 = ptrtoint ptr @.str.6306 to i64
   %r.11.a0 = inttoptr i64 %r.10 to ptr
   call void @__nucleor_print_str(ptr %r.11.a0)
   %r.11 = add i64 0, 0
-  %r.12 = ptrtoint ptr @.str.6301 to i64
+  %r.12 = ptrtoint ptr @.str.6307 to i64
   %r.13.a0 = inttoptr i64 %r.12 to ptr
   call void @__nucleor_print_str(ptr %r.13.a0)
   %r.13 = add i64 0, 0
-  %r.14 = ptrtoint ptr @.str.6302 to i64
+  %r.14 = ptrtoint ptr @.str.6308 to i64
   %r.15.a0 = inttoptr i64 %r.14 to ptr
   call void @__nucleor_print_str(ptr %r.15.a0)
   %r.15 = add i64 0, 0
-  %r.16 = ptrtoint ptr @.str.6303 to i64
+  %r.16 = ptrtoint ptr @.str.6309 to i64
   %r.17.a0 = inttoptr i64 %r.16 to ptr
   call void @__nucleor_print_str(ptr %r.17.a0)
   %r.17 = add i64 0, 0
-  %r.18 = ptrtoint ptr @.str.6304 to i64
+  %r.18 = ptrtoint ptr @.str.6310 to i64
   %r.19.a0 = inttoptr i64 %r.18 to ptr
   call void @__nucleor_print_str(ptr %r.19.a0)
   %r.19 = add i64 0, 0
-  %r.20 = ptrtoint ptr @.str.6305 to i64
+  %r.20 = ptrtoint ptr @.str.6311 to i64
   %r.21.a0 = inttoptr i64 %r.20 to ptr
   call void @__nucleor_print_str(ptr %r.21.a0)
   %r.21 = add i64 0, 0
-  %r.22 = ptrtoint ptr @.str.6306 to i64
+  %r.22 = ptrtoint ptr @.str.6312 to i64
   %r.23.a0 = inttoptr i64 %r.22 to ptr
   call void @__nucleor_print_str(ptr %r.23.a0)
   %r.23 = add i64 0, 0
-  %r.24 = ptrtoint ptr @.str.6307 to i64
+  %r.24 = ptrtoint ptr @.str.6313 to i64
   %r.25.a0 = inttoptr i64 %r.24 to ptr
   call void @__nucleor_print_str(ptr %r.25.a0)
   %r.25 = add i64 0, 0
-  %r.26 = ptrtoint ptr @.str.6308 to i64
+  %r.26 = ptrtoint ptr @.str.6314 to i64
   %r.27.a0 = inttoptr i64 %r.26 to ptr
   call void @__nucleor_print_str(ptr %r.27.a0)
   %r.27 = add i64 0, 0
@@ -380909,45 +381206,45 @@ bb.entry:
 
 define i64 @run_mco_command() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6309 to i64
+  %r.0 = ptrtoint ptr @.str.6315 to i64
   %r.1.a0 = inttoptr i64 %r.0 to ptr
   call void @__nucleor_print_str(ptr %r.1.a0)
   %r.1 = add i64 0, 0
-  %r.2 = ptrtoint ptr @.str.6310 to i64
+  %r.2 = ptrtoint ptr @.str.6316 to i64
   %r.3.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.3.a0)
   %r.3 = add i64 0, 0
-  %r.4 = ptrtoint ptr @.str.6311 to i64
+  %r.4 = ptrtoint ptr @.str.6317 to i64
   %r.5.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.5.a0)
   %r.5 = add i64 0, 0
-  %r.6 = ptrtoint ptr @.str.6312 to i64
+  %r.6 = ptrtoint ptr @.str.6318 to i64
   %r.7.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.7.a0)
   %r.7 = add i64 0, 0
-  %r.8 = ptrtoint ptr @.str.6313 to i64
+  %r.8 = ptrtoint ptr @.str.6319 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   call void @__nucleor_print_str(ptr %r.9.a0)
   %r.9 = add i64 0, 0
   %r.11.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.11.a0)
   %r.11 = add i64 0, 0
-  %r.12 = ptrtoint ptr @.str.6314 to i64
+  %r.12 = ptrtoint ptr @.str.6320 to i64
   %r.13.a0 = inttoptr i64 %r.12 to ptr
   call void @__nucleor_print_str(ptr %r.13.a0)
   %r.13 = add i64 0, 0
-  %r.14 = ptrtoint ptr @.str.6315 to i64
+  %r.14 = ptrtoint ptr @.str.6321 to i64
   %r.15.a0 = inttoptr i64 %r.14 to ptr
   call void @__nucleor_print_str(ptr %r.15.a0)
   %r.15 = add i64 0, 0
-  %r.16 = ptrtoint ptr @.str.6316 to i64
+  %r.16 = ptrtoint ptr @.str.6322 to i64
   %r.17.a0 = inttoptr i64 %r.16 to ptr
   call void @__nucleor_print_str(ptr %r.17.a0)
   %r.17 = add i64 0, 0
   %r.19.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.19.a0)
   %r.19 = add i64 0, 0
-  %r.20 = ptrtoint ptr @.str.6317 to i64
+  %r.20 = ptrtoint ptr @.str.6323 to i64
   %r.21.a0 = inttoptr i64 %r.20 to ptr
   call void @__nucleor_print_str(ptr %r.21.a0)
   %r.21 = add i64 0, 0
@@ -380981,7 +381278,7 @@ L1:
   %r.9 = load i64, ptr %r.4
   %r.10.rv = call ptr @__nucleor_args_get(i64 %r.9)
   %r.10 = ptrtoint ptr %r.10.rv to i64
-  %r.11 = ptrtoint ptr @.str.6318 to i64
+  %r.11 = ptrtoint ptr @.str.6324 to i64
   %r.12.a0 = inttoptr i64 %r.10 to ptr
   %r.12.a1 = inttoptr i64 %r.11 to ptr
   %r.12 = call i64 @__nucleor_str_eq(ptr %r.12.a0, ptr %r.12.a1)
@@ -381015,13 +381312,13 @@ L2:
   %br.21.cond = icmp ne i64 %r.21, 0
   br i1 %br.21.cond, label %L8, label %L10
 L8:
-  %r.22 = ptrtoint ptr @.str.6319 to i64
+  %r.22 = ptrtoint ptr @.str.6325 to i64
   %r.23.a0 = inttoptr i64 %r.22 to ptr
   call void @__nucleor_print_str(ptr %r.23.a0)
   %r.23 = add i64 0, 0
-  %r.24 = ptrtoint ptr @.str.5582 to i64
+  %r.24 = ptrtoint ptr @.str.5587 to i64
   %r.25 = call i64 @host_target_path_sep()
-  %r.26 = ptrtoint ptr @.str.6320 to i64
+  %r.26 = ptrtoint ptr @.str.6326 to i64
   %r.27.a0 = inttoptr i64 %r.25 to ptr
   %r.27.a1 = inttoptr i64 %r.26 to ptr
   %r.27.rv = call ptr @__nucleor_str_concat(ptr %r.27.a0, ptr %r.27.a1)
@@ -381031,24 +381328,24 @@ L8:
   %r.28.rv = call ptr @__nucleor_str_concat(ptr %r.28.a0, ptr %r.28.a1)
   %r.28 = ptrtoint ptr %r.28.rv to i64
   %r.29 = call i64 @host_remove_dir_quiet(i64 %r.28)
-  %r.30 = ptrtoint ptr @.str.5881 to i64
+  %r.30 = ptrtoint ptr @.str.5887 to i64
   %r.31 = call i64 @host_remove_dir_quiet(i64 %r.30)
-  %r.32 = ptrtoint ptr @.str.6321 to i64
+  %r.32 = ptrtoint ptr @.str.6327 to i64
   %r.33.a0 = inttoptr i64 %r.32 to ptr
   call void @__nucleor_print_str(ptr %r.33.a0)
   %r.33 = add i64 0, 0
   %r.34 = add i64 0, 0
   ret i64 %r.34
 L10:
-  %r.35 = ptrtoint ptr @.str.6322 to i64
+  %r.35 = ptrtoint ptr @.str.6328 to i64
   %r.36.a0 = inttoptr i64 %r.35 to ptr
   call void @__nucleor_print_str(ptr %r.36.a0)
   %r.36 = add i64 0, 0
-  %r.37 = ptrtoint ptr @.str.5582 to i64
+  %r.37 = ptrtoint ptr @.str.5587 to i64
   %r.38 = call i64 @host_remove_dir_quiet(i64 %r.37)
-  %r.39 = ptrtoint ptr @.str.5881 to i64
+  %r.39 = ptrtoint ptr @.str.5887 to i64
   %r.40 = call i64 @host_remove_dir_quiet(i64 %r.39)
-  %r.41 = ptrtoint ptr @.str.6321 to i64
+  %r.41 = ptrtoint ptr @.str.6327 to i64
   %r.42.a0 = inttoptr i64 %r.41 to ptr
   call void @__nucleor_print_str(ptr %r.42.a0)
   %r.42 = add i64 0, 0
@@ -381058,7 +381355,7 @@ L10:
 
 define i64 @print_help() {
 bb.entry:
-  %r.0 = ptrtoint ptr @.str.6323 to i64
+  %r.0 = ptrtoint ptr @.str.6329 to i64
   %r.1 = call i64 @compiler_version_label()
   %r.2.a0 = inttoptr i64 %r.0 to ptr
   %r.2.a1 = inttoptr i64 %r.1 to ptr
@@ -381067,7 +381364,7 @@ bb.entry:
   %r.3.a0 = inttoptr i64 %r.2 to ptr
   call void @__nucleor_print_str(ptr %r.3.a0)
   %r.3 = add i64 0, 0
-  %r.4 = ptrtoint ptr @.str.6324 to i64
+  %r.4 = ptrtoint ptr @.str.6330 to i64
   %r.5.a0 = inttoptr i64 %r.4 to ptr
   call void @__nucleor_print_str(ptr %r.5.a0)
   %r.5 = add i64 0, 0
@@ -381075,372 +381372,372 @@ bb.entry:
   %r.7.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.7.a0)
   %r.7 = add i64 0, 0
-  %r.8 = ptrtoint ptr @.str.6325 to i64
+  %r.8 = ptrtoint ptr @.str.6331 to i64
   %r.9.a0 = inttoptr i64 %r.8 to ptr
   call void @__nucleor_print_str(ptr %r.9.a0)
   %r.9 = add i64 0, 0
   %r.11.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.11.a0)
   %r.11 = add i64 0, 0
-  %r.12 = ptrtoint ptr @.str.6326 to i64
+  %r.12 = ptrtoint ptr @.str.6332 to i64
   %r.13.a0 = inttoptr i64 %r.12 to ptr
   call void @__nucleor_print_str(ptr %r.13.a0)
   %r.13 = add i64 0, 0
-  %r.14 = ptrtoint ptr @.str.6327 to i64
+  %r.14 = ptrtoint ptr @.str.6333 to i64
   %r.15.a0 = inttoptr i64 %r.14 to ptr
   call void @__nucleor_print_str(ptr %r.15.a0)
   %r.15 = add i64 0, 0
-  %r.16 = ptrtoint ptr @.str.6328 to i64
+  %r.16 = ptrtoint ptr @.str.6334 to i64
   %r.17.a0 = inttoptr i64 %r.16 to ptr
   call void @__nucleor_print_str(ptr %r.17.a0)
   %r.17 = add i64 0, 0
-  %r.18 = ptrtoint ptr @.str.6329 to i64
+  %r.18 = ptrtoint ptr @.str.6335 to i64
   %r.19.a0 = inttoptr i64 %r.18 to ptr
   call void @__nucleor_print_str(ptr %r.19.a0)
   %r.19 = add i64 0, 0
-  %r.20 = ptrtoint ptr @.str.6330 to i64
+  %r.20 = ptrtoint ptr @.str.6336 to i64
   %r.21.a0 = inttoptr i64 %r.20 to ptr
   call void @__nucleor_print_str(ptr %r.21.a0)
   %r.21 = add i64 0, 0
-  %r.22 = ptrtoint ptr @.str.6331 to i64
+  %r.22 = ptrtoint ptr @.str.6337 to i64
   %r.23.a0 = inttoptr i64 %r.22 to ptr
   call void @__nucleor_print_str(ptr %r.23.a0)
   %r.23 = add i64 0, 0
-  %r.24 = ptrtoint ptr @.str.6332 to i64
+  %r.24 = ptrtoint ptr @.str.6338 to i64
   %r.25.a0 = inttoptr i64 %r.24 to ptr
   call void @__nucleor_print_str(ptr %r.25.a0)
   %r.25 = add i64 0, 0
-  %r.26 = ptrtoint ptr @.str.6333 to i64
+  %r.26 = ptrtoint ptr @.str.6339 to i64
   %r.27.a0 = inttoptr i64 %r.26 to ptr
   call void @__nucleor_print_str(ptr %r.27.a0)
   %r.27 = add i64 0, 0
-  %r.28 = ptrtoint ptr @.str.6334 to i64
+  %r.28 = ptrtoint ptr @.str.6340 to i64
   %r.29.a0 = inttoptr i64 %r.28 to ptr
   call void @__nucleor_print_str(ptr %r.29.a0)
   %r.29 = add i64 0, 0
-  %r.30 = ptrtoint ptr @.str.6335 to i64
+  %r.30 = ptrtoint ptr @.str.6341 to i64
   %r.31.a0 = inttoptr i64 %r.30 to ptr
   call void @__nucleor_print_str(ptr %r.31.a0)
   %r.31 = add i64 0, 0
-  %r.32 = ptrtoint ptr @.str.6336 to i64
+  %r.32 = ptrtoint ptr @.str.6342 to i64
   %r.33.a0 = inttoptr i64 %r.32 to ptr
   call void @__nucleor_print_str(ptr %r.33.a0)
   %r.33 = add i64 0, 0
-  %r.34 = ptrtoint ptr @.str.6337 to i64
+  %r.34 = ptrtoint ptr @.str.6343 to i64
   %r.35.a0 = inttoptr i64 %r.34 to ptr
   call void @__nucleor_print_str(ptr %r.35.a0)
   %r.35 = add i64 0, 0
-  %r.36 = ptrtoint ptr @.str.6338 to i64
+  %r.36 = ptrtoint ptr @.str.6344 to i64
   %r.37.a0 = inttoptr i64 %r.36 to ptr
   call void @__nucleor_print_str(ptr %r.37.a0)
   %r.37 = add i64 0, 0
-  %r.38 = ptrtoint ptr @.str.6339 to i64
+  %r.38 = ptrtoint ptr @.str.6345 to i64
   %r.39.a0 = inttoptr i64 %r.38 to ptr
   call void @__nucleor_print_str(ptr %r.39.a0)
   %r.39 = add i64 0, 0
-  %r.40 = ptrtoint ptr @.str.6340 to i64
+  %r.40 = ptrtoint ptr @.str.6346 to i64
   %r.41.a0 = inttoptr i64 %r.40 to ptr
   call void @__nucleor_print_str(ptr %r.41.a0)
   %r.41 = add i64 0, 0
-  %r.42 = ptrtoint ptr @.str.6341 to i64
+  %r.42 = ptrtoint ptr @.str.6347 to i64
   %r.43.a0 = inttoptr i64 %r.42 to ptr
   call void @__nucleor_print_str(ptr %r.43.a0)
   %r.43 = add i64 0, 0
-  %r.44 = ptrtoint ptr @.str.6342 to i64
+  %r.44 = ptrtoint ptr @.str.6348 to i64
   %r.45.a0 = inttoptr i64 %r.44 to ptr
   call void @__nucleor_print_str(ptr %r.45.a0)
   %r.45 = add i64 0, 0
-  %r.46 = ptrtoint ptr @.str.6343 to i64
+  %r.46 = ptrtoint ptr @.str.6349 to i64
   %r.47.a0 = inttoptr i64 %r.46 to ptr
   call void @__nucleor_print_str(ptr %r.47.a0)
   %r.47 = add i64 0, 0
   %r.49.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.49.a0)
   %r.49 = add i64 0, 0
-  %r.50 = ptrtoint ptr @.str.6344 to i64
+  %r.50 = ptrtoint ptr @.str.6350 to i64
   %r.51.a0 = inttoptr i64 %r.50 to ptr
   call void @__nucleor_print_str(ptr %r.51.a0)
   %r.51 = add i64 0, 0
-  %r.52 = ptrtoint ptr @.str.6345 to i64
+  %r.52 = ptrtoint ptr @.str.6351 to i64
   %r.53.a0 = inttoptr i64 %r.52 to ptr
   call void @__nucleor_print_str(ptr %r.53.a0)
   %r.53 = add i64 0, 0
-  %r.54 = ptrtoint ptr @.str.6346 to i64
+  %r.54 = ptrtoint ptr @.str.6352 to i64
   %r.55.a0 = inttoptr i64 %r.54 to ptr
   call void @__nucleor_print_str(ptr %r.55.a0)
   %r.55 = add i64 0, 0
-  %r.56 = ptrtoint ptr @.str.6347 to i64
+  %r.56 = ptrtoint ptr @.str.6353 to i64
   %r.57.a0 = inttoptr i64 %r.56 to ptr
   call void @__nucleor_print_str(ptr %r.57.a0)
   %r.57 = add i64 0, 0
-  %r.58 = ptrtoint ptr @.str.6348 to i64
+  %r.58 = ptrtoint ptr @.str.6354 to i64
   %r.59.a0 = inttoptr i64 %r.58 to ptr
   call void @__nucleor_print_str(ptr %r.59.a0)
   %r.59 = add i64 0, 0
-  %r.60 = ptrtoint ptr @.str.6349 to i64
+  %r.60 = ptrtoint ptr @.str.6355 to i64
   %r.61.a0 = inttoptr i64 %r.60 to ptr
   call void @__nucleor_print_str(ptr %r.61.a0)
   %r.61 = add i64 0, 0
-  %r.62 = ptrtoint ptr @.str.6350 to i64
+  %r.62 = ptrtoint ptr @.str.6356 to i64
   %r.63.a0 = inttoptr i64 %r.62 to ptr
   call void @__nucleor_print_str(ptr %r.63.a0)
   %r.63 = add i64 0, 0
-  %r.64 = ptrtoint ptr @.str.6351 to i64
+  %r.64 = ptrtoint ptr @.str.6357 to i64
   %r.65.a0 = inttoptr i64 %r.64 to ptr
   call void @__nucleor_print_str(ptr %r.65.a0)
   %r.65 = add i64 0, 0
-  %r.66 = ptrtoint ptr @.str.6352 to i64
+  %r.66 = ptrtoint ptr @.str.6358 to i64
   %r.67.a0 = inttoptr i64 %r.66 to ptr
   call void @__nucleor_print_str(ptr %r.67.a0)
   %r.67 = add i64 0, 0
-  %r.68 = ptrtoint ptr @.str.6353 to i64
+  %r.68 = ptrtoint ptr @.str.6359 to i64
   %r.69.a0 = inttoptr i64 %r.68 to ptr
   call void @__nucleor_print_str(ptr %r.69.a0)
   %r.69 = add i64 0, 0
-  %r.70 = ptrtoint ptr @.str.6354 to i64
+  %r.70 = ptrtoint ptr @.str.6360 to i64
   %r.71.a0 = inttoptr i64 %r.70 to ptr
   call void @__nucleor_print_str(ptr %r.71.a0)
   %r.71 = add i64 0, 0
-  %r.72 = ptrtoint ptr @.str.6355 to i64
+  %r.72 = ptrtoint ptr @.str.6361 to i64
   %r.73.a0 = inttoptr i64 %r.72 to ptr
   call void @__nucleor_print_str(ptr %r.73.a0)
   %r.73 = add i64 0, 0
-  %r.74 = ptrtoint ptr @.str.6356 to i64
+  %r.74 = ptrtoint ptr @.str.6362 to i64
   %r.75.a0 = inttoptr i64 %r.74 to ptr
   call void @__nucleor_print_str(ptr %r.75.a0)
   %r.75 = add i64 0, 0
-  %r.76 = ptrtoint ptr @.str.6357 to i64
+  %r.76 = ptrtoint ptr @.str.6363 to i64
   %r.77.a0 = inttoptr i64 %r.76 to ptr
   call void @__nucleor_print_str(ptr %r.77.a0)
   %r.77 = add i64 0, 0
-  %r.78 = ptrtoint ptr @.str.6358 to i64
+  %r.78 = ptrtoint ptr @.str.6364 to i64
   %r.79.a0 = inttoptr i64 %r.78 to ptr
   call void @__nucleor_print_str(ptr %r.79.a0)
   %r.79 = add i64 0, 0
-  %r.80 = ptrtoint ptr @.str.6359 to i64
+  %r.80 = ptrtoint ptr @.str.6365 to i64
   %r.81.a0 = inttoptr i64 %r.80 to ptr
   call void @__nucleor_print_str(ptr %r.81.a0)
   %r.81 = add i64 0, 0
-  %r.82 = ptrtoint ptr @.str.6360 to i64
+  %r.82 = ptrtoint ptr @.str.6366 to i64
   %r.83.a0 = inttoptr i64 %r.82 to ptr
   call void @__nucleor_print_str(ptr %r.83.a0)
   %r.83 = add i64 0, 0
-  %r.84 = ptrtoint ptr @.str.6361 to i64
+  %r.84 = ptrtoint ptr @.str.6367 to i64
   %r.85.a0 = inttoptr i64 %r.84 to ptr
   call void @__nucleor_print_str(ptr %r.85.a0)
   %r.85 = add i64 0, 0
-  %r.86 = ptrtoint ptr @.str.6362 to i64
+  %r.86 = ptrtoint ptr @.str.6368 to i64
   %r.87.a0 = inttoptr i64 %r.86 to ptr
   call void @__nucleor_print_str(ptr %r.87.a0)
   %r.87 = add i64 0, 0
-  %r.88 = ptrtoint ptr @.str.6363 to i64
+  %r.88 = ptrtoint ptr @.str.6369 to i64
   %r.89.a0 = inttoptr i64 %r.88 to ptr
   call void @__nucleor_print_str(ptr %r.89.a0)
   %r.89 = add i64 0, 0
-  %r.90 = ptrtoint ptr @.str.6364 to i64
+  %r.90 = ptrtoint ptr @.str.6370 to i64
   %r.91.a0 = inttoptr i64 %r.90 to ptr
   call void @__nucleor_print_str(ptr %r.91.a0)
   %r.91 = add i64 0, 0
-  %r.92 = ptrtoint ptr @.str.6365 to i64
+  %r.92 = ptrtoint ptr @.str.6371 to i64
   %r.93.a0 = inttoptr i64 %r.92 to ptr
   call void @__nucleor_print_str(ptr %r.93.a0)
   %r.93 = add i64 0, 0
-  %r.94 = ptrtoint ptr @.str.6366 to i64
+  %r.94 = ptrtoint ptr @.str.6372 to i64
   %r.95.a0 = inttoptr i64 %r.94 to ptr
   call void @__nucleor_print_str(ptr %r.95.a0)
   %r.95 = add i64 0, 0
-  %r.96 = ptrtoint ptr @.str.6367 to i64
+  %r.96 = ptrtoint ptr @.str.6373 to i64
   %r.97.a0 = inttoptr i64 %r.96 to ptr
   call void @__nucleor_print_str(ptr %r.97.a0)
   %r.97 = add i64 0, 0
-  %r.98 = ptrtoint ptr @.str.6368 to i64
+  %r.98 = ptrtoint ptr @.str.6374 to i64
   %r.99.a0 = inttoptr i64 %r.98 to ptr
   call void @__nucleor_print_str(ptr %r.99.a0)
   %r.99 = add i64 0, 0
-  %r.100 = ptrtoint ptr @.str.6369 to i64
+  %r.100 = ptrtoint ptr @.str.6375 to i64
   %r.101.a0 = inttoptr i64 %r.100 to ptr
   call void @__nucleor_print_str(ptr %r.101.a0)
   %r.101 = add i64 0, 0
-  %r.102 = ptrtoint ptr @.str.6370 to i64
+  %r.102 = ptrtoint ptr @.str.6376 to i64
   %r.103.a0 = inttoptr i64 %r.102 to ptr
   call void @__nucleor_print_str(ptr %r.103.a0)
   %r.103 = add i64 0, 0
-  %r.104 = ptrtoint ptr @.str.6371 to i64
+  %r.104 = ptrtoint ptr @.str.6377 to i64
   %r.105.a0 = inttoptr i64 %r.104 to ptr
   call void @__nucleor_print_str(ptr %r.105.a0)
   %r.105 = add i64 0, 0
-  %r.106 = ptrtoint ptr @.str.6372 to i64
+  %r.106 = ptrtoint ptr @.str.6378 to i64
   %r.107.a0 = inttoptr i64 %r.106 to ptr
   call void @__nucleor_print_str(ptr %r.107.a0)
   %r.107 = add i64 0, 0
-  %r.108 = ptrtoint ptr @.str.6373 to i64
+  %r.108 = ptrtoint ptr @.str.6379 to i64
   %r.109.a0 = inttoptr i64 %r.108 to ptr
   call void @__nucleor_print_str(ptr %r.109.a0)
   %r.109 = add i64 0, 0
-  %r.110 = ptrtoint ptr @.str.6374 to i64
+  %r.110 = ptrtoint ptr @.str.6380 to i64
   %r.111.a0 = inttoptr i64 %r.110 to ptr
   call void @__nucleor_print_str(ptr %r.111.a0)
   %r.111 = add i64 0, 0
-  %r.112 = ptrtoint ptr @.str.6375 to i64
+  %r.112 = ptrtoint ptr @.str.6381 to i64
   %r.113.a0 = inttoptr i64 %r.112 to ptr
   call void @__nucleor_print_str(ptr %r.113.a0)
   %r.113 = add i64 0, 0
-  %r.114 = ptrtoint ptr @.str.6376 to i64
+  %r.114 = ptrtoint ptr @.str.6382 to i64
   %r.115.a0 = inttoptr i64 %r.114 to ptr
   call void @__nucleor_print_str(ptr %r.115.a0)
   %r.115 = add i64 0, 0
-  %r.116 = ptrtoint ptr @.str.6377 to i64
+  %r.116 = ptrtoint ptr @.str.6383 to i64
   %r.117.a0 = inttoptr i64 %r.116 to ptr
   call void @__nucleor_print_str(ptr %r.117.a0)
   %r.117 = add i64 0, 0
-  %r.118 = ptrtoint ptr @.str.6378 to i64
+  %r.118 = ptrtoint ptr @.str.6384 to i64
   %r.119.a0 = inttoptr i64 %r.118 to ptr
   call void @__nucleor_print_str(ptr %r.119.a0)
   %r.119 = add i64 0, 0
-  %r.120 = ptrtoint ptr @.str.6379 to i64
+  %r.120 = ptrtoint ptr @.str.6385 to i64
   %r.121.a0 = inttoptr i64 %r.120 to ptr
   call void @__nucleor_print_str(ptr %r.121.a0)
   %r.121 = add i64 0, 0
-  %r.122 = ptrtoint ptr @.str.6380 to i64
+  %r.122 = ptrtoint ptr @.str.6386 to i64
   %r.123.a0 = inttoptr i64 %r.122 to ptr
   call void @__nucleor_print_str(ptr %r.123.a0)
   %r.123 = add i64 0, 0
-  %r.124 = ptrtoint ptr @.str.6381 to i64
+  %r.124 = ptrtoint ptr @.str.6387 to i64
   %r.125.a0 = inttoptr i64 %r.124 to ptr
   call void @__nucleor_print_str(ptr %r.125.a0)
   %r.125 = add i64 0, 0
-  %r.126 = ptrtoint ptr @.str.6382 to i64
+  %r.126 = ptrtoint ptr @.str.6388 to i64
   %r.127.a0 = inttoptr i64 %r.126 to ptr
   call void @__nucleor_print_str(ptr %r.127.a0)
   %r.127 = add i64 0, 0
-  %r.128 = ptrtoint ptr @.str.6383 to i64
+  %r.128 = ptrtoint ptr @.str.6389 to i64
   %r.129.a0 = inttoptr i64 %r.128 to ptr
   call void @__nucleor_print_str(ptr %r.129.a0)
   %r.129 = add i64 0, 0
-  %r.130 = ptrtoint ptr @.str.6384 to i64
+  %r.130 = ptrtoint ptr @.str.6390 to i64
   %r.131.a0 = inttoptr i64 %r.130 to ptr
   call void @__nucleor_print_str(ptr %r.131.a0)
   %r.131 = add i64 0, 0
-  %r.132 = ptrtoint ptr @.str.6385 to i64
+  %r.132 = ptrtoint ptr @.str.6391 to i64
   %r.133.a0 = inttoptr i64 %r.132 to ptr
   call void @__nucleor_print_str(ptr %r.133.a0)
   %r.133 = add i64 0, 0
-  %r.134 = ptrtoint ptr @.str.6386 to i64
+  %r.134 = ptrtoint ptr @.str.6392 to i64
   %r.135.a0 = inttoptr i64 %r.134 to ptr
   call void @__nucleor_print_str(ptr %r.135.a0)
   %r.135 = add i64 0, 0
   %r.137.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.137.a0)
   %r.137 = add i64 0, 0
-  %r.138 = ptrtoint ptr @.str.6387 to i64
+  %r.138 = ptrtoint ptr @.str.6393 to i64
   %r.139.a0 = inttoptr i64 %r.138 to ptr
   call void @__nucleor_print_str(ptr %r.139.a0)
   %r.139 = add i64 0, 0
-  %r.140 = ptrtoint ptr @.str.6388 to i64
+  %r.140 = ptrtoint ptr @.str.6394 to i64
   %r.141.a0 = inttoptr i64 %r.140 to ptr
   call void @__nucleor_print_str(ptr %r.141.a0)
   %r.141 = add i64 0, 0
-  %r.142 = ptrtoint ptr @.str.6389 to i64
+  %r.142 = ptrtoint ptr @.str.6395 to i64
   %r.143.a0 = inttoptr i64 %r.142 to ptr
   call void @__nucleor_print_str(ptr %r.143.a0)
   %r.143 = add i64 0, 0
-  %r.144 = ptrtoint ptr @.str.6390 to i64
+  %r.144 = ptrtoint ptr @.str.6396 to i64
   %r.145.a0 = inttoptr i64 %r.144 to ptr
   call void @__nucleor_print_str(ptr %r.145.a0)
   %r.145 = add i64 0, 0
-  %r.146 = ptrtoint ptr @.str.6391 to i64
+  %r.146 = ptrtoint ptr @.str.6397 to i64
   %r.147.a0 = inttoptr i64 %r.146 to ptr
   call void @__nucleor_print_str(ptr %r.147.a0)
   %r.147 = add i64 0, 0
-  %r.148 = ptrtoint ptr @.str.6392 to i64
+  %r.148 = ptrtoint ptr @.str.6398 to i64
   %r.149.a0 = inttoptr i64 %r.148 to ptr
   call void @__nucleor_print_str(ptr %r.149.a0)
   %r.149 = add i64 0, 0
-  %r.150 = ptrtoint ptr @.str.6393 to i64
+  %r.150 = ptrtoint ptr @.str.6399 to i64
   %r.151.a0 = inttoptr i64 %r.150 to ptr
   call void @__nucleor_print_str(ptr %r.151.a0)
   %r.151 = add i64 0, 0
-  %r.152 = ptrtoint ptr @.str.6394 to i64
+  %r.152 = ptrtoint ptr @.str.6400 to i64
   %r.153.a0 = inttoptr i64 %r.152 to ptr
   call void @__nucleor_print_str(ptr %r.153.a0)
   %r.153 = add i64 0, 0
-  %r.154 = ptrtoint ptr @.str.6395 to i64
+  %r.154 = ptrtoint ptr @.str.6401 to i64
   %r.155.a0 = inttoptr i64 %r.154 to ptr
   call void @__nucleor_print_str(ptr %r.155.a0)
   %r.155 = add i64 0, 0
   %r.157.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.157.a0)
   %r.157 = add i64 0, 0
-  %r.158 = ptrtoint ptr @.str.6396 to i64
+  %r.158 = ptrtoint ptr @.str.6402 to i64
   %r.159.a0 = inttoptr i64 %r.158 to ptr
   call void @__nucleor_print_str(ptr %r.159.a0)
   %r.159 = add i64 0, 0
-  %r.160 = ptrtoint ptr @.str.6397 to i64
+  %r.160 = ptrtoint ptr @.str.6403 to i64
   %r.161.a0 = inttoptr i64 %r.160 to ptr
   call void @__nucleor_print_str(ptr %r.161.a0)
   %r.161 = add i64 0, 0
-  %r.162 = ptrtoint ptr @.str.6398 to i64
+  %r.162 = ptrtoint ptr @.str.6404 to i64
   %r.163.a0 = inttoptr i64 %r.162 to ptr
   call void @__nucleor_print_str(ptr %r.163.a0)
   %r.163 = add i64 0, 0
-  %r.164 = ptrtoint ptr @.str.6399 to i64
+  %r.164 = ptrtoint ptr @.str.6405 to i64
   %r.165.a0 = inttoptr i64 %r.164 to ptr
   call void @__nucleor_print_str(ptr %r.165.a0)
   %r.165 = add i64 0, 0
-  %r.166 = ptrtoint ptr @.str.6400 to i64
+  %r.166 = ptrtoint ptr @.str.6406 to i64
   %r.167.a0 = inttoptr i64 %r.166 to ptr
   call void @__nucleor_print_str(ptr %r.167.a0)
   %r.167 = add i64 0, 0
   %r.169.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.169.a0)
   %r.169 = add i64 0, 0
-  %r.170 = ptrtoint ptr @.str.6401 to i64
+  %r.170 = ptrtoint ptr @.str.6407 to i64
   %r.171.a0 = inttoptr i64 %r.170 to ptr
   call void @__nucleor_print_str(ptr %r.171.a0)
   %r.171 = add i64 0, 0
-  %r.172 = ptrtoint ptr @.str.6402 to i64
+  %r.172 = ptrtoint ptr @.str.6408 to i64
   %r.173.a0 = inttoptr i64 %r.172 to ptr
   call void @__nucleor_print_str(ptr %r.173.a0)
   %r.173 = add i64 0, 0
-  %r.174 = ptrtoint ptr @.str.6403 to i64
+  %r.174 = ptrtoint ptr @.str.6409 to i64
   %r.175.a0 = inttoptr i64 %r.174 to ptr
   call void @__nucleor_print_str(ptr %r.175.a0)
   %r.175 = add i64 0, 0
-  %r.176 = ptrtoint ptr @.str.6404 to i64
+  %r.176 = ptrtoint ptr @.str.6410 to i64
   %r.177.a0 = inttoptr i64 %r.176 to ptr
   call void @__nucleor_print_str(ptr %r.177.a0)
   %r.177 = add i64 0, 0
-  %r.178 = ptrtoint ptr @.str.6405 to i64
+  %r.178 = ptrtoint ptr @.str.6411 to i64
   %r.179.a0 = inttoptr i64 %r.178 to ptr
   call void @__nucleor_print_str(ptr %r.179.a0)
   %r.179 = add i64 0, 0
-  %r.180 = ptrtoint ptr @.str.6406 to i64
+  %r.180 = ptrtoint ptr @.str.6412 to i64
   %r.181.a0 = inttoptr i64 %r.180 to ptr
   call void @__nucleor_print_str(ptr %r.181.a0)
   %r.181 = add i64 0, 0
-  %r.182 = ptrtoint ptr @.str.6407 to i64
+  %r.182 = ptrtoint ptr @.str.6413 to i64
   %r.183.a0 = inttoptr i64 %r.182 to ptr
   call void @__nucleor_print_str(ptr %r.183.a0)
   %r.183 = add i64 0, 0
-  %r.184 = ptrtoint ptr @.str.6408 to i64
+  %r.184 = ptrtoint ptr @.str.6414 to i64
   %r.185.a0 = inttoptr i64 %r.184 to ptr
   call void @__nucleor_print_str(ptr %r.185.a0)
   %r.185 = add i64 0, 0
   %r.187.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.187.a0)
   %r.187 = add i64 0, 0
-  %r.188 = ptrtoint ptr @.str.6409 to i64
+  %r.188 = ptrtoint ptr @.str.6415 to i64
   %r.189.a0 = inttoptr i64 %r.188 to ptr
   call void @__nucleor_print_str(ptr %r.189.a0)
   %r.189 = add i64 0, 0
-  %r.190 = ptrtoint ptr @.str.6410 to i64
+  %r.190 = ptrtoint ptr @.str.6416 to i64
   %r.191.a0 = inttoptr i64 %r.190 to ptr
   call void @__nucleor_print_str(ptr %r.191.a0)
   %r.191 = add i64 0, 0
   %r.193.a0 = inttoptr i64 %r.6 to ptr
   call void @__nucleor_print_str(ptr %r.193.a0)
   %r.193 = add i64 0, 0
-  %r.194 = ptrtoint ptr @.str.6411 to i64
+  %r.194 = ptrtoint ptr @.str.6417 to i64
   %r.195.a0 = inttoptr i64 %r.194 to ptr
   call void @__nucleor_print_str(ptr %r.195.a0)
   %r.195 = add i64 0, 0
@@ -381569,7 +381866,7 @@ L2:
   %r.9 = ptrtoint ptr %r.9.rv to i64
   store i64 %r.9, ptr %r.7
   %r.10 = load i64, ptr %r.7
-  %r.11 = ptrtoint ptr @.str.6412 to i64
+  %r.11 = ptrtoint ptr @.str.6418 to i64
   %r.12.a0 = inttoptr i64 %r.10 to ptr
   %r.12.a1 = inttoptr i64 %r.11 to ptr
   %r.12 = call i64 @__nucleor_str_eq(ptr %r.12.a0, ptr %r.12.a1)
@@ -381584,7 +381881,7 @@ L3:
   br label %L5
 L4:
   %r.17 = load i64, ptr %r.7
-  %r.18 = ptrtoint ptr @.str.6413 to i64
+  %r.18 = ptrtoint ptr @.str.6419 to i64
   %r.19.a0 = inttoptr i64 %r.17 to ptr
   %r.19.a1 = inttoptr i64 %r.18 to ptr
   %r.19 = call i64 @__nucleor_str_eq(ptr %r.19.a0, ptr %r.19.a1)
@@ -381606,7 +381903,7 @@ L6:
   br label %L8
 L7:
   %r.27 = load i64, ptr %r.7
-  %r.28 = ptrtoint ptr @.str.6414 to i64
+  %r.28 = ptrtoint ptr @.str.6420 to i64
   %r.29.a0 = inttoptr i64 %r.27 to ptr
   %r.29.a1 = inttoptr i64 %r.28 to ptr
   %r.29 = call i64 @__nucleor_str_eq(ptr %r.29.a0, ptr %r.29.a1)
@@ -381628,7 +381925,7 @@ L9:
   br label %L11
 L10:
   %r.37 = load i64, ptr %r.7
-  %r.38 = ptrtoint ptr @.str.6415 to i64
+  %r.38 = ptrtoint ptr @.str.6421 to i64
   %r.39.a0 = inttoptr i64 %r.37 to ptr
   %r.39.a1 = inttoptr i64 %r.38 to ptr
   %r.39 = call i64 @__nucleor_str_eq(ptr %r.39.a0, ptr %r.39.a1)
@@ -381650,7 +381947,7 @@ L12:
   ret i64 %r.45
 L14:
   %r.46 = load i64, ptr %r.7
-  %r.47 = ptrtoint ptr @.str.6251 to i64
+  %r.47 = ptrtoint ptr @.str.6257 to i64
   %r.48.a0 = inttoptr i64 %r.46 to ptr
   %r.48.a1 = inttoptr i64 %r.47 to ptr
   %r.48 = call i64 @__nucleor_str_eq(ptr %r.48.a0, ptr %r.48.a1)
@@ -381665,7 +381962,7 @@ L15:
   br label %L17
 L16:
   %r.53 = load i64, ptr %r.7
-  %r.54 = ptrtoint ptr @.str.6252 to i64
+  %r.54 = ptrtoint ptr @.str.6258 to i64
   %r.55.a0 = inttoptr i64 %r.53 to ptr
   %r.55.a1 = inttoptr i64 %r.54 to ptr
   %r.55 = call i64 @__nucleor_str_eq(ptr %r.55.a0, ptr %r.55.a1)
@@ -381687,7 +381984,7 @@ L18:
   br label %L20
 L19:
   %r.63 = load i64, ptr %r.7
-  %r.64 = ptrtoint ptr @.str.6253 to i64
+  %r.64 = ptrtoint ptr @.str.6259 to i64
   %r.65.a0 = inttoptr i64 %r.63 to ptr
   %r.65.a1 = inttoptr i64 %r.64 to ptr
   %r.65 = call i64 @__nucleor_str_eq(ptr %r.65.a0, ptr %r.65.a1)
@@ -381706,7 +382003,7 @@ L21:
   ret i64 %r.70
 L23:
   %r.71 = load i64, ptr %r.7
-  %r.72 = ptrtoint ptr @.str.6416 to i64
+  %r.72 = ptrtoint ptr @.str.6422 to i64
   %r.73.a0 = inttoptr i64 %r.71 to ptr
   %r.73.a1 = inttoptr i64 %r.72 to ptr
   %r.73 = call i64 @__nucleor_str_eq(ptr %r.73.a0, ptr %r.73.a1)
@@ -381718,14 +382015,14 @@ L24:
   ret i64 %r.75
 L26:
   %r.76 = load i64, ptr %r.7
-  %r.77 = ptrtoint ptr @.str.6417 to i64
+  %r.77 = ptrtoint ptr @.str.6423 to i64
   %r.78.a0 = inttoptr i64 %r.76 to ptr
   %r.78.a1 = inttoptr i64 %r.77 to ptr
   %r.78 = call i64 @__nucleor_str_eq(ptr %r.78.a0, ptr %r.78.a1)
   %br.78.cond = icmp ne i64 %r.78, 0
   br i1 %br.78.cond, label %L27, label %L29
 L27:
-  %r.79 = ptrtoint ptr @.str.6418 to i64
+  %r.79 = ptrtoint ptr @.str.6424 to i64
   %r.80.a0 = inttoptr i64 %r.79 to ptr
   call void @__nucleor_print_str(ptr %r.80.a0)
   %r.80 = add i64 0, 0
@@ -381733,7 +382030,7 @@ L27:
   ret i64 %r.81
 L29:
   %r.82 = load i64, ptr %r.7
-  %r.83 = ptrtoint ptr @.str.6419 to i64
+  %r.83 = ptrtoint ptr @.str.6425 to i64
   %r.84.a0 = inttoptr i64 %r.82 to ptr
   %r.84.a1 = inttoptr i64 %r.83 to ptr
   %r.84 = call i64 @__nucleor_str_eq(ptr %r.84.a0, ptr %r.84.a1)
@@ -381745,7 +382042,7 @@ L30:
   ret i64 %r.86
 L32:
   %r.87 = load i64, ptr %r.7
-  %r.88 = ptrtoint ptr @.str.6420 to i64
+  %r.88 = ptrtoint ptr @.str.6426 to i64
   %r.89.a0 = inttoptr i64 %r.87 to ptr
   %r.89.a1 = inttoptr i64 %r.88 to ptr
   %r.89 = call i64 @__nucleor_str_eq(ptr %r.89.a0, ptr %r.89.a1)
@@ -381757,7 +382054,7 @@ L33:
   ret i64 %r.91
 L35:
   %r.92 = load i64, ptr %r.7
-  %r.93 = ptrtoint ptr @.str.6151 to i64
+  %r.93 = ptrtoint ptr @.str.6157 to i64
   %r.94.a0 = inttoptr i64 %r.92 to ptr
   %r.94.a1 = inttoptr i64 %r.93 to ptr
   %r.94 = call i64 @__nucleor_str_eq(ptr %r.94.a0, ptr %r.94.a1)
@@ -381769,7 +382066,7 @@ L36:
   ret i64 %r.96
 L38:
   %r.97 = load i64, ptr %r.7
-  %r.98 = ptrtoint ptr @.str.6421 to i64
+  %r.98 = ptrtoint ptr @.str.6427 to i64
   %r.99.a0 = inttoptr i64 %r.97 to ptr
   %r.99.a1 = inttoptr i64 %r.98 to ptr
   %r.99 = call i64 @__nucleor_str_eq(ptr %r.99.a0, ptr %r.99.a1)
@@ -381781,7 +382078,7 @@ L39:
   ret i64 %r.101
 L41:
   %r.102 = load i64, ptr %r.7
-  %r.103 = ptrtoint ptr @.str.6257 to i64
+  %r.103 = ptrtoint ptr @.str.6263 to i64
   %r.104.a0 = inttoptr i64 %r.102 to ptr
   %r.104.a1 = inttoptr i64 %r.103 to ptr
   %r.104 = call i64 @__nucleor_str_eq(ptr %r.104.a0, ptr %r.104.a1)
@@ -381793,7 +382090,7 @@ L42:
   ret i64 %r.106
 L44:
   %r.107 = load i64, ptr %r.7
-  %r.108 = ptrtoint ptr @.str.6422 to i64
+  %r.108 = ptrtoint ptr @.str.6428 to i64
   %r.109.a0 = inttoptr i64 %r.107 to ptr
   %r.109.a1 = inttoptr i64 %r.108 to ptr
   %r.109 = call i64 @__nucleor_str_eq(ptr %r.109.a0, ptr %r.109.a1)
@@ -381829,7 +382126,7 @@ L51:
   ret i64 %r.121
 L53:
   %r.122 = load i64, ptr %r.7
-  %r.123 = ptrtoint ptr @.str.6423 to i64
+  %r.123 = ptrtoint ptr @.str.6429 to i64
   %r.124.a0 = inttoptr i64 %r.122 to ptr
   %r.124.a1 = inttoptr i64 %r.123 to ptr
   %r.124 = call i64 @__nucleor_str_eq(ptr %r.124.a0, ptr %r.124.a1)
@@ -381841,7 +382138,7 @@ L54:
   ret i64 %r.126
 L56:
   %r.127 = load i64, ptr %r.7
-  %r.128 = ptrtoint ptr @.str.6424 to i64
+  %r.128 = ptrtoint ptr @.str.6430 to i64
   %r.129.a0 = inttoptr i64 %r.127 to ptr
   %r.129.a1 = inttoptr i64 %r.128 to ptr
   %r.129 = call i64 @__nucleor_str_eq(ptr %r.129.a0, ptr %r.129.a1)
@@ -381853,7 +382150,7 @@ L57:
   ret i64 %r.131
 L59:
   %r.132 = load i64, ptr %r.7
-  %r.133 = ptrtoint ptr @.str.6425 to i64
+  %r.133 = ptrtoint ptr @.str.6431 to i64
   %r.134.a0 = inttoptr i64 %r.132 to ptr
   %r.134.a1 = inttoptr i64 %r.133 to ptr
   %r.134 = call i64 @__nucleor_str_eq(ptr %r.134.a0, ptr %r.134.a1)
@@ -381865,7 +382162,7 @@ L60:
   ret i64 %r.136
 L62:
   %r.137 = load i64, ptr %r.7
-  %r.138 = ptrtoint ptr @.str.6426 to i64
+  %r.138 = ptrtoint ptr @.str.6432 to i64
   %r.139.a0 = inttoptr i64 %r.137 to ptr
   %r.139.a1 = inttoptr i64 %r.138 to ptr
   %r.139 = call i64 @__nucleor_str_eq(ptr %r.139.a0, ptr %r.139.a1)
@@ -381877,7 +382174,7 @@ L63:
   ret i64 %r.141
 L65:
   %r.142 = load i64, ptr %r.7
-  %r.143 = ptrtoint ptr @.str.6427 to i64
+  %r.143 = ptrtoint ptr @.str.6433 to i64
   %r.144.a0 = inttoptr i64 %r.142 to ptr
   %r.144.a1 = inttoptr i64 %r.143 to ptr
   %r.144 = call i64 @__nucleor_str_eq(ptr %r.144.a0, ptr %r.144.a1)
@@ -381889,7 +382186,7 @@ L66:
   ret i64 %r.146
 L68:
   %r.147 = load i64, ptr %r.7
-  %r.148 = ptrtoint ptr @.str.6428 to i64
+  %r.148 = ptrtoint ptr @.str.6434 to i64
   %r.149.a0 = inttoptr i64 %r.147 to ptr
   %r.149.a1 = inttoptr i64 %r.148 to ptr
   %r.149 = call i64 @__nucleor_str_eq(ptr %r.149.a0, ptr %r.149.a1)
@@ -381901,7 +382198,7 @@ L69:
   ret i64 %r.151
 L71:
   %r.152 = load i64, ptr %r.7
-  %r.153 = ptrtoint ptr @.str.6429 to i64
+  %r.153 = ptrtoint ptr @.str.6435 to i64
   %r.154.a0 = inttoptr i64 %r.152 to ptr
   %r.154.a1 = inttoptr i64 %r.153 to ptr
   %r.154 = call i64 @__nucleor_str_eq(ptr %r.154.a0, ptr %r.154.a1)
@@ -381913,7 +382210,7 @@ L72:
   ret i64 %r.156
 L74:
   %r.157 = load i64, ptr %r.7
-  %r.158 = ptrtoint ptr @.str.6430 to i64
+  %r.158 = ptrtoint ptr @.str.6436 to i64
   %r.159.a0 = inttoptr i64 %r.157 to ptr
   %r.159.a1 = inttoptr i64 %r.158 to ptr
   %r.159 = call i64 @__nucleor_str_eq(ptr %r.159.a0, ptr %r.159.a1)
@@ -381925,7 +382222,7 @@ L75:
   ret i64 %r.161
 L77:
   %r.162 = load i64, ptr %r.7
-  %r.163 = ptrtoint ptr @.str.6431 to i64
+  %r.163 = ptrtoint ptr @.str.6437 to i64
   %r.164.a0 = inttoptr i64 %r.162 to ptr
   %r.164.a1 = inttoptr i64 %r.163 to ptr
   %r.164 = call i64 @__nucleor_str_eq(ptr %r.164.a0, ptr %r.164.a1)
@@ -381936,7 +382233,7 @@ L78:
   ret i64 %r.165
 L80:
   %r.166 = load i64, ptr %r.7
-  %r.167 = ptrtoint ptr @.str.6432 to i64
+  %r.167 = ptrtoint ptr @.str.6438 to i64
   %r.168.a0 = inttoptr i64 %r.166 to ptr
   %r.168.a1 = inttoptr i64 %r.167 to ptr
   %r.168 = call i64 @__nucleor_str_eq(ptr %r.168.a0, ptr %r.168.a1)
@@ -381947,7 +382244,7 @@ L81:
   ret i64 %r.169
 L83:
   %r.170 = load i64, ptr %r.7
-  %r.171 = ptrtoint ptr @.str.6433 to i64
+  %r.171 = ptrtoint ptr @.str.6439 to i64
   %r.172.a0 = inttoptr i64 %r.170 to ptr
   %r.172.a1 = inttoptr i64 %r.171 to ptr
   %r.172 = call i64 @__nucleor_str_eq(ptr %r.172.a0, ptr %r.172.a1)
@@ -381962,7 +382259,7 @@ L84:
   br label %L86
 L85:
   %r.177 = load i64, ptr %r.7
-  %r.178 = ptrtoint ptr @.str.6434 to i64
+  %r.178 = ptrtoint ptr @.str.6440 to i64
   %r.179.a0 = inttoptr i64 %r.177 to ptr
   %r.179.a1 = inttoptr i64 %r.178 to ptr
   %r.179 = call i64 @__nucleor_str_eq(ptr %r.179.a0, ptr %r.179.a1)
@@ -381981,14 +382278,14 @@ L87:
   ret i64 %r.184
 L89:
   %r.185 = load i64, ptr %r.7
-  %r.186 = ptrtoint ptr @.str.6435 to i64
+  %r.186 = ptrtoint ptr @.str.6441 to i64
   %r.187.a0 = inttoptr i64 %r.185 to ptr
   %r.187.a1 = inttoptr i64 %r.186 to ptr
   %r.187 = call i64 @__nucleor_str_eq(ptr %r.187.a0, ptr %r.187.a1)
   %br.187.cond = icmp ne i64 %r.187, 0
   br i1 %br.187.cond, label %L90, label %L92
 L90:
-  %r.189 = ptrtoint ptr @.str.6436 to i64
+  %r.189 = ptrtoint ptr @.str.6442 to i64
   store i64 %r.189, ptr %r.188
   %r.190 = load i64, ptr %r.0
   %r.191 = add i64 3, 0
@@ -382007,7 +382304,7 @@ L95:
   %r.196.a0 = inttoptr i64 %r.195 to ptr
   %r.196 = call i64 @__nucleor_fs_create_dir_all(ptr %r.196.a0)
   %r.197 = load i64, ptr %r.188
-  %r.198 = ptrtoint ptr @.str.6437 to i64
+  %r.198 = ptrtoint ptr @.str.6443 to i64
   %r.199.a0 = inttoptr i64 %r.197 to ptr
   %r.199.a1 = inttoptr i64 %r.198 to ptr
   %r.199.rv = call ptr @__nucleor_str_concat(ptr %r.199.a0, ptr %r.199.a1)
@@ -382015,16 +382312,16 @@ L95:
   %r.200.a0 = inttoptr i64 %r.199 to ptr
   %r.200 = call i64 @__nucleor_fs_create_dir_all(ptr %r.200.a0)
   %r.201 = load i64, ptr %r.188
-  %r.202 = ptrtoint ptr @.str.6438 to i64
+  %r.202 = ptrtoint ptr @.str.6444 to i64
   %r.203.a0 = inttoptr i64 %r.201 to ptr
   %r.203.a1 = inttoptr i64 %r.202 to ptr
   %r.203.rv = call ptr @__nucleor_str_concat(ptr %r.203.a0, ptr %r.203.a1)
   %r.203 = ptrtoint ptr %r.203.rv to i64
   %r.204.a0 = inttoptr i64 %r.203 to ptr
   %r.204 = call i64 @__nucleor_fs_create_dir_all(ptr %r.204.a0)
-  %r.206 = ptrtoint ptr @.str.6439 to i64
+  %r.206 = ptrtoint ptr @.str.6445 to i64
   %r.207 = load i64, ptr %r.188
-  %r.208 = ptrtoint ptr @.str.6440 to i64
+  %r.208 = ptrtoint ptr @.str.6446 to i64
   %r.209.a0 = inttoptr i64 %r.207 to ptr
   %r.209.a1 = inttoptr i64 %r.208 to ptr
   %r.209.rv = call ptr @__nucleor_str_concat(ptr %r.209.a0, ptr %r.209.a1)
@@ -382035,7 +382332,7 @@ L95:
   %r.210 = ptrtoint ptr %r.210.rv to i64
   store i64 %r.210, ptr %r.205
   %r.211 = load i64, ptr %r.188
-  %r.212 = ptrtoint ptr @.str.6441 to i64
+  %r.212 = ptrtoint ptr @.str.6447 to i64
   %r.213.a0 = inttoptr i64 %r.211 to ptr
   %r.213.a1 = inttoptr i64 %r.212 to ptr
   %r.213.rv = call ptr @__nucleor_str_concat(ptr %r.213.a0, ptr %r.213.a1)
@@ -382046,17 +382343,17 @@ L95:
   call void @__nucleor_file_write_string(ptr %r.215.a0, ptr %r.215.a1)
   %r.215 = add i64 0, 0
   %r.216 = load i64, ptr %r.188
-  %r.217 = ptrtoint ptr @.str.6442 to i64
+  %r.217 = ptrtoint ptr @.str.6448 to i64
   %r.218.a0 = inttoptr i64 %r.216 to ptr
   %r.218.a1 = inttoptr i64 %r.217 to ptr
   %r.218.rv = call ptr @__nucleor_str_concat(ptr %r.218.a0, ptr %r.218.a1)
   %r.218 = ptrtoint ptr %r.218.rv to i64
-  %r.219 = ptrtoint ptr @.str.6443 to i64
+  %r.219 = ptrtoint ptr @.str.6449 to i64
   %r.220.a0 = inttoptr i64 %r.218 to ptr
   %r.220.a1 = inttoptr i64 %r.219 to ptr
   call void @__nucleor_file_write_string(ptr %r.220.a0, ptr %r.220.a1)
   %r.220 = add i64 0, 0
-  %r.221 = ptrtoint ptr @.str.6444 to i64
+  %r.221 = ptrtoint ptr @.str.6450 to i64
   %r.222 = load i64, ptr %r.188
   %r.223.a0 = inttoptr i64 %r.221 to ptr
   %r.223.a1 = inttoptr i64 %r.222 to ptr
@@ -382094,9 +382391,9 @@ L95:
   %r.238.a0 = inttoptr i64 %r.237 to ptr
   call void @__nucleor_print_str(ptr %r.238.a0)
   %r.238 = add i64 0, 0
-  %r.239 = ptrtoint ptr @.str.6445 to i64
+  %r.239 = ptrtoint ptr @.str.6451 to i64
   %r.240 = load i64, ptr %r.188
-  %r.241 = ptrtoint ptr @.str.6446 to i64
+  %r.241 = ptrtoint ptr @.str.6452 to i64
   %r.243.a0 = inttoptr i64 %r.241 to ptr
   %r.243.a1 = inttoptr i64 %r.237 to ptr
   %r.243.rv = call ptr @__nucleor_str_concat(ptr %r.243.a0, ptr %r.243.a1)
@@ -382112,9 +382409,9 @@ L95:
   %r.246.a0 = inttoptr i64 %r.245 to ptr
   call void @__nucleor_print_str(ptr %r.246.a0)
   %r.246 = add i64 0, 0
-  %r.247 = ptrtoint ptr @.str.6447 to i64
+  %r.247 = ptrtoint ptr @.str.6453 to i64
   %r.248 = load i64, ptr %r.188
-  %r.249 = ptrtoint ptr @.str.6448 to i64
+  %r.249 = ptrtoint ptr @.str.6454 to i64
   %r.251.a0 = inttoptr i64 %r.249 to ptr
   %r.251.a1 = inttoptr i64 %r.237 to ptr
   %r.251.rv = call ptr @__nucleor_str_concat(ptr %r.251.a0, ptr %r.251.a1)
@@ -382228,7 +382525,7 @@ L111:
   %br.302.cond = icmp ne i64 %r.302, 0
   br i1 %br.302.cond, label %L114, label %L116
 L114:
-  %r.303 = ptrtoint ptr @.str.6449 to i64
+  %r.303 = ptrtoint ptr @.str.6455 to i64
   %r.304 = load i64, ptr %r.274
   %r.305.a0 = inttoptr i64 %r.303 to ptr
   %r.305.a1 = inttoptr i64 %r.304 to ptr
@@ -382250,11 +382547,11 @@ L113:
   %br.310.cond = icmp ne i64 %r.310, 0
   br i1 %br.310.cond, label %L117, label %L119
 L117:
-  %r.311 = ptrtoint ptr @.str.6450 to i64
+  %r.311 = ptrtoint ptr @.str.6456 to i64
   %r.312.a0 = inttoptr i64 %r.311 to ptr
   call void @__nucleor_print_str(ptr %r.312.a0)
   %r.312 = add i64 0, 0
-  %r.313 = ptrtoint ptr @.str.6451 to i64
+  %r.313 = ptrtoint ptr @.str.6457 to i64
   %r.314.a0 = inttoptr i64 %r.313 to ptr
   call void @__nucleor_print_str(ptr %r.314.a0)
   %r.314 = add i64 0, 0
@@ -382280,7 +382577,7 @@ L120:
   %r.326 = call i64 @strip_ext(i64 %r.325)
   store i64 %r.326, ptr %r.319
   %r.327 = load i64, ptr %r.7
-  %r.328 = ptrtoint ptr @.str.6159 to i64
+  %r.328 = ptrtoint ptr @.str.6165 to i64
   %r.329.a0 = inttoptr i64 %r.327 to ptr
   %r.329.a1 = inttoptr i64 %r.328 to ptr
   %r.329 = call i64 @__nucleor_str_eq(ptr %r.329.a0, ptr %r.329.a1)
@@ -382288,7 +382585,7 @@ L120:
   br i1 %br.329.cond, label %L123, label %L125
 L123:
   %r.330 = load i64, ptr %r.319
-  %r.331 = ptrtoint ptr @.str.6452 to i64
+  %r.331 = ptrtoint ptr @.str.6458 to i64
   %r.332.a0 = inttoptr i64 %r.330 to ptr
   %r.332.a1 = inttoptr i64 %r.331 to ptr
   %r.332.rv = call ptr @__nucleor_str_concat(ptr %r.332.a0, ptr %r.332.a1)
@@ -382297,7 +382594,7 @@ L123:
   br label %L125
 L125:
   %r.333 = load i64, ptr %r.7
-  %r.334 = ptrtoint ptr @.str.6160 to i64
+  %r.334 = ptrtoint ptr @.str.6166 to i64
   %r.335.a0 = inttoptr i64 %r.333 to ptr
   %r.335.a1 = inttoptr i64 %r.334 to ptr
   %r.335 = call i64 @__nucleor_str_eq(ptr %r.335.a0, ptr %r.335.a1)
@@ -382305,7 +382602,7 @@ L125:
   br i1 %br.335.cond, label %L126, label %L128
 L126:
   %r.336 = load i64, ptr %r.319
-  %r.337 = ptrtoint ptr @.str.6453 to i64
+  %r.337 = ptrtoint ptr @.str.6459 to i64
   %r.338.a0 = inttoptr i64 %r.336 to ptr
   %r.338.a1 = inttoptr i64 %r.337 to ptr
   %r.338.rv = call ptr @__nucleor_str_concat(ptr %r.338.a0, ptr %r.338.a1)
@@ -382322,7 +382619,7 @@ L122:
   %r.344 = add i64 1, 0
   store i64 %r.342, ptr %r.343
   %r.345 = load i64, ptr %r.7
-  %r.346 = ptrtoint ptr @.str.5953 to i64
+  %r.346 = ptrtoint ptr @.str.5959 to i64
   %r.347.a0 = inttoptr i64 %r.345 to ptr
   %r.347.a1 = inttoptr i64 %r.346 to ptr
   %r.347 = call i64 @__nucleor_str_eq(ptr %r.347.a0, ptr %r.347.a1)
@@ -382359,7 +382656,7 @@ L133:
   %r.366 = ptrtoint ptr %r.366.rv to i64
   store i64 %r.366, ptr %r.364
   %r.367 = load i64, ptr %r.364
-  %r.368 = ptrtoint ptr @.str.6454 to i64
+  %r.368 = ptrtoint ptr @.str.6460 to i64
   %r.369.a0 = inttoptr i64 %r.367 to ptr
   %r.369.a1 = inttoptr i64 %r.368 to ptr
   %r.369 = call i64 @__nucleor_str_eq(ptr %r.369.a0, ptr %r.369.a1)
@@ -382371,7 +382668,7 @@ L135:
   br label %L137
 L136:
   %r.371 = load i64, ptr %r.364
-  %r.372 = ptrtoint ptr @.str.6455 to i64
+  %r.372 = ptrtoint ptr @.str.6461 to i64
   %r.373.a0 = inttoptr i64 %r.371 to ptr
   %r.373.a1 = inttoptr i64 %r.372 to ptr
   %r.373 = call i64 @__nucleor_str_eq(ptr %r.373.a0, ptr %r.373.a1)
@@ -382383,14 +382680,14 @@ L138:
   br label %L140
 L139:
   %r.375 = load i64, ptr %r.364
-  %r.376 = ptrtoint ptr @.str.6456 to i64
+  %r.376 = ptrtoint ptr @.str.6462 to i64
   %r.377.a0 = inttoptr i64 %r.375 to ptr
   %r.377.a1 = inttoptr i64 %r.376 to ptr
   %r.377 = call i64 @__nucleor_str_eq(ptr %r.377.a0, ptr %r.377.a1)
   %br.377.cond = icmp ne i64 %r.377, 0
   br i1 %br.377.cond, label %L141, label %L142
 L141:
-  %r.378 = ptrtoint ptr @.str.5549 to i64
+  %r.378 = ptrtoint ptr @.str.5554 to i64
   %r.379 = ptrtoint ptr @.str.1 to i64
   %r.380.a0 = inttoptr i64 %r.378 to ptr
   %r.380.a1 = inttoptr i64 %r.379 to ptr
@@ -382398,22 +382695,22 @@ L141:
   br label %L143
 L142:
   %r.381 = load i64, ptr %r.364
-  %r.382 = ptrtoint ptr @.str.6457 to i64
+  %r.382 = ptrtoint ptr @.str.6463 to i64
   %r.383.a0 = inttoptr i64 %r.381 to ptr
   %r.383.a1 = inttoptr i64 %r.382 to ptr
   %r.383 = call i64 @__nucleor_str_eq(ptr %r.383.a0, ptr %r.383.a1)
   %br.383.cond = icmp ne i64 %r.383, 0
   br i1 %br.383.cond, label %L144, label %L145
 L144:
-  %r.384 = ptrtoint ptr @.str.5538 to i64
-  %r.385 = ptrtoint ptr @.str.6458 to i64
+  %r.384 = ptrtoint ptr @.str.5543 to i64
+  %r.385 = ptrtoint ptr @.str.6464 to i64
   %r.386.a0 = inttoptr i64 %r.384 to ptr
   %r.386.a1 = inttoptr i64 %r.385 to ptr
   %r.386 = call i64 @__nucleor_env_set(ptr %r.386.a0, ptr %r.386.a1)
   br label %L146
 L145:
   %r.387 = load i64, ptr %r.364
-  %r.388 = ptrtoint ptr @.str.6459 to i64
+  %r.388 = ptrtoint ptr @.str.6465 to i64
   %r.389.a0 = inttoptr i64 %r.387 to ptr
   %r.389.a1 = inttoptr i64 %r.388 to ptr
   %r.389 = call i64 @__nucleor_str_eq(ptr %r.389.a0, ptr %r.389.a1)
@@ -382436,7 +382733,7 @@ L151:
   %br.394.cond = icmp ne i64 %r.394, 0
   br i1 %br.394.cond, label %L152, label %L154
 L152:
-  %r.395 = ptrtoint ptr @.str.6460 to i64
+  %r.395 = ptrtoint ptr @.str.6466 to i64
   %r.396.a0 = inttoptr i64 %r.395 to ptr
   call void @__nucleor_print_str(ptr %r.396.a0)
   %r.396 = add i64 0, 0
@@ -382467,8 +382764,8 @@ L156:
   %br.407.cond = icmp ne i64 %r.407, 0
   br i1 %br.407.cond, label %L157, label %L158
 L157:
-  %r.408 = ptrtoint ptr @.str.5538 to i64
-  %r.409 = ptrtoint ptr @.str.5539 to i64
+  %r.408 = ptrtoint ptr @.str.5543 to i64
+  %r.409 = ptrtoint ptr @.str.5544 to i64
   %r.410.a0 = inttoptr i64 %r.408 to ptr
   %r.410.a1 = inttoptr i64 %r.409 to ptr
   %r.410 = call i64 @__nucleor_env_set(ptr %r.410.a0, ptr %r.410.a1)
@@ -382485,8 +382782,8 @@ L158:
   %br.415.cond = icmp ne i64 %r.415, 0
   br i1 %br.415.cond, label %L160, label %L161
 L160:
-  %r.416 = ptrtoint ptr @.str.5538 to i64
-  %r.417 = ptrtoint ptr @.str.6461 to i64
+  %r.416 = ptrtoint ptr @.str.5543 to i64
+  %r.417 = ptrtoint ptr @.str.6467 to i64
   %r.418.a0 = inttoptr i64 %r.416 to ptr
   %r.418.a1 = inttoptr i64 %r.417 to ptr
   %r.418 = call i64 @__nucleor_env_set(ptr %r.418.a0, ptr %r.418.a1)
@@ -382503,14 +382800,14 @@ L161:
   %br.423.cond = icmp ne i64 %r.423, 0
   br i1 %br.423.cond, label %L163, label %L164
 L163:
-  %r.424 = ptrtoint ptr @.str.5538 to i64
-  %r.425 = ptrtoint ptr @.str.6458 to i64
+  %r.424 = ptrtoint ptr @.str.5543 to i64
+  %r.425 = ptrtoint ptr @.str.6464 to i64
   %r.426.a0 = inttoptr i64 %r.424 to ptr
   %r.426.a1 = inttoptr i64 %r.425 to ptr
   %r.426 = call i64 @__nucleor_env_set(ptr %r.426.a0, ptr %r.426.a1)
   br label %L165
 L164:
-  %r.427 = ptrtoint ptr @.str.6462 to i64
+  %r.427 = ptrtoint ptr @.str.6468 to i64
   %r.428 = load i64, ptr %r.398
   %r.429.a0 = inttoptr i64 %r.427 to ptr
   %r.429.a1 = inttoptr i64 %r.428 to ptr
@@ -382519,7 +382816,7 @@ L164:
   %r.430.a0 = inttoptr i64 %r.429 to ptr
   call void @__nucleor_print_str(ptr %r.430.a0)
   %r.430 = add i64 0, 0
-  %r.431 = ptrtoint ptr @.str.6463 to i64
+  %r.431 = ptrtoint ptr @.str.6469 to i64
   %r.432.a0 = inttoptr i64 %r.431 to ptr
   call void @__nucleor_print_str(ptr %r.432.a0)
   %r.432 = add i64 0, 0
@@ -382544,7 +382841,7 @@ L167:
   br label %L149
 L148:
   %r.437 = load i64, ptr %r.364
-  %r.438 = ptrtoint ptr @.str.6464 to i64
+  %r.438 = ptrtoint ptr @.str.6470 to i64
   %r.439 = call i64 @str_starts_with(i64 %r.437, i64 %r.438)
   %r.440 = add i64 1, 0
   %r.441.cmp = icmp eq i64 %r.439, %r.440
@@ -382572,8 +382869,8 @@ L168:
   %br.452.cond = icmp ne i64 %r.452, 0
   br i1 %br.452.cond, label %L171, label %L172
 L171:
-  %r.453 = ptrtoint ptr @.str.5538 to i64
-  %r.454 = ptrtoint ptr @.str.5539 to i64
+  %r.453 = ptrtoint ptr @.str.5543 to i64
+  %r.454 = ptrtoint ptr @.str.5544 to i64
   %r.455.a0 = inttoptr i64 %r.453 to ptr
   %r.455.a1 = inttoptr i64 %r.454 to ptr
   %r.455 = call i64 @__nucleor_env_set(ptr %r.455.a0, ptr %r.455.a1)
@@ -382590,8 +382887,8 @@ L172:
   %br.460.cond = icmp ne i64 %r.460, 0
   br i1 %br.460.cond, label %L174, label %L175
 L174:
-  %r.461 = ptrtoint ptr @.str.5538 to i64
-  %r.462 = ptrtoint ptr @.str.6461 to i64
+  %r.461 = ptrtoint ptr @.str.5543 to i64
+  %r.462 = ptrtoint ptr @.str.6467 to i64
   %r.463.a0 = inttoptr i64 %r.461 to ptr
   %r.463.a1 = inttoptr i64 %r.462 to ptr
   %r.463 = call i64 @__nucleor_env_set(ptr %r.463.a0, ptr %r.463.a1)
@@ -382608,14 +382905,14 @@ L175:
   %br.468.cond = icmp ne i64 %r.468, 0
   br i1 %br.468.cond, label %L177, label %L178
 L177:
-  %r.469 = ptrtoint ptr @.str.5538 to i64
-  %r.470 = ptrtoint ptr @.str.6458 to i64
+  %r.469 = ptrtoint ptr @.str.5543 to i64
+  %r.470 = ptrtoint ptr @.str.6464 to i64
   %r.471.a0 = inttoptr i64 %r.469 to ptr
   %r.471.a1 = inttoptr i64 %r.470 to ptr
   %r.471 = call i64 @__nucleor_env_set(ptr %r.471.a0, ptr %r.471.a1)
   br label %L179
 L178:
-  %r.472 = ptrtoint ptr @.str.6462 to i64
+  %r.472 = ptrtoint ptr @.str.6468 to i64
   %r.473 = load i64, ptr %r.442
   %r.474.a0 = inttoptr i64 %r.472 to ptr
   %r.474.a1 = inttoptr i64 %r.473 to ptr
@@ -382624,7 +382921,7 @@ L178:
   %r.475.a0 = inttoptr i64 %r.474 to ptr
   call void @__nucleor_print_str(ptr %r.475.a0)
   %r.475 = add i64 0, 0
-  %r.476 = ptrtoint ptr @.str.6463 to i64
+  %r.476 = ptrtoint ptr @.str.6469 to i64
   %r.477.a0 = inttoptr i64 %r.476 to ptr
   call void @__nucleor_print_str(ptr %r.477.a0)
   %r.477 = add i64 0, 0
@@ -382638,7 +382935,7 @@ L173:
   br label %L170
 L169:
   %r.479 = load i64, ptr %r.364
-  %r.480 = ptrtoint ptr @.str.6465 to i64
+  %r.480 = ptrtoint ptr @.str.6471 to i64
   %r.481.a0 = inttoptr i64 %r.479 to ptr
   %r.481.a1 = inttoptr i64 %r.480 to ptr
   %r.481 = call i64 @__nucleor_str_eq(ptr %r.481.a0, ptr %r.481.a1)
@@ -382661,7 +382958,7 @@ L184:
   %br.486.cond = icmp ne i64 %r.486, 0
   br i1 %br.486.cond, label %L185, label %L187
 L185:
-  %r.487 = ptrtoint ptr @.str.6466 to i64
+  %r.487 = ptrtoint ptr @.str.6472 to i64
   %r.488.a0 = inttoptr i64 %r.487 to ptr
   call void @__nucleor_print_str(ptr %r.488.a0)
   %r.488 = add i64 0, 0
@@ -382698,7 +382995,7 @@ L191:
   br label %L182
 L181:
   %r.499 = load i64, ptr %r.364
-  %r.500 = ptrtoint ptr @.str.6467 to i64
+  %r.500 = ptrtoint ptr @.str.6473 to i64
   %r.501 = call i64 @str_starts_with(i64 %r.499, i64 %r.500)
   %r.502 = add i64 1, 0
   %r.503.cmp = icmp eq i64 %r.501, %r.502
@@ -382721,7 +383018,7 @@ L192:
   br label %L194
 L193:
   %r.511 = load i64, ptr %r.7
-  %r.512 = ptrtoint ptr @.str.6159 to i64
+  %r.512 = ptrtoint ptr @.str.6165 to i64
   %r.513.a0 = inttoptr i64 %r.511 to ptr
   %r.513.a1 = inttoptr i64 %r.512 to ptr
   %r.513 = call i64 @__nucleor_str_eq(ptr %r.513.a0, ptr %r.513.a1)
@@ -382732,7 +383029,7 @@ L193:
   br i1 %br.516.cond, label %L195, label %L196
 L195:
   %r.517 = load i64, ptr %r.364
-  %r.518 = ptrtoint ptr @.str.6468 to i64
+  %r.518 = ptrtoint ptr @.str.6474 to i64
   %r.519.a0 = inttoptr i64 %r.517 to ptr
   %r.519.a1 = inttoptr i64 %r.518 to ptr
   %r.519 = call i64 @__nucleor_str_eq(ptr %r.519.a0, ptr %r.519.a1)
@@ -382755,7 +383052,7 @@ L198:
   br label %L200
 L199:
   %r.525 = load i64, ptr %r.7
-  %r.526 = ptrtoint ptr @.str.6160 to i64
+  %r.526 = ptrtoint ptr @.str.6166 to i64
   %r.527.a0 = inttoptr i64 %r.525 to ptr
   %r.527.a1 = inttoptr i64 %r.526 to ptr
   %r.527 = call i64 @__nucleor_str_eq(ptr %r.527.a0, ptr %r.527.a1)
@@ -382766,7 +383063,7 @@ L199:
   br i1 %br.530.cond, label %L201, label %L202
 L201:
   %r.531 = load i64, ptr %r.364
-  %r.532 = ptrtoint ptr @.str.6469 to i64
+  %r.532 = ptrtoint ptr @.str.6475 to i64
   %r.533.a0 = inttoptr i64 %r.531 to ptr
   %r.533.a1 = inttoptr i64 %r.532 to ptr
   %r.533 = call i64 @__nucleor_str_eq(ptr %r.533.a0, ptr %r.533.a1)
@@ -382800,7 +383097,7 @@ L208:
   %br.542.cond = icmp ne i64 %r.542, 0
   br i1 %br.542.cond, label %L209, label %L211
 L209:
-  %r.543 = ptrtoint ptr @.str.6470 to i64
+  %r.543 = ptrtoint ptr @.str.6476 to i64
   %r.544.a0 = inttoptr i64 %r.543 to ptr
   call void @__nucleor_print_str(ptr %r.544.a0)
   %r.544 = add i64 0, 0
@@ -382835,7 +383132,7 @@ L215:
   br label %L206
 L205:
   %r.554 = load i64, ptr %r.7
-  %r.555 = ptrtoint ptr @.str.6160 to i64
+  %r.555 = ptrtoint ptr @.str.6166 to i64
   %r.556.a0 = inttoptr i64 %r.554 to ptr
   %r.556.a1 = inttoptr i64 %r.555 to ptr
   %r.556 = call i64 @__nucleor_str_eq(ptr %r.556.a0, ptr %r.556.a1)
@@ -382846,7 +383143,7 @@ L205:
   br i1 %br.559.cond, label %L216, label %L217
 L216:
   %r.560 = load i64, ptr %r.364
-  %r.561 = ptrtoint ptr @.str.6471 to i64
+  %r.561 = ptrtoint ptr @.str.6477 to i64
   %r.562 = call i64 @str_starts_with(i64 %r.560, i64 %r.561)
   %r.563 = add i64 1, 0
   %r.564.cmp = icmp eq i64 %r.562, %r.563
@@ -382878,7 +383175,7 @@ L219:
   br label %L221
 L220:
   %r.575 = load i64, ptr %r.7
-  %r.576 = ptrtoint ptr @.str.6160 to i64
+  %r.576 = ptrtoint ptr @.str.6166 to i64
   %r.577.a0 = inttoptr i64 %r.575 to ptr
   %r.577.a1 = inttoptr i64 %r.576 to ptr
   %r.577 = call i64 @__nucleor_str_eq(ptr %r.577.a0, ptr %r.577.a1)
@@ -382889,7 +383186,7 @@ L220:
   br i1 %br.580.cond, label %L222, label %L223
 L222:
   %r.581 = load i64, ptr %r.364
-  %r.582 = ptrtoint ptr @.str.6472 to i64
+  %r.582 = ptrtoint ptr @.str.6478 to i64
   %r.583.a0 = inttoptr i64 %r.581 to ptr
   %r.583.a1 = inttoptr i64 %r.582 to ptr
   %r.583 = call i64 @__nucleor_str_eq(ptr %r.583.a0, ptr %r.583.a1)
@@ -382923,7 +383220,7 @@ L229:
   %br.592.cond = icmp ne i64 %r.592, 0
   br i1 %br.592.cond, label %L230, label %L232
 L230:
-  %r.593 = ptrtoint ptr @.str.6473 to i64
+  %r.593 = ptrtoint ptr @.str.6479 to i64
   %r.594.a0 = inttoptr i64 %r.593 to ptr
   call void @__nucleor_print_str(ptr %r.594.a0)
   %r.594 = add i64 0, 0
@@ -382958,7 +383255,7 @@ L236:
   br label %L227
 L226:
   %r.604 = load i64, ptr %r.7
-  %r.605 = ptrtoint ptr @.str.6160 to i64
+  %r.605 = ptrtoint ptr @.str.6166 to i64
   %r.606.a0 = inttoptr i64 %r.604 to ptr
   %r.606.a1 = inttoptr i64 %r.605 to ptr
   %r.606 = call i64 @__nucleor_str_eq(ptr %r.606.a0, ptr %r.606.a1)
@@ -382969,7 +383266,7 @@ L226:
   br i1 %br.609.cond, label %L237, label %L238
 L237:
   %r.610 = load i64, ptr %r.364
-  %r.611 = ptrtoint ptr @.str.6474 to i64
+  %r.611 = ptrtoint ptr @.str.6480 to i64
   %r.612 = call i64 @str_starts_with(i64 %r.610, i64 %r.611)
   %r.613 = add i64 1, 0
   %r.614.cmp = icmp eq i64 %r.612, %r.613
@@ -383011,7 +383308,7 @@ L241:
   br i1 %br.630.cond, label %L243, label %L244
 L243:
   %r.631 = load i64, ptr %r.364
-  %r.632 = ptrtoint ptr @.str.6275 to i64
+  %r.632 = ptrtoint ptr @.str.6281 to i64
   %r.633.a0 = inttoptr i64 %r.631 to ptr
   %r.633.a1 = inttoptr i64 %r.632 to ptr
   %r.633 = call i64 @__nucleor_str_eq(ptr %r.633.a0, ptr %r.633.a1)
@@ -383026,7 +383323,7 @@ L246:
   br label %L248
 L247:
   %r.638 = load i64, ptr %r.364
-  %r.639 = ptrtoint ptr @.str.6475 to i64
+  %r.639 = ptrtoint ptr @.str.6481 to i64
   %r.640.a0 = inttoptr i64 %r.638 to ptr
   %r.640.a1 = inttoptr i64 %r.639 to ptr
   %r.640 = call i64 @__nucleor_str_eq(ptr %r.640.a0, ptr %r.640.a1)
@@ -383048,7 +383345,7 @@ L249:
   br label %L251
 L250:
   %r.648 = load i64, ptr %r.364
-  %r.649 = ptrtoint ptr @.str.6476 to i64
+  %r.649 = ptrtoint ptr @.str.6482 to i64
   %r.650.a0 = inttoptr i64 %r.648 to ptr
   %r.650.a1 = inttoptr i64 %r.649 to ptr
   %r.650 = call i64 @__nucleor_str_eq(ptr %r.650.a0, ptr %r.650.a1)
@@ -383089,7 +383386,7 @@ L256:
   %br.662.cond = icmp ne i64 %r.662, 0
   br i1 %br.662.cond, label %L257, label %L259
 L257:
-  %r.663 = ptrtoint ptr @.str.6477 to i64
+  %r.663 = ptrtoint ptr @.str.6483 to i64
   %r.664.a0 = inttoptr i64 %r.663 to ptr
   call void @__nucleor_print_str(ptr %r.664.a0)
   %r.664 = add i64 0, 0
@@ -383135,7 +383432,7 @@ L253:
   br i1 %br.679.cond, label %L264, label %L265
 L264:
   %r.680 = load i64, ptr %r.364
-  %r.681 = ptrtoint ptr @.str.6478 to i64
+  %r.681 = ptrtoint ptr @.str.6484 to i64
   %r.682.a0 = inttoptr i64 %r.680 to ptr
   %r.682.a1 = inttoptr i64 %r.681 to ptr
   %r.682 = call i64 @__nucleor_str_eq(ptr %r.682.a0, ptr %r.682.a1)
@@ -383168,7 +383465,7 @@ L268:
   br i1 %br.693.cond, label %L270, label %L271
 L270:
   %r.694 = load i64, ptr %r.364
-  %r.695 = ptrtoint ptr @.str.6479 to i64
+  %r.695 = ptrtoint ptr @.str.6485 to i64
   %r.696.a0 = inttoptr i64 %r.694 to ptr
   %r.696.a1 = inttoptr i64 %r.695 to ptr
   %r.696 = call i64 @__nucleor_str_eq(ptr %r.696.a0, ptr %r.696.a1)
@@ -383199,7 +383496,7 @@ L274:
   br i1 %br.706.cond, label %L276, label %L277
 L276:
   %r.707 = load i64, ptr %r.364
-  %r.708 = ptrtoint ptr @.str.6480 to i64
+  %r.708 = ptrtoint ptr @.str.6486 to i64
   %r.709.a0 = inttoptr i64 %r.707 to ptr
   %r.709.a1 = inttoptr i64 %r.708 to ptr
   %r.709 = call i64 @__nucleor_str_eq(ptr %r.709.a0, ptr %r.709.a1)
@@ -383233,7 +383530,7 @@ L283:
   %br.718.cond = icmp ne i64 %r.718, 0
   br i1 %br.718.cond, label %L284, label %L286
 L284:
-  %r.719 = ptrtoint ptr @.str.6481 to i64
+  %r.719 = ptrtoint ptr @.str.6487 to i64
   %r.720.a0 = inttoptr i64 %r.719 to ptr
   call void @__nucleor_print_str(ptr %r.720.a0)
   %r.720 = add i64 0, 0
@@ -383254,7 +383551,7 @@ L288:
   %r.726 = ptrtoint ptr %r.726.rv to i64
   store i64 %r.726, ptr %r.722
   %r.727 = load i64, ptr %r.722
-  %r.728 = ptrtoint ptr @.str.6144 to i64
+  %r.728 = ptrtoint ptr @.str.6150 to i64
   %r.729.a0 = inttoptr i64 %r.727 to ptr
   %r.729.a1 = inttoptr i64 %r.728 to ptr
   %r.729 = call i64 @__nucleor_str_eq(ptr %r.729.a0, ptr %r.729.a1)
@@ -383268,7 +383565,7 @@ L288:
   br i1 %br.734.cond, label %L289, label %L290
 L289:
   %r.735 = load i64, ptr %r.722
-  %r.736 = ptrtoint ptr @.str.6482 to i64
+  %r.736 = ptrtoint ptr @.str.6488 to i64
   %r.737.a0 = inttoptr i64 %r.735 to ptr
   %r.737.a1 = inttoptr i64 %r.736 to ptr
   %r.737 = call i64 @__nucleor_str_eq(ptr %r.737.a0, ptr %r.737.a1)
@@ -383289,7 +383586,7 @@ L291:
   %br.743.cond = icmp ne i64 %r.743, 0
   br i1 %br.743.cond, label %L292, label %L294
 L292:
-  %r.744 = ptrtoint ptr @.str.6483 to i64
+  %r.744 = ptrtoint ptr @.str.6489 to i64
   %r.745 = load i64, ptr %r.722
   %r.746.a0 = inttoptr i64 %r.744 to ptr
   %r.746.a1 = inttoptr i64 %r.745 to ptr
@@ -383371,7 +383668,7 @@ L303:
   br label %L305
 L304:
   %r.778 = load i64, ptr %r.7
-  %r.779 = ptrtoint ptr @.str.6156 to i64
+  %r.779 = ptrtoint ptr @.str.6162 to i64
   %r.780.a0 = inttoptr i64 %r.778 to ptr
   %r.780.a1 = inttoptr i64 %r.779 to ptr
   %r.780 = call i64 @__nucleor_str_eq(ptr %r.780.a0, ptr %r.780.a1)
@@ -383416,7 +383713,7 @@ L310:
   br i1 %br.799.cond, label %L312, label %L313
 L312:
   %r.800 = load i64, ptr %r.7
-  %r.801 = ptrtoint ptr @.str.6148 to i64
+  %r.801 = ptrtoint ptr @.str.6154 to i64
   %r.802.a0 = inttoptr i64 %r.800 to ptr
   %r.802.a1 = inttoptr i64 %r.801 to ptr
   %r.802 = call i64 @__nucleor_str_eq(ptr %r.802.a0, ptr %r.802.a1)
@@ -383434,7 +383731,7 @@ L315:
   br label %L317
 L316:
   %r.809 = load i64, ptr %r.7
-  %r.810 = ptrtoint ptr @.str.6149 to i64
+  %r.810 = ptrtoint ptr @.str.6155 to i64
   %r.811.a0 = inttoptr i64 %r.809 to ptr
   %r.811.a1 = inttoptr i64 %r.810 to ptr
   %r.811 = call i64 @__nucleor_str_eq(ptr %r.811.a0, ptr %r.811.a1)
@@ -383459,7 +383756,7 @@ L318:
   br label %L320
 L319:
   %r.821 = load i64, ptr %r.7
-  %r.822 = ptrtoint ptr @.str.6150 to i64
+  %r.822 = ptrtoint ptr @.str.6156 to i64
   %r.823.a0 = inttoptr i64 %r.821 to ptr
   %r.823.a1 = inttoptr i64 %r.822 to ptr
   %r.823 = call i64 @__nucleor_str_eq(ptr %r.823.a0, ptr %r.823.a1)
@@ -383484,7 +383781,7 @@ L321:
   br label %L323
 L322:
   %r.833 = load i64, ptr %r.7
-  %r.834 = ptrtoint ptr @.str.6151 to i64
+  %r.834 = ptrtoint ptr @.str.6157 to i64
   %r.835.a0 = inttoptr i64 %r.833 to ptr
   %r.835.a1 = inttoptr i64 %r.834 to ptr
   %r.835 = call i64 @__nucleor_str_eq(ptr %r.835.a0, ptr %r.835.a1)
@@ -383509,7 +383806,7 @@ L324:
   br label %L326
 L325:
   %r.845 = load i64, ptr %r.7
-  %r.846 = ptrtoint ptr @.str.6152 to i64
+  %r.846 = ptrtoint ptr @.str.6158 to i64
   %r.847.a0 = inttoptr i64 %r.845 to ptr
   %r.847.a1 = inttoptr i64 %r.846 to ptr
   %r.847 = call i64 @__nucleor_str_eq(ptr %r.847.a0, ptr %r.847.a1)
@@ -383534,7 +383831,7 @@ L327:
   br label %L329
 L328:
   %r.857 = load i64, ptr %r.7
-  %r.858 = ptrtoint ptr @.str.5953 to i64
+  %r.858 = ptrtoint ptr @.str.5959 to i64
   %r.859.a0 = inttoptr i64 %r.857 to ptr
   %r.859.a1 = inttoptr i64 %r.858 to ptr
   %r.859 = call i64 @__nucleor_str_eq(ptr %r.859.a0, ptr %r.859.a1)
@@ -383559,7 +383856,7 @@ L330:
   br label %L332
 L331:
   %r.869 = load i64, ptr %r.7
-  %r.870 = ptrtoint ptr @.str.6153 to i64
+  %r.870 = ptrtoint ptr @.str.6159 to i64
   %r.871.a0 = inttoptr i64 %r.869 to ptr
   %r.871.a1 = inttoptr i64 %r.870 to ptr
   %r.871 = call i64 @__nucleor_str_eq(ptr %r.871.a0, ptr %r.871.a1)
@@ -383584,7 +383881,7 @@ L333:
   br label %L335
 L334:
   %r.881 = load i64, ptr %r.7
-  %r.882 = ptrtoint ptr @.str.6154 to i64
+  %r.882 = ptrtoint ptr @.str.6160 to i64
   %r.883.a0 = inttoptr i64 %r.881 to ptr
   %r.883.a1 = inttoptr i64 %r.882 to ptr
   %r.883 = call i64 @__nucleor_str_eq(ptr %r.883.a0, ptr %r.883.a1)
@@ -383609,7 +383906,7 @@ L336:
   br label %L338
 L337:
   %r.893 = load i64, ptr %r.7
-  %r.894 = ptrtoint ptr @.str.6166 to i64
+  %r.894 = ptrtoint ptr @.str.6172 to i64
   %r.895.a0 = inttoptr i64 %r.893 to ptr
   %r.895.a1 = inttoptr i64 %r.894 to ptr
   %r.895 = call i64 @__nucleor_str_eq(ptr %r.895.a0, ptr %r.895.a1)
@@ -383637,7 +383934,7 @@ L314:
   %br.904.cond = icmp ne i64 %r.904, 0
   br i1 %br.904.cond, label %L339, label %L341
 L339:
-  %r.905 = ptrtoint ptr @.str.6484 to i64
+  %r.905 = ptrtoint ptr @.str.6490 to i64
   %r.906 = load i64, ptr %r.364
   %r.907.a0 = inttoptr i64 %r.905 to ptr
   %r.907.a1 = inttoptr i64 %r.906 to ptr
@@ -383646,7 +383943,7 @@ L339:
   %r.908.a0 = inttoptr i64 %r.907 to ptr
   call void @__nucleor_print_str(ptr %r.908.a0)
   %r.908 = add i64 0, 0
-  %r.909 = ptrtoint ptr @.str.6485 to i64
+  %r.909 = ptrtoint ptr @.str.6491 to i64
   %r.910.a0 = inttoptr i64 %r.909 to ptr
   call void @__nucleor_print_str(ptr %r.910.a0)
   %r.910 = add i64 0, 0
@@ -383723,7 +384020,7 @@ L344:
   %br.923.cond = icmp ne i64 %r.923, 0
   br i1 %br.923.cond, label %L347, label %L349
 L347:
-  %r.924 = ptrtoint ptr @.str.6486 to i64
+  %r.924 = ptrtoint ptr @.str.6492 to i64
   %r.925.a0 = inttoptr i64 %r.924 to ptr
   call void @__nucleor_print_str(ptr %r.925.a0)
   %r.925 = add i64 0, 0
@@ -383733,7 +384030,7 @@ L349:
   br label %L346
 L346:
   %r.927 = load i64, ptr %r.7
-  %r.928 = ptrtoint ptr @.str.6152 to i64
+  %r.928 = ptrtoint ptr @.str.6158 to i64
   %r.929.a0 = inttoptr i64 %r.927 to ptr
   %r.929.a1 = inttoptr i64 %r.928 to ptr
   %r.929 = call i64 @__nucleor_str_eq(ptr %r.929.a0, ptr %r.929.a1)
@@ -383761,7 +384058,7 @@ L352:
   %br.939.cond = icmp ne i64 %r.939, 0
   br i1 %br.939.cond, label %L353, label %L355
 L353:
-  %r.940 = ptrtoint ptr @.str.6487 to i64
+  %r.940 = ptrtoint ptr @.str.6493 to i64
   %r.941.a0 = inttoptr i64 %r.940 to ptr
   call void @__nucleor_print_str(ptr %r.941.a0)
   %r.941 = add i64 0, 0
@@ -383769,7 +384066,7 @@ L353:
   ret i64 %r.942
 L355:
   %r.943 = load i64, ptr %r.7
-  %r.944 = ptrtoint ptr @.str.6161 to i64
+  %r.944 = ptrtoint ptr @.str.6167 to i64
   %r.945.a0 = inttoptr i64 %r.943 to ptr
   %r.945.a1 = inttoptr i64 %r.944 to ptr
   %r.945 = call i64 @__nucleor_str_eq(ptr %r.945.a0, ptr %r.945.a1)
@@ -383783,7 +384080,7 @@ L356:
   ret i64 %r.949
 L357:
   %r.950 = load i64, ptr %r.7
-  %r.951 = ptrtoint ptr @.str.6164 to i64
+  %r.951 = ptrtoint ptr @.str.6170 to i64
   %r.952.a0 = inttoptr i64 %r.950 to ptr
   %r.952.a1 = inttoptr i64 %r.951 to ptr
   %r.952 = call i64 @__nucleor_str_eq(ptr %r.952.a0, ptr %r.952.a1)
@@ -383795,7 +384092,7 @@ L359:
   ret i64 %r.954
 L360:
   %r.955 = load i64, ptr %r.7
-  %r.956 = ptrtoint ptr @.str.6163 to i64
+  %r.956 = ptrtoint ptr @.str.6169 to i64
   %r.957.a0 = inttoptr i64 %r.955 to ptr
   %r.957.a1 = inttoptr i64 %r.956 to ptr
   %r.957 = call i64 @__nucleor_str_eq(ptr %r.957.a0, ptr %r.957.a1)
@@ -383807,7 +384104,7 @@ L362:
   ret i64 %r.959
 L363:
   %r.960 = load i64, ptr %r.7
-  %r.961 = ptrtoint ptr @.str.6165 to i64
+  %r.961 = ptrtoint ptr @.str.6171 to i64
   %r.962.a0 = inttoptr i64 %r.960 to ptr
   %r.962.a1 = inttoptr i64 %r.961 to ptr
   %r.962 = call i64 @__nucleor_str_eq(ptr %r.962.a0, ptr %r.962.a1)
@@ -383821,7 +384118,7 @@ L365:
   ret i64 %r.966
 L366:
   %r.967 = load i64, ptr %r.7
-  %r.968 = ptrtoint ptr @.str.6162 to i64
+  %r.968 = ptrtoint ptr @.str.6168 to i64
   %r.969.a0 = inttoptr i64 %r.967 to ptr
   %r.969.a1 = inttoptr i64 %r.968 to ptr
   %r.969 = call i64 @__nucleor_str_eq(ptr %r.969.a0, ptr %r.969.a1)
@@ -383875,7 +384172,7 @@ L361:
   br label %L358
 L358:
   %r.988 = load i64, ptr %r.7
-  %r.989 = ptrtoint ptr @.str.6148 to i64
+  %r.989 = ptrtoint ptr @.str.6154 to i64
   %r.990.a0 = inttoptr i64 %r.988 to ptr
   %r.990.a1 = inttoptr i64 %r.989 to ptr
   %r.990 = call i64 @__nucleor_str_eq(ptr %r.990.a0, ptr %r.990.a1)
@@ -383892,7 +384189,7 @@ L377:
   ret i64 %r.998
 L378:
   %r.999 = load i64, ptr %r.7
-  %r.1000 = ptrtoint ptr @.str.6149 to i64
+  %r.1000 = ptrtoint ptr @.str.6155 to i64
   %r.1001.a0 = inttoptr i64 %r.999 to ptr
   %r.1001.a1 = inttoptr i64 %r.1000 to ptr
   %r.1001 = call i64 @__nucleor_str_eq(ptr %r.1001.a0, ptr %r.1001.a1)
@@ -383909,7 +384206,7 @@ L380:
   ret i64 %r.1009
 L381:
   %r.1010 = load i64, ptr %r.7
-  %r.1011 = ptrtoint ptr @.str.6150 to i64
+  %r.1011 = ptrtoint ptr @.str.6156 to i64
   %r.1012.a0 = inttoptr i64 %r.1010 to ptr
   %r.1012.a1 = inttoptr i64 %r.1011 to ptr
   %r.1012 = call i64 @__nucleor_str_eq(ptr %r.1012.a0, ptr %r.1012.a1)
@@ -383921,7 +384218,7 @@ L383:
   ret i64 %r.1015
 L384:
   %r.1016 = load i64, ptr %r.7
-  %r.1017 = ptrtoint ptr @.str.6152 to i64
+  %r.1017 = ptrtoint ptr @.str.6158 to i64
   %r.1018.a0 = inttoptr i64 %r.1016 to ptr
   %r.1018.a1 = inttoptr i64 %r.1017 to ptr
   %r.1018 = call i64 @__nucleor_str_eq(ptr %r.1018.a0, ptr %r.1018.a1)
@@ -383953,11 +384250,11 @@ L391:
   %br.1035.cond = icmp ne i64 %r.1035, 0
   br i1 %br.1035.cond, label %L392, label %L393
 L392:
-  %r.1037 = ptrtoint ptr @.str.6488 to i64
+  %r.1037 = ptrtoint ptr @.str.6494 to i64
   store i64 %r.1037, ptr %r.1036
   br label %L394
 L393:
-  %r.1038 = ptrtoint ptr @.str.6489 to i64
+  %r.1038 = ptrtoint ptr @.str.6495 to i64
   store i64 %r.1038, ptr %r.1036
   br label %L394
 L394:
@@ -384065,10 +384362,10 @@ L397:
   %br.1083.cond = icmp ne i64 %r.1083, 0
   br i1 %br.1083.cond, label %L408, label %L410
 L408:
-  %r.1084 = ptrtoint ptr @.str.6490 to i64
+  %r.1084 = ptrtoint ptr @.str.6496 to i64
   %r.1085 = load i64, ptr %r.1046
   %r.1086 = call i64 @str_from_int(i64 %r.1085)
-  %r.1087 = ptrtoint ptr @.str.6491 to i64
+  %r.1087 = ptrtoint ptr @.str.6497 to i64
   %r.1088 = load i64, ptr %r.1040
   %r.1089.a0 = inttoptr i64 %r.1087 to ptr
   %r.1089.a1 = inttoptr i64 %r.1088 to ptr
@@ -384122,7 +384419,7 @@ L415:
   %br.1107.cond = icmp ne i64 %r.1107, 0
   br i1 %br.1107.cond, label %L416, label %L418
 L416:
-  %r.1108 = ptrtoint ptr @.str.6492 to i64
+  %r.1108 = ptrtoint ptr @.str.6498 to i64
   %r.1109.a0 = inttoptr i64 %r.1108 to ptr
   call void @__nucleor_print_str(ptr %r.1109.a0)
   %r.1109 = add i64 0, 0
@@ -384134,7 +384431,7 @@ L410:
   ret i64 %r.1110
 L387:
   %r.1111 = load i64, ptr %r.7
-  %r.1112 = ptrtoint ptr @.str.6153 to i64
+  %r.1112 = ptrtoint ptr @.str.6159 to i64
   %r.1113.a0 = inttoptr i64 %r.1111 to ptr
   %r.1113.a1 = inttoptr i64 %r.1112 to ptr
   %r.1113 = call i64 @__nucleor_str_eq(ptr %r.1113.a0, ptr %r.1113.a1)
@@ -384149,7 +384446,7 @@ L419:
   br label %L421
 L420:
   %r.1118 = load i64, ptr %r.7
-  %r.1119 = ptrtoint ptr @.str.6154 to i64
+  %r.1119 = ptrtoint ptr @.str.6160 to i64
   %r.1120.a0 = inttoptr i64 %r.1118 to ptr
   %r.1120.a1 = inttoptr i64 %r.1119 to ptr
   %r.1120 = call i64 @__nucleor_str_eq(ptr %r.1120.a0, ptr %r.1120.a1)
@@ -384168,7 +384465,7 @@ L422:
   ret i64 %r.1126
 L423:
   %r.1127 = load i64, ptr %r.7
-  %r.1128 = ptrtoint ptr @.str.5953 to i64
+  %r.1128 = ptrtoint ptr @.str.5959 to i64
   %r.1129.a0 = inttoptr i64 %r.1127 to ptr
   %r.1129.a1 = inttoptr i64 %r.1128 to ptr
   %r.1129 = call i64 @__nucleor_str_eq(ptr %r.1129.a0, ptr %r.1129.a1)
@@ -384185,7 +384482,7 @@ L425:
   ret i64 %r.1137
 L426:
   %r.1138 = load i64, ptr %r.7
-  %r.1139 = ptrtoint ptr @.str.6166 to i64
+  %r.1139 = ptrtoint ptr @.str.6172 to i64
   %r.1140.a0 = inttoptr i64 %r.1138 to ptr
   %r.1140.a1 = inttoptr i64 %r.1139 to ptr
   %r.1140 = call i64 @__nucleor_str_eq(ptr %r.1140.a0, ptr %r.1140.a1)
@@ -384193,14 +384490,14 @@ L426:
   br i1 %br.1140.cond, label %L428, label %L429
 L428:
   %r.1143 = load i64, ptr %r.319
-  %r.1144 = ptrtoint ptr @.str.6493 to i64
+  %r.1144 = ptrtoint ptr @.str.6499 to i64
   %r.1145.a0 = inttoptr i64 %r.1143 to ptr
   %r.1145.a1 = inttoptr i64 %r.1144 to ptr
   %r.1145.rv = call ptr @__nucleor_str_concat(ptr %r.1145.a0, ptr %r.1145.a1)
   %r.1145 = ptrtoint ptr %r.1145.rv to i64
   store i64 %r.1145, ptr %r.1142
   %r.1147 = load i64, ptr %r.319
-  %r.1148 = ptrtoint ptr @.str.6494 to i64
+  %r.1148 = ptrtoint ptr @.str.6500 to i64
   %r.1149.a0 = inttoptr i64 %r.1147 to ptr
   %r.1149.a1 = inttoptr i64 %r.1148 to ptr
   %r.1149.rv = call ptr @__nucleor_str_concat(ptr %r.1149.a0, ptr %r.1149.a1)
@@ -384221,7 +384518,7 @@ L428:
   %br.1160.cond = icmp ne i64 %r.1160, 0
   br i1 %br.1160.cond, label %L431, label %L433
 L431:
-  %r.1161 = ptrtoint ptr @.str.6495 to i64
+  %r.1161 = ptrtoint ptr @.str.6501 to i64
   %r.1162.a0 = inttoptr i64 %r.1161 to ptr
   call void @__nucleor_print_str(ptr %r.1162.a0)
   %r.1162 = add i64 0, 0
@@ -384243,14 +384540,14 @@ L433:
   %br.1174.cond = icmp ne i64 %r.1174, 0
   br i1 %br.1174.cond, label %L434, label %L436
 L434:
-  %r.1175 = ptrtoint ptr @.str.6496 to i64
+  %r.1175 = ptrtoint ptr @.str.6502 to i64
   %r.1176.a0 = inttoptr i64 %r.1175 to ptr
   call void @__nucleor_print_str(ptr %r.1176.a0)
   %r.1176 = add i64 0, 0
   %r.1177 = load i64, ptr %r.1164
   ret i64 %r.1177
 L436:
-  %r.1179 = ptrtoint ptr @.str.5581 to i64
+  %r.1179 = ptrtoint ptr @.str.5586 to i64
   %r.1180 = load i64, ptr %r.1142
   %r.1181 = ptrtoint ptr @.str.5534 to i64
   %r.1182.a0 = inttoptr i64 %r.1180 to ptr
@@ -384262,7 +384559,7 @@ L436:
   %r.1183.rv = call ptr @__nucleor_str_concat(ptr %r.1183.a0, ptr %r.1183.a1)
   %r.1183 = ptrtoint ptr %r.1183.rv to i64
   store i64 %r.1183, ptr %r.1178
-  %r.1185 = ptrtoint ptr @.str.5581 to i64
+  %r.1185 = ptrtoint ptr @.str.5586 to i64
   %r.1186 = load i64, ptr %r.1146
   %r.1187 = ptrtoint ptr @.str.5534 to i64
   %r.1188.a0 = inttoptr i64 %r.1186 to ptr
@@ -384274,7 +384571,7 @@ L436:
   %r.1189.rv = call ptr @__nucleor_str_concat(ptr %r.1189.a0, ptr %r.1189.a1)
   %r.1189 = ptrtoint ptr %r.1189.rv to i64
   store i64 %r.1189, ptr %r.1184
-  %r.1191 = ptrtoint ptr @.str.5581 to i64
+  %r.1191 = ptrtoint ptr @.str.5586 to i64
   %r.1192 = load i64, ptr %r.1142
   %r.1193 = call i64 @host_exe_suffix()
   %r.1194.a0 = inttoptr i64 %r.1192 to ptr
@@ -384286,7 +384583,7 @@ L436:
   %r.1195.rv = call ptr @__nucleor_str_concat(ptr %r.1195.a0, ptr %r.1195.a1)
   %r.1195 = ptrtoint ptr %r.1195.rv to i64
   store i64 %r.1195, ptr %r.1190
-  %r.1197 = ptrtoint ptr @.str.5581 to i64
+  %r.1197 = ptrtoint ptr @.str.5586 to i64
   %r.1198 = load i64, ptr %r.1146
   %r.1199 = call i64 @host_exe_suffix()
   %r.1200.a0 = inttoptr i64 %r.1198 to ptr
@@ -384340,7 +384637,7 @@ L439:
   %br.1222.cond = icmp ne i64 %r.1222, 0
   br i1 %br.1222.cond, label %L440, label %L442
 L440:
-  %r.1223 = ptrtoint ptr @.str.6497 to i64
+  %r.1223 = ptrtoint ptr @.str.6503 to i64
   %r.1224.a0 = inttoptr i64 %r.1223 to ptr
   call void @__nucleor_print_str(ptr %r.1224.a0)
   %r.1224 = add i64 0, 0
@@ -384381,7 +384678,7 @@ L443:
   store i64 %r.1248, ptr %r.1240
   br label %L445
 L445:
-  %r.1249 = ptrtoint ptr @.str.6498 to i64
+  %r.1249 = ptrtoint ptr @.str.6504 to i64
   %r.1250 = load i64, ptr %r.274
   %r.1251.a0 = inttoptr i64 %r.1249 to ptr
   %r.1251.a1 = inttoptr i64 %r.1250 to ptr
@@ -384390,12 +384687,12 @@ L445:
   %r.1252.a0 = inttoptr i64 %r.1251 to ptr
   call void @__nucleor_print_str(ptr %r.1252.a0)
   %r.1252 = add i64 0, 0
-  %r.1253 = ptrtoint ptr @.str.6499 to i64
+  %r.1253 = ptrtoint ptr @.str.6505 to i64
   %r.1254 = load i64, ptr %r.1178
   %r.1255 = ptrtoint ptr @.str.4724 to i64
   %r.1256 = load i64, ptr %r.1232
   %r.1257 = call i64 @str_from_int(i64 %r.1256)
-  %r.1258 = ptrtoint ptr @.str.6500 to i64
+  %r.1258 = ptrtoint ptr @.str.6506 to i64
   %r.1259 = load i64, ptr %r.1226
   %r.1260 = ptrtoint ptr @.str.390 to i64
   %r.1261.a0 = inttoptr i64 %r.1259 to ptr
@@ -384425,12 +384722,12 @@ L445:
   %r.1267.a0 = inttoptr i64 %r.1266 to ptr
   call void @__nucleor_print_str(ptr %r.1267.a0)
   %r.1267 = add i64 0, 0
-  %r.1268 = ptrtoint ptr @.str.6501 to i64
+  %r.1268 = ptrtoint ptr @.str.6507 to i64
   %r.1269 = load i64, ptr %r.1184
   %r.1270 = ptrtoint ptr @.str.4724 to i64
   %r.1271 = load i64, ptr %r.1235
   %r.1272 = call i64 @str_from_int(i64 %r.1271)
-  %r.1273 = ptrtoint ptr @.str.6500 to i64
+  %r.1273 = ptrtoint ptr @.str.6506 to i64
   %r.1274 = load i64, ptr %r.1229
   %r.1275 = ptrtoint ptr @.str.390 to i64
   %r.1276.a0 = inttoptr i64 %r.1274 to ptr
@@ -384467,7 +384764,7 @@ L445:
   %br.1285.cond = icmp ne i64 %r.1285, 0
   br i1 %br.1285.cond, label %L446, label %L447
 L446:
-  %r.1286 = ptrtoint ptr @.str.6502 to i64
+  %r.1286 = ptrtoint ptr @.str.6508 to i64
   %r.1287 = load i64, ptr %r.1190
   %r.1288.a0 = inttoptr i64 %r.1286 to ptr
   %r.1288.a1 = inttoptr i64 %r.1287 to ptr
@@ -384476,7 +384773,7 @@ L446:
   %r.1289.a0 = inttoptr i64 %r.1288 to ptr
   call void @__nucleor_print_str(ptr %r.1289.a0)
   %r.1289 = add i64 0, 0
-  %r.1290 = ptrtoint ptr @.str.6503 to i64
+  %r.1290 = ptrtoint ptr @.str.6509 to i64
   %r.1291 = load i64, ptr %r.1196
   %r.1292.a0 = inttoptr i64 %r.1290 to ptr
   %r.1292.a1 = inttoptr i64 %r.1291 to ptr
@@ -384492,13 +384789,13 @@ L446:
   %br.1296.cond = icmp ne i64 %r.1296, 0
   br i1 %br.1296.cond, label %L449, label %L450
 L449:
-  %r.1297 = ptrtoint ptr @.str.6504 to i64
+  %r.1297 = ptrtoint ptr @.str.6510 to i64
   %r.1298.a0 = inttoptr i64 %r.1297 to ptr
   call void @__nucleor_print_str(ptr %r.1298.a0)
   %r.1298 = add i64 0, 0
   br label %L451
 L450:
-  %r.1299 = ptrtoint ptr @.str.6505 to i64
+  %r.1299 = ptrtoint ptr @.str.6511 to i64
   %r.1300.a0 = inttoptr i64 %r.1299 to ptr
   call void @__nucleor_print_str(ptr %r.1300.a0)
   %r.1300 = add i64 0, 0
@@ -384506,7 +384803,7 @@ L450:
 L451:
   br label %L448
 L447:
-  %r.1301 = ptrtoint ptr @.str.6506 to i64
+  %r.1301 = ptrtoint ptr @.str.6512 to i64
   %r.1302.a0 = inttoptr i64 %r.1301 to ptr
   call void @__nucleor_print_str(ptr %r.1302.a0)
   %r.1302 = add i64 0, 0
@@ -384603,15 +384900,15 @@ L460:
   %br.1345.cond = icmp ne i64 %r.1345, 0
   br i1 %br.1345.cond, label %L464, label %L466
 L464:
-  %r.1346 = ptrtoint ptr @.str.6507 to i64
+  %r.1346 = ptrtoint ptr @.str.6513 to i64
   %r.1347.a0 = inttoptr i64 %r.1346 to ptr
   call void @__nucleor_print_str(ptr %r.1347.a0)
   %r.1347 = add i64 0, 0
-  %r.1348 = ptrtoint ptr @.str.6508 to i64
+  %r.1348 = ptrtoint ptr @.str.6514 to i64
   %r.1349.a0 = inttoptr i64 %r.1348 to ptr
   call void @__nucleor_print_str(ptr %r.1349.a0)
   %r.1349 = add i64 0, 0
-  %r.1350 = ptrtoint ptr @.str.6509 to i64
+  %r.1350 = ptrtoint ptr @.str.6515 to i64
   %r.1351.a0 = inttoptr i64 %r.1350 to ptr
   call void @__nucleor_print_str(ptr %r.1351.a0)
   %r.1351 = add i64 0, 0
@@ -384625,50 +384922,50 @@ L466:
   %br.1355.cond = icmp ne i64 %r.1355, 0
   br i1 %br.1355.cond, label %L467, label %L469
 L467:
-  %r.1356 = ptrtoint ptr @.str.6510 to i64
+  %r.1356 = ptrtoint ptr @.str.6516 to i64
   %r.1357.a0 = inttoptr i64 %r.1356 to ptr
   call void @__nucleor_print_str(ptr %r.1357.a0)
   %r.1357 = add i64 0, 0
-  %r.1358 = ptrtoint ptr @.str.6511 to i64
+  %r.1358 = ptrtoint ptr @.str.6517 to i64
   %r.1359.a0 = inttoptr i64 %r.1358 to ptr
   call void @__nucleor_print_str(ptr %r.1359.a0)
   %r.1359 = add i64 0, 0
-  %r.1360 = ptrtoint ptr @.str.6512 to i64
+  %r.1360 = ptrtoint ptr @.str.6518 to i64
   %r.1361.a0 = inttoptr i64 %r.1360 to ptr
   call void @__nucleor_print_str(ptr %r.1361.a0)
   %r.1361 = add i64 0, 0
-  %r.1362 = ptrtoint ptr @.str.6513 to i64
+  %r.1362 = ptrtoint ptr @.str.6519 to i64
   %r.1363.a0 = inttoptr i64 %r.1362 to ptr
   call void @__nucleor_print_str(ptr %r.1363.a0)
   %r.1363 = add i64 0, 0
-  %r.1364 = ptrtoint ptr @.str.6514 to i64
+  %r.1364 = ptrtoint ptr @.str.6520 to i64
   %r.1365.a0 = inttoptr i64 %r.1364 to ptr
   call void @__nucleor_print_str(ptr %r.1365.a0)
   %r.1365 = add i64 0, 0
-  %r.1366 = ptrtoint ptr @.str.6515 to i64
+  %r.1366 = ptrtoint ptr @.str.6521 to i64
   %r.1367.a0 = inttoptr i64 %r.1366 to ptr
   call void @__nucleor_print_str(ptr %r.1367.a0)
   %r.1367 = add i64 0, 0
   %r.1368 = add i64 1, 0
   ret i64 %r.1368
 L469:
-  %r.1369 = ptrtoint ptr @.str.6516 to i64
+  %r.1369 = ptrtoint ptr @.str.6522 to i64
   %r.1370.a0 = inttoptr i64 %r.1369 to ptr
   call void @__nucleor_print_str(ptr %r.1370.a0)
   %r.1370 = add i64 0, 0
-  %r.1371 = ptrtoint ptr @.str.6517 to i64
+  %r.1371 = ptrtoint ptr @.str.6523 to i64
   %r.1372.a0 = inttoptr i64 %r.1371 to ptr
   call void @__nucleor_print_str(ptr %r.1372.a0)
   %r.1372 = add i64 0, 0
-  %r.1373 = ptrtoint ptr @.str.6518 to i64
+  %r.1373 = ptrtoint ptr @.str.6524 to i64
   %r.1374.a0 = inttoptr i64 %r.1373 to ptr
   call void @__nucleor_print_str(ptr %r.1374.a0)
   %r.1374 = add i64 0, 0
-  %r.1375 = ptrtoint ptr @.str.6519 to i64
+  %r.1375 = ptrtoint ptr @.str.6525 to i64
   %r.1376.a0 = inttoptr i64 %r.1375 to ptr
   call void @__nucleor_print_str(ptr %r.1376.a0)
   %r.1376 = add i64 0, 0
-  %r.1377 = ptrtoint ptr @.str.6520 to i64
+  %r.1377 = ptrtoint ptr @.str.6526 to i64
   %r.1378.a0 = inttoptr i64 %r.1377 to ptr
   call void @__nucleor_print_str(ptr %r.1378.a0)
   %r.1378 = add i64 0, 0
@@ -384676,7 +384973,7 @@ L469:
   ret i64 %r.1379
 L429:
   %r.1380 = load i64, ptr %r.7
-  %r.1381 = ptrtoint ptr @.str.6159 to i64
+  %r.1381 = ptrtoint ptr @.str.6165 to i64
   %r.1382.a0 = inttoptr i64 %r.1380 to ptr
   %r.1382.a1 = inttoptr i64 %r.1381 to ptr
   %r.1382 = call i64 @__nucleor_str_eq(ptr %r.1382.a0, ptr %r.1382.a1)
@@ -384691,7 +384988,7 @@ L470:
   br label %L472
 L471:
   %r.1387 = load i64, ptr %r.7
-  %r.1388 = ptrtoint ptr @.str.6160 to i64
+  %r.1388 = ptrtoint ptr @.str.6166 to i64
   %r.1389.a0 = inttoptr i64 %r.1387 to ptr
   %r.1389.a1 = inttoptr i64 %r.1388 to ptr
   %r.1389 = call i64 @__nucleor_str_eq(ptr %r.1389.a0, ptr %r.1389.a1)
@@ -384713,7 +385010,7 @@ L473:
   br label %L475
 L474:
   %r.1397 = load i64, ptr %r.7
-  %r.1398 = ptrtoint ptr @.str.5724 to i64
+  %r.1398 = ptrtoint ptr @.str.5730 to i64
   %r.1399.a0 = inttoptr i64 %r.1397 to ptr
   %r.1399.a1 = inttoptr i64 %r.1398 to ptr
   %r.1399 = call i64 @__nucleor_str_eq(ptr %r.1399.a0, ptr %r.1399.a1)
@@ -384735,7 +385032,7 @@ L476:
   br label %L478
 L477:
   %r.1407 = load i64, ptr %r.7
-  %r.1408 = ptrtoint ptr @.str.6155 to i64
+  %r.1408 = ptrtoint ptr @.str.6161 to i64
   %r.1409.a0 = inttoptr i64 %r.1407 to ptr
   %r.1409.a1 = inttoptr i64 %r.1408 to ptr
   %r.1409 = call i64 @__nucleor_str_eq(ptr %r.1409.a0, ptr %r.1409.a1)
@@ -384757,7 +385054,7 @@ L479:
   br label %L481
 L480:
   %r.1417 = load i64, ptr %r.7
-  %r.1418 = ptrtoint ptr @.str.6156 to i64
+  %r.1418 = ptrtoint ptr @.str.6162 to i64
   %r.1419.a0 = inttoptr i64 %r.1417 to ptr
   %r.1419.a1 = inttoptr i64 %r.1418 to ptr
   %r.1419 = call i64 @__nucleor_str_eq(ptr %r.1419.a0, ptr %r.1419.a1)
@@ -384779,7 +385076,7 @@ L482:
   br label %L484
 L483:
   %r.1427 = load i64, ptr %r.7
-  %r.1428 = ptrtoint ptr @.str.6157 to i64
+  %r.1428 = ptrtoint ptr @.str.6163 to i64
   %r.1429.a0 = inttoptr i64 %r.1427 to ptr
   %r.1429.a1 = inttoptr i64 %r.1428 to ptr
   %r.1429 = call i64 @__nucleor_str_eq(ptr %r.1429.a0, ptr %r.1429.a1)
@@ -384801,7 +385098,7 @@ L485:
   br label %L487
 L486:
   %r.1437 = load i64, ptr %r.7
-  %r.1438 = ptrtoint ptr @.str.6158 to i64
+  %r.1438 = ptrtoint ptr @.str.6164 to i64
   %r.1439.a0 = inttoptr i64 %r.1437 to ptr
   %r.1439.a1 = inttoptr i64 %r.1438 to ptr
   %r.1439 = call i64 @__nucleor_str_eq(ptr %r.1439.a0, ptr %r.1439.a1)
@@ -384833,7 +385130,7 @@ L491:
   %r.1452 = call i64 @compile_file(i64 %r.1449, i64 %r.1451)
   ret i64 %r.1452
 L493:
-  %r.1453 = ptrtoint ptr @.str.6521 to i64
+  %r.1453 = ptrtoint ptr @.str.6527 to i64
   %r.1454 = load i64, ptr %r.7
   %r.1455.a0 = inttoptr i64 %r.1453 to ptr
   %r.1455.a1 = inttoptr i64 %r.1454 to ptr
