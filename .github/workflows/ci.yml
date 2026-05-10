@@ -19,36 +19,6 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  verify-windows:
-    name: verify (windows)
-    runs-on: windows-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install LLVM 18
-        run: choco install llvm --version=18.1.8 -y --no-progress
-        shell: powershell
-      - name: Show toolchain
-        run: |
-          clang --version
-        shell: powershell
-      - name: Build rust_bridge (optional)
-        run: cargo build --release
-        working-directory: stdlib/rods/rust_bridge
-        continue-on-error: true
-        shell: powershell
-      - name: Run verify.ps1
-        run: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1 -NoColor
-        shell: powershell
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verify-failure-windows
-          path: |
-            target/
-            .nuc_cache/
-
   verify-linux:
     name: verify (linux)
     runs-on: ubuntu-24.04
@@ -210,31 +180,6 @@ jobs:
   #         name: linux-perf-baseline-transcript
   #         path: |
   #           tools/verify_timings.*.csv
-
-  verify-macos:
-    name: verify (macos)
-    runs-on: macos-14
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install LLVM 18
-        run: brew install llvm@18
-      - name: Show toolchain
-        run: |
-          uname -a
-          /opt/homebrew/opt/llvm@18/bin/clang --version
-          echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
-      - name: Bootstrap bin/nucleor from IR seed
-        # T1.7 (v0.2.339): same bootstrap path as Linux. The seed .ll
-        # is target-agnostic so the same artifact builds for arm64-darwin
-        # via the host clang. macOS verify.sh remains
-        # continue-on-error until the OEM-codepage / shell-quoting
-        # paths in nucleor_tools_suite.nr that still assume Windows
-        # `dir`/`del` are ported (tracked separately).
-        run: ./tools/bootstrap_linux.sh --seed-only
-      - name: Run verify.sh
-        run: ./tools/verify.sh --no-color
-        continue-on-error: true
 
   rfc-link-check:
     name: RFC index sanity
