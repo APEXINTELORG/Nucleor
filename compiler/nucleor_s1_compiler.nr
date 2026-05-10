@@ -7021,7 +7021,6 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_pop") { return "__nucleor_vec_pop"; };
     if str_eq(name, "vec_free") { return "__nucleor_vec_free"; };
     if str_eq(name, "vec_set") { return "__nucleor_vec_set"; };
-    if str_eq(name, "vec_find_str_pair_back") { return "__nucleor_vec_find_str_pair_back"; };
     if str_eq(name, "vec_first") { return "__nucleor_vec_first"; };
     if str_eq(name, "vec_last") { return "__nucleor_vec_last"; };
     if str_eq(name, "vec_is_empty") { return "__nucleor_vec_is_empty"; };
@@ -8241,7 +8240,6 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_pop") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_free") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_set") { if idx == 0 { return 1; }; return 0; };
-    if str_eq(name, "vec_find_str_pair_back") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_first") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_last") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_is_empty") { if idx == 0 { return 1; }; return 0; };
@@ -8893,11 +8891,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_pop(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_free(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_set(ptr, i64, i64)\n");
-    // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): C-side fast
-    // backward find for (str-key, val) interleaved pairs. Replaces
-    // the Nucleor-source linear backward scan in own_put_i / sym_get
-    // for the ownership-phase hot path.
-    sb_append(sb, "declare i64 @__nucleor_vec_find_str_pair_back(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_first(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_last(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_is_empty(ptr)\n");

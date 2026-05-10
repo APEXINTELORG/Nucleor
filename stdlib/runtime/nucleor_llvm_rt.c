@@ -2784,55 +2784,6 @@ void __nucleor_vec_set(NVec *v, long long i, long long x) {
     v->data[(int)i] = x;
 }
 
-/* v1.1.x perf (audit-pass-1 follow-up 2026-05-09): C-side fast
- * backward find for str-keyed (key, val) interleaved pair vecs.
- * The s1 ownership phase's `own_put_i` and `sym_get` (size < 64)
- * paths previously did this scan in Nucleor source — a `while`
- * loop with per-iteration `str_eq` runtime call. Total cost was
- * O(N) per call × tens-of-thousands of calls per self-host
- * compile = ~700ms of the ownership phase budget on Windows.
- *
- * This helper does the same scan but inlined in C: one length
- * compare + memcmp per pair, no function-call-per-element overhead.
- * Returns the pair-START index (where data[i] == key, data[i+1]
- * is val), or -1 if not found. Caller is responsible for clamping
- * to valid pair-aligned indices and for ensuring `key` is non-NULL. */
-long long __nucleor_vec_find_str_pair_back(NVec *v, const char *key) {
-    if (!v || !key) return -1;
-    long long n = v->len;
-    if (n < 2) return -1;
-    size_t klen = strlen(key);
-    /* Walk pairs in reverse: keys at even offsets, vals at odd. */
-    long long i = n - 2;
-    if (i % 2 != 0) i = i - 1;  /* defensive: align to even */
-    while (i >= 0) {
-        const char *vk = (const char *)(intptr_t)v->data[(size_t)i];
-        if (vk) {
-            /* Cheap reject by length, then memcmp */
-            if (strlen(vk) == klen && memcmp(vk, key, klen) == 0) {
-                return i;
-            }
-        }
-        i -= 2;
-    }
-    return -1;
-}
-
-/* Bootstrap shim: the stage-0 bin (built from prior source) doesn't
- * have `vec_find_str_pair_back` in its get_rt_name table, so it
- * emits IR with the bare-name call `@vec_find_str_pair_back(i64, i64)`.
- * Once stage-1 bin is built (with the get_rt_name entry), it emits
- * the canonical `@__nucleor_vec_find_str_pair_back(ptr, ptr)` form
- * and this shim becomes unused. Both stage IRs link cleanly.
- *
- * This shim is harmless dead code post-bootstrap (no caller in IR);
- * leave in place so re-bootstrap from any prior stage works. */
-long long vec_find_str_pair_back(long long v_handle, long long key_handle) {
-    return __nucleor_vec_find_str_pair_back(
-        (NVec *)(intptr_t)v_handle,
-        (const char *)(intptr_t)key_handle);
-}
-
 // --- v0.2.22: vec extras ---
 // v0.3.201: same hazard class as v0.3.200 — extend strict OOB
 // PANIC to vec_first/vec_last on empty and vec_swap on OOB index.
