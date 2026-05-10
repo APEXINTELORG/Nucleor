@@ -2,9 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main, "release/*"]
+    branches:
+      - main
+      - "release/*"
+      # R10-D3 / Linux perf handoff branches get immediate CI feedback so
+      # the D1 RSS-split work in tools/run_capped.sh +
+      # tools/check_perf_regression.sh is exercised on Ubuntu GHA before
+      # the merge to main. See
+      # docs/LINUX_PERF_AND_RELEASE_HANDOFF_2026-05-10.md for the full
+      # 11-step handoff context.
+      - "claude/linux-perf-handoff-docs-*"
+      - "docs/linux-perf-release-handoff-*"
+      - "linux/r10-d3-*"
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 jobs:
   verify-windows:
@@ -40,7 +52,9 @@ jobs:
   verify-linux:
     name: verify (linux)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      NUC_VERIFY_AGENT: gha-linux
     steps:
       - uses: actions/checkout@v4
       - name: Install LLVM 18
@@ -49,11 +63,25 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 18
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
-      - name: Show toolchain
+      - name: Step 1 — document runner (Ubuntu GHA, NOT pinned for perf)
+        # Records host class as evidence. This runner is GHA-hosted Ubuntu,
+        # which is correct for correctness gates (D2 of the handoff doc)
+        # but explicitly NOT valid for perf baseline locks — those need a
+        # pinned self-hosted runner. The perf gate below runs in
+        # informational mode; baseline locks come from the pinned runner
+        # job (commented stub at the bottom of this file).
         run: |
-          uname -a
-          clang --version
-      - name: Bootstrap bin/nucleor from IR seed
+          {
+            echo "## Step 1 runner — Ubuntu GHA (correctness gate, NOT pinned)"
+            uname -a
+            (cat /etc/os-release || true) | head -5
+            clang --version | head -1
+            ldd --version | head -1
+            (lscpu | grep -E "^Model name|^CPU\(s\):|^Architecture") || true
+            free -m | head -2
+            echo "GitHub runner image: ubuntu-24.04 (hosted)"
+          } | tee runner-info.txt
+      - name: Step 2 — bootstrap bin/nucleor from IR seed
         # T1.7 (v0.2.339): the Linux verify gate now produces its own
         # bin/nucleor by clang-linking bootstrap/nucleor_s1_seed.ll
         # against the platform-portable C runtime, then validating the
@@ -61,8 +89,67 @@ jobs:
         # pre-built Linux binary is checked into the repo — the .ll
         # seed is the only artifact the bootstrap depends on.
         run: ./tools/bootstrap_linux.sh
-      - name: Run verify.sh
+      - name: Step 3 — version + ELF sanity
+        run: |
+          ./bin/nucleor --version
+          file bin/nucleor
+      - name: Step 4 — self-host fixed-point md5
+        # Standalone invocation (T1.8 inside verify.sh re-runs this; the
+        # standalone step gives a named CI status before verify.sh
+        # starts so a regression is attributable cleanly).
+        run: bash tools/check_self_host_md5.sh
+      - name: Step 6 — perf gate doctor (D1 RSS-split ceilings present)
+        # Step 6 of the handoff. Specifically gates the new D1 doctor
+        # check `compiler-rss-ceilings` so a baseline that drops the
+        # cold/hot compiler-only ceilings fails CI by name instead of
+        # silently downgrading to warn-only at the gate.
+        run: bash tools/check_perf_regression.sh --doctor
+      - name: Perf gate informational run (NOT for baseline lock)
+        # Informational only on hosted GHA — D2 of the handoff doc is
+        # explicit that cloud GHA is too noisy for baseline locks. The
+        # gate's exit code is captured for visibility, but CI does not
+        # fail on cold/hot wall regressions here. The pinned-runner
+        # job (commented stub below) is where wall-time regressions
+        # become gating.
+        run: |
+          set +e
+          bash tools/check_perf_regression.sh \
+              --cold-samples 2 \
+              --hot-samples 2 \
+              --budget-mb 800 \
+              --warning-mb 600 \
+              --timeout-sec 180 \
+              --verbose | tee perf-informational.txt
+          rc=$?
+          echo "informational perf gate exit: $rc (NOT gating on hosted GHA)"
+          exit 0
+      - name: Step 8 — full verify.sh
+        # Internally re-exercises self-host md5 (T1.8) and the POSIX perf
+        # regression monitor (which now strictly enforces the four D1
+        # ceilings via the conservative placeholders in
+        # tools/perf_baseline_linux.json).
         run: ./tools/verify.sh --no-color
+      - name: Step 9 — rust_bridge POSIX ownership harness
+        # Standalone — not wired into verify.sh per
+        # tools/check_rust_bridge_ownership.sh. Doctor + self-test
+        # always; the full --fixture all --iterations 20 acceptance run
+        # is gated on PR/main merges (it builds the rust crate).
+        run: |
+          bash tools/check_rust_bridge_ownership.sh --doctor
+          bash tools/check_rust_bridge_ownership.sh --self-test
+          bash tools/check_rust_bridge_ownership.sh --fixture all --iterations 20
+      - name: Upload R10-D3 transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-r10-d3-transcripts
+          path: |
+            runner-info.txt
+            perf-informational.txt
+            tools/verify_timings.gha-linux.csv
+            target/_self_host_md5_stage1.build.log
+            target/_self_host_md5_stage2.build.log
+          if-no-files-found: ignore
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -72,6 +159,57 @@ jobs:
             target/
             .nuc_cache/
             bin/
+
+  # ---------------------------------------------------------------------
+  # Linux perf baseline (pinned self-hosted) — STUB, not active.
+  #
+  # Activate by:
+  #   1. Provisioning a stable Linux runner (physical box or pinned cloud
+  #      VM, NOT a GHA hosted runner — D2 of the handoff doc).
+  #   2. Registering it under APEXINTELORG/Nucleor-archive with labels
+  #      `[self-hosted, linux, X64, nucleor-linux-perf-x64]`.
+  #   3. Documenting host class (kernel, glibc, clang, CPU model, RAM,
+  #      isolation strategy) in tools/perf_baseline_linux.json `host`
+  #      block.
+  #   4. Uncommenting the job below and removing the trailing `if: false`.
+  #
+  # Once active this is the only place where compiler-only / process-tree
+  # RSS ceilings should be re-tightened (Step 7 of the handoff). Hosted
+  # GHA is correctness-only.
+  # ---------------------------------------------------------------------
+  # linux-perf-baseline:
+  #   name: Linux perf baseline (pinned self-hosted)
+  #   if: false  # remove once a pinned runner is registered
+  #   runs-on: [self-hosted, linux, X64, nucleor-linux-perf-x64]
+  #   timeout-minutes: 90
+  #   needs: verify-linux
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Document pinned runner
+  #       run: |
+  #         uname -a
+  #         clang --version
+  #         lscpu
+  #         free -m
+  #         echo "runner labels: ${{ runner.name }}"
+  #     - name: Bootstrap
+  #       run: ./tools/bootstrap_linux.sh
+  #     - name: Perf gate doctor
+  #       run: bash tools/check_perf_regression.sh --doctor
+  #     - name: Lock perf baseline (gating)
+  #       run: |
+  #         bash tools/check_perf_regression.sh \
+  #             --baseline tools/perf_baseline_linux.json \
+  #             --cold-samples 3 \
+  #             --hot-samples 3 \
+  #             --verbose
+  #     - name: Upload perf transcript
+  #       if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: linux-perf-baseline-transcript
+  #         path: |
+  #           tools/verify_timings.*.csv
 
   verify-macos:
     name: verify (macos)
