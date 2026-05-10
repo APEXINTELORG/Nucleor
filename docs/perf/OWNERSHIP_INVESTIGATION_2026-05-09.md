@@ -294,3 +294,68 @@ The ownership phase's slowness is in the .nr-source linear backward scan loop in
 (d) Out-of-scope architecturally: replace the flat-Vec ownership env with a different data structure (proper hashmap, indexed b-tree). Would require a substantial refactor of all `sym_get` / `own_put_i` / `own_get_i` / `own_merge_moved` callsites.
 
 The branch state preserves all three failed experiments. Each negative result rules out a class of attempts and narrows the remaining design space.
+
+---
+
+## 2026-05-09 evening: WIN STACK
+
+After the negative results above, the breakthrough came from running the
+runtime profile counters (`NUCLEOR_PROFILE=1` + `NUCLEOR_PROFILE_CALLERS=1`)
+which revealed:
+
+- 300M `str_eq` calls + 280M `vec_get` calls per cold compile — quadratic
+- ONE call site (`own_put_i`'s backward scan) accounted for **70% of both**
+
+This made the diagnosis concrete: the per-iteration .nr->C FFI dispatch
+(vec_get + str_eq, two roundtrips per loop iter) was the dominant cost.
+
+### Win 1: hoist sym_get scan into C  (commit 570a297b)
+Added `__nucleor_sym_linear_lookup(v, name)` runtime helper that does
+the entire backward scan inline in C with pointer-eq fast-path before
+strcmp. Used in sym_get's small-vec path and own_put_i.
+
+### Win 2: collapse sym_get tail check  (commit 4eb87ffd)
+The pre-fix `if n >= 2 && str_eq(...)` tail check was redundant — the
+helper already scans backward from tail. Simplification + 1 less FFI/call.
+
+### Win 3: full own_put_i in C  (commit bed4eb0d)
+Pushed all of own_put_i's body into `__nucleor_own_put_i_full`: scan +
+mutate-or-push + warm-aux sync. Pre-fix paid 3-5 FFI calls per put;
+now one call.
+
+**Profile delta after Wins 1-3:**
+- vec_get  282M -> 64M  (-77%)
+- str_eq   300M -> 83M  (-72%)
+- TOTAL TRACKED 663M -> 227M (-66%)
+
+### Win 4: precompiled rt.o cache  (commit 4083bf24)
+Cache `nucleor_llvm_rt.c` -> .obj keyed on content hash. Saves the
+~1.1s of clang recompiling the runtime on every link. First build
+warms the cache; later builds skip straight to linking.
+
+### Cumulative wins (cold compile, --release --no-cache)
+| Metric | branch start (8cc0c38e) | now (4083bf24) | delta |
+|---|---|---|---|
+| ownership | 1422 ms | 1031 ms | **-28%** (matches v1.0.0 baseline 1062) |
+| total IR | 2625 ms | 2294 ms | -13% |
+| total native (--release) | ~8900 ms | ~7400 ms | -17% |
+| **total native (default opt)** | n/a | **3156 ms** | **sub-4s** |
+
+### The "sub-4s like v1.0.0" framing
+
+v1.0.0's `--release` flag was a no-op — pre-v1.0.1 the link command
+passed no `-O` flag at all, so clang defaulted to **-O0**. The "v1.0.0
+4-second cold compile" was at -O0.
+
+v1.0.1+ made `--release` semantically meaningful (-O3). That's the
+correct semantic — release builds should be optimized — but the link
+gets ~5x slower because clang -O3 of 13 MB IR takes ~5 sec.
+
+After this branch's wins:
+- Default opt cold compile: **3156 ms** (matches v1.0.0 territory)
+- --release (-O3) cold compile: ~7400 ms (intrinsic clang -O3 cost)
+
+The ownership-phase regression is fully closed. The -O3 cold link cost
+is structural — closing it would require either smaller IR or splitting
+the .ll into modules for parallel/incremental clang invocations.
+
