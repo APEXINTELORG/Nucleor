@@ -28,11 +28,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install LLVM 18
+        # Ubuntu 24.04 (noble) ships clang-18 + lld-18 in the default
+        # repos. Use apt directly — avoids the apt.llvm.org dependency
+        # that was failing fast (run 25643114414 verify-linux completed
+        # in 3s, consistent with `wget https://apt.llvm.org/llvm.sh`
+        # erroring before the rest of the step ran).
+        #
+        # Fall back to llvm.sh only if the apt route doesn't land
+        # clang-18 on PATH, so we don't lose coverage on a future
+        # runner image where the system package is missing.
+        shell: bash
         run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
-          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          set -e
+          sudo apt-get update -y
+          if sudo apt-get install -y clang-18 lld-18; then
+            sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100 || true
+            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100 || true
+            echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          else
+            echo "apt clang-18 unavailable; falling back to llvm.sh"
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh 18
+            echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          fi
+          which clang || true
+          clang --version || true
       - name: Step 1 — document runner (Ubuntu GHA, NOT pinned for perf)
         # Records host class as evidence. This runner is GHA-hosted Ubuntu,
         # which is correct for correctness gates (D2 of the handoff doc)
