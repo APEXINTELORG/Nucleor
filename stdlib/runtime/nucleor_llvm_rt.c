@@ -2765,6 +2765,57 @@ long long __nucleor_vec_len(NVec *v) {
     return (long long)v->len;
 }
 
+// Hot-path inline scan for sym_get / own_put_i / own_get_*. Returns
+// the value at [j+1] for the first j (scanning backward in pairs) where
+// data[j] is content-equal to `name`. Returns -1 on miss. Bypasses the
+// Nucleor → C boundary cost (~2 FFI calls per iteration) that used to
+// dominate ownership-phase time. 70%+ of all str_eq/vec_get calls under
+// audit-pass-1 v1.1.0 came from this exact pattern.
+long long __nucleor_sym_linear_lookup(NVec *v, const char *name) {
+    if (!v || !name) return -1;
+    int n = v->len;
+    if (n < 2) return -1;
+    long long *data = v->data;
+    for (int j = n - 2; j >= 0; j -= 2) {
+        const char *k = (const char *)(intptr_t)data[j];
+        if (k == name) return data[j + 1];           /* pointer-eq fast path */
+        if (k && strcmp(k, name) == 0) return data[j + 1];
+    }
+    return -1;
+}
+
+// Variant that takes a starting index — used for the second/third
+// linear-scan callers that already checked the tail slot (line 10418
+// in sym_get) so don't want to re-check it.
+long long __nucleor_sym_linear_lookup_from(NVec *v, const char *name, long long start_idx) {
+    if (!v || !name) return -1;
+    int n = v->len;
+    if (start_idx < 0) return -1;
+    long long *data = v->data;
+    for (int j = (int)start_idx; j >= 0; j -= 2) {
+        const char *k = (const char *)(intptr_t)data[j];
+        if (k == name) return data[j + 1];
+        if (k && strcmp(k, name) == 0) return data[j + 1];
+    }
+    return -1;
+}
+
+// Index variant — returns the j of the first matching key (scanning
+// backward in pairs), or -1 on miss. Used by own_put_i which needs the
+// index to mutate vec[j+1] then return; on miss it pushes (key, val).
+long long __nucleor_sym_linear_lookup_idx(NVec *v, const char *name) {
+    if (!v || !name) return -1;
+    int n = v->len;
+    if (n < 2) return -1;
+    long long *data = v->data;
+    for (int j = n - 2; j >= 0; j -= 2) {
+        const char *k = (const char *)(intptr_t)data[j];
+        if (k == name) return j;
+        if (k && strcmp(k, name) == 0) return j;
+    }
+    return -1;
+}
+
 void __nucleor_vec_pop(NVec *v) {
     NUC_PROFILE_INC(g_p_vec_pop);
     if (!v || v->len <= 0) return;

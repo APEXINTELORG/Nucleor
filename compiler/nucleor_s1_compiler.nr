@@ -6995,6 +6995,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_substring") { return "__nucleor_str_substring"; };
     if str_eq(name, "str_concat") { return "__nucleor_str_concat"; };
     if str_eq(name, "str_intern") { return "__nucleor_str_intern"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup") { return "__nucleor_sym_linear_lookup"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup_idx") { return "__nucleor_sym_linear_lookup_idx"; };
     if str_eq(name, "str_free") { return "__nucleor_str_free"; };
     if str_eq(name, "str_arena_new") { return "__nucleor_str_arena_new"; };
     if str_eq(name, "str_arena_free") { return "__nucleor_str_arena_free"; };
@@ -9108,6 +9110,8 @@ fn emit_externs() -> str {
     // v0.3.236 Phase A — sym-aux side hashmap helpers
     sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup_idx(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
     // v0.4.10 Phase A — compile-source side table
@@ -10430,8 +10434,13 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     // = 32 pairs. (Tried 32 with K-way LRU; regressed slightly —
     // rebuild cost outweighs scan savings at small sizes.)
     if n < 64 {
-        let mut j: i64 = n - 4;
-        while j >= 0 { if str_eq(vec_get(s, j), name) == 1 { return vec_get(s, j + 1); }; j = j - 2; };
+        // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): hoist the
+        // small-vec linear scan into a single C runtime call. Pre-fix
+        // each iteration crossed the .nr -> C boundary 2x (vec_get +
+        // str_eq), and this loop alone accounted for ~70% of all
+        // str_eq + vec_get calls in a release build (212M of 300M).
+        let lhit: i64 = __nucleor_sym_linear_lookup(s, name);
+        if lhit >= 0 { return lhit; };
         if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
             let ret_map1: i64 = sym_get(s, "__fn_return_map");
             if ret_map1 >= 0 { return fn_return_map_get(ret_map1, name); };
@@ -21253,19 +21262,16 @@ fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
 fn own_new() -> Vec<i32> { return Vec::new(); }
 #[manual_drop]
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
-    // v0.3.221 perf: scan backward and break on first match.
-    // v0.4.3: sync the warm aux hashmap on in-place updates IF this
-    // sym is currently warm. __nucleor_sym_aux_get returns the warm
-    // handle if `o` matches, else -1; we only touch on match.
-    let mut i: i64 = vec_len(o) - 2;
-    while i >= 0 {
-        if str_eq(vec_get(o, i), key) == 1 {
-            vec_set(o, i + 1, val);
-            let h: i64 = __nucleor_sym_aux_get(o);
-            if h > 0 { __nucleor_hashmap_insert(h, key, val); };
-            return 0;
-        };
-        i = i - 2;
+    // v1.1.x perf: hoist the backward scan into a single C call.
+    // Pre-fix this loop crossed the .nr -> C boundary 2x per iter
+    // (vec_get + str_eq) and contributed substantially to the 300M
+    // str_eq + 280M vec_get profile counts.
+    let idx: i64 = __nucleor_sym_linear_lookup_idx(o, key);
+    if idx >= 0 {
+        vec_set(o, idx + 1, val);
+        let h: i64 = __nucleor_sym_aux_get(o);
+        if h > 0 { __nucleor_hashmap_insert(h, key, val); };
+        return 0;
     };
     o.push(key);
     o.push(val);
@@ -21273,18 +21279,13 @@ fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
 }
 #[manual_drop]
 fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
-    // v0.3.221 perf: same backward-scan break-on-match optimization.
-    // v0.4.3: same warm-aux sync as own_put_i. str values are stored
-    // as i64-cast pointers under the i64-everywhere ABI.
-    let mut i: i64 = vec_len(o) - 2;
-    while i >= 0 {
-        if str_eq(vec_get(o, i), key) == 1 {
-            vec_set(o, i + 1, val);
-            let h: i64 = __nucleor_sym_aux_get(o);
-            if h > 0 { __nucleor_hashmap_insert(h, key, val); };
-            return 0;
-        };
-        i = i - 2;
+    // v1.1.x perf: same hoisted-scan optimization as own_put_i.
+    let idx_s: i64 = __nucleor_sym_linear_lookup_idx(o, key);
+    if idx_s >= 0 {
+        vec_set(o, idx_s + 1, val);
+        let h: i64 = __nucleor_sym_aux_get(o);
+        if h > 0 { __nucleor_hashmap_insert(h, key, val); };
+        return 0;
     };
     o.push(key);
     o.push(val);
