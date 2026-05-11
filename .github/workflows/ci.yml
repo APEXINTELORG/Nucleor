@@ -9,8 +9,8 @@ on:
       # the D1 RSS-split work in tools/run_capped.sh +
       # tools/check_perf_regression.sh is exercised on Ubuntu GHA before
       # the merge to main. See
-      # docs/LINUX_PERF_AND_RELEASE_HANDOFF_2026-05-10.md for the full
-      # 11-step handoff context.
+      # docs/release-evidence/v1.1.0-linux-d1-rss-split-transcript-2026-05-10.md
+      # for the current D1 validation transcript.
       - "claude/linux-perf-handoff-docs-*"
       - "docs/linux-perf-release-handoff-*"
       - "linux/r10-d3-*"
@@ -75,8 +75,16 @@ jobs:
         working-directory: stdlib/rods/rust_bridge
         continue-on-error: true
         shell: powershell
-      - name: Run verify.ps1
-        run: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1 -NoColor
+      - name: Run strict Windows perf gate
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_perf_regression.ps1
+        shell: powershell
+      - name: Run canonical verify.sh
+        # verify.sh is the release-parity gate. verify.ps1 is retained in
+        # the repo for Windows-native smoke/debug workflows but lags the
+        # canonical Bash gate on newly added EXPECT/runtime-panic harness
+        # behavior. GitHub-hosted Windows includes Git Bash, so run the
+        # same gate we require locally.
+        run: bash tools/verify.sh --no-color -j 4
         shell: powershell
       - name: Upload failure artifacts
         if: failure()
