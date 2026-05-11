@@ -80,6 +80,39 @@ proceed without re-design.
 | [0031](RFC-0031-algebraic-laws.md) | Algebraic laws as a verified rewrite system | Draft | v0.5.0 |
 | [0032](RFC-0032-effects.md) | Effects — `pure fn`, `requires`, `restricts` | Draft | v0.6.0 |
 
+### Late-cycle production and frontier RFCs
+
+| Doc | Topic | Status |
+|---|---|---|
+| [RFC-0005-units-PHASE-PLAN](RFC-0005-units-PHASE-PLAN.md) | Units implementation phasing plan | Plan |
+| [RFC-0024-generics-scoping-2026-04-28](RFC-0024-generics-scoping-2026-04-28.md) | Generic enums implementation scope | Scoping |
+| [RFC-0033-effects-in-function-types](RFC-0033-effects-in-function-types.md) | Effects in function types with `with [...]` | Draft |
+| [RFC-0034-compile-time-parameters](RFC-0034-compile-time-parameters.md) | Compile-time `[]` parameters vs runtime `()` parameters | Draft |
+| [RFC-0042-auto-drop](RFC-0042-auto-drop.md) | Opt-in auto-drop for owned locals | Draft |
+| [RFC-0043-fixed-point-IR-type](RFC-0043-fixed-point-IR-type.md) | Restore `fixed<I, F>` fixed-point IR type | Draft |
+| [RFC-0044-per-binop-overflow-mode](RFC-0044-per-binop-overflow-mode.md) | Per-binop overflow-mode IR field | Draft |
+| [RFC-0045-differentiable-attribute](RFC-0045-differentiable-attribute.md) | Restore `@differentiable` attribute | Draft |
+| [RFC-0046-coordinate-frame-types](RFC-0046-coordinate-frame-types.md) | Coordinate-frame types | Draft |
+| [RFC-0047-typed-units-7vector](RFC-0047-typed-units-7vector.md) | Seven-vector typed units | Draft |
+| [RFC-0048-hardware-capability-queries](RFC-0048-hardware-capability-queries.md) | Compile-time hardware capability queries | Draft |
+| [RFC-0049-memory-space-type-tags](RFC-0049-memory-space-type-tags.md) | Tensor memory-space type tags | Draft |
+| [RFC-0050-energy-thermal-attributes](RFC-0050-energy-thermal-attributes.md) | Energy and thermal budget attributes | Draft |
+| [RFC-0051-model-provenance-type](RFC-0051-model-provenance-type.md) | Foundation-model provenance type | Draft |
+| [RFC-0052-photonic-types](RFC-0052-photonic-types.md) | Photonic compute types | Draft |
+| [RFC-0053-neuromorphic-types](RFC-0053-neuromorphic-types.md) | Neuromorphic compute types | Draft |
+| [RFC-0054-logical-qubit-type](RFC-0054-logical-qubit-type.md) | Logical qubit type and quantum interop | Draft |
+| [RFC-0055-distributed-collectives](RFC-0055-distributed-collectives.md) | Distributed collectives and topology-aware sharding | Draft |
+| [RFC-0056-deterministic-replay](RFC-0056-deterministic-replay.md) | Deterministic replay across accelerators | Draft |
+| [RFC-0057-enclave-types](RFC-0057-enclave-types.md) | Enclave types and information-flow labels | Draft |
+| [RFC-0058-pq-crypto-stdlib](RFC-0058-pq-crypto-stdlib.md) | Post-quantum cryptography in `std.security` | Draft |
+| [RFC-0059-multi-level-IR-sketch](RFC-0059-multi-level-IR-sketch.md) | Multi-level IR sketch | Sketch |
+| [RFC-0060-governance-rod](RFC-0060-governance-rod.md) | Optional governance rod surface | Draft |
+| [RFC-0061-graph-remediation](RFC-0061-graph-remediation.md) | Graph capability remediation | Draft |
+| [RFC-0062-effects-extension](RFC-0062-effects-extension.md) | G-10 effect annotations framework | Draft |
+| [RFC-0062-IMPLEMENTATION-PLAN](RFC-0062-IMPLEMENTATION-PLAN.md) | Memory-safety, borrow, and ownership implementation plan | Plan |
+| [RFC-0062-memory-safety-borrow-ownership-gap-closure](RFC-0062-memory-safety-borrow-ownership-gap-closure.md) | Memory-safety, borrow, and ownership gap closure | RFC |
+| [RFC-0063-production-readiness-roadmap](RFC-0063-production-readiness-roadmap.md) | Production readiness roadmap | Roadmap |
+
 **32 RFCs drafted; 11 carry Implemented or Implemented-partial
 status as of v0.2.0 RC + early sub-chain** — the 8 Tier-2 v0.2
 essentials (RFC-0015..0022), plus RFC-0024 (iterators, partial
