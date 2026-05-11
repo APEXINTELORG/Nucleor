@@ -21,6 +21,7 @@ on:
 jobs:
   verify-windows:
     name: verify (windows)
+    if: github.repository == 'APEXINTELORG/Nucleor-archive'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -107,6 +108,7 @@ jobs:
 
   verify-linux:
     name: verify (linux)
+    if: github.repository == 'APEXINTELORG/Nucleor-archive'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -323,6 +325,7 @@ jobs:
 
   rfc-link-check:
     name: RFC index sanity
+    if: github.repository == 'APEXINTELORG/Nucleor-archive'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
