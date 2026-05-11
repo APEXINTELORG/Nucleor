@@ -26,7 +26,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install LLVM 18
-        run: choco install llvm --version=18.1.8 -y --no-progress
+        # windows-latest runner image ships LLVM 20.1.8 preinstalled.
+        # Chocolatey refuses to downgrade to 18.1.8 without an explicit
+        # opt-in flag, so the unflagged `choco install llvm
+        # --version=18.1.8` fails with "A newer version of llvm
+        # (v20.1.8) is already installed. Use --allow-downgrade or
+        # --force to attempt to install older versions." in ~18s.
+        #
+        # We pin LLVM 18 across all platforms (Linux: apt-get install
+        # clang-18 lld-18; bootstrap seed: bootstrap/nucleor_s1_seed.ll
+        # is LLVM 18 IR; Linux perf baseline: tools/perf_baseline_linux.json
+        # host.clang = "Ubuntu clang version 18.1.3"). Letting Windows
+        # drift to LLVM 20 would create cross-platform toolchain skew
+        # the self-host md5 fixed-point gate would silently mask.
+        # The right move is `--allow-downgrade` to honor the existing
+        # 18.1.8 pin; a coordinated LLVM-20 bump across all platforms
+        # is a separate decision.
+        run: choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
         shell: powershell
       - name: Show toolchain
         run: |
