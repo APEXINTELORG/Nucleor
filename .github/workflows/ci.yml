@@ -25,6 +25,14 @@ jobs:
     timeout-minutes: 60
     env:
       NUC_VERIFY_AGENT: gha-linux
+      # Force POSIX /proc-based RSS sampling for memory-budget gates.
+      # Hosted Ubuntu 24.04 ships pwsh preinstalled; without this the
+      # gate's auto-detection would fall into tools/measure_peak_build.ps1
+      # which calls Get-CimInstance Win32_Process (Windows-WMI-only) and
+      # CoreCLR errors out with HRESULT 0x8007000E E_OUTOFMEMORY on the
+      # memory-pressured runner. This var makes the gate go straight to
+      # tools/run_capped.sh + the D1 compiler-only RSS split.
+      NUC_VERIFY_FORCE_POSIX_RSS: 1
     steps:
       - uses: actions/checkout@v4
       - name: Make tools/*.sh executable
