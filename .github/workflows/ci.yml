@@ -19,6 +19,36 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  verify-windows:
+    name: verify (windows)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM 18
+        run: choco install llvm --version=18.1.8 -y --no-progress
+        shell: powershell
+      - name: Show toolchain
+        run: |
+          clang --version
+        shell: powershell
+      - name: Build rust_bridge (optional)
+        run: cargo build --release
+        working-directory: stdlib/rods/rust_bridge
+        continue-on-error: true
+        shell: powershell
+      - name: Run verify.ps1
+        run: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1 -NoColor
+        shell: powershell
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-failure-windows
+          path: |
+            target/
+            .nuc_cache/
+
   verify-linux:
     name: verify (linux)
     runs-on: ubuntu-24.04
