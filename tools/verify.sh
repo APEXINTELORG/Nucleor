@@ -5673,6 +5673,14 @@ _memory_budget_for() {
     case "$_kernel" in
         MINGW*|MSYS*|CYGWIN*|Windows*) _is_windows_like=1 ;;
     esac
+    # A Windows .exe can be driven from WSL or another Linux-like bash.
+    # In that case uname alone says "Linux", but /proc cannot measure the
+    # Windows child RSS correctly. Treat the compiler artifact as the
+    # stronger signal so the Windows sampler handles Windows binaries and
+    # true POSIX ELF builds continue through tools/run_capped.sh.
+    case "$BIN" in
+        *.exe|*.EXE) _is_windows_like=1 ;;
+    esac
 
     # 2026-05-10 (D1 RSS-split branch) — adaptive pre-sample settle.
     #
