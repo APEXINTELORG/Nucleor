@@ -87,7 +87,9 @@ jobs:
         # fixed-point invariant (stage-2 IR matches the seed). No
         # pre-built Linux binary is checked into the repo — the .ll
         # seed is the only artifact the bootstrap depends on.
-        run: ./tools/bootstrap_linux.sh
+        run: |
+          chmod +x tools/bootstrap_linux.sh
+          ./tools/bootstrap_linux.sh
       - name: Step 3 — version + ELF sanity
         run: |
           ./bin/nucleor --version
