@@ -5653,6 +5653,27 @@ _memory_budget_for() {
     local force_posix_rss="${NUC_VERIFY_FORCE_POSIX_RSS:-0}"
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
 
+    # 2026-05-10 (D1 RSS-split branch) — Windows-like host detection.
+    #
+    # Hosted GHA Ubuntu 24.04 ships PowerShell Core (pwsh) preinstalled.
+    # The previous detection `command -v pwsh` then fell into the
+    # tools/measure_peak_build.ps1 branch, which calls
+    # tools/rss_estop_lib.ps1's Get-CimInstance Win32_Process — a
+    # Windows-WMI-only API. On Linux that errors out and CoreCLR
+    # reports HRESULT 0x8007000E E_OUTOFMEMORY (visible in
+    # verify-linux runs 25643801448 / 25644467579 / 25645283800).
+    # The Linux fallback at run_capped.sh was never reached.
+    #
+    # Gate the pwsh preference on an actually-Windows-like uname,
+    # so a Linux runner with pwsh available still uses run_capped.sh
+    # for memory-budget sampling.
+    local _kernel
+    _kernel="$(uname -s 2>/dev/null || echo unknown)"
+    local _is_windows_like=0
+    case "$_kernel" in
+        MINGW*|MSYS*|CYGWIN*|Windows*) _is_windows_like=1 ;;
+    esac
+
     # 2026-05-10 (D1 RSS-split branch) — adaptive pre-sample settle.
     #
     # verify-linux runs 25643801448 and 25644467579 on hosted GHA both
@@ -5694,12 +5715,13 @@ _memory_budget_for() {
     # Windows agents may run this bash script from Git Bash, MSYS, or
     # WSL. Prefer the PowerShell process-tree sampler whenever a
     # PowerShell host is visible unless validation explicitly forces the
-    # Linux /proc path.
+    # Linux /proc path. NOTE: Linux runners with pwsh preinstalled MUST
+    # NOT take this branch — see Windows-like detection above.
     local psbin=""
     # Prefer PowerShell 7 when available. Windows PowerShell's 100ms
     # process-tree sampling loop can inflate wall time by multiple seconds
     # on this gate even when the compiler itself stays in the 3s regime.
-    if [ "$force_posix_rss" != "1" ]; then
+    if [ "$force_posix_rss" != "1" ] && [ "$_is_windows_like" = "1" ]; then
         if command -v pwsh >/dev/null 2>&1; then
             psbin="pwsh"
         elif command -v pwsh.exe >/dev/null 2>&1; then
