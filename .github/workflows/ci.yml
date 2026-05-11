@@ -27,6 +27,14 @@ jobs:
       NUC_VERIFY_AGENT: gha-linux
     steps:
       - uses: actions/checkout@v4
+      - name: Make tools/*.sh executable
+        # actions/checkout@v4 preserves git index mode but some shell
+        # scripts in tools/ were committed without the executable bit
+        # (e.g. tools/bootstrap_linux.sh, tools/verify.sh on certain
+        # historical branches). Set it explicitly here so any `./X.sh`
+        # invocation in subsequent steps works, instead of patching
+        # one script at a time as failures surface.
+        run: chmod +x tools/*.sh
       - name: Install LLVM 18
         # Ubuntu 24.04 (noble) ships clang-18 + lld-18 in the default
         # repos. Use apt directly — avoids the apt.llvm.org dependency
