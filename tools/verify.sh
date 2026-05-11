@@ -5651,6 +5651,45 @@ _memory_budget_for() {
     local rc
     local force_posix_rss="${NUC_VERIFY_FORCE_POSIX_RSS:-0}"
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
+
+    # 2026-05-10 (D1 RSS-split branch) — adaptive pre-sample settle.
+    #
+    # verify-linux runs 25643801448 and 25644467579 on hosted GHA both
+    # failed at this gate with the parallel-fixture sweep's tail-end
+    # CoreCLR cold-start OOM (HRESULT 0x8007000E) bleeding into this
+    # gate's sample window. Bumping the budget cap by 10-20%
+    # (770->850->-...) doesn't help because the OOM either kills the
+    # spawned build outright or pushes a transient page-cache spike
+    # into this build's VmRSS. The proper fix is to let the system
+    # drain before sampling.
+    #
+    # Adaptive: poll /proc/meminfo's MemAvailable. Once it's >= 1 GB
+    # (plenty of headroom for an 850 MB build + clang/lld + page
+    # cache), proceed. Cap the wait at 15s so a true OOM doesn't
+    # block the gate indefinitely. Local runs with idle systems pay
+    # ~0s; CI runs after a heavy parallel block pay 1-10s for the
+    # system to flush.
+    if [ -r /proc/meminfo ]; then
+        local mem_threshold_kb="${NUC_VERIFY_MEM_SETTLE_KB:-1048576}"  # 1 GB
+        local max_wait_s="${NUC_VERIFY_MEM_SETTLE_MAX_S:-15}"
+        local waited=0 mem_avail_kb
+        while [ "$waited" -lt "$max_wait_s" ]; do
+            mem_avail_kb="$(awk '/^MemAvailable:/ { print $2; exit }' /proc/meminfo 2>/dev/null)"
+            case "$mem_avail_kb" in *[!0-9]*|"") mem_avail_kb=0 ;; esac
+            if [ "$mem_avail_kb" -ge "$mem_threshold_kb" ]; then
+                break
+            fi
+            if [ "$waited" -eq 0 ]; then
+                echo "       memory-settle: MemAvailable=${mem_avail_kb}kB < ${mem_threshold_kb}kB, waiting for system to drain before sampling ${label}" | sed 's/^/       /'
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        if [ "$waited" -gt 0 ]; then
+            echo "       memory-settle: ${label} sampled after ${waited}s settle (MemAvailable now ${mem_avail_kb}kB)" | sed 's/^/       /'
+        fi
+    fi
+
     # Windows agents may run this bash script from Git Bash, MSYS, or
     # WSL. Prefer the PowerShell process-tree sampler whenever a
     # PowerShell host is visible unless validation explicitly forces the
