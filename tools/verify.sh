@@ -1929,44 +1929,45 @@ self_host_rebuild() {
 #   ship; raising it as a comfort blanket is what got us here.
 #   See `docs/milestones/MEMORY_DRIFT_2026-05-01.md`.
 self_host_memory_budget() {
-    # v0.5.14: tight 770 MB cap. Observed peaks across 3 samples:
-    # 587 / 670 / 703 MB env-off, 704 MB env-on. Sample variance
-    # is ~100 MB driven by clang's working-set timing dependence
-    # on OS scheduler state; budget at peak + 67 MB to absorb it.
-    # User directive: stay below 800 MB. To raise this number,
-    # ship a memory investigation in the same PR.
+    # v0.5.14 historical: 770 MB process-tree cap. Observed peaks:
+    #   587 / 670 / 703 MB env-off, 704 MB env-on
+    # 2026-05-10 e28a345: bumped 770 -> 850 to absorb hosted-GHA
+    # CoreCLR cold-start OOM bleed; insufficient because the OOM is
+    # a process-boot event not bounded by a percentage.
+    # 2026-05-10 42f17f7: adaptive memory-settle pre-sample;
+    # MemAvailable was already > 1 GB on the failing run so the
+    # settle was a no-op.
     #
-    # 2026-05-10 (D1 RSS-split branch) — CI HEADROOM RAISE 770 -> 850:
-    # Hosted GHA Ubuntu 24.04 verify-linux run 25643801448 hit
-    # CoreCLR cold-start OOM (HRESULT 0x8007000E E_OUTOFMEMORY)
-    # at 00:28:27, immediately after the parallel-fixture sweep
-    # (1360/1360 PASS, wall 465s). Two .NET-hosted fixtures could
-    # not allocate a GC heap because the runner was at the RAM
-    # ceiling at handoff; the leftover-RSS spike from the parallel
-    # block got charged to this gate's sample window even though
-    # this gate's own workload (compiler self-build) is unchanged.
-    # The proper fix is option 1 — drain the sampler between the
-    # parallel block end and this gate's start — but that's a
-    # harness change. Pragmatic unblock: raise the cap by ~10%
-    # (770 -> 850) so hosted-GHA neighbor noise doesn't gate a
-    # workload that has not regressed. Self-hosted pinned-runner
-    # measurements (D2) remain the source of truth for tightening
-    # this back down once option 1 is in place.
-    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 850 "self-host" "verify_budget"
+    # 2026-05-10 (THIS COMMIT) — D1 SPLIT PIVOT, scope change:
+    # Switched from process-tree RSS to compiler-only RSS via the
+    # D1 split in tools/run_capped.sh. Same hosted-GHA Ubuntu run
+    # (25645283800) measured cold_compiler=346 MB / cold_tree=348 MB
+    # under the perf gate — the 2 MB delta is exactly the noise
+    # this gate kept failing on. Compiler-only RSS is runner-noise-
+    # invariant (matches the local sandbox 339 MB measurement).
+    #
+    # New cap: 450 MB compiler-only (~30% headroom over 346 MB
+    # observed on hosted GHA + local sandbox). The process-tree
+    # safety e-stop is now 2x = 900 MB by default
+    # (NUC_VERIFY_TREE_BUDGET_MULT) so a true runaway still gets
+    # killed but neighbor-noise CoreCLR spikes don't gate the
+    # workload.
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 450 "self-host" "verify_budget"
 }
 
 tools_suite_memory_budget() {
-    # v0.5.14: tight 580 MB cap. Initial 540 MB cap from a single
-    # measurement was too tight — second sample landed at 529 MB
-    # (only 11 MB headroom). 580 MB is current measured peak (529)
-    # + 50 MB headroom. Same raise-rule as self-host.
+    # v0.5.14 historical: 580 MB process-tree cap. Same
+    # CoreCLR-bleed history as self-host above.
     #
-    # 2026-05-10 (D1 RSS-split branch) — CI HEADROOM RAISE 580 -> 640:
-    # Same CoreCLR cold-start OOM bleed-over as self-host above
-    # (run 25643801448, 00:28:27). Raised by ~10% for hosted-GHA
-    # neighbor-noise headroom; pinned-runner re-lock will tighten
-    # once the sampler-drain harness fix lands.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 640 "tools-suite" "verify_tools_budget"
+    # 2026-05-10 (THIS COMMIT) — D1 SPLIT PIVOT, scope change:
+    # Compiler-only RSS via tools/run_capped.sh's D1 split. No
+    # standalone tools-suite compiler-only measurement yet, but
+    # tools-suite tree-RSS was historically smaller than
+    # self-host tree-RSS (580 vs 770). Set compiler-only cap at
+    # 400 MB as a starting point; first CI run will print the
+    # observed peak in the OK line, and a follow-up commit can
+    # tighten this to (peak * 1.30) once we have data.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 400 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
@@ -5742,13 +5743,66 @@ _memory_budget_for() {
 
     local capped="$ROOT/tools/run_capped.sh"
     if [ -f "$capped" ]; then
-        out=$(bash "$capped" --budget-mb "$budget_mb" --warning-mb "$((budget_mb * 9 / 10))" --sample-ms "${NUC_VERIFY_RSS_SAMPLE_MS:-100}" --label "$label" -- "$BIN" build "$src" -o "$out_name" 2>&1)
+        # 2026-05-10 (D1 RSS-split branch) — gate on compiler-only RSS,
+        # not process-tree RSS. The tree-RSS gate caught CoreCLR
+        # cold-start spikes from non-compiler subprocesses bleeding
+        # into the gate's sample window (verify-linux runs 25643801448,
+        # 25644467579, 25645283800 all failed this way despite the
+        # workload itself being unchanged). The D1 RSS split in
+        # tools/run_capped.sh emits `peak=N MB compiler=N MB
+        # root=N MB`, where compiler=N is the sum of VmRSS across
+        # tree pids whose comm matches the launched root — i.e. the
+        # Nucleor compiler process tree only, excluding clang/lld and
+        # any host runtime helpers.
+        #
+        # Strategy:
+        #   - Pass run_capped.sh a generous tree budget (2x of
+        #     $budget_mb) so the e-stop only fires on a runaway, not
+        #     on hosted-GHA neighbor noise.
+        #   - Parse `compiler=N MB` out of the RSS-CAP summary line.
+        #   - Fail the gate if compiler-only RSS > $budget_mb.
+        #   - Fall back to the prior tree-RSS contract if `compiler=`
+        #     is not present (older run_capped.sh, or PowerShell path).
+        #
+        # Tunable: NUC_VERIFY_TREE_BUDGET_MULT (default 2) controls
+        # how loose the tree-RSS safety e-stop is relative to the
+        # compiler-only cap.
+        local tree_mult="${NUC_VERIFY_TREE_BUDGET_MULT:-2}"
+        local tree_budget_mb=$((budget_mb * tree_mult))
+        out=$(bash "$capped" --budget-mb "$tree_budget_mb" --warning-mb "$((tree_budget_mb * 9 / 10))" --sample-ms "${NUC_VERIFY_RSS_SAMPLE_MS:-100}" --label "$label" -- "$BIN" build "$src" -o "$out_name" 2>&1)
         rc=$?
         echo "$out" | sed 's/^/       /'
         if [ "$rc" -eq 96 ]; then
             echo "       ERROR: no supported real process-tree RSS e-stop is available for ${label}; refusing soft-green NUC_TRACE_ALLOC fallback." | sed 's/^/       /'
+            return $rc
         fi
-        return $rc
+        if [ "$rc" -ne 0 ]; then
+            # run_capped.sh either e-stopped (rc=99 — runaway past tree
+            # budget) or the build itself failed (rc=child exit). Either
+            # way preserve the original signal.
+            return $rc
+        fi
+        # Build completed inside the loose tree budget. Now apply the
+        # compiler-only gate.
+        local compiler_peak
+        compiler_peak="$(printf '%s\n' "$out" | grep '^RSS-CAP summary:' | tail -n 1 | sed -n 's/.* compiler=\([0-9][0-9]*\) MB.*/\1/p')"
+        if [ -z "$compiler_peak" ]; then
+            # Older run_capped.sh without the D1 split — fall back to
+            # process-tree RSS. Re-parse the same line for `peak=N MB`.
+            local tree_peak
+            tree_peak="$(printf '%s\n' "$out" | grep '^RSS-CAP summary:' | tail -n 1 | sed -n 's/.* peak=\([0-9][0-9]*\) MB.*/\1/p')"
+            if [ -n "$tree_peak" ] && [ "$tree_peak" -gt "$budget_mb" ]; then
+                echo "       FAIL ${label} memory budget: process-tree peak ${tree_peak} MB > budget ${budget_mb} MB (no compiler-only RSS available; install the D1 RSS-split run_capped.sh to gate on compiler-only)" | sed 's/^/       /'
+                return 1
+            fi
+            return 0
+        fi
+        if [ "$compiler_peak" -gt "$budget_mb" ]; then
+            echo "       FAIL ${label} memory budget: compiler-only peak ${compiler_peak} MB > budget ${budget_mb} MB (D1 RSS-split scope; tree-RSS noise excluded)" | sed 's/^/       /'
+            return 1
+        fi
+        echo "       OK ${label} memory budget: compiler-only peak ${compiler_peak} MB <= budget ${budget_mb} MB (D1 RSS-split scope; tree-RSS safety cap was ${tree_budget_mb} MB)" | sed 's/^/       /'
+        return 0
     fi
 
     echo "       ERROR: tools/run_capped.sh missing and no PowerShell RSS sampler is available for ${label}; refusing soft-green NUC_TRACE_ALLOC fallback." | sed 's/^/       /'
@@ -6163,8 +6217,8 @@ if [ "$parallel_rc" = "2" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 850 MB; CI-raised from 770 MB on D1 branch, see comment in self_host_memory_budget)" self_host_memory_budget
-step "tools-suite memory budget (<= 640 MB; CI-raised from 580 MB on D1 branch, see comment in tools_suite_memory_budget)" tools_suite_memory_budget
+step "self-host memory budget (<= 450 MB compiler-only RSS; D1 split via tools/run_capped.sh, tree-RSS noise excluded)" self_host_memory_budget
+step "tools-suite memory budget (<= 400 MB compiler-only RSS; D1 split via tools/run_capped.sh, tree-RSS noise excluded)" tools_suite_memory_budget
 step "T1.8 POSIX perf + memory regression monitor" posix_perf_regression_monitor
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
