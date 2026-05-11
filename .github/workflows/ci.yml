@@ -48,6 +48,28 @@ jobs:
         run: |
           clang --version
         shell: powershell
+      - name: Bootstrap bin\nucleor.exe from IR seed
+        # Mirrors verify-linux Step 2. The committed bin\nucleor.exe
+        # in this repo is a developer convenience for fresh clones
+        # without an LLVM toolchain — it drifts between commits and
+        # by the time hosted CI runs it can be N commits stale
+        # relative to compiler/*.nr source and tests/err/*.nr EXPECT
+        # fixtures. Running verify.ps1 against the stale binary
+        # surfaces as dozens of false-positive failures across the
+        # err_*/T1.*/hazard-sweep clusters (see run 25650512190 on
+        # 06a855a: 1486 PASS / 57 FAIL with the cluster signature
+        # of a stale compiler vs. current fixtures).
+        #
+        # The deterministic fix is the same one Linux already uses:
+        # rebuild bin\nucleor.exe from bootstrap\nucleor_s1_seed.ll
+        # on the runner, in lockstep with the seed/fixtures HEAD
+        # ships. `-Force` lets us overwrite the committed copy;
+        # `-Run` flips bootstrap_windows.ps1 out of dry-run mode.
+        # Fixed-point + stage-2 SHA equality is then exercised by
+        # verify.ps1's own `self-host bootstrap fixpoint (stage-2)`
+        # step, so we don't double-check it here.
+        run: powershell.exe -ExecutionPolicy Bypass -File tools\bootstrap_windows.ps1 -Run -Force
+        shell: powershell
       - name: Build rust_bridge (optional)
         run: cargo build --release
         working-directory: stdlib/rods/rust_bridge
