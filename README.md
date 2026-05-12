@@ -118,6 +118,7 @@ self-hosted or otherwise pinned runner.
 - [Feature inventory](docs/NUCLEOR_FEATURE_INVENTORY.md)
 - [Benchmarks and performance gates](docs/benchmarks.md)
 - [Self-host integrity](docs/SELF_HOST_INTEGRITY.md)
+- [Release signing](docs/release-signing.md)
 - [Examples](examples/README.md)
 
 ## Contributing

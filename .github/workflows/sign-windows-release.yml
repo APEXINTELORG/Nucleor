@@ -1,0 +1,119 @@
+name: Sign Windows Release Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to sign
+        required: true
+        default: main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: sign-windows-release-${{ github.event.inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sign-windows:
+    name: sign windows artifacts
+    if: github.repository == 'APEXINTELORG/Nucleor'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    environment: release-signing
+    env:
+      AZURE_CLIENT_ID_VALUE: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID_VALUE: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID_VALUE: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_SIGNING_ENDPOINT_VALUE: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT || vars.AZURE_TRUSTED_SIGNING_ENDPOINT || secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT || secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT_VALUE: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME || vars.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME || secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+      AZURE_CERT_PROFILE_VALUE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE_NAME || vars.AZURE_TRUSTED_SIGNING_CERT_PROFILE_NAME || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE_NAME || secrets.AZURE_TRUSTED_SIGNING_CERT_PROFILE_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Validate Azure signing configuration
+        shell: pwsh
+        run: |
+          $required = @(
+            "AZURE_CLIENT_ID_VALUE",
+            "AZURE_TENANT_ID_VALUE",
+            "AZURE_SUBSCRIPTION_ID_VALUE",
+            "AZURE_SIGNING_ENDPOINT_VALUE",
+            "AZURE_SIGNING_ACCOUNT_VALUE",
+            "AZURE_CERT_PROFILE_VALUE"
+          )
+          $missing = New-Object System.Collections.Generic.List[string]
+          foreach ($name in $required) {
+            $value = (Get-Item -Path "env:$name" -ErrorAction SilentlyContinue).Value
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              $missing.Add($name) | Out-Null
+            }
+          }
+          if ($missing.Count -gt 0) {
+            throw ("Missing GitHub variable/secret value(s): {0}" -f ($missing -join ", "))
+          }
+          Write-Host "Azure signing configuration is present."
+
+      - name: Validate artifact inputs
+        shell: pwsh
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1
+
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID_VALUE }}
+          tenant-id: ${{ env.AZURE_TENANT_ID_VALUE }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID_VALUE }}
+
+      - name: Sign Windows artifacts
+        uses: azure/artifact-signing-action@v1
+        with:
+          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT_VALUE }}
+          signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT_VALUE }}
+          certificate-profile-name: ${{ env.AZURE_CERT_PROFILE_VALUE }}
+          files: |
+            ${{ github.workspace }}\bin\nucleor.exe
+            ${{ github.workspace }}\bin\nucleor-lsp.exe
+            ${{ github.workspace }}\bin\nucleor_tools.exe
+            ${{ github.workspace }}\bin\nucleor.exe.bootstrap
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Nucleor Windows release artifacts
+          description-url: https://github.com/APEXINTELORG/Nucleor
+          timeout: 600
+
+      - name: Verify signed artifacts
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1 -RequireSigned -JsonOut target\release-signing\windows-authenticode.json
+          $paths = @(
+            "bin\nucleor.exe",
+            "bin\nucleor-lsp.exe",
+            "bin\nucleor_tools.exe",
+            "bin\nucleor.exe.bootstrap"
+          )
+          New-Item -ItemType Directory -Force -Path target\release-signing | Out-Null
+          $lines = foreach ($path in $paths) {
+            $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            "{0}  {1}" -f $hash, $path.Replace("\", "/")
+          }
+          $lines | Set-Content -LiteralPath target\release-signing\windows-artifacts.sha256 -Encoding ASCII
+
+      - name: Upload signed Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nucleor-windows-signed-${{ github.event.inputs.ref }}
+          if-no-files-found: error
+          path: |
+            bin/nucleor.exe
+            bin/nucleor-lsp.exe
+            bin/nucleor_tools.exe
+            bin/nucleor.exe.bootstrap
+            target/release-signing/windows-authenticode.json
+            target/release-signing/windows-artifacts.sha256
