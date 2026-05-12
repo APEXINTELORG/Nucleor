@@ -37,9 +37,10 @@ source-tree content.
 ## GitHub Configuration
 
 Create a protected GitHub environment named `release-signing` on
-`APEXINTELORG/Nucleor`. Put the Azure signing values in repository or
-environment variables. The workflow accepts repository secrets too, but the
-preferred setup is variables plus OpenID Connect.
+`APEXINTELORG/Nucleor`. Put the Azure signing values in environment secrets so
+GitHub redacts them from public workflow logs. The workflow also accepts
+repository variables for private testing, but release use should prefer secrets
+plus OpenID Connect.
 
 Required values:
 
