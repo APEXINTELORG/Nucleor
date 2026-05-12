@@ -79,7 +79,6 @@ jobs:
           files: |
             ${{ github.workspace }}\bin\nucleor.exe
             ${{ github.workspace }}\bin\nucleor-lsp.exe
-            ${{ github.workspace }}\bin\nucleor_tools.exe
             ${{ github.workspace }}\bin\nucleor.exe.bootstrap
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
@@ -95,7 +94,6 @@ jobs:
           $paths = @(
             "bin\nucleor.exe",
             "bin\nucleor-lsp.exe",
-            "bin\nucleor_tools.exe",
             "bin\nucleor.exe.bootstrap"
           )
           New-Item -ItemType Directory -Force -Path target\release-signing | Out-Null
@@ -113,7 +111,6 @@ jobs:
           path: |
             bin/nucleor.exe
             bin/nucleor-lsp.exe
-            bin/nucleor_tools.exe
             bin/nucleor.exe.bootstrap
             target/release-signing/windows-authenticode.json
             target/release-signing/windows-artifacts.sha256

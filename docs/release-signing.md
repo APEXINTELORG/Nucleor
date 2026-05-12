@@ -27,7 +27,6 @@ copies as a workflow artifact:
 ```text
 bin/nucleor.exe
 bin/nucleor-lsp.exe
-bin/nucleor_tools.exe
 bin/nucleor.exe.bootstrap
 ```
 

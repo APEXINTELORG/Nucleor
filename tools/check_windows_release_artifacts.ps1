@@ -10,7 +10,6 @@ $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $Artifacts = @(
     "bin/nucleor.exe",
     "bin/nucleor-lsp.exe",
-    "bin/nucleor_tools.exe",
     "bin/nucleor.exe.bootstrap"
 )
 
