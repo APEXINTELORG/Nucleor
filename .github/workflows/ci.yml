@@ -5,18 +5,13 @@ on:
     branches:
       - main
       - "release/*"
-      # R10-D3 / Linux perf handoff branches get immediate CI feedback so
-      # the D1 RSS-split work in tools/run_capped.sh +
-      # tools/check_perf_regression.sh is exercised on Ubuntu GHA before
-      # the merge to main. See
-      # docs/release-evidence/v1.1.0-linux-d1-rss-split-transcript-2026-05-10.md
-      # for the current D1 validation transcript.
-      - "claude/linux-perf-handoff-docs-*"
-      - "docs/linux-perf-release-handoff-*"
       - "linux/r10-d3-*"
   pull_request:
     branches: [main]
   workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
   verify-windows:

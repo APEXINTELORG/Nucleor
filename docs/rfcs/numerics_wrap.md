@@ -1,8 +1,5 @@
 # RFC: Numerics — Overflow Semantics
 
-**Companion to:** `numerics_v2.md`
-**Phase:** 1, 7
-
 ## Summary
 
 Integer overflow in Nucleor wraps modulo 2^width by default

@@ -1,8 +1,5 @@
 # RFC: Numerics — Memory Layout + sizeof Builtins
 
-**Companion to:** `numerics_v2.md`
-**Phase:** 3a, 3b
-
 ## Summary
 
 Compile-time byte-size queries for primitives and user structs.

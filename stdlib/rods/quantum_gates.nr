@@ -76,5 +76,5 @@ fn qgate_kind_supported_by_diff(kind: i64) -> i64 {
 }
 
 fn qgate_limitations() -> str {
-    return "quantum_gates constants (QM-12, v0834): shared common native gate IDs are H=0, CNOT=1, X=2, Z=3. Cross-rod callers should use logical gate kinds qgate_kind_* and explicit qgate_kind_to_mps/qgate_kind_to_diff mapping. RZ maps to MPS native 4 and diff_sim native 6; RX maps to MPS native 5 and is unsupported by diff_sim, returning qgate_unsupported(). This avoids silent cross-rod rotation-ID reuse while native dispatch tables remain different.";
+    return "quantum_gates constants: shared common native gate IDs are H=0, CNOT=1, X=2, Z=3. Cross-rod callers should use logical gate kinds qgate_kind_* and explicit qgate_kind_to_mps/qgate_kind_to_diff mapping. RZ maps to MPS native 4 and diff_sim native 6; RX maps to MPS native 5 and is unsupported by diff_sim, returning qgate_unsupported(). This avoids silent cross-rod rotation-ID reuse while native dispatch tables remain different.";
 }

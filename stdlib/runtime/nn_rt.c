@@ -43,9 +43,9 @@ long long nuc_nn_dense_new(long long in_dim, long long out_dim) {
     int id = (int)in_dim, od = (int)out_dim;
     NNDense *l = (NNDense *)calloc(1, sizeof(NNDense));
     l->in_dim = id; l->out_dim = od;
-    l->W = (double *)malloc(od * id * sizeof(double));
+    l->W = (double *)malloc((size_t)od * id * sizeof(double));
     l->b = (double *)calloc(od, sizeof(double));
-    l->dW = (double *)calloc(od * id, sizeof(double));
+    l->dW = (double *)calloc((size_t)od * id, sizeof(double));
     l->db = (double *)calloc(od, sizeof(double));
     l->cache_in = (double *)calloc(id, sizeof(double));
     l->cache_valid = 0;
@@ -122,7 +122,7 @@ long long nuc_nn_dense_backward(long long handle, long long grad_out_vec) {
 
 void nuc_nn_dense_zero_grad(long long handle) {
     NNDense *l = (NNDense *)(void *)handle;
-    memset(l->dW, 0, l->out_dim * l->in_dim * sizeof(double));
+    memset(l->dW, 0, (size_t)(l->out_dim) * l->in_dim * sizeof(double));
     memset(l->db, 0, l->out_dim * sizeof(double));
 }
 

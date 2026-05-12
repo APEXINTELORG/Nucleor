@@ -63,7 +63,7 @@ fn map_find_slot(m: Vec<i32>, key: str) -> i64 {
     return 0 - 1;
 }
 
-// v0.8.41 RFC-0062 G-1: HANDOFF — new_keys/new_vals/new_occ
+// Ownership note: new_keys/new_vals/new_occ
 // are stored INTO `m` via `vec_set(m, 0/1/2, <local>)`. Default-
 // flip auto-drop would dangle m's field pointers.
 #[manual_drop]

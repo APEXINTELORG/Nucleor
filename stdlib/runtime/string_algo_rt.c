@@ -85,7 +85,7 @@ long long nuc_str_levenshtein(const char *a, const char *b) {
 const char *nuc_str_lcs(const char *a, const char *b) {
     if (!a || !b) return "";
     int m = (int)strlen(a), n = (int)strlen(b);
-    int *dp = (int *)calloc((m + 1) * (n + 1), sizeof(int));
+    int *dp = (int *)calloc((size_t)(m + 1) * (n + 1), sizeof(int));
 
     for (int i = 1; i <= m; i++) {
         for (int j = 1; j <= n; j++) {

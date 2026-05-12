@@ -6,9 +6,8 @@ import "stdlib/rods/ml/learn_facade.nr"
 // and the holdout x_test (`holdout` section), run linear_model_f64_predict,
 // emit deterministic plain-text output.
 //
-// Per-fixture parity contract (see findings/inbox/
-// ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md): byte-equal-to-
-// Python parity is on the PREDICT step. Fit happens Python-side; Nucleor
+// Per-fixture parity contract: byte-equal-to-Python parity is on the
+// PREDICT step. Fit happens Python-side; Nucleor
 // consumes the fitted params and reproduces predict output.
 //
 // Reference: tests/reference/ml/02_regression.py / .json

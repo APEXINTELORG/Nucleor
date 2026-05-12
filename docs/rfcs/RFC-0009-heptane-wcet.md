@@ -5,7 +5,7 @@
 | **Number** | 0009 |
 | **Title** | Static worst-case execution time analysis via Heptane integration |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.7.0 ("AI Training + Real-Time Linux") |
 | **Depends on** | RFC-0001 (`#[deadline]`), RFC-0006 (`#[require]`/`#[ensure]` provide loop-bound info) |

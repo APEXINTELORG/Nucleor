@@ -28,7 +28,7 @@ long long nuc_emb_new(long long vocab_size, long long dim) {
     int vs = (int)vocab_size, d = (int)dim;
     EmbTable *e = (EmbTable *)malloc(sizeof(EmbTable));
     e->vocab_size = vs; e->dim = d;
-    e->data = (double *)malloc(vs * d * sizeof(double));
+    e->data = (double *)malloc((size_t)vs * d * sizeof(double));
     // Xavier init
     double scale = sqrt(2.0 / d);
     unsigned int rng = 54321;

@@ -5,7 +5,7 @@
 | **Number** | 0011 |
 | **Title** | `nuc-cxx` — paired `.h` + `.nr` C++ FFI codegen modeled on Rust's `cxx` crate |
 | **Status** | Partial (audited v0.4.189). The `nuc gen-headers <file> --out <h>` command exists, runs cleanly, and writes a valid C header skeleton with `#include <stdint.h>`, `#include <stdbool.h>`, and `extern "C" {` guards. `extern fn` declarations from `.nr` source flow through to runtime FFI correctly (used heavily in `stdlib/rods/` — every helper rod uses `extern fn nuc_*`). **Deferred:** automatic emission of `pub fn` Nucleor functions as C-callable `extern "C"` declarations in the generated header (currently writes "0 extern decl(s), 0 #[export] decl(s)" because the `#[export]` attribute parser-side recognition isn't wired); paired `.nr` + `.h` codegen for C++-style class bridges. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 ("Robotics Stack") |
 | **Depends on** | RFC-0001 (FFI attributes), RFC-0002 (allocator types — soft), RFC-0012 (`nuc-bindgen`, parallel) |

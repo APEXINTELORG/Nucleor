@@ -84,8 +84,6 @@ proceed without re-design.
 
 | Doc | Topic | Status |
 |---|---|---|
-| [RFC-0005-units-PHASE-PLAN](RFC-0005-units-PHASE-PLAN.md) | Units implementation phasing plan | Plan |
-| [RFC-0024-generics-scoping-2026-04-28](RFC-0024-generics-scoping-2026-04-28.md) | Generic enums implementation scope | Scoping |
 | [RFC-0033-effects-in-function-types](RFC-0033-effects-in-function-types.md) | Effects in function types with `with [...]` | Draft |
 | [RFC-0034-compile-time-parameters](RFC-0034-compile-time-parameters.md) | Compile-time `[]` parameters vs runtime `()` parameters | Draft |
 | [RFC-0042-auto-drop](RFC-0042-auto-drop.md) | Opt-in auto-drop for owned locals | Draft |
@@ -106,37 +104,20 @@ proceed without re-design.
 | [RFC-0057-enclave-types](RFC-0057-enclave-types.md) | Enclave types and information-flow labels | Draft |
 | [RFC-0058-pq-crypto-stdlib](RFC-0058-pq-crypto-stdlib.md) | Post-quantum cryptography in `std.security` | Draft |
 | [RFC-0059-multi-level-IR-sketch](RFC-0059-multi-level-IR-sketch.md) | Multi-level IR sketch | Sketch |
-| [RFC-0060-governance-rod](RFC-0060-governance-rod.md) | Optional governance rod surface | Draft |
-| [RFC-0061-graph-remediation](RFC-0061-graph-remediation.md) | Graph capability remediation | Draft |
 | [RFC-0062-effects-extension](RFC-0062-effects-extension.md) | G-10 effect annotations framework | Draft |
-| [RFC-0062-IMPLEMENTATION-PLAN](RFC-0062-IMPLEMENTATION-PLAN.md) | Memory-safety, borrow, and ownership implementation plan | Plan |
-| [RFC-0062-memory-safety-borrow-ownership-gap-closure](RFC-0062-memory-safety-borrow-ownership-gap-closure.md) | Memory-safety, borrow, and ownership gap closure | RFC |
-| [RFC-0063-production-readiness-roadmap](RFC-0063-production-readiness-roadmap.md) | Production readiness roadmap | Roadmap |
 
-**32 RFCs drafted; 11 carry Implemented or Implemented-partial
-status as of v0.2.0 RC + early sub-chain** — the 8 Tier-2 v0.2
-essentials (RFC-0015..0022), plus RFC-0024 (iterators, partial
-v0.2.9), RFC-0028 (format strings, partial v0.2.6), and RFC-0029
-(doc generator skeleton, v0.1.65). Per-RFC checklist rows live in
-[`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every row
-is DONE / PARTIAL / DEFERRED with a follow-on target.
+The RFC directory is an engineering record, not a substitute for the
+current user-facing language reference. For the shipped v1.1 surface,
+start with [`../language-reference.md`](../language-reference.md) and
+[`../NUCLEOR_FEATURE_INVENTORY.md`](../NUCLEOR_FEATURE_INVENTORY.md).
 **RFC-0030 (async) accepted as a Decision RFC in v0.2** — Nucleor
 ships no first-class async runtime in v0.x; tokio binding is opt-in
 (v0.5) and native `async` syntax targets v0.8 (see the RFC for the
 phased plan).
 The post-RC v0.2.x sub-chain (through v0.2.134 as of this
 update) has been strictly additive on top of v0.2.0; no
-RFC implementation states changed. Together with the three
-process docs (`docs/process/`), they specify the full
-v0.2 → v0.8 design surface for safety / robotics / AI.
-
-## Process docs
-
-| Doc | Purpose |
-|---|---|
-| [SemVer & Release Process](../process/semver-and-release.md) | Versioning policy, release schedule, breaking-change discipline |
-| [Contributing](../process/contributing.md) | How to build, test, file issues, submit PRs, RFC process |
-| [Nucleor-Safe Subset](../process/nucleor-safe-subset.md) | Safety-cert subset spec (final in v0.6) |
+RFC implementation states changed. Current build, contribution,
+and safety guidance lives in the top-level public docs.
 
 ## RFCs by release
 

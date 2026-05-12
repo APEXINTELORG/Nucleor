@@ -296,10 +296,9 @@ fn topp_path_velocity(h: i64, i: i64) -> i64 {
 fn topp_waypoint_count(h: i64) -> i64 { return nuc_topp_waypoint_count(h); }
 fn topp_free(h: i64) { nuc_topp_free(h); }
 
-// === R07-D4 Phase 1 (v0.8.270) — TOPP limitation diagnostic ===
+// === TOPP limitation diagnostic ===
 //
-// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
-// surfaces TOPP's documented approximations as a queryable string.
+// Surfaces TOPP's documented approximations as a queryable string.
 fn topp_limitations() -> str {
     return "TOPP limitations (ROBO-1): (1) only piecewise-linear paths — sample splines first; (2) symmetric box bounds on velocity + acceleration only; (3) kinematic base solver with optional diagonal inertia/tau_max acceleration tightening; full coupled torque dynamics remain future work. Phase 2 may add full TOPP-RA via convex optimization per-step + asymmetric bounds + dynamics-aware torque limits.";
 }

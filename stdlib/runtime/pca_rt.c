@@ -93,7 +93,7 @@ long long nuc_pca_fit(long long X_vec, long long n_samples, long long n_features
     pca->mean = (double *)calloc(p, sizeof(double));
     pca->std = (double *)calloc(p, sizeof(double));
     pca->eigenvalues = (double *)calloc(p, sizeof(double));
-    pca->eigenvectors = (double *)calloc(p * p, sizeof(double));
+    pca->eigenvectors = (double *)calloc((size_t)p * p, sizeof(double));
     pca->sort_idx = (int *)calloc(p, sizeof(int));
 
     // Compute mean
@@ -115,7 +115,7 @@ long long nuc_pca_fit(long long X_vec, long long n_samples, long long n_features
     }
 
     // Build covariance matrix (standardized)
-    double *cov = (double *)calloc(p * p, sizeof(double));
+    double *cov = (double *)calloc((size_t)p * p, sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < p; j++) {
             double xj = (_pi2f(xv->data[i * p + j]) - pca->mean[j]) / pca->std[j];
@@ -132,7 +132,7 @@ long long nuc_pca_fit(long long X_vec, long long n_samples, long long n_features
         }
 
     // Eigendecomposition
-    double *V = (double *)calloc(p * p, sizeof(double));
+    double *V = (double *)calloc((size_t)p * p, sizeof(double));
     jacobi_eigen(cov, V, p, 200);
 
     // Extract eigenvalues (diagonal of cov after Jacobi)

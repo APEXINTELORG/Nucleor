@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0015 |
 | **Title** | Numeric Types — distinct `i8/i16/i32/i64`, `u8/u16/u32/u64`, `f32/f64`, `usize/isize`, `bf16`, `f16`, `f8e4m3`, `f8e5m2` |
-| **Status** | Implemented (partial) v0.1.46–v0.1.64 — see `docs/milestones/v0.2.0.md` for v0.2 DoD; strict-mode deferred to v0.4 |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented (partial) v0.1.46-v0.1.64; strict-mode followed in the later v1.x line |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
 | **Depends on** | none — foundational |
@@ -182,19 +182,18 @@ A `Vec<u8>` of length 1024 occupies 1024 bytes, not 8192.
 | NUM-004 | f8/f16/bf16 op without hardware support (warning, falls back to f32) |
 | NUM-005 | `usize`/`isize` mixed with explicit-width type |
 
-### 3.10 Mixed-width amendment (v1.0.1, audit pass 1, F-NUM-004)
+### 3.10 Mixed-width amendment (v1.0.1)
 
 **Status (v1.0.1):** opt-in / advisory only.
 
-The audit-pass-1 finding F-NUM-004 noted that NUM-001's "mixed-width
-arithmetic without cast" rule is documented as a hard-error rule in
+NUM-001's "mixed-width arithmetic without cast" rule is documented as a hard-error rule in
 §3.2 (the type lattice tightens i8 + i16 etc.) but the live compiler
 ships it as **warning + integer-promotion** for the common shapes
 (i32 + i64 → i64, i8 + i64 → i64) to keep adopter migration tractable.
-Strict enforcement under `NUC_STRICT_NUMERIC=1` is wired by Lane 1 via
-TYP-044 at the let-binding site (RFC-0062 §G-3 reference).
+Strict enforcement under `NUC_STRICT_NUMERIC=1` is wired by TYP-044 at
+the let-binding site.
 
-The fix-direction the audit recommended was either:
+The implementation direction is either:
 
 (a) Promote NUM-001 to error severity by default and run a stdlib +
     fixture migration sweep (~hundreds of files affected by the

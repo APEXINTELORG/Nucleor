@@ -78,7 +78,7 @@ long long nuc_mpc_new(long long n_x_, long long n_u_, long long T_,
     NMPC *p = (NMPC *)calloc(1, sizeof(NMPC));
     p->n_x = nx; p->n_u = nu; p->T = T;
     p->max_iters_per_step = mit;
-    p->u_seq = (double *)calloc(T * nu, sizeof(double));
+    p->u_seq = (double *)calloc((size_t)T * nu, sizeof(double));
     return (long long)(size_t)p;
 }
 
@@ -96,13 +96,13 @@ void nuc_mpc_warm_start(long long h, long long u_seq_ptr) {
     if (!p) return;
     double *src = (double *)(void *)(size_t)u_seq_ptr;
     if (!src) return;
-    memcpy(p->u_seq, src, p->T * p->n_u * sizeof(double));
+    memcpy(p->u_seq, src, (size_t)(p->T) * p->n_u * sizeof(double));
 }
 
 void nuc_mpc_reset(long long h) {
     NMPC *p = (NMPC *)(void *)(size_t)h;
     if (!p) return;
-    memset(p->u_seq, 0, p->T * p->n_u * sizeof(double));
+    memset(p->u_seq, 0, (size_t)(p->T) * p->n_u * sizeof(double));
     p->last_iters = 0;
     p->last_cost = 0;
 }

@@ -5,7 +5,7 @@
 | **Number** | 0007 |
 | **Title** | `#[atomic]` attribute, `Atomic<T>` types, and lock-free primitives |
 | **Status** | Track G full ship (v0.5 Round 2). `stdlib/rods/atomic.nr` preserves the legacy handle API and adds concrete `AtomicI64`/`AtomicU64`/`AtomicI32`/`AtomicU32`/`AtomicBool` shapes plus `MemOrder::{Relaxed, Acquire, Release, AcqRel, SeqCst}`. The compiler lowers ordered `AtomicI64` operations to LLVM `load atomic`, `store atomic`, `cmpxchg`, and `atomicrmw`, and enforces `#[atomic]` diagnostics ATOMIC-001..005. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
 | **Depends on** | RFC-0001, RFC-0002 |

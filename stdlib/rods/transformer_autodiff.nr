@@ -89,5 +89,5 @@ fn tf_attention_ad(Q_ad: i64, K_ad: i64, V_ad: i64, seq_len: i64, d_k: i64) -> i
 }
 
 fn tf_autodiff_limitations() -> str {
-    return "Transformer/autodiff bridge limitations (ML-14, helper1 v0876): tf_attention_split_ad and tf_attention_ad lower classic transformer attention into scalar autodiff tape nodes and support Q/K/V input gradients. This is not one opaque registered attention op, does not cover Flash/GQA/MLA attention variants, and does not provide compiler-side @differentiable lowering.";
+    return "Transformer/autodiff bridge limitations: tf_attention_split_ad and tf_attention_ad lower classic transformer attention into scalar autodiff tape nodes and support Q/K/V input gradients. This is not one opaque registered attention op, does not cover Flash/GQA/MLA attention variants, and does not provide compiler-side @differentiable lowering.";
 }

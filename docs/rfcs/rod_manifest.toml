@@ -284,7 +284,7 @@ imports        = ["canny"]
 [[rod]]
 name           = "capabilities"
 path           = "stdlib/rods/capabilities.nr"
-description    = "Capability token catalog (Phase 1 disclosure)"
+description    = "Capability token catalog"
 function_count = 3
 cfile_count    = 0
 loc            = 15
@@ -1058,7 +1058,7 @@ imports        = ["kinematics_frame"]
 [[rod]]
 name           = "kinematics_transform"
 path           = "stdlib/rods/kinematics_transform.nr"
-description    = "RFC-0046 Phase B / ROBO-7 v0845"
+description    = "typed transform facade."
 function_count = 7
 cfile_count    = 0
 loc            = 51
@@ -1139,7 +1139,7 @@ imports        = ["lqr"]
 [[rod]]
 name           = "lsp"
 path           = "stdlib/rods/lsp.nr"
-description    = "V1.16 SPEC-LSP-server Phase A: LSP 3.17 protocol"
+description    = "LSP 3.17 protocol"
 function_count = 49
 cfile_count    = 0
 loc            = 135

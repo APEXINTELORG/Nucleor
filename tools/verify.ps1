@@ -4,7 +4,7 @@
 # Usage: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
 #
 # Step shape (~1597 steps total as of v1.0.1; the count grows as new
-# audit-pass + RFC fixtures land — exact count is per-run since the
+# RFC fixtures land over time; exact count is per-run since the
 # parallel-fixture sweep enumerates tests/lang/* and tests/err/*):
 #   1.  Binary present + loads
 #   2.  ABI parity (s1 <-> tools-suite, via WSL bash if available)
@@ -1000,8 +1000,7 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     # (10K+ lines), not a 50-line smoke. The original smoke check
     # passed even when the compiler had non-fixed-point bugs in
     # paths arith.nr didn't exercise. Per RFC sister gap BOOT-3 in
-    # docs/rfcs/gap-analyses/Nucleor_Self_Hosting_Bootstrap_Gap_
-    # Analysis_and_RFC_2026-05-04.md.
+    # Self-hosting bootstrap fixture.
     #
     # The stage-1 IR is target\verify_compiler.ll (already emitted
     # in the prior verify_compiler step). The stage-2 IR comes from

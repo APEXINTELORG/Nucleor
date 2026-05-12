@@ -1,6 +1,6 @@
 # Nucleor Algebraic Laws — Canonical `@law(...)` Schema
 
-**Version:** v0.8.264 (locked 2026-05-05 per audit R14-D5).
+**Version:** v1.1.0.
 **Status:** Phase 3b — canonical names locked across docs + tests;
 `nuc test --check-laws` generates bounded integer checks for low-risk
 forms and rejects deprecated aliases, unsupported canonical forms,
@@ -11,9 +11,8 @@ float/approximate modifiers, and unknown names with LAW diagnostics.
 - `docs/language-reference.md` §8
 - `tests/attrs/laws.nr`
 
-If any of the four diverges, this file wins. The audit's R14-D5
-build plan (`BUILD_PLAN_R14_algebraic_laws.md` §1) requires the
-schema below to be the only spelling accepted.
+If any of the four diverges, this file wins. The schema below is the
+only spelling accepted by `nuc test --check-laws`.
 
 ---
 
@@ -92,11 +91,6 @@ to hard errors.
 
 ## 6. References
 
-- Spine §15 (R14 build-it decision, 2026-05-05)
-- `BUILD_PLAN_R14_algebraic_laws.md` §1 R14-D5
 - RFC-0031 §3.1 (this file mirrors and extends)
-- v0.8.262 R14-D1 Phase 1 (lex-time `@law` capture)
-- v0.8.263 R14-D3 Phase 1 (router `--check-laws` un-ignore)
-- v0.8.264 R14-D5 Phase 1 (this schema)
-- v0.8.328 R14 Phase 2a (`nuc test --check-laws` bounded integer checks)
-- helper1 v0838 R14 Phase 3b (`distributive_over` bounded checks + fail-closed unsupported forms)
+- `docs/language-reference.md` §8
+- `tests/attrs/laws.nr`

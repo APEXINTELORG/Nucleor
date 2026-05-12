@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0021 |
 | **Title** | Test framework — `#[test]`, `nuc test`, assertions, parallel execution |
-| **Status** | Implemented v0.1.10–v0.1.55 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented v0.1.10-v0.1.55; v0.2 DoD met |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
 | **Depends on** | RFC-0016 (Result for assertions), RFC-0018 (modules for `mod tests`) |

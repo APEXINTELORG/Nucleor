@@ -45,9 +45,9 @@ long long nuc_lbm_new_2d(long long Nx, long long Ny, long long viscosity_bits) {
     LBM2D *lbm = (LBM2D *)calloc(1, sizeof(LBM2D));
     lbm->Nx = nx; lbm->Ny = ny;
     lbm->omega = 1.0 / tau;
-    lbm->f = (double *)malloc(nx * ny * 9 * sizeof(double));
-    lbm->f_new = (double *)malloc(nx * ny * 9 * sizeof(double));
-    lbm->obstacle = (int *)calloc(nx * ny, sizeof(int));
+    lbm->f = (double *)malloc((size_t)nx * ny * 9 * sizeof(double));
+    lbm->f_new = (double *)malloc((size_t)nx * ny * 9 * sizeof(double));
+    lbm->obstacle = (int *)calloc((size_t)nx * ny, sizeof(int));
 
     // Initialize to rho=1, u=0 equilibrium
     for (int y = 0; y < ny; y++)
@@ -104,7 +104,7 @@ void nuc_lbm_step(long long h) {
     }
 
     // Streaming
-    memset(lbm->f_new, 0, nx * ny * 9 * sizeof(double));
+    memset(lbm->f_new, 0, (size_t)nx * ny * 9 * sizeof(double));
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x++) {
             for (int q = 0; q < 9; q++) {

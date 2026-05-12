@@ -1,9 +1,8 @@
-// rods/lsp — V1.16 SPEC-LSP-server Phase A: LSP 3.17 protocol
+// rods/lsp — LSP 3.17 protocol
 // envelope + message-type tag surface (rod-only).
 //
 // The full V1.16 ship is a standalone `nucleor-lsp.exe` JSON-RPC
-// daemon (path A — subprocess-first per the SPEC). Phase A (this
-// rod) lands the canonical message-tag surface + minimal
+// daemon. This rod provides the canonical message-tag surface + minimal
 // JSON-RPC envelope helpers so adopters / tools can compose
 // LSP messages today, ahead of the daemon binary.
 //

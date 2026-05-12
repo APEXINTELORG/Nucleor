@@ -5,7 +5,7 @@
 | **Number** | 0005 |
 | **Title** | `unit<T, dim>` — typed dimensional units (resurrect from V1 quarantine) |
 | **Status** | Partial (audited v0.4.189). Stdlib `units.nr` rod ships with named unit IDs (`unit_m`, `unit_kg`, `unit_s`, etc.) and a `nuc_unit_convert` runtime helper that converts a numeric value between two unit IDs (length / mass / time / temperature / pressure / energy / force / frequency / angle / voltage / current). UNIT-001..005 diagnostic codes reserved + entries in `nuc explain`. **Deferred to v0.6+:** the `unit<T, dim>` typed-dimensional surface (compile-time dimension checking on arithmetic) — UNIT-001..005 emit sites are not yet wired into the type checker. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.6.0 ("Embedded + AI Inference") |
 | **Depends on** | RFC-0001, RFC-0003 (compositional with typed frames) |

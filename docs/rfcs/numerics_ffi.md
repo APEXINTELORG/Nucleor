@@ -1,8 +1,5 @@
 # RFC: Numerics — Extern fn ABI + `nuc gen-headers`
 
-**Companion to:** `numerics_v2.md`
-**Phase:** 9
-
 ## Summary
 
 `extern fn` declarations with narrow types emit correct LLVM

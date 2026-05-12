@@ -5,7 +5,7 @@
 | **Number** | 0025 |
 | **Title** | Closures with environment capture (`Fn`, `FnMut`, `FnOnce`) |
 | **Status** | Implemented (audited v0.4.183) — closure literals (`\|x\| x * 2`, `\|a, b\| a + b`, `\|\| 42`) bind to `i64` (the pre-RFC-0025 ABI for fn pointers), call directly via `f(args)`, capture outer-scope variables by value (`let mul = 10; let scale = \|x\| x * mul;` — `mul` captured), and pass through generic higher-order functions. v0.4.164 closed the TYP-014 over-tightening that briefly broke this surface. **Still deferred to v0.5+:** formal `Fn` / `FnMut` / `FnOnce` trait types (currently all closures are i64-typed callable; there's no type distinction between by-value and by-mutable-reference capture), capture-by-reference syntax (`move \|\| ...` / `\| \| &x.field`), and closure-returning-closure (currying through return types). |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |
 | **Depends on** | RFC-0026 (trait objects for `Box<dyn Fn>`) |

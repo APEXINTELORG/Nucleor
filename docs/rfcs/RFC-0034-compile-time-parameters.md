@@ -5,7 +5,7 @@
 | **Number** | 0034 |
 | **Title** | Compile-Time `[]` Parameters vs Runtime `()` Parameters |
 | **Status** | Draft (design-only — pinned for v0.5; full implementation target v1.0) |
-| **Author** | Joseph Wescott + GPT-5.5 |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-29 |
 | **Target release** | v0.5 design; v1.0 implementation |
 | **Depends on** | RFC-0024 (Generics + scoping), RFC-0036 (MLIR backend), RFC-0037 (`@device(gpu)`), RFC-0038 (Shape-typed tensors) |

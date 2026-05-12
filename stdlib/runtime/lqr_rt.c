@@ -53,7 +53,7 @@ typedef struct {
 
 static int _gj_inv(const double *A, int n, double *Ainv) {
     int aw = 2*n;
-    double *aug = (double *)malloc(n*aw*sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aw * sizeof(double));
     for (int i=0;i<n;i++){
         for (int j=0;j<n;j++) aug[i*aw+j] = A[i*n+j];
         for (int j=0;j<n;j++) aug[i*aw+n+j] = (i==j)?1.0:0.0;
@@ -111,12 +111,12 @@ long long nuc_lqr_new(long long n_x_, long long n_u_) {
     if (nx <= 0 || nu <= 0) return 0;
     NLQR *p = (NLQR *)calloc(1, sizeof(NLQR));
     p->n_x = nx; p->n_u = nu;
-    p->A = (double *)calloc(nx*nx, sizeof(double));
-    p->B = (double *)calloc(nx*nu, sizeof(double));
-    p->Q = (double *)calloc(nx*nx, sizeof(double));
-    p->R = (double *)calloc(nu*nu, sizeof(double));
-    p->P = (double *)calloc(nx*nx, sizeof(double));
-    p->K = (double *)calloc(nu*nx, sizeof(double));
+    p->A = (double *)calloc((size_t)nx * nx, sizeof(double));
+    p->B = (double *)calloc((size_t)nx * nu, sizeof(double));
+    p->Q = (double *)calloc((size_t)nx * nx, sizeof(double));
+    p->R = (double *)calloc((size_t)nu * nu, sizeof(double));
+    p->P = (double *)calloc((size_t)nx * nx, sizeof(double));
+    p->K = (double *)calloc((size_t)nu * nx, sizeof(double));
     return (long long)(size_t)p;
 }
 
@@ -151,18 +151,18 @@ long long nuc_lqr_solve(long long h, long long max_iters, long long tol_b) {
     if (tol <= 0) tol = 1e-9;
 
     // Initialize P = Q.
-    memcpy(p->P, p->Q, nx*nx*sizeof(double));
+    memcpy(p->P, p->Q, (size_t)nx * nx * sizeof(double));
 
-    double *P_new   = (double *)malloc(nx*nx*sizeof(double));
-    double *PA      = (double *)malloc(nx*nx*sizeof(double));
-    double *PB      = (double *)malloc(nx*nu*sizeof(double));
-    double *BTPB    = (double *)malloc(nu*nu*sizeof(double));
-    double *RpBTPB  = (double *)malloc(nu*nu*sizeof(double));
-    double *INV     = (double *)malloc(nu*nu*sizeof(double));
-    double *BTPA    = (double *)malloc(nu*nx*sizeof(double));
-    double *INVBTPA = (double *)malloc(nu*nx*sizeof(double));
-    double *ATPB_INVBTPA = (double *)malloc(nx*nx*sizeof(double));
-    double *ATPA    = (double *)malloc(nx*nx*sizeof(double));
+    double *P_new   = (double *)malloc((size_t)nx * nx * sizeof(double));
+    double *PA      = (double *)malloc((size_t)nx * nx * sizeof(double));
+    double *PB      = (double *)malloc((size_t)nx * nu * sizeof(double));
+    double *BTPB    = (double *)malloc((size_t)nu * nu * sizeof(double));
+    double *RpBTPB  = (double *)malloc((size_t)nu * nu * sizeof(double));
+    double *INV     = (double *)malloc((size_t)nu * nu * sizeof(double));
+    double *BTPA    = (double *)malloc((size_t)nu * nx * sizeof(double));
+    double *INVBTPA = (double *)malloc((size_t)nu * nx * sizeof(double));
+    double *ATPB_INVBTPA = (double *)malloc((size_t)nx * nx * sizeof(double));
+    double *ATPA    = (double *)malloc((size_t)nx * nx * sizeof(double));
 
     long long iter;
     for (iter = 0; iter < max_it; iter++) {
@@ -200,7 +200,7 @@ long long nuc_lqr_solve(long long h, long long max_iters, long long tol_b) {
             double d = fabs(P_new[i] - p->P[i]);
             if (d > max_d) max_d = d;
         }
-        memcpy(p->P, P_new, nx*nx*sizeof(double));
+        memcpy(p->P, P_new, (size_t)nx * nx * sizeof(double));
         if (max_d < tol) { iter++; break; }
     }
 

@@ -1,7 +1,7 @@
 // =====================================================================
 // RFC-0063 Wave 13-16 — Phase 3 parser/tools-suite duplicate retirement.
 // Companion to nucleor_rfc0063_shared_wave1.nr. s1 canonical.
-// Per CLOUD_AGENT_V1X_HARDENING_BRIEF_2026-05-08.md §R1.
+// Shared parser helpers for RFC-0063 hardening.
 //
 // Excluded from move (must stay LOCAL in tools_suite — read directly
 // by tools/check_compiler_drift.sh which doesn't follow imports):
@@ -11,7 +11,7 @@
 // match_bind_payloads_typed pairs with SIG_DIFFERS match_bind_payloads
 // (wave 14 territory).
 // Those are filed as Phase B residuals in
-// findings/inbox/cloud_R1_rfc0063_waves_v0846_2026-05-08.md.
+// Keep these helpers source-compatible with the s1 compiler mirror.
 //
 // Wave 13a (≤30-line) + 13b (30-100-line) + 13c (>100-line).
 // All s1-only-helper-dep candidates filtered out.
@@ -151,8 +151,7 @@ fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
     // position from `sendable_source_has_actor_decl` → O(slen²) total.
     // Reuses the fast-fail at str_eq_at first; only computes slen when
     // we actually need to read past pos. Same v0.3.205 strlen-in-
-    // substring pattern that's banned per
-    // ~/.claude/projects/.../memory/feedback_perf_regression_pattern.md.
+    // substring pattern that the parser helpers must avoid.
     if str_eq_at(src, pos, "actor") == 0 { return ""; };
     let slen: i64 = str_len(src);
     if pos + 5 > slen { return ""; };
@@ -546,7 +545,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         // monomorphic version regardless of bound — so the bound is
         // semantically a no-op at the IR level. Skip past `:` and
         // discard the bound expression up to the next `,` or `>`.
-        // Closes audit doc-#1 §8 (parse-side). A future bound-enforcing
+        // Parse-side trait-bound surface. A future bound-enforcing
         // pass would consume + record these bounds; for now they parse
         // cleanly and the binary behaves as if the bound were omitted
         // (already validated: `<T>(a: T, b: T) -> T { a + b }` works).
@@ -1058,7 +1057,7 @@ fn iter_method_for_vec(mname: str) -> i64 {
     if str_eq(mname, "skip") == 1 { return 1; };
     if str_eq(mname, "any") == 1 { return 1; };
     if str_eq(mname, "all") == 1 { return 1; };
-    // v0.4.101: `.chain` (audit doc-#1 §6 partial). Routes to
+    // v0.4.101: `.chain`. Routes to
     // vec_chain_i64 runtime helper.
     if str_eq(mname, "chain") == 1 { return 1; };
     // v0.4.125: extended iter surface — position/product/step_by/
@@ -1315,7 +1314,7 @@ fn builtin_rtype(name: str) -> str {
 
 #[manual_drop]
 fn type_dynamic_helper(name: str) -> i64 {
-    // v0.6.54 (perf-slice integration from Nucleor_OSS_v631_perf_slice):
+    // v0.6.54 perf slice:
     // first-char dispatch — was 41-entry linear chain run per kind-7
     // call-site type-check.
     if str_len(name) == 0 { return 0; };
@@ -3588,7 +3587,7 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         //
         // v0.3.103: Fold bitwise: and(13), or(14), xor(15).
         //
-        // v1.1.0 audit pass 1 / C-004: fold through the same bitwise
+        // v1.1.0: fold through the same bitwise
         // operators that lowering emits. The old self-host emulation used
         // division-based LSB extraction and had to skip negative operands;
         // that kept runtime results correct but left the fold path
@@ -4320,7 +4319,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     };
     segments.push(sb_to_str(current));
     parities.push(0);
-    // v0.5.11: probe-agent finding 2026-05-01-format-extra-args-silently-dropped.
+    // v0.5.11: format extra args cannot be silently dropped.
     // Mirror direction of the v0.4.70 placeholder>args check: if the
     // adopter supplied MORE args than `{}` placeholders, the extras
     // would be silently dropped (their evaluation may even have side

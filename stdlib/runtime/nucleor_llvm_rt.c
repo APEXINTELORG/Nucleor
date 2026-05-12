@@ -819,7 +819,7 @@ long long __nucleor_str_to_int(const char *s) {
     return v;
 }
 
-// v0.5.12: probe-agent finding 2026-05-01-str-to-int-silent-zero-on-invalid.
+// v0.5.12: strict parse failure handling.
 // `str_to_int` returns 0 on three failure shapes (NULL, empty,
 // "not a number") AND on the legitimate input "0" — adopters can't
 // distinguish parse-failed-to-zero from parse-succeeded-to-zero.
@@ -1281,7 +1281,7 @@ void __nucleor_arena_destroy(long long h) {
 // calls with content-equal inputs return the SAME pointer, so
 // downstream comparisons can use pointer-equality (i64 ==) instead
 // of byte-equality (str_eq). This is the architectural step toward
-// the TypeId interner (Ship 3 in MEMORY_FIX_PUNCHLIST.md): once
+// the TypeId interner: once
 // strings are interned, comparing types is one i64 == instead of
 // O(n) byte walk + transient allocations.
 //
@@ -1371,10 +1371,8 @@ const char *__nucleor_str_intern(const char *s) {
 // (low 32 bits). For test inspection only; not promoted to a public
 // CLI yet.
 //
-// Lane 6 / S5 (audit 2026-05-08): pre-fix the shift was `<< 24` and
-// the mask was `0xFFFFFFLL`, silently truncating misses at 16 M and
-// stomping the high bits of hits. Comment claimed `<< 32` — code
-// now matches the comment.
+// Pack full 32-bit hit/miss counters; the shift and mask match the
+// documented layout.
 long long __nucleor_str_intern_stats(void) {
     return ((long long)g_intern_hits << 32) | ((long long)g_intern_misses & 0xFFFFFFFFLL);
 }
@@ -1666,7 +1664,7 @@ long long __nucleor_tensor_transpose(long long h) {
     NTensor *t=(NTensor*)(void*)h;
     NTensor *r=(NTensor*)malloc(sizeof(NTensor));
     r->rows=t->cols; r->cols=t->rows;
-    r->data=(double*)malloc(r->rows*r->cols*sizeof(double));
+    r->data=(double*)malloc((size_t)r->rows * r->cols * sizeof(double));
     for(int i=0;i<t->rows;i++)for(int j=0;j<t->cols;j++)r->data[j*r->cols+i]=t->data[i*t->cols+j];
     return (long long)r;
 }
@@ -2007,8 +2005,8 @@ long long __nucleor_str_char_at(const char *s, long long i) {
 }
 
 // v0.4.279: opt-in strict variant that DOES validate i < strlen(s).
-// Probe-agent finding 2026-04-30: default str_char_at silently
-// reads past the source's NUL terminator for i >= strlen(s),
+// Regression fixed in v0.4.279: default str_char_at silently read
+// past the source's NUL terminator for i >= strlen(s),
 // returning whatever heap memory follows — memory-safety hazard.
 // Default kept lenient (per v0.3.220 retrospective: strlen on
 // every call is a 75x perf killer in lexer hot paths). This
@@ -2049,11 +2047,10 @@ long long __nucleor_str_char_at_strict(const char *s, long long i) {
 // loop). Negative start still PANICs (cheap O(1) check). For full
 // strict mode use the new `str_substring_strict` helper which still
 // does the strlen check.
-// Lane 6 / V1 (audit 2026-05-08): widened range arithmetic to int64
-// in the default helper; the int truncation at >2GB ranges is gone
-// (size_t throughout). The opt-in `_strict` companion keeps its
-// O(strlen(s)) bounds posture for adopters who want the
-// end-vs-strlen check.
+// Range arithmetic uses size_t throughout so large ranges do not
+// truncate through int. The opt-in `_strict` companion keeps its
+// O(strlen(s)) bounds posture for adopters who want the end-vs-strlen
+// check.
 //
 // v1.0.3 perf fix (cold-compile regression 2026-05-09): the v1.0.2
 // audit added `strlen(s)` here for an `end <= strlen(s)` validation.
@@ -2769,8 +2766,7 @@ long long __nucleor_vec_len(NVec *v) {
 // the value at [j+1] for the first j (scanning backward in pairs) where
 // data[j] is content-equal to `name`. Returns -1 on miss. Bypasses the
 // Nucleor → C boundary cost (~2 FFI calls per iteration) that used to
-// dominate ownership-phase time. 70%+ of all str_eq/vec_get calls under
-// audit-pass-1 v1.1.0 came from this exact pattern.
+// dominate ownership-phase time.
 long long __nucleor_sym_linear_lookup(NVec *v, const char *name) {
     if (!v || !name) return -1;
     int n = v->len;
@@ -3202,7 +3198,7 @@ long long __nucleor_vec_skip_i64(NVec *v, long long n) {
     return (long long)(intptr_t)out;
 }
 
-// v0.4.101 audit doc-#1 §6 partial: vec_chain — concat two iterators.
+// v0.4.101: vec_chain — concat two iterators.
 long long __nucleor_vec_chain_i64(NVec *a, NVec *b) {
     NVec *out = (NVec*)__nucleor_vec_new();
     if (a) for (long long i = 0; i < a->len; i++) __nucleor_vec_push(out, a->data[i]);
@@ -3210,7 +3206,7 @@ long long __nucleor_vec_chain_i64(NVec *a, NVec *b) {
     return (long long)(intptr_t)out;
 }
 
-// v0.4.125 audit doc-#1 §6 (iterator surface extension):
+// v0.4.125 iterator surface extension:
 //   position, product, step_by, nth, reduce.
 // All operate on the i64 element type. position/nth use the i64 ABI's
 // fn-pointer convention (i64 cast to function pointer at call site).
@@ -3874,7 +3870,7 @@ void __nucleor_thread_join(long long handle) {
 // async fn / .await desugar to async_spawn / async_await. Each task
 // is a real OS thread with a captured i64 result slot. Per the
 // locked v0.2 design vote (RFC-0027 phase 1).
-// v0.5.25: closes probe-agent findings
+// v0.5.25: closes async await crash cases
 //   2026-05-01-async-await-twice-heap-corruption (CRASH-class)
 //   2026-05-01-async-await-invalid-handle-segfault (CRASH-class)
 // Pre-fix `__nucleor_async_await(h)` blindly dereferenced any non-zero
@@ -4064,7 +4060,7 @@ void __nucleor_mutex_free_value(long long handle) {
 typedef struct {
     long long *buf; int cap; int head; int tail; int count;
     int closed;
-    /* F-CONC-007 fix (audit pass-1, integrator-local Windows-parity 2026-05-09):
+    /* Windows parity fix:
      * Replaced HANDLE not_empty/not_full Event objects + 100ms polling with
      * CONDITION_VARIABLE + SleepConditionVariableCS for true wait/notify
      * semantics. Pre-fix: producer/consumer wait timed out every 100ms even
@@ -4280,7 +4276,7 @@ long long __nucleor_async_await(long long task_handle) {
     free(t);
     return r;
 }
-/* F-CONC-006 fix (audit pass-1, integrator-local Windows-parity 2026-05-09):
+/* Windows parity fix:
  * Windows CRITICAL_SECTION is recursive by default; default pthread_mutex_t
  * (PTHREAD_MUTEX_DEFAULT) on Linux maps to PTHREAD_MUTEX_NORMAL which is
  * non-recursive. Code written/tested on Windows that re-entered a held
@@ -4932,8 +4928,7 @@ long long __nucleor_panic_neg_i64(long long v) {
 // added overflow checks for i8/i16/i32 add/sub/mul, but division was
 // missed — narrow signed div fell through to raw `sdiv iN` which on
 // Windows surfaces `iN::MIN / -1` as STATUS_INTEGER_OVERFLOW
-// (rc=-1073741675), an opaque process exit. Probe-agent finding
-// 2026-05-01-i32-min-div-neg-one-windows-exception. These helpers
+// (rc=-1073741675), an opaque process exit. These helpers
 // take i64 args (sign-extended from iN per Nucleor's call-site ABI),
 // truncate to native iN, do the zero + iN_MIN/-1 check, divide,
 // return as i64 (caller truncates back to iN).
@@ -6175,14 +6170,9 @@ long long __nucleor_hashmap_contains(long long h, const char *key) {
 long long __nucleor_hashmap_contains_key(long long h, const char *key) {
     return __nucleor_hashmap_contains(h, key);
 }
-// Lane 6 / CO3 (audit 2026-05-08): pre-fix the rehash loop called
-// `__nucleor_hashmap_insert` recursively while iterating the
-// cluster — and that insert path can call `__nuc_hashmap_grow`,
-// which `realloc()`s the slot table. Once that fired, the outer
-// loop's `m->slots[next]` pointer became stale and the iteration
-// walked freed memory. Trigger requires the load factor to push
-// past the grow threshold during the rehash; rare in practice but
-// real.
+// The rehash loop must not call the public insert path recursively while
+// iterating a cluster, because insert can grow and realloc the slot table.
+// Use the no-grow path here.
 //
 // Fix: stash the entire follow-on cluster (key/val pairs) into a
 // local malloc'd buffer BEFORE doing any inserts, then re-insert
@@ -6406,10 +6396,8 @@ long long __nucleor_hashmap_clone(long long h) {
 // Concurrency: the s1 self-host compiler is single-threaded; the
 // warm cache is not protected by a mutex.
 
-/* v1.1.x perf (audit-pass-1 follow-up 2026-05-09): K-way LRU warm
- * cache replacing single-slot. Lets a/b/o stay warm together during
- * merges. Re-enabled after the -O0 vs -O3 measurement bug was fixed
- * — earlier "regression" was the rebuild path defaulting to -O0. */
+/* K-way LRU warm cache replacing the previous single-slot cache. Lets
+ * a/b/o stay warm together during ownership merges. */
 #define NUC_SYM_AUX_WAYS 4
 typedef struct { long long handle; long long aux; long long built_at; long long lru_tick; } NucSymAuxSlot;
 static NucSymAuxSlot g_sym_aux_slots[NUC_SYM_AUX_WAYS];
@@ -6529,12 +6517,9 @@ long long __nucleor_parse_depth_reset(void) {
     return 0;
 }
 
-// v1.0.1 perf fix (audit-pass-1 integrator): C-side bare-CR scanner.
-// Pre-fix the equivalent Nucleor loop ran str_char_at over every byte of
-// the 2.4 MB compiler source on every build (~7 s alone). The C scan is
-// memchr-fast: ~10 ms on the same input. Returns the byte offset of the
-// first bare CR (CR not followed by LF) outside a "..." string literal,
-// or -1 if the source is clean.
+// C-side bare-CR scanner. The C scan is memchr-fast on compiler-sized
+// inputs. Returns the byte offset of the first bare CR (CR not followed
+// by LF) outside a "..." string literal, or -1 if the source is clean.
 long long __nucleor_source_bare_cr_offset(const char *s) {
     if (!s) return -1;
     size_t n = strlen(s);
@@ -6612,7 +6597,7 @@ long long __nucleor_time_monotonic_us(void) { return __nucleor_time_monotonic_ns
 long long __nucleor_time_monotonic_ms(void) { return __nucleor_time_monotonic_ns() / 1000000LL; }
 
 // === v0.3.0 (T3.1): runtime #[deadline] checks ===
-// v1.1.0 audit pass 1 / F-CONC-003: wrappers now establish a
+// v1.1.0: wrappers now establish a
 // per-thread deadline context and deadline inner functions poll it at
 // loop headers. The exit check remains as a final guard for straight-line
 // work and helper calls without loop polls.
@@ -7472,6 +7457,10 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
     if (!from || !to) return 0;
     FILE *fi = fopen(from, "rb");
     if (!fi) return 0;
+#ifndef _WIN32
+    struct stat _src_st;
+    int _have_src_st = fstat(fileno(fi), &_src_st) == 0;
+#endif
     FILE *fo = fopen(to, "wb");
     if (!fo) { fclose(fi); return 0; }
     char buf[8192];
@@ -7490,11 +7479,9 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
      * non-executable at the destination — which broke the native-link
      * cache restore path: cache miss produced -rwxr-xr-x, cache hit
      * produced -rw-r--r-- and "Permission denied" on exec. On Windows
-     * the executable bit is implicit via .exe extension so this is a
-     * no-op there. Closes
-     * findings/promoted/2026-05-06-cache-restore-drops-exec-bit.md. */
-    struct stat _src_st;
-    if (stat(from, &_src_st) == 0) {
+     * the executable bit is implicit via .exe extension, so this is a
+     * no-op there. */
+    if (_have_src_st) {
         (void)chmod(to, _src_st.st_mode & 07777);
     }
 #endif
@@ -8698,9 +8685,8 @@ long long __nucleor_gelu(long long b)  {
 // Threads-only concurrency model (per locked default): a closure is
 // not thread-portable in v0.3.72. Calling the same closure from
 // multiple threads with different capture values is undefined; lift
-// captures into per-thread state instead. This is documented as a
-// known v1 limitation in docs/v0.3-robotics-guide.md and matches the
-// "threads-only" pause-default for the punchlist.
+// captures into per-thread state instead. This remains a documented
+// v1 limitation of the threads-only async substrate.
 //
 // Sizing rationale: 8192 closures × 32 captures × 8 bytes = 2 MB
 // static. The s1 self-host has < 200 closures total; 8192 is a

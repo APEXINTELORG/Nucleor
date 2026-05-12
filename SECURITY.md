@@ -2,65 +2,50 @@
 
 ## Supported Versions
 
-Nucleor follows a single-track semver model. Only the latest released
-version receives security updates.
+Nucleor follows a single supported release line. Security fixes target the
+latest public v1 release.
 
-| Version  | Supported          |
-| -------- | ------------------ |
-| 1.0.x    | :white_check_mark: |
-| 0.8.x    | :white_check_mark: |
-| < 0.8    | :x:                |
+| Version | Supported |
+|---|---|
+| 1.1.x | Yes |
+| 1.0.x | Critical fixes only during the v1.1 transition |
+| < 1.0 | No |
 
-## Reporting a Vulnerability
+## Reporting A Vulnerability
 
-If you discover a security vulnerability in Nucleor, please **do not
-open a public GitHub issue**. Instead, report it privately so we can
-investigate and ship a fix before details are disclosed.
+Please do not open a public issue for a security vulnerability. Use GitHub
+Security Advisories for this repository:
 
-**Contact:** open a [GitHub Security Advisory](https://github.com/APEXINTELORG/Nucleor/security/advisories/new)
-on the repository, or email the maintainer directly via the address
-listed in the repository's organization profile.
+https://github.com/APEXINTELORG/Nucleor/security/advisories/new
 
-Please include:
+Include:
 
-- A description of the vulnerability and the impact you believe it has
-- A minimal reproducer (a `.nr` file, a command line, or a sequence of
-  steps) — small reproducers ship faster
-- The Nucleor version (`bin/nucleor.exe --version`) and the host OS
-- Any mitigation you've already identified
+- A clear description of the issue and expected impact.
+- A minimal `.nr` reproducer or command sequence.
+- Nucleor version and host OS.
+- LLVM version.
+- Any known mitigation.
 
-We aim to:
-
-- Acknowledge receipt within **3 business days**
-- Provide a preliminary assessment (severity, scope) within **7 days**
-- Ship a fix within **30 days** for critical issues, longer for
-  lower-severity items where a workaround exists
+We aim to acknowledge reports within 3 business days and provide an initial
+assessment within 7 days.
 
 ## Scope
 
 In scope:
 
-- The `nucleor` compiler (`compiler/nucleor_s1_compiler.nr`,
-  `compiler/nucleor_tools_suite.nr`)
-- The runtime (`stdlib/runtime/nucleor_llvm_rt.c` and the per-feature
-  `*_rt.c` files under `stdlib/runtime/`)
-- The standard library rods (`stdlib/rods/*.nr`)
-- The build / verification toolchain (`tools/`)
+- The self-hosted compiler.
+- The runtime C files under `stdlib/runtime/`.
+- The standard-library rods under `stdlib/rods/`.
+- Bootstrap, launcher, package, and verification tooling.
 
 Out of scope:
 
-- Bugs that require running malicious Nucleor source code at compile
-  time on a developer machine — Nucleor does not currently sandbox the
-  compile process and we recommend treating untrusted `.nr` sources
-  the same way you'd treat untrusted Python or Ruby code (review
-  before compiling)
-- Memory exhaustion via pathological compile inputs — see the
-  `MEMORY_FIX_PUNCHLIST.md` track for the architectural work; the
-  v0.2.161 gate enforces a 400 MB budget on the self-host but
-  arbitrary user sources are not yet bounded
+- Running untrusted Nucleor source as if it were sandboxed. Nucleor does not
+  currently sandbox compilation or program execution.
+- Resource exhaustion from intentionally pathological local inputs unless it
+  bypasses an existing release gate or host safety cap.
 
-## Coordinated Disclosure
+## Disclosure
 
-We follow standard 90-day coordinated disclosure. After we ship a fix,
-we will publish a CVE (if applicable) and credit the reporter unless
-they prefer anonymity.
+We follow coordinated disclosure. After a fix ships, we will publish advisory
+details and credit the reporter unless they prefer anonymity.

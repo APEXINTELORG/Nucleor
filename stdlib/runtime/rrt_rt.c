@@ -50,7 +50,7 @@ static double _rng_unit(NRRT *r) {
 static void _ensure_capacity(NRRT *r) {
     if (r->count < r->capacity) return;
     int new_cap = r->capacity * 2;
-    r->configs = (double *)realloc(r->configs, new_cap * r->n_dim * sizeof(double));
+    r->configs = (double *)realloc(r->configs, (size_t)new_cap * r->n_dim * sizeof(double));
     r->parents = (int *)realloc(r->parents, new_cap * sizeof(int));
     r->capacity = new_cap;
 }
@@ -74,7 +74,7 @@ long long nuc_rrt_new(long long n_dim, long long seed) {
     NRRT *r = (NRRT *)calloc(1, sizeof(NRRT));
     r->n_dim = (int)n_dim;
     r->capacity = 64;
-    r->configs = (double *)malloc(r->capacity * r->n_dim * sizeof(double));
+    r->configs = (double *)malloc((size_t)(r->capacity) * r->n_dim * sizeof(double));
     r->parents = (int *)malloc(r->capacity * sizeof(int));
     r->lower = (double *)calloc(r->n_dim, sizeof(double));
     r->upper = (double *)calloc(r->n_dim, sizeof(double));
@@ -197,7 +197,7 @@ long long nuc_rrt_path_at(long long h, long long path_idx, long long dim) {
     if (path_idx < 0 || path_idx >= r->path_len) return 0;
     if (dim < 0 || dim >= r->n_dim) return 0;
     int node = r->path_indices[path_idx];
-    return _f2i(r->configs[node * r->n_dim + dim]);
+    return _f2i(r->configs[(size_t)node * r->n_dim + dim]);
 }
 
 long long nuc_rrt_node_count(long long h) {
@@ -284,7 +284,7 @@ long long nuc_rrt_connect_plan(
     memset(&g, 0, sizeof(NRRT));
     g.n_dim = r->n_dim;
     g.capacity = 64;
-    g.configs = (double *)malloc(g.capacity * g.n_dim * sizeof(double));
+    g.configs = (double *)malloc((size_t)g.capacity * g.n_dim * sizeof(double));
     g.parents = (int *)malloc(g.capacity * sizeof(int));
     g.lower = (double *)malloc(g.n_dim * sizeof(double));
     g.upper = (double *)malloc(g.n_dim * sizeof(double));
@@ -356,10 +356,10 @@ long long nuc_rrt_connect_plan(
     int r_offset = r->count;
     while (r->count + g.count > r->capacity) {
         r->capacity *= 2;
-        r->configs = (double *)realloc(r->configs, r->capacity * r->n_dim * sizeof(double));
+        r->configs = (double *)realloc(r->configs, (size_t)(r->capacity) * r->n_dim * sizeof(double));
         r->parents = (int *)realloc(r->parents, r->capacity * sizeof(int));
     }
-    memcpy(r->configs + r_offset * r->n_dim, g.configs, g.count * g.n_dim * sizeof(double));
+    memcpy(r->configs + r_offset * r->n_dim, g.configs, (size_t)g.count * g.n_dim * sizeof(double));
     // (parents copying not needed for path reconstruction since we walk g separately)
     for (int i = 0; i < g.count; i++) r->parents[r_offset + i] = -1;
     r->count += g.count;
@@ -673,7 +673,7 @@ long long nuc_rrt_star_plan_informed(
     }
     double *center = (double *)malloc(n * sizeof(double));
     for (int i = 0; i < n; i++) center[i] = 0.5 * (start[i] + goal[i]);
-    double *C = (double *)malloc(n * n * sizeof(double));
+    double *C = (double *)malloc((size_t)n * n * sizeof(double));
     _build_rotation_C(a1, n, C);
 
     double *sample = (double *)malloc(n * sizeof(double));

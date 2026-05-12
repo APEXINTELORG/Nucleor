@@ -15,9 +15,8 @@ import "stdlib/rods/ml/learn_facade.nr"
 // (joint log-likelihood per BernoulliNB formula + argmax + class
 // lookup) using only Vec<f64> primitives, which are stable.
 //
-// Per-fixture parity contract (see findings/inbox/
-// ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md): byte-equal-to-
-// Python parity is on the PREDICT step.
+// Per-fixture parity contract: byte-equal-to-Python parity is on the
+// PREDICT step.
 //
 // Reference: tests/reference/ml/04_text_classification.py / .json
 // Reference versions: Python 3.11.9, numpy 2.2.6, scikit-learn 1.8.0.

@@ -5,7 +5,7 @@
 | **Number** | 0008 |
 | **Title** | `#[isr]` — interrupt service routine attribute for embedded targets |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.6.0 ("Embedded + AI Inference") |
 | **Depends on** | RFC-0001 (RT attributes), RFC-0007 (atomic) |

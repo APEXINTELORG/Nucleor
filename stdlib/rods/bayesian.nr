@@ -14,8 +14,7 @@ extern fn nuc_bayes_seed(seed: i64);
 // proposal_std_bits, n_samples, burnin`. The 4-arg call site read
 // `proposal_std_bits` as `n_steps` (integer count reinterpreted as f64-bits)
 // and `n_samples` as the f64-bits of step_size — silent-miscompute on every
-// MCMC call. Fixed to match C ABI exactly. Surfaced by parallel-agent
-// TRACK A `extern_arity_drift_bayesian_2026-05-05`.
+// MCMC call. Fixed to match the C ABI exactly.
 extern fn nuc_bayes_mcmc_scalar(log_post: i64, x0: i64, proposal_std: i64,
     n_samples: i64, burnin: i64) -> i64;
 extern fn nuc_bayes_mcmc_multi(log_post: i64, x0: i64, proposal_std: i64,

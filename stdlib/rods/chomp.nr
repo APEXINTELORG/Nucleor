@@ -133,10 +133,9 @@ fn chomp_cartesian_planar_2link_cost(
         target_xy_ptr, w_smooth_b, w_cart_b, l1_b, l2_b);
 }
 
-// === R07-D4 Phase 1 (v0.8.270) — limitation diagnostic ===
+// === Limitation diagnostic ===
 //
-// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D4 (MEDIUM):
-// surfaces CHOMP's documented approximations as a queryable string.
+// Surfaces CHOMP's documented approximations as a queryable string.
 fn chomp_limitations() -> str {
     return "CHOMP limitations (ROBO-8/ROBO-9): (1) legacy chomp_optimize remains joint-space; chomp_optimize_cartesian_planar_2link now provides analytical planar FK/Jacobian Cartesian tracking, but generic high-DOF Cartesian models remain future work; (2) obstacle gradient via finite differences (slower than exact SDF gradients); (3) chomp_optimize_covariant provides A^-1 grad-F preconditioning; (4) endpoints clamped -- start and goal never move.";
 }

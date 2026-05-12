@@ -55,7 +55,7 @@ long long nuc_occgrid_new(long long W_, long long H_, long long cell_b,
     p->W = W; p->H = H; p->cell_size = c;
     p->ox = _i2f(ox_b); p->oy = _i2f(oy_b);
     p->prior = 0.0;
-    p->lo = (double *)calloc(W * H, sizeof(double));
+    p->lo = (double *)calloc((size_t)W * H, sizeof(double));
     return (long long)(size_t)p;
 }
 

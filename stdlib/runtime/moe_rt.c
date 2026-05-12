@@ -188,7 +188,7 @@ void nuc_moe_balance_update(long long lbh, long long indices_h, long long n_toke
     MOVec *indices = (MOVec *)(void *)indices_h;
     int nt = (int)n_tokens, k = (int)K;
     for (int i = 0; i < nt * k; i++) lb->token_counts[(int)indices->data[i]]++;
-    lb->total_tokens += nt * k;
+    lb->total_tokens += (long long)nt * k;
 
     // Adjust bias: increase for underloaded, decrease for overloaded
     double avg = (double)lb->total_tokens / lb->n_experts;

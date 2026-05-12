@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # verify_strict.sh — run verify.sh after wiping the build cache, so step
 # bodies that don't already use `--no-cache` are forced through a fresh-
-# compile path on first invocation. Intended as the v1.0-release validation
-# gate per docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md
-# Phase 2.
+# compile path on first invocation. Intended for release validation.
 #
 # Why this exists:
 #   The default `bash tools/verify.sh` run reports headline counts that
@@ -37,10 +35,9 @@ rm -rf target/.nuc_cache 2>/dev/null || true
 rm -rf target/.verify_tmp 2>/dev/null || true
 rm -rf .nuc_cache 2>/dev/null || true
 
-# Phase 4 of v1_PRODUCTION_READINESS_PLAN: drift gate flips
-# `s1-has-#[manual_drop] / tools-suite-missing` from WARN to FAIL when
-# NUC_VERIFY_STRICT=1 is set. Strict-mode users want every divergence
-# class as a hard error, not a swallowed warning.
+# Strict mode flips `s1-has-#[manual_drop] / tools-suite-missing` from
+# WARN to FAIL. Strict-mode users want every divergence class as a hard
+# error, not a swallowed warning.
 export NUC_VERIFY_STRICT=1
 echo "verify_strict: NUC_VERIFY_STRICT=1 — drift gate enforces #[manual_drop] parity."
 

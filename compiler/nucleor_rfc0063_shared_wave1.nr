@@ -2942,7 +2942,7 @@ fn ir_block_new(lbl: i64) -> Vec<i32> {
 // =================================================================
 // RFC-0063 Wave 12-16: 30 IDENTICAL fns retired from
 // nucleor_tools_suite.nr local copies; shared via this module.
-// Per CLOUD_AGENT_V1_FINISH_BRIEF_2026-05-07.md Q5 — mechanical
+// Mechanical
 // safe-delete batch. Each fn was byte-identical between s1 and
 // tools_suite per tools/audit_dup_fns_report.csv (category
 // IDENTICAL). s1 retains its canonical local copies; tools_suite

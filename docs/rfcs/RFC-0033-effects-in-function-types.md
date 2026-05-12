@@ -5,7 +5,7 @@
 | **Number** | 0033 |
 | **Title** | Effects in Function Types (`with [...]`) |
 | **Status** | Draft (design-only — pinned for v0.5; full implementation target v0.9) |
-| **Author** | Joseph Wescott + GPT-5.5 |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-29 |
 | **Target release** | v0.5 design; v0.9 implementation |
 | **Depends on** | RFC-0001 (RT attributes), RFC-0032 (Effects), RFC-0031 (Algebraic laws), RFC-0030 (Async decision) |

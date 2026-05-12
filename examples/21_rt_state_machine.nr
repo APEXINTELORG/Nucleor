@@ -18,7 +18,7 @@
 // build would compile but emit RT-008 noise; with it the
 // build is clean.
 //
-// See docs/v0.3-robotics-guide.md cookbook §3 for the
+// See examples/README.md and docs/language-reference.md for the
 // pattern; tests/fixtures/t310_rt008_bounded.nr is the
 // verify gate fixture; this file shows the same pattern in
 // a runnable application example.

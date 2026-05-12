@@ -1,7 +1,0 @@
-doctor cargo: OK - /root/.cargo/bin/cargo
-doctor bridge-crate: OK - /home/user/Nucleor/stdlib/rods/rust_bridge
-doctor release-artifact: OK - not present yet; normal run will attempt cargo build --release; expected /home/user/Nucleor/stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a
-doctor compiler-binary: OK - /home/user/Nucleor/bin/nucleor
-doctor focused-fixture:string-free: OK - /home/user/Nucleor/tests/features/rust_bridge_string_free_smoke.nr
-doctor fixture-buildable: OK - prerequisites are sufficient to build selector string-free
-doctor result: ready for POSIX rust_bridge ownership harness

@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0018 |
 | **Title** | Module system — `mod foo;`, `pub fn`, `use crate::x::y`, namespacing |
-| **Status** | Implemented (partial) v0.1.52–v0.1.65 — see `docs/milestones/v0.2.0.md` for v0.2 DoD; full resolver + `pub use` deferred to v0.4 |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented (partial) v0.1.52-v0.1.65; full resolver + `pub use` deferred to later work |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
 | **Depends on** | none |

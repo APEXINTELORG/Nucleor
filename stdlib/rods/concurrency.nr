@@ -77,18 +77,11 @@ fn conc_cpu_count() -> i64 { return cpu_count(); }
 
 // Safe parallel map: apply fn to each element, collect results.
 //
-// R04-D1 Phase 1 (v0.8.284, audit 2026-05-05): pre-v0.8.284 the
-// n > 4 path spawned workers via thread_spawn + thread_join but
-// pushed placeholder ZEROES instead of collecting real return
-// values (line 94 was `results.push(0); // placeholder`). That's a
-// silent-corruption class — adopters relying on conc_map for n > 4
-// got an all-zero results vec while their fn_ptr's real outputs
-// were silently dropped.
+// This implementation intentionally runs sequentially until the
+// thread-pool collection path owns indexed result writes safely.
 //
-// Phase 1 fix: run sequentially for ALL n. Correct results,
-// slower. Phase 2 wires per-worker result collection (each worker
-// writes to a shared Vec<i64> at its index; main reads after join)
-// per the audit's R04-D1 ship plan.
+// Future work wires per-worker result collection: each worker writes
+// to a shared Vec<i64> at its index; the main thread reads after join.
 fn conc_map(items: Vec<i32>, fn_ptr: i64) -> Vec<i32> {
     let n: i64 = items.len();
     let mut results: Vec<i32> = Vec::new();
@@ -101,13 +94,9 @@ fn conc_map(items: Vec<i32>, fn_ptr: i64) -> Vec<i32> {
     return results;
 }
 
-// === R04-D5 Phase 1 (v0.8.310) — concurrency rod limitations ===
-//
-// Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D5 (MEDIUM):
-// document which primitives are sequential fallbacks vs real
-// parallel/concurrent dispatch.
+// === Concurrency rod limitations ===
 fn concurrency_limitations() -> str {
-    return "Concurrency rod limitations (CONC-1/C-10/C-11/C-16, audit R04-D5 v0.8.310/v0836): (1) conc_map IS A SEQUENTIAL FALLBACK as of v0.8.270 (R04-D2 closure of silent-zero placeholder bug). It correctly maps fn_ptr over every item, but does NOT spawn threads - the loop runs in the caller's thread. Phase 2 wires real parallel dispatch via thread_pool when nuc_threadpool_map proves stable across platforms. (2) BARRIER: use thread_barrier_new/thread_barrier_wait/thread_barrier_free from thread.nr for fixed-party rendezvous; concurrency.nr does not re-export it to avoid duplicate thread_rt linkage when both rods are imported. (3) MUTEX LIFECYCLE: conc_mutex_destroy / conc_mutex_free release the native CRITICAL_SECTION or pthread_mutex_t handle; callers must not use a mutex after freeing it. (4) CHANNEL CLOSE: conc_channel_close marks a channel closed; pending buffered values remain readable, sends after close are ignored, and recv on a closed empty channel returns 0 instead of blocking forever. (5) NO STRUCTURED-CONCURRENCY scope: there is no scoped `nursery`-style spawner that joins on scope exit. Phase 2 adds RFC-0027 phase 2's structured-concurrency surface.";
+    return "Concurrency rod limitations: (1) conc_map IS A SEQUENTIAL FALLBACK. It correctly maps fn_ptr over every item, but does NOT spawn threads - the loop runs in the caller's thread. Future work wires real parallel dispatch via thread_pool when nuc_threadpool_map proves stable across platforms. (2) BARRIER: use thread_barrier_new/thread_barrier_wait/thread_barrier_free from thread.nr for fixed-party rendezvous; concurrency.nr does not re-export it to avoid duplicate thread_rt linkage when both rods are imported. (3) MUTEX LIFECYCLE: conc_mutex_destroy / conc_mutex_free release the native CRITICAL_SECTION or pthread_mutex_t handle; callers must not use a mutex after freeing it. (4) CHANNEL CLOSE: conc_channel_close marks a channel closed; pending buffered values remain readable, sends after close are ignored, and recv on a closed empty channel returns 0 instead of blocking forever. (5) NO STRUCTURED-CONCURRENCY scope: there is no scoped `nursery`-style spawner that joins on scope exit. Future work adds RFC-0027's structured-concurrency surface.";
 }
 
 fn conc_map_is_parallel() -> i64 { return 0; }

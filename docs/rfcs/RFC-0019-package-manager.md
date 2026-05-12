@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0019 |
 | **Title** | Package manager — `Nucleor.toml`, lockfile, semver resolver, registry |
-| **Status** | Implemented (partial) v0.1.33–v0.1.55 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met (manifest, lockfile, install, workspace); registry / PubGrub / git deferred to v0.5.0 |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented (partial) v0.1.33-v0.1.55; manifest, lockfile, install, and workspace support are present; registry / PubGrub / git remain later work |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 (manifest+resolver) → v0.5.0 (registry MVP) |
 | **Depends on** | RFC-0018 (modules) |

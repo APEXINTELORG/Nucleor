@@ -104,7 +104,7 @@ long long nuc_bio_align_global(const char *seq1, const char *seq2, long long mat
     memcpy(&gap_sc, &gap_bits, 8);
 
     // DP table
-    double *dp = (double *)malloc((m + 1) * (n + 1) * sizeof(double));
+    double *dp = (double *)malloc((size_t)(m + 1) * (n + 1) * sizeof(double));
     for (int i = 0; i <= m; i++) dp[i * (n + 1)] = i * gap_sc;
     for (int j = 0; j <= n; j++) dp[j] = j * gap_sc;
 

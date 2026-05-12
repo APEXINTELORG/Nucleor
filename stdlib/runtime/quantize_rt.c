@@ -83,8 +83,8 @@ long long nuc_quant_q4_decode(long long handle) {
         for (int i = 0; i < 16; i++) {
             int q0 = blocks[b].quants[i] & 0xF;
             int q1 = (blocks[b].quants[i] >> 4) & 0xF;
-            out->data[b * 32 + i * 2] = _qz_f2i((q0 - 8) * scale);
-            out->data[b * 32 + i * 2 + 1] = _qz_f2i((q1 - 8) * scale);
+            out->data[b * 32 + i * 2] = _qz_f2i((double)(q0 - 8) * (double)scale);
+            out->data[b * 32 + i * 2 + 1] = _qz_f2i((double)(q1 - 8) * (double)scale);
         }
     }
     return (long long)out;
@@ -104,7 +104,7 @@ long long nuc_quant_q4_dot(long long a_handle, long long b_handle) {
             int b0 = (b[bl].quants[i] & 0xF) - 8, b1 = ((b[bl].quants[i] >> 4) & 0xF) - 8;
             block_sum += a0 * b0 + a1 * b1;
         }
-        sum += sa * sb * block_sum;
+        sum += (double)(sa * sb) * block_sum;
     }
     return _qz_f2i(sum);
 }
@@ -116,7 +116,7 @@ long long nuc_quant_q4_dot(long long a_handle, long long b_handle) {
 long long nuc_quant_int8_encode(long long weights_h, long long rows, long long cols) {
     QZVec *w = (QZVec *)(void *)weights_h;
     int r = (int)rows, c = (int)cols;
-    signed char *quants = (signed char *)malloc(r * c);
+    signed char *quants = (signed char *)malloc((size_t)r * c);
     float *scales = (float *)malloc(r * sizeof(float));
 
     for (int i = 0; i < r; i++) {
@@ -162,7 +162,7 @@ long long nuc_quant_int8_gemv(long long qw_handle, long long x_h) {
             float xj = (float)_qz_i2f(x->data[j]);
             isum += (int)quants[i * c + j] * (int)(signed char)(xj * 127.0f / 10.0f); // simplified
         }
-        y->data[i] = _qz_f2i(scales[i] * (10.0f / 127.0f) * isum);
+        y->data[i] = _qz_f2i((double)scales[i] * (10.0 / 127.0) * (double)isum);
     }
     return (long long)y;
 }

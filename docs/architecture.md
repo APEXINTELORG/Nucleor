@@ -145,10 +145,10 @@ Subsequent builds that do not change a source or the relevant cache
 flags can reuse these artifacts rather than re-emitting and relinking.
 Pass `--no-cache` to disable the IR/native cache path.
 
-R13-D6 Phase 1 (v0.8.281, audit 2026-05-05): pre-v0.8.281 this
-section described the v0.2.x `.nuc_cache/<fn_hash>.ll` layout. Current
-code uses `target/.nuc_cache_v2/` for IR cache entries while keeping
-module-graph and link-log diagnostics under `.nuc_cache/`.
+Earlier cache documentation described the v0.2.x
+`.nuc_cache/<fn_hash>.ll` layout. Current code uses
+`target/.nuc_cache_v2/` for IR cache entries while keeping module-graph
+and link-log diagnostics under `.nuc_cache/`.
 
 ## What the runtime is not
 

@@ -1,17 +1,13 @@
-# nuc.toml — Nucleor OSS distribution reference sample
+# nuc.toml — Nucleor distribution reference sample
 #
-# NOTE: This file is kept as a **schema reference** for the v0.2.0
-# manifest format (RFC-0019). It is NOT the file the shipped
-# compiler reads — the canonical per-project manifest is
-# `Nucleor.toml` (capitalized). `bin/nucleor.exe` reads
-# `./Nucleor.toml` (see `file_read_string("Nucleor.toml")` in
-# `compiler/nucleor_s1_compiler.nr`); `nuc init <name>` scaffolds
-# `<name>/Nucleor.toml`; `nuc lock` writes `Nucleor.lock`.
+# NOTE: This file is kept as a compact schema reference for project
+# manifests. The canonical per-project filename is `Nucleor.toml`
+# (capitalized). `bin/nucleor.exe` reads `./Nucleor.toml`;
+# `nuc init <name>` scaffolds `<name>/Nucleor.toml`; `nuc lock`
+# writes `Nucleor.lock`.
 #
-# The minimal TOML parser shipped in v0.1.33 reads `Nucleor.toml`;
-# the manifest validator (v0.1.39) checks structure. This file is
-# left in-tree so the RFC-0019 schema below can serve as reader
-# documentation without spinning up a full project.
+# This sample is documentation. It is intentionally not a package
+# manifest for the repository root.
 #
 # Schema (RFC-0019 §3.1):
 #   [package]
@@ -19,7 +15,7 @@
 #     version        required, semver
 #     edition        required, year string ("2026")
 #     license        required, SPDX identifier
-#     authors        optional, array of strings (v0.4)
+#     authors        optional, array of strings
 #     description    optional, string
 #     repository     optional, URL string
 #
@@ -41,7 +37,7 @@
 
 [package]
 name = "nucleor-oss"
-version = "0.2.0"
+version = "1.1.0"
 edition = "2026"
 license = "Apache-2.0"
 description = "Open-source distribution of the Nucleor self-hosted programming language"
@@ -50,12 +46,12 @@ repository = "https://github.com/APEXINTELORG/Nucleor"
 [dependencies]
 # Stdlib rods are available without [dependencies] entries — they
 # import via `import "stdlib/rods/<name>.nr"`. Third-party deps once
-# RFC-0019 phase 2 (registry) ships.
+# registry-backed dependencies are enabled.
 
 [features]
 default = ["showcase"]
 showcase = []  # examples 13_test_framework, 14_csv_summary, 15_word_count, 16_histogram, 17_linecount, 18_benchmark + examples/showcase/{lorenz,vqe_h2,market_maker,wing_simulator}.nr
-embedded = []  # v0.6: stdlib/embedded/* + nostd profile
+embedded = []  # stdlib/embedded/* + nostd profile
 
 [profile.dev]
 opt_level = 0

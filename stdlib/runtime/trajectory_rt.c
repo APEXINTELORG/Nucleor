@@ -745,7 +745,7 @@ long long nuc_topp_new(long long n_dim) {
     NTopp *p = (NTopp *)calloc(1, sizeof(NTopp));
     p->n_dim = (int)n_dim;
     p->cap_waypoints = 16;
-    p->waypoints = (double *)malloc(p->cap_waypoints * p->n_dim * sizeof(double));
+    p->waypoints = (double *)malloc((size_t)(p->cap_waypoints) * p->n_dim * sizeof(double));
     p->vmax = (double *)malloc(p->n_dim * sizeof(double));
     p->amax = (double *)malloc(p->n_dim * sizeof(double));
     p->tau_max = (double *)calloc(p->n_dim, sizeof(double));
@@ -764,7 +764,7 @@ long long nuc_topp_add_waypoint(long long h, long long q_ptr) {
     if (p->n_waypoints >= p->cap_waypoints) {
         p->cap_waypoints *= 2;
         p->waypoints = (double *)realloc(p->waypoints,
-                                         p->cap_waypoints * p->n_dim * sizeof(double));
+                                         (size_t)p->cap_waypoints * p->n_dim * sizeof(double));
     }
     double *q = (double *)(void *)(size_t)q_ptr;
     memcpy(p->waypoints + p->n_waypoints * p->n_dim, q,
@@ -1026,7 +1026,7 @@ long long nuc_catmull_new(long long n_dim) {
     NCatmull *c = (NCatmull *)calloc(1, sizeof(NCatmull));
     c->n_dim = (int)n_dim;
     c->cap_pts = 16;
-    c->pts = (double *)malloc(c->cap_pts * c->n_dim * sizeof(double));
+    c->pts = (double *)malloc((size_t)(c->cap_pts) * c->n_dim * sizeof(double));
     return (long long)(size_t)c;
 }
 
@@ -1035,7 +1035,7 @@ long long nuc_catmull_add_waypoint(long long h, long long q_ptr) {
     if (!c) return -1;
     if (c->n_pts >= c->cap_pts) {
         c->cap_pts *= 2;
-        c->pts = (double *)realloc(c->pts, c->cap_pts * c->n_dim * sizeof(double));
+        c->pts = (double *)realloc(c->pts, (size_t)(c->cap_pts) * c->n_dim * sizeof(double));
     }
     double *q = (double *)(void *)(size_t)q_ptr;
     memcpy(c->pts + c->n_pts * c->n_dim, q, c->n_dim * sizeof(double));

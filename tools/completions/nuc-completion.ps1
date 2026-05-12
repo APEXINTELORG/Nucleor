@@ -1,7 +1,7 @@
 # nuc-completion.ps1 — PowerShell argument completer for the Nucleor CLI.
 #
 # Install (one-time, in your $PROFILE):
-#   . C:\path\to\Nucleor_OSS\tools\completions\nuc-completion.ps1
+#   . C:\path\to\Nucleor\tools\completions\nuc-completion.ps1
 #
 # After dot-sourcing, tab completion works for `nuc` and `nucleor`.
 

@@ -1,6 +1,6 @@
 # Rods and the Runtime
 
-Nucleor's standard library is organized as **rods**: small, focused modules paired with their C runtime. As of v0.2.46 there are **121 shipping rods** (was 65 at v0.1.1; the v0.1.5 expansion brought the count to 103; the v0.2.18–v0.2.30 stdlib enrichment chain added 18 more). They cover general utilities, scientific computing, modern ML, physics simulation, and the v0.2 collection types. The full per-rod catalog with API surface and stability is generated at [`docs/rfcs/rod_manifest.toml`](rfcs/rod_manifest.toml).
+Nucleor's standard library is organized as **rods**: small, focused modules paired with their C runtime. The v1.1 tree ships about **290 rods** covering general utilities, scientific computing, modern ML, physics simulation, real-time control, quantum simulation, and systems integration. The full per-rod catalog with API surface and stability is generated at [`docs/rfcs/rod_manifest.toml`](rfcs/rod_manifest.toml).
 
 ## Anatomy of a rod
 
@@ -13,9 +13,8 @@ Example: `stdlib/rods/quantum.nr` calls into `stdlib/rods/quantum_rt.c`. When a 
 
 ## The shipping rod catalog
 
-The tables below describe a representative subset (the v0.1.1
-foundation, all gate-tested). Up-to-date enumerations of every
-rod with stability and API surface live in
+The tables below describe a representative subset of the public rod surface.
+Up-to-date enumerations of every rod with stability and API surface live in
 [`docs/rfcs/rod_manifest.toml`](rfcs/rod_manifest.toml) and
 [`docs/rfcs/rod_manifest_schema.md`](rfcs/rod_manifest_schema.md).
 

@@ -108,7 +108,7 @@ long long nuc_pyramid_expand(long long in_ptr, long long W_, long long H_,
     double k[5] = {1.0/8, 4.0/8, 6.0/8, 4.0/8, 1.0/8};
 
     // Zero-insert into tmp of size outH * outW.
-    double *tmp = (double *)calloc(outH * outW, sizeof(double));
+    double *tmp = (double *)calloc((size_t)outH * outW, sizeof(double));
     if (!tmp) return 0;
 
     for (int y = 0; y < H; y++) {

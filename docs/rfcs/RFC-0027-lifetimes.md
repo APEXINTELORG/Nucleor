@@ -5,7 +5,7 @@
 | **Number** | 0027 |
 | **Title** | Explicit lifetime parameters — `fn f<'a>(x: &'a str) -> &'a str` |
 | **Status** | Implemented (parser-only) — lifetime parameters parse cleanly as advisory metadata (T2.5, v0.2.x); the borrow checker does NOT yet enforce them. Full lifetime inference + region analysis deferred to v0.4 / v0.5 follow-up. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |
 | **Depends on** | none (extension to existing borrow checker) |

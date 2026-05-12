@@ -409,8 +409,7 @@ fn atomic_bool_drop(a: AtomicBool) -> i64 {
 
 // === AtomicBool ordered ops (v0.4.281) ===
 //
-// Probe-agent finding 2026-05-01: AtomicBool ships with only
-// the constructor + drop helpers — adopters constructing
+// AtomicBool ships with constructor + drop helpers; adopters constructing
 // AtomicBool can't load/store/CAS without dropping to the
 // raw handle. Wrappers here delegate to AtomicI64's ordered
 // ops via the underlying i64 handle, with bool ↔ i64
@@ -458,7 +457,7 @@ fn atomic_compare_exchange_bool(a: &AtomicBool, expected: bool, desired: bool,
     }
 }
 
-// === R04-D5 Phase 1.5 (v0.8.311) — atomic rod limitations ===
+// === Atomic rod limitations ===
 fn atomic_limitations() -> str {
-    return "Atomic rod limitations (CONC-3/C-17, audit R04-D5 v0.8.311/v0836): (1) WIDTHS: AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool shipped. AtomicU64/AtomicI32/AtomicU32 now expose typed load/store/fetch/swap/CAS wrappers over the existing i64 atomic storage cell; NO native narrow-width allocation ABI, AtomicI16 / AtomicU16 / AtomicI8 / AtomicU8 / AtomicUsize / AtomicPtr. (2) NO ATOMIC FLOATS: no AtomicF32 / AtomicF64 (Rust core lacks these too — workaround is bits-in-AtomicU64 via to_bits/from_bits). (3) MEMORY ORDERS: Relaxed/Acquire/Release/AcqRel/SeqCst all lower correctly to LLVM intrinsics; Consume is NOT a separate variant (LLVM treats Consume as Acquire — matches C++20 std::memory_order). (4) NO FETCH-MIN/MAX yet — adopter must compose via compare_exchange loop. (5) WAIT/NOTIFY (`atomic_wait` / `atomic_notify_one` / `atomic_notify_all` futex-style) NOT shipped. Phase 2 wires platform futex / WaitOnAddress per audit ship plan.";
+    return "Atomic rod limitations: (1) WIDTHS: AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool shipped. AtomicU64/AtomicI32/AtomicU32 now expose typed load/store/fetch/swap/CAS wrappers over the existing i64 atomic storage cell; NO native narrow-width allocation ABI, AtomicI16 / AtomicU16 / AtomicI8 / AtomicU8 / AtomicUsize / AtomicPtr. (2) NO ATOMIC FLOATS: no AtomicF32 / AtomicF64 (Rust core lacks these too — workaround is bits-in-AtomicU64 via to_bits/from_bits). (3) MEMORY ORDERS: Relaxed/Acquire/Release/AcqRel/SeqCst all lower correctly to LLVM intrinsics; Consume is NOT a separate variant (LLVM treats Consume as Acquire — matches C++20 std::memory_order). (4) NO FETCH-MIN/MAX yet — adopter must compose via compare_exchange loop. (5) WAIT/NOTIFY (`atomic_wait` / `atomic_notify_one` / `atomic_notify_all` futex-style) NOT shipped. Future work wires platform futex / WaitOnAddress support.";
 }

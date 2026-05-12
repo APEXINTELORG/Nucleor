@@ -28,7 +28,7 @@ long long nuc_heat_2d(long long T_h, long long k_bits, long long rho_cp_bits,
     double alpha = k / rho_cp;
     double r = alpha * dt / (dx * dx);
 
-    double *Tnew = (double *)malloc(n * n * sizeof(double));
+    double *Tnew = (double *)malloc((size_t)n * n * sizeof(double));
     for (int i = 0; i < n * n; i++) Tnew[i] = _hr_i2f(T->data[i]);
 
     double max_T = -1e30;

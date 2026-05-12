@@ -5,7 +5,7 @@
 | **Number** | 0026 |
 | **Title** | Trait objects — `Box<dyn Trait>`, `&dyn Trait`, vtable dispatch |
 | **Status** | Partial (audited v0.4.184) — basic `trait` + `impl Trait for Type` declarations parse, type-check, and dispatch correctly via `Type::method()` static calls (e.g. `Cat::say()`). The `dyn Trait` machinery + vtable lowering is NOT yet implemented: `Box<dyn Greet>` as a return type fails type-check. **Deferred to v0.5+:** `dyn Trait`, `Box<dyn Trait>`, `&dyn Trait`, vtable construction, dynamic dispatch through trait-object pointers. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |
 | **Depends on** | RFC-0002 (Box for owned trait objects) |

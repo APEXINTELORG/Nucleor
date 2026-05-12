@@ -153,9 +153,8 @@ fn model_provenance_license_is(p: &ModelProvenance, want: str) -> i64 {
     return 0;
 }
 
-// v1.0.1 (audit-pass-1 integrator): borrow-form accessors so OWN-001
-// (now error-severity) doesn't false-fire when adopters call multiple
-// accessors on the same ModelProvenance.
+// Borrow-form accessors let adopters call multiple accessors on the same
+// ModelProvenance value.
 fn model_provenance_license_commercial_ok(p: &ModelProvenance) -> i64 {
     if str_eq(p.license, "Apache-2.0") == 1 { return 1; };
     if str_eq(p.license, "MIT") == 1 { return 1; };

@@ -6,7 +6,7 @@ shells most users will reach for.
 ## bash
 
 ```
-source /path/to/Nucleor_OSS/tools/completions/nuc.bash
+source /path/to/Nucleor/tools/completions/nuc.bash
 ```
 
 Or symlink into the system bash-completion directory:
@@ -20,7 +20,7 @@ sudo ln -s "$(pwd)/tools/completions/nuc.bash" /etc/bash_completion.d/nuc
 Add the completions directory to your `fpath` and reinitialize compinit:
 
 ```
-fpath=(/path/to/Nucleor_OSS/tools/completions $fpath)
+fpath=(/path/to/Nucleor/tools/completions $fpath)
 autoload -U compinit && compinit
 ```
 
@@ -29,7 +29,7 @@ autoload -U compinit && compinit
 Copy the file into your user completions:
 
 ```
-cp /path/to/Nucleor_OSS/tools/completions/nuc.fish ~/.config/fish/completions/
+cp /path/to/Nucleor/tools/completions/nuc.fish ~/.config/fish/completions/
 ```
 
 Fish picks it up automatically the next time you open a shell.
@@ -39,7 +39,7 @@ Fish picks it up automatically the next time you open a shell.
 In your `$PROFILE` (run `notepad $PROFILE` if it doesn't exist yet), add:
 
 ```
-. C:\path\to\Nucleor_OSS\tools\completions\nuc-completion.ps1
+. C:\path\to\Nucleor\tools\completions\nuc-completion.ps1
 ```
 
 Reload the profile (`. $PROFILE`) and tab completion is wired up for both
@@ -49,10 +49,7 @@ Reload the profile (`. $PROFILE`) and tab completion is wired up for both
 
 - **Subcommand at position 1:** `build`, `run`, `test`, `bench`, `perf`,
   `check`, `emit`, `clean`, `scram`, `zen`, `mco`, `init`, `bootstrap`,
-  and the rest of the surface (39 commands as of v0.2.143; v0.2.143 added
-  the `add` / `remove` / `update` install aliases, `doc` for RFC-0029
-  rendering, and `fix` for RFC-0015 / RFC-0018 migration linters that had
-  shipped earlier but were missing from completion).
+  package commands, documentation commands, and migration helpers.
 - **Flags after a subcommand:** `-o`, `--time-passes`, `--no-cache`,
   `--tier`, `--json`, `--iterations`, etc.
 - **Source files:** `.nr` files in the current and child directories.

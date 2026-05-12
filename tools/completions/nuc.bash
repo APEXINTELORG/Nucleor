@@ -2,9 +2,9 @@
 # nuc.bash — bash completion for the Nucleor CLI.
 #
 # Install:
-#   source /path/to/Nucleor_OSS/tools/completions/nuc.bash
+#   source /path/to/Nucleor/tools/completions/nuc.bash
 # Or symlink into your bash-completion.d:
-#   ln -s /path/to/Nucleor_OSS/tools/completions/nuc.bash /usr/local/etc/bash_completion.d/nuc
+#   ln -s /path/to/Nucleor/tools/completions/nuc.bash /usr/local/etc/bash_completion.d/nuc
 
 _nuc_complete() {
     local cur prev words cword

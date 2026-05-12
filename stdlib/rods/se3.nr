@@ -96,12 +96,11 @@ fn se3_distance(tA_ptr: i64, qA_ptr: i64, tB_ptr: i64, qB_ptr: i64) -> i64 {
     return nuc_se3_distance(tA_ptr, qA_ptr, tB_ptr, qB_ptr);
 }
 
-// === v0845 Lane 5 / Queue 5C — typed SE(3) buffer wrappers ===
+// === Typed SE(3) buffer wrappers ===
 //
 // Pointer-based SE(3) is the right choice for inner loops (no
 // per-call allocation), but the raw API loses the frame-typing
-// the v0840 ROBO-7 Wave 2 compiler check provides for
-// Pose<Frame_*> / Transform<From, To>. The typed wrappers below
+// provided for Pose<Frame_*> / Transform<From, To>. The typed wrappers below
 // preserve the pointer-based hot-path while exposing a phantom
 // Se3Buf<From, To> facade — adopters who want compile-time frame
 // safety on inner loops bind their pointer pairs into
@@ -138,10 +137,8 @@ fn se3_buf_t<F, T>(b: &Se3Buf<F, T>) -> i64 { return b.t_ptr; }
 fn se3_buf_q<F, T>(b: &Se3Buf<F, T>) -> i64 { return b.q_ptr; }
 
 // T_AC = T_AB · T_BC. The middle frame B must match across the two
-// inputs; the v0840 ROBO-7 Wave 2 check enforces this on the
-// adopter's let-binding sites for concrete frame pairs (and the
-// generic-phantom-unification residual from Queue 5A applies to
-// generic call sites).
+// inputs; the compiler enforces this on the adopter's let-binding sites
+// for concrete frame pairs.
 fn se3_compose_typed<A, B, C>(
     ab: &Se3Buf<A, B>,
     bc: &Se3Buf<B, C>,

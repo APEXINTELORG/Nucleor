@@ -90,8 +90,8 @@ void nuc_img_gradient_magnitude(long long in_ptr, long long out_ptr,
     const double *in  = (const double *)(void *)(size_t)in_ptr;
     double       *out = (double *)(void *)(size_t)out_ptr;
     if (!in || !out || W <= 0 || H <= 0) return;
-    double *gx = (double *)malloc(W * H * sizeof(double));
-    double *gy = (double *)malloc(W * H * sizeof(double));
+    double *gx = (double *)malloc((size_t)W * H * sizeof(double));
+    double *gy = (double *)malloc((size_t)W * H * sizeof(double));
     nuc_img_sobel_x(in_ptr, (long long)(size_t)gx, W_, H_);
     nuc_img_sobel_y(in_ptr, (long long)(size_t)gy, W_, H_);
     for (int i = 0; i < W * H; i++) out[i] = sqrt(gx[i]*gx[i] + gy[i]*gy[i]);
@@ -149,7 +149,7 @@ void nuc_img_blur_gaussian(long long in_ptr, long long out_ptr,
     }
     for (int i = 0; i < len; i++) kernel[i] /= sum;
 
-    double *tmp = (double *)malloc(W * H * sizeof(double));
+    double *tmp = (double *)malloc((size_t)W * H * sizeof(double));
     // Horizontal pass.
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {

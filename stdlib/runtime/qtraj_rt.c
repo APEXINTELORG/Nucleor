@@ -181,7 +181,7 @@ long long nuc_qtraj_solve(long long h) {
     //       [  A    0  ]
     //   rhs = [ 0 ; b ]   length (n_unk + n_con)
     int dim = n_unk + n_con;
-    double *M = (double *)calloc(dim * dim, sizeof(double));
+    double *M = (double *)calloc((size_t)dim * dim, sizeof(double));
     double *rhs = (double *)calloc(dim, sizeof(double));
 
     // === Build 2Q (snap cost) into the top-left block ===

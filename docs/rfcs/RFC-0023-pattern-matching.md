@@ -5,7 +5,7 @@
 | **Number** | 0023 |
 | **Title** | Rich pattern matching — ranges, guards, nested destructure, `|` or-patterns, `@`-bindings, slice patterns |
 | **Status** | Implemented — range patterns `1..=9` / `1..10` (T2.1, v0.2.x), int-literal + wildcard or-patterns `A \| B \| _ => ...` (v0.4.49 T3.94), pattern guards `if cond` (audited v0.4.169), `@`-bindings `n @ 1..=10 => n` (audited v0.4.169), slice patterns `[a, .., b]` / `[single]` / `[]` on Vec (audited v0.4.169), struct destructure `Point { x, y }` (audited v0.4.169), same-name enum or-patterns `Sign::Pos(n) \| Sign::Neg(n) => n` (audited v0.4.169). **Deferred to v0.5+:** field-equality literal patterns `Point { x: 0, y: 0 }` (express today via guard: `Point { x, y } if x == 0 && y == 0`; v0.4.163 made this halt cleanly with MATCH-012 instead of crashing the compiler with ACCESS VIOLATION). |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |
 | **Depends on** | RFC-0016 (basic match) |

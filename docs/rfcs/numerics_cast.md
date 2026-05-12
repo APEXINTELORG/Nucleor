@@ -1,8 +1,5 @@
 # RFC: Numerics — `as` Cast Operator Matrix
 
-**Companion to:** `numerics_v2.md`
-**Phase:** 4
-
 ## Summary
 
 The `as` operator follows Rust semantics: saturating float→int,

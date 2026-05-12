@@ -1,70 +1,64 @@
-# Benchmarks
+# Benchmarks And Performance Gates
 
-> **PRE-V1.0 numbers — refresh pending.** The figures below were captured
-> against the v0.2.x self-host pipeline (v0.2.128 / v0.2.87 / v0.2.84
-> stamps). They are retained as a historical reference but do NOT match
-> the v1.0 surface. The current v1.0 self-host peak allocation is
-> ~185 MB under a 400 MB budget (see `tools/perf_baseline.json`,
-> `tools/perf_baseline_linux.json`, and the `verify.sh` PASS line in
-> README §"Verification gate"). A v1.0 refresh of the table below is
-> tracked under post-v1.0 docs polish.
+Nucleor treats compile-time performance as a release property. The compiler is
+self-hosted, so cold self-compilation is the main regression signal.
 
-Numbers below are reproducible from this repo with `nuc bench`. The intent is to
-characterize the self-host bootstrap pipeline, not to compete with mature
-production compilers — that comparison is post-v1.0 work.
+## Current v1.1.0 Windows Gate
 
-## Self-host build time
+Measured on the local Windows release workstation:
 
-Building the full self-host compiler from source on a laptop-class machine:
+| Metric | Result | Gate |
+|---|---:|---:|
+| Cold self-host compile | 3.95s | <= 4.25s |
+| Hot compile | 0.12s | informational |
+| Compiler RSS | 352 MB | <= 360 MB |
 
-| Stage | Wall time |
-|---|---|
-| Clean self-build of `compiler/nucleor_s1_compiler.nr`         | ~27 s |
-| Internal timed build (excluding clang link)                   | ~24 s (type-check dominates) |
-| Same build with module cache hit                              | sub-second IR cache; ~5 s clang link |
+The full Windows verifier for the same release line completed with:
 
-The compiler itself is one `.nr` file (~467 KB source / **8897 LOC** /
-**365 reachable functions** after dead-code elimination /
-**664 optimizer instructions** / 3932 strings) producing a
-**~2.6 MB LLVM IR module** that clang then turns into the
-**~845 KB `nucleor.exe` binary**. Numbers as of v0.2.128; the
-binary is unchanged since v0.2.87 (compiler source touched twice
-post-RC — v0.2.84 `nuc help` doc/fix entries, v0.2.87 `-V` /
-`version` aliases — and the LLVM IR fixed point preserved on both
-promotions). Bumped from v0.1-era estimates (~330 KB / 5700
-functions / 10000 LOC / 1.8 MB IR / 3 MB binary). The
-`nucleor.exe` binary is roughly a quarter of the v0.1-era size
-because the optimizer + DCE pass shipped in the v0.1.46–v0.1.65
-chain stripped most of the unreachable surface.
-
-## Hello-world build time
-
-```
-nuc build examples/01_hello.nr -o hello
+```text
+PASS=1653 SKIP=9 FAIL=0
 ```
 
-End-to-end compile time on the same machine: under 200 ms (cold), under 50 ms (warm cache). The breakdown is dominated by the clang link step, not Nucleor's own pipeline.
+## Linux Correctness Gate
 
-## Quantum simulator throughput
+Hosted Ubuntu 24.04 with LLVM 18 is used for Linux correctness evidence:
 
-`examples/05_quantum.nr` runs 1024 shots of a 2-qubit Bell-state preparation (`H` then `CNOT` then measure both qubits). Total wall time including init, gate application, and measurement collapse: under 50 ms on a single core.
+- `tools/bootstrap_linux.sh`
+- `tools/check_self_host_md5.sh`
+- `tools/verify.sh`
+- `tools/check_rust_bridge_ownership.sh`
 
-For comparison, the same circuit in `nuc bench tests/rods/quantum_basic.nr` over 200 shots reproduces perfect entanglement (`q0 == q1` every time, 0 violations).
+Hosted GitHub runners are intentionally not used to lock performance baselines.
+They are noisy shared VMs. Linux perf baseline locks should come from a pinned
+self-hosted runner or a stable dedicated cloud VM with host details recorded in
+`tools/perf_baseline_linux.json`.
 
-## Reproducing benchmarks
+## Reproducing Locally
 
+Full verifier:
+
+```bash
+bash tools/verify.sh --no-color -j 4
 ```
-nuc bench compiler/nucleor_s1_compiler.nr   --iterations 5
-nuc bench examples/05_quantum.nr            --iterations 10
+
+Focused perf gate:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_perf_regression.ps1
 ```
 
-`nuc bench` builds the source once, then runs the resulting binary `--iterations` times (default 10) with `--warmup` runs before timing (default 1). It reports min, max, median, and mean wall time.
+```bash
+bash tools/check_perf_regression.sh --doctor
+```
 
-## What is not benchmarked here
+## What The Numbers Mean
 
-- Backend codegen quality (LLVM does most of the work; Nucleor IR is small and friendly to the optimizer).
-- Memory footprint (no formal accounting yet).
-- Compile speed vs. other systems (apples-to-apples requires equivalent programs in each language; deferred to v1.0).
+Nucleor emits LLVM IR and then invokes clang. For small programs, clang/link
+startup often dominates. For the self-host compiler, Nucleor's own frontend,
+ownership, type, lower, optimize, and emit phases are visible separately with
+`--time-passes`.
 
-If you have a benchmark you'd like to see, open an issue at
-https://github.com/APEXINTELORG/Nucleor.
+`--release` asks clang for optimized native code. That can add seconds on the
+self-host compiler because LLVM optimization is doing real work. Default builds
+are the right comparison for edit-compile latency; release builds are the right
+comparison for final binary quality.

@@ -34,7 +34,7 @@ fn cli_new(name: str, desc: str) -> Vec<i32> {
 
 // type: 0 = bool flag, 1 = string option
 //
-// v0.8.41 RFC-0062 G-1: `f` is a HANDOFF local — the Vec is
+// Ownership note: `f` is transferred out of this helper; the Vec is
 // pushed INTO `flags` (a registry-like field of `c`) where its
 // pointer outlives this fn. Under the Phase 2b-3 default-flip,
 // auto-drop on `f` would dangle the registry entry. The

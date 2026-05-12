@@ -5,7 +5,7 @@
 | **Number** | 0010 |
 | **Title** | DLPack — zero-copy tensor handoff with PyTorch / JAX / TensorFlow / MLX |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.7.0 ("AI Training + Real-Time Linux") |
 | **Depends on** | RFC-0001 (allocator typing for GPU memory), RFC-0011 (`nuc-cxx` for some interop paths) |

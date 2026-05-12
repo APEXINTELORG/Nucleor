@@ -34,7 +34,7 @@
 // f-typed operands; the natural inline form below now
 // computes correctly.)
 //
-// See docs/v0.3-robotics-guide.md cookbook §6 for the C-side
+// See examples/README.md and docs/language-reference.md for the C-side
 // caller pattern; tests/fixtures/t34_export.nr is the verify
 // gate fixture (compile-only — it doesn't surface the
 // codegen bug); this file shows the shipped surface in

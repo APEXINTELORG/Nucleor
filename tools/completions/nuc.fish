@@ -1,7 +1,7 @@
 # nuc.fish — fish completion for the Nucleor CLI.
 #
 # Install:
-#   cp /path/to/Nucleor_OSS/tools/completions/nuc.fish ~/.config/fish/completions/
+#   cp /path/to/Nucleor/tools/completions/nuc.fish ~/.config/fish/completions/
 
 set -l nuc_commands build build-fast build-strict build-shared build-wasm build-ptx \
                     run emit test bench perf check audit policy certify translate \

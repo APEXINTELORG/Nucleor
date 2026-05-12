@@ -155,12 +155,8 @@ static double from_si(double si_val, int unit) {
     }
 }
 
-// Lane 6 / F-NUM-002 (audit 2026-05-08): wire SI dimensional check
-// into the conversion path. Pre-fix `nuc_unit_convert(100, Pa, m)`
-// silently returned 100. RFC-0005 §1 explicitly motivates catching
-// the Mars Climate Orbiter bug class — the runtime now does so by
-// rejecting cross-dimensional conversions with diagnostic
-// `UNIT-DIM-001`.
+// Wire SI dimensional checks into the conversion path so
+// cross-dimensional conversions fail with diagnostic `UNIT-DIM-001`.
 //
 // `unit_category` returns the SI dimension category for each known
 // unit ID. Two units may be converted iff they share a category.

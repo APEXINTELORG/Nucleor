@@ -273,10 +273,10 @@ run_doctor() {
             *) doctor_ok "baseline-and-source" "baseline=$baseline source=$src" ;;
         esac
 
-        # D1 (2026-05-10): doctor must confirm both compiler-only ceilings are
+        # The doctor must confirm both compiler-only ceilings are
         # present so the perf gate enforces the same four-ceiling contract as
         # Windows (tools/perf_baseline.json). Missing fields fail the doctor;
-        # populate the baseline via Step 7 of the handoff doc before locking.
+        # populate the baseline from a pinned native runner before locking.
         local doctor_cold_compiler doctor_hot_compiler doctor_missing_ceilings
         doctor_cold_compiler="$(json_number cold_max_allowed_compiler_memory_mb)"
         doctor_hot_compiler="$(json_number hot_max_allowed_compiler_memory_mb)"

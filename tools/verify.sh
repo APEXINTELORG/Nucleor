@@ -502,7 +502,7 @@ cli_explain_smoke() {
 }
 
 # nuc bootstrap status smoke (added v0.2.70). Verifies the bootstrap
-# status command (NUCLEOR_BOOTSTRAP_CONTRACT.md indicator) reports
+# status command reports
 # the expected stage + self-hosted status.
 cli_bootstrap_smoke() {
     local out
@@ -513,7 +513,7 @@ cli_bootstrap_smoke() {
     echo "$out" | grep -q "Self-hosted: yes" || return 1
     # v0.2.82 — the Contract: line names a doc file. Verify it
     # exists at the repo root so `nuc bootstrap` doesn't dangle.
-    # Catches the drift class that bit NUCLEOR_BOOTSTRAP_CONTRACT.md
+    # Catches stale release-status drift.
     # being referenced from v0.2.70 onward without ever being
     # committed.
     local contract_path
@@ -1350,7 +1350,7 @@ cli_check_laws_smoke() {
     }
     echo "$out" | grep -q "error\\[LAW-001\\]" || return 1
 
-    # R14 Phase 3b broad property pack (local-claude2 v0842) — bounded
+    # Broad property pack: bounded
     # `@law(inverse = g)` is generated under --check-laws. Positive
     # smoke must PASS and emit __nucleor_law_check_*; malformed
     # `inverse =` (no partner) must FAIL closed with LAW-001 + the
@@ -1526,8 +1526,7 @@ build_negative() {
     # of exit code, which let F-DIAG-003 (OWN-001 warning) ship a binary
     # past every layer of v1.0 enforcement.
     #
-    # v1.0.1 (audit-pass-1 integrator): "ghost code" exemption. The L3
-    # brief explicitly added negative-test fixtures for codes whose
+    # "Ghost code" exemption. Negative-test fixtures cover codes whose
     # emit path is unwired in v1.0 (F-DIAG-010 ghost codes — TNT-001;
     # F-DIAG-006 fixtures-without-emit — ASYNC-001, LAW-*, PERF-*,
     # PKG-*, RT-005, RT-008, DIAG-001 etc.). Those tests exercise a
@@ -1575,7 +1574,7 @@ build_negative() {
         # excludes the OWN-001 case (warning + RC=0).
         echo "$out" | grep -qE "(error|warning)\[${expect_code}([: ]|\])" && return 0 || return 1
     fi
-    # v1.0.1 (audit-pass-1 integrator): accept the legacy `print("ERROR: ...")`
+    # Accept the legacy `print("ERROR: ...")`
     # halt pattern in addition to `error[CODE]:`. Several pre-v1.0 negative
     # fixtures exercise NYI parser-halt sites whose proper diag-code
     # assignment is the F-DIAG-017 mass refactor (~167 sites), explicitly
@@ -1699,7 +1698,7 @@ out="$("$BIN" build "tests/err/$tname.nr" -o "$out_name" --no-cache 2>&1)"
 rc=$?
 t1="$(now_ms)"
 dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
-# v1.0.1 (audit-pass-1 integrator): ghost-code exemption — see the
+# Ghost-code exemption — see the
 # sequential build_negative path for the rationale. The list below
 # must stay in sync.
 case " $tname " in
@@ -1750,7 +1749,7 @@ if [ -n "$__expect_code" ]; then
         && finish PASS "$dt" "" \
         || finish FAIL "$dt" "expect_code_${__expect_code}_not_emitted"
 else
-    # v1.0.1 (audit-pass-1 integrator): legacy `print("ERROR: ...")` halt
+    # Legacy `print("ERROR: ...")` halt
     # accepted as evidence of negative-path firing, in addition to the
     # canonical `error[CODE]:` form. F-DIAG-017 mass refactor (deferred
     # by L3) replaces the ~167 ERROR: halts with proper coded diags.
@@ -1927,7 +1926,7 @@ self_host_rebuild() {
 #   new ship that adds memory gets caught immediately. Bumping the
 #   ceiling MUST come with a documented investigation in the same
 #   ship; raising it as a comfort blanket is what got us here.
-#   See `docs/milestones/MEMORY_DRIFT_2026-05-01.md`.
+#   Historical memory-drift budget gate.
 self_host_memory_budget() {
     # v0.5.14 historical: 770 MB process-tree cap. Observed peaks:
     #   587 / 670 / 703 MB env-off, 704 MB env-on
@@ -2817,7 +2816,7 @@ t444_debug_vec_str_and_option() {
 }
 
 t443_recursive_debug() {
-    # v0.4.97 audit doc-#1 §10b — recursive Debug for Vec/Option/Result.
+    # v0.4.97 — recursive Debug for Vec/Option/Result.
     "$BIN" build "tests/fixtures/repro_v97_recursive_debug.nr" -o "_t443_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "0" ] || return 1
@@ -2984,7 +2983,7 @@ t_rfc0006_old_expr_runtime() {
 
 t_rfc0007_atomic_bool() {
     # v0.4.281 AtomicBool ordered ops (load/store/CAS) shipped via
-    # delegation to AtomicI64 handle. Probe-agent finding 2026-05-01:
+    # delegation to AtomicI64 handle. Regression fixture:
     # AtomicBool shipped in v0.4.273 with constructor+drop only.
     "$BIN" build "tests/features/rfc0007_atomic_bool.nr" -o "_t_ab" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
@@ -3000,7 +2999,7 @@ t_rfc0007_atomic_bool() {
 
 t_atomic_006_in_closure() {
     # v0.4.280 — closure body that calls atomic_* helpers crashed
-    # the compiler (probe-agent finding 2026-05-01). ATOMIC-006
+    # the compiler. ATOMIC-006
     # halts cleanly with a temporary "not yet supported" message
     # until the closure sym-table inheritance ship lands.
     "$BIN" build "tests/err/err_atomic_006_in_closure.nr" -o "_t_a006" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
@@ -3093,8 +3092,8 @@ t_str_substring_strict_basic() {
 
 t_rfc0006_undefined_ident_reject() {
     # v0.4.283 — undefined ident in #[require] / #[ensure]
-    # predicate must reject at compile time. Probe-agent finding
-    # 2026-05-01: pre-fix, #[require(undefined_var > 0)] surfaced
+    # predicate must reject at compile time. Pre-fix,
+    # #[require(undefined_var > 0)] surfaced
     # a misleading clang-link "undefined function `undefined_var()`"
     # error. CONTRACT-011 halts at parse time naming the actual
     # unbound ident.
@@ -3107,7 +3106,7 @@ t_rfc0006_undefined_ident_reject() {
 
 t_rfc0006_old_in_require_reject() {
     # v0.4.277 — `old(...)` in `#[require]` must reject at compile
-    # time. Probe-agent finding 2026-05-01: pre-fix, the build
+    # time. Pre-fix, the build
     # surfaced a misleading clang-link "undefined function `old()`"
     # error. CONTRACT-010 now halts at compile entry naming the
     # semantic mismatch + the workaround.
@@ -3119,7 +3118,7 @@ t_rfc0006_old_in_require_reject() {
 }
 
 t_match_012_single_line() {
-    # v0.4.276 MATCH-012 — probe-agent finding 2026-04-30: dual
+    # v0.4.276 MATCH-012 — dual
     # print+panic emitted the diag text TWICE. Folded into a single
     # panic. Verify MATCH-012 appears in the output, build exits 1,
     # and the count of MATCH-012 mentions on stderr is exactly one
@@ -3133,8 +3132,8 @@ t_match_012_single_line() {
 }
 
 t_rfc0006_dbc_mode_invalid_reject() {
-    # v0.4.275 RFC-0006 — NUCLEOR_DBC_MODE validation. Probe-agent
-    # finding 2026-05-01: unrecognized values silently fell into
+    # v0.4.275 RFC-0006 — NUCLEOR_DBC_MODE validation. Pre-fix,
+    # unrecognized values silently fell into
     # a partial-strip bucket. CONTRACT-009 now halts at compile
     # entry naming the bad value and the recognized set.
     nuc_build_with_env "NUCLEOR_DBC_MODE=off" "tests/err/err_dbc_mode_invalid.nr" "_t_rfc6_dbcmode" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
@@ -3149,7 +3148,7 @@ t_rfc0006_dbc_mode_invalid_reject() {
 
 t_rfc0006_result_in_void_fn_reject() {
     # v0.4.272 RFC-0006 — `#[ensure(... result ...)]` on a void fn
-    # must reject at compile time. Probe-agent finding 2026-05-01:
+    # must reject at compile time. Pre-fix,
     # void fn has no return value to bind `result` against; pre-fix
     # the ensure ran against alloca-init garbage with confusing
     # outcomes (result == 0 "passes" by luck; result > 0 panics
@@ -5054,7 +5053,7 @@ v030_deadline_overrun() {
     grep -qE 'error\[RT-004\]: #\[deadline\] overrun' $NUC_VERIFY_RUN_LOG || return 1
 }
 
-# v0.5.10: probe-agent finding 2026-05-01-i32-min-div-neg-one-windows-exception.
+# v0.5.10: i32-min-div-neg-one Windows exception regression.
 # Pre-fix `i32::MIN / -1` surfaced as Windows STATUS_INTEGER_OVERFLOW
 # (rc=-1073741675) — opaque process exit, no Nucleor-side message.
 # Post-fix the narrow-arith path routes through `__nucleor_panic_div_i32`
@@ -5310,7 +5309,7 @@ v0510_i32_min_div_overflow() {
     grep -qE 'PANIC: i32 div overflow: i32::MIN / -1' $NUC_VERIFY_RUN_LOG || return 1
 }
 
-# v0.5.12: probe-agent finding 2026-05-01-str-to-int-silent-zero-on-invalid.
+# v0.5.12: str_to_int silent-zero-on-invalid regression.
 # Lenient `str_to_int` returns 0 on parse failure (silent); strict
 # variant panics with a clean Nucleor message. Asserts non-zero rc
 # and stderr contains the strict-prefix.
@@ -6369,14 +6368,14 @@ step "T3.110 v0.4.66 NUC-FEEDBACK — mixed str/int arithmetic (TYP-011, also ca
 step "T3.111 v0.4.67 NUC-FEEDBACK — str ordering ops <, <=, >, >= ptr-compare (TYP-011)" t411_str_ord_pointer_guard
 step "T3.112 v0.4.68 NUC-FEEDBACK — Vec ordering ops <, <=, >, >= ptr-compare (TYP-011)" t412_vec_ord_pointer_guard
 step "T3.113 v0.4.69 NUC-FEEDBACK — '=' vs '==' typo guard in while/if conditions" t413_eq_typo_guard
-step "T3.114 v0.4.70 audit S1 — NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
+step "T3.114 v0.4.70 NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
 step "v0.6 E3 NUM-021 const integer expression overflow diagnostic" t_v06_const_overflow_diagnostics
-step "T3.115 v0.4.70 audit S10 — format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
-step "T3.116 v0.4.71 audit S1 — bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
+step "T3.115 v0.4.70 format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
+step "T3.116 v0.4.71 bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
 step "T3.117 v0.4.72 doc-#2 §5 — str_from_i64(i64) contract honesty (str_from_int kept as wrapper)" t417_str_from_i64_contract
-step "T3.118 v0.4.73 audit S2 — generic Option payload type propagates into match arm" t418_generic_option_payload_type
-step "T3.119 v0.4.73 audit S2 — generic Result payload type propagates into match arm" t419_generic_result_payload_type
-step "T3.120 v0.4.73 audit S2 — Vec element type propagates through index, vec_get, first" t420_vec_element_type_propagation
+step "T3.118 v0.4.73 generic Option payload type propagates into match arm" t418_generic_option_payload_type
+step "T3.119 v0.4.73 generic Result payload type propagates into match arm" t419_generic_result_payload_type
+step "T3.120 v0.4.73 Vec element type propagates through index, vec_get, first" t420_vec_element_type_propagation
 step "T3.121 v0.4.74 NUM-009 — division/remainder by literal zero (silent runtime SIGFPE → compile-time halt)" t421_div_by_literal_zero
 step "T3.122 v0.4.75 NUM-008 — shift amount out of range for i64 (LLVM poison → compile-time halt)" t422_shift_out_of_range
 step "T3.123 v0.4.76 NUM-018 — float literal in integer-typed binding (silent IEEE-bits-as-i64 → halt)" t423_float_in_int_context
@@ -6404,10 +6403,10 @@ step "T3.138 v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or
 step "T3.139 v0.4.93 — Result.or_else(f) recovery method" t439_result_or_else
 step "T3.140 v0.4.94 TYP-011 — s[i] on str halts (was silent vec_get on str pointer → OOB/garbage)" t440_str_index_halts
 step "T3.141 v0.4.95 — variable-divisor zero panics with clean message (was silent SIGFPE / exit 127)" t441_var_div_zero_runtime_panic
-step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002 (audit doc-#1 §10)" t442_format_struct_display_debug
-step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64> (audit doc-#1 §10b)" t443_recursive_debug
+step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002" t442_format_struct_display_debug
+step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64>" t443_recursive_debug
 step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<i64>>" t444_debug_vec_str_and_option
-step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
+step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens" t445_parse_primary_narrow_panic
 step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
 step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
 step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
@@ -6479,7 +6478,7 @@ step "v0.7.18 governance rod Phase 2a — AuthorRecord registry round-trip (RFC-
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 step "T1.8 self-host compiler IR fixed point" t18_self_host_compiler_fixed_point
 
-# PROBE-1 — real-world driver gate (PUNCHLIST PROBE-1).
+# PROBE-1 — real-world driver gate.
 # Exercises 8 nuc subcommands (build / build-then-run / test / check /
 # summary / explain / init / clean) against a ~30 LOC real-world program
 # (control flow + multi-arg fns + struct + Vec literal) instead of the
@@ -6487,33 +6486,27 @@ step "T1.8 self-host compiler IR fixed point" t18_self_host_compiler_fixed_point
 # fixture corpus. Designed to surface bug classes that hide behind
 # trivial fixtures (T2.5 / T2.1 latent OOB class, R1-R5 cloud bucket).
 #
-# Graduation history:
-#   v0846 (2026-05-07): added under `NUC_VERIFY_PROBE=1` opt-in.
-#   v0846 (2026-05-07, same day): graduated to default after Linux
-#       pair-validation (cloud findings/inbox/cloud_claude_probe1L_v0846_*)
-#       reported 8/8 probes PASS on native Linux; Windows already 8/8 PASS.
+# These probes now run by default after Windows and native Linux validation.
 real_world_probes() {
     bash "$ROOT/tests/probes/real_world/probe_runner.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/clean)" real_world_probes
 
-# PROBE-2 — multi-stage ML pipeline parity gate (PUNCHLIST PROBE-2).
+# PROBE-2 — multi-stage ML pipeline parity gate.
 # Exercises 4 end-to-end ML pipelines (DT classification, LinearRegression,
 # KMeans clustering, BernoulliNB text classification) against Python
 # references staged under tests/reference/ml/. Closes the credibility gap
-# the trivial-fixture audit (PROBE-3 self-audit + cloud PROBE-3L) flagged:
-# 120/120 ML parity claims were one-shot calls, not real-program-level
-# pipelines.
+# Real-program-level pipelines catch parity bugs that one-shot helper calls
+# miss.
 #
 # Per the no-fit-API design correction
-# (findings/inbox/ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md):
+# Design note:
 # Nucleor consumes pre-fitted parameters from the Python reference's
 # `params` section (Nucleor has no sklearn-compatible *_fit_* APIs);
 # parity boundary is on PREDICT-only.
 #
-# Graduation history:
-#   v0846 (2026-05-08): added under `NUC_VERIFY_ML_PROBE=1` opt-in.
-#       Pending Linux pair-validation before graduation to default.
+# This probe is opt-in until the ML reference environment is part of the
+# default release runner.
 ml_pipeline_probes() {
     if [ "${NUC_VERIFY_ML_PROBE:-0}" != "1" ]; then
         return 2

@@ -68,7 +68,7 @@ fn spike(timestamp_us: i64, neuron_id: i64) -> Spike {
     return Spike { timestamp_us: timestamp_us, neuron_id: neuron_id };
 }
 
-// v1.0.1 (audit-pass-1 integrator): borrow-form accessors / mutators.
+// Borrow-form accessors / mutators.
 fn spike_timestamp(s: &Spike) -> i64 { return s.timestamp_us; }
 fn spike_neuron(s: &Spike) -> i64 { return s.neuron_id; }
 

@@ -5,7 +5,7 @@
 | **Number** | 0014 |
 | **Title** | `#[max_depth = N]` — bounded recursion attribute |
 | **Status** | Implemented for v0.5 Track I, extended in the v0.6 max-depth analyzer pass. Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse on fn declarations; the compiler performs conservative structural depth analysis, preserves the RT-008 `#[deadline]` opt-out behavior, emits DEPTH-001..005 diagnostics, and rewrites accepted fns through a runtime depth counter that aborts with `error[DEPTH-003]` when the declared bound is exceeded. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
 | **Depends on** | RFC-0001 (RT attributes) |

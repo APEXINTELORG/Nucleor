@@ -1,7 +1,7 @@
 # Nucleor — Complete Feature Inventory
 
-**Version:** 1.0.0
-**Date:** 2026-05-08
+**Version:** 1.1.0
+**Date:** 2026-05-12
 **Scope:** Every shipping language feature, compiler subsystem, runtime helper, and standard-library rod in the Nucleor distribution. This document is the authoritative reference; the README is the marketing surface that points here.
 
 ---
@@ -10,14 +10,14 @@
 
 Nucleor is a **self-hosted systems language with an industrial scientific-computing runtime built in**. The compiler is ~50,000 lines of Nucleor source (`compiler/nucleor_s1_compiler.nr` + `compiler/nucleor_tools_suite.nr` + the new RFC-0063 shared-helpers files), rebuilds itself from a committed `.ll` seed in a few seconds, and emits LLVM IR linked through `clang` to a native binary.
 
-The standard library is **~250 rods** (`stdlib/rods/*.nr` — the modules you `import`) backed by **190 runtime C source files** (`stdlib/runtime/*_rt.c`). The full ABI surface — every helper the compiler can emit calls to — is **875 `__nucleor_*` symbols** organized into 17 effect-tagged classes.
+The standard library is about **290 rods** (`stdlib/rods/*.nr` — the modules you `import`) backed by the C runtime in `stdlib/runtime/`. The helper manifest currently tracks **910 `__nucleor_*` helper entries** organized into 17 effect-tagged classes.
 
 Nucleor's identity:
 
 - **Compact systems language with Rust-adjacent syntax.** Functions, structs, enums, traits, impls, generics, where-clauses, lifetimes, ownership, references, pattern matching, contracts, attributes, async/atomic/effect rows, type aliases, type-level units, modules.
 - **Self-hosted from day one.** No bootstrap language to keep in sync. The compiler IR fixed-point is checked on every commit (T1.8 verify gate).
 - **Real scientific-computing stack, not a toy.** Linear algebra (LU/QR/Cholesky/eigen/SVD), tensor decompositions (CP-ALS, TT-SVD), sparse solvers (CG/GMRES), FFT, signal processing, statistics, ODE/PDE/Bayesian/MCMC, control systems, full-state quantum simulator, robotics planning, modern ML (Mamba/RWKV/xLSTM/MoE/GNN), Black-Scholes + Greeks. Every rod is a real, tested API surface — not a stub.
-- **Memory safety as a first-class language guarantee.** All 11 RFC-0062 gates closed at hard-error severity in v1.0: borrow checking, single-input lifetime enforcement, IR-level use-after-drop, conditional-move tracking, definite-assignment flow analysis, heap-aliasing through Vec<&T>/HashMap mutation, Sendable closure propagation, FFI null contract, FFI bounds-check discipline, unsafe-block audit, effect annotations.
+- **Memory safety as a first-class language guarantee.** All 11 RFC-0062 gates are closed at hard-error severity in v1.1: borrow checking, single-input lifetime enforcement, IR-level use-after-drop, conditional-move tracking, definite-assignment flow analysis, heap-aliasing through Vec<&T>/HashMap mutation, Sendable closure propagation, FFI null contract, FFI bounds-check discipline, unsafe-block audit, effect annotations.
 - **Production-grade toolchain.** Self-host fixed-point gate, drift gates (helper manifest, rod manifest, RELEASES, CHANGELOG↔tag, parser-fn parity, version-label↔CHANGELOG), perf budget enforcement, mojibake-clean source enforcement, six-class compiler help-coverage check, real-world driver smoke (`PROBE-1`), 4-pipeline ML parity gate against sklearn (`PROBE-2`).
 
 ---
@@ -59,7 +59,7 @@ flowchart TD
 
 **Type-level units:** `units::meters(x)` — first-class type-level SI dimensions across mass / length / time / temperature / pressure / energy / force / frequency / voltage / current. Wrong-unit operations are TYP-* errors.
 
-### 2.2 Memory safety — RFC-0062 gates (all closed at v1.0)
+### 2.2 Memory safety — RFC-0062 gates (closed at v1.1)
 
 | Gate | Code | Phase shipped | Severity |
 |---|---|---|---|
@@ -188,7 +188,7 @@ flowchart LR
 | Lowering | AST → register/label IR, branch/loop/match lowering, closure lowering, auto-drop injection. |
 | Optimization | Constant folding, propagation, DCE, dead-store elimination, CSE, algebraic-law rewrite hook (RFC-0031), transitive-handoff recognition for kind-7 fn calls (closes the move-into-struct-field auto-drop bug class). |
 | Backend | LLVM IR emission, extern declarations, string constants, provenance section, clang invocation. |
-| Runtime interface | 875 `__nucleor_*` symbols across 17 effect-tagged classes. |
+| Runtime interface | 910 helper-manifest entries across 17 effect-tagged classes. |
 | Module handling | Import scanning, module-graph manifests/cache IDs, recursion depth protection. |
 
 ### 3.3 Optimization passes
@@ -215,7 +215,7 @@ flowchart LR
 - **Unsafe:** UNSAFE-G7-MISSING-ALLOW
 - **Effects:** EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW, EFFECT-G10-WRONG-ROW
 - **Realtime / embedded:** RT-001..010, CONTRACT-001..011, ASSUME-001..005, ATOMIC-001..006
-- **Audit-pass / build-summary visibility (Phase A warnings):** ALIAS-G3, OWN-012, FFI-NULL, FFI-DIRECT, SEND-G6, SEND-G6-CLOSURE, UNSAFE-G7
+- **Build-summary visibility (Phase A warnings):** ALIAS-G3, OWN-012, FFI-NULL, FFI-DIRECT, SEND-G6, SEND-G6-CLOSURE, UNSAFE-G7
 
 `nuc explain CODE` prints a full description of any diagnostic.
 
@@ -229,7 +229,7 @@ T1.7 + T1.8 verify gates:
 - T1.7: `nucleor build compiler/nucleor_s1_compiler.nr -o _seed_check` produces `target/_seed_check.ll` with sha256 matching `bootstrap/nucleor_s1_seed.ll`.
 - T1.8: `tools/check_self_host_md5.sh` builds stage1 from the seed binary, builds stage2 from stage1, verifies stage1.ll md5 == stage2.ll md5 == seed.ll md5.
 
-v1.0.0 fixed-point md5 = `e01aaf1a99c1580c396dec59aa9543ba`.
+The fixed-point check is executable, not hard-coded in this document: run `tools/check_self_host_md5.sh` to rebuild stage1/stage2 and compare the produced IR hash.
 
 ### 3.7 Drift gates
 
@@ -248,7 +248,7 @@ Plus a `compiler_version_label()` ↔ CHANGELOG.md latest heading parity check.
 
 ## 4. Runtime + ABI surface
 
-875 `__nucleor_*` runtime symbols organized into 17 effect-tagged classes (per `docs/rfcs/helper_manifest.toml`):
+910 helper-manifest entries organized into 17 effect-tagged classes (per `docs/rfcs/helper_manifest.toml`):
 
 | Class | Count | Purpose |
 |---|---|---|
@@ -269,7 +269,7 @@ Plus a `compiler_version_label()` ↔ CHANGELOG.md latest heading parity check.
 | **Random** | 13 | PRNG seeding + uniform/normal/poisson generators. |
 | **ControlFlow** | 6 | `contract_check`, `deadline_check`, `max_depth_*`, `unreachable!()`. |
 
-Every helper carries metadata: purity, panic class, allocation class, effect row. The 17-class taxonomy reached zero unclassified at v0.8.323 (RFC-0063 Phase 1 milestone) and remains tight through v1.0.
+Every helper carries metadata: purity, panic class, allocation class, effect row. The 17-class taxonomy reached zero unclassified at v0.8.323 (RFC-0063 Phase 1 milestone) and remains tight through v1.1.
 
 ---
 
@@ -486,7 +486,7 @@ Every helper carries metadata: purity, panic class, allocation class, effect row
 - **`onnx_facade`** — ONNX import/export.
 - **`parity_manifest`** — manifest for ML parity gates (used by PROBE-2).
 - **`port_facade`** — model porting tools.
-- **`probes`** — PROBE-2 4-pipeline parity gate (DT classification, linear regression, KMeans, BernoulliNB) — v1.0 ship.
+- **`probes`** — PROBE-2 4-pipeline parity gate (DT classification, linear regression, KMeans, BernoulliNB).
 - **`rod_registry_facade`** — rod-registry for ML pipelines.
 - **`sbom_facade`** — SBOM emission.
 - **`serve_facade`** — model serving substrate.
@@ -638,7 +638,7 @@ Every helper carries metadata: purity, panic class, allocation class, effect row
 | `nuc check <file>` | Run all checkers (ownership, type, source, taint, effect) without emitting code. |
 | `nuc explain <CODE>` | Print the full description of any diagnostic code. |
 | `nuc summary <file>` | Print a compilation summary (LOC, externs, helpers used, etc.). |
-| `nuc audit <file>` | Run audit-pass diagnostics (count Vec<&T> / extern fns / unsafe blocks / etc.). |
+| `nuc audit <file>` | Run static diagnostics (count Vec<&T> / extern fns / unsafe blocks / etc.). |
 | `nuc query <file>` | Query the AST / IR. |
 | `nuc impact <file>` | Compute call-graph impact analysis. |
 | `nuc policy <file>` | Apply rod-level policies. |
@@ -691,7 +691,7 @@ T1.8 Self-host compiler IR fixed point
 PROBE-1 Real-world drivers (`nuc build/run/test/check/summary/explain/init/clean`)
 PROBE-2 ML pipeline parity (DT + LR + KMeans + NB) — opt-in via `NUC_VERIFY_ML_PROBE=1`
 
-v1.0.0 verify result: PASS=1518 / SKIP=3 / FAIL=0 on Windows.
+v1.1.0 verify result: PASS=1653 / SKIP=9 / FAIL=0 on Windows. Linux hosted correctness gates are green; native Linux release-host transcripts remain a release evidence task when a pinned runner is available.
 
 ### 6.3 Strict verify (`tools/verify_strict.sh`)
 
@@ -739,27 +739,27 @@ Pending hardware availability for the CI gate. Source is portable; the bootstrap
 
 ---
 
-## 8. v1.0 ship summary
+## 8. v1.1 release summary
 
-**Released:** 2026-05-08
-**Self-host fixed-point md5:** `e01aaf1a99c1580c396dec59aa9543ba`
-**Verify totals (Windows):** PASS=1518 / SKIP=3 / FAIL=0
+**Released:** 2026-05-12
+**Self-host fixed-point:** checked by `tools/check_self_host_md5.sh`
+**Verify totals (Windows):** PASS=1653 / SKIP=9 / FAIL=0
 **Compiler size:** ~10,000 LOC s1 + ~12,000 LOC tools_suite + ~5,200 LOC RFC-0063 shared-helpers files (wave1 + wave2)
-**Stdlib:** ~250 rods (`stdlib/rods/*.nr`)
+**Stdlib:** about 290 rods (`stdlib/rods/*.nr`)
 **Runtime:** 190 C source files (`stdlib/runtime/*_rt.c`)
-**Helper ABI:** 875 `__nucleor_*` symbols across 17 effect-tagged classes
+**Helper ABI:** 910 helper-manifest entries across 17 effect-tagged classes
 **Memory safety:** all 11 RFC-0062 gates closed at hard-error severity (G-1 structural; G-2/4/8/11 from Q1-Q4; G-3/6 from R2; G-5/7/9 from R4; G-10 framework from R3)
 **Diagnostic codes:** 170+ with span-aware caret, namespaced by gap class
 **Test corpus:** ~1500 fixtures across `tests/{lang,attrs,runtime,rods,features,err,probes}/`
 **Effect vocabulary:** `frees`, `borrows_mut`, `may_return_null`, `direct_ffi`, `unsafe`
 
-See `CHANGELOG.md` for the full release notes and the cycle history of Phase A + Q1-Q5 + R1-R4 work that delivered v1.0.
+See `CHANGELOG.md` for the current public release notes.
 
 ---
 
-## 9. Roadmap (post-v1.0)
+## 9. Roadmap (post-v1.1)
 
-Documented residuals (the work that did NOT block v1.0 but is on the v1.x hardening track):
+Documented residuals on the v1.x hardening track:
 
 - **RFC-0063 waves 17+:** 69 SIG_MATCH_BODY_DIFFERS + 16 SIG_DIFFERS still in `tools_suite` — large-body fns and adapter-required call-site updates.
 - **6 drift-protected fns** intentionally left LOCAL in tools_suite (`get_rt_name`, `is_ptr_ret`, `is_ptr_arg`, `emit_externs`, `emit_user_externs`, `compiler_version_label`) — closing requires teaching `tools/check_compiler_drift.sh` to follow imports.
@@ -774,4 +774,4 @@ Documented residuals (the work that did NOT block v1.0 but is on the v1.x harden
 - **Real Quantum hardware integration** beyond the state-vector simulator (cloud-quantum APIs).
 - **Real-time GC tuning** for the auto-drop pass (currently a single-pass insertion at lowering).
 
-These are tracked in `docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md` §2A v1.0 ship status and `docs/rfcs/RFC-0063-production-readiness-roadmap.md`.
+These are tracked through the public issue tracker as they are promoted into the release plan.

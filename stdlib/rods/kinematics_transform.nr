@@ -1,5 +1,4 @@
-// rods/kinematics_transform — RFC-0046 Phase B / ROBO-7 v0845
-// typed transform facade.
+// rods/kinematics_transform — typed transform facade.
 //
 // Builds on `stdlib/rods/kinematics_frame.nr` (Frame_* marker
 // structs) and the existing handle-level pose math
@@ -8,12 +7,10 @@
 // compiler's TYP-008 / FRAME-001 frame-mismatch diagnostics across
 // composition, inversion, and pose application.
 //
-// Today the v0840 ROBO-7 Wave 2 compiler check enforces phantom
-// frame mismatches at let-bindings, fn-call argument positions,
-// struct-init, binop, return, and tail-return sites for Pose<F>;
-// v0845 lane 5 / queue 5A confirms the same multi-param phantom
-// support at TWO frame parameters via empirical probe (see
-// findings/inbox/main_lane5_5A_typed_transform_facade_v0845_2026-05-07.md).
+// The compiler enforces phantom frame mismatches at let-bindings,
+// fn-call argument positions, struct-init, binop, return, and
+// tail-return sites for Pose<F>. The typed-transform fixture also
+// covers multi-param phantom support across two frame parameters.
 //
 // Design note: the underlying `Transform` struct has no generic
 // parameters — the From/To phantoms are compile-time only.

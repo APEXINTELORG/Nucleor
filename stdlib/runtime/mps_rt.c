@@ -145,8 +145,8 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
     int negative_clamps = 0;
 
     // Step 1: Compute A = M^H * M [n x n], Hermitian positive semi-definite
-    double *A_re = (double *)calloc(n * n, sizeof(double));
-    double *A_im = (double *)calloc(n * n, sizeof(double));
+    double *A_re = (double *)calloc((size_t)n * n, sizeof(double));
+    double *A_im = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) {
             double re = 0, im = 0;
@@ -163,8 +163,8 @@ static void simple_svd(double *M_re, double *M_im, int m, int n, int max_k,
 
     // Step 2: Jacobi eigendecomposition of Hermitian A
     // V starts as identity
-    double *V_re = (double *)calloc(n * n, sizeof(double));
-    double *V_im = (double *)calloc(n * n, sizeof(double));
+    double *V_re = (double *)calloc((size_t)n * n, sizeof(double));
+    double *V_im = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n; i++) V_re[i * n + i] = 1.0;
 
     // Jacobi sweeps: rotate off-diagonal elements to zero
@@ -363,8 +363,8 @@ void nuc_mps_gate_2q(long long handle, long long q_val, double *gate_4x4_re, dou
 
     // Reshape theta2 to matrix M[bl*2, 2*br] for SVD
     int M_rows = bl * 2, M_cols = 2 * br;
-    double *M_re = (double *)calloc(M_rows * M_cols, sizeof(double));
-    double *M_im = (double *)calloc(M_rows * M_cols, sizeof(double));
+    double *M_re = (double *)calloc((size_t)M_rows * M_cols, sizeof(double));
+    double *M_im = (double *)calloc((size_t)M_rows * M_cols, sizeof(double));
     for (int l = 0; l < bl; l++)
         for (int s0 = 0; s0 < 2; s0++)
             for (int s1 = 0; s1 < 2; s1++)
@@ -378,11 +378,11 @@ void nuc_mps_gate_2q(long long handle, long long q_val, double *gate_4x4_re, dou
 
     // SVD: M = U * S * Vt
     int new_bond;
-    double *U_re = (double *)calloc(M_rows * mps->max_bond, sizeof(double));
-    double *U_im = (double *)calloc(M_rows * mps->max_bond, sizeof(double));
+    double *U_re = (double *)calloc((size_t)M_rows * mps->max_bond, sizeof(double));
+    double *U_im = (double *)calloc((size_t)M_rows * mps->max_bond, sizeof(double));
     double *S = (double *)calloc(mps->max_bond, sizeof(double));
-    double *Vt_re = (double *)calloc(mps->max_bond * M_cols, sizeof(double));
-    double *Vt_im = (double *)calloc(mps->max_bond * M_cols, sizeof(double));
+    double *Vt_re = (double *)calloc((size_t)(mps->max_bond) * M_cols, sizeof(double));
+    double *Vt_im = (double *)calloc((size_t)(mps->max_bond) * M_cols, sizeof(double));
 
     int svd_converged = 0;
     int svd_sweeps = 0;
@@ -670,17 +670,17 @@ long long nuc_mps_expect_z(long long handle, long long q_val) {
     // Contract from left: env_re[l][l'] + i*env_im[l][l']
     // Start with identity: env[0][0] = 1
     int max_b = mps->max_bond > MPS_MAX_BOND ? MPS_MAX_BOND : mps->max_bond;
-    double *env_re = (double *)calloc(max_b * max_b, sizeof(double));
-    double *env_im = (double *)calloc(max_b * max_b, sizeof(double));
-    double *tmp_re = (double *)calloc(max_b * max_b, sizeof(double));
-    double *tmp_im = (double *)calloc(max_b * max_b, sizeof(double));
+    double *env_re = (double *)calloc((size_t)max_b * max_b, sizeof(double));
+    double *env_im = (double *)calloc((size_t)max_b * max_b, sizeof(double));
+    double *tmp_re = (double *)calloc((size_t)max_b * max_b, sizeof(double));
+    double *tmp_im = (double *)calloc((size_t)max_b * max_b, sizeof(double));
     env_re[0] = 1.0; // bond[0]=1, so env is 1x1
 
     for (int i = 0; i < n; i++) {
         int bl = mps->bond[i];
         int br = mps->bond[i + 1];
-        memset(tmp_re, 0, br * br * sizeof(double));
-        memset(tmp_im, 0, br * br * sizeof(double));
+        memset(tmp_re, 0, (size_t)br * br * sizeof(double));
+        memset(tmp_im, 0, (size_t)br * br * sizeof(double));
 
         // For each physical index s (0 or 1):
         // op_val = (i == q) ? (s == 0 ? +1.0 : -1.0) : 1.0
@@ -890,7 +890,7 @@ long long nuc_mps_statevector_range(long long handle, long long start_basis_, lo
 }
 
 // =====================================================
-// QM-6 Phase 2e bounded streaming-range folds (v0842)
+// Bounded streaming-range folds.
 // =====================================================
 //
 // These fold a basis-range scan into a single scalar without

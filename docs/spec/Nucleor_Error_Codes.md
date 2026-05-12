@@ -198,11 +198,11 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 
 | Code | Title | RFC section | Status |
 |---|---|---|---|
-| FRAME-001 | Cannot combine values in different coordinate frames | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md), [RFC-0046](../rfcs/RFC-0046-coordinate-frame-types.md) | LIVE — fires at let-binding, call-argument, struct/tuple init, assignment, return, and binop sites for `Pose<Frame_X>`-style phantom-tag mismatches (ROBO-7 Phase B step-3, v0840 repair) |
+| FRAME-001 | Cannot combine values in different coordinate frames | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md), [RFC-0046](../rfcs/RFC-0046-coordinate-frame-types.md) | LIVE — fires at let-binding, call-argument, struct/tuple init, assignment, return, and binop sites for `Pose<Frame_X>`-style phantom-tag mismatches |
 | FRAME-002 | Transform composition mismatch | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) | RESERVED — fires once `Transform<From, To>` parses/type-checks |
 | FRAME-003 | Cannot apply transform to value in incompatible frame | [RFC-0003 §3.3](../rfcs/RFC-0003-typed-frames.md) | RESERVED — fires once `transform()` call sites are wired |
 
-**FRAME-001 firing surface (v0840 repair, ROBO-7 Phase B step-3):**
+**FRAME-001 firing surface:**
 The type-check pass detects two types whose first generic arguments
 carry distinct `Frame_*` phantom tags on matching base names (e.g.
 `Pose<Frame_Camera>` vs `Pose<Frame_Base>`) and emits
@@ -221,7 +221,7 @@ Negative coverage: `tests/err/err_robo7_frame_mismatch.nr` plus
 the `tests/err/err_robo7_frame_*_mismatch.nr` site-specific
 fixtures.
 
-v0841 stdlib migration coverage: `stdlib/rods/kinematics.nr` exposes
+Stdlib migration coverage: `stdlib/rods/kinematics.nr` exposes
 an adopter-facing `Pose<Frame_*>` facade and explicit
 `kinematics_transform*` helpers over the existing pose math handles.
 Positive coverage:
@@ -401,7 +401,7 @@ surface through `TYP-003`, `TYP-007`, and `TYP-008`, while
 | MATCH-013 | Float scrutinee or float-literal pattern in `match` is unsupported | [RFC-0023 §3.7](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-014 | Negative literal range-pattern bounds are unsupported; use a guard | [RFC-0023 §3.1](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-015 | Negative literal pattern in match arm is unsupported; use a guard | [RFC-0023 §3.1](../rfcs/RFC-0023-pattern-matching.md) |
-| MATCH-016 | Cross-enum pattern: scrutinee enum type does not match constructor's enum type | [RFC-0062 G-1](../rfcs/RFC-0062-memory-safety-gap-analysis.md) |
+| MATCH-016 | Cross-enum pattern: scrutinee enum type does not match constructor's enum type | RFC-0062 G-1 memory-safety gate |
 
 ## COLL series — RFC-0017 collections
 
@@ -576,11 +576,10 @@ addition in:
    `cli_explain_full_smoke` step exercises every code in its
    array; a missing explain-registry entry surfaces as an
    immediate gate failure.
-6. **Update consumer docs** — `NUCLEOR_BOOTSTRAP_CONTRACT.md`
-   names the spec catalog count ("161-code spec catalog");
-   `docs/milestones/v0.2.0.md` Status header names the count
-   too. Bump both when the count changes. (`tools/check_compiler_drift.sh`
-   does NOT enforce this, so it's a reviewer responsibility.)
+6. **Update consumer docs** — keep this spec, `docs/language-reference.md`,
+   and the `nuc explain` help coverage in sync when the catalog changes.
+   `tools/check_compiler_drift.sh` does not enforce the prose count, so
+   this remains a reviewer responsibility.
 
 Codes that fire from the s1 compiler proper (`nucleor_s1_compiler.nr`)
 follow the same recipe — the compiler ABI tables don't track
@@ -588,8 +587,7 @@ diagnostic codes (only `__nucleor_*` symbols), so a new code
 added there only changes step 2's source file (the explain
 registry still lives in the tools-suite, since that's what
 backs `nuc explain`). The 2-iteration LLVM IR fixed-point
-check from `NUCLEOR_BOOTSTRAP_CONTRACT.md` applies whenever
-the s1 source is touched.
+check from `bootstrap/README.md` applies whenever the s1 source is touched.
 
 ## Suppression
 
@@ -623,7 +621,5 @@ before stripping the line — Rust-style attributes are kept
 intact for the diag-filter to scan.
 
 **Planned v0.4 design:** per-fn / per-block scoping for
-`#[allow]` / `#[deny]`; build-profile suppression. Some codes
-(safety-cert subset — see
-`docs/process/nucleor-safe-subset.md`) will not be
-suppressible in `--profile=cert` mode.
+`#[allow]` / `#[deny]`; build-profile suppression. Safety-cert
+diagnostics are not suppressible in `--profile=cert` mode.

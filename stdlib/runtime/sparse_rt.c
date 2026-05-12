@@ -232,7 +232,7 @@ long long nuc_sp_gmres(long long ah, long long bh, long long tol_bits) {
     // Arnoldi basis V[m+1][n], Hessenberg H[m+1][m]
     double **V = (double **)malloc((m + 1) * sizeof(double *));
     for (int i = 0; i <= m; i++) V[i] = (double *)calloc(n, sizeof(double));
-    double *H = (double *)calloc((m + 1) * m, sizeof(double));
+    double *H = (double *)calloc((size_t)(m + 1) * m, sizeof(double));
     double *cs = (double *)calloc(m, sizeof(double));
     double *sn = (double *)calloc(m, sizeof(double));
     double *g = (double *)calloc(m + 1, sizeof(double));

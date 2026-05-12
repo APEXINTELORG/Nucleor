@@ -414,7 +414,7 @@ fn lex(src: str) -> Vec<i32> {
             && ((p + 6 < slen && str_eq_at(src, p, "#cfile") == 1)
                 || (p + 5 < slen && str_eq_at(src, p, "#link") == 1)
                 || (p + 8 < slen && str_eq_at(src, p, "#libpath") == 1)) {
-            // v1.0.1 (audit-pass-1 integrator): native-link directives
+            // v1.0.1: native-link directives
             // `#cfile "..."`, `#link <ident>`, `#link_windows "..."`,
             // `#libpath "..."`. Pre-Lane-4 the lexer's silent-skip
             // accidentally tolerated these lines (the leading `#` got
@@ -2707,7 +2707,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool, tok_pos_at(tokens, pos)); return r; };
     // v0.8.321 R05-D3: block-form `restricts [...] { ... }` was a
     // parse-time fail-closed halt while no real enforcement existed.
-    // v0.8.323 R05 Phase 2b first slice (local-claude v0840): the
+    // R05 Phase 2b first slice: the
     // block form now parses as a passthrough block expression and the
     // source-level pre-pass `enforce_restricts_block_effects`
     // (registered alongside `enforce_requires_direct_calls` in the
@@ -2877,7 +2877,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // `expected backtick { backtick, got backtick ; backtick`
             // panic (after v0.4.208's token-name table; raw IDs pre-v0.4.208).
             // Same uppercase guard family as v0.3.114 for shorthand.
-            // Closes findings/inbox/2026-04-30-empty-match-body-panic.md
+            // Regression: empty match body panic.
             // — the empty match body now parses correctly with zero arms,
             // surfacing later as MATCH-001 if rtype-checked or running to
             // exit cleanly with no arm matched (intentional).
@@ -3029,7 +3029,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             return pr(cp, mk3(pool, 42, mk_list(pool, cparams), mk_list(pool, rbody)));
         };
     };
-    // v0.4.99 audit doc-#1 §_p (parse_primary close): pragmatic
+    // v0.4.99 parse_primary close: pragmatic
     // narrow-predicate approach. Pre-fix the fall-through silently
     // returned `int_lit(0)` and advanced past the unhandled token
     // for ALL tokens — including ones like `@` (binding pattern)
@@ -3242,7 +3242,7 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "raw") == 1 {
             print("ERROR: raw-ref syntax `&raw const` / `&raw mut` is not in the V1 language surface.");
             print("       Workaround: use `&expr` (shared ref) or `&mut expr` (mutable ref).");
-            print("       See RFC_v1_FORWARD_ROADMAP.md if you need raw pointers (tracked separately).");
+            print("       Raw pointer support is tracked separately from the safe subset.");
             panic("v0.7.14: &raw ref unsupported");
         };
         if pk(tokens, cp) == 12 { is_mut = 1; cp = cp + 1; };
@@ -3786,7 +3786,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         // monomorphic version regardless of bound — so the bound is
         // semantically a no-op at the IR level. Skip past `:` and
         // discard the bound expression up to the next `,` or `>`.
-        // Closes audit doc-#1 §8 (parse-side). A future bound-enforcing
+        // Parse-side trait-bound surface. A future bound-enforcing
         // pass would consume + record these bounds; for now they parse
         // cleanly and the binary behaves as if the bound were omitted
         // (already validated: `<T>(a: T, b: T) -> T { a + b }` works).
@@ -4813,7 +4813,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // silent miscompute via lost first arg, no diagnostic. Catch
         // at parse time: every preceding param must have a different
         // name. Linear scan; param lists are small in practice.
-        // Closes findings/inbox/2026-04-30-dup-fn-param-name-silent-shadow.md.
+        // Regression: duplicate fn parameter name silent shadow.
         let mut dup_check_i: i64 = 0;
         while dup_check_i < vec_len(params) {
             let prior_pid: i64 = vec_get(params, dup_check_i);
@@ -5061,8 +5061,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print(str_concat("error[NR036]: recursive type `", str_concat(name, str_concat("` has infinite size — field `", str_concat(fn2, str_concat("` is itself a `", str_concat(name, "` (containing itself directly).")))))));
             print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. Pre-v0.6.36 Nucleor accepted the declaration and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD). v0.6.36 catches the recursion at parse-time.");
             print(str_concat("  Workaround: wrap the recursive field in `Box<", str_concat(name, str_concat(">` (heap-indirection, single-element list shape), or `Option<Box<", str_concat(name, str_concat(">>` (linked-list / tree shape with terminator), or `&", str_concat(name, "` (advisory until borrow lowering of recursive structs lands).")))))));
-            // Lane 1 audit fix (2026-05-08) — partial close of F-026.
-            // v1.0.1 audit-pass-1 integrator: F-026 trailing-PANIC line
+            // F-026 trailing-PANIC line
             // closure. Lane 1 staged __nucleor_diag_exit; this bootstrap
             // iteration wires the call site to suppress the PANIC: prefix
             // and exit(1) cleanly after the NR036 diagnostic.
@@ -6609,7 +6608,7 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         //
         // v0.3.103: Fold bitwise: and(13), or(14), xor(15).
         //
-        // v1.1.0 audit pass 1 / C-004: fold through the same bitwise
+        // v1.1.0: fold through the same bitwise
         // operators that lowering emits. The old self-host emulation used
         // division-based LSB extraction and had to skip negative operands;
         // that kept runtime results correct but left the fold path
@@ -6640,7 +6639,7 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
 // --- Pass 2: Dead Code Elimination ---
 // Removes instructions whose dest register is never used by any later instruction.
 // Side-effecting ops (store, call, ret, br, br_cond, alloca) are never removed.
-// v0.8.41 RFC-0062 G-1: HANDOFF — `new_insts` is stored INTO
+// Ownership transfer: `new_insts` is stored INTO
 // `blk` via `vec_set(blk, 1, new_insts)`. Default-flip auto-drop
 // would dangle blk's instruction pointer.
 #[manual_drop]
@@ -6759,7 +6758,7 @@ fn opt_prop_block(blk: Vec<i32>) -> i64 {
 
 // --- Pass 4: Dead Store Elimination ---
 // Removes stores that are overwritten before being read within the same block.
-// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+// Ownership transfer: same pattern as opt_dce_block.
 #[manual_drop]
 fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
     let insts: Vec<i32> = vec_get(blk, 1);
@@ -6811,7 +6810,7 @@ fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
 // --- Pass 5: Common Subexpression Elimination ---
 // Deduplicates identical pure computations within a block.
 // When a duplicate is found, rewrites all uses of its dest to the original dest.
-// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+// Ownership transfer: same pattern as opt_dce_block.
 #[manual_drop]
 fn opt_cse_block(blk: Vec<i32>) -> i64 {
     let insts: Vec<i32> = vec_get(blk, 1);
@@ -6896,7 +6895,7 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 
 // R14-D2 Phase 1 (v0.8.265) — metadata-only law-rewrite pass (no-op).
 //
-// Per audit `BUILD_PLAN_R14_algebraic_laws.md` §1 R14-D2 (HIGH):
+// Algebraic-law canonicalization:
 // the optimizer must have a slot for law-aware rewrites that ONLY
 // fires under a proof flag. Phase 1 ships the pass-list slot as a
 // no-op; Phase 2 wires law metadata (stored at @law lex-capture +
@@ -6919,7 +6918,7 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 // Rollback: replace opt_fn's call to opt_law_rewrite_block with a
 // no-op (0) and keep this fn definition in place for future phases.
 
-// v0845 Lane 4 / Queue 4A: explicit Phase-2 proof sentinel. Future
+// Explicit phase-2 proof sentinel. Future
 // rewrite logic in `opt_law_rewrite_block` MUST consult this before
 // applying any law metadata. Phase 1 returns 0 unconditionally so the
 // no-op contract is locked at the IR level too — even if a Phase-2
@@ -6939,7 +6938,7 @@ fn law_opt_phase2_proof_validated(fn_law_id: i64) -> i64 {
 
 #[manual_drop]
 fn opt_law_rewrite_block(blk: Vec<i32>) -> i64 {
-    // v0845 Lane 4 / Queue 4A: explicit IR-level fail-closed guard.
+    // Explicit IR-level fail-closed guard.
     // Even though the body below is empty, future Phase 2 logic must
     // pass through this guard. Until `law_opt_phase2_proof_validated`
     // returns 1, no rewrites fire.
@@ -7037,7 +7036,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
     if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
     if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
-    // Lane 2 fix (audit G5-P-1, 2026-05-08): `ptr_is_null` is the
+    // `ptr_is_null` is the
     // prescribed remediation in the FFI-G5-NULL-DEREF diagnostic
     // text but the function was not defined anywhere in stdlib —
     // adopters who followed the diagnostic's advice got a
@@ -7069,7 +7068,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
     if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
     if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
-    // v0.4.97: recursive Debug formatters (audit doc-#1 §10b).
+    // v0.4.97: recursive Debug formatters.
     if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
     if str_eq(name, "vec_to_debug_str_str") { return "__nucleor_vec_to_debug_str_str"; };
     if str_eq(name, "vec_to_debug_str_option_i64") { return "__nucleor_vec_to_debug_str_option_i64"; };
@@ -8478,14 +8477,13 @@ fn escape_llvm_str(s: str) -> str {
 // =====================================================
 #[manual_drop]
 fn emit_cmp(sb: i64, cn: str, d: i64, a: i64, b: i64) -> i64 {
-    // 2026-05-03 perf-audit-round-2 experiment: tried adding an
+    // Perf experiment: tried adding an
     // `sb_append_int` runtime helper that writes int digits directly
     // into the SB buffer (eliminates the str_from_int malloc).
     // Wall-time delta on this site was within the natural variance
     // band (~0.4s spread on cold runs). Peak-mem dropped ~25 MB but
-    // the audit wasn't worth the runtime helper + ABI surface.
-    // Reverted; helper removed. See Desktop/Nucleor_PERF_AUDIT_2026-
-    // 05-03_round2.md for the full audit ledger.
+    // the change wasn't worth the runtime helper + ABI surface.
+    // Reverted; helper removed.
     sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
     sb_append(sb, ".cmp = icmp "); sb_append(sb, cn);
     sb_append(sb, " i64 %r."); sb_append(sb, str_from_int(a));
@@ -8893,7 +8891,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
     sb_append(sb, "declare ptr @__nucleor_vec_with_capacity(i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
-    // Lane 2 fix (audit G5-P-1): ptr_is_null intrinsic.
+    // ptr_is_null intrinsic.
     sb_append(sb, "declare i64 @__nucleor_ptr_is_null(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
@@ -9829,7 +9827,7 @@ fn emit_externs() -> str {
     return sb_to_str(sb);
 }
 
-// v0.6.70 perf-slice extension (B4 punchlist — string constant pool
+// v0.6.70 perf-slice extension (string constant pool
 // dedup): when adding a string literal to strtab, return the existing
 // index if the string was already added. Significantly shrinks the
 // .ll output and reduces clang link time on programs with repeated
@@ -10309,7 +10307,7 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
                         print(str_concat("  `", str_concat(type_name_v060, str_concat("` has two impls defining `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
                         print(str_concat("  Workaround until full UFCS lands: rename one trait's method (e.g. `", str_concat(method_name_v060, str_concat("_v1` / `", str_concat(method_name_v060, "_v2`), or split the impls across distinct concrete types so the mangled symbols differ."))))));
                         print("  This is Rust's E0034 \"multiple applicable items in scope\" territory — the long-term fix is UFCS disambiguation `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't yet support that surface (forward-roadmap).");
-                        // v1.0.1 (audit-pass-1 integrator) F-019 closure:
+                        // v1.0.1 F-019 closure:
                         // route through __nucleor_diag_exit so the trailing
                         // "PANIC:" line is suppressed in favor of a clean
                         // exit(1). The runtime helper was staged by Lane 1;
@@ -10721,7 +10719,7 @@ fn iter_method_for_vec(mname: str) -> i64 {
     if str_eq(mname, "skip") == 1 { return 1; };
     if str_eq(mname, "any") == 1 { return 1; };
     if str_eq(mname, "all") == 1 { return 1; };
-    // v0.4.101: `.chain` (audit doc-#1 §6 partial). Routes to
+    // v0.4.101: `.chain`. Routes to
     // vec_chain_i64 runtime helper.
     if str_eq(mname, "chain") == 1 { return 1; };
     // v0.4.125: extended iter surface — position/product/step_by/
@@ -10974,7 +10972,7 @@ fn frame_mismatch_diag_message(action: str, expected: str, actual: str) -> str {
 }
 
 // v0.5.13: gparam-binding extraction + substitution for generic-fn
-// return-type inference. Closes probe-agent finding
+// return-type inference regression.
 // 2026-05-01-generic-T-propagation-spsc-option-str.
 //
 // Pre-fix: the kind-7 call type-check at line 14413 returned
@@ -12293,7 +12291,7 @@ fn is_known_diag_code(code: str) -> i64 {
     // join points.
     if str_eq(code, "INIT-G11-READ-BEFORE-INIT") == 1 { return 1; };
     // RFC-0062 G-3 Phase 3 — heap-aliasing per-fn analysis. Promotes
-    // the v0827 / v0830 textual audit-pass (build-summary count) to
+    // the earlier textual build-summary count to
     // per-call-site error in `check_expr` kind-7. ALIAS-G3-VEC-OF-REFS
     // fires when `vec_push` / `vec_insert` lands on a binding declared
     // as `Vec<&T>` (pushing a borrow into a Vec hides aliasing from
@@ -12303,18 +12301,18 @@ fn is_known_diag_code(code: str) -> i64 {
     // the same map binding (rehash invalidates held references).
     if str_eq(code, "ALIAS-G3-VEC-OF-REFS") == 1 { return 1; };
     if str_eq(code, "ALIAS-G3-HASHMAP-REHASH") == 1 { return 1; };
-    // Lane 2 (audit G10-A-1): unknown effect-name detection.
+    // Unknown effect-name detection.
     // Pre-fix `#[effect(banana)]` silently dropped `banana` —
     // typos like `may_retrun_null` lost the intended constraint.
     if str_eq(code, "EFFECT-G10-UNKNOWN-NAME") == 1 { return 1; };
-    // Lane 2 (audit G9-FN-1 / G10-Cliff): info-level disclosure of
+    // Info-level disclosure of
     // the effect-framework opt-in cliff. Fires when source carries
     // the explicit `#[disclose_effects_status]` outer attribute and
     // has no opt-in `#[effect(...)]` / `#[allow_effect(...)]`
     // attribute anywhere, telling adopters the entire G-5/G-7/G-9/
     // G-10 framework is inactive for this TU.
     if str_eq(code, "EFFECT-G10-OPT-IN-CLIFF") == 1 { return 1; };
-    // Lane 2 (audit F-CONC-001): opaque concurrency-handle
+    // Opaque concurrency-handle
     // construction guard. Forbids struct-literal construction
     // of AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 /
     // AtomicBool from outside the rod's constructor fns —
@@ -12324,7 +12322,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "CONC-G6-OPAQUE-HANDLE") == 1 { return 1; };
     // RFC-0062 G-6 Phase 3 — Sendable per-call-site classification at
     // spawn boundaries (`thread_spawn` / `async_spawn` / `conc_spawn`).
-    // Promotes the v0833 / v0836 textual audit-pass (build-summary
+    // Promotes the earlier textual build-summary
     // count) to per-call-site error in `check_expr` kind-7. The
     // existing RACE-001 textual pre-pass continues to fire for plain
     // non-Sendable struct args; the codes below are more specific
@@ -12753,7 +12751,7 @@ fn rt_string_vec_append_unique(v: Vec<i32>, extra: Vec<i32>) -> i64 {
 }
 
 #[manual_drop]
-// v0842 R05 RFC-0033 row-subtyping bridge (local-claude). Pre-v0842
+// R05 RFC-0033 row-subtyping bridge.
 // this was a whole-header word search that false-positived on any
 // occurrence of `effect_name` outside the `with [...]` row — e.g.
 // a parameter or type name `Alloc` made the fn look Alloc-effecting
@@ -12934,7 +12932,7 @@ fn requires_transitive_missing(row: str, body: str, table: Vec<i32>, depth_remai
         let callee: str = vec_get(calls, ci);
         if name_in_vec(visited, callee) == 0 {
             let callee_row: str = lookup_fn_row_in_table(table, callee);
-            // v0845 Lane 2 / Queue 2B: same ambiguity fail-open as in
+            // Same ambiguity fail-open as in
             // `restricts_transitive_check` and `enforce_requires_direct_calls`.
             // For shared method names with distinct rows, skip the row check
             // and fall through to the body walk (when depth allows).
@@ -12992,7 +12990,7 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                 if str_len(caller_row) > 0 {
                     let direct_missing: str = requires_body_direct_missing(caller_row, body);
                     if str_len(direct_missing) > 0 {
-                        let msg0: str = str_concat("body of `", str_concat(fn_name, str_concat("()` uses effect `", str_concat(direct_missing, "` but its `requires [...]` row does not declare that effect (audit R05-D6 v0844)"))));
+                        let msg0: str = str_concat("body of `", str_concat(fn_name, str_concat("()` uses effect `", str_concat(direct_missing, "` but its `requires [...]` row does not declare that effect"))));
                         let lc0: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg0, fn_name, vec_get(lc0, 0), vec_get(lc0, 1), "");
                         emitted = 1;
@@ -13003,7 +13001,7 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                 while ti + 2 < tn && emitted == 0 {
                     let callee: str = vec_get(table, ti);
                     let callee_row: str = vec_get(table, ti + 1);
-                    // v0845 Lane 2 / Queue 2B: skip ambiguous-name callees.
+                    // Skip ambiguous-name callees.
                     // Source-text substring search can't pick which impl a
                     // receiver-typed call resolves to; failing open here
                     // avoids false-positive EFF-001 on the un-rowed impl
@@ -13014,7 +13012,7 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                         if str_contains(body, pat) == 1 {
                             let missing: str = effect_row_first_missing(caller_row, callee_row);
                             if str_len(missing) > 0 {
-                                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(missing, str_concat("` but `", str_concat(fn_name, "` does not declare that effect in `requires [...]` (audit R05-D3 v0.8.323)"))))));
+                                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(missing, str_concat("` but `", str_concat(fn_name, "` does not declare that effect in `requires [...]`"))))));
                                 let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                                 diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                                 emitted = 1;
@@ -13026,7 +13024,7 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                 if emitted == 0 && str_len(caller_row) > 0 {
                     let mut visited: Vec<i32> = Vec::new();
                     visited.push(fn_name);
-                    // v0845 Lane 2 / Queue 2A: bump from depth=3 to depth=8 to
+                    // Bump from depth=3 to depth=8 to
                     // match `restricts_transitive_check`'s bound. Visited-set
                     // dedup already gives O(N) termination per chain, so the
                     // wider hop budget closes the silent fall-through where a
@@ -13037,7 +13035,7 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
                     // clean at depth=3; rebuilds with EFF-001 at depth=8.
                     let trans_missing: str = requires_transitive_missing(caller_row, body, table, 8, visited);
                     if str_len(trans_missing) > 0 {
-                        let msg2: str = str_concat("call chain from `", str_concat(fn_name, str_concat("()` reaches effect `", str_concat(trans_missing, "` but its `requires [...]` row does not declare that effect (audit R05-D6 v0845 transitive)"))));
+                        let msg2: str = str_concat("call chain from `", str_concat(fn_name, str_concat("()` reaches effect `", str_concat(trans_missing, "` but its `requires [...]` row does not declare that effect"))));
                         let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
                     };
@@ -13677,7 +13675,7 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // case is "no opt-in" so this keeps the existing verify budget
     // intact.
     //
-    // Lane 2 fix (audit G9-FN-1, G10-Cliff): pre-fix the silent
+    // Pre-fix the silent
     // early-return left adopters with `gates off` as the implicit
     // default for unannotated source — the headline claim
     // "RFC-0062 closed all 11 G-gates at hard-error severity in
@@ -13705,7 +13703,7 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // unrelated fns don't trip on their leaf vec_free / hashmap_free
     // calls.
     if vec_len(decls) == 0 && vec_len(allows) == 0 { return diags; };
-    // Lane 2 fix (audit G10-A-1): unknown effect-name detection.
+    // Unknown effect-name detection.
     // Pre-fix, `#[effect(frees, banana)]` silently dropped `banana`
     // because the per-fn loops gated on `g10_attr_known_effect(eff)
     // == 1`. Typos like `may_retrun_null` were lost — the runtime
@@ -13852,7 +13850,7 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
-// v0.8.323 R05 Phase 2b first slice (local-claude v0840). Minimum
+// R05 Phase 2b first slice. Minimum
 // builtin → effect map for direct restricts-block enforcement.
 // Covers the print-family I/O surface (io.write), the byte input
 // builtin (io.read), and the channel constructor (sync). Returns
@@ -14046,13 +14044,13 @@ fn lookup_fn_row_in_table(table: Vec<i32>, name: str) -> str {
     return "";
 }
 
-// v0845 Lane 2 / Queue 2B: returns 1 iff multiple table entries share
+// Returns 1 iff multiple table entries share
 // `name` AND have distinct `requires [...]` rows. Source-text effect
 // enforcement walks the resolved single source via substring match
 // (`callee(`), which catches `obj.method(...)` call sites accidentally
 // because `.method(` contains `method(`. That accidental coverage made
 // same-file method/impl effect enforcement empirically work for the
-// unique-method-name cases (Queue 2B handoff §minimum-fixture set:
+// unique-method-name cases (method-effect fixture set:
 // row mismatch, body builtin transitive, restricts block reaching
 // method I/O — all already fire EFF-001/EFF-003).
 //
@@ -14162,7 +14160,7 @@ fn restricts_transitive_check(deny_row: str, body: str, table: Vec<i32>, depth_r
                 ri = ri + 3;
             };
             if callee_in_table == 1 {
-                // v0845 Lane 2 / Queue 2B: when the callee name is shared by
+                // When the callee name is shared by
                 // multiple impls/fns with distinct rows, the substring-search
                 // approach can't pick which impl a receiver-typed call site
                 // resolves to. Fail-open on the row check (skip the
@@ -14285,7 +14283,7 @@ fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                             let mut emitted: i64 = 0;
                             let body_eff: str = restricts_body_builtin_effect(deny_row, body);
                             if str_len(body_eff) > 0 {
-                                let msg: str = str_concat("block body uses builtin effect `", str_concat(body_eff, str_concat("` denied by `restricts [", str_concat(deny_row, "]` (audit R05-D4 v0.8.323)"))));
+                                let msg: str = str_concat("block body uses builtin effect `", str_concat(body_eff, str_concat("` denied by `restricts [", str_concat(deny_row, "]`"))));
                                 let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
                                 diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
                                 emitted = 1;
@@ -14298,7 +14296,7 @@ fn enforce_restricts_block_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
                                 let mut visited: Vec<i32> = Vec::new();
                                 let trans_hit: str = restricts_transitive_check(deny_row, body, table, 8, visited);
                                 if str_len(trans_hit) > 0 {
-                                    let msg: str = str_concat("block uses effect `", str_concat(trans_hit, str_concat(" denied by `restricts [", str_concat(deny_row, "]` (audit R05-D6 v0843 transitive)"))));
+                                    let msg: str = str_concat("block uses effect `", str_concat(trans_hit, str_concat(" denied by `restricts [", str_concat(deny_row, "]`"))));
                                     let lc: Vec<i32> = find_linecol_in_source(source, "restricts", "restricts");
                                     diag_add_ex(diags, "error", "effect", "EFF-003", msg, "restricts", vec_get(lc, 0), vec_get(lc, 1), "");
                                     emitted = 1;
@@ -15217,7 +15215,7 @@ fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
     return "";
 }
 
-// v1.0.1 (audit-pass-1 integrator): fn_param_type by INDEX. Used by
+// v1.0.1: fn_param_type by INDEX. Used by
 // OWN-001 sig-aware move-skip — when the callee's idx-th param is
 // `&Type` / `&mut Type`, the arg passing is a borrow not a move and
 // OWN-001 should NOT mark the caller's binding moved.
@@ -15289,7 +15287,7 @@ fn fn_param_type_at_index(source: str, fn_name: str, idx: i64) -> str {
     return "";
 }
 
-// v1.0.1 (audit-pass-1 integrator): walk param list starting AT
+// v1.0.1: walk param list starting AT
 // params_start (just past the opening `(`), return the type of the
 // idx-th param. Shared between the bare-fn and generic-fn entry paths.
 fn fn_param_type_at_index_from_open(source: str, params_start: i64, idx: i64) -> str {
@@ -15338,7 +15336,7 @@ fn fn_param_type_at_index_from_open(source: str, params_start: i64, idx: i64) ->
     return "";
 }
 
-// v1.0.1 (audit-pass-1 integrator): predicate "callee's idx-th param
+// v1.0.1: predicate "callee's idx-th param
 // is a borrow type" (`&T` or `&mut T`). Used in check_expr kind-7 to
 // suppress the OWN-001 move-marking when the call passes-by-reference.
 fn fn_callee_param_is_borrow(source: str, fn_name: str, idx: i64) -> i64 {
@@ -15768,7 +15766,7 @@ fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
         };
         check_no_alloc_violations(diags, source, fn_name);
         check_no_panic_violations(diags, source, fn_name);
-        // Lane 6 / F-CONC-005 (audit 2026-05-08): RFC-0008 §3.0 says
+        // RFC-0008 §3.0 says
         // `#[isr]` implies `#[atomic]`. Pre-fix the implication was
         // enforced for alloc / panic / dyn but not for blocking. An
         // ISR locking a mutex on an embedded target deadlocks the
@@ -15793,8 +15791,7 @@ fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
     // position from `sendable_source_has_actor_decl` → O(slen²) total.
     // Reuses the fast-fail at str_eq_at first; only computes slen when
     // we actually need to read past pos. Same v0.3.205 strlen-in-
-    // substring pattern that's banned per
-    // ~/.claude/projects/.../memory/feedback_perf_regression_pattern.md.
+    // substring pattern that the parser helpers must avoid.
     if str_eq_at(src, pos, "actor") == 0 { return ""; };
     let slen: i64 = str_len(src);
     if pos + 5 > slen { return ""; };
@@ -16959,7 +16956,7 @@ fn contract_text_uses_old(text: str) -> i64 {
 // undefined-ident (false negative — adopter sees the existing
 // clang-link error) than reject a valid identifier.
 //
-// Probe-agent finding 2026-05-01: pre-fix,
+// Regression fixed in v0.4.283: pre-fix,
 // `#[require(undefined_var > 0)]` surfaced a misleading clang-
 // link "undefined function `undefined_var()`" error. CONTRACT-011
 // halts at parse time with the actual unbound ident named.
@@ -17500,7 +17497,7 @@ fn no_alloc_check_list() -> Vec<i32> {
     let mut v: Vec<i32> = Vec::new();
     // Vec — constructor + method calls
     v.push("Vec::new");
-    // Lane 6 / F-CONC-004 (audit 2026-05-08): RFC-listed canonical
+    // RFC-listed canonical
     // patterns previously missed — capacity-form Vec construction
     // and Box::new (heap allocation under any name).
     v.push("Vec::with_capacity");
@@ -17655,7 +17652,7 @@ fn check_no_alloc_transitive_call_violations(diags: Vec<i32>, source: str, fn_na
         if str_eq(callee, fn_name) == 0 {
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
-                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file allocation but `", str_concat(fn_name, "` is marked #[no_alloc] (audit RT-G1 Phase 2b)"))));
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file allocation but `", str_concat(fn_name, "` is marked #[no_alloc]"))));
                 diag_add_fn_site(diags, "error", "rt", "RT-001", msg, source, fn_name);
                 emitted = emitted + 1;
             };
@@ -17671,7 +17668,7 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     if vec_len(no_alloc_fns) == 0 { return diags; };
     let alloc_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Alloc");
     let alloc_body_fns: Vec<i32> = collect_allocating_same_file_fns(source);
-    // v0845 Lane 3 / Queue 3C: bump caller-closure depth from 4 to 8
+    // Bump caller-closure depth from 4 to 8
     // to match `restricts_transitive_check` and the v0845 lane 2
     // requires-row depth. `collect_same_file_callers_closure` uses
     // BFS with `rt_string_vec_append_unique` dedup, so termination is
@@ -17861,9 +17858,7 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     };
                     ai = ai + 1;
                 };
-                // R03-D2 Phase 1 (v0.8.295, audit
-                // BUILD_PLAN_R03_realtime_determinism.md §1 R03-D2 HIGH):
-                // implicit panic sources. Integer `/` and `%` panic on
+                // Implicit panic sources. Integer `/` and `%` panic on
                 // divide-by-zero. Adopters annotate `#[no_panic]` and
                 // expect the compiler to flag these. Phase 1 emits
                 // warning[RT-009] (warning not error because the
@@ -17914,7 +17909,7 @@ fn check_no_panic_transitive_call_violations(diags: Vec<i32>, source: str, fn_na
         if str_eq(callee, fn_name) == 0 {
             let pat: str = str_concat(callee, "(");
             if str_contains(body, pat) == 1 {
-                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file panic-prone code but `", str_concat(fn_name, "` is marked #[no_panic] (audit RT-G3 Phase 2b)"))));
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` reaches same-file panic-prone code but `", str_concat(fn_name, "` is marked #[no_panic]"))));
                 diag_add_fn_site(diags, "error", "rt", "RT-002", msg, source, fn_name);
                 emitted = emitted + 1;
             };
@@ -17930,7 +17925,7 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     if vec_len(no_panic_fns) == 0 { return diags; };
     let panic_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Panic");
     let panic_body_fns: Vec<i32> = collect_panicking_same_file_fns(source);
-    // v0845 Lane 3 / Queue 3C: same depth bump as `enforce_no_alloc`.
+    // Same depth bump as `enforce_no_alloc`.
     // 4 → 8 hops via the same BFS+dedup machinery; closes the
     // 5..=7-hop silent fall-through on the panic-reachability scan.
     let panic_reachable_fns: Vec<i32> = collect_same_file_callers_closure(source, panic_body_fns, 8);
@@ -18126,7 +18121,7 @@ fn atomic_blocking_check_list() -> Vec<i32> {
     v.push(".read"); v.push(".write"); v.push("channel_recv"); v.push(".recv");
     v.push("sleep_ms"); v.push("sleep_us"); v.push("system"); v.push("process_spawn");
     v.push("socket_accept"); v.push("file_read_string");
-    // Lane 6 / F-CONC-005 (audit 2026-05-08): friendly rod-level
+    // Friendly rod-level
     // wrappers around the underlying blocking primitives. Pre-fix the
     // single-hop substring check missed every call shape that went
     // through a wrapper named differently from the underlying
@@ -18289,7 +18284,7 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
 }
 
 // v0.4.280 — closure-body atomic call detection (ATOMIC-006).
-// Probe-agent finding 2026-05-01: closures whose body calls
+// Regression fixed in v0.4.280: closures whose body calls
 // `atomic_*` helpers crash the compiler with `vec_get OOB`
 // because the closure-lowering path doesn't inherit the
 // parent fn's enum-variant etag entries — `MemOrder::SeqCst`
@@ -19182,8 +19177,8 @@ fn md_edge_proven(source: str, entries: Vec<i32>, from_idx: i64, to_idx: i64) ->
     return 1;
 }
 
-// v0.8.42 RFC-0062 G-1: heuristic flagged HANDOFF-SUSPECT due to
-// vec_set/vec_push patterns. Manual review confirmed `seen` and
+// Ownership heuristic flagged possible transfer due to
+// vec_set/vec_push patterns. Review confirmed `seen` and
 // `queue` are LOCAL BFS scratch — no handoff to caller-owned
 // container. Annotating with #[manual_drop] as a defensive
 // guardrail; auto-drop on return would be SAFE here, but we
@@ -19518,7 +19513,7 @@ fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
-// v0.5.19: probe-agent finding 2026-05-01-async-keyword-silently-stripped.
+// v0.5.19: async keyword cannot be silently stripped.
 // Sister scanner to enforce_rt006_async — picks up the
 // `//__NUC6X:<fn_name>` markers that expand_async_strip_keyword emits
 // for plain `async fn` (no RT attribute). Pre-fix the keyword was
@@ -19557,9 +19552,8 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 
 // === T3.3 (v0.3.2): heuristic deadline estimate (RT-004, NOT certified WCET) ===
 //
-// R03-D3 Phase 1 (v0.8.289, audit BUILD_PLAN_R03_realtime_determinism.md
-// §1 R03-D3): the audit verdict is that this estimator IS NOT certified
-// WCET — it is a fast, conservative heuristic that triggers a warning
+// This estimator is NOT certified WCET — it is a fast, conservative
+// heuristic that triggers a warning
 // when a function looks expensive relative to its declared deadline.
 // Pre-v0.8.289 wording said "static WCET" and "v1 estimator", which
 // reasonably reads as a real WCET model — clarified here, in the
@@ -19590,7 +19584,7 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 //
 // Ship shape: warning-level diagnostic (not error) because the
 // estimator is deliberately crude. A certified WCET / cost-table
-// pass is Phase 2 (per audit R03-D3); the heuristic remains
+// pass is future work; the heuristic remains
 // available alongside it as a fast / opt-in early signal.
 
 #[manual_drop]
@@ -19769,10 +19763,9 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
 
 // === R10-D2 Phase 1 (v0.8.297): @hot HotViolation enforcement ===
 //
-// Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2 (HIGH):
-// docs name HotViolation / HeapInLoop diagnostics but `nuc perf`
+// Docs name HotViolation / HeapInLoop diagnostics but `nuc perf`
 // emits only generic compile metrics. The `@hot` attribute is
-// discovered (audit count at line ~29487) but not enforced. A
+// discovered but not enforced. A
 // `@hot fn` containing `Vec::new()` or `print()` shipped silently
 // despite the perf-critical annotation.
 //
@@ -19937,7 +19930,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                             else if code == 2 { "calls Vec::new()/Box::new() — heap allocation is not const" }
                             else if code == 3 { "may panic (panic/unwrap/expect/assert) — control-flow trap is not const" }
                             else { "uses ambient capability (ambient_*) — non-deterministic input is not const" };
-                        let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn (audit R09-D4 v0.8.293)"))));
+                        let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn"))));
                         let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "num", "NUM-009", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                     };
@@ -19946,7 +19939,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                 // === EFF-001 (R05-D1): pure fn must be pure ===
                 if line_has_pure_fn == 1 {
                     if line_has_requires_effect == 1 {
-                        let msg_eff2: str = str_concat("`pure fn ", str_concat(fn_name, "` declares a `requires [...]` effect row; pure functions cannot require effects (audit R05-D2 v0.8.320)"));
+                        let msg_eff2: str = str_concat("`pure fn ", str_concat(fn_name, "` declares a `requires [...]` effect row; pure functions cannot require effects"));
                         let lc_eff2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-002", msg_eff2, fn_name, vec_get(lc_eff2, 0), vec_get(lc_eff2, 1), "");
                     };
@@ -19974,7 +19967,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                             else if pcode == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
                             else if pcode == 5 { "uses channel construction — sync.channel effects are not pure" }
                             else { str_concat("calls ", str_concat(specific_callee, " — not pure")) };
-                        let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307; Phase-2b helper-effect bridge v0.8.323)"))));
+                        let msg2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind2, "; remove `pure` qualifier or move the side effect to a normal fn"))));
                         let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "error", "effect", "EFF-001", msg2, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
                     } else {
@@ -19982,7 +19975,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                         let pure_callee: str = if str_len(pure_extern) > 0 { pure_extern } else { first_effectful_user_call(pure_body, transitive_effectful, fn_name) };
                         if str_len(pure_callee) > 0 {
                             let callee_kind: str = if str_len(pure_extern) > 0 { "which is an extern/default-unsafe effect surface" } else { "which has transitive side effects" };
-                            let msg_trans2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(pure_callee, str_concat("()` ", str_concat(callee_kind, "; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0830)"))))));
+                            let msg_trans2: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(pure_callee, str_concat("()` ", str_concat(callee_kind, "; remove `pure` qualifier or make the call chain effect-free"))))));
                             let lc_trans2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                             diag_add_ex(diags, "error", "effect", "EFF-001", msg_trans2, fn_name, vec_get(lc_trans2, 0), vec_get(lc_trans2, 1), "");
                         };
@@ -19997,7 +19990,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                     if hcode > 0 {
                         let hkind: str = if hcode == 1 { "allocates (Vec::new / Box::new) — heap allocation in a perf-critical path" }
                             else { "performs I/O (print / println / panic) — blocking syscall in a perf-critical path" };
-                        let hmsg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(hkind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path (audit R10-D2 v0.8.297)"))));
+                        let hmsg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(hkind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path"))));
                         let hlc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "warning", "perf", "PERF-2", hmsg, fn_name, vec_get(hlc, 0), vec_get(hlc, 1), "");
                     };
@@ -20006,7 +19999,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                 // === PERF-3 (R10-D2): heap alloc inside while/loop ===
                 if has_alloc == 1 {
                     if detect_heap_in_loop_in_body(body) == 1 {
-                        let p3msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional (audit R10-D2 v0.8.298)"));
+                        let p3msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional"));
                         let p3lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "warning", "perf", "PERF-3", p3msg, fn_name, vec_get(p3lc, 0), vec_get(p3lc, 1), "");
                     };
@@ -20014,14 +20007,14 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
 
                 // === RACE-002 (R04-D3): unawaited async_spawn ===
                 if has_async_spawn == 1 && has_async_await == 0 {
-                    let r2msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional (audit R04-D3 v0.8.299)"));
+                    let r2msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional"));
                     let r2lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "warning", "race", "RACE-002", r2msg, fn_name, vec_get(r2lc, 0), vec_get(r2lc, 1), "");
                 };
 
                 // === RACE-007 (R04-D3): __nuc_dl_inner_* + async_await ===
                 if is_dl_inner == 1 && has_async_await == 1 {
-                    let r7msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn (audit R04-D3 v0.8.300)"));
+                    let r7msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn"));
                     let r7lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "warning", "race", "RACE-007", r7msg, fn_name, vec_get(r7lc, 0), vec_get(r7lc, 1), "");
                 };
@@ -20058,7 +20051,7 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                 if code > 0 {
                     let kind: str = if code == 1 { "allocates (Vec::new / Box::new) — heap allocation in a perf-critical path" }
                         else { "performs I/O (print / println / panic) — blocking syscall in a perf-critical path" };
-                    let msg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path (audit R10-D2 v0.8.297)"))));
+                    let msg: str = str_concat("`@hot` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; suppress with `#[allow_fn(PERF-2)]` when intentional, or move the work out of the hot path"))));
                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "warning", "perf", "PERF-2", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 };
@@ -20074,7 +20067,7 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
 
 // === R04-D3 Phase 1.5 (v0.8.300): RACE-007 emitter (deadline + actor await) ===
 //
-// Per audit RACE-007 = "Deadline composition under actor await
+// RACE-007 = "Deadline composition under actor await
 // is invalid". Detect: a fn carries `#[deadline = ...]` AND its
 // body calls `async_await(`. The deadline checker can't see
 // past the actor executor boundary — the awaited task may take
@@ -20129,7 +20122,7 @@ fn enforce_deadline_with_await(diags: Vec<i32>, source: str) -> Vec<i32> {
                     // and check it for `async_await(`.
                     let is_inner: i64 = if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 { 1 } else { 0 };
                     if is_inner == 1 && str_index_of(body, "async_await(") >= 0 {
-                        let msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn (audit R04-D3 v0.8.300)"));
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` is the inner of a #[deadline]-wrapped fn AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` on the original fn"));
                         let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "warning", "race", "RACE-007", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                     };
@@ -20192,7 +20185,7 @@ fn _enforce_deadline_with_await_unused_VESTIGIAL(diags: Vec<i32>, source: str) -
                                 };
                                 let body: str = str_substring(source, body_start, bp - 1);
                                 if str_index_of(body, "async_await(") >= 0 {
-                                    let msg: str = str_concat("function `", str_concat(fn_name, "` carries `#[deadline = ...]` AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]` (audit R04-D3 v0.8.300)"));
+                                    let msg: str = str_concat("function `", str_concat(fn_name, "` carries `#[deadline = ...]` AND calls `async_await(...)` — the deadline checker cannot see past the actor executor boundary; the awaited task may take arbitrarily long, invalidating the deadline. Either drop the deadline, drop the await, or `#[allow_fn(RACE-007)]`"));
                                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                                     diag_add_ex(diags, "warning", "race", "RACE-007", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                                 };
@@ -20210,7 +20203,6 @@ fn _enforce_deadline_with_await_unused_VESTIGIAL(diags: Vec<i32>, source: str) -
 
 // === R04-D3 Phase 1 (v0.8.299): RACE-002 emitter (unawaited spawn) ===
 //
-// Per audit `BUILD_PLAN_R04_concurrency.md` §1 R04-D3 (HIGH):
 // RACE codes RACE-002 / 004 / 006 / 007 / 009 / 010 are registered
 // in `is_known_diag_code` + tools-suite explain registry but NO
 // CODE PATH EMITS THEM. `nuc explain RACE-002` overstates the
@@ -20261,7 +20253,7 @@ fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
                     let has_spawn: i64 = if str_index_of(body, "async_spawn(") >= 0 { 1 } else { 0 };
                     let has_await: i64 = if str_index_of(body, "async_await(") >= 0 { 1 } else { 0 };
                     if has_spawn == 1 && has_await == 0 {
-                        let msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional (audit R04-D3 v0.8.299)"));
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` calls `async_spawn(...)` but never `async_await(...)` — fire-and-forget breaks completion ordering and may leak the task handle; await each spawn or `#[allow_fn(RACE-002)]` if intentional"));
                         let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "warning", "race", "RACE-002", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                     };
@@ -20275,15 +20267,14 @@ fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
 
 // === R05-D1 Phase 1 (v0.8.307): pure fn purity enforcement in s1 ===
 //
-// Per audit `BUILD_PLAN_R05_effect_capability.md` §1 R05-D1
-// (CRITICAL): `pure fn` parses but the s1 build path does NOT run
-// the effect checker. tools-suite (`nuc check`) emits EFF-001 for
+// `pure fn` parses but the s1 build path must run the effect checker.
+// tools-suite (`nuc check`) emits EFF-001 for
 // pure-with-effects, but `nuc build` ships the binary regardless.
 //
 // Phase 1: port the same body-substring scan from
 // enforce_const_fn_purity (v0.8.293 NUM-009) for the `pure fn`
 // surface. Direct builtin check only — transitive user-call
-// closure is Phase 2 (audit ship plan step 2).
+// closure is future work.
 
 // Returns 0 (clean) or non-zero code naming the first effect:
 //   1 = print / print_* / eprint*
@@ -20463,7 +20454,7 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                         else if code == 3 { "uses ambient capability (ambient_*) — non-deterministic input is not pure" }
                         else if code == 4 { "uses structured scheduling (scope/spawn) — scheduler effects are not pure" }
                         else { "uses channel construction — sync.channel effects are not pure" };
-                    let msg: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove `pure` qualifier or move the side effect to a normal fn (audit R05-D1 v0.8.307)"))));
+                    let msg: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove `pure` qualifier or move the side effect to a normal fn"))));
                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "error", "effect", "EFF-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 } else {
@@ -20472,7 +20463,7 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                         let body: str = strip_strings_and_line_comments(body_raw);
                         let callee: str = first_effectful_user_call(body, transitive_effectful, fn_name);
                         if str_len(callee) > 0 {
-                            let msg_trans: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(callee, "()` which has transitive side effects; remove `pure` qualifier or make the call chain effect-free (audit R05-D4 Phase 2b v0829)"))));
+                            let msg_trans: str = str_concat("`pure fn ", str_concat(fn_name, str_concat("` calls `", str_concat(callee, "()` which has transitive side effects; remove `pure` qualifier or make the call chain effect-free"))));
                             let lc2: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                             diag_add_ex(diags, "error", "effect", "EFF-001", msg_trans, fn_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
                         };
@@ -20487,8 +20478,7 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
 
 // === R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3 detection ===
 //
-// Per audit `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D2:
-// PERF-2 (v0.8.297) catches alloc / I/O at the @hot fn level.
+// PERF-2 catches alloc / I/O at the @hot fn level.
 // HeapInLoop (PERF-3) catches `Vec::new` / `Box::new` INSIDE a
 // `while` or `loop {}` block — a per-iteration alloc that ships
 // silently is the dominant perf bug class for adopters.
@@ -20684,7 +20674,7 @@ fn enforce_heap_in_loop(diags: Vec<i32>, source: str) -> Vec<i32> {
                     };
                     let body: str = str_substring(source, body_start, q - 1);
                     if detect_heap_in_loop_in_body(body) == 1 {
-                        let msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional (audit R10-D2 v0.8.298)"));
+                        let msg: str = str_concat("function `", str_concat(fn_name, "` allocates (Vec::new / Box::new) inside a `while` or `loop` block — per-iteration heap alloc is a perf hazard; reserve outside the loop, use a stack-allocated buffer, or `#[allow_fn(PERF-3)]` if intentional"));
                         let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                         diag_add_ex(diags, "warning", "perf", "PERF-3", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                     };
@@ -20698,10 +20688,7 @@ fn enforce_heap_in_loop(diags: Vec<i32>, source: str) -> Vec<i32> {
 
 // === R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement ===
 //
-// Per audit `BUILD_PLAN_R09_numeric_correctness.md` §1 R09-D4
-// (CRITICAL): pre-v0.8.293 `@const_fn` was silently ignored
-// semantically — the audit only printed an info count of usages
-// (NUM-G289). A `@const_fn` containing `print()`, `Vec::new()`,
+// `@const_fn` used to be advisory only. A `@const_fn` containing `print()`, `Vec::new()`,
 // `panic()`, etc. compiled cleanly and ran the side effects.
 // Adopters relying on @const_fn for compile-time evaluation
 // guarantees got nothing.
@@ -20790,7 +20777,7 @@ fn enforce_const_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
                         else if code == 2 { "calls Vec::new()/Box::new() — heap allocation is not const" }
                         else if code == 3 { "may panic (panic/unwrap/expect/assert) — control-flow trap is not const" }
                         else { "uses ambient capability (ambient_*) — non-deterministic input is not const" };
-                    let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn (audit R09-D4 v0.8.293)"))));
+                    let msg: str = str_concat("`@const_fn` function `", str_concat(fn_name, str_concat("` ", str_concat(kind, "; remove the @const_fn annotation, or move the effectful work to a normal fn"))));
                     let lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
                     diag_add_ex(diags, "error", "num", "NUM-009", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 };
@@ -21756,7 +21743,7 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn own_merge_state_key(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>, key: str, va_in: i64, vb_in: i64) -> i64 {
-    // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): dispatch on
+    // v1.1.x perf: dispatch on
     // str_char_at(key, 2) instead of testing every prefix sequentially.
     // Pure source refactor — no new externs, no compiler registration
     // changes, no runtime/seed change. Same semantics, fewer per-call
@@ -21870,7 +21857,7 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     };
     let nA: i64 = vec_len(a);
     let nB: i64 = vec_len(b);
-    // v1.1.x perf (audit-pass-1 follow-up 2026-05-09): pre-build a
+    // v1.1.x perf: pre-build a
     // hashmap of `a`'s keys for the second loop's "is this key in
     // a?" check. Only when nA is large enough that the linear sym_get
     // cost (per b-key × nA) exceeds the hashmap setup overhead.
@@ -22601,7 +22588,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         warns = warns + check_expr(pool, node_field(pool, nid, 3), own, structs, enums, fn_name);
         return warns;
     };
-    // Lane 2 fix (audit G8-B-1, G8-Diag): field/index access
+    // Field/index access
     // (kind 5 / kind 6) on a binding that was conditionally moved
     // or manually freed must still fire the per-binding diagnostics.
     // Pre-fix the recursion descended into the receiver but the
@@ -22767,7 +22754,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // / hashmap_clear / hashmap_free while a live shared
                 // borrow of the same map binding exists. Mutations rehash
                 // or invalidate held references.
-                // Lane 2 fix (audit G3-X-1): include `hashmap_free`
+                // Include `hashmap_free`
                 // in the borrow-invalidation guard set. Strictly
                 // worse than rehash — free DEFINITELY invalidates
                 // every live borrow into the map. Same hazard for
@@ -22794,7 +22781,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if own_has_shared_overlap(own, aname) == 1 || own_has_mut_overlap(own, aname) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(aname, "': value is borrowed")), aname);
                     } else {
-                        // v1.0.1 (audit-pass-1 integrator): suppress the move
+                        // v1.0.1: suppress the move
                         // mark when the callee's idx-th param is `&T` / `&mut T`.
                         // OWN-001's move-on-call is correct for by-value params
                         // but mis-fires on by-reference accessors (the rod
@@ -22819,7 +22806,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         let method_name: str = node_field(pool, nid, 2);
         let args: i64 = node_field(pool, nid, 3);
         let ac: i64 = list_len(pool, args);
-        // Lane 2 fix (audit G4-FN-2): method-form free
+        // Method-form free
         // (`v.free()` / `m.free()` / `s.free()`) must mark the
         // receiver's slot as freed, mirroring the kind-7 free-fn
         // detection. Without this, if the rod stdlib ever exposes
@@ -22870,8 +22857,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     // AST kind 99 from parse_unary line ~2808) must walk the operand
     // so use-after-drop / cond-move / read-before-init checks fire
     // when the unsafe read is wrapped in a cast. Pre-fix:
-    //   vec_free(v); let n: i32 = vec_get(v, 0) as i32;     // CLEAN (audit G4-B-1)
-    //   if cond { x = 7; }; return x as i32;                // CLEAN (audit G11-Diag)
+    //   vec_free(v); let n: i32 = vec_get(v, 0) as i32;     // CLEAN
+    //   if cond { x = 7; }; return x as i32;                // CLEAN
     // Audit reproducers in audit_scratch_memsafe/G4 / G11.
     if kind == 99 { return check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name); };
     if kind == 10 {
@@ -22947,7 +22934,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // field) got a quiet wrong value. Emit TYP-012 listing the
         // missing field count when ic < struct's declared field count.
         let struct_name: str = node_field(pool, nid, 1);
-        // Lane 2 fix (audit F-CONC-001 / handle encapsulation):
+        // Handle encapsulation:
         // forbid struct-literal construction of types annotated
         // `#[opaque_handle]` in their declaration. Only the
         // declaring rod's constructor fns can build the opaque
@@ -23156,7 +23143,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // v0.5.18: MATCH-001 only. Pre-fix emitted both TYP-001
                         // (legacy umbrella) and MATCH-001 (RFC-0016 canonical)
                         // with identical text — adopter saw the same diagnostic
-                        // twice. Probe-agent finding 2026-05-01-match-001-typ-001-dual-emit.
+                        // twice. MATCH-001 is the subsystem-specific diagnostic.
                         // MATCH-001 is the subsystem-specific code; it stays.
                         // TYP-001 is retained in the explain registry so
                         // adopters can `nuc explain TYP-001` to see it's been
@@ -23256,7 +23243,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         own_set(own, src, 2);
                     };
                 };
-                // Lane 2 fix (audit G4-FN-1, G1-X-1): alias-handle
+                // Alias-handle
                 // double-free closure. When a binding is alias-
                 // initialized from another (`let alias = v`) and the
                 // type is a heap-collection (Vec/HashMap/String), the
@@ -23535,7 +23522,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // => 0, x if x < 100 => 1, _ => 2 }` because arm 0's
             // `x if x < 0` was treated as exhaustive (wildcard
             // ename) and arms 1-3 flagged unreachable.
-            // Closes findings/inbox/2026-04-30-match-002-false-positive-on-guarded-arm.md.
+            // Regression: guarded match arm false positive.
             if str_eq(ename, "__wild") {
                 let v215_guard: i64 = node_field(pool, arm_nid, 5);
                 if v215_guard <= 0 {
@@ -23850,7 +23837,7 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                 // check. When the fn signature has exactly one
                 // ref-typed parameter and the return type is a
                 // reference, the returned region must equal the
-                // input's region. The Phase 1 BR-7 audit-pass count
+                // input's region. The Phase 1 BR-7 build-summary count
                 // (~line 32172) surfaces the presence of `<'a>`
                 // syntax; this is the structural check that enforces
                 // it. Phase 4 promotion: registered in is_error_code
@@ -23886,7 +23873,7 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                         own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2_param_root, str_concat("' but the function's only ref-typed input is '", str_concat(g2_single_ref_param, "'. Per RFC-0062 G-2 (single-input lifetime check): the returned region must equal the input's region. Bind the return to the single ref input or restructure the signature.")))), g2_single_ref_param);
                     };
                 };
-                // Lane 2 fix (audit G2-A-1): multi-input lifetime
+                // Multi-input lifetime
                 // check. Pre-fix, fns with 2+ ref params (e.g.
                 // `fn pick<'a, 'b>(x: &'a i32, y: &'b i32) -> &'a i32`)
                 // were skipped entirely (only Phase 1 BR-7 advisory
@@ -24598,7 +24585,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "str_substring") == 1 || str_eq(name, "str_substring_strict") == 1 || str_eq(name, "str_trim") == 1 || str_eq(name, "str_trim_start") == 1 || str_eq(name, "str_trim_end") == 1 { return "str"; };
     if str_eq(name, "args_get") == 1 || str_eq(name, "file_read_string") == 1 || str_eq(name, "file_read_string_or_panic") == 1 { return "str"; };
     if str_eq(name, "args_count") == 1 || str_eq(name, "env_has") == 1 || str_eq(name, "process_id") == 1 || str_eq(name, "os_family") == 1 || str_eq(name, "os_pointer_width") == 1 || str_eq(name, "path_is_absolute") == 1 || str_eq(name, "fs_exists") == 1 || str_eq(name, "fs_is_file") == 1 || str_eq(name, "fs_is_dir") == 1 || str_eq(name, "fs_size") == 1 || str_eq(name, "fs_mtime") == 1 || str_eq(name, "file_bytes_equal") == 1 || str_eq(name, "system") == 1 { return "i64"; };
-    // Lane 2 fix (audit G5-P-1): ptr_is_null is the FFI-G5 prescribed
+    // ptr_is_null is the FFI-G5 prescribed
     // remediation. Returns 1 iff the i64 pointer arg is 0.
     if str_eq(name, "ptr_is_null") == 1 { return "i64"; };
     if str_eq(name, "env_get") == 1 || str_eq(name, "env_get_or") == 1 || str_eq(name, "getcwd") == 1 || str_eq(name, "getenv") == 1 || str_eq(name, "chr") == 1 || str_eq(name, "fs_join") == 1 || str_eq(name, "fs_basename") == 1 || str_eq(name, "fs_dirname") == 1 || str_eq(name, "fs_extension") == 1 || str_eq(name, "fs_temp_dir") == 1 || str_eq(name, "fs_current_dir") == 1 || str_eq(name, "fs_canonicalize") == 1 || str_eq(name, "path_separator") == 1 || str_eq(name, "path_normalize") == 1 || str_eq(name, "path_with_extension") == 1 || str_eq(name, "path_strip_extension") == 1 { return "str"; };
@@ -25323,7 +25310,7 @@ fn unit_dim(t: str) -> str {
 }
 #[manual_drop]
 fn type_dynamic_helper(name: str) -> i64 {
-    // v0.6.54 (perf-slice integration from Nucleor_OSS_v631_perf_slice):
+    // v0.6.54 perf slice:
     // first-char dispatch — was 41-entry linear chain run per kind-7
     // call-site type-check.
     if str_len(name) == 0 { return 0; };
@@ -25580,7 +25567,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // hiding other diagnostics. Linear scan over diags is OK
             // here because NUM-003 emit sites are rare (one per
             // narrowing cast in source).
-            // Closes findings/inbox/2026-04-30-num-003-duplicate-warning-in-fnarg.md.
+            // Regression: duplicate numeric warning in fn arg.
             let v216_line: i64 = vec_get(nloc, 0);
             let v216_col: i64 = vec_get(nloc, 1);
             let mut v216_dup: i64 = 0;
@@ -27172,7 +27159,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // round-off drift) so this is the right intentional rejection
         // anyway — Rust forbids float patterns since 1.0. Halts at
         // type-check before any codegen runs.
-        // Closes findings/inbox/2026-04-30-compiler-segfault-on-float-match-scrutinee.md.
+        // Regression: float match scrutinee compiler crash.
         if type_is_float(scrut_t) == 1 {
             let m13a: str = str_concat("float scrutinee in `match` is not supported (got `", str_concat(scrut_t, "`)."));
             let m13b: str = " Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) trying to lower the int-pattern path against a float scrutinee. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.";
@@ -27469,7 +27456,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         init_fi_v110 = init_fi_v110 + 1;
                     };
                 };
-                // Audit pass 1 / Layer 2 F-003 + F-004: numeric
+                // Type-system hardening: numeric
                 // primitives are not implicitly converted between
                 // widths at binding sites. The previous build hid
                 // this behind NUC_STRICT_NUMERIC=1; production mode is
@@ -27702,7 +27689,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 // decimal-overflow-to-u64::MAX at lex time.
                 if out_of_range == 1 {
                     // v0.4.70: promote NUM-002 from warning to error
-                    // (audit section 1). Pre-fix `let x: u8 = 256;`
+                    // Pre-fix `let x: u8 = 256;`
                     // truncated to 0 silently with only a warning;
                     // adopters writing canonical Rust got E0080
                     // (unconditional_recursion). Now hard error.
@@ -27836,7 +27823,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // type_last_stmt walk the body with the OUTER env (no
             // closure-locals), which fed type_expr kind 7 a callee
             // `inner` it couldn't find — false-firing TYP-005.
-            // Closes findings/inbox/2026-04-30-typ-005-fires-on-closure-binding-in-closure.md.
+            // Regression: TYP-005 closure binding false positive.
             let v156_body: i64 = node_field(pool, init, 2);
             let v214_scoped_env: Vec<i32> = own_snapshot(env);
             let mut v214_pi2: i64 = 0;
@@ -28308,7 +28295,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
         if node_kind(pool, nid) == 32 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 1, mk_list(pool, Vec::new())); };
         i = i + 1;
     };
-    // v0.4.130: trait-bound NAME verification (audit doc-#1 §8 closer).
+    // v0.4.130: trait-bound NAME verification.
     // Walk every fn (kind 30), inspect its generic params (field 5).
     // For each `?<bound>` marker captured by parse_generic_params,
     // verify a matching trait declaration (kind 43) exists in prog.
@@ -28446,7 +28433,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     // where the let never completes binding because
                     // the match always returns first.
                     //
-                    // Closes findings/inbox/2026-04-30-fn-no-tail-expr-returns-zero.md
+                    // Regression: fn without tail expr returned zero.
                     // (Repros 1 and 2; Repro 3 — kind-25 with eaten
                     // semicolon — requires AST-level `;` tracking,
                     // out of scope for this ship).
@@ -28531,7 +28518,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
 
 #[manual_drop]
 fn text_contains(hay: str, needle: str) -> i64 {
-    // v1.0.1 perf fix (audit-pass-1 integrator): delegate to the C-side
+    // v1.0.1 perf fix: delegate to the C-side
     // __nucleor_str_contains (memmem-equivalent). Pre-fix this O(n*m)
     // pure-Nucleor byte loop ran during preflight on the 2.4 MB compiler
     // source, costing ~6 s per build; the C version is ~10 ms on the
@@ -28614,7 +28601,7 @@ fn preflight_source_check(source: str) -> i64 {
     // (we'd need a lex-pass), so we scan only outside string literals
     // — track the same single-quote/double-quote state the resolver
     // already uses elsewhere.
-    // v1.0.1 perf fix (audit-pass-1 integrator): bare-CR scan via the
+    // v1.0.1 perf fix: bare-CR scan via the
     // __nucleor_source_bare_cr_offset C runtime helper. Pre-fix the
     // pure-Nucleor while-loop with str_char_at on every byte cost ~7 s
     // on the 2.4 MB compiler source (the regression was the entire
@@ -28625,7 +28612,7 @@ fn preflight_source_check(source: str) -> i64 {
         print(str_concat("error[LEX-CR-ONLY]: bare carriage-return (CR, 0x0D) at byte ", str_concat(str_from_int(v_pf_cr_off), " — Nucleor source must use `\\n` (LF) or `\\r\\n` (CRLF) line endings (RFC §1.1). Pre-fix bare-CR was lexed as whitespace AND the line-comment lexer scanned until `\\n`, so `// foo<CR>let bar = ...` silently swallowed the rest of the file. Re-save the file with consistent LF or CRLF line endings.")));
         return 1;
     };
-    // v1.0.1 perf fix (audit-pass-1 integrator): the audit-pass scanners
+    // v1.0.1 perf fix: the diagnostic scanners
     // below (source_has_scope_escape_ref_binding + source_unit_archive_
     // rule_check + diag promotion / suppression) are pure-Nucleor line-
     // by-line walks aimed at adopter source bug patterns. The compiler
@@ -29627,7 +29614,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // returned the whole Option Vec instead of extracting x; AND
         // None (tag=1) hit the ok-path's vec_get(_, 1) which OOB'd
         // the length-1 None Vec at runtime.
-        // Closes findings/promoted/2026-04-30-question-on-option-vec-oob.md
+        // Regression: option vec out-of-bounds handling.
         // (v0.4.223 deferral note revisited; phase 3c revert in v0.4.224
         // cleared the bootstrap obstacle that blocked the v0.4.223 attempt).
         let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -30541,7 +30528,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         };
                     };
                     if str_len(p_helper) == 0 {
-                        // v0.3.181: NUC-FEEDBACK-006 (parallel agent) --
+                        // v0.3.181: NUC-FEEDBACK-006 --
                         // for vec_get/first/last/pop and similar Vec
                         // element returns, the element type comes from
                         // the receiver Vec, not a fixed i64 default.
@@ -31340,7 +31327,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // Only kind-3 (var-ref) receivers are checkable
                             // this way; other receiver kinds fall through to
                             // the existing diagnostics.
-                            // Closes findings/inbox/2026-04-30-method-on-borrowed-ref-wrong-receiver.md.
+                            // Regression: borrowed-ref method receiver resolution.
                             let v217_recv_node: i64 = node_field(pool, nid, 1);
                             if node_kind(pool, v217_recv_node) == 3 {
                                 let v217_recv_name: str = node_field(pool, v217_recv_node, 1);
@@ -32962,7 +32949,7 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // integer add even though both halves were correctly compiled
     // as f64 muls.
     if kind == 4 {
-        // v0.5.27: closes probe-agent finding
+        // v0.5.27: regression closure
         // 2026-05-01-f64-cmp-as-i32-cast-silently-zero (CRITICAL).
         // Comparison operators (`<` `>` `<=` `>=` `==` `!=`) and
         // logical (`&&` `||`) produce a BOOL result, not a float —
@@ -33375,7 +33362,7 @@ fn auto_drop_mark_constructor_handoffs(pool: Vec<i32>, expr_nid: i64, sym: Vec<i
         };
         return 0;
     };
-    // v0846 DFLIP-PATCH (cloud Linux validation 2026-05-07): also recognize
+    // Default-flip validation: also recognize
     // kind-7 regular fn calls as handoff sites, not just kind-12 type-method
     // calls. The wrapper pattern `fn nn_X(...) -> TensorF64 { let mut data:
     // Vec<f64>; ...; return tensor_f64_from_vec(rows, cols, data); }` was
@@ -34005,7 +33992,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // `for x in v.iter().take(initial_len)` shape and removes the
         // memory-blowup without needing full ownership-borrow analysis
         // (which is the canonical fix but a much larger surface).
-        // Closes findings/inbox/2026-04-30-push-during-for-iter-unbounded.md.
+        // Regression: push during for-iteration unbounded growth.
         let len_slot: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, len_slot);
         let mut len_init_args: Vec<i32> = Vec::new(); len_init_args.push(sv);
         let len_init_v: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(len_init_v, "vec_len", len_init_args));
@@ -34045,7 +34032,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // vec_push/vec_set/hashmap_insert with identifier value
         // arg referencing a registered auto-drop binding, mark
         // that binding as freed (suppresses the auto-drop emit
-        // at fn return). Per docs/g3-handoff-dataflow-design.md.
+        // at fn return).
         let handoff_name: str = auto_drop_handoff_name(pool, expr_nid, sym);
         if str_len(handoff_name) > 0 { auto_drop_mark_freed(sym, handoff_name); };
         return out_blk;
@@ -34316,8 +34303,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         // outside the explicit auto_drop_fns whitelist.
         //
         // Flipping to opt-out activates the existing handoff machinery
-        // (line 29045 of this file) and closes the ML 58-failure
-        // cluster cloud surfaced via PROBE-3L without per-fn manual_drop
+        // (line 29045 of this file) and closes the ML fixture cluster
+        // without per-fn manual_drop
         // annotations across stdlib/rods/ml/. The bug was: handoff
         // recognition logic was correct but the gate that enabled it
         // was inverted vs the comment's stated Phase 2b-3 intent.
@@ -34870,8 +34857,7 @@ fn cache_v2_strict_intrin_flag() -> str {
     return "1";
 }
 
-// R10-D4 Phase 1 (v0.8.296, audit
-// `BUILD_PLAN_R10_performance_envelope.md` §1 R10-D4 HIGH):
+// Strict arithmetic cache key:
 // `NUCLEOR_INT_STRICT_ARITH=1` flips integer +/-/* lowering between
 // the legacy native path and the panic-on-overflow path (verified
 // at lines 23322 + 23471). Pre-v0.8.296 the cache key did NOT
@@ -35403,7 +35389,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     // the executable and the rest as args, failing with
     // `'C:\Program' is not recognized`.
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
-    // v1.0.1 perf fix (audit-pass-1 integrator): default -O level chosen
+    // v1.0.1 perf fix: default -O level chosen
     // per `NUCLEOR_LLVM_OPT` (defaults to `-O0` to keep typical link fast;
     // bootstrap_linux.sh already pre-bakes -O2 into bin/nucleor itself so
     // the compiler runtime is optimized). Set `NUCLEOR_LLVM_OPT=-O2` for a
@@ -35779,7 +35765,7 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
     if path_exists(from_cwd) == 1 { return from_cwd; };
     // v0.3.122: NUC-FEEDBACK-004 — when the source file is OUTSIDE
-    // the Nucleor_OSS repo (adopters using nucleor.exe as an external
+    // the source repo (adopters using nucleor.exe as an external
     // tool), `import "stdlib/rods/jsonl.nr"` and other stdlib imports
     // silently fail to resolve via the base_dir walk above — the
     // compiler had no idea where stdlib lives. The import then
@@ -35972,8 +35958,7 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
 }
 
 #[manual_drop]
-// R12-D7 Phase 1 (v0.8.294, audit
-// `BUILD_PLAN_R12_module_packaging.md` §1 R12-D7 HIGH): pre-v0.8.294
+// Import-cycle detection:
 // the resolver dedupes imports via the global `imported` Vec — once
 // a path is in the set it's silently skipped. That makes legitimate
 // dedupe (lib imported from siblings) indistinguishable from a
@@ -36277,7 +36262,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // already contains src_path and the dedupe short-circuits).
     let mut active_paths_seed: Vec<i32> = Vec::new();
     active_paths_seed.push(src_path);
-    // v1.0.1 perf fix (audit-pass-1 integrator): skip the resolve loop
+    // v1.0.1 perf fix: skip the resolve loop
     // when the source has no top-of-line `import "` / `use ` / `mod `
     // directives. resolve_source_with_records_active is a 250-line per-
     // byte/per-line walker that costs ~13 s on the 2.4 MB compiler
@@ -36319,7 +36304,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             panic("nucleor: compile_error! invoked in source");
         };
     };
-    // v1.0.1 perf fix (audit-pass-1 integrator): skip the format-macro and
+    // v1.0.1 perf fix: skip the format-macro and
     // async-keyword expansions for compiler self-builds. Both transforms
     // scan the entire source byte-by-byte; on the 2.4 MB compiler source
     // they cost ~13 s combined despite the source containing zero actual
@@ -36695,7 +36680,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("warning[FFI-NULL]: raw-pointer return types in extern fn decls: ", str_from_int(v0825_extern_void_count)));
         print("  Per RFC-0062 G-5 Phase 3 (v1.0): extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Per-fn null-check inference is post-v1.0 hardening. Reference: docs/ffi-conventions.md §1.");
     };
-    // v0.8.26: RFC-0062 G-9 Phase 2a — direct-FFI audit-pass
+    // v0.8.26: RFC-0062 G-9 Phase 2a — direct-FFI build-summary
     // info. Counts `extern fn ` declarations to surface the FFI
     // surface area at compile time. Phase 2a is heuristic;
     // Phase 2b will require `#[allow(direct_ffi)]` on calling
@@ -36707,7 +36692,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("warning[FFI-DIRECT]: `extern fn` declarations in build: ", str_from_int(v0826_extern_count)));
         print("  Per RFC-0062 G-9 Phase 3 (v1.0): direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline: treat every `extern fn` call site as an unsafe surface. `#[allow(direct_ffi)]` enforcement and bounds-check insertion at call sites are post-v1.0 hardening. Reference: docs/ffi-conventions.md §2.");
     };
-    // v0.8.27: RFC-0062 G-3 Phase 2a — heap-aliasing audit-pass
+    // v0.8.27: RFC-0062 G-3 Phase 2a — heap-aliasing build-summary
     // info. Detects `Vec<&` patterns (Vec-of-references), the
     // primary heap-aliasing risk per RFC-0062 §3.3 G-3. The
     // syntactic borrow tracker doesn't follow elements through
@@ -36720,7 +36705,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         str_concat("Vec", "<&"));
     if v0827_vof_count > 0 {
         print(str_concat("warning[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
-        print("  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening. Reference: docs/heap-aliasing-evidence.md.");
+        print("  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening.");
     };
     // v0.8.62 QM-8/9 + ROBO-8 Phase 1 — Wave 3 final Tier C
     // closure. v0828 closes the high-level qsim wrapper half of
@@ -36740,7 +36725,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0862_total: i64 = v0862_qsim_cnot + v0862_qsim_gate + v0862_chomp;
         if v0862_total > 0 {
             print(str_concat("info[QM-89-ROBO-8]: Wave 3 final Tier C surface: ", str_from_int(v0862_total)));
-            print("  Per RFC sister gaps QM-8, QM-9, ROBO-8: QM-8/QM-9 Phase 2a/2b is now wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement; qsim_cnot/CZ/CRK register entanglement only when populated control/target branches can actually entangle, and qsim_swap is a primitive statevector permutation with one SWAP DAG event. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8 — CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on narrow corridors / high-DOF robots. Next phases add raw-runtime unification, overflow hardening, and full pre-conditioner. Reference: gap-analyses/Quantum + Robotics RFCs.");
+            print("  QM-8/QM-9 Phase 2a/2b is wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8: CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A^-1 grad-F); convergence degrades on narrow corridors / high-DOF robots. Future work adds raw-runtime unification, overflow hardening, and full pre-conditioner.");
         };
     };
     // v0.8.61 ML-2/3/5/6/10 Phase 1 — Tensor/ML/Autodiff surface
@@ -36760,7 +36745,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0861_total: i64 = v0861_tensor + v0861_transformer + v0861_ssm;
         if v0861_total > 0 {
             print(str_concat("info[ML-G2-3-5-6-10]: Tensor/ML/Autodiff rod surface in source: ", str_from_int(v0861_total)));
-            print("  Per RFC sister gaps ML-2, ML-3, ML-5, ML-6, ML-10 (Tensor/ML/Autodiff): tensor_nd is missing 2D matmul (ML-2) and transpose (ML-3) — workaround: use 3D matmul with batch=1 dim and pre-transpose data manually. SSM rods have no backward / gradient paths (ML-5) — autodiff via these is forward-only. Quantize lacks FP8 gemv and grouped quantization (ML-6); dequant for int8 / ternary missing (ML-7). Transformer has no causal mask, no encoder-decoder (ML-10) — only encoder-only attention is implemented. Phase 2b adds the missing primitives. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source. Reference: docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md ML-2/3/5/6/10.");
+            print("  Tensor/ML/Autodiff caveats: tensor_nd is missing some higher-level typed shape surfaces; SSM rods have no backward / gradient paths, so autodiff via these is forward-only. Quantize lacks some grouped/FP8 surfaces. Transformer has no causal mask and no encoder-decoder path; only encoder-only attention is implemented. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source.");
         };
     };
     // v0.8.60 NUM-G2/8/9 Phase 1 — additional numeric-correctness
@@ -36779,7 +36764,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0860_total: i64 = v0860_math_abs + v0860_checked + v0860_const_fn;
         if v0860_total > 0 {
             print(str_concat("info[NUM-G289]: numeric-correctness annotations / calls in source: ", str_from_int(v0860_total)));
-            print("  Per RFC sister gaps NUM-G2, NUM-G8, NUM-G9 (Numeric Correctness): math_abs(i64::MIN) silently returns i64::MIN in non-strict mode (NUM-G2 — `0 - i64::MIN` overflows; math_pow_int and math_gcd inherit the bug). checked_* family uses a single global static int for the overflow flag, NOT thread-safe (NUM-G8 — concurrent calls race; flag overwritten between call and read). @const_fn attribute is silently ignored — no comptime evaluation, no error if body contains non-const operations (NUM-G9). Phase 2b: panic-on-saturate for math_abs, thread-local checked flag, real comptime evaluation for @const_fn. Phase 4 v1.0 hard-error promotion. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md NUM-G2, NUM-G8, NUM-G9.");
+            print("  Numeric-correctness caveats: math_abs(i64::MIN) returns i64::MIN in non-strict mode; checked_* uses a shared overflow flag and should not be treated as thread-safe; @const_fn is parsed but not yet a full compile-time evaluator. Future work: panic-on-saturate for math_abs, thread-local checked flags, and real comptime evaluation for @const_fn.");
         };
     };
     // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
@@ -36802,7 +36787,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0859_total: i64 = v0859_clifford + v0859_kinematics + v0859_frame;
         if v0859_total > 0 {
             print(str_concat("info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: ", str_from_int(v0859_total)));
-            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod now has OSS verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, a [[5,1,3]] stabilizer-distance smoke, and a rotated Surface-17 d=3 stabilizer/logical smoke; published weight-enumerator validation remains open until the rod exposes enumerator APIs. ROBO-7 frame typing v0838: the compiler-side FRAME-001 phantom-tag mismatch check is live at let-binding sites for `Pose<Frame_*>`-style annotations (`Frame_Unknown` is the migration sentinel; untagged Pose handles still bypass the check by construction). Adopters who opt in get a Mars-Climate-Orbiter-style rejection at compile time instead of a silent runtime miscompute. Phase 2b expands the check across struct-init, function-call, and binop paths and adds broader Clifford weight-enumerator/property invariants; Phase 4 promotes the FRAME-001 surface to v1.0 hard-error across the kinematics / tf / se3 rods. Adopter discipline today: do not treat current Clifford coverage as production proof for arbitrary stabilizer constructions; for frame typing, prefer `Pose<Frame_X>`-tagged annotations over bare `Pose` to opt into the check. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
+            print("  Tier C correctness caveats: the Clifford-stabilizer rod has verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, stabilizer-distance smoke tests, and Surface-17 smoke tests. Published weight-enumerator validation remains open until the rod exposes enumerator APIs. FRAME-001 phantom-tag mismatch checking is live for `Pose<Frame_*>` annotations; `Frame_Unknown` is the migration sentinel and untagged Pose handles bypass the check by construction. Prefer `Pose<Frame_X>`-tagged annotations over bare `Pose`.");
         };
     };
     // v0.8.58 LAW-1/2/3 Phase 1, refreshed after R14
@@ -36815,11 +36800,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0858_count: i64 = simple_attribute_audit_count(after_async, str_concat("@law(", ""));
         if v0858_count > 0 {
             print(str_concat("info[LAW-G123]: `@law(...)` algebraic-law annotations in source: ", str_from_int(v0858_count)));
-            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are captured and reported, and `nuc test --check-laws` now generates bounded integer checks for low-risk forms (`commutative`, `associative`, `identity`, `absorbing`, `idempotent`, `involution`, `distributive_over`, `inverse`) plus schema hard errors for deprecated aliases, unsupported canonical forms, float/approximate modifiers, and unknown law names. The IR-level `opt_law_rewrite_block` is gated by the `@audit(law_opt_required)` + `@audit(check_laws_passed)` predicate pair (LAW-003 fail-closed when only opt_required is present) AND by the v0845 `law_opt_phase2_proof_validated` IR-level sentinel (always 0 in Phase 1 so no rewrites fire even if both audits are present). Fusion law generation, Arbitrary-driven broad property tests, float-law safeguards (currently LAW-004 fail-closed), and cert-profile SMT proof obligations remain open. Adopter relying on @law(...) for compile-time rewrite still gets no optimization guarantee today; use `nuc test --check-laws` for the shipped check surface. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Algebraic-law caveats: @law(...) annotations are captured and reported, and `nuc test --check-laws` generates bounded integer checks for low-risk forms plus schema hard errors for deprecated aliases, unsupported forms, float/approximate modifiers, and unknown names. The IR-level rewrite pass remains gated and currently performs no broad rewrites. Use `nuc test --check-laws` for the shipped check surface.");
         };
     };
-    // R14-D2 Phase 2-prep gate (local-claude2 v0842) — algebraic
-    // law optimizer rewrite eligibility audit.
+    // Algebraic-law optimizer rewrite eligibility audit.
     //
     // The IR pass `opt_law_rewrite_block` remains a no-op (rewrites
     // do not yet fire). Phase 2-prep ships a build-time eligibility
@@ -36855,7 +36839,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         if v0842_has_audit_pass == 1 {
             let v0842_law_count_for_gate: i64 = if v0858_has_law == 1 { simple_attribute_audit_count(v0842_law_gate_source, str_concat("@law(", "")) } else { 0 };
             print(str_concat("info[LAW-AUDIT-GATE]: optimizer rewrite gate opted in (`@audit(law_opt_required)`) and proof-audit attribute present (`@audit(check_laws_passed)`); eligible @law annotations: ", str_from_int(v0842_law_count_for_gate)));
-            print("  Per RFC sister gap LAW-3 Phase 2-prep (local-claude2 v0842): a source declaring `@audit(law_opt_required)` is asking the optimizer to use its law metadata for low-risk rewrites; the matching `@audit(check_laws_passed)` attribute declares the user has run `nuc test --check-laws` and observed PASS. Today the eligibility report fires; the IR-level rewrite pass `opt_law_rewrite_block` remains a no-op, so no semantics change yet. Phase 2 ships the first concrete rewrite (`f(a, identity) → a` for `@law(identity = N)` on integer fns) gated on this exact eligibility predicate. Adopter discipline: never add `@audit(check_laws_passed)` without first running `--check-laws` and observing PASS, and never add `@audit(law_opt_required)` to a file whose law family hasn't been audited. Reference: docs/rfcs/v1_PUNCHLIST.md Algebraic Laws Phase 2.");
+            print("  A source declaring `@audit(law_opt_required)` is asking the optimizer to use its law metadata for low-risk rewrites; the matching `@audit(check_laws_passed)` attribute declares the user has run `nuc test --check-laws` and observed PASS. Today the eligibility report fires; the IR-level rewrite pass remains a no-op, so no semantics change yet. Adopter discipline: never add `@audit(check_laws_passed)` without first running `--check-laws` and observing PASS.");
         } else {
             print("error[LAW-003]: source declares `@audit(law_opt_required)` but is missing `@audit(check_laws_passed)`; run `nuc test --check-laws`, observe PASS, then add the audit attribute before enabling the optimizer gate");
             panic("nucleor: LAW-003 optimizer rewrite gate without check-laws audit");
@@ -36872,7 +36856,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0857_count: i64 = simple_attribute_audit_count(after_async, str_concat("@cfg(", "feature"));
         if v0857_count > 0 {
             print(str_concat("info[PKG-5]: `@cfg(feature = ...)` gates in source: ", str_from_int(v0857_count)));
-            print("  Per RFC sister gap PKG-5 (Module/Packaging): conditional compilation `@cfg(feature = \"X\")` is parsed but the gate is NOT honored — the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Phase 2b adds proper feature-gating in the lowering pass; Phase 4 promotes adopter use to a hard requirement (gates that don't match active features become a hard error). Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection — use module-level imports or runtime checks. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-5.");
+            print("  Conditional compilation `@cfg(feature = \"X\")` is parsed but the gate is NOT honored — the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection; use module-level imports or runtime checks.");
         };
     };
     // v0.8.54 RT Phase 1 — real-time/determinism partial-enforcement
@@ -36892,7 +36876,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0854_total: i64 = v0854_deadline + v0854_no_alloc + v0854_no_panic + v0854_isr;
         if v0854_total > 0 {
             print(str_concat("info[RT-G135]: real-time/determinism annotations in source: ", str_from_int(v0854_total)));
-            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1/RT-G3: #[no_alloc] and #[no_panic] scan annotated fn bodies, tagged callees, and bounded same-file helper chains up to depth=8 (v0845 lane 3 / queue 3C raised the no_alloc + no_panic bound from 4 to match the restricts and requires-row depth) whose reachable bodies contain hardcoded allocation/panic patterns. Cross-module flat-namespace `import \"...\"` reach is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_no_alloc` and `enforce_no_panic` run, so the same RT-001/RT-002 fire whether the allocating/panicking callee lives in the entry source or an imported sibling rod (v0845 lane 3 / queue 3A). Closure escape, fn-pointer indirect calls, and deeper-than-bound helper paths still escape detection. RT-G3 still warns only for integer division/modulo panic risk; arithmetic overflow and array OOB panic sources remain incomplete. RT-G5: #[deadline=N] now installs a runtime deadline context, polls deadline inner loops, keeps an exit check for straight-line work, and still uses heuristic RT-004 estimates rather than certified WCET. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Adopter discipline today: do NOT rely on these annotations as complete compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
+            print("  Real-time/determinism caveats: #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse, but enforcement still has known false-negative surfaces. no_alloc/no_panic scan annotated bodies, tagged callees, and bounded same-file helper chains; closure escape, fn-pointer indirect calls, and deeper-than-bound paths still escape detection. #[deadline=N] installs runtime deadline context and loop polling, but RT-004 estimates remain heuristic rather than certified WCET. #[isr] runs on the host target. Do NOT rely on these annotations as complete compile-time hard guarantees.");
         };
     };
     // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
@@ -36911,10 +36895,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0850_total: i64 = v0850_concurrency + v0850_cancel + v0850_channel;
         if v0850_total > 0 {
             print(str_concat("info[CONC-G12]: concurrency-rod surface in source: ", str_from_int(v0850_total)));
-            print("  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency rod's `cancel_token` (C-1) is a linker bomb on Linux (extern fn declared, body absent in nucleor_llvm_rt.c POSIX path) and POSIX channel helpers (C-2) are silent no-op stubs that lose all messages. Programs using these on Linux either fail at link time or run with broken concurrency. Phase 2b adds the missing POSIX implementations; Phase 4 enforces a CI gate that builds + smokes a concurrency test on Linux. Adopter discipline today: avoid these helpers if targeting Linux. Reference: docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md C-1, C-2.");
+            print("  Concurrency caveats: cancel_token is not implemented on the POSIX runtime path, and POSIX channel helpers are incomplete. Programs using these on Linux can fail at link time or run with broken concurrency. Adopter discipline today: avoid these helpers if targeting Linux until the POSIX implementations are complete.");
         };
     };
-    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability audit-pass info.
+    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability build-summary info.
     // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
     // no-signal class with EFF-001 for print/alloc/ambient capability use.
     // v0829/v0831 add bounded same-file pure-call checking for user helpers
@@ -36942,10 +36926,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
         if v0848_total > 0 {
             print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
-            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): direct `pure fn` side effects now fail during `nuc build` with EFF-001 (v0.8.307/v0.8.309), same-file pure calls into user helpers with direct side effects or bounded requires-row violations now fail with EFF-001, pure calls to builtin print-family I/O, undeclared extern/default-unsafe surfaces, and structured scheduling/channel effects now fail with EFF-001, same-file `requires [...]` rows now emit EFF-001 for direct rowed callees, known builtin body effects, and bounded un-rowed helper chains up to depth=8 (v0845 lane 2 raised the requires bound from 3 to match the restricts path), and the RFC-0033 `with [no_alloc]`/`with [Alloc]` subset can emit EFF-003. Block-form `restricts [...] { ... }` now parses cleanly and a same-file pre-pass emits EFF-003 for direct builtin I/O / channel / namespaced alloc-constructor calls, direct calls to user fns whose declared `requires [...]` row overlaps the deny row, AND for un-rowed user fn callees that transitively reach a builtin or rowed callee within depth=8 hops in the same file (R05 Phase 2b first slice + cloud2 delta v0840, local-claude transitive ship v0841/v0843, helper1 v0844 requires/body follow-up). Clean blocks and clean transitive chains compile and run normally. Cross-module flat-namespace `import \"...\"` requires + restricts direct and bounded transitive enforcement is closed via the resolved-source pre-pass — imported fn declarations and bodies are textually inlined before `enforce_requires_direct_calls` and `enforce_restricts_block_effects` run, so the same diagnostics fire whether the rowed/builtin callee lives in the entry source or an imported sibling rod (v0845 lane 2 probe). Same-file `impl` method effect enforcement also lands via the same path: substring-search on `callee(` accidentally covers `obj.method(...)` call sites, so a method declared with `requires [...]` mismatched against its same-file caller's row, a method whose body reaches a builtin under an incompatible caller row, and a `restricts [...] { obj.method(); }` block reaching method-internal I/O all surface EFF-001/EFF-003 (v0845 lane 2 / queue 2B). The substring approach cannot disambiguate same-name methods on different `impl` blocks; when the source declares a method name twice with distinct rows, enforcement fails open at that name (skipping the row check and falling through to the body walk) so adopter code does not false-positive on the un-rowed impl. Receiver-type-aware resolution for the ambiguous-name case is Phase 4 / RFC-0033 broader effect-row subtyping. The remaining open surface is beyond depth=8 chains, ambiguous-name same-file methods (fail-open since v0845), closures and function-pointer effect capture, broader RFC-0033 effect-row subtyping, and selective `use path::{a, b}` / glob `use path::*` import surfaces (resolver phase 2). Treat unvalidated rows as documentation/audit metadata until Phase 2b effect-row enforcement lands. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-2, E-3, E-4, E-9, E-11.");
+            print("  Effect/capability caveats: direct `pure fn` side effects fail with EFF-001, and same-file pure calls plus bounded requires/restricts checks are enforced through known builtin effects and helper chains up to depth=8. Cross-module flat-namespace imports are handled through the resolved-source pre-pass. Remaining open surfaces include deeper chains, ambiguous same-name methods, closures and function-pointer effect capture, broader effect-row subtyping, and selective/glob import forms. Treat unvalidated rows as documentation until the broader effect-row enforcement lands.");
         };
     };
-    // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
+    // v0.8.46 T-3 Phase 1 — char-cast build-summary info. Counts
     // `as char` cast occurrences in source. Today, casting an int
     // to char silently accepts any value including out-of-range
     // codepoints (>0x10FFFF) and surrogate range (0xD800-0xDFFF),
@@ -36957,12 +36941,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0846_count: i64 = simple_attribute_audit_count(after_async, str_concat(" as ", "char"));
         if v0846_count > 0 {
             print(str_concat("info[T-3-CAST]: `as char` casts in source: ", str_from_int(v0846_count)));
-            print("  Per RFC sister gap T-3 (Type System): const-foldable `<int> as char` emits TYP-026 for invalid Unicode scalar values (>0x10FFFF or surrogate range 0xD800-0xDFFF), and non-constant casts now fail closed unless the exact binding is guarded by a recognized scalar-range proof such as `v >= 0 && v < 0xD800` in the same then-branch. The i64-everywhere char ABI remains open until broader char distinctness lands. Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
+            print("  Type-system caveat: const-foldable `<int> as char` emits TYP-026 for invalid Unicode scalar values, and non-constant casts fail closed unless guarded by a recognized scalar-range proof in the same branch. The i64-everywhere char ABI remains open until broader char distinctness lands.");
         };
     };
-    // v0.8.66 NUM-G1 audit RETIRED per probe finding 2026-05-04
-    // (findings/promoted/2026-05-04-num-g1-rfc-headline-does-not-
-    // reproduce-only-intpart-overflow-panics.md). The original
+    // NUM-G1 audit retired after reproduction testing. The original
     // gap-RFC claim ("f64 literals with >6 fractional digits silently
     // truncated") does NOT reproduce in v0.4.180. Probe confirmed
     // bit-identical-to-strtod values for 16-digit f64 literals.
@@ -36993,13 +36975,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         // form `[a , .. , b]` to avoid self-matching the
         // detector needles when this file gets self-host
         // compiled.
-        print("ERROR: slice patterns with rest binding (the dot-dot rest element inside slice match brackets `[a , .. , b]`) are not yet supported in Nucleor. Pre-v0.8.34 surfaced as wrong-class range-expression diagnostic because the parser hit token 58 inside the slice pattern brackets and routed to the range halt. Workaround: rewrite as explicit indexing using vec_len + vec_get. Tracked for forward-roadmap (full slice-pattern matcher with rest binding). Sister to Q1 / Q9 from PARALLEL_AGENT_PUNCHLIST.");
+        print("ERROR: slice patterns with rest binding (the dot-dot rest element inside slice match brackets `[a , .. , b]`) are not yet supported in Nucleor. Workaround: rewrite as explicit indexing using vec_len + vec_get. Tracked for the full slice-pattern matcher with rest binding.");
         panic("nucleor: slice patterns with rest binding not yet supported (see ERROR diagnostic above)");
     };
     // v0.8.33: RFC-0062 G-6 Phase 2a — Sendable-edge surface
     // info. Counts `HashMap<` and `RefCell<` / `Cell<` substrings.
     // Phase 2b will close the four unaudited cases per
-    // docs/sendable-inventory.md §4. Gated behind cheap
+    // Gated behind cheap
     // str_index_of pre-checks so adopter code with no
     // HashMap/Cell pays zero cost for this audit.
     let v0833_has_hm: i64 = if str_index_of(after_async, str_concat("HashMap", "<")) >= 0 { 1 } else { 0 };
@@ -37010,7 +36992,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
                                   + simple_attribute_audit_count(after_async, str_concat("Cell", "<"));
         if v0833_send_count > 0 {
             print(str_concat("warning[SEND-G6]: HashMap/Cell/RefCell types in build: ", str_from_int(v0833_send_count)));
-            print("  Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> Sendable propagation is not yet enforced — the v1.0 contract is Sendable iff K and V are Sendable AND hasher is Sendable. Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). spawn-call sites may silently accept these today — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set. Closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md §4.");
+            print("  Per RFC-0062 G-6 Phase 3 (v1.0): HashMap<K,V> Sendable propagation is not yet enforced — the v1.0 contract is Sendable iff K and V are Sendable AND hasher is Sendable. Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). spawn-call sites may silently accept these today — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set. Closure capture-set audit is post-v1.0 hardening.");
         };
     };
     // v0.8.36: RFC-0062 G-6 Phase 2a (closures) — `move |...|`
@@ -37024,7 +37006,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         let v0836_move_count: i64 = simple_attribute_audit_count(after_async, str_concat("move ", "|"));
         if v0836_move_count > 0 {
             print(str_concat("warning[SEND-G6-CLOSURE]: `move |...|` capture closures in build: ", str_from_int(v0836_move_count)));
-            print("  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening. Reference: docs/sendable-inventory.md §4 case 2.");
+            print("  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening.");
         };
     };
     // v1.0 RFC-0062 G-7 Phase 3 — `unsafe { }` block audit. The
@@ -37052,8 +37034,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         // v0.8.73 G-3 Phase 2b — strong warning when flip is on
         // and source contains handoff patterns. Catches the gap
         // identified in v0.8.71 testing: vec_push(<param>, local)
-        // patterns that auto-drop would dangle. Per
-        // docs/g3-handoff-dataflow-design.md.
+        // patterns that auto-drop would dangle.
         let v0873_vec_push_count: i64 = if str_index_of(after_async, str_concat("vec_", "push(")) >= 0 {
             simple_attribute_audit_count(after_async, str_concat("vec_", "push("))
         } else { 0 };
@@ -37062,8 +37043,8 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         } else { 0 };
         let v0873_handoff_total: i64 = v0873_vec_push_count + v0873_vec_set_count;
         if v0873_handoff_total > 0 {
-            print(str_concat("warning[G3-HANDOFF-RISK]: vec_push / vec_set call sites in build: ", str_from_int(v0873_handoff_total)));
-            print("  Per RFC-0062 G-3 Phase 2b: under default-flip (NUC_AUTO_DROP_DEFAULT=1), local Vec values handed off via `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)` get auto-dropped at fn exit, leaving the receiver with a DANGLING POINTER. This is a silent miscompute — the guard from v0.8.68 catches double-free but NOT dangling pointers from handoff. Adopter discipline TODAY: any fn whose body contains `vec_push(<param-name>, <local-vec>)` should carry `#[manual_drop]` to suppress auto-drop on the local. Phase 2b proper dataflow handoff detection will automate this; until then, treat every vec_push call site as a manual review point. Reference: docs/g3-handoff-dataflow-design.md.");
+            print(str_concat("warning[G3-OWNERSHIP-RISK]: vec_push / vec_set call sites in build: ", str_from_int(v0873_handoff_total)));
+            print("  Under default-flip (NUC_AUTO_DROP_DEFAULT=1), local Vec values transferred via `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)` can be auto-dropped at fn exit, leaving the receiver with a dangling pointer. Adopter discipline today: any fn whose body contains `vec_push(<param-name>, <local-vec>)` should carry `#[manual_drop]` to suppress auto-drop on the local. Future dataflow transfer detection will automate this; until then, treat every vec_push call site as a manual review point.");
         };
     };
     // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
@@ -37077,10 +37058,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         str_concat("#[manual_", "drop]"));
     if v0831_manual_drop_count > 0 {
         print(str_concat("info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: ", str_from_int(v0831_manual_drop_count)));
-        print(str_concat("  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP — every fn still requires explicit `#[auto_", "drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN §3 G-1."));
+        print(str_concat("  `#[manual_drop]` is reserved for the default-on auto-drop mode. Today the attribute is a NO-OP — every fn still requires explicit `#[auto_", "drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip."));
     };
     // v0.8.28: RFC-0062 G-8 Phase 2a — conditional-divergence
-    // audit-pass info. Counts `match ` keyword occurrences as a
+    // build-summary info. Counts `match ` keyword occurrences as a
     // coarse proxy for control-flow-with-potential-cond-
     // divergence. Phase 2b will add per-fn move-state join
     // analysis at if/else and match arms. Phase 4 promotes to
@@ -37225,7 +37206,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         return 1;
     };
     let total_start: i64 = now_ms();
-    // v1.0.1 perf fix (audit-pass-1 integrator): early raw-source cache hit.
+    // v1.0.1 perf fix: early raw-source cache hit.
     // Pre-fix the resolve+macro-expand pass ran on every build at ~15 s on
     // the 2.4 MB compiler source (41x regression on hot path vs v1.0
     // baseline 0.47 s). The macro/actor/async-strip transforms are pure,
@@ -37306,7 +37287,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // re-runs in the same process / repeated builds don't drift.
     __nucleor_parse_depth_reset();
     print_phase_time(time_passes, "resolve_source", now_ms() - resolve_start);
-    // v1.0.1 perf fix (audit-pass-1 integrator): cache check moved AHEAD
+    // v1.0.1 perf fix: cache check moved AHEAD
     // of preflight_source_check. Pre-fix preflight ran a per-byte loop
     // over the entire source (12 MB s1 compiler = 12 M str_char_at calls)
     // BEFORE checking the .ll cache, costing ~20 s on every hot rebuild
@@ -37349,7 +37330,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let preflight_start: i64 = now_ms();
     if preflight_source_check(source) != 0 { return 1; };
     print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
-    // v1.0.1 perf fix (audit-pass-1 integrator): also write the raw-source-
+    // v1.0.1 perf fix: also write the raw-source-
     // key form of the cache entry so the early fast path will hit on
     // subsequent builds. The slow path's transform-derived `cache_key`
     // remains the primary key so import-bearing sources stay correctly
@@ -37727,7 +37708,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // EFFECT-G10-WRONG-ROW. Cheap-gated on the source containing the
     // attribute syntax — no perf hit for the existing fixture corpus.
     diags = enforce_g10_effects(diags, max_depth_source);
-    // R05-D4 v0.8.323 (local-claude v0840): block-form
+    // R05-D4 block-form
     // `restricts [...] { ... }` real enforcement first slice. Emits
     // `error[EFF-003]` when a direct call inside the block targets a
     // builtin or a same-file user fn whose declared `requires [...]`
@@ -37782,8 +37763,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Empty Vecs flow through to lower_fn; the existing walk-all
     // lookups find no matches; no contract IR emits.
     let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
-    // v0.4.275 — validate the env value. Probe-agent finding
-    // 2026-05-01: any unrecognized value (e.g. `off`, `disabled`,
+    // v0.4.275 — validate the env value. Pre-fix, any unrecognized
+    // value (e.g. `off`, `disabled`,
     // `0`, `none`) silently fell into the "neither release nor
     // cert nor debug" bucket → emit_require=1 + emit_ensure_inv=0
     // (effectively `safe-release`), with no signal to the adopter
@@ -37819,8 +37800,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let req_name: str = vec_get(req_text_pairs, rti);
         if name_in_no_check(dbc_no_check, req_name) == 1 { rti = rti + 2; continue; };
         let req_text: str = vec_get(req_text_pairs, rti + 1);
-        // v0.4.277 — reject `old()` in #[require]. Probe-agent
-        // finding 2026-05-01: pre-fix, `#[require(old(x) > 0)]`
+        // v0.4.277 — reject `old()` in #[require]. Pre-fix,
+        // `#[require(old(x) > 0)]`
         // emitted a misleading clang-link "undefined function
         // `old()`" error. `old()` is meaningful only in #[ensure]
         // (postconditions can reference fn-entry state); #[require]
@@ -37832,8 +37813,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
             print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
             return 1;
         };
-        // v0.4.283 — undefined-ident check. Probe-agent finding
-        // 2026-05-01: pre-fix, `#[require(undefined_var > 0)]`
+        // v0.4.283 — undefined-ident check. Pre-fix,
+        // `#[require(undefined_var > 0)]`
         // surfaced a misleading clang-link "undefined function
         // `undefined_var()`" error. CONTRACT-011 halts at compile
         // time naming the actual unbound ident.
@@ -41285,7 +41266,7 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         if str_eq(inferred, "str") == 1 || str_eq(inferred, "String") == 1 {
             return str_concat("str_concat(\"\\\"\", str_concat(", str_concat(arg_expr, ", \"\\\"\"))"));
         };
-        // v0.4.97 audit doc-#1 §10b: recursive Debug for Vec/Option/Result.
+        // v0.4.97: recursive Debug for Vec/Option/Result.
         // Pre-fix `println!("{:?}", v)` for v: Vec<i64> emitted the
         // pointer integer (silent miscompute). Now routes to runtime
         // helpers that produce `[1, 2, 3]` / `Some(42)` / `Err(7)`.
@@ -41756,7 +41737,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     };
     segments.push(sb_to_str(current));
     parities.push(0);
-    // v0.5.11: probe-agent finding 2026-05-01-format-extra-args-silently-dropped.
+    // v0.5.11: format extra args cannot be silently dropped.
     // Mirror direction of the v0.4.70 placeholder>args check: if the
     // adopter supplied MORE args than `{}` placeholders, the extras
     // would be silently dropped (their evaluation may even have side
@@ -42772,11 +42753,9 @@ fn compiler_version_label() -> str {
     // History: 0.2.0-v2 → 0.3.134 → 0.4.180 (caught up from 0.4.21) →
     // 0.8.322 (caught up from 0.4.180) → 0.8.323 (RFC-0063 Phase 1) →
     // 1.0.0 (RFC-0062 hard-error closure G-1..G-11) → 1.0.1
-    // (audit-pass-1 hardening sweep, 244 findings, 7 fix lanes) →
-    // 1.0.2 (audit residual close, label-skip cut) → 1.0.3
+    // (hardening sweep) → 1.0.2 (label-skip cut) → 1.0.3
     // (cold-compile str_substring regression fix; 22 s → 6 s on
-    // Linux, ~5.8× faster) → 1.1.0 (audit-complete production
-    // readiness line).
+    // Linux, ~5.8× faster) → 1.1.0.
     // tools/check_compiler_drift.sh enforces parity with the latest
     // ## [X.Y.Z] heading in CHANGELOG.md, so this can't drift silently.
 }
@@ -44161,7 +44140,7 @@ fn main() -> i64 {
         // which collapsed on POSIX shells: `system("target\foo.exe")`
         // hit `targetfoo.exe: not found` because the shell ate the
         // backslash. Closes
-        // findings/promoted/2026-05-06-nuc-run-linux-path-construction.md.
+        // Linux path construction guard.
         // POSIX also needs the `./` prefix because /bin/sh -c does not
         // include `.` in PATH for security reasons.
         let exe_dir: str = if host_is_windows() == 1 { "target\\" } else { "./target/" };

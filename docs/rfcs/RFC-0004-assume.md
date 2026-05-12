@@ -5,7 +5,7 @@
 | **Number** | 0004 |
 | **Title** | `#[assume(...)]` — explicit proofs to silence the conservative `#[no_panic]` / WCET analyses |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 ("Robotics Stack") |
 | **Depends on** | RFC-0001 (real-time function attributes) |

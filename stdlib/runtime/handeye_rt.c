@@ -125,7 +125,7 @@ static void _build_N(const double *H, double *N) {
 // In-place Gauss-Jordan inverse on small n×n.
 static int _gj_inv(double *A, int n, double *Ainv) {
     int aug_w = 2 * n;
-    double *aug = (double *)malloc(n * aug_w * sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i*aug_w + j] = A[i*n + j];
         for (int j = 0; j < n; j++) aug[i*aug_w + n + j] = (i == j) ? 1.0 : 0.0;

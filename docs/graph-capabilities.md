@@ -203,10 +203,7 @@ workers. It is not yet scalable per independent graph; call
 
 ## 5. Cross-references
 
-- `RFC-0061 Graph Remediation` — `docs/rfcs/RFC-0061-graph-remediation.md`
-- Source spec — `Desktop/Nucleor_Graph_Remediation_Spec_2026-05-03.md`
-- Companion governance — `RFC-0060 Governance Rod`
-  (`docs/rfcs/RFC-0060-governance-rod.md`)
+- Checked fixtures listed below.
 - Section 2 verbs — `docs/language-reference.md §10.1, §10.2`
 - Smoke fixtures —
   `tests/fixtures/v0780_rfc0061_negative_cycle_smoke.nr`,

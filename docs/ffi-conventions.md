@@ -111,5 +111,5 @@ contract.
 
 ## 6. C-runtime surface inventory
 
-See `docs/unsafe-audit.md` §3 for the complete list of `*_rt.c`
-files implementing the FFI surface.
+The runtime FFI surface is implemented by the `*_rt.c` files under
+`stdlib/runtime/`.

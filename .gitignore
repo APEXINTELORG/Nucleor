@@ -50,8 +50,8 @@ _verify_*.exe
 _test_*.exe
 
 # Linux-native bootstrap binary — reproducible from bootstrap/nucleor_s1_seed.ll
-# via tools/bootstrap_linux.sh. Not committed; bin/nucleor.exe is the canonical
-# cross-platform bootstrap binary per NUCLEOR_BOOTSTRAP_CONTRACT.md.
+# via tools/bootstrap_linux.sh. Not committed; bin/nucleor.exe plus the
+# bootstrap seed are the canonical public bootstrap artifacts.
 bin/nucleor
 # Linux-native tools-suite binary (symmetric counterpart to
 # bin/nucleor_tools.exe above). Reproducible via

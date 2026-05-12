@@ -5,7 +5,7 @@
 | **Number** | 0030 |
 | **Title** | Async / await — explicit decision, opt-in pathways, phased rollout |
 | **Status** | Decision (accepted v0.2) — no first-class async in v0.x; `rod/tokio.nr` opt-in v0.5, native sugar v0.8 |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4 (decision doc only) → v0.5 (`rod/tokio.nr`) → v0.8 (sugar) |
 | **Depends on** | RFC-0001, RFC-0007 |

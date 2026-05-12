@@ -808,7 +808,7 @@ fn ir_select(d: i64, cond: i64, tv: i64, fv: i64) -> Vec<i32> { return ir_inst(2
 // --- Pass 2: Dead Code Elimination ---
 // Removes instructions whose dest register is never used by any later instruction.
 // Side-effecting ops (store, call, ret, br, br_cond, alloca) are never removed.
-// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as compiler.nr.
+// Ownership transfer: same pattern as compiler.nr.
 
 // --- Pass 3: Store-Load Constant Propagation ---
 // Propagates known constants through store/load chains within a block.
@@ -816,17 +816,17 @@ fn ir_select(d: i64, cond: i64, tv: i64, fv: i64) -> Vec<i32> { return ir_inst(2
 
 // --- Pass 4: Dead Store Elimination ---
 // Removes stores that are overwritten before being read within the same block.
-// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+// Ownership transfer: same pattern as opt_dce_block.
 
 // --- Pass 5: Common Subexpression Elimination ---
 // Deduplicates identical pure computations within a block.
 // When a duplicate is found, rewrites all uses of its dest to the original dest.
-// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+// Ownership transfer: same pattern as opt_dce_block.
 #[manual_drop]
 // --- Pass 6: Block Merging ---
 // Merges blocks: if a block ends with unconditional br to a target that has
 // exactly one predecessor, inline the target's instructions and remove the branch.
-// v0.8.41 RFC-0062 G-1: HANDOFF — vec_set on `f` likely stores
+// Ownership transfer: vec_set on `f` likely stores
 // merged block lists. Same pattern as opt_dce_block.
 #[manual_drop]
 fn opt_merge_blocks(f: Vec<i32>) -> i64 {
@@ -8405,7 +8405,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "RT-001") { return "A #[no_alloc] function called something that allocates from the global heap."; };
     if str_eq(code, "RT-002") { return "A #[no_panic] function contains an expression the compiler cannot prove is panic-free."; };
     if str_eq(code, "RT-003") { return "A #[no_dyn] function uses dynamic (vtable) dispatch via dyn Trait."; };
-    if str_eq(code, "RT-004") { return "A HEURISTIC compile-time estimator (statement-counter + coarse loop multiplier) flags this function as likely to exceed its declared #[deadline]. RT-004 is NOT certified WCET — it does not model callee cost, ISA, cache, or branch prediction. Use #[allow(RT-004)] / #[allow_fn(RT-004)] when the estimate is wrong; treat the runtime deadline check as the actual contract. Certified WCET is Phase 2 (RFC-0001 §Heuristic vs certified WCET, audit R03-D3)."; };
+    if str_eq(code, "RT-004") { return "A HEURISTIC compile-time estimator (statement-counter + coarse loop multiplier) flags this function as likely to exceed its declared #[deadline]. RT-004 is NOT certified WCET — it does not model callee cost, ISA, cache, or branch prediction. Use #[allow(RT-004)] / #[allow_fn(RT-004)] when the estimate is wrong; treat the runtime deadline check as the actual contract. Certified WCET is future work (RFC-0001 §Heuristic vs certified WCET)."; };
     if str_eq(code, "RT-005") { return "An RT-tagged function called an extern fn lacking #[ffi_no_alloc] or #[ffi_no_panic]."; };
     if str_eq(code, "RT-006") { return "RT attributes (#[no_alloc], #[deadline] etc.) cannot be applied to async fn — async semantics break the deadline guarantee."; };
     if str_eq(code, "ASYNC-001") { return "Pre-v0.5.19 `async fn foo() { ... }` was silently stripped to `fn foo()` and ran sync immediately. Adopters writing the canonical Rust async pattern got immediate execution with no signal. Nucleor v0.5 has no Future / .await polling; threading is via `async_spawn(fn_ptr, arg)` + `async_await(handle)` (RFC-0027 phase 1). Either drop the `async` keyword for sync fns, or call `async_spawn` to actually thread."; };
@@ -9597,7 +9597,7 @@ fn law_append_distributive_over_checks(sb: i64, fn_name: str, over_fn: str) {
     sb_append(sb, "    };\n");
 }
 
-// R14 Phase 3b broad property pack (local-claude2 v0842) — bounded
+// Broad property pack: bounded
 // integer inverse-law check generation. For a unary fn `f` annotated
 // with `@law(inverse = g)`, generate both `f(g(a)) == a` and
 // `g(f(a)) == a` round-trips at four sample integers covering
@@ -11240,9 +11240,8 @@ fn compiler_version_label() -> str {
     return "1.1.0";
     // Mirrors s1. History: 0.4.180 (caught up from stale 0.2.0-v2) →
     // 0.8.323 (RFC-0063 Phase 1 follow-on) → 1.0.0 (RFC-0062 closure +
-    // RFC-0063 unification) → 1.0.1 (audit-pass-1 hardening sweep) →
-    // 1.0.2 (audit residual close) → 1.0.3 (cold-compile str_substring
-    // regression fix) → 1.1.0 (audit-complete production readiness).
+    // RFC-0063 unification) → 1.0.1 (hardening sweep) →
+    // 1.0.2 → 1.0.3 (cold-compile str_substring regression fix) → 1.1.0.
 }
 
 fn abi_export_version_label() -> str {
@@ -11432,7 +11431,7 @@ fn run_bootstrap_command(argc: i64) -> i64 {
             sb_append(sb, ",\"runtime_lines\":"); sb_append(sb, str_from_int(runtime_lines));
             sb_append(sb, ",\"runtime_symbols\":"); sb_append(sb, str_from_int(runtime_symbols));
             sb_append(sb, ",\"runtime_source\":\""); sb_append(sb, json_escape(runtime_path));
-            sb_append(sb, "\",\"bootstrap_contract\":\"NUCLEOR_BOOTSTRAP_CONTRACT.md\",\"self_hosted\":true}");
+            sb_append(sb, "\",\"bootstrap_contract\":\"docs/SELF_HOST_INTEGRITY.md\",\"self_hosted\":true}");
             print(sb_to_str(sb));
             return 0;
         };
@@ -11446,7 +11445,7 @@ fn run_bootstrap_command(argc: i64) -> i64 {
         };
         print(str_concat("  Runtime: ", str_concat(str_from_int(runtime_lines), str_concat(" lines, ~", str_concat(str_from_int(runtime_symbols), " symbols")))));
         print("  Self-hosted: yes");
-        print("  Contract: NUCLEOR_BOOTSTRAP_CONTRACT.md");
+        print("  Contract: docs/SELF_HOST_INTEGRITY.md");
         return 0;
     };
     if str_eq(subcmd, "dump-corpus") == 1 {

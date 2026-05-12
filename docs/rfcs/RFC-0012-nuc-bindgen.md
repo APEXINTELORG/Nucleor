@@ -5,7 +5,7 @@
 | **Number** | 0012 |
 | **Title** | `nuc-bindgen` — libclang-driven binding generator for C and C-style C++ headers |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 ("Robotics Stack") |
 | **Depends on** | RFC-0001 (`#[ffi_no_*]` attributes), parallel to RFC-0011 (`nuc-cxx`) |

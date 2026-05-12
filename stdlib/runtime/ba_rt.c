@@ -107,7 +107,7 @@ static void _so3_exp(const double *omega, double *q_out) {
 // === Linear solver ===
 static int _gj_inv(const double *A, int n, double *Ainv) {
     int aug_w = 2*n;
-    double *aug = (double *)malloc(n*aug_w*sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i=0;i<n;i++){
         for (int j=0;j<n;j++) aug[i*aug_w+j] = A[i*n+j];
         for (int j=0;j<n;j++) aug[i*aug_w+n+j] = (i==j)?1.0:0.0;
@@ -303,15 +303,15 @@ long long nuc_ba_optimize(long long h, long long max_iters, long long tol_b) {
     if (dof <= 0) return -1;
     double tol = _i2f(tol_b);
 
-    double *H_mat = (double *)calloc(dof*dof, sizeof(double));
+    double *H_mat = (double *)calloc((size_t)dof * dof, sizeof(double));
     double *b_vec = (double *)calloc(dof,    sizeof(double));
-    double *Hinv  = (double *)malloc(dof*dof*sizeof(double));
+    double *Hinv  = (double *)malloc((size_t)dof * dof * sizeof(double));
     double *delta = (double *)malloc(dof*    sizeof(double));
     double J_cam[12], J_pt[6], r0[2];
 
     long long iter;
     for (iter = 0; iter < max_iters; iter++) {
-        memset(H_mat, 0, dof*dof*sizeof(double));
+        memset(H_mat, 0, (size_t)dof * dof * sizeof(double));
         memset(b_vec, 0, dof*sizeof(double));
 
         for (int o_idx = 0; o_idx < p->n_obs; o_idx++) {

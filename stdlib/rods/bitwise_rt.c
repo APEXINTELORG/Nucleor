@@ -1,12 +1,9 @@
 // rods/bitwise runtime — Bitwise operations for Nucleor
 // Nucleor doesn't have bitwise operators, so these are provided via C FFI
 //
-// Lane 6 / F-NUM-003 (audit 2026-05-08): every shift / bit-position
-// helper now bounds-checks the count against [0, 63]. Pre-fix the
-// helpers wrapped C `<<` / `>>` directly, which is undefined behaviour
-// for shift counts >= width or < 0 — `bit_shift_left(1, 64)` returned
-// 1, `bit_set(0, 65)` set bit 1 instead of bit 65, etc. The new policy
-// emits a deterministic panic via `nuc_bit_shift_panic`.
+// Every shift / bit-position helper bounds-checks the count against
+// [0, 63] before using C shifts. Invalid counts emit a deterministic
+// panic via `nuc_bit_shift_panic`.
 
 #include <stdio.h>
 #include <stdlib.h>

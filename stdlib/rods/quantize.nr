@@ -43,18 +43,13 @@ fn quant_grouped_gemv(gq: i64, x: i64, rows: i64, cols: i64) -> i64 { return nuc
 fn quant_activation_mag(a: i64, n_samples: i64, dim: i64) -> i64 { return nuc_quant_activation_magnitude(a, n_samples, dim); }
 fn quant_free(h: i64) { nuc_quant_free(h); }
 
-// === R08-D3 Phase 1 (v0.8.287) — quantization coverage disclosure ===
+// === Quantization coverage disclosure ===
 //
-// Per audit `BUILD_PLAN_R08_tensor_ml_autodiff.md` §1 R08-D3 (HIGH):
 // the rod shipped encode + GEMV / dot for Q4, INT8, ternary; encode-only
 // for FP8 (no FP8 GEMV, no FP8 decode); no grouped quantization at
 // all; no INT8 decode; documented error bounds absent.
 //
-// Helper1 v0859 closes the missing decode/inference surface for FP8,
-// INT8, ternary, and grouped signed-Q4 quantization.
-//
-// Phase 1 (audit's rollback path: expose unsupported diagnostics for
-// unimplemented quant modes) ships `quant_op_supported(op)` returning
+// `quant_op_supported(op)` returns
 // 1 if the named op is shipped today, 0 if Phase 2 work, plus
 // `quantize_limitations()` text helper. Phase 2 wires the missing
 // surfaces (FP8 GEMV / decode, INT8 decode, grouped quant, error
@@ -87,5 +82,5 @@ fn quant_op_supported(op: str) -> i64 {
 }
 
 fn quantize_limitations() -> str {
-    return "Quantization rod limitations (ML-6/ML-7/ML-9, audit R08-D3 v0.8.287/helper1 v0859): (1) FP8 now has encode, decode, GEMV, and dot over the existing simplified signed-byte scaled representation; true IEEE-style E4M3 bit encoding remains future work. (2) INT8 now has encode, GEMV, and decode for inspection/debugging. (3) Ternary now has encode, decode, 3-arg GEMV, and explicit 4-arg GEMV. (4) GROUPED signed-Q4 quantization now has grouped_encode / grouped_decode / grouped_gemv with per-group scales for GPTQ-style row-major weight blocks. (5) ERROR BOUNDS are still not documented per scheme; adopters must measure round-trip error before relying on a tolerance. Query quant_op_supported(op_name) for per-op truth.";
+    return "Quantization rod limitations: (1) FP8 now has encode, decode, GEMV, and dot over the existing simplified signed-byte scaled representation; true IEEE-style E4M3 bit encoding remains future work. (2) INT8 now has encode, GEMV, and decode for inspection/debugging. (3) Ternary now has encode, decode, 3-arg GEMV, and explicit 4-arg GEMV. (4) GROUPED signed-Q4 quantization now has grouped_encode / grouped_decode / grouped_gemv with per-group scales for GPTQ-style row-major weight blocks. (5) ERROR BOUNDS are still not documented per scheme; adopters must measure round-trip error before relying on a tolerance. Query quant_op_supported(op_name) for per-op truth.";
 }

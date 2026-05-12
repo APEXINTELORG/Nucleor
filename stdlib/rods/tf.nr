@@ -108,14 +108,11 @@ fn tf_lookup_at(h: i64, source_id: i64, target_id: i64,
 
 fn tf_free(h: i64) { nuc_tf_free(h); }
 
-// === R07-D2 Phase 1 (v0.8.268) — typed TF wrappers ===
+// === Typed TF wrappers ===
 //
-// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D2 (HIGH):
-// pre-v0.8.268 the TF rod accepted any i64 as frame_id, so adopters
-// could pass arbitrary integers (1, 2, 47, -999) outside the type
-// checker's visibility. The typed wrappers below restrict callers
-// to the canonical kinematics_frame ID range (0..7 or -1) and reject
-// out-of-range IDs at runtime.
+// The raw TF rod accepts i64 frame IDs, so the typed wrappers below
+// restrict callers to the canonical kinematics_frame ID range (0..7 or
+// -1) and reject out-of-range IDs at runtime.
 //
 // Adopter pattern (typed):
 //
@@ -167,7 +164,7 @@ fn tf_lookup_typed(h: i64, source_id: i64, target_id: i64,
     return nuc_tf_lookup(h, source_id, target_id, t_out_ptr, q_out_ptr);
 }
 
-// === v0845 Lane 5 / Queue 5B — typed timestamped wrappers ===
+// === Typed timestamped wrappers ===
 //
 // Mirrors the v0.8.268 typed wrappers above for the timestamped TF
 // surface (`tf_add_frame_at`, `tf_set_pose_at`, `tf_lookup_at`).

@@ -19,8 +19,8 @@
 #   5. RELEASES.md freshness vs gen_releases_index.nr output
 #      (since v0.2.57; ported from Python to native Nucleor v0.8.323
 #      per RFC-0063 Phase 1.4 / Track C C2).
-#   6. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
-#      have a `## [version]` heading in CHANGELOG.md (since v0.2.83).
+#   6. CHANGELOG ↔ public git-tag parity — public `v1+` tags must
+#      have a `## [version]` heading in CHANGELOG.md.
 #
 # (Mojibake clean is its own gate step in verify.sh, not part of this
 # script — see tools/check_mojibake.sh added v0.2.91.)
@@ -28,7 +28,7 @@
 # History: v0.1.55 caught the original drift symptom for `getenv` /
 # `assert_ne`; v0.1.56 bulk-synced 749 entries across get_rt_name
 # (351), is_ptr_ret (11), is_ptr_arg (40), and IR `declare` (347).
-# Manifest + RELEASES + tag/CHANGELOG checks added v0.2.41–v0.2.83.
+# Manifest + RELEASES + public tag/CHANGELOG checks added v0.2.41-v1.1.
 #
 # Exit 0 = all six checks passed. Exit 1 = some drift detected; the
 # script names the failing check and the fix command (typically
@@ -187,7 +187,7 @@ check_parser_fn_drift parse_match_stmt
 check_parser_fn_drift parse_stmt
 check_parser_fn_drift parse_expr
 
-# 2026-05-07: Phase 4 of v1_PRODUCTION_READINESS_PLAN_v0846 — guard against
+# 2026-05-07: production-readiness guard against
 # silent regression of the s1 ↔ tools-suite parser-fn `#[manual_drop]`
 # parity. Without this check, a future edit can re-introduce the latent
 # dangling-Vec bug class that drove T2.5 (lifetime params) and T2.1
@@ -259,7 +259,7 @@ if [ "$md_drift_count" -gt 0 ]; then
         echo "FAIL: $md_drift_count tools-suite parse fn(s) missing #[manual_drop] (s1 has it):"
         printf "$md_missing_list" | sed 's/^/      - /'
         echo ""
-        echo "      Per Phase 4 of docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md:"
+        echo "      See docs/NUCLEOR_FEATURE_INVENTORY.md for the public safety surface."
         echo "      tools-suite parse_* fns must mirror s1's #[manual_drop] attribute pattern."
         echo "      Each fn above carries a latent dangling-Vec / Vec OOB panic class on"
         echo "      tools-suite-routed commands (nuc test / bench / check / audit / policy)."
@@ -272,7 +272,7 @@ if [ "$md_drift_count" -gt 0 ]; then
         echo "WARN: $md_drift_count tools-suite parse fn(s) missing #[manual_drop] (s1 has it)."
         echo "      Set NUC_VERIFY_STRICT=1 (or run tools/verify_strict.sh) for the full list"
         echo "      and a hard FAIL. Tracked under Phase 4 of"
-        echo "      docs/rfcs/v1_PRODUCTION_READINESS_PLAN_v0846_2026-05-07.md."
+        echo "      docs/NUCLEOR_FEATURE_INVENTORY.md."
     fi
 fi
 
@@ -495,9 +495,9 @@ check_manifest "audit_dup_fns_report.csv" \
     "$ROOT/tools/audit_dup_fns.nr" \
     "$ROOT/tools/audit_dup_fns_report.csv" || exit 1
 
-# CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
-# class — a tag that was pushed without a per-version CHANGELOG
-# entry. Skips silently if not in a git repo (e.g. tarball release).
+# CHANGELOG ↔ public git tag parity. Pre-v1 archive tags are intentionally
+# omitted from the public changelog; v1+ tags remain release-contract entries.
+# Skips silently if not in a git repo (e.g. tarball release).
 resolve_gitdir_path() {
     local p="$1"
     p="${p//$'\r'/}"
@@ -555,16 +555,16 @@ collect_git_tags() {
 }
 
 if tag_list=$(collect_git_tags); then
-    tag_set=$(echo "$tag_list" | sed 's/^v//' | sort -u)
+    tag_set=$(echo "$tag_list" | grep -E '^v[1-9][0-9]*\.' | sed 's/^v//' | sort -u)
     ch_set=$(grep -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//' | sort -u)
     missing_in_ch=$(comm -23 <(echo "$tag_set") <(echo "$ch_set"))
     if [ -n "$missing_in_ch" ]; then
-        echo "FAIL: git tags exist with no CHANGELOG entry:"
+        echo "FAIL: public v1+ git tags exist with no CHANGELOG entry:"
         echo "$missing_in_ch" | sed 's/^/  - v/'
         echo "Add a per-version block to CHANGELOG.md or remove the stray tag."
         exit 1
     fi
-    echo "OK: CHANGELOG.md covers every git tag"
+    echo "OK: CHANGELOG.md covers every public v1+ git tag"
 fi
 
 # compiler_version_label() ↔ CHANGELOG.md latest heading parity. Catches
@@ -632,7 +632,7 @@ if [ "$pub_fn_s1" != "0" ] || [ "$pub_fn_tools" != "0" ]; then
         echo "  $TOOLS: $pub_fn_tools 'pub fn' declaration(s) — silently mangles every other fn"
         grep -nE '^pub fn ' "$TOOLS" | head -5 | sed 's/^/    /'
     fi
-    echo "  See findings/promoted/2026-05-06-phase-2-0-0-cross-module-import-verified.md"
+    echo "  See docs/rfcs/README.md"
     echo "  for the privatization model. Until RFC-0063 Phase 2.0.3 (parser unification)"
     echo "  ships, do not add 'pub fn' to either compiler source — it would silently"
     echo "  break cross-module import compatibility."

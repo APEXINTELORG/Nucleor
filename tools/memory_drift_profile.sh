@@ -3,7 +3,7 @@
 # AT each tagged commit, compiled with the CURRENT bin/nucleor.exe.
 # Isolates source-size growth from compiler-internal-state growth.
 #
-# v0.5.x deferred work per docs/milestones/MEMORY_DRIFT_2026-05-01.md.
+# Historical memory-drift profiling helper.
 # Output: CSV at tools/memory_drift_profile.csv with columns
 #   tag, s1_bytes, s1_lines, peak_mb, wall_s, status
 #

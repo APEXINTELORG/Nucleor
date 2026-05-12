@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0020 |
 | **Title** | Diagnostic upgrade — Rust-style errors with spans, source snippets, ANSI color, fix suggestions |
-| **Status** | Implemented (partial) v0.1.34–v0.1.59 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met (LineMap + JSON + 158 explain entries); full span migration deferred to v0.4 |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented (partial) v0.1.34-v0.1.59; LineMap, JSON, and explain entries are present; full span migration continued later |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
 | **Depends on** | none |

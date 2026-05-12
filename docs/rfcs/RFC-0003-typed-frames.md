@@ -5,7 +5,7 @@
 | **Number** | 0003 |
 | **Title** | Typed Coordinate Frames — `Pose<F: Frame>`, `Vector3<F: Frame>`, compile-time TF correctness |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 ("Robotics Stack") |
 | **Depends on** | RFC-0001 (attribute infrastructure for `#[frame]`) — soft. Independent of RFC-0002. |

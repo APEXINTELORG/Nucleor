@@ -2,7 +2,7 @@
 # nuc.zsh — zsh completion for the Nucleor CLI.
 #
 # Install:
-#   fpath=(/path/to/Nucleor_OSS/tools/completions $fpath)
+#   fpath=(/path/to/Nucleor/tools/completions $fpath)
 #   autoload -U compinit && compinit
 
 _nuc() {

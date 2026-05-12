@@ -86,9 +86,8 @@ fn logical_qubit_new(code_id: i64, distance: i64) -> LogicalQubit {
     return LogicalQubit { code: code_id, distance: distance, handle: h };
 }
 
-// v1.0.1 (audit-pass-1 integrator): borrow-form accessors. Pre-fix the
-// by-value sigs combined with OWN-001 promoted to error (F-DIAG-003)
-// blocked every test that read more than one field from a LogicalQubit.
+// Borrow-form accessors avoid moving the logical-qubit value when
+// callers read more than one field.
 fn logical_qubit_code(lq: &LogicalQubit) -> i64 { return lq.code; }
 fn logical_qubit_distance(lq: &LogicalQubit) -> i64 { return lq.distance; }
 fn logical_qubit_handle(lq: &LogicalQubit) -> i64 { return lq.handle; }
@@ -185,10 +184,8 @@ fn schedule_new() -> Schedule {
     return Schedule { durations: d, amplitudes: a, phases: p, waveforms: w, qubits: q, starts_ns: s };
 }
 
-// v1.0.1 (audit-pass-1 integrator): borrow-form sigs. Mutating ops take
-// &mut Schedule; read-only accessors take &Schedule. Pre-fix the by-value
-// sigs combined with OWN-001 promoted to error blocked every test that
-// pushed/read a Schedule more than once.
+// Borrow-form signatures: mutating ops take &mut Schedule; read-only
+// accessors take &Schedule.
 fn schedule_push(sched: &mut Schedule, p: Pulse, qubit_id: i64) -> i64 {
     let n: i64 = vec_len(sched.durations);
     let mut next_start: i64 = 0;
@@ -364,16 +361,15 @@ fn calibration_t2_q1616(c: &CalibrationData, qubit_id: i64) -> i64 {
     return vec_get(c.t2_us_q1616, qubit_id);
 }
 
-// === R11-D5 Phase 1 (v0.8.285) — limitation diagnostics ===
+// === Limitation diagnostics ===
 //
-// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D5
-// (MEDIUM): the rod surface presents convention-level support for
+// The rod surface presents convention-level support for
 // surface-code QEC, OpenQASM import/export, and mid-circuit
 // feedback, but the actual primitives are absent. Phase 1 ships a
 // `logical_qubit_limitations()` query helper that adopters can call
-// to learn what's NOT supported before relying on it. Phase 2
-// implements the primitives per the audit ship plan
-// (surface-code → export/import → mid-circuit feedback).
+// to learn what's NOT supported before relying on it. Future work
+// implements surface-code, export/import, and mid-circuit feedback
+// primitives.
 fn logical_qubit_limitations() -> str {
-    return "Logical-qubit / advanced quantum-subsystem limitations (QM-13/14/15/17, audit R11-D5 v0.8.285/v0830): (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) SCHEDULE SAFETY: schedule_push_at(&mut sched, pulse, qubit, start_ns) inserts backend-parallel pulses only when same-qubit intervals do not overlap; schedule_validate_no_same_qubit_overlap(sched) audits existing schedules and malformed rows. Legacy schedule_push remains serialized append. (3) LOGICAL-QUBIT REGISTRY: process-local registry cap is 256; query logical_qubit_registry_preflight() / logical_qubit_registry_slots_remaining() before allocation. logical_qubit_release(lq) and logical_qubit_release_handle(handle) release individual registry slots for reuse; logical_qubit_clear() still wipes all entries. (4) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (5) QIR EXPORT: not implemented. (6) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Phase 2 ships these surfaces with deterministic small fixtures per RFC-0054 + audit R11-D5 ship plan.";
+    return "Logical-qubit / advanced quantum-subsystem limitations: (1) SURFACE-CODE QEC: Pulse / Schedule / CalibrationData scaffolding is present but no end-to-end d=3+ surface-code circuit synthesis or stabilizer-cycle insertion; the codes return integer durations + waveform IDs only. (2) SCHEDULE SAFETY: schedule_push_at(&mut sched, pulse, qubit, start_ns) inserts backend-parallel pulses only when same-qubit intervals do not overlap; schedule_validate_no_same_qubit_overlap(sched) audits existing schedules and malformed rows. Legacy schedule_push remains serialized append. (3) LOGICAL-QUBIT REGISTRY: process-local registry cap is 256; query logical_qubit_registry_preflight() / logical_qubit_registry_slots_remaining() before allocation. logical_qubit_release(lq) and logical_qubit_release_handle(handle) release individual registry slots for reuse; logical_qubit_clear() still wipes all entries. (4) OPENQASM IMPORT/EXPORT: no qasm.parse / qasm.emit functions; round-trip not supported. (5) QIR EXPORT: not implemented. (6) MID-CIRCUIT FEEDBACK: no measurement-conditioned-gate primitive; classical-control wires not modeled. Future work ships these surfaces with deterministic small fixtures.";
 }

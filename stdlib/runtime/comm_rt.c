@@ -148,12 +148,12 @@ void nuc_comm_all_gather(long long wh, long long chunk_size) {
     CommWorld *w = (CommWorld *)(void *)wh;
     int cs = (int)chunk_size, ws = w->world_size;
 
-    double *gathered = (double *)malloc(ws * cs * sizeof(double));
+    double *gathered = (double *)malloc((size_t)ws * cs * sizeof(double));
     for (int r = 0; r < ws; r++)
         memcpy(gathered + r * cs, w->buffers[r], cs * sizeof(double));
 
     for (int r = 0; r < ws; r++)
-        memcpy(w->buffers[r], gathered, ws * cs * sizeof(double));
+        memcpy(w->buffers[r], gathered, (size_t)ws * cs * sizeof(double));
     free(gathered);
 }
 

@@ -193,7 +193,7 @@ long long nuc_vgraph_plan(long long h) {
     }
 
     // Build adjacency matrix (cost = Euclidean if visible, else INF).
-    double *adj = (double *)malloc(total_verts * total_verts * sizeof(double));
+    double *adj = (double *)malloc((size_t)total_verts * total_verts * sizeof(double));
     for (int i = 0; i < total_verts * total_verts; i++) adj[i] = INFINITY;
     for (int i = 0; i < total_verts; i++) {
         adj[i*total_verts + i] = 0;

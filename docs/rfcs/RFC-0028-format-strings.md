@@ -5,7 +5,7 @@
 | **Number** | 0028 |
 | **Title** | Format strings — `format!("x = {}", x)`, `println!`, `write!`, `Display` / `Debug` traits |
 | **Status** | **Phase 5 spec semantics COMPLETE in v0.4.41** — all everyday format spec dispatch shipped: type/precision/width/align/zero-pad/radix/alt-form/sign/upper-X/sci-e-E/custom-fill-char/`:?` Debug-str-quoting (T3.78–T3.91 pinned in verify gate). `Display` / `Debug` traits as user-implementable (`#[derive]`-style) still deferred to v0.5+ once RFC-0024 generics ship. |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2 partial (v0.2.6 — `format_i64/str/hex/2_ii/2_si` builtins) → v0.4.0 (full variadic + `Display` / `Debug` traits) |
 | **Depends on** | RFC-0017 (String) |

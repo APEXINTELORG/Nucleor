@@ -72,13 +72,12 @@ fn tensor_transpose(h: i64) -> i64 { return nuc_t3_transpose(h); }
 fn tensor_permute(h: i64, axes: Vec<i64>) -> i64 { return nuc_t3_permute(h, axes); }
 fn tensor_free(h: i64) { nuc_t3_free(h); }
 
-// === R08-D1 Phase 1 (v0.8.288) — tensor shape/dtype metadata ===
+// === Tensor shape/dtype metadata ===
 //
-// Per audit `BUILD_PLAN_R08_tensor_ml_autodiff.md` §1 R08-D1 (HIGH):
 // tensor handles are untyped i64 slots. Adopters who confuse a 3D
 // shape order or assume an unsupported dtype get late or no error.
-// Phase 1 ships dtype + shape-compat predicates adopters can call
-// before invoking ops. Phase 2 wires runtime shape-mismatch
+// Dtype + shape-compat predicates let adopters preflight before
+// invoking ops. Future work wires runtime shape-mismatch
 // diagnostics into matmul / transpose call paths and adds
 // compiler-visible TensorShape types.
 
@@ -138,5 +137,5 @@ fn tensor_shape_eq(a: i64, b: i64) -> i64 {
 }
 
 fn tensor_limitations() -> str {
-    return "Tensor rod limitations (ML-1/ML-2/ML-3/ML-15, audit R08-D1 v0.8.288 + helper1 v0856/v0857/v0866): (1) DTYPE: legacy tensors still expose i64/f64-bit payloads for compatibility, but explicit int and bool tensor constructors are shipped with tensor_new_int_2d / tensor_new_bool_2d and typed flat accessors. No f32/f64 named dtype surface yet. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; tensor_permute returns 0 for invalid axes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) OPS: tensor_new_2d, tensor_matmul, tensor_transpose, tensor_permute, typed int tensors, and bool mask tensors are shipped. Phase 2 still needs compiler-visible TensorShape<N,M,...> types and broader mixed-precision kernel dispatch.";
+    return "Tensor rod limitations: (1) DTYPE: legacy tensors still expose i64/f64-bit payloads for compatibility, but explicit int and bool tensor constructors are shipped with tensor_new_int_2d / tensor_new_bool_2d and typed flat accessors. No f32/f64 named dtype surface yet. (2) SHAPE CHECKS: tensor_matmul returns 0 on non-2D or incompatible shapes; tensor_permute returns 0 for invalid axes; elementwise / bmm runtime ops may still trap or return an invalid handle on shape mismatch. Use tensor_can_matmul_2d() / tensor_shape_eq() to validate BEFORE the op call. (3) OPS: tensor_new_2d, tensor_matmul, tensor_transpose, tensor_permute, typed int tensors, and bool mask tensors are shipped. Future work still needs compiler-visible TensorShape<N,M,...> types and broader mixed-precision kernel dispatch.";
 }

@@ -10,7 +10,7 @@
 // rule for #[deadline] callers), the RT-005 check considers
 // the externs RT-safe and stays silent.
 //
-// See docs/v0.3-robotics-guide.md cookbook §5 for the marker
+// See examples/README.md and docs/language-reference.md for the marker
 // matrix; tests/fixtures/t324_ffi_no_alloc.nr is the verify
 // gate fixture proving the markers work; this file shows the
 // same pattern in a runnable application example.

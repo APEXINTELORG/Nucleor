@@ -67,7 +67,7 @@ typedef struct {
 // Gauss-Jordan inverse (n×n).
 static int _gj_inv(const double *A, int n, double *Ainv) {
     int aug_w = 2 * n;
-    double *aug = (double *)malloc(n * aug_w * sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i*aug_w + j] = A[i*n + j];
         for (int j = 0; j < n; j++) aug[i*aug_w + n + j] = (i == j) ? 1.0 : 0.0;
@@ -105,9 +105,9 @@ static int _gj_inv(const double *A, int n, double *Ainv) {
 // rotations.
 static void _sym_sqrt(double *M, int n, double *L) {
     // Copy M into a working buffer.
-    double *A = (double *)malloc(n * n * sizeof(double));
-    double *V = (double *)malloc(n * n * sizeof(double));
-    memcpy(A, M, n * n * sizeof(double));
+    double *A = (double *)malloc((size_t)n * n * sizeof(double));
+    double *V = (double *)malloc((size_t)n * n * sizeof(double));
+    memcpy(A, M, (size_t)n * n * sizeof(double));
     for (int i = 0; i < n*n; i++) V[i] = (i / n == i % n) ? 1.0 : 0.0;
 
     // Jacobi diagonalization (max sweeps).
@@ -159,9 +159,9 @@ long long nuc_ukf_new(long long n_x, long long n_z, long long n_u) {
     NUKF *u = (NUKF *)calloc(1, sizeof(NUKF));
     u->n_x = (int)n_x; u->n_z = (int)n_z; u->n_u = (int)n_u;
     u->x = (double *)calloc(u->n_x, sizeof(double));
-    u->P = (double *)calloc(u->n_x * u->n_x, sizeof(double));
-    u->Q = (double *)calloc(u->n_x * u->n_x, sizeof(double));
-    u->R = (double *)calloc(u->n_z * u->n_z, sizeof(double));
+    u->P = (double *)calloc((size_t)(u->n_x) * u->n_x, sizeof(double));
+    u->Q = (double *)calloc((size_t)(u->n_x) * u->n_x, sizeof(double));
+    u->R = (double *)calloc((size_t)(u->n_z) * u->n_z, sizeof(double));
     for (int i = 0; i < u->n_x; i++) {
         u->P[i*u->n_x + i] = 1.0;
         u->Q[i*u->n_x + i] = 0.01;
@@ -193,19 +193,19 @@ void nuc_ukf_set_covariance(long long h, long long P_ptr) {
     NUKF *u = (NUKF *)(void *)(size_t)h;
     if (!u) return;
     double *P = (double *)(void *)(size_t)P_ptr;
-    if (P) memcpy(u->P, P, u->n_x * u->n_x * sizeof(double));
+    if (P) memcpy(u->P, P, (size_t)(u->n_x) * u->n_x * sizeof(double));
 }
 void nuc_ukf_set_process_noise(long long h, long long Q_ptr) {
     NUKF *u = (NUKF *)(void *)(size_t)h;
     if (!u) return;
     double *Q = (double *)(void *)(size_t)Q_ptr;
-    if (Q) memcpy(u->Q, Q, u->n_x * u->n_x * sizeof(double));
+    if (Q) memcpy(u->Q, Q, (size_t)(u->n_x) * u->n_x * sizeof(double));
 }
 void nuc_ukf_set_measurement_noise(long long h, long long R_ptr) {
     NUKF *u = (NUKF *)(void *)(size_t)h;
     if (!u) return;
     double *R = (double *)(void *)(size_t)R_ptr;
-    if (R) memcpy(u->R, R, u->n_z * u->n_z * sizeof(double));
+    if (R) memcpy(u->R, R, (size_t)(u->n_z) * u->n_z * sizeof(double));
 }
 void nuc_ukf_get_state(long long h, long long x_out_ptr) {
     NUKF *u = (NUKF *)(void *)(size_t)h;
@@ -217,7 +217,7 @@ void nuc_ukf_get_covariance(long long h, long long P_out_ptr) {
     NUKF *u = (NUKF *)(void *)(size_t)h;
     if (!u) return;
     double *P = (double *)(void *)(size_t)P_out_ptr;
-    if (P) memcpy(P, u->P, u->n_x * u->n_x * sizeof(double));
+    if (P) memcpy(P, u->P, (size_t)(u->n_x) * u->n_x * sizeof(double));
 }
 
 // Generate 2n+1 sigma points: X_0 = x, X_{i} = x + sqrt((n+λ)·P)_i,
@@ -225,8 +225,8 @@ void nuc_ukf_get_covariance(long long h, long long P_out_ptr) {
 static void _gen_sigma(double *x, double *P, int n, double lambda,
                        double *sigma_out)
 {
-    double *L = (double *)malloc(n * n * sizeof(double));
-    double *Ps = (double *)malloc(n * n * sizeof(double));
+    double *L = (double *)malloc((size_t)n * n * sizeof(double));
+    double *Ps = (double *)malloc((size_t)n * n * sizeof(double));
     double scale = (double)(n) + lambda;
     for (int i = 0; i < n*n; i++) Ps[i] = scale * P[i];
     _sym_sqrt(Ps, n, L);
@@ -250,8 +250,8 @@ long long nuc_ukf_predict(long long h_, long long u_ptr, long long dynamics_fp) 
     dyn_fn_t f = (dyn_fn_t)(void *)(size_t)dynamics_fp;
     if (!f) return -1;
 
-    double *sig = (double *)malloc(n_sig * n * sizeof(double));
-    double *prop = (double *)malloc(n_sig * n * sizeof(double));
+    double *sig = (double *)malloc((size_t)n_sig * n * sizeof(double));
+    double *prop = (double *)malloc((size_t)n_sig * n * sizeof(double));
     _gen_sigma(u->x, u->P, n, u->lambda, sig);
     for (int i = 0; i < n_sig; i++) {
         f((long long)(size_t)(sig + i*n), u_ptr, (long long)(size_t)(prop + i*n));
@@ -261,7 +261,7 @@ long long nuc_ukf_predict(long long h_, long long u_ptr, long long dynamics_fp) 
     for (int i = 0; i < n_sig; i++)
         for (int j = 0; j < n; j++) x_new[j] += u->wm[i] * prop[i*n + j];
     // Covariance.
-    double *P_new = (double *)calloc(n * n, sizeof(double));
+    double *P_new = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n_sig; i++) {
         double w = u->wc[i];
         for (int r = 0; r < n; r++) {
@@ -275,7 +275,7 @@ long long nuc_ukf_predict(long long h_, long long u_ptr, long long dynamics_fp) 
     for (int i = 0; i < n*n; i++) P_new[i] += u->Q[i];
 
     memcpy(u->x, x_new, n * sizeof(double));
-    memcpy(u->P, P_new, n * n * sizeof(double));
+    memcpy(u->P, P_new, (size_t)n * n * sizeof(double));
     free(sig); free(prop); free(x_new); free(P_new);
     return 0;
 }
@@ -289,8 +289,8 @@ long long nuc_ukf_update(long long h_, long long z_ptr, long long measurement_fp
     meas_fn_t h_fn = (meas_fn_t)(void *)(size_t)measurement_fp;
     if (!z || !h_fn) return -1;
 
-    double *sig = (double *)malloc(n_sig * n_x * sizeof(double));
-    double *Z   = (double *)malloc(n_sig * n_z * sizeof(double));
+    double *sig = (double *)malloc((size_t)n_sig * n_x * sizeof(double));
+    double *Z   = (double *)malloc((size_t)n_sig * n_z * sizeof(double));
     _gen_sigma(u->x, u->P, n_x, u->lambda, sig);
     for (int i = 0; i < n_sig; i++) {
         h_fn((long long)(size_t)(sig + i*n_x), (long long)(size_t)(Z + i*n_z));
@@ -300,8 +300,8 @@ long long nuc_ukf_update(long long h_, long long z_ptr, long long measurement_fp
     for (int i = 0; i < n_sig; i++)
         for (int j = 0; j < n_z; j++) z_pred[j] += u->wm[i] * Z[i*n_z + j];
     // Innovation covariance S and cross-covariance Pxz.
-    double *S = (double *)calloc(n_z * n_z, sizeof(double));
-    double *Pxz = (double *)calloc(n_x * n_z, sizeof(double));
+    double *S = (double *)calloc((size_t)n_z * n_z, sizeof(double));
+    double *Pxz = (double *)calloc((size_t)n_x * n_z, sizeof(double));
     for (int i = 0; i < n_sig; i++) {
         double w = u->wc[i];
         for (int r = 0; r < n_z; r++) {
@@ -321,13 +321,13 @@ long long nuc_ukf_update(long long h_, long long z_ptr, long long measurement_fp
     }
     for (int i = 0; i < n_z*n_z; i++) S[i] += u->R[i];
 
-    double *Sinv = (double *)malloc(n_z * n_z * sizeof(double));
+    double *Sinv = (double *)malloc((size_t)n_z * n_z * sizeof(double));
     if (!_gj_inv(S, n_z, Sinv)) {
         free(sig); free(Z); free(z_pred); free(S); free(Pxz); free(Sinv);
         return -1;
     }
     // K = Pxz · Sinv (n_x × n_z).
-    double *K = (double *)malloc(n_x * n_z * sizeof(double));
+    double *K = (double *)malloc((size_t)n_x * n_z * sizeof(double));
     for (int r = 0; r < n_x; r++)
         for (int c = 0; c < n_z; c++) {
             double s = 0;
@@ -341,7 +341,7 @@ long long nuc_ukf_update(long long h_, long long z_ptr, long long measurement_fp
         u->x[i] += s;
     }
     // P ← P − K·S·Kᵀ.
-    double *KS = (double *)malloc(n_x * n_z * sizeof(double));
+    double *KS = (double *)malloc((size_t)n_x * n_z * sizeof(double));
     for (int r = 0; r < n_x; r++)
         for (int c = 0; c < n_z; c++) {
             double s = 0;

@@ -21,10 +21,9 @@
 // (seq_q, seq_k separately for cross-attention support). Pre-fix rod
 // sig was 6 args while C took 7 — the C call read garbage from the
 // uninitialized stack slot for block_size, producing silent miscompute
-// on every flash-attention call. RFC reference: NUM/ML-1 in
-// docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md.
+// on every flash-attention call.
 extern fn nuc_attn_flash(Q_h: i64, K_h: i64, V_h: i64, seq_q: i64, seq_k: i64, d_k: i64, block_size: i64) -> i64;
-// v0.8.66 ML-1 sister fixes (per probe finding 2026-05-04-ml-1):
+// ML-1 sister fixes:
 // gqa rod sig now matches C 8-arg sig (seq_q + seq_k split, head_dim
 // instead of d_model). mla_compress / mla_decompress rod sigs now
 // match C 4-arg sigs (the seq_len param was rod-side fiction; C never

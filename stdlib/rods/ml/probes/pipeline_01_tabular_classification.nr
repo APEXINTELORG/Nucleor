@@ -6,9 +6,8 @@ import "stdlib/rods/ml/learn_facade.nr"
 // the holdout x_test (from `holdout` section), run predict_proba +
 // per-row argmax + class-id lookup, emit deterministic plain-text output.
 //
-// Per-fixture parity contract (see findings/inbox/
-// ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md): byte-equal-to-
-// Python parity is on the PREDICT step. Fit happens Python-side; Nucleor
+// Per-fixture parity contract: byte-equal-to-Python parity is on the
+// PREDICT step. Fit happens Python-side; Nucleor
 // consumes the fitted params and reproduces predict output byte-equal.
 //
 // Reference: tests/reference/ml/01_tabular_classification.py / .json
@@ -19,8 +18,8 @@ import "stdlib/rods/ml/learn_facade.nr"
 // + manual per-row argmax + classes lookup, rather than
 // `decision_tree_classifier_predict_i64` directly. Both compute the same
 // answer; predict_proba + argmax is the more stable path on current main
-// (the predict_i64 wrapper still has a residual flake the structural
-// DFLIP-PATCH didn't fully close — orthogonal to PROBE-2 scope).
+// (the predict_i64 wrapper still has a residual flake orthogonal to
+// this pipeline's parity scope).
 //
 // Acceptance: this probe's stdout matches the corresponding fields from
 // the reference JSON within parity-manifest tolerance:
@@ -95,8 +94,8 @@ fn main() -> i32 {
         };
         // For this case classes == [0, 1, 2] so pred_class == best_idx.
         // Avoiding model.classes lookup keeps the predict path off the
-        // residual wrapper-layer UB that the structural DFLIP-PATCH didn't
-        // fully close on the deeper-composed predict_i64 chain.
+        // residual wrapper-layer UB on the deeper-composed predict_i64
+        // chain.
         let pred_class: i64 = best_idx;
         print_int(pred_class);
         if pred_class == tensor_i64_at(&y_test, r, 0) {

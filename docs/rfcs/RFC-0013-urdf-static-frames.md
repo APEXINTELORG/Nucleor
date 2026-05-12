@@ -5,7 +5,7 @@
 | **Number** | 0013 |
 | **Title** | URDF-aware compile-time frame chain verification |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
 | **Depends on** | RFC-0003 (typed frames) |

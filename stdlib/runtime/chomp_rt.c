@@ -148,7 +148,7 @@ long long nuc_chomp_optimize(
 
     // Per-iteration scratch: gradient accumulator for each interior
     // waypoint, obstacle gradient buffer.
-    double *grad = (double *)malloc((Ni - 2) * n * sizeof(double));
+    double *grad = (double *)malloc((size_t)(Ni - 2) * n * sizeof(double));
     double *obs_grad = (double *)malloc(n * sizeof(double));
     // Per-iteration max move (for "covariant" approximation —
     // limit step magnitude to avoid de-smoothing).
@@ -228,7 +228,7 @@ long long nuc_chomp_optimize_covariant(
     double max_step = _i2f(max_step_b);
     double eps = 1e-5;
 
-    double *grad = (double *)malloc(m * n * sizeof(double));
+    double *grad = (double *)malloc((size_t)m * n * sizeof(double));
     double *obs_grad = (double *)malloc(n * sizeof(double));
     double *rhs = (double *)malloc(m * sizeof(double));
     double *precond = (double *)malloc(m * sizeof(double));

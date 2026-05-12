@@ -100,15 +100,14 @@ fn qsim_graph_clear() -> i64 {
     return 0;
 }
 
-// === R11-D4 Phase 1 (v0.8.306) — qsim_graph status surface ===
+// === qsim_graph status surface ===
 //
-// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D4 (HIGH):
 // `qsim_gate_record` and the entanglement registers return `-1` on
 // overflow / out-of-range silently. Adopters can't query the cap,
 // can't decode WHY a -1 came back, and can't preflight.
 //
-// Phase 1: cap-query helpers + status decoder + limitations text.
-// Phase 2 (audit ship plan) replaces raw `-1` returns with
+// Cap-query helpers, status decoder, and limitations text expose the
+// current contract. Future work replaces raw `-1` returns with
 // structured status codes throughout the runtime.
 
 fn qsim_graph_max_qubits() -> i64 { return 1024; }
@@ -164,5 +163,5 @@ fn qsim_graph_thread_safety_required_primitive() -> str {
 }
 
 fn qsim_graph_limitations() -> str {
-    return "qsim_graph rod limitations (QM-4, audit R11-D4 v0.8.306/v0.8.324/v0.8.325/v0828/v0829/v0835/v0836/L9B-006): (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / raw qsim_gate_record return -1 silently. Prefer qsim_gate_record_checked(name, q1, q2): >=0 real gate id, -1 out_of_range, -2 dag_full, -3 unknown raw failure after preflight passed. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining, or call qsim_gate_record_preflight(q1, q2) for status code 0=ok, 1=out_of_range, 2=dag_full BEFORE invoking raw qsim_gate_record. (2) RAW ESCAPE HATCH REMAINS: qsim_gate_record still returns raw gate ids or -1; the checked/preflight status surface helps adopters avoid known -1 causes but does not rewrite the C runtime ABI. (3) PHASE 2A-2F AUTO-GRAPH + QUERY CONTRACT: qsim CNOT/CZ/CRK in stdlib/rods/quantum.nr always record the logical gate but only register entanglement when the control/superposition preflight says the gate can actually entangle; a CNOT with control fixed at |0> no longer marks false entanglement. qsim_swap is a primitive statevector permutation and records one SWAP DAG event instead of inheriting three CNOT records. Query qsim_gate_dag_size / qsim_gate_dag_depends_on / qsim_gate_dag_parent_count / qsim_gate_dag_parent_at for direct and transitive gate dependencies after high-level auto-recorded operations. CCX is represented as two control-target records because the public checked-record surface is two-qubit. (4) THREAD SAFETY: qsim_graph_is_thread_safe() returns 1 and qsim_graph_requires_external_lock() returns 0. The runtime serializes all public qsim_graph state access with a small C11 atomic spinlock over the process-local union-find and gate-DAG arrays. Per-graph handle state remains the future scalability upgrade.";
+    return "qsim_graph rod limitations: (1) HARD CAPS: 1024 qubits, 4096 gate-DAG slots. Beyond either, qsim_entangle_register / raw qsim_gate_record return -1 silently. Prefer qsim_gate_record_checked(name, q1, q2): >=0 real gate id, -1 out_of_range, -2 dag_full, -3 unknown raw failure after preflight passed. Query qsim_graph_max_qubits / qsim_graph_max_gates / qsim_graph_gate_slots_remaining, or call qsim_gate_record_preflight(q1, q2) for status code 0=ok, 1=out_of_range, 2=dag_full BEFORE invoking raw qsim_gate_record. (2) RAW ESCAPE HATCH REMAINS: qsim_gate_record still returns raw gate ids or -1; the checked/preflight status surface helps adopters avoid known -1 causes but does not rewrite the C runtime ABI. (3) AUTO-GRAPH + QUERY CONTRACT: qsim CNOT/CZ/CRK in stdlib/rods/quantum.nr always record the logical gate but only register entanglement when the control/superposition preflight says the gate can actually entangle; a CNOT with control fixed at |0> no longer marks false entanglement. qsim_swap is a primitive statevector permutation and records one SWAP DAG event instead of inheriting three CNOT records. Query qsim_gate_dag_size / qsim_gate_dag_depends_on / qsim_gate_dag_parent_count / qsim_gate_dag_parent_at for direct and transitive gate dependencies after high-level auto-recorded operations. CCX is represented as two control-target records because the public checked-record surface is two-qubit. (4) THREAD SAFETY: qsim_graph_is_thread_safe() returns 1 and qsim_graph_requires_external_lock() returns 0. The runtime serializes all public qsim_graph state access with a small C11 atomic spinlock over the process-local union-find and gate-DAG arrays. Per-graph handle state remains the future scalability upgrade.";
 }

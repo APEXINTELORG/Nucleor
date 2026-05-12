@@ -76,7 +76,7 @@ long long nuc_hough_lines_2d(long long pts_ptr, long long n_pts_,
         cost[j] = cos(t);
     }
     double rho_step = (2.0 * rho_max) / n_rho;
-    int *acc = (int *)calloc(n_rho * n_theta, sizeof(int));
+    int *acc = (int *)calloc((size_t)n_rho * n_theta, sizeof(int));
 
     // Vote.
     for (int i = 0; i < n_pts; i++) {

@@ -78,7 +78,7 @@ fn diff_get_sv(h: i64, core: i64) -> i64 { return nuc_diff_get_sv(h, core); }
 fn diff_get_probs(h: i64, core: i64) -> i64 { return nuc_diff_get_probs(h, core); }
 fn diff_free(h: i64) { nuc_diff_free(h); }
 
-// === QM-11 / QM-12 capacity and gate constants (v0830) ===
+// === Capacity and gate constants ===
 //
 // Mirrors the current runtime caps in stdlib/runtime/diff_sim_rt.c so callers
 // can preflight before hitting the native clamp behavior.
@@ -139,7 +139,7 @@ fn diff_sim_status_explain(status: i64) -> str {
 }
 
 fn diff_sim_limitations() -> str {
-    return "diff_sim rod limitations (QM-11/QM-12, v0834): (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. diff_sim_init(nq, n_cores, mode_bits, seed) and diff_sim_init_checked(...) both return 0 for invalid/over-cap inputs instead of relying on native clamp behavior. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. Cross-rod callers can use qgate_kind_* plus diff_gate_from_kind/diff_gate_kind_supported/diff_gate_kind so RZ routes to diff_sim native 6 while RX cleanly reports unsupported instead of reusing the MPS native ID. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
+    return "diff_sim rod limitations: (1) HARD CAPS mirror runtime constants: 12 qubits, 16 cores, 200 gates. diff_sim_init(nq, n_cores, mode_bits, seed) and diff_sim_init_checked(...) both return 0 for invalid/over-cap inputs instead of relying on native clamp behavior. diff_sim_init_preflight(nq, n_cores) exposes status codes: 0=ok, 1=invalid_qubits, 2=over_qubit_cap, 3=invalid_cores, 4=over_core_cap. (2) H/CNOT/X/Z gate constants now consume the shared quantum_gates rod. Cross-rod callers can use qgate_kind_* plus diff_gate_from_kind/diff_gate_kind_supported/diff_gate_kind so RZ routes to diff_sim native 6 while RX cleanly reports unsupported instead of reusing the MPS native ID. (3) Noise is learnable parameterized depolarizing; no independent per-gate channel API.";
 }
 
 // === Ergonomic f64 wrappers (v0.4.267) ===

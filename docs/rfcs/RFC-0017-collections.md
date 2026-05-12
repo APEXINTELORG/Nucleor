@@ -4,8 +4,8 @@
 |---|---|
 | **Number** | 0017 |
 | **Title** | Standard Collections — `String`, `HashMap<K, V>`, `BTreeMap<K, V>`, `HashSet<T>`, `BTreeSet<T>`, `VecDeque<T>` |
-| **Status** | Implemented v0.1.27–v0.1.47 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met |
-| **Author** | Joseph Wescott + Claude |
+| **Status** | Implemented v0.1.27-v0.1.47; v0.2 DoD met |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
 | **Depends on** | RFC-0015 (numerics), RFC-0002 (allocators) |

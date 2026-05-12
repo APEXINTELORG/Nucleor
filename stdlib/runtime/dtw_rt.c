@@ -56,7 +56,7 @@ long long nuc_dtw_distance(long long a_ptr, long long M_, long long b_ptr,
     double *A = (double *)(void *)(size_t)a_ptr;
     double *B = (double *)(void *)(size_t)b_ptr;
     if (!A || !B) return _f2i(0.0);
-    double *D = (double *)malloc(M * N * sizeof(double));
+    double *D = (double *)malloc((size_t)M * N * sizeof(double));
     D[0] = _eucl(A, B, dim);
     for (int j = 1; j < N; j++) D[j] = D[j-1] + _eucl(A, B + j*dim, dim);
     for (int i = 1; i < M; i++) D[i*N] = D[(i-1)*N] + _eucl(A + i*dim, B, dim);
@@ -89,7 +89,7 @@ long long nuc_dtw_distance_band(long long a_ptr, long long M_, long long b_ptr,
     double *B = (double *)(void *)(size_t)b_ptr;
     if (!A || !B) return _f2i(0.0);
 
-    double *D = (double *)malloc(M * N * sizeof(double));
+    double *D = (double *)malloc((size_t)M * N * sizeof(double));
     for (int i = 0; i < M*N; i++) D[i] = INFINITY;
     D[0] = _eucl(A, B, dim);
 

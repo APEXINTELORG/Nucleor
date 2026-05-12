@@ -60,11 +60,9 @@ long long __nucleor_proc_run(const char *cmdline) {
 
 // Last exit status from the most recent capture call.
 //
-// Lane 6 / S2 (audit 2026-05-08): pre-fix this slot was a process-global
-// `static long long`. Two threads calling `proc_capture_stdout` raced on
-// the slot — the first thread's status was overwritten by the second
-// thread's open before the first thread read it. Now `_Thread_local`
-// (C11) / `__declspec(thread)` (MSVC); each thread sees its own slot.
+// This slot is thread-local so concurrent capture calls do not overwrite
+// one another's status. Each thread sees its own `_Thread_local` (C11) /
+// `__declspec(thread)` (MSVC) value.
 // Adopters needing the cross-thread shape should still prefer
 // `proc_capture_with_status` which embeds the status in the returned
 // string body.
@@ -80,11 +78,8 @@ static __thread long long g_last_capture_status = 0;
 static long long g_last_capture_status = 0;
 #endif
 
-// Lane 6 / S1 (audit 2026-05-08): every error path now returns a
-// malloc'd empty string so callers can `__nucleor_str_free` the
-// result unconditionally. Pre-fix the error returns were the
-// string literal `""`, mixing literal and heap pointers in the
-// same return type.
+// Every error path returns a malloc'd empty string so callers can
+// `__nucleor_str_free` the result unconditionally.
 static const char *s1_empty_owned(void) {
     char *r = (char *)malloc(1);
     if (!r) return NULL;
@@ -135,9 +130,8 @@ const char *__nucleor_proc_capture_with_status(const char *cmdline) {
     long long status = g_last_capture_status;
 
     size_t body_len = strlen(body);
-    /* Lane 6 / S4 (audit 2026-05-08): widen header buffer to fit
-     * `LLONG_MIN\n\0` (21 chars + sign + nul) with margin. The 32-byte
-     * fixed prefix had zero margin and no static assertion. */
+    /* Widen header buffer to fit `LLONG_MIN\n\0` (21 chars + sign + nul)
+     * with margin. */
     enum { HEADER_BUF = 64 };
     char *combined = (char *)malloc(body_len + HEADER_BUF);
     if (!combined) return body;
@@ -153,15 +147,9 @@ const char *__nucleor_proc_capture_with_status(const char *cmdline) {
     return combined;
 }
 
-// Lane 6 / S3 (audit 2026-05-08): shell-injection hardening.
-// Pre-fix `proc_run1("git", "x\" ; rm -rf /")` produced
-//   "git" "x" ; rm -rf /"
-// — the embedded `"` closed the double-quoted argv form and the
-// rest was interpreted as new shell tokens. Both Windows and POSIX
-// quoting are now applied per platform. Inputs containing the
-// platform-specific control characters that cannot be quoted
-// safely are rejected with a diagnostic instead of being silently
-// passed through.
+// Shell-injection hardening. Both Windows and POSIX quoting are applied
+// per platform. Inputs containing platform-specific control characters
+// that cannot be quoted safely are rejected with a diagnostic.
 //
 // Documented contract:
 //   * `cmd` must not contain `"` (Windows) or `'` (POSIX) — these

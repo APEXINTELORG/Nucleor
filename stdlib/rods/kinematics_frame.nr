@@ -72,24 +72,14 @@ fn kinematics_frame_compatible(a: i64, b: i64) -> i64 {
     return 0;
 }
 
-// === R07-D1 Phase 1 (v0.8.267) — runtime frame-check helpers ===
+// === Runtime frame-check helpers ===
 //
-// Per audit `BUILD_PLAN_R07_robotics_control.md` §1 R07-D1
-// (CRITICAL): pre-v0.8.267 Phase A only shipped the marker
-// structs + numeric IDs. Adopters could mix camera-frame and
-// base-frame poses with no compile-time AND no runtime rejection
-// — Mars-Climate-Orbiter failure mode.
+// Marker structs plus numeric IDs alone are not enough: adopters could
+// otherwise mix camera-frame and base-frame poses with no compile-time
+// and no runtime rejection.
 //
-// Phase 1 (this ship): runtime check helpers adopters can wire
-// today. Phase 2 (per RFC-0046 Phase B, ~200 LOC compiler edit)
-// adds compile-time TYP-008 / ROBO frame-mismatch rejection.
-//
-// Acceptance for Phase 1:
-//   - `Pose<Camera>` cannot be consumed as `Pose<Base>` at runtime
-//     without explicit transform (panics or returns 0 with a
-//     well-defined sentinel);
-//   - cold compile <= 4s (preserved — rod-only edit);
-//   - err fixture demonstrates the rejection.
+// Runtime check helpers are available today. Future RFC-0046 work adds
+// compile-time TYP-008 / ROBO frame-mismatch rejection.
 //
 // Adopters track (pose_handle, frame_id) as a tuple. The helpers
 // below check frame compatibility before allowing operations.

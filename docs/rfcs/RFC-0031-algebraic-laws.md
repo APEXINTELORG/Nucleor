@@ -5,7 +5,7 @@
 | **Number** | 0031 |
 | **Title** | Algebraic laws — `@law` as runtime-checkable + property-test-generable + SMT-provable |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 |
 | **Depends on** | RFC-0021 (test framework — for property tests) |
@@ -69,10 +69,10 @@ user-declared algebraic laws driving codegen plus verification.
 
 ### 3.1 The `@law` set (canonical schema, v0.8.264)
 
-The canonical schema below supersedes earlier informal usage. Per
-build-plan R14-D5 (audit 2026-05-05), `docs/language-reference.md`,
-this RFC, and `tests/attrs/laws.nr` all agree on these names. The
-single source of truth is `docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
+The canonical schema below supersedes earlier informal usage.
+`docs/language-reference.md`, this RFC, and `tests/attrs/laws.nr` all
+agree on these names. The single source of truth is
+`docs/spec/Nucleor_Algebraic_Laws_Schema.md`.
 
 ```
 @law(commutative)             // f(a, b) == f(b, a)

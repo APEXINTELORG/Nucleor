@@ -1,8 +1,8 @@
-# Nucleor Language Reference (v1.0)
+# Nucleor Language Reference (v1.1)
 
-This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `1.1.0`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For the v1.0 memory-safety surface (RFC-0062 G-series gates: `OWN-G4`, `OWN-G8`, `INIT-G11`, `BORROW-G2`, `ALIAS-G3-*`, `SEND-G6-*`, `FFI-G5`, `FFI-G9`, `UNSAFE-G7`, `EFFECT-G10-*`), see [`rfcs/RFC-0062-effects-extension.md`](rfcs/RFC-0062-effects-extension.md). For the v1.x roadmap, see [`rfcs/RFC-0063-production-readiness-roadmap.md`](rfcs/RFC-0063-production-readiness-roadmap.md).
+This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `1.1.0`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For the v1 memory-safety surface (RFC-0062 G-series gates: `OWN-G4`, `OWN-G8`, `INIT-G11`, `BORROW-G2`, `ALIAS-G3-*`, `SEND-G6-*`, `FFI-G5`, `FFI-G9`, `UNSAFE-G7`, `EFFECT-G10-*`), see [`rfcs/RFC-0062-effects-extension.md`](rfcs/RFC-0062-effects-extension.md).
 
-> **Status note (v1.0):** §13 below preserves the pre-v1.0 corrigenda — a record of the audits that hardened the v0.1.5 / v0.2.x chain into the shipping v1.0 surface. The corrigenda points are now part of the language proper; they are kept as a historical trail for adopters who reviewed the language during the v0.2.x window. New features and gates added since v0.2 — RFC-0062 memory-safety G-series, the effect-annotation framework (`#[effect(...)]`), the `with [...]` effect-rows-on-fn-types substrate, the `#[isr]` first pass, the `#[max_depth]` recursion bound, the auto-drop default flip — are described inline in the body sections rather than the §13 corrigenda.
+This page is the current user-facing reference. Historical migration notes and audit transcripts are intentionally not part of the public release docs.
 
 ## 1. Lexical structure
 
@@ -55,9 +55,7 @@ default since v0.4.238** — `+`, `-`, `*` on signed and unsigned
 integers panic on overflow rather than wrapping silently. Use
 `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
 blocks or set `NUCLEOR_INT_STRICT_INTRIN=0` at compile time
-to opt out. See [UPGRADE_v0.4.239.md](UPGRADE_v0.4.239.md)
-and [UPGRADE_v0.4.241.md](UPGRADE_v0.4.241.md) for migration
-details. Mixed-width integer arithmetic without an explicit `as`
+to opt out. Mixed-width integer arithmetic without an explicit `as`
 cast is rejected with `NUM-001` during type-check.)
 
 String escape sequences (recognised by the lexer): `\n`, `\r`, `\t`, `\\`, `\"`, `\'`, `\0`. Any other backslash sequence inside a string literal (e.g. `\v`, `\x...`, `\u{...}`) is a hard error (`NR025`).
@@ -352,15 +350,14 @@ When invoked without an explicit source file in a directory containing `Nucleor.
 - Inline assembly
 - Macros / metaprogramming
 - Reflection
-- Cross-platform binaries (Windows-only through v0.2.x; Linux + macOS native binaries scoped for v0.3 — see [`docs/milestones/v0.3.0.md`](milestones/v0.3.0.md))
+- Prebuilt Linux/macOS release binaries. Linux bootstraps from the portable IR seed; macOS is experimental in this release.
 - Formatter (`nuc fmt`)
 - Language server (LSP)
 - Debugger / DWARF or PDB symbol info
-- Documentation generator (skeleton ships v0.2; full version in v0.4 — see [`docs/milestones/v0.4.0.md`](milestones/v0.4.0.md) RFC-0029)
+- Full documentation generator.
 - REPL
 
-These are tracked as v0.3 / v0.4 work. The full deferral list with
-target releases lives in [`docs/milestones/v0.4.0.md`](milestones/v0.4.0.md).
+These are tracked in the public RFC roadmap and the CLI maturity spec.
 Contributions welcome.
 
 ## 13. Historical corrigenda
@@ -387,16 +384,15 @@ through the entire v0.1.x → v0.2.x chain:
   numeric literals (added v0.1.x; gate-tested via
   `tests/lang/atomic_bit_ops.nr` and others — see §1.4)
 
-### 13.2 v0.2.x additions
+### 13.2 Earlier Additions
 
-The v0.2.x sub-chain added: `?` postfix operator (v0.1.50,
-RFC-0016), `if let` / `while let` sugar (v0.1.13 / v0.1.16),
+Earlier release work added: `?` postfix operator (RFC-0016),
+`if let` / `while let` sugar,
 `as` cast operator (RFC-0015 §3.5), narrow-width overflow
 helpers (`wrapping_*`, `saturating_*`, `checked_*` for
 i8/i16/i32/u8/u16/u32/u64), 75+ runtime helpers across
 math/fs/env/time/path/parse/stringify/padding/hashmap/stats/
 random/checked-arithmetic, plus the `String` / `HashMap` /
 `HashSet` / `BTreeMap` / `BTreeSet` / `VecDeque` collection
-runtime + rod surface. The full enrichment table is in
-[CHANGELOG.md](../CHANGELOG.md) and
-[docs/migrations/v0.1-to-v0.2.md](migrations/v0.1-to-v0.2.md).
+runtime + rod surface. The public release summary is in
+[CHANGELOG.md](../CHANGELOG.md).

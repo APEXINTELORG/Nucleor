@@ -51,7 +51,7 @@ typedef long long (*tcost_fn_t)(long long x_ptr);
 // on success, 0 if singular. Caller-allocated `Ainv` (n*n).
 static int _gj_inv(double *A, int n, double *Ainv) {
     int aug_w = 2 * n;
-    double *aug = (double *)malloc(n * aug_w * sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i*aug_w + j] = A[i*n + j];
         for (int j = 0; j < n; j++) aug[i*aug_w + n + j] = (i == j) ? 1.0 : 0.0;
@@ -210,25 +210,25 @@ long long nuc_ilqr_optimize(
     if (!f || !l || !lf) return -1;
 
     // Allocate work buffers.
-    double *x_traj      = (double *)malloc((T + 1) * n_x * sizeof(double));
-    double *x_traj_new  = (double *)malloc((T + 1) * n_x * sizeof(double));
-    double *u_new       = (double *)malloc(T * n_u * sizeof(double));
+    double *x_traj      = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
+    double *x_traj_new  = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
+    double *u_new       = (double *)malloc((size_t)T * n_u * sizeof(double));
     double *V_x         = (double *)malloc(n_x * sizeof(double));
-    double *V_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *K_seq       = (double *)malloc(T * n_u * n_x * sizeof(double));
-    double *k_seq       = (double *)malloc(T * n_u * sizeof(double));
-    double *A           = (double *)malloc(n_x * n_x * sizeof(double));
-    double *B           = (double *)malloc(n_x * n_u * sizeof(double));
+    double *V_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *K_seq       = (double *)malloc((size_t)T * n_u * n_x * sizeof(double));
+    double *k_seq       = (double *)malloc((size_t)T * n_u * sizeof(double));
+    double *A           = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *B           = (double *)malloc((size_t)n_x * n_u * sizeof(double));
     double *l_x         = (double *)malloc(n_x * sizeof(double));
     double *l_u         = (double *)malloc(n_u * sizeof(double));
-    double *l_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *l_uu        = (double *)malloc(n_u * n_u * sizeof(double));
+    double *l_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *l_uu        = (double *)malloc((size_t)n_u * n_u * sizeof(double));
     double *Q_x         = (double *)malloc(n_x * sizeof(double));
     double *Q_u         = (double *)malloc(n_u * sizeof(double));
-    double *Q_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *Q_uu        = (double *)malloc(n_u * n_u * sizeof(double));
-    double *Q_ux        = (double *)malloc(n_u * n_x * sizeof(double));
-    double *Q_uu_inv    = (double *)malloc(n_u * n_u * sizeof(double));
+    double *Q_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *Q_uu        = (double *)malloc((size_t)n_u * n_u * sizeof(double));
+    double *Q_ux        = (double *)malloc((size_t)n_u * n_x * sizeof(double));
+    double *Q_uu_inv    = (double *)malloc((size_t)n_u * n_u * sizeof(double));
     double *scr1        = (double *)malloc(n_x * sizeof(double));
     double *scr2        = (double *)malloc(n_x * sizeof(double));
     double *scr3        = (double *)malloc(n_x * sizeof(double));
@@ -258,7 +258,7 @@ long long nuc_ilqr_optimize(
             }
             // Q_xx = l_xx + Aᵀ·V_xx·A.
             // Compute V_xx·A first (n_x × n_x).
-            double *VxxA = (double *)malloc(n_x * n_x * sizeof(double));
+            double *VxxA = (double *)malloc((size_t)n_x * n_x * sizeof(double));
             for (int i = 0; i < n_x; i++)
                 for (int j = 0; j < n_x; j++) {
                     double s = 0;
@@ -272,7 +272,7 @@ long long nuc_ilqr_optimize(
                     Q_xx[i*n_x + j] = s;
                 }
             // Q_uu = l_uu + Bᵀ·V_xx·B  (+ regularization for stability).
-            double *VxxB = (double *)malloc(n_x * n_u * sizeof(double));
+            double *VxxB = (double *)malloc((size_t)n_x * n_u * sizeof(double));
             for (int i = 0; i < n_x; i++)
                 for (int j = 0; j < n_u; j++) {
                     double s = 0;
@@ -338,7 +338,7 @@ long long nuc_ilqr_optimize(
             free(QuuK_vec);
             // V_xx updates: Q_xx + Kᵀ·Q_uu·K + Kᵀ·Q_ux + Q_uxᵀ·K (symmetric).
             // Compute Q_uu·K (n_u × n_x).
-            double *QuuK = (double *)malloc(n_u * n_x * sizeof(double));
+            double *QuuK = (double *)malloc((size_t)n_u * n_x * sizeof(double));
             for (int i = 0; i < n_u; i++)
                 for (int j = 0; j < n_x; j++) {
                     double s = 0;
@@ -387,8 +387,8 @@ long long nuc_ilqr_optimize(
             total += _i2f(lf((long long)(size_t)(x_traj_new + T*n_x)));
             if (total < cost) {
                 new_cost = total;
-                memcpy(x_traj, x_traj_new, (T + 1) * n_x * sizeof(double));
-                memcpy(u_seq,  u_new,      T * n_u * sizeof(double));
+                memcpy(x_traj, x_traj_new, (size_t)(T + 1) * n_x * sizeof(double));
+                memcpy(u_seq,  u_new,      (size_t)T * n_u * sizeof(double));
                 accepted = 1;
                 break;
             }
@@ -424,7 +424,7 @@ long long nuc_ilqr_total_cost(
     dyn_fn_t f   = (dyn_fn_t)(void *)(size_t)dynamics_fp;
     cost_fn_t l  = (cost_fn_t)(void *)(size_t)stage_cost_fp;
     tcost_fn_t lf= (tcost_fn_t)(void *)(size_t)terminal_cost_fp;
-    double *x_traj = (double *)malloc((T + 1) * n_x * sizeof(double));
+    double *x_traj = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
     double c = _total_cost(f, l, lf, x0, u_seq, n_x, n_u, T, x_traj);
     free(x_traj);
     return _f2i(c);

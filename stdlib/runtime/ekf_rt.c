@@ -57,7 +57,7 @@ typedef struct {
 // In-place Gauss-Jordan inverse (n×n). Returns 1 on success.
 static int _gj_inv(const double *A, int n, double *Ainv) {
     int aug_w = 2 * n;
-    double *aug = (double *)malloc(n * aug_w * sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i*aug_w + j] = A[i*n + j];
         for (int j = 0; j < n; j++) aug[i*aug_w + n + j] = (i == j) ? 1.0 : 0.0;
@@ -135,9 +135,9 @@ long long nuc_ekf_new(long long n_x, long long n_z, long long n_u) {
     e->n_z = (int)n_z;
     e->n_u = (int)n_u;
     e->x = (double *)calloc(e->n_x, sizeof(double));
-    e->P = (double *)calloc(e->n_x * e->n_x, sizeof(double));
-    e->Q = (double *)calloc(e->n_x * e->n_x, sizeof(double));
-    e->R = (double *)calloc(e->n_z * e->n_z, sizeof(double));
+    e->P = (double *)calloc((size_t)(e->n_x) * e->n_x, sizeof(double));
+    e->Q = (double *)calloc((size_t)(e->n_x) * e->n_x, sizeof(double));
+    e->R = (double *)calloc((size_t)(e->n_z) * e->n_z, sizeof(double));
     // Default: identity covariance + identity noise.
     for (int i = 0; i < e->n_x; i++) {
         e->P[i*e->n_x + i] = 1.0;
@@ -158,21 +158,21 @@ void nuc_ekf_set_covariance(long long h, long long P_ptr) {
     NEKF *e = (NEKF *)(void *)(size_t)h;
     if (!e) return;
     double *P = (double *)(void *)(size_t)P_ptr;
-    if (P) memcpy(e->P, P, e->n_x * e->n_x * sizeof(double));
+    if (P) memcpy(e->P, P, (size_t)(e->n_x) * e->n_x * sizeof(double));
 }
 
 void nuc_ekf_set_process_noise(long long h, long long Q_ptr) {
     NEKF *e = (NEKF *)(void *)(size_t)h;
     if (!e) return;
     double *Q = (double *)(void *)(size_t)Q_ptr;
-    if (Q) memcpy(e->Q, Q, e->n_x * e->n_x * sizeof(double));
+    if (Q) memcpy(e->Q, Q, (size_t)(e->n_x) * e->n_x * sizeof(double));
 }
 
 void nuc_ekf_set_measurement_noise(long long h, long long R_ptr) {
     NEKF *e = (NEKF *)(void *)(size_t)h;
     if (!e) return;
     double *R = (double *)(void *)(size_t)R_ptr;
-    if (R) memcpy(e->R, R, e->n_z * e->n_z * sizeof(double));
+    if (R) memcpy(e->R, R, (size_t)(e->n_z) * e->n_z * sizeof(double));
 }
 
 void nuc_ekf_get_state(long long h, long long x_out_ptr) {
@@ -186,7 +186,7 @@ void nuc_ekf_get_covariance(long long h, long long P_out_ptr) {
     NEKF *e = (NEKF *)(void *)(size_t)h;
     if (!e) return;
     double *P = (double *)(void *)(size_t)P_out_ptr;
-    if (P) memcpy(P, e->P, e->n_x * e->n_x * sizeof(double));
+    if (P) memcpy(P, e->P, (size_t)(e->n_x) * e->n_x * sizeof(double));
 }
 
 // Predict step: x⁻ = f(x, u); F = ∂f/∂x; P⁻ = F·P·Fᵀ + Q.
@@ -199,9 +199,9 @@ long long nuc_ekf_predict(long long h_, long long u_ptr, long long dynamics_fp) 
     if (!f) return -1;
 
     double *x_new = (double *)malloc(n * sizeof(double));
-    double *F     = (double *)malloc(n * n * sizeof(double));
-    double *FP    = (double *)malloc(n * n * sizeof(double));
-    double *FPFt  = (double *)malloc(n * n * sizeof(double));
+    double *F     = (double *)malloc((size_t)n * n * sizeof(double));
+    double *FP    = (double *)malloc((size_t)n * n * sizeof(double));
+    double *FPFt  = (double *)malloc((size_t)n * n * sizeof(double));
     double *scr1  = (double *)malloc(n * sizeof(double));
     double *scr2  = (double *)malloc(n * sizeof(double));
 
@@ -240,12 +240,12 @@ long long nuc_ekf_update(long long h_, long long z_ptr, long long measurement_fp
     if (!z || !h_fn) return -1;
 
     double *z_pred = (double *)malloc(n_z * sizeof(double));
-    double *H      = (double *)malloc(n_z * n_x * sizeof(double));
-    double *PHt    = (double *)malloc(n_x * n_z * sizeof(double));
-    double *S      = (double *)malloc(n_z * n_z * sizeof(double));
-    double *Sinv   = (double *)malloc(n_z * n_z * sizeof(double));
-    double *K      = (double *)malloc(n_x * n_z * sizeof(double));
-    double *KH     = (double *)malloc(n_x * n_x * sizeof(double));
+    double *H      = (double *)malloc((size_t)n_z * n_x * sizeof(double));
+    double *PHt    = (double *)malloc((size_t)n_x * n_z * sizeof(double));
+    double *S      = (double *)malloc((size_t)n_z * n_z * sizeof(double));
+    double *Sinv   = (double *)malloc((size_t)n_z * n_z * sizeof(double));
+    double *K      = (double *)malloc((size_t)n_x * n_z * sizeof(double));
+    double *KH     = (double *)malloc((size_t)n_x * n_x * sizeof(double));
     double *scr1   = (double *)malloc(n_z * sizeof(double));
     double *scr2   = (double *)malloc(n_z * sizeof(double));
 
@@ -295,7 +295,7 @@ long long nuc_ekf_update(long long h_, long long z_ptr, long long measurement_fp
             for (int k = 0; k < n_z; k++) s += K[i*n_z + k] * H[k*n_x + j];
             KH[i*n_x + j] = s;
         }
-    double *Pnew = (double *)malloc(n_x * n_x * sizeof(double));
+    double *Pnew = (double *)malloc((size_t)n_x * n_x * sizeof(double));
     for (int i = 0; i < n_x; i++)
         for (int j = 0; j < n_x; j++) {
             double Aij = (i == j ? 1.0 : 0.0) - KH[i*n_x + j];
@@ -307,7 +307,7 @@ long long nuc_ekf_update(long long h_, long long z_ptr, long long measurement_fp
             (void)Aij;
             Pnew[i*n_x + j] = s;
         }
-    memcpy(e->P, Pnew, n_x * n_x * sizeof(double));
+    memcpy(e->P, Pnew, (size_t)n_x * n_x * sizeof(double));
     free(Pnew);
 
     free(z_pred); free(H); free(PHt); free(S); free(Sinv); free(K); free(KH);

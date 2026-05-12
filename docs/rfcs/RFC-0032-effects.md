@@ -5,7 +5,7 @@
 | **Number** | 0032 |
 | **Title** | Effects system — `pure fn`, `requires [io.read]`, `restricts [...]` |
 | **Status** | Draft |
-| **Author** | Joseph Wescott + Claude |
+| **Author** | Nucleor maintainers |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.6.0 |
 | **Depends on** | RFC-0001, RFC-0031 (laws + effects compose) |

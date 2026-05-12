@@ -81,18 +81,17 @@ fn gpu_set_priority(level: str) -> i64 {
     return 0;
 }
 
-// === R08-D4 Phase 1 (v0.8.286) — backend disclosure ===
+// === Backend disclosure ===
 //
-// Per audit `BUILD_PLAN_R08_tensor_ml_autodiff.md` §1 R08-D4 (HIGH):
 // `gpu_map`, `gpu_reduce`, `gpu_parallel_for` claim GPU acceleration
 // in their function names but execute as CPU sequential fallbacks
 // today (real Vulkan shader dispatch requires shader compilation
 // infrastructure not yet shipped). Adopter calling `gpu_map` could
 // reasonably believe their compute ran on the GPU.
 //
-// Phase 1: ship `gpu_backend()` returning the current dispatch
-// backend ("cpu-sequential" today) so adopters can query before
-// committing to a GPU-dependent design. Phase 2 wires real Vulkan
+// `gpu_backend()` returns the current dispatch backend
+// ("cpu-sequential" today) so adopters can query before committing
+// to a GPU-dependent design. Future work wires real Vulkan
 // dispatch and `gpu_backend()` returns "vulkan-compute" when
 // available.
 
@@ -117,5 +116,5 @@ fn gpu_op_is_accelerated(op: str) -> i64 {
 }
 
 fn gpu_limitations() -> str {
-    return "GPU compute limitations (ML-12, audit R08-D4 v0.8.286): (1) gpu_map/gpu_reduce/gpu_parallel_for execute as CPU sequential fallbacks; no Vulkan shader dispatch despite `gpu_available()` reporting Vulkan present. (2) gpu_set_priority maps to a stable integer code but does NOT actually adjust GPU scheduler priority — Phase 2 wires when the Vulkan VK_EXT_global_priority extension is available. (3) No memory transfer primitives (no buffer alloc, no host<->device copy) — adopter cannot stream tensors across PCIe yet. Query gpu_backend() for current dispatch path. Phase 2 wires real GPU dispatch + memory transfer + priority hints.";
+    return "GPU compute limitations: (1) gpu_map/gpu_reduce/gpu_parallel_for execute as CPU sequential fallbacks; no Vulkan shader dispatch despite `gpu_available()` reporting Vulkan present. (2) gpu_set_priority maps to a stable integer code but does NOT actually adjust GPU scheduler priority — future work wires this when the Vulkan VK_EXT_global_priority extension is available. (3) No memory transfer primitives (no buffer alloc, no host<->device copy) — adopter cannot stream tensors across PCIe yet. Query gpu_backend() for current dispatch path. Future work wires real GPU dispatch + memory transfer + priority hints.";
 }

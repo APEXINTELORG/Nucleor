@@ -123,18 +123,26 @@ static const char *uf_components_json(void) {
         }
     }
 
-    int pos = 0;
+    size_t pos = 0;
     buf[pos++] = '[';
     for (int i = 0; i < nroots; i++) {
         if (i > 0) buf[pos++] = ',';
         buf[pos++] = '[';
         for (int j = 0; j < member_count[i]; j++) {
             if (j > 0) buf[pos++] = ',';
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "%d", members[i][j]);
+            if (pos < sizeof(buf) - 1) {
+                int written = snprintf(buf + pos, sizeof(buf) - pos, "%d", members[i][j]);
+                if (written < 0) {
+                    written = 0;
+                }
+                size_t avail = sizeof(buf) - pos;
+                size_t used = (size_t)written < avail ? (size_t)written : avail - 1;
+                pos += used;
+            }
         }
-        buf[pos++] = ']';
+        if (pos < sizeof(buf) - 1) buf[pos++] = ']';
     }
-    buf[pos++] = ']';
+    if (pos < sizeof(buf) - 1) buf[pos++] = ']';
     buf[pos] = 0;
     return buf;
 }
@@ -586,7 +594,7 @@ long long nuc_ridge_loo(long long X_vec, long long y_vec, long long n_samples, l
     for (int hold = 0; hold < n; hold++) {
         // Build train set excluding hold
         int nt = n - 1;
-        double *X_tr = (double *)malloc(nt * p * sizeof(double));
+        double *X_tr = (double *)malloc((size_t)nt * p * sizeof(double));
         double *y_tr = (double *)malloc(nt * sizeof(double));
         int ti = 0;
         for (int i = 0; i < n; i++) {
@@ -598,7 +606,7 @@ long long nuc_ridge_loo(long long X_vec, long long y_vec, long long n_samples, l
         }
 
         // Solve (X^T X + lam*I) w = X^T y via Gaussian elimination
-        double *A = (double *)calloc((p+1) * p, sizeof(double));
+        double *A = (double *)calloc((size_t)(p+1) * p, sizeof(double));
         for (int i = 0; i < nt; i++)
             for (int j = 0; j < p; j++)
                 for (int k = 0; k < p; k++)
@@ -672,9 +680,9 @@ long long nuc_ridge_cv(long long X_vec, long long y_vec,
             int te = (fold == k - 1) ? n : ts + fold_size;
             int nt = te - ts, nr = n - nt;
 
-            double *Xr = (double *)malloc(nr * p * sizeof(double));
+            double *Xr = (double *)malloc((size_t)nr * p * sizeof(double));
             double *yr = (double *)malloc(nr * sizeof(double));
-            double *Xt = (double *)malloc(nt * p * sizeof(double));
+            double *Xt = (double *)malloc((size_t)nt * p * sizeof(double));
             double *yt = (double *)malloc(nt * sizeof(double));
 
             // Split using shuffled indices
@@ -698,7 +706,7 @@ long long nuc_ridge_cv(long long X_vec, long long y_vec,
             // sklearn Ridge solves on raw features
 
             // A = X^T X + lambda*I
-            double *A = (double *)calloc(p * p, sizeof(double));
+            double *A = (double *)calloc((size_t)p * p, sizeof(double));
             for (int i = 0; i < p; i++) {
                 for (int j = 0; j < p; j++) {
                     double s = 0;

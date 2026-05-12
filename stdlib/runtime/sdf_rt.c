@@ -61,7 +61,7 @@ long long nuc_sdf_new(long long W_, long long H_, long long dx_b,
     p->dx = dx;
     p->ox = _i2f(ox_b);
     p->oy = _i2f(oy_b);
-    p->phi = (double *)malloc(W * H * sizeof(double));
+    p->phi = (double *)malloc((size_t)W * H * sizeof(double));
     // Default = +∞ (everything is "free space" until populated).
     for (int i = 0; i < W*H; i++) p->phi[i] = 1e18;
     return (long long)(size_t)p;

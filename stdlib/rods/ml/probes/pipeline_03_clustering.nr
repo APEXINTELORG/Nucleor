@@ -8,16 +8,14 @@ import "stdlib/rods/ml/learn_facade.nr"
 //
 // Implementation note: bypasses kmeans_f64(...) constructor +
 // kmeans_f64_predict wrapper because that path hits a residual
-// wrapper-layer UB on current main that emits garbage labels (same
-// family the structural DFLIP-PATCH didn't fully close on KMeans).
+// wrapper-layer UB on current main that emits garbage labels.
 // Instead this probe builds a centers TensorF64, then per-row calls
 // kmeans_f64_squared_distance_row_center directly + my own argmin,
 // which is the stable path verified by the existing
 // ml_recover_kmeans_squared_distance_f64 fixture.
 //
-// Per-fixture parity contract (see findings/inbox/
-// ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md): byte-equal-to-
-// Python parity is on the PREDICT step (assignment to nearest center).
+// Per-fixture parity contract: byte-equal-to-Python parity is on the
+// PREDICT step (assignment to nearest center).
 //
 // IMPORTANT: KMeans cluster IDs are PERMUTATION-INVARIANT. Verify hook
 // compares cluster-size signature (sorted partition sizes), not raw

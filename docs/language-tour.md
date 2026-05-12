@@ -2,10 +2,8 @@
 
 A pragmatic walk through Nucleor by example. Read top to bottom; copy the snippets into a `.nr` file and `nuc build` them.
 
-> **Looking for a comprehensive list of what's shipped vs deferred?**
-> See [`v0.4_FEATURE_AUDIT_2026-04-30.md`](v0.4_FEATURE_AUDIT_2026-04-30.md) —
-> RFC-by-RFC reference of every feature surface and its current state.
-> For migration from v0.2, see [`migrations/v0.2-to-v0.4.md`](migrations/v0.2-to-v0.4.md).
+For the full current surface, see [language-reference.md](language-reference.md)
+and [NUCLEOR_FEATURE_INVENTORY.md](NUCLEOR_FEATURE_INVENTORY.md).
 
 ## Hello
 
@@ -47,7 +45,7 @@ Numeric literals default to `i64`. The lexer accepts decimal
 (`42`), hex (`0xFF` → `255`), binary (`0b1010` → `10`), and
 underscored (`1_000_000`) forms. RFC-0015 width / signedness
 suffixes (`100u8`, `1.5f32`) parse and type-check. **Since
-v0.4.238 strict-mode integer arithmetic is the default** —
+the v1 line strict-mode integer arithmetic is the default** —
 `+`, `-`, `*` panic on overflow rather than wrapping silently.
 Use `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
 blocks for intentional wrap behavior, or set
@@ -95,7 +93,7 @@ for x in arr {
 }
 ```
 
-A more general iterator-trait `for` (over `HashMap` keys, ranges, lazy adapters) lands in v0.4 with RFC-0024.
+Broader iterator-trait adapters are tracked in RFC-0024.
 
 ## Strings
 
@@ -259,8 +257,8 @@ let n: i32 = match s {
 };
 ```
 
-Field-equality literal patterns like `Point { x: 0 }` are deferred
-to v0.5+ — express the same intent with a guard:
+Field-equality literal patterns like `Point { x: 0 }` are not part of
+the current surface. Express the same intent with a guard:
 `Point { x, y } if x == 0 && y == 0 => ...`. Trying the unsupported
 form halts cleanly with `MATCH-012`.
 
@@ -283,7 +281,7 @@ fn unwrap_or<T>(o: Maybe<T>, dflt: T) -> T {
 }
 ```
 
-The compiler monomorphizes per call site. **Deferred to v0.5+:**
+The compiler monomorphizes per call site. Forward-roadmap items include:
 trait-bound combinations (`T: Foo + Bar`), associated types,
 user-implementable `Iterator` trait. Bound check (`T: Trait`)
 already fires `TYP-025` at call sites where the concrete type
@@ -377,15 +375,15 @@ fn main() -> i32 {
 
 Sequentially-consistent `AtomicI64` ops — load, store, fetch-add,
 fetch-sub, fetch-and / or / xor, CAS — backed by Win32
-`Interlocked*` and C11 stdatomic. **Shipped in v0.4.273 (Track G):**
-ordered ops with `MemOrder::{Relaxed, Acquire, Release, AcqRel, SeqCst}`
-plus `AtomicBool` + `AtomicI64::swap_*` ordered helpers. **Shipped in
-v0.4.274 (Track H):** lock-free `SpscQueue<T>` (single-producer single-
+`Interlocked*` and C11 stdatomic. The current surface includes ordered ops
+with `MemOrder::{Relaxed, Acquire, Release, AcqRel, SeqCst}`
+plus `AtomicBool` + `AtomicI64::swap_*` ordered helpers, lock-free
+`SpscQueue<T>` (single-producer single-
 consumer) and `MpscQueue<T>` (multi-producer single-consumer) built on
 the atomics surface. See `examples/06_perf_attrs.nr` and
 `stdlib/rods/queue_spsc.nr` / `queue_mpsc.nr`.
 
-## Bounded recursion (RFC-0014, v0.4 + v0.6)
+## Bounded recursion (RFC-0014)
 
 ```nr
 #[max_depth = 100]
@@ -402,7 +400,7 @@ verification fires `error[DEPTH-003]` if a per-fn TLS counter
 exceeds `N` (defence-in-depth — should never trip on a body the
 static prover accepted).
 
-**Proven shapes accepted (v0.6 extensions):** canonical (`if depth
+**Proven shapes accepted:** canonical (`if depth
 >= N { return base; }` / `recurse(depth + 1, ...)`), parameter-flow
 (counter is not the first arg or named `depth`), stride-bound
 (`depth + K` with constant `K > 0`), helper-guard (entry-guard
@@ -410,7 +408,7 @@ factored into a helper fn), no-recurse-callback (calling a
 non-recursive callback inside the body). See
 `examples/26_max_depth_tour.nr` and `tests/features/rfc0014_max_depth_*.nr`.
 
-## Effects in function types (RFC-0033 substrate, v0.6)
+## Effects in function types (RFC-0033 substrate)
 
 ```nr
 fn pure_inc(x: i64) -> i64 with [no_alloc, no_panic] {

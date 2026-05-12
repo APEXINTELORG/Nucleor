@@ -726,17 +726,16 @@ fn qsim_reset(sv: i64) {
     };
 }
 
-// === R11-D1 Phase 1 (v0.8.304) — qsim state surface disclosure ===
+// === qsim state surface disclosure ===
 //
-// Per audit `BUILD_PLAN_R11_quantum_subsystem.md` §1 R11-D1 (HIGH):
 // the rod's header documents missing statevec access (full
 // amplitude vector readout); state accounting is capped at a hard
 // qubit count internally. Adopters reading the rod can't query
 // EITHER the cap NOR whether their qubit count is supported
 // without trying it.
 //
-// Phase 1: ship `qsim_max_qubits()`, `qsim_supports_n_qubits(n)`,
-// and `qsim_limitations()` text.
+// `qsim_max_qubits()`, `qsim_supports_n_qubits(n)`, and
+// `qsim_limitations()` expose the current state-vector bounds.
 
 // Returns the maximum qubit count supported by qsim_init's
 // underlying state-vector representation. As of v0.8.304 the safe
@@ -776,11 +775,11 @@ fn qsim_status_explain(status: i64) -> str {
 }
 
 fn qsim_limitations() -> str {
-    return "qsim (statevec) rod limitations (QM-1/QM-2/QM-16/QM-17, audit R11-D1 v0.8.304/v0833/v0851): (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) QM-1 header compatibility is now real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; Phase 2 ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains Phase B. (4) TRAJECTORY NOISE: qsim_noise_bit_flip, qsim_noise_dephase, and qsim_noise_depolarizing expose explicit per-gate stochastic trajectory noise with probability preflight. This is not a full density-matrix/Kraus backend. (5) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). Phase 2 ships safe statevec readout + larger-circuit MPS handoff per audit R11-D1 ship plan.";
+    return "qsim (statevec) rod limitations: (1) HARD CAP at 24 qubits (16M amplitudes x 16 bytes ~ 256 MB working set). qsim_init(n) and qsim_init_checked(n) both return 0 for invalid/over-cap counts without allocation; qsim_init_preflight(n) and qsim_supports_n_qubits(n) expose status before allocation. Status codes: 0=ok, 1=invalid_qubit_count, 2=over_capacity. (2) Header compatibility is real: qsim_prob, qsim_statevec, and qsim_copy exist. Full amplitude readout still uses raw vec_get on the i64 statevector handle; future work ships qsim_statevec_amplitude(sv, idx). (3) MID-CIRCUIT FEEDBACK: qsim_if_measure measures one qubit and immediately applies one of the supported 1q feedback gates (none/H/X/Y/Z/S/T/RX/RY/RZ) on the then/else branch. Hardware timing/lowering remains future work. (4) TRAJECTORY NOISE: qsim_noise_bit_flip, qsim_noise_dephase, and qsim_noise_depolarizing expose explicit per-gate stochastic trajectory noise with probability preflight. This is not a full density-matrix/Kraus backend. (5) NO TENSOR / DENSITY-MATRIX backend (MPS rod is separate). Future work ships safe statevec readout + larger-circuit MPS handoff.";
 }
 
 // =====================================================
-// QM-7 OpenQASM2 minimal emitter (v0842, 2026-05-07)
+// OpenQASM2 minimal emitter
 // =====================================================
 //
 // Emit-only surface. Imports OpenQASM2 source remain explicitly out of
@@ -917,11 +916,11 @@ fn qasm2_render(p: i64) -> str {
 }
 
 fn qasm2_limitations() -> str {
-    return "qsim OpenQASM 2.0 emit + minimal parser (QM-7 v0842 emit + v0843 parser): (1) Round-trip is closed for the H/X/Z/CX subset emitted by qasm2_render. The parser qasm2_parse(src) accepts ONLY the deterministic emit dialect: exact header lines 'OPENQASM 2.0;' + 'include \"qelib1.inc\";' + 'qreg q[N];', then per-line gates 'h q[N];' / 'x q[N];' / 'z q[N];' / 'cx q[A],q[B];' separated by '\\n'. There is intentionally no whitespace tolerance, no comment handling, no alternative spelling, no creg, no measurement, no classical control, no parameterized rotations, and no barrier/reset. Real importing of foreign OpenQASM2 sources remains future work. (2) Supported gate subset is H/X/Z/CX. Name-dispatched emit (qasm2_emit_named_1q / qasm2_emit_named_2q) returns qasm2_status_unsupported_gate (4) for any other gate without mutating the program. The parser returns qasm2_status_parse_unsupported_gate (9) for any gate name outside {h,x,z,cx} and propagates the existing emit-side qasm2_status_qubit_out_of_range / same_qubit / invalid_qubit_count codes when the source references invalid qubits. (3) Header is fixed: 'OPENQASM 2.0;', 'include \"qelib1.inc\";', 'qreg q[N];'. (4) HARD CAP at qasm2_max_qubits() = 1024 qubits, enforced by both emit and parse. (5) Status codes: 0=ok, 1=invalid_program, 2=qubit_out_of_range, 3=same_qubit, 4=unsupported_gate, 5=invalid_qubit_count, 6=parse_empty_source, 7=parse_unexpected_header, 8=parse_malformed_qreg, 9=parse_unsupported_gate, 10=parse_malformed_gate. (6) Parse result is a 2-slot Vec<i64> handle: slot 0 = status, slot 1 = program handle on success or 0 on failure. Use qasm2_parse_result_status / qasm2_parse_result_program to decode.";
+    return "qsim OpenQASM 2.0 emit + minimal parser: (1) Round-trip is closed for the H/X/Z/CX subset emitted by qasm2_render. The parser qasm2_parse(src) accepts ONLY the deterministic emit dialect: exact header lines 'OPENQASM 2.0;' + 'include \"qelib1.inc\";' + 'qreg q[N];', then per-line gates 'h q[N];' / 'x q[N];' / 'z q[N];' / 'cx q[A],q[B];' separated by '\\n'. There is intentionally no whitespace tolerance, no comment handling, no alternative spelling, no creg, no measurement, no classical control, no parameterized rotations, and no barrier/reset. Real importing of foreign OpenQASM2 sources remains future work. (2) Supported gate subset is H/X/Z/CX. Name-dispatched emit (qasm2_emit_named_1q / qasm2_emit_named_2q) returns qasm2_status_unsupported_gate (4) for any other gate without mutating the program. The parser returns qasm2_status_parse_unsupported_gate (9) for any gate name outside {h,x,z,cx} and propagates the existing emit-side qasm2_status_qubit_out_of_range / same_qubit / invalid_qubit_count codes when the source references invalid qubits. (3) Header is fixed: 'OPENQASM 2.0;', 'include \"qelib1.inc\";', 'qreg q[N];'. (4) HARD CAP at qasm2_max_qubits() = 1024 qubits, enforced by both emit and parse. (5) Status codes: 0=ok, 1=invalid_program, 2=qubit_out_of_range, 3=same_qubit, 4=unsupported_gate, 5=invalid_qubit_count, 6=parse_empty_source, 7=parse_unexpected_header, 8=parse_malformed_qreg, 9=parse_unsupported_gate, 10=parse_malformed_gate. (6) Parse result is a 2-slot Vec<i64> handle: slot 0 = status, slot 1 = program handle on success or 0 on failure. Use qasm2_parse_result_status / qasm2_parse_result_program to decode.";
 }
 
 // =====================================================
-// QM-7 OpenQASM 2.0 minimal parser (v0843, 2026-05-08)
+// OpenQASM 2.0 minimal parser
 // =====================================================
 //
 // Closes the round-trip story opened by qasm2_render. The parser

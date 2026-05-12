@@ -42,10 +42,10 @@ long long nuc_rl_replay_new(long long capacity, long long state_dim) {
     ReplayBuffer *rb = (ReplayBuffer *)calloc(1, sizeof(ReplayBuffer));
     rb->capacity = cap;
     rb->state_dim = sd;
-    rb->states = (double *)calloc(cap * sd, sizeof(double));
+    rb->states = (double *)calloc((size_t)cap * sd, sizeof(double));
     rb->actions = (long long *)calloc(cap, sizeof(long long));
     rb->rewards = (double *)calloc(cap, sizeof(double));
-    rb->next_states = (double *)calloc(cap * sd, sizeof(double));
+    rb->next_states = (double *)calloc((size_t)cap * sd, sizeof(double));
     rb->dones = (int *)calloc(cap, sizeof(int));
     return (long long)rb;
 }
