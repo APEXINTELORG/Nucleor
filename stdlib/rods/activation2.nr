@@ -1,7 +1,7 @@
 // rods/activation2 — Modern transformer activations + normalizations
 //
 // SwiGLU (used in LLaMA 2/3, Gemma), GeGLU (PaLM), GELU, SiLU,
-// JumpReLU (Anthropic interp), DyT, RMSNorm (LLaMA), QK-Norm (used
+// JumpReLU (interpretability literature), DyT, RMSNorm (LLaMA), QK-Norm (used
 // in many recent models), DeepNorm (DeepSpeed), RoPE (rotary
 // positional embedding, single-step + sequence variants), softmax,
 // sigmoid. All operate on i64 vec handles holding f64 bits.

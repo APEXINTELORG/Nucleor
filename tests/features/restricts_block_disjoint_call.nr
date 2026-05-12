@@ -1,4 +1,4 @@
-// R05-D4 Phase 2b delta (cloud Claude2 review v0841): a
+// R05-D4 Phase 2b delta: a
 // `restricts [net]` block may call a same-file function declared
 // `requires [io.read]` because the callee row is in a disjoint effect
 // family. Build and run must succeed.

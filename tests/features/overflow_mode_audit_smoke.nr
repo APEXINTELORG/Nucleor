@@ -11,7 +11,7 @@
 // compiler ship.
 //
 // Fixture is intentionally non-exercising: it just keeps the
-// build path green for the audit pass. Comment text mentioning
+// build path green for the regression gate. Comment text mentioning
 // `wrapping {` etc. counts as audit hits via text-scan (same
 // known shape as the v0.8.5 @differentiable audit).
 //
@@ -19,7 +19,7 @@
 
 fn main() -> i64 {
     // The strings below intentionally appear in the source so
-    // the audit pass picks them up. Adopter code that actually
+    // the regression gate picks them up. Adopter code that actually
     // uses `wrapping { x * y }` or `as#wrap` would surface the
     // same way.
     let _: str = "wrapping { ... } saturating { ... } checked { ... }";

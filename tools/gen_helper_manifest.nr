@@ -661,7 +661,7 @@ fn lane6_manual_name_override(name: str, eff_out: Vec<str>, taint_out: Vec<str>,
 }
 
 // CLASS_DEFAULTS — fallback after NAME / PATTERN overrides. Returns 1 if a
-// default exists for this class, 0 if it falls through to TODO sentinel.
+// default exists for this class, 0 if it falls through to REVIEW_REQUIRED sentinel.
 fn class_default(cls: str, eff_out: Vec<str>, taint_out: Vec<str>, proof_out: Vec<str>) -> i64 {
     let mut eff: str = ""; let mut taint: str = ""; let mut proof: str = "";
     let mut hit: i64 = 0;
@@ -1079,7 +1079,7 @@ fn collect_runtime_defs(out: Vec<str>) -> i64 {
 // ---------- main ----------
 
 fn fmt_abi(ret: str, args_csv: str) -> str {
-    if str_len(ret) == 0 { return "TODO"; };
+    if str_len(ret) == 0 { return "REVIEW_REQUIRED"; };
     return str_concat("(", str_concat(args_csv, str_concat(") -> ", ret)));
 }
 
@@ -1243,7 +1243,7 @@ fn main() -> i64 {
                 notes = "name pattern did not match any class rule (REVIEW REQUIRED)";
             };
         };
-        // effects resolution: NAME -> PATTERN -> CLASS_DEFAULTS -> TODO
+        // effects resolution: NAME -> PATTERN -> CLASS_DEFAULTS -> REVIEW_REQUIRED
         let eff_buf: Vec<str> = vec_new();
         let taint_buf: Vec<str> = vec_new();
         let proof_buf: Vec<str> = vec_new();
@@ -1252,9 +1252,9 @@ fn main() -> i64 {
         else if lane6_manual_name_override(name, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; }
         else if pattern_override(name, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; }
         else if class_default(cls, eff_buf, taint_buf, proof_buf) == 1 { resolved = 1; };
-        let mut effects_field: str = "TODO";
-        let mut taint_val: str = "TODO";
-        let mut proof_val: str = "TODO";
+        let mut effects_field: str = "REVIEW_REQUIRED";
+        let mut taint_val: str = "REVIEW_REQUIRED";
+        let mut proof_val: str = "REVIEW_REQUIRED";
         if resolved == 1 {
             // Take the LAST entry pushed (each helper push in three steps)
             let last_idx: i64 = vec_len(eff_buf) - 1;
@@ -1283,8 +1283,8 @@ fn main() -> i64 {
         let mut abi: str = if hashmap_contains(ir_idx, sym) == 1 {
             let idx: i64 = hashmap_get(ir_idx, sym);
             fmt_abi(vec_get(ir_rets, idx), vec_get(ir_args, idx))
-        } else { "TODO" };
-        if str_eq(abi, "TODO") == 1 {
+        } else { "REVIEW_REQUIRED" };
+        if str_eq(abi, "REVIEW_REQUIRED") == 1 {
             let m_abi: str = lane6_manual_abi(sym);
             if str_len(m_abi) > 0 { abi = m_abi; };
         };
@@ -1412,17 +1412,17 @@ fn main() -> i64 {
         if str_starts_with(eff, "[") == 1 {
             out = str_concat(out, str_concat("effects          = ", str_concat(eff, "\n")));
         } else {
-            out = str_concat(out, str_concat("effects          = \"", str_concat(eff, "\"  # TODO\n")));
+            out = str_concat(out, str_concat("effects          = \"", str_concat(eff, "\"  # review required\n")));
         };
         let taint: str = vec_get(row_taints, idx);
-        if str_eq(taint, "TODO") == 1 {
+        if str_eq(taint, "REVIEW_REQUIRED") == 1 {
             out = str_concat(out, str_concat("taint            = \"", str_concat(taint, "\"  # verify before use\n")));
         } else {
             out = str_concat(out, str_concat("taint            = \"", str_concat(taint, "\"\n")));
         };
         out = str_concat(out, "units            = \"passthrough\"\n");
         let proof: str = vec_get(row_proofs, idx);
-        if str_eq(proof, "TODO") == 1 {
+        if str_eq(proof, "REVIEW_REQUIRED") == 1 {
             out = str_concat(out, str_concat("proof_obligation = \"", str_concat(proof, "\"  # verify before use\n")));
         } else {
             out = str_concat(out, str_concat("proof_obligation = \"", str_concat(proof, "\"\n")));

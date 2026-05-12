@@ -68,7 +68,7 @@ def main() -> None:
 
     # Dump fitted tree structure so the Nucleor side can consume the
     # pre-fitted params and run predict-only (Nucleor has no DT fit API).
-    # See findings/inbox/ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md.
+    # The Nucleor side consumes fitted parameters and exercises predict-only parity.
     tree = clf.tree_
     params = {
         "node_left_indices": [int(v) for v in tree.children_left],

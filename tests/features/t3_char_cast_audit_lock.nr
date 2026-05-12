@@ -1,11 +1,11 @@
 // v0.8.78 T-3 Phase 1 lock-in. Locks the v0.8.46 char-cast
-// audit-pass info diagnostic. Source contains `as char` casts;
+// regression gate info diagnostic. Source contains `as char` casts;
 // the build emits info[T-3-CAST] counting them.
 //
 // Phase 2b will validate codepoint range at the cast site
 // (reject 0xD800-0xDFFF surrogates and >0x10FFFF). Phase 4
 // promotes to hard error per RFC T-3. Until then this fixture
-// asserts the audit-pass exists so any refactor that drops
+// asserts the regression gate exists so any refactor that drops
 // the audit gets caught.
 //
 // Expected: rc=130, build emits info[T-3-CAST] with non-zero count.

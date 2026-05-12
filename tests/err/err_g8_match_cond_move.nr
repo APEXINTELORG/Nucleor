@@ -1,5 +1,5 @@
 // EXPECT: OWN-G8-COND-MOVE
-// Audit-pass-1 G-8 CFG join: match arms must merge move state.
+// Regression gate G-8 CFG join: match arms must merge move state.
 // Moving a non-Copy value on one arm and preserving it on another
 // makes later reads conditionally unsound.
 enum Choice { TakeIt, KeepIt }

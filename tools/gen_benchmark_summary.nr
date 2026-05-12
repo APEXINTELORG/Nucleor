@@ -372,7 +372,7 @@ fn main() -> i64 {
     out = str_concat(out, "  + v0.4.30 optimizations brought the floor to ~295s.\n");
     out = str_concat(out, "- **Claim separation:** this dashboard does NOT claim absolute\n");
     out = str_concat(out, "  performance comparisons against other languages — those require\n");
-    out = str_concat(out, "  controlled hardware + the public benchmark program (RFC-TBD).\n");
+    out = str_concat(out, "  controlled hardware + the public benchmark program.\n");
     out = str_concat(out, "  This is the verify-gate cycle time on the local developer box.\n");
 
     file_write_string(out_path, out);

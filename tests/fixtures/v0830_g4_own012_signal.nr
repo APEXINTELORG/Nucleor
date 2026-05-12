@@ -1,5 +1,5 @@
 // v0.8.30 RFC-0062 G-4 Phase 2a signal fixture — exercises
-// `vec_free` and `hashmap_free` to ensure the OWN-012 audit-pass
+// `vec_free` and `hashmap_free` to ensure the OWN-012 regression gate
 // info fires on a build with explicit frees.
 //
 // Build emits `info[OWN-012]: explicit free calls present in

@@ -8,7 +8,7 @@
 //
 // Sister to NUM-018 (float literal into int binding, v0.4.76).
 // The literal-int-into-f64 case (`let f: f64 = 5;`) is now rejected
-// separately by the audit-pass-1 Layer 2 F-005 TYP-008 check; write
+// separately by the regression gate Layer 2 F-005 TYP-008 check; write
 // `5.0` when the source value is a float.
 
 fn main() -> i32 {

@@ -1,5 +1,5 @@
 // EXPECT: error[TYP-008]
-// Audit pass 1 Layer 2 F-007: Pair<i64, str>.second has type str.
+// Regression gate Layer 2 F-007: Pair<i64, str>.second has type str.
 struct Pair<A, B> { first: A, second: B }
 
 fn main() -> i32 {

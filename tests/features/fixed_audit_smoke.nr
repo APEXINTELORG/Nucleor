@@ -13,7 +13,7 @@
 //
 // This fixture exercises both forms in let-position and fn-arg /
 // fn-return position. It does not test arithmetic semantics
-// (still collapses to i64); it ONLY locks that the audit pass
+// (still collapses to i64); it ONLY locks that the regression gate
 // counts the type-position occurrences and that the program
 // compiles + runs cleanly with rc=0.
 //

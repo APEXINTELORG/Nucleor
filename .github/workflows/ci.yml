@@ -155,7 +155,7 @@ jobs:
           clang --version || true
       - name: Step 1 — document runner (Ubuntu GHA, NOT pinned for perf)
         # Records host class as evidence. This runner is GHA-hosted Ubuntu,
-        # which is correct for correctness gates (D2 of the handoff doc)
+        # which is correct for hosted correctness gates
         # but explicitly NOT valid for perf baseline locks — those need a
         # pinned self-hosted runner. The perf gate below runs in
         # informational mode; baseline locks come from the pinned runner
@@ -199,14 +199,14 @@ jobs:
         # starts so a regression is attributable cleanly).
         run: bash tools/check_self_host_md5.sh
       - name: Step 6 — perf gate doctor (D1 RSS-split ceilings present)
-        # Step 6 of the handoff. Specifically gates the new D1 doctor
+        # Specifically gates the compiler RSS doctor check
         # check `compiler-rss-ceilings` so a baseline that drops the
         # cold/hot compiler-only ceilings fails CI by name instead of
         # silently downgrading to warn-only at the gate.
         run: bash tools/check_perf_regression.sh --doctor
       - name: Perf gate informational run (NOT for baseline lock)
-        # Informational only on hosted GHA — D2 of the handoff doc is
-        # explicit that cloud GHA is too noisy for baseline locks. The
+        # Informational only on hosted GHA because cloud runners are
+        # too noisy for baseline locks. The
         # gate's exit code is captured for visibility, but CI does not
         # fail on cold/hot wall regressions here. The pinned-runner
         # job (commented stub below) is where wall-time regressions
@@ -272,7 +272,7 @@ jobs:
   #
   # Activate by:
   #   1. Provisioning a stable Linux runner (physical box or pinned cloud
-  #      VM, NOT a GHA hosted runner — D2 of the handoff doc).
+  #      VM, NOT a GHA hosted runner).
   #   2. Registering it under APEXINTELORG/Nucleor-archive with labels
   #      `[self-hosted, linux, X64, nucleor-linux-perf-x64]`.
   #   3. Documenting host class (kernel, glibc, clang, CPU model, RAM,
@@ -281,7 +281,7 @@ jobs:
   #   4. Uncommenting the job below and removing the trailing `if: false`.
   #
   # Once active this is the only place where compiler-only / process-tree
-  # RSS ceilings should be re-tightened (Step 7 of the handoff). Hosted
+  # RSS ceilings should be re-tightened after pinned-host measurement. Hosted
   # GHA is correctness-only.
   # ---------------------------------------------------------------------
   # linux-perf-baseline:

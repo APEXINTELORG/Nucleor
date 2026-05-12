@@ -1839,7 +1839,7 @@ fn lex(src: str) -> Vec<i32> {
             let is_law: i64 = str_eq_at(src, p, "@law(");
             let law_body_start: i64 = if is_law == 1 { p + 5 } else { 0 };
             if p + 1 < slen && is_alnum(str_char_at(src, p + 1)) == 1 {
-                // Skip attributes like @authored(...), @policy(...), @hot, @const_fn.
+                // Skip attributes like @authored(...), @policy(...), @photonic[...], @hot, @const_fn.
                 p = p + 1;
                 while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
                 if p < slen && str_char_at(src, p) == 40 {
@@ -1857,6 +1857,24 @@ fn lex(src: str) -> Vec<i32> {
                         } else {
                             if ch == 40 { depth = depth + 1; }
                             else if ch == 41 { depth = depth - 1; };
+                            p = p + 1;
+                        };
+                    };
+                } else if p < slen && str_char_at(src, p) == 91 {
+                    let mut depth: i64 = 1;
+                    p = p + 1;
+                    while p < slen && depth > 0 {
+                        let ch: i64 = str_char_at(src, p);
+                        if ch == 34 {
+                            p = p + 1;
+                            while p < slen && str_char_at(src, p) != 34 {
+                                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                                else { p = p + 1; };
+                            };
+                            if p < slen { p = p + 1; };
+                        } else {
+                            if ch == 91 { depth = depth + 1; }
+                            else if ch == 93 { depth = depth - 1; };
                             p = p + 1;
                         };
                     };

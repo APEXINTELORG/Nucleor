@@ -3,7 +3,7 @@
 // Pins stdlib import resolution from outside the OSS repo. Pre-
 // v0.3.122, `import "stdlib/rods/jsonl.nr"` (or any other stdlib
 // rod) silently failed to resolve when the source file was outside
-// the Nucleor_OSS repo — the import-path search walked from the
+// the source tree — the import-path search walked from the
 // source's base_dir UP to filesystem root then tried CWD; since
 // adopters using nucleor.exe as an external tool typically have
 // neither, the import injected zero source and every imported

@@ -648,7 +648,7 @@ fn policy_fields_for_name(name0: str, cls: str) -> str {
     if str_eq(cls, "ADT") == 1 { return policy_result("[]", "passthrough", "none"); };
     if str_eq(cls, "Introspection") == 1 { return policy_result("[]", "passthrough", "none"); };
     if str_eq(cls, "ControlFlow") == 1 { return policy_result("[\"panic\"]", "passthrough", "predicate_holds"); };
-    return policy_result("TODO", "TODO", "TODO");
+    return policy_result("REVIEW_REQUIRED", "REVIEW_REQUIRED", "REVIEW_REQUIRED");
 }
 
 fn since_for_name(name0: str) -> str {
@@ -1062,7 +1062,7 @@ fn main() -> i64 {
     let mut unstable_count: i64 = 0;
     let mut experimental_count: i64 = 0;
     let mut review_required_count: i64 = 0;
-    let mut policy_todo_count: i64 = 0;
+    let mut policy_review_required_count: i64 = 0;
     let mut since_explicit_count: i64 = 0;
     let mut notes_nonempty_count: i64 = 0;
     m = 0;
@@ -1087,8 +1087,8 @@ fn main() -> i64 {
         };
         vec_push(manifest_stability, stability);
         let policy: str = policy_fields_for_name(name, cls);
-        if str_starts_with(policy, "TODO|") == 1 {
-            policy_todo_count = policy_todo_count + 1;
+        if str_starts_with(policy, "REVIEW_REQUIRED|") == 1 {
+            policy_review_required_count = policy_review_required_count + 1;
         };
         vec_push(manifest_policy, policy);
         let since: str = since_for_name(name);
@@ -1126,7 +1126,7 @@ fn main() -> i64 {
     print(str_concat("experimental_symbols: ", int_to_str(experimental_count)));
     print(str_concat("review_required_symbols: ", int_to_str(review_required_count)));
     print(str_concat("policy_rows: ", int_to_str(vec_len(manifest_policy))));
-    print(str_concat("policy_todo_symbols: ", int_to_str(policy_todo_count)));
+    print(str_concat("policy_review_required_symbols: ", int_to_str(policy_review_required_count)));
     print(str_concat("since_rows: ", int_to_str(vec_len(manifest_since))));
     print(str_concat("since_explicit_symbols: ", int_to_str(since_explicit_count)));
     print(str_concat("notes_rows: ", int_to_str(vec_len(manifest_notes))));

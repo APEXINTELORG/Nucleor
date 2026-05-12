@@ -1,4 +1,4 @@
-// Audit pass 1 / F-CONC-003: #[deadline] must poll inside long-running
+// Regression gate / F-CONC-003: #[deadline] must poll inside long-running
 // loops, not only compare elapsed time after the function returns.
 
 #[deadline = 100us]

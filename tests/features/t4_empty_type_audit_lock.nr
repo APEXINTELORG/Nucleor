@@ -1,9 +1,7 @@
 // v0.8.79 T-4 hole canary fixture (no compiler edit).
 //
 // This fixture documents the TODAY state of RFC T-4 empty-type
-// compatibility hole as a regression canary. Per finding
-// findings/promoted/2026-05-04-t-4-empty-type-compat-hole-
-// confirmed-vec-get-and-closure-paths.md:
+// compatibility hole as a regression canary:
 //
 //   `vec_get` returns an "" empty-type sentinel; `types_compatible`
 //   short-circuits to true for any expected type → silent

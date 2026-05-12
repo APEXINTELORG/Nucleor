@@ -4,9 +4,9 @@ import "stdlib/rods/governance.nr"
 fn main() -> i64 {
     governance_clear();
 
-    let r1: AuthorRecord = governance_authored("joseph_wescott", "human", "2026-05-03");
+    let r1: AuthorRecord = governance_authored("maintainer", "human", "2026-05-03");
     let r2: AuthorRecord = governance_authored_full(
-        "claude-opus-4.7", "claude-code", "2026-05-03", "ef3d45cc", "joseph_wescott"
+        "automation", "review-tool", "2026-05-03", "ef3d45cc", "maintainer-review"
     );
 
     let i1: i64 = governance_register_authored(r1);
@@ -18,14 +18,14 @@ fn main() -> i64 {
     if n != 2 { print("FAIL count"); return 1; };
 
     let g1: AuthorRecord = governance_authored_get(0);
-    if str_eq(g1.by, "joseph_wescott") != 1 { print("FAIL g1.by"); return 1; };
+    if str_eq(g1.by, "maintainer") != 1 { print("FAIL g1.by"); return 1; };
     if str_eq(g1.tool, "human") != 1 { print("FAIL g1.tool"); return 1; };
     if str_eq(g1.date, "2026-05-03") != 1 { print("FAIL g1.date"); return 1; };
 
     let g2: AuthorRecord = governance_authored_get(1);
-    if str_eq(g2.tool, "claude-code") != 1 { print("FAIL g2.tool"); return 1; };
+    if str_eq(g2.tool, "review-tool") != 1 { print("FAIL g2.tool"); return 1; };
     if str_eq(g2.commit, "ef3d45cc") != 1 { print("FAIL g2.commit"); return 1; };
-    if str_eq(g2.review, "joseph_wescott") != 1 { print("FAIL g2.review"); return 1; };
+    if str_eq(g2.review, "maintainer-review") != 1 { print("FAIL g2.review"); return 1; };
 
     let json: str = governance_authored_all_to_json();
     print(json);

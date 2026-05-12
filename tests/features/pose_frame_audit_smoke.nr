@@ -13,7 +13,7 @@
 //
 // This fixture exercises Frame_* marker types in let-position
 // only (the `Pose<F>` parametric form would require the full
-// generic infra, deferred). Locks that the audit pass counts
+// generic infra, deferred). Locks that the regression gate counts
 // markers and that the program compiles + runs cleanly with
 // rc=0.
 //

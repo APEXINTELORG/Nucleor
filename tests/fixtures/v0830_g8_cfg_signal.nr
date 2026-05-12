@@ -1,5 +1,5 @@
 // v0.8.30 RFC-0062 G-8 Phase 2a signal fixture — exercises
-// `match` expressions to ensure the CFG-G8 audit-pass info
+// `match` expressions to ensure the CFG-G8 regression gate info
 // fires on a build with multiple match arms.
 //
 // Build emits `info[CFG-G8]: match expressions in build: N`

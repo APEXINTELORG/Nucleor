@@ -6,8 +6,7 @@
 //
 // FNV-1a 64-bit is deterministic by spec — same input bytes must
 // produce the same i64 hash on every platform. Per the
-// findings/inbox/cloud_claude_lane8_8C_v0845_2026-05-07.md
-// transcript, the rust_bridge already passed 70k alloc/free
+// rust_bridge validation covered repeated alloc/free
 // cycles and valgrind clean on POSIX; this fixture lets a paired
 // run on Windows + Linux surface any platform-divergent hash
 // silently slipping in.
@@ -16,8 +15,7 @@
 // offset_basis 0xcbf29ce484222325 reinterpreted to i64 for the
 // empty string, plus the FNV-1a iterates for the curated inputs.
 // All reference values were captured on Windows host (this fixture's
-// initial run); the paired Linux run is queued under
-// Cloud_Control1.md Round-3 §8N.
+// initial run); paired Linux runs should byte-compare the same rows.
 //
 // Output format (newline-delimited rows):
 //   <input> <hash>

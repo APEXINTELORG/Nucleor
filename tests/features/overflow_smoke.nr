@@ -1,7 +1,7 @@
 // v0.8.217 stdlib/rods/overflow.nr first test coverage.
 //
 // RFC-0044 Phase A: per-BinOp overflow-mode helpers
-// (wrap/sat/trap; mode-dispatch). Pre-v0.8.217: audit-pass
+// (wrap/sat/trap; mode-dispatch). Pre-v0.8.217: regression gate
 // token-presence gate (v0.8.181) covers import; this fixture
 // guards behavior. Phase B compiler enforcement (~150 LOC) of
 // inline-suffix syntax `a *#wrap b` etc. must NOT regress

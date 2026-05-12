@@ -1,7 +1,7 @@
 // v0.8.206 stdlib/rods/kinematics_frame.nr first test coverage.
 //
 // RFC-0046 Phase A: coordinate-frame marker types (Frame_World,
-// Frame_Base, Frame_Camera, ...). Pre-v0.8.206: audit-pass
+// Frame_Base, Frame_Camera, ...). Pre-v0.8.206: regression gate
 // token-presence gate exists (v0.8.181) but no behavioral
 // fixture. Mars-Climate-Orbiter-class silent miscompute is the
 // motivating risk this rod prevents (Phase B compiler enforcement

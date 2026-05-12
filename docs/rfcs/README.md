@@ -21,11 +21,11 @@ proceed without re-design.
 
 | Doc | Topic | Status |
 |---|---|---|
-| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40; Phase 2 population at 95.1% via v0.2.73–78 |
-| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Mech v0.2.40, populated v0.2.73–78 (643/676 rows fully annotated; remaining 33 are intentional v0.4 placeholders) |
-| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40, schema vocabulary expanded v0.2.73 (`"sync"` effect tag) + v0.2.75 (per-class population state table) |
-| [rod_manifest.toml](rod_manifest.toml) | 121-rod catalog (TOML, generated) | Companion to helper manifest, v0.2.46 |
-| [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | v0.2.46 |
+| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Current manifest tracks 910 helpers; 836/910 policy rows are populated and 74 require explicit metadata review |
+| [helper_manifest.toml](helper_manifest.toml) | 910-helper schema map (TOML, generated) | Generated source of truth; header lists 7 class/linkage REVIEW REQUIRED helpers |
+| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | Current v1.1.0 schema and generated class-count table |
+| [rod_manifest.toml](rod_manifest.toml) | 288-rod catalog (TOML, generated) | Companion to helper manifest |
+| [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | Current generated rod-manifest schema |
 
 ### Tier 1 — RT, robotics, allocator foundations
 

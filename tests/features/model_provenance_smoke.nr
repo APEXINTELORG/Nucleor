@@ -1,7 +1,7 @@
 // v0.8.211 stdlib/rods/model_provenance.nr first test coverage.
 //
 // RFC-0051 Phase A: foundation-model provenance-tracking surface.
-// Pre-v0.8.211: audit-pass token-presence gate (v0.8.181) covers
+// Pre-v0.8.211: regression gate token-presence gate (v0.8.181) covers
 // import; this fixture guards behavior. Phase B promotes the
 // helpers to type-level constraints (~400 LOC compiler-side,
 // deferred); the rod-runtime semantics here are the

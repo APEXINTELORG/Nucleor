@@ -2,7 +2,7 @@
 
 This directory holds the **T1.1 maximalist numerics refactor**
 test matrix. Each subdirectory groups tests by the phase of the
-plan (`Desktop/Nucleor_T1_Numerics_Maximalist_Plan.md`) that
+plan that
 should turn its tests green.
 
 ## Workflow

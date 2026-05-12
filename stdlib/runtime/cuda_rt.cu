@@ -371,10 +371,10 @@ static void record_telemetry(GPUMC *mc, int gate_type, float kernel_time_us) {
     evt->gate_step = mc->step;
     evt->gate_type = gate_type;
     evt->kernel_time_us = kernel_time_us;
-    evt->mem_throughput = 0; // TODO: compute from bytes transferred / time
-    evt->active_warps = 0;  // TODO: query occupancy
+    evt->mem_throughput = 0; // reserved: bytes transferred / time
+    evt->active_warps = 0;  // reserved: occupancy query
     evt->mean_core_divergence = 0; // computed after probs extraction
-    evt->fp32_delta = 0;    // TODO: FP32 shadow comparison
+    evt->fp32_delta = 0;    // reserved: FP32 shadow comparison
     mc->telemetry.n_events++;
     mc->telemetry.total_kernel_time_us += kernel_time_us;
 }
@@ -573,11 +573,11 @@ long long nuc_gpu_mc_extract(long long handle) {
     PUSH_F64(feats, mean_kl);        // [5]
     PUSH_F64(feats, max_kl);         // [6]
     PUSH_F64(feats, agreement);      // [7]
-    PUSH_F64(feats, 0.0);            // [8] divergence_onset (TODO)
-    PUSH_F64(feats, 0.0);            // [9] divergence_slope (TODO)
-    PUSH_F64(feats, 0.0);            // [10] core_rank_stability (TODO)
-    PUSH_F64(feats, 0.0);            // [11] phase_coherence (TODO - needs raw amplitudes)
-    PUSH_F64(feats, 0.0);            // [12] phase_drift_rate (TODO)
+    PUSH_F64(feats, 0.0);            // [8] divergence_onset (reserved)
+    PUSH_F64(feats, 0.0);            // [9] divergence_slope (reserved)
+    PUSH_F64(feats, 0.0);            // [10] core_rank_stability (reserved)
+    PUSH_F64(feats, 0.0);            // [11] phase_coherence (reserved; needs raw amplitudes)
+    PUSH_F64(feats, 0.0);            // [12] phase_drift_rate (reserved)
 
     // Sparsity of clean core
     int nonzero = 0;

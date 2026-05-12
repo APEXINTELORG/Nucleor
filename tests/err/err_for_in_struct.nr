@@ -7,7 +7,7 @@
 // integer 4614253070214989087, the IEEE-754 bit pattern); with `Vec<T>` /
 // `String` / `&T` fields it leaked heap pointers as integers. None of those
 // surfaced a diagnostic. Same hazard class as v0.4.152 — non-iterable in
-// the iterand position. Closes findings/inbox/2026-04-30-for-on-struct-*.
+// the iterand position. Locks the former for-on-struct regression.
 // s1-only.
 
 struct Point { x: i32, y: i32 }

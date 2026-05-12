@@ -1053,7 +1053,7 @@ static void gpu_taylor_recurrence(int max_k) {
             // om[k+1] = scl * (thx[k] - adv_om)
             // th[k+1] = scl * (-adv_th)
             // Use a combined kernel:
-            // For now, download, compute on CPU, upload (TODO: kernel)
+            // For now, download, compute on CPU, upload.
             // Actually let's do a simple kernel:
             // ... this needs a custom kernel. Let me add one.
         }

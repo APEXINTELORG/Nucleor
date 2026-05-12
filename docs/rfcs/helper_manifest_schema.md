@@ -63,9 +63,9 @@ what `clang` resolves at link time against the runtime archive.
 The IR-level signature, in the form `(arg_types...) -> ret_type`.
 Argument types are in IR notation (`i64`, `ptr`); return type is
 likewise. Example: `(ptr) -> i64` for `__nucleor_vec_len`.
-`TODO` if the IR `declare` row could not be parsed.
+`REVIEW_REQUIRED` if the IR `declare` row could not be parsed.
 
-### `effects` — list (or `"TODO"`)
+### `effects` — list (or `"REVIEW_REQUIRED"`)
 List of effect tags this helper performs. Empty `[]` means pure
 (safe under `@hot` / `@const_fn` enforcement). Effect tags include:
 
@@ -82,30 +82,36 @@ List of effect tags this helper performs. Empty `[]` means pure
   v0.2.73 — populated for the entire `Concurrency` class.)
 - `"panic"` — may abort the process.
 
-As of v0.2.78 the generator populates `effects` for **643 of
-676 helpers (95.1%)** via a 3-level resolution chain
+As of v1.1.0 the manifest contains **910 helpers**. The generator
+populates `effects`, `taint`, and `proof_obligation` for **836 of
+910 helpers (91.9%)** via a 3-level resolution chain
 (`NAME_OVERRIDES` → `PATTERN_OVERRIDES` → `CLASS_DEFAULTS`):
 
-| Class | Population | Mechanism |
+| Class | Current rows | Mechanism |
 |---|---|---|
-| `PureMath` | 132 / 132 | class default `[]` |
-| `VectorOps` | 97 / 97 | class default `["alloc"]` |
-| `PanickingArith` | 84 / 84 | 80 pure via pattern, 4 via name |
-| `StringFormat` | 81 / 81 | 38 pure via pattern, 1 io via name, 42 alloc via class default |
-| `IO` | 70 / 70 | 8 pure + 8 pure-alloc + 23 read-side propagating + 31 write-side passthrough |
-| `Collection` | 54 / 54 | 17 pure via pattern, 37 alloc via class default |
-| `Concurrency` | 38 / 38 | class default `["sync"]` |
-| `Time` | 21 / 21 | class default `["clock"]` |
-| `DataCodec` | 19 / 19 | 5 pure + 1 io + 1 random+alloc + 12 alloc |
-| `Random` | 13 / 13 | class default `["random"]` |
-| `Allocation` | 10 / 10 | class default `["alloc"]` |
-| `ToolingMeta` | 9 / 12 | 9 via name; 3 placeholders TODO |
-| `TensorOps` | 15 / 45 | 15 via pattern; 30 placeholders TODO |
+| `PureMath` | 189 | class default `[]` |
+| `StringFormat` | 132 | name/pattern overrides plus class default `["alloc"]` |
+| `VectorOps` | 114 | class default `["alloc"]` |
+| `PanickingArith` | 104 | name/pattern overrides for panic/checked/wrapping/saturating families |
+| `IO` | 78 | read/write-side overrides plus class default `["io"]` |
+| `Collection` | 56 | pure lookup overrides plus class default `["alloc"]` |
+| `TensorOps` | 45 | pattern overrides where policy is known; unresolved policy rows use `REVIEW_REQUIRED` |
+| `Concurrency` | 44 | class default `["sync"]` |
+| `ToolingMeta` | 26 | explicit name overrides where policy is known; unresolved policy rows use `REVIEW_REQUIRED` |
+| `ADT` | 22 | class default `[]` |
+| `Time` | 21 | class default `["clock"]` |
+| `DataCodec` | 19 | name/pattern overrides plus class default `["alloc"]` |
+| `Introspection` | 19 | class default `[]` |
+| `Allocation` | 15 | class default `["alloc"]` |
+| `Random` | 13 | class default `["random"]` |
+| `Unclassified` | 7 | listed in the manifest REVIEW REQUIRED block |
+| `ControlFlow` | 6 | class default `["panic"]` |
 
-The remaining **33 TODO rows** are all intentional v0.4
-placeholders (TensorOps GPU/device/SIMD/sampling forward
-declarations + ToolingMeta `profile_*` / `py_eval` stubs).
-**Do not assume `[]` for `"TODO"` rows.**
+The remaining **74 rows with `REVIEW_REQUIRED` policy fields** require
+explicit metadata review before the row should be treated as authoritative.
+The manifest header separately lists the 7 helpers whose class/linkage status
+needs human review.
+**Do not assume `[]` for `"REVIEW_REQUIRED"` rows.**
 
 ### `taint` — `"passthrough" | "propagates" | "breaks"`
 Whether taint flowing into the inputs propagates to the outputs.
@@ -119,15 +125,14 @@ Whether taint flowing into the inputs propagates to the outputs.
 - `breaks` — output is always considered untainted regardless of
   input. Reserved for verified sanitizers.
 
-As of v0.2.78, `taint` is populated for the same 643 of 676
+As of v1.1.0, `taint` is populated for the same 836 of 910
 helpers as `effects`. Most populated rows carry
 `"passthrough"`; the only `"propagates"` rows are the 23
 read-side IO helpers (stdin reads, env reads, fs queries,
 file reads, system) — these introduce external taint that
 must propagate downstream. No rows carry `"breaks"` (reserved
 for verified sanitizers, which v0.2 doesn't ship). Rows with
-`taint = "TODO"` are limited to the 33 v0.4 placeholders
-listed above.
+`taint = "REVIEW_REQUIRED"` require explicit metadata review.
 
 ### `units` — `"passthrough" | "carries" | "strips"`
 SI / dimensional-units behavior under RFC-0005:
@@ -159,8 +164,8 @@ values:
   effect. Reserved for the certificate emission pipeline.
 - `"consumes"` — requires a proof certificate for inputs.
 
-Marked `"TODO"` for the seven classes the generator hasn't yet
-populated. **Do not assume `"none"` for `"TODO"` rows.**
+Marked `"REVIEW_REQUIRED"` for the seven classes the generator hasn't yet
+populated. **Do not assume `"none"` for `"REVIEW_REQUIRED"` rows.**
 
 ### `stability` — `"stable" | "unstable" | "experimental"`
 - `stable` — defined in `stdlib/runtime/*.c`, callable, and

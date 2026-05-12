@@ -1,4 +1,4 @@
-// R05-D4 Phase 2b first slice (local-claude v0840): block-form
+// R05-D4 Phase 2b first slice: block-form
 // `restricts [...] { ... }` real enforcement positive smoke. A clean
 // block whose body contains only arithmetic and let-binding with no
 // effectful direct call must build and run successfully — pre-v0840

@@ -1,4 +1,4 @@
-// R14-D2 Phase 2-prep gate (local-claude2 v0842) — opt-in optimizer
+// R14-D2 Phase 2-prep gate — opt-in optimizer
 // rewrite eligibility audit. The fixture pairs `@audit(law_opt_required)`
 // with `@audit(check_laws_passed)` so the s1 compiler emits
 // info[LAW-AUDIT-GATE] without halting. The IR-level

@@ -6,7 +6,7 @@ fn main() -> i32 {
         "nucleor_ml_suite",
         "nuc::capsule::toolchain_manifest",
         "nucleor",
-        "C:/Users/JoeWe/Desktop/Nucleor_OSS/bin/nucleor.exe",
+        "bin/nucleor.exe",
         "native_exe",
         policy_strict(),
         1,

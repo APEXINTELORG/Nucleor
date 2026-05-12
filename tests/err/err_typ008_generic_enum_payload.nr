@@ -1,5 +1,5 @@
 // EXPECT: error[TYP-008]
-// Audit pass 1 Layer 2 F-006: Holder<i64>::Some requires an i64 payload.
+// Regression gate Layer 2 F-006: Holder<i64>::Some requires an i64 payload.
 enum Holder<T> { Some(T), None }
 
 fn main() -> i32 {

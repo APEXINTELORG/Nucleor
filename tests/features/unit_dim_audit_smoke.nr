@@ -11,7 +11,7 @@
 // compiler ship.
 //
 // This fixture exercises Mass / Length / Acceleration / Force
-// in let-position and verifies the audit pass counts them.
+// in let-position and verifies the regression gate counts them.
 // Type-position only — no dim-arithmetic enforcement yet, so
 // we just lock that the parse + audit + run cycle works.
 //

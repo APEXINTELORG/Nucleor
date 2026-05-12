@@ -16,7 +16,7 @@ manifests answer different questions:
 
 A rod can call multiple helpers, and a helper can be exposed
 through multiple rod functions. The numbers are independent:
-121 rods, 676 helpers as of v0.2.46.
+288 rods and 910 helpers in the current generated manifests.
 
 ## Per-row fields
 
@@ -68,7 +68,7 @@ fix: add a leading comment line of the form
 `// rods/<name> — <description>` to the rod file and re-run the
 generator.
 
-As of v0.2.46, the REVIEW REQUIRED count is **0**.
+In the current generated rod manifest, the REVIEW REQUIRED count is **0**.
 
 ## Worked example
 

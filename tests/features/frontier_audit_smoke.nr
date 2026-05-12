@@ -1,7 +1,7 @@
 // v0.8.147-149 RFC-0048/49/51 Phase B step-1 — combined frontier
 // easy-win audit fixture (V2.3 / V2.4 / V2.6).
 //
-// Three batched audit-pass additions in a single ship cycle:
+// Three batched regression gate additions in a single ship cycle:
 //
 //   - V2.3 (RFC-0048): target.has()/target.os() compile-time
 //     hardware capability queries.

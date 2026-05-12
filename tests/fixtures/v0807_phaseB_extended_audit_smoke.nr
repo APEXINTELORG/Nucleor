@@ -22,10 +22,10 @@ fn process_pii() -> i64 { return 1; }
 @attested(quote_required=true)
 fn handshake() -> i64 { return 1; }
 
-@authored("alice", "claude", "2026-05-04")
+@authored("alice", "review-tool", "2026-05-04")
 fn audited_fn_a() -> i64 { return 1; }
 
-@authored("bob", "claude", "2026-05-04")
+@authored("bob", "review-tool", "2026-05-04")
 fn audited_fn_b() -> i64 { return 1; }
 
 @policy(no_unsafe)

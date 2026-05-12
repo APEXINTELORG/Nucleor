@@ -29,7 +29,7 @@
 // - No state or control constraints. For constrained QPs use
 //   `lcp.nr` to assemble + solve the per-step QP yourself.
 // - Fixed planning horizon T (set at construction). Adaptive horizon
-//   variants TBD.
+//   variants are reserved for a later extension.
 // - Caller assembles dynamics + costs as iLQR-style callbacks.
 //
 // Compile: clang -c stdlib/runtime/mpc_rt.c -o target/mpc.obj -O2

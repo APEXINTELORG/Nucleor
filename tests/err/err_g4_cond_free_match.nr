@@ -1,5 +1,5 @@
 // EXPECT: OWN-G4-USE-AFTER-DROP
-// Audit-pass-1 G-4 CFG join: match arms must merge manual-free
+// Regression gate G-4 CFG join: match arms must merge manual-free
 // facts. If any arm frees a binding and another arm preserves it,
 // a post-match read is conditionally use-after-drop.
 enum Choice { FreeIt, KeepIt }

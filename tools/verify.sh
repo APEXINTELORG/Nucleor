@@ -5339,7 +5339,7 @@ v0717_governance_rod_phase2a() {
     [ -n "$exe" ] || return 1
     "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
     grep -q "OK governance_smoke" $NUC_VERIFY_RUN_LOG || return 1
-    grep -q '"by":"joseph_wescott"' $NUC_VERIFY_RUN_LOG || return 1
+    grep -q '"by":"maintainer"' $NUC_VERIFY_RUN_LOG || return 1
     grep -q '"commit":"ef3d45cc"'   $NUC_VERIFY_RUN_LOG || return 1
 }
 

@@ -1,5 +1,5 @@
 // EXPECT: OWN-G4-USE-AFTER-DROP
-// Audit-pass-1 G-4 CFG join: a manual free on only one branch is
+// Regression gate G-4 CFG join: a manual free on only one branch is
 // still unsafe for a later read, because the post-join value may
 // point at freed storage depending on the branch taken.
 fn main() -> i32 {

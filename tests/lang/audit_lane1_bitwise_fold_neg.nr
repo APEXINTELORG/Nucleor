@@ -1,4 +1,4 @@
-// Audit pass 1 / C-004: negative i64 operands must use the same
+// Regression gate / C-004: negative i64 operands must use the same
 // bitwise semantics in the optimizer fold path and in emitted LLVM.
 //
 // The validation script builds this fixture with --emit=llvm and checks

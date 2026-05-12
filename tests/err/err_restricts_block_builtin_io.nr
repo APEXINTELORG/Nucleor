@@ -1,5 +1,5 @@
 // EXPECT: error[EFF-003]
-// R05-D4 Phase 2b first slice (local-claude v0840): block-form
+// R05-D4 Phase 2b first slice: block-form
 // `restricts [...] { ... }` is now really enforced by s1 against a
 // minimum builtin-effect table. A direct `putchar` call (io.write
 // builtin) inside `restricts [io.write]` must trap with EFF-003.

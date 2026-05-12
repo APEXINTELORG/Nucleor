@@ -7,8 +7,6 @@
 # predict-only, and emits structured plain text. The runner compares the
 # Nucleor output against the predict-related fields of the reference JSON.
 #
-# Per the PROBE-2 design ROOT-CAUSE finding
-# (findings/inbox/ml_agent_probe2_design_no_fit_apis_v0846_2026-05-08.md):
 # Nucleor has no sklearn-compatible fit APIs on current main. Parity
 # boundary is on PREDICT-only — Python fits + dumps params, Nucleor
 # consumes params + reproduces predict.

@@ -26,7 +26,7 @@ fn check_empty() -> i64 {
 
 fn check_register_and_count() -> i64 {
     governance_clear();
-    let rec: AuthorRecord = governance_authored("Joe", "claude", "2026-05-05");
+    let rec: AuthorRecord = governance_authored("Maintainer", "review-tool", "2026-05-05");
     governance_register_authored(rec);
     if governance_authored_count() != 1 { return 2; };
     return 0;
@@ -35,12 +35,12 @@ fn check_register_and_count() -> i64 {
 fn check_round_trip() -> i64 {
     governance_clear();
     let rec: AuthorRecord = governance_authored_full(
-        "Joe", "claude", "2026-05-05", "commit_abc123", "review_xyz789"
+        "Maintainer", "review-tool", "2026-05-05", "commit_abc123", "review_xyz789"
     );
     governance_register_authored(rec);
     let got: AuthorRecord = governance_authored_get(0);
-    if str_eq(got.by, "Joe") != 1 { return 4; };
-    if str_eq(got.tool, "claude") != 1 { return 8; };
+    if str_eq(got.by, "Maintainer") != 1 { return 4; };
+    if str_eq(got.tool, "review-tool") != 1 { return 8; };
     if str_eq(got.date, "2026-05-05") != 1 { return 16; };
     if str_eq(got.commit, "commit_abc123") != 1 { return 32; };
     if str_eq(got.review, "review_xyz789") != 1 { return 64; };

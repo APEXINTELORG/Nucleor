@@ -1,5 +1,5 @@
 // EXPECT: INIT-G11-READ-BEFORE-INIT
-// Audit-pass-1 G-11 CFG join: a binding assigned on only some
+// Regression gate G-11 CFG join: a binding assigned on only some
 // match arms is not definitely assigned after the match.
 enum Choice { KeepUnset, SetIt }
 

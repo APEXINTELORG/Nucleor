@@ -17,7 +17,7 @@ on `__nucleor_*` builtins that have no implementation in
 | `string_basic`, `string_ops` | `String` heap-string type and its methods (`push`, `len`) — OSS uses `str` + sb_* builders instead |
 | `selective_import` | `use "<file>" { name }` selective-import syntax — OSS supports `import "<file>"` only |
 
-Each is a punchlist item: implement the listed builtin in
+Each is a backlog item: implement the listed builtin in
 `nucleor_llvm_rt.c` (and add the IR declaration + builtin mapping in
 `compiler/nucleor_s1_compiler.nr`), move the test back up to
 `tests/features/`, and the verify gate will start enforcing it.

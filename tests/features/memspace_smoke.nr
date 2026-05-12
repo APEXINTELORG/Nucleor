@@ -1,7 +1,7 @@
 // v0.8.204 stdlib/rods/memspace.nr first test coverage.
 //
 // RFC-0049 Phase A: memory-space type tags. Pre-v0.8.204:
-// audit-pass token-presence gate exists (v0.8.181) but no
+// regression gate token-presence gate exists (v0.8.181) but no
 // behavioral fixture.
 //
 // Locks four invariants that real Phase B compiler enforcement

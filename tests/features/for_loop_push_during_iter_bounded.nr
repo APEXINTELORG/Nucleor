@@ -11,7 +11,7 @@
 // shape. If the body pushes K items, post-loop len = original_len + K
 // but only original_len iterations ran.
 //
-// Closes findings/inbox/2026-04-30-push-during-for-iter-unbounded.md.
+// Locks the former push-during-iteration regression.
 
 fn main() -> i32 {
     // Case 1: push during iter — must terminate, len = 6 (3 + 3).

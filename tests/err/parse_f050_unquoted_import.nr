@@ -1,6 +1,6 @@
 // EXPECT: PARSE-TOP-001 import requires a quoted path
 // Lane 4 audit close: F-050 (High, unquoted import silent accept).
-// v1.0.1 (audit-pass-1 integrator): top-level dispatch catches the
+// v1.0.1 (regression gate integrator): top-level dispatch catches the
 // bad token first via PARSE-TOP-001 ("only top-level items are
 // accepted at module scope: `import`, ..."), before the more-
 // specific PARSE-IMPORT-001 path. Same actionable signal — the
