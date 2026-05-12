@@ -19,12 +19,12 @@ typedef struct { int rows; int cols; double *data; } LAMat;
 static LAMat *la_alloc(int r, int c) {
     LAMat *m = (LAMat *)malloc(sizeof(LAMat));
     m->rows = r; m->cols = c;
-    m->data = (double *)calloc(r * c, sizeof(double));
+    m->data = (double *)calloc((size_t)r * c, sizeof(double));
     return m;
 }
 
 static void la_copy(LAMat *dst, LAMat *src) {
-    memcpy(dst->data, src->data, src->rows * src->cols * sizeof(double));
+    memcpy(dst->data, src->data, (size_t)(src->rows) * src->cols * sizeof(double));
 }
 
 // ================================================================
@@ -111,8 +111,8 @@ long long nuc_mat_det(long long ah) {
     int n = a->rows;
     if (n != a->cols) return _la_f2i(0.0);
 
-    double *A = (double *)malloc(n * n * sizeof(double));
-    memcpy(A, a->data, n * n * sizeof(double));
+    double *A = (double *)malloc((size_t)n * n * sizeof(double));
+    memcpy(A, a->data, (size_t)n * n * sizeof(double));
     double det = 1.0;
     int sign = 1;
 
@@ -151,7 +151,7 @@ long long nuc_mat_inv(long long ah) {
     int n = a->rows;
     if (n != a->cols) return 0;
 
-    double *aug = (double *)calloc(n * 2 * n, sizeof(double));
+    double *aug = (double *)calloc((size_t)n * 2 * n, sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i * 2 * n + j] = a->data[i * n + j];
         aug[i * 2 * n + n + i] = 1.0;
@@ -207,7 +207,7 @@ long long nuc_mat_lu(long long ah) {
     LAMat *L = la_alloc(n, n);
     LAMat *U = la_alloc(n, n);
     LAMat *P = la_alloc(n, n);
-    memcpy(U->data, a->data, n * n * sizeof(double));
+    memcpy(U->data, a->data, (size_t)n * n * sizeof(double));
     for (int i = 0; i < n; i++) { L->data[i * n + i] = 1.0; P->data[i * n + i] = 1.0; }
 
     for (int k = 0; k < n; k++) {
@@ -257,7 +257,7 @@ long long nuc_mat_qr(long long ah) {
     int m = a->rows, n = a->cols;
 
     LAMat *R = la_alloc(m, n);
-    memcpy(R->data, a->data, m * n * sizeof(double));
+    memcpy(R->data, a->data, (size_t)m * n * sizeof(double));
     LAMat *Q = la_alloc(m, m);
     for (int i = 0; i < m; i++) Q->data[i * m + i] = 1.0;
 
@@ -388,9 +388,9 @@ long long nuc_mat_eig(long long ah) {
     }
 
     // Jacobi eigenvalue algorithm for symmetric matrices
-    double *A = (double *)malloc(n * n * sizeof(double));
-    memcpy(A, a->data, n * n * sizeof(double));
-    double *V = (double *)calloc(n * n, sizeof(double));
+    double *A = (double *)malloc((size_t)n * n * sizeof(double));
+    memcpy(A, a->data, (size_t)n * n * sizeof(double));
+    double *V = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n; i++) V[i * n + i] = 1.0;
 
     for (int iter = 0; iter < 200; iter++) {
@@ -436,7 +436,7 @@ long long nuc_mat_eig(long long ah) {
 
     // eigenvectors = columns of V stored as n x n matrix
     LAMat *vecs = la_alloc(n, n);
-    memcpy(vecs->data, V, n * n * sizeof(double));
+    memcpy(vecs->data, V, (size_t)n * n * sizeof(double));
 
     free(A); free(V);
 

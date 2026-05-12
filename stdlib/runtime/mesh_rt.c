@@ -113,7 +113,7 @@ long long nuc_mesh_boundary_nodes(long long h) {
 long long nuc_mesh_assemble_laplacian(long long h) {
     Mesh *m = (Mesh *)(void *)h;
     int nn = m->n_nodes;
-    double *K = (double *)calloc(nn * nn, sizeof(double));
+    double *K = (double *)calloc((size_t)nn * nn, sizeof(double));
 
     for (int e = 0; e < m->n_elements; e++) {
         int n0 = m->elem[e * 3], n1 = m->elem[e * 3 + 1], n2 = m->elem[e * 3 + 2];

@@ -94,9 +94,9 @@ long long nuc_td_cp_als(long long X_h, long long I, long long J, long long K, lo
     TDVec *X = (TDVec *)(void *)X_h;
     int ii = (int)I, jj = (int)J, kk = (int)K, rr = (int)R, mi = (int)max_iter;
 
-    double *A = (double *)malloc(ii * rr * sizeof(double));
-    double *B = (double *)malloc(jj * rr * sizeof(double));
-    double *C = (double *)malloc(kk * rr * sizeof(double));
+    double *A = (double *)malloc((size_t)ii * rr * sizeof(double));
+    double *B = (double *)malloc((size_t)jj * rr * sizeof(double));
+    double *C = (double *)malloc((size_t)kk * rr * sizeof(double));
 
     // Random init
     unsigned int rng = 12345;
@@ -104,25 +104,25 @@ long long nuc_td_cp_als(long long X_h, long long I, long long J, long long K, lo
     for (int i = 0; i < jj * rr; i++) { rng = rng * 1103515245 + 12345; B[i] = ((double)((rng>>16)&0x7FFF))/32767.0 - 0.5; }
     for (int i = 0; i < kk * rr; i++) { rng = rng * 1103515245 + 12345; C[i] = ((double)((rng>>16)&0x7FFF))/32767.0 - 0.5; }
 
-    double *Xd = (double *)malloc(ii * jj * kk * sizeof(double));
+    double *Xd = (double *)malloc((size_t)ii * jj * kk * sizeof(double));
     for (int i = 0; i < ii * jj * kk && i < X->len; i++) Xd[i] = _td_i2f(X->data[i]);
 
     for (int iter = 0; iter < mi; iter++) {
         // Update A: solve X_(1) ≈ A * (C ⊙ B)^T
         // where ⊙ is Khatri-Rao product, X_(1) is mode-1 unfolding [I, J*K]
-        double *BtB = (double *)calloc(rr * rr, sizeof(double));
-        double *CtC = (double *)calloc(rr * rr, sizeof(double));
+        double *BtB = (double *)calloc((size_t)rr * rr, sizeof(double));
+        double *CtC = (double *)calloc((size_t)rr * rr, sizeof(double));
         for (int r1 = 0; r1 < rr; r1++)
             for (int r2 = 0; r2 < rr; r2++) {
                 for (int j = 0; j < jj; j++) BtB[r1 * rr + r2] += B[j * rr + r1] * B[j * rr + r2];
                 for (int k = 0; k < kk; k++) CtC[r1 * rr + r2] += C[k * rr + r1] * C[k * rr + r2];
             }
         // Hadamard product
-        double *gram = (double *)malloc(rr * rr * sizeof(double));
+        double *gram = (double *)malloc((size_t)rr * rr * sizeof(double));
         for (int i = 0; i < rr * rr; i++) gram[i] = BtB[i] * CtC[i];
 
         // MTTKRP: V = X_(1) * (C ⊙ B) [I, R]
-        double *V = (double *)calloc(ii * rr, sizeof(double));
+        double *V = (double *)calloc((size_t)ii * rr, sizeof(double));
         for (int i = 0; i < ii; i++)
             for (int j = 0; j < jj; j++)
                 for (int k = 0; k < kk; k++) {
@@ -143,16 +143,16 @@ long long nuc_td_cp_als(long long X_h, long long I, long long J, long long K, lo
 
         // Similar updates for B and C (symmetric structure)
         // Update B
-        double *AtA = (double *)calloc(rr * rr, sizeof(double));
-        CtC = (double *)calloc(rr * rr, sizeof(double));
+        double *AtA = (double *)calloc((size_t)rr * rr, sizeof(double));
+        CtC = (double *)calloc((size_t)rr * rr, sizeof(double));
         for (int r1 = 0; r1 < rr; r1++)
             for (int r2 = 0; r2 < rr; r2++) {
                 for (int i = 0; i < ii; i++) AtA[r1 * rr + r2] += A[i * rr + r1] * A[i * rr + r2];
                 for (int k = 0; k < kk; k++) CtC[r1 * rr + r2] += C[k * rr + r1] * C[k * rr + r2];
             }
-        gram = (double *)malloc(rr * rr * sizeof(double));
+        gram = (double *)malloc((size_t)rr * rr * sizeof(double));
         for (int i = 0; i < rr * rr; i++) gram[i] = AtA[i] * CtC[i];
-        V = (double *)calloc(jj * rr, sizeof(double));
+        V = (double *)calloc((size_t)jj * rr, sizeof(double));
         for (int j = 0; j < jj; j++)
             for (int i = 0; i < ii; i++)
                 for (int k = 0; k < kk; k++) {
@@ -164,16 +164,16 @@ long long nuc_td_cp_als(long long X_h, long long I, long long J, long long K, lo
         free(AtA); free(CtC); free(gram); free(V);
 
         // Update C
-        AtA = (double *)calloc(rr * rr, sizeof(double));
-        BtB = (double *)calloc(rr * rr, sizeof(double));
+        AtA = (double *)calloc((size_t)rr * rr, sizeof(double));
+        BtB = (double *)calloc((size_t)rr * rr, sizeof(double));
         for (int r1 = 0; r1 < rr; r1++)
             for (int r2 = 0; r2 < rr; r2++) {
                 for (int i = 0; i < ii; i++) AtA[r1 * rr + r2] += A[i * rr + r1] * A[i * rr + r2];
                 for (int j = 0; j < jj; j++) BtB[r1 * rr + r2] += B[j * rr + r1] * B[j * rr + r2];
             }
-        gram = (double *)malloc(rr * rr * sizeof(double));
+        gram = (double *)malloc((size_t)rr * rr * sizeof(double));
         for (int i = 0; i < rr * rr; i++) gram[i] = AtA[i] * BtB[i];
-        V = (double *)calloc(kk * rr, sizeof(double));
+        V = (double *)calloc((size_t)kk * rr, sizeof(double));
         for (int k = 0; k < kk; k++)
             for (int i = 0; i < ii; i++)
                 for (int j = 0; j < jj; j++) {

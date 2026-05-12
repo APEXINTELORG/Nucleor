@@ -97,11 +97,11 @@ long long nuc_mppi_new(long long n_x_, long long n_u_, long long T_, long long K
     p->lambda = (lam > 0) ? lam : 1.0;
     p->sigma = (double *)malloc(n_u * sizeof(double));
     for (int i = 0; i < n_u; i++) p->sigma[i] = 1.0;
-    p->u_seq = (double *)calloc(T * n_u, sizeof(double));
-    p->u_pert = (double *)malloc(K * T * n_u * sizeof(double));
+    p->u_seq = (double *)calloc((size_t)T * n_u, sizeof(double));
+    p->u_pert = (double *)malloc((size_t)K * T * n_u * sizeof(double));
     p->J = (double *)malloc(K * sizeof(double));
     p->w = (double *)malloc(K * sizeof(double));
-    p->x_scratch = (double *)malloc((T + 1) * n_x * sizeof(double));
+    p->x_scratch = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
     p->rng = (unsigned long long)seed_ * 6364136223846793005ULL + 1442695040888963407ULL;
     if (p->rng == 0) p->rng = 1;
     return (long long)(size_t)p;
@@ -128,13 +128,13 @@ void nuc_mppi_warm_start(long long h, long long u_seq_ptr) {
     if (!p) return;
     double *src = (double *)(void *)(size_t)u_seq_ptr;
     if (!src) return;
-    memcpy(p->u_seq, src, p->T * p->n_u * sizeof(double));
+    memcpy(p->u_seq, src, (size_t)(p->T) * p->n_u * sizeof(double));
 }
 
 void nuc_mppi_reset(long long h) {
     NMPPI *p = (NMPPI *)(void *)(size_t)h;
     if (!p) return;
-    memset(p->u_seq, 0, p->T * p->n_u * sizeof(double));
+    memset(p->u_seq, 0, (size_t)(p->T) * p->n_u * sizeof(double));
 }
 
 // One MPPI tick. Reads x from x_ptr (double[n_x]); writes u_0 to

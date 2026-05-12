@@ -22,7 +22,7 @@ static NMat *mat_alloc(int rows, int cols) {
     NMat *m = (NMat *)malloc(sizeof(NMat));
     m->rows = rows;
     m->cols = cols;
-    m->data = (double *)calloc(rows * cols, sizeof(double));
+    m->data = (double *)calloc((size_t)rows * cols, sizeof(double));
     return m;
 }
 
@@ -107,9 +107,9 @@ long long nuc_mat_solve(long long a_handle, long long b_handle) {
     int n = A_orig->rows;
 
     // Copy A and b (don't modify originals)
-    double *A = (double *)malloc(n * n * sizeof(double));
+    double *A = (double *)malloc((size_t)n * n * sizeof(double));
     double *b = (double *)malloc(n * sizeof(double));
-    memcpy(A, A_orig->data, n * n * sizeof(double));
+    memcpy(A, A_orig->data, (size_t)n * n * sizeof(double));
     for (int i = 0; i < n; i++) b[i] = b_orig->data[i];
 
     // Forward elimination with partial pivoting
@@ -265,7 +265,7 @@ long long nuc_ridge_solve(long long X_handle, long long y_handle, long long lamb
 
     // Standardize X (copy first)
     NMat *Xs = mat_alloc(n, p);
-    memcpy(Xs->data, X->data, n * p * sizeof(double));
+    memcpy(Xs->data, X->data, (size_t)n * p * sizeof(double));
     double *mu = (double *)malloc(p * sizeof(double));
     double *sig = (double *)malloc(p * sizeof(double));
     for (int j = 0; j < p; j++) {
@@ -284,7 +284,7 @@ long long nuc_ridge_solve(long long X_handle, long long y_handle, long long lamb
     }
 
     // A = X^T X + lambda * I
-    double *A = (double *)calloc(p * p, sizeof(double));
+    double *A = (double *)calloc((size_t)p * p, sizeof(double));
     for (int i = 0; i < p; i++) {
         for (int j = 0; j < p; j++) {
             double sum = 0;

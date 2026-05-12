@@ -73,10 +73,10 @@ long long nuc_ss_new(long long A_h, long long B_h, long long C_h, long long D_h,
 
     SSModel *ss = (SSModel *)calloc(1, sizeof(SSModel));
     ss->n = nn; ss->m = mm; ss->p = pp;
-    ss->A = (double *)malloc(nn * nn * sizeof(double));
-    ss->B = (double *)malloc(nn * mm * sizeof(double));
-    ss->C = (double *)malloc(pp * nn * sizeof(double));
-    ss->D = (double *)malloc(pp * mm * sizeof(double));
+    ss->A = (double *)malloc((size_t)nn * nn * sizeof(double));
+    ss->B = (double *)malloc((size_t)nn * mm * sizeof(double));
+    ss->C = (double *)malloc((size_t)pp * nn * sizeof(double));
+    ss->D = (double *)malloc((size_t)pp * mm * sizeof(double));
     ss->x = (double *)calloc(nn, sizeof(double));
 
     for (int i = 0; i < nn * nn; i++) ss->A[i] = _ct_i2f(Av->data[i]);
@@ -141,13 +141,13 @@ long long nuc_kalman_new(long long A_h, long long B_h, long long C_h,
 
     KalmanFilter *kf = (KalmanFilter *)calloc(1, sizeof(KalmanFilter));
     kf->n = nn; kf->m = mo;
-    kf->A = (double *)malloc(nn * nn * sizeof(double));
-    kf->B = (double *)malloc(nn * mi * sizeof(double));
-    kf->C = (double *)malloc(mo * nn * sizeof(double));
-    kf->Q = (double *)malloc(nn * nn * sizeof(double));
-    kf->R = (double *)malloc(mo * mo * sizeof(double));
+    kf->A = (double *)malloc((size_t)nn * nn * sizeof(double));
+    kf->B = (double *)malloc((size_t)nn * mi * sizeof(double));
+    kf->C = (double *)malloc((size_t)mo * nn * sizeof(double));
+    kf->Q = (double *)malloc((size_t)nn * nn * sizeof(double));
+    kf->R = (double *)malloc((size_t)mo * mo * sizeof(double));
     kf->x = (double *)calloc(nn, sizeof(double));
-    kf->P = (double *)calloc(nn * nn, sizeof(double));
+    kf->P = (double *)calloc((size_t)nn * nn, sizeof(double));
     for (int i = 0; i < nn; i++) kf->P[i * nn + i] = 1.0;
 
     for (int i = 0; i < nn * nn; i++) kf->A[i] = _ct_i2f(Av->data[i]);
@@ -173,19 +173,19 @@ void nuc_kalman_predict(long long h, long long u_h) {
     memcpy(kf->x, xnew, n * sizeof(double));
 
     // P = A*P*A' + Q
-    double *AP = (double *)calloc(n * n, sizeof(double));
+    double *AP = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
             for (int k = 0; k < n; k++)
                 AP[i * n + j] += kf->A[i * n + k] * kf->P[k * n + j];
-    double *Pnew = (double *)calloc(n * n, sizeof(double));
+    double *Pnew = (double *)calloc((size_t)n * n, sizeof(double));
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) {
             for (int k = 0; k < n; k++)
                 Pnew[i * n + j] += AP[i * n + k] * kf->A[j * n + k];
             Pnew[i * n + j] += kf->Q[i * n + j];
         }
-    memcpy(kf->P, Pnew, n * n * sizeof(double));
+    memcpy(kf->P, Pnew, (size_t)n * n * sizeof(double));
     free(xnew); free(AP); free(Pnew);
 }
 
@@ -218,7 +218,7 @@ long long nuc_kalman_update(long long h, long long z_h) {
             kf->x[i] += k * innov[0];
         }
         // P = (I - K*C)*P
-        double *Pnew = (double *)calloc(n * n, sizeof(double));
+        double *Pnew = (double *)calloc((size_t)n * n, sizeof(double));
         for (int i = 0; i < n; i++)
             for (int j = 0; j < n; j++) {
                 Pnew[i * n + j] = kf->P[i * n + j];

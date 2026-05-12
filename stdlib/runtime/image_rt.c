@@ -27,7 +27,7 @@ typedef struct {
 long long nuc_img_new(long long width, long long height) {
     NImage *img = (NImage *)malloc(sizeof(NImage));
     img->width = (int)width; img->height = (int)height;
-    img->pixels = (unsigned char *)calloc(img->width * img->height * 4, 1);
+    img->pixels = (unsigned char *)calloc((size_t)(img->width) * img->height * 4, 1);
     return (long long)img;
 }
 
@@ -91,7 +91,7 @@ long long nuc_img_load_ppm(const char *path) {
 
     NImage *img = (NImage *)malloc(sizeof(NImage));
     img->width = w; img->height = h;
-    img->pixels = (unsigned char *)malloc(w * h * 4);
+    img->pixels = (unsigned char *)malloc((size_t)w * h * 4);
     for (int i = 0; i < w * h; i++) {
         img->pixels[i * 4] = (unsigned char)fgetc(f);
         img->pixels[i * 4 + 1] = (unsigned char)fgetc(f);
@@ -152,7 +152,7 @@ long long nuc_img_grayscale(long long h) {
     NImage *src = (NImage *)(void *)h;
     NImage *dst = (NImage *)malloc(sizeof(NImage));
     dst->width = src->width; dst->height = src->height;
-    dst->pixels = (unsigned char *)malloc(src->width * src->height * 4);
+    dst->pixels = (unsigned char *)malloc((size_t)(src->width) * src->height * 4);
     for (int i = 0; i < src->width * src->height; i++) {
         unsigned char r = src->pixels[i * 4], g = src->pixels[i * 4 + 1], b = src->pixels[i * 4 + 2];
         unsigned char gray = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
@@ -173,7 +173,7 @@ long long nuc_img_resize(long long h, long long new_w, long long new_h) {
     int nw = (int)new_w, nh = (int)new_h;
     NImage *dst = (NImage *)malloc(sizeof(NImage));
     dst->width = nw; dst->height = nh;
-    dst->pixels = (unsigned char *)malloc(nw * nh * 4);
+    dst->pixels = (unsigned char *)malloc((size_t)nw * nh * 4);
 
     double sx = (double)src->width / nw, sy = (double)src->height / nh;
     for (int y = 0; y < nh; y++) {
@@ -207,7 +207,7 @@ long long nuc_img_convolve(long long h, long long kernel_h) {
     IMVec *kern = (IMVec *)(void *)kernel_h; // 9 f64 values
     NImage *dst = (NImage *)malloc(sizeof(NImage));
     dst->width = src->width; dst->height = src->height;
-    dst->pixels = (unsigned char *)calloc(src->width * src->height * 4, 1);
+    dst->pixels = (unsigned char *)calloc((size_t)(src->width) * src->height * 4, 1);
 
     for (int y = 1; y < src->height - 1; y++) {
         for (int x = 1; x < src->width - 1; x++) {

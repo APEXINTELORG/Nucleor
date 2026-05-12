@@ -61,7 +61,7 @@ long long nuc_lcp_pgs_new(long long n_) {
     if (n <= 0) return 0;
     NLCP *p = (NLCP *)calloc(1, sizeof(NLCP));
     p->n = n;
-    p->M = (double *)calloc(n*n, sizeof(double));
+    p->M = (double *)calloc((size_t)n * n, sizeof(double));
     p->q = (double *)calloc(n, sizeof(double));
     p->lo = (double *)calloc(n, sizeof(double));
     p->hi = (double *)malloc(n * sizeof(double));

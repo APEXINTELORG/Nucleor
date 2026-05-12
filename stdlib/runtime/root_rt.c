@@ -164,7 +164,7 @@ long long nuc_root_system(long long F_ptr, long long J_ptr, long long x0_h, long
         NVec *Jv = (NVec *)(void *)Jh;
 
         // Solve J * dx = -F via Gaussian elimination
-        double *A = (double *)malloc(n * n * sizeof(double));
+        double *A = (double *)malloc((size_t)n * n * sizeof(double));
         double *b = (double *)malloc(n * sizeof(double));
         for (int i = 0; i < n * n; i++) A[i] = _rt_i2f(Jv->data[i]);
         for (int i = 0; i < n; i++) b[i] = -_rt_i2f(Fv->data[i]);

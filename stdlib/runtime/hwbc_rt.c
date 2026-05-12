@@ -62,7 +62,7 @@ typedef struct {
 
 static int _gj_inv(const double *A, int n, double *Ainv) {
     int aw = 2*n;
-    double *aug = (double *)malloc(n*aw*sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aw * sizeof(double));
     for (int i=0;i<n;i++){
         for (int j=0;j<n;j++) aug[i*aw+j] = A[i*n+j];
         for (int j=0;j<n;j++) aug[i*aw+n+j] = (i==j)?1.0:0.0;
@@ -178,8 +178,8 @@ long long nuc_hwbc_solve(long long h) {
 
     // Initialize: q̇ = 0,  N = I.
     for (int i = 0; i < n; i++) p->qdot[i] = 0;
-    double *N = (double *)malloc(n * n * sizeof(double));
-    memset(N, 0, n * n * sizeof(double));
+    double *N = (double *)malloc((size_t)n * n * sizeof(double));
+    memset(N, 0, (size_t)n * n * sizeof(double));
     for (int i = 0; i < n; i++) N[i*n + i] = 1.0;
 
     int ok = 1;
@@ -188,7 +188,7 @@ long long nuc_hwbc_solve(long long h) {
         int m = T->m;
 
         // J̃ = J · N           (m × n)
-        double *Jt = (double *)malloc(m * n * sizeof(double));
+        double *Jt = (double *)malloc((size_t)m * n * sizeof(double));
         _mm(T->J, m, n, N, n, Jt);
 
         // res = ẋ_des − J · q̇_{i-1}     (m)
@@ -204,7 +204,7 @@ long long nuc_hwbc_solve(long long h) {
         // otherwise the damped pseudoinverse becomes a near-infinite
         // gain that wipes out higher-priority tasks via numerical
         // imprecision in the null-space projector.
-        double *M = (double *)malloc(m * m * sizeof(double));
+        double *M = (double *)malloc((size_t)m * m * sizeof(double));
         double Jt_fro2 = 0;
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < m; j++) {
@@ -221,7 +221,7 @@ long long nuc_hwbc_solve(long long h) {
             free(Jt); free(Jq); free(res); free(M);
             continue;
         }
-        double *Minv = (double *)malloc(m * m * sizeof(double));
+        double *Minv = (double *)malloc((size_t)m * m * sizeof(double));
         if (!_gj_inv(M, m, Minv)) {
             free(Jt); free(Jq); free(res); free(M); free(Minv);
             ok = 0; break;
@@ -240,7 +240,7 @@ long long nuc_hwbc_solve(long long h) {
         // Update null-space projector:
         //   N ← N − J̃⁺ · J̃ = N − J̃ᵀ · Minv · J̃   (n × n)
         // Compute Minv · J̃ first (m × n).
-        double *MinvJt = (double *)malloc(m * n * sizeof(double));
+        double *MinvJt = (double *)malloc((size_t)m * n * sizeof(double));
         _mm(Minv, m, m, Jt, n, MinvJt);
         // Subtract J̃ᵀ · MinvJt from N.
         for (int i = 0; i < n; i++) {

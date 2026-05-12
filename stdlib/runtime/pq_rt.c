@@ -51,7 +51,7 @@ static void pq_kmeans(double *data, int n, int dim, int k, int max_iter, double 
             assign[i] = best_c;
         }
         // Update centroids
-        double *sums = (double *)calloc(k * dim, sizeof(double));
+        double *sums = (double *)calloc((size_t)k * dim, sizeof(double));
         int *counts = (int *)calloc(k, sizeof(int));
         for (int i = 0; i < n; i++) {
             counts[assign[i]]++;
@@ -80,10 +80,10 @@ long long nuc_pq_train(long long data_h, long long n_vectors, long long dim,
 
     ProductQuantizer *pq = (ProductQuantizer *)calloc(1, sizeof(ProductQuantizer));
     pq->dim = D; pq->n_subspaces = M; pq->sub_dim = sd; pq->n_centroids = K;
-    pq->codebooks = (double *)malloc(M * K * sd * sizeof(double));
+    pq->codebooks = (double *)malloc((size_t)M * K * sd * sizeof(double));
 
     // Train each subspace independently
-    double *sub_data = (double *)malloc(nv * sd * sizeof(double));
+    double *sub_data = (double *)malloc((size_t)nv * sd * sizeof(double));
     for (int m = 0; m < M; m++) {
         // Extract subvectors
         for (int i = 0; i < nv; i++)

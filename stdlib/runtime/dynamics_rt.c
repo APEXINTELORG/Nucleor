@@ -574,7 +574,7 @@ long long nuc_dyn_mass_matrix(long long h, long long q_ptr, long long out_M_ptr)
 // Allocates a 2n×2n augmented buffer internally. Returns 1 on
 // success, 0 if the matrix is singular.
 static int _gj_invert(double *A, int n, double *Ainv) {
-    double *aug = (double *)malloc(n * 2 * n * sizeof(double));
+    double *aug = (double *)malloc((size_t)n * 2 * n * sizeof(double));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) aug[i*2*n + j] = A[i*n + j];
         for (int j = 0; j < n; j++) aug[i*2*n + n + j] = (i == j) ? 1.0 : 0.0;
@@ -635,10 +635,10 @@ long long nuc_dyn_forward(long long h,
     nuc_dyn_inverse(h, q_ptr, qd_ptr,
         (long long)(size_t)zero, (long long)(size_t)bias);
 
-    double *M = (double *)malloc(n * n * sizeof(double));
+    double *M = (double *)malloc((size_t)n * n * sizeof(double));
     nuc_dyn_mass_matrix(h, q_ptr, (long long)(size_t)M);
 
-    double *Minv = (double *)malloc(n * n * sizeof(double));
+    double *Minv = (double *)malloc((size_t)n * n * sizeof(double));
     if (!_gj_invert(M, n, Minv)) {
         free(zero); free(bias); free(M); free(Minv);
         return -1;

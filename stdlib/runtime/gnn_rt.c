@@ -48,7 +48,7 @@ long long nuc_gnn_graph_new(long long node_feat_vec, long long n_nodes, long lon
     g->feat_dim = (int)feat_dim;
     g->n_edges = (int)n_edges;
 
-    g->node_feats = (double *)malloc(g->n_nodes * g->feat_dim * sizeof(double));
+    g->node_feats = (double *)malloc((size_t)(g->n_nodes) * g->feat_dim * sizeof(double));
     for (int i = 0; i < g->n_nodes * g->feat_dim && i < nfv->len; i++)
         g->node_feats[i] = _gi2f(nfv->data[i]);
 
@@ -102,12 +102,12 @@ long long nuc_gnn_gatv2_new(long long in_dim, long long out_dim) {
     GATv2Layer *layer = (GATv2Layer *)calloc(1, sizeof(GATv2Layer));
     layer->in_dim = id;
     layer->out_dim = od;
-    layer->W_l = (double *)malloc(od * id * sizeof(double));
-    layer->W_r = (double *)malloc(od * id * sizeof(double));
+    layer->W_l = (double *)malloc((size_t)od * id * sizeof(double));
+    layer->W_r = (double *)malloc((size_t)od * id * sizeof(double));
     layer->a = (double *)malloc(od * sizeof(double));
     layer->bias = (double *)calloc(od, sizeof(double));
-    layer->dW_l = (double *)calloc(od * id, sizeof(double));
-    layer->dW_r = (double *)calloc(od * id, sizeof(double));
+    layer->dW_l = (double *)calloc((size_t)od * id, sizeof(double));
+    layer->dW_r = (double *)calloc((size_t)od * id, sizeof(double));
     layer->da = (double *)calloc(od, sizeof(double));
     layer->dbias = (double *)calloc(od, sizeof(double));
     layer->cache_h = NULL;
@@ -129,8 +129,8 @@ long long nuc_gnn_gatv2_forward(long long layer_handle, long long graph_handle) 
     int ne = g->n_edges;
 
     // Compute W_l * x_i and W_r * x_j for all nodes
-    double *Wl_x = (double *)calloc(n * od, sizeof(double)); // W_l * x for each node
-    double *Wr_x = (double *)calloc(n * od, sizeof(double)); // W_r * x for each node
+    double *Wl_x = (double *)calloc((size_t)n * od, sizeof(double)); // W_l * x for each node
+    double *Wr_x = (double *)calloc((size_t)n * od, sizeof(double)); // W_r * x for each node
     for (int i = 0; i < n; i++) {
         for (int o = 0; o < od; o++) {
             double sl = 0, sr = 0;
@@ -178,7 +178,7 @@ long long nuc_gnn_gatv2_forward(long long layer_handle, long long graph_handle) 
     }
 
     // Aggregate: h_dst = sum_{src->dst}(alpha * Wr * x_src) + bias
-    double *h = (double *)calloc(n * od, sizeof(double));
+    double *h = (double *)calloc((size_t)n * od, sizeof(double));
     for (int e = 0; e < ne; e++) {
         int src = g->edge_src[e], dst = g->edge_dst[e];
         for (int o = 0; o < od; o++)
@@ -190,8 +190,8 @@ long long nuc_gnn_gatv2_forward(long long layer_handle, long long graph_handle) 
 
     // Cache output for backward
     if (layer->cache_h) free(layer->cache_h);
-    layer->cache_h = (double *)malloc(n * od * sizeof(double));
-    memcpy(layer->cache_h, h, n * od * sizeof(double));
+    layer->cache_h = (double *)malloc((size_t)n * od * sizeof(double));
+    memcpy(layer->cache_h, h, (size_t)n * od * sizeof(double));
     layer->cache_n_nodes = n;
 
     // Pack into Vec
@@ -217,8 +217,8 @@ long long nuc_gnn_gatv2_backward(long long layer_handle, long long graph_handle,
     int n = g->n_nodes, id = layer->in_dim, od = layer->out_dim, ne = g->n_edges;
 
     // Recompute forward values needed for backward
-    double *Wl_x = (double *)calloc(n * od, sizeof(double));
-    double *Wr_x = (double *)calloc(n * od, sizeof(double));
+    double *Wl_x = (double *)calloc((size_t)n * od, sizeof(double));
+    double *Wr_x = (double *)calloc((size_t)n * od, sizeof(double));
     for (int i = 0; i < n; i++)
         for (int o = 0; o < od; o++) {
             double sl = 0, sr = 0;
@@ -232,7 +232,7 @@ long long nuc_gnn_gatv2_backward(long long layer_handle, long long graph_handle,
 
     // Recompute attention scores and alphas
     double *edge_scores = (double *)calloc(ne, sizeof(double));
-    double *leaky_vals = (double *)calloc(ne * od, sizeof(double)); // store pre-leaky values
+    double *leaky_vals = (double *)calloc((size_t)ne * od, sizeof(double)); // store pre-leaky values
     for (int e = 0; e < ne; e++) {
         int src = g->edge_src[e], dst = g->edge_dst[e];
         double score = 0;
@@ -276,7 +276,7 @@ long long nuc_gnn_gatv2_backward(long long layer_handle, long long graph_handle,
     // d(loss)/d(alpha_e) = sum_o(grad_out[dst*od+o] * Wr_x[src][o])
     double *d_alpha = (double *)calloc(ne, sizeof(double));
     // d(loss)/d(Wr_x[src][o]) += alpha_e * grad_out[dst*od+o]
-    double *d_Wr_x = (double *)calloc(n * od, sizeof(double));
+    double *d_Wr_x = (double *)calloc((size_t)n * od, sizeof(double));
 
     for (int e = 0; e < ne; e++) {
         int src = g->edge_src[e], dst = g->edge_dst[e];
@@ -301,8 +301,8 @@ long long nuc_gnn_gatv2_backward(long long layer_handle, long long graph_handle,
     // Backprop through score = a^T * LeakyReLU(Wl_x[src] + Wr_x[dst])
     // d(loss)/d(a[o]) += d_score[e] * leaky(val[e][o])
     // d(loss)/d(val[e][o]) = d_score[e] * a[o] * d(leaky)/d(val)
-    double *d_Wl_x = (double *)calloc(n * od, sizeof(double));
-    double *d_Wr_x_attn = (double *)calloc(n * od, sizeof(double)); // from attention path
+    double *d_Wl_x = (double *)calloc((size_t)n * od, sizeof(double));
+    double *d_Wr_x_attn = (double *)calloc((size_t)n * od, sizeof(double)); // from attention path
 
     for (int e = 0; e < ne; e++) {
         int src = g->edge_src[e], dst = g->edge_dst[e];
@@ -335,7 +335,7 @@ long long nuc_gnn_gatv2_backward(long long layer_handle, long long graph_handle,
     // = sum_o(d_Wr_x_total[i][o] * W_r[o][j] + d_Wl_x[i][o] * W_l[o][j])
     GVec *grad_input = (GVec *)malloc(sizeof(GVec));
     grad_input->len = n * id; grad_input->cap = n * id;
-    grad_input->data = (long long *)malloc(n * id * sizeof(long long));
+    grad_input->data = (long long *)malloc((size_t)n * id * sizeof(long long));
     for (int i = 0; i < n; i++)
         for (int j = 0; j < id; j++) {
             double g_ij = 0;
@@ -404,8 +404,8 @@ void nuc_gnn_gatv2_adam_step(long long layer_handle, long long opt_handle, long 
 
 void nuc_gnn_gatv2_zero_grad(long long handle) {
     GATv2Layer *l = (GATv2Layer *)(void *)handle;
-    memset(l->dW_l, 0, l->out_dim * l->in_dim * sizeof(double));
-    memset(l->dW_r, 0, l->out_dim * l->in_dim * sizeof(double));
+    memset(l->dW_l, 0, (size_t)(l->out_dim) * l->in_dim * sizeof(double));
+    memset(l->dW_r, 0, (size_t)(l->out_dim) * l->in_dim * sizeof(double));
     memset(l->da, 0, l->out_dim * sizeof(double));
     memset(l->dbias, 0, l->out_dim * sizeof(double));
 }

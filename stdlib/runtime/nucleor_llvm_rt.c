@@ -1666,7 +1666,7 @@ long long __nucleor_tensor_transpose(long long h) {
     NTensor *t=(NTensor*)(void*)h;
     NTensor *r=(NTensor*)malloc(sizeof(NTensor));
     r->rows=t->cols; r->cols=t->rows;
-    r->data=(double*)malloc(r->rows*r->cols*sizeof(double));
+    r->data=(double*)malloc((size_t)r->rows * r->cols * sizeof(double));
     for(int i=0;i<t->rows;i++)for(int j=0;j<t->cols;j++)r->data[j*r->cols+i]=t->data[i*t->cols+j];
     return (long long)r;
 }
@@ -7472,6 +7472,10 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
     if (!from || !to) return 0;
     FILE *fi = fopen(from, "rb");
     if (!fi) return 0;
+#ifndef _WIN32
+    struct stat _src_st;
+    int _have_src_st = fstat(fileno(fi), &_src_st) == 0;
+#endif
     FILE *fo = fopen(to, "wb");
     if (!fo) { fclose(fi); return 0; }
     char buf[8192];
@@ -7493,8 +7497,7 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
      * the executable bit is implicit via .exe extension so this is a
      * no-op there. Closes
      * findings/promoted/2026-05-06-cache-restore-drops-exec-bit.md. */
-    struct stat _src_st;
-    if (stat(from, &_src_st) == 0) {
+    if (_have_src_st) {
         (void)chmod(to, _src_st.st_mode & 07777);
     }
 #endif

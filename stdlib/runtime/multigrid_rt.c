@@ -43,7 +43,7 @@ static void residual_2d(double *r, double *u, double *f, int N, double h2inv) {
 
 // Restrict fine grid to coarse (full weighting)
 static void restrict_2d(double *coarse, double *fine, int Nc, int Nf) {
-    memset(coarse, 0, Nc * Nc * sizeof(double));
+    memset(coarse, 0, (size_t)Nc * Nc * sizeof(double));
     for (int i = 1; i < Nc - 1; i++) {
         for (int j = 1; j < Nc - 1; j++) {
             int fi = 2 * i, fj = 2 * j;
@@ -87,13 +87,13 @@ static void vcycle_2d(double *u, double *f, int N, double h) {
     gs_smooth_2d(u, f, N, h2, 3);
 
     // Compute residual
-    double *r = (double *)calloc(N * N, sizeof(double));
+    double *r = (double *)calloc((size_t)N * N, sizeof(double));
     residual_2d(r, u, f, N, h2inv);
 
     // Restrict to coarse
     int Nc = (N - 1) / 2 + 1;
-    double *fc = (double *)calloc(Nc * Nc, sizeof(double));
-    double *uc = (double *)calloc(Nc * Nc, sizeof(double));
+    double *fc = (double *)calloc((size_t)Nc * Nc, sizeof(double));
+    double *uc = (double *)calloc((size_t)Nc * Nc, sizeof(double));
     restrict_2d(fc, r, Nc, N);
 
     // Recurse
@@ -118,8 +118,8 @@ long long nuc_mg_solve_2d(long long rhs_h, long long sol_h, long long N, long lo
     double tol = _mg_i2f(tol_bits);
     double h = 1.0 / (n - 1);
 
-    double *u = (double *)calloc(n * n, sizeof(double));
-    double *f = (double *)malloc(n * n * sizeof(double));
+    double *u = (double *)calloc((size_t)n * n, sizeof(double));
+    double *f = (double *)malloc((size_t)n * n * sizeof(double));
     for (int i = 0; i < n * n; i++) {
         f[i] = _mg_i2f(rhs_v->data[i]);
         if (i < sol_v->len) u[i] = _mg_i2f(sol_v->data[i]);

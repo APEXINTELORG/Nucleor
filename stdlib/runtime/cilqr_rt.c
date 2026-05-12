@@ -36,7 +36,7 @@ typedef long long (*ci_tcost_fn_t)(long long x_ptr);
 
 static int _ci_gj_inv(double *A, int n, double *Ainv) {
     int aug_w = 2*n;
-    double *aug = (double *)malloc(n*aug_w*sizeof(double));
+    double *aug = (double *)malloc((size_t)n * aug_w * sizeof(double));
     for (int i=0;i<n;i++){
         for (int j=0;j<n;j++) aug[i*aug_w+j] = A[i*n+j];
         for (int j=0;j<n;j++) aug[i*aug_w+n+j] = (i==j)?1.0:0.0;
@@ -183,25 +183,25 @@ long long nuc_cilqr_optimize_box(
     }
 
     // Allocate same buffers as ilqr.
-    double *x_traj      = (double *)malloc((T + 1) * n_x * sizeof(double));
-    double *x_traj_new  = (double *)malloc((T + 1) * n_x * sizeof(double));
-    double *u_new       = (double *)malloc(T * n_u * sizeof(double));
+    double *x_traj      = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
+    double *x_traj_new  = (double *)malloc((size_t)(T + 1) * n_x * sizeof(double));
+    double *u_new       = (double *)malloc((size_t)T * n_u * sizeof(double));
     double *V_x         = (double *)malloc(n_x * sizeof(double));
-    double *V_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *K_seq       = (double *)malloc(T * n_u * n_x * sizeof(double));
-    double *k_seq       = (double *)malloc(T * n_u * sizeof(double));
-    double *A           = (double *)malloc(n_x * n_x * sizeof(double));
-    double *B           = (double *)malloc(n_x * n_u * sizeof(double));
+    double *V_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *K_seq       = (double *)malloc((size_t)T * n_u * n_x * sizeof(double));
+    double *k_seq       = (double *)malloc((size_t)T * n_u * sizeof(double));
+    double *A           = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *B           = (double *)malloc((size_t)n_x * n_u * sizeof(double));
     double *l_x         = (double *)malloc(n_x * sizeof(double));
     double *l_u         = (double *)malloc(n_u * sizeof(double));
-    double *l_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *l_uu        = (double *)malloc(n_u * n_u * sizeof(double));
+    double *l_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *l_uu        = (double *)malloc((size_t)n_u * n_u * sizeof(double));
     double *Q_x         = (double *)malloc(n_x * sizeof(double));
     double *Q_u         = (double *)malloc(n_u * sizeof(double));
-    double *Q_xx        = (double *)malloc(n_x * n_x * sizeof(double));
-    double *Q_uu        = (double *)malloc(n_u * n_u * sizeof(double));
-    double *Q_ux        = (double *)malloc(n_u * n_x * sizeof(double));
-    double *Q_uu_inv    = (double *)malloc(n_u * n_u * sizeof(double));
+    double *Q_xx        = (double *)malloc((size_t)n_x * n_x * sizeof(double));
+    double *Q_uu        = (double *)malloc((size_t)n_u * n_u * sizeof(double));
+    double *Q_ux        = (double *)malloc((size_t)n_u * n_x * sizeof(double));
+    double *Q_uu_inv    = (double *)malloc((size_t)n_u * n_u * sizeof(double));
     double *xn1         = (double *)malloc(n_x * sizeof(double));
     double *xn2         = (double *)malloc(n_x * sizeof(double));
 
@@ -227,7 +227,7 @@ long long nuc_cilqr_optimize_box(
                 for (int j = 0; j < n_x; j++) s += B[j*n_u + i] * V_x[j];
                 Q_u[i] = s;
             }
-            double *VxxA = (double *)malloc(n_x * n_x * sizeof(double));
+            double *VxxA = (double *)malloc((size_t)n_x * n_x * sizeof(double));
             for (int i = 0; i < n_x; i++)
                 for (int j = 0; j < n_x; j++) {
                     double s = 0;
@@ -240,7 +240,7 @@ long long nuc_cilqr_optimize_box(
                     for (int k = 0; k < n_x; k++) s += A[k*n_x + i] * VxxA[k*n_x + j];
                     Q_xx[i*n_x + j] = s;
                 }
-            double *VxxB = (double *)malloc(n_x * n_u * sizeof(double));
+            double *VxxB = (double *)malloc((size_t)n_x * n_u * sizeof(double));
             for (int i = 0; i < n_x; i++)
                 for (int j = 0; j < n_u; j++) {
                     double s = 0;
@@ -296,7 +296,7 @@ long long nuc_cilqr_optimize_box(
                 V_x[i] = s;
             }
             free(QuuK_vec);
-            double *QuuK = (double *)malloc(n_u * n_x * sizeof(double));
+            double *QuuK = (double *)malloc((size_t)n_u * n_x * sizeof(double));
             for (int i = 0; i < n_u; i++)
                 for (int j = 0; j < n_x; j++) {
                     double s = 0;
@@ -347,8 +347,8 @@ long long nuc_cilqr_optimize_box(
             total += _ci2f(lf((long long)(size_t)(x_traj_new + T*n_x)));
             if (total < cost) {
                 new_cost = total;
-                memcpy(x_traj, x_traj_new, (T + 1) * n_x * sizeof(double));
-                memcpy(u_seq,  u_new,      T * n_u * sizeof(double));
+                memcpy(x_traj, x_traj_new, (size_t)(T + 1) * n_x * sizeof(double));
+                memcpy(u_seq,  u_new,      (size_t)T * n_u * sizeof(double));
                 accepted = 1;
                 break;
             }

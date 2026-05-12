@@ -50,7 +50,7 @@ long long nuc_csv_read(const char *path) {
     CSVTable *table = (CSVTable *)malloc(sizeof(CSVTable));
     table->rows = rows;
     table->cols = cols;
-    table->cells = (char **)calloc(rows * cols, sizeof(char *));
+    table->cells = (char **)calloc((size_t)rows * cols, sizeof(char *));
 
     // Parse cells
     int row = 0, col = 0;
@@ -126,7 +126,7 @@ long long nuc_csv_cols(long long th) { return ((CSVTable *)(void *)th)->cols; }
 long long nuc_csv_new(long long rows, long long cols) {
     CSVTable *t = (CSVTable *)malloc(sizeof(CSVTable));
     t->rows = (int)rows; t->cols = (int)cols;
-    t->cells = (char **)calloc(t->rows * t->cols, sizeof(char *));
+    t->cells = (char **)calloc((size_t)(t->rows) * t->cols, sizeof(char *));
     for (int i = 0; i < t->rows * t->cols; i++) {
         t->cells[i] = (char *)malloc(1);
         t->cells[i][0] = 0;

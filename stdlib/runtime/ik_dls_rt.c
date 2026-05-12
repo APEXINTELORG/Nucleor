@@ -395,7 +395,7 @@ long long nuc_ik_dls_solve_nullspace(
     double *JJt_lam    = (double *)malloc(9 * sizeof(double));
     double *invJJt     = (double *)malloc(9 * sizeof(double));
     double *Jpinv      = (double *)malloc(n * 3 * sizeof(double)); // J⁺ = Jᵀ · (J·Jᵀ + λ²I)⁻¹  (n×3)
-    double *NS         = (double *)malloc(n * n * sizeof(double));
+    double *NS         = (double *)malloc((size_t)n * n * sizeof(double));
     double *dq_sec     = (double *)malloc(n * sizeof(double));
     double *e_q        = (double *)malloc(n * sizeof(double));
 
@@ -738,7 +738,7 @@ long long nuc_ik_dls_solve_6d_nullspace(
     double *JJt_plus_lam = (double *)malloc(36 * sizeof(double));
     double *invJJt = (double *)malloc(36 * sizeof(double));
     double *Jpinv = (double *)malloc(6 * n * sizeof(double)); // n x 6
-    double *NS = (double *)malloc(n * n * sizeof(double));
+    double *NS = (double *)malloc((size_t)n * n * sizeof(double));
     double *e_q = (double *)malloc(n * sizeof(double));
     double *dq_sec = (double *)malloc(n * sizeof(double));
     int last = n - 1;

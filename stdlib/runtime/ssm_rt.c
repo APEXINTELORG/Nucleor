@@ -42,7 +42,7 @@ long long nuc_ssm_selective_scan(long long x_h, long long delta_h,
     int seq = (int)L, dim = (int)D, state = (int)N;
 
     // h: [D, N] hidden state
-    double *h = (double *)calloc(dim * state, sizeof(double));
+    double *h = (double *)calloc((size_t)dim * state, sizeof(double));
     SSVec *y = ssvec_new(seq * dim);
 
     for (int t = 0; t < seq; t++) {
@@ -83,7 +83,7 @@ long long nuc_ssm_selective_scan_backward(long long x_h, long long delta_h,
     int seq = (int)L, dim = (int)D, state = (int)N;
     int ds = dim * state;
 
-    double *h_hist = (double *)calloc((seq + 1) * ds, sizeof(double));
+    double *h_hist = (double *)calloc((size_t)(seq + 1) * ds, sizeof(double));
     for (int t = 0; t < seq; t++) {
         for (int d = 0; d < dim; d++) {
             double dt = _ss_i2f(delta->data[t * dim + d]);
@@ -103,11 +103,11 @@ long long nuc_ssm_selective_scan_backward(long long x_h, long long delta_h,
     SSVec *grad_A = ssvec_new(dim * state);
     SSVec *grad_B = ssvec_new(seq * state);
     SSVec *grad_C = ssvec_new(seq * state);
-    double *gx = (double *)calloc(seq * dim, sizeof(double));
-    double *gd = (double *)calloc(seq * dim, sizeof(double));
-    double *gA = (double *)calloc(dim * state, sizeof(double));
-    double *gB = (double *)calloc(seq * state, sizeof(double));
-    double *gC = (double *)calloc(seq * state, sizeof(double));
+    double *gx = (double *)calloc((size_t)seq * dim, sizeof(double));
+    double *gd = (double *)calloc((size_t)seq * dim, sizeof(double));
+    double *gA = (double *)calloc((size_t)dim * state, sizeof(double));
+    double *gB = (double *)calloc((size_t)seq * state, sizeof(double));
+    double *gC = (double *)calloc((size_t)seq * state, sizeof(double));
     double *bar_h_next = (double *)calloc(ds, sizeof(double));
     double *bar_h_prev = (double *)calloc(ds, sizeof(double));
 
@@ -177,7 +177,7 @@ long long nuc_ssm_ssd_chunked(long long x_h, long long A_h, long long B_h, long 
     int seq = (int)L, dim = (int)D, state_n = (int)N, P = (int)chunk_size;
     int n_chunks = (seq + P - 1) / P;
 
-    double *h = (double *)calloc(dim * state_n, sizeof(double));
+    double *h = (double *)calloc((size_t)dim * state_n, sizeof(double));
     SSVec *y = ssvec_new(seq * dim);
 
     for (int ch = 0; ch < n_chunks; ch++) {
@@ -234,7 +234,7 @@ long long nuc_ssm_rwkv_wkv(long long w_h, long long k_h, long long v_h, long lon
     int seq = (int)L, dh = (int)D_head;
 
     // State matrix s: [dh, dh]
-    double *s = (double *)calloc(dh * dh, sizeof(double));
+    double *s = (double *)calloc((size_t)dh * dh, sizeof(double));
     SSVec *out = ssvec_new(seq * dh);
 
     for (int t = 0; t < seq; t++) {

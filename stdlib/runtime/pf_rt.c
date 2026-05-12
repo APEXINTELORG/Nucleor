@@ -69,7 +69,7 @@ long long nuc_pf_new(long long n_x, long long n_z, long long n_particles, long l
     NPF *p = (NPF *)calloc(1, sizeof(NPF));
     p->n_x = (int)n_x; p->n_z = (int)n_z;
     p->n_particles = (int)n_particles;
-    p->X = (double *)calloc(p->n_particles * p->n_x, sizeof(double));
+    p->X = (double *)calloc((size_t)(p->n_particles) * p->n_x, sizeof(double));
     p->W = (double *)malloc(p->n_particles * sizeof(double));
     for (int i = 0; i < p->n_particles; i++) p->W[i] = 1.0 / p->n_particles;
     p->rng = (unsigned int)seed;
@@ -83,7 +83,7 @@ void nuc_pf_set_initial(long long h, long long x_array_ptr) {
     NPF *p = (NPF *)(void *)(size_t)h;
     if (!p) return;
     double *X = (double *)(void *)(size_t)x_array_ptr;
-    if (X) memcpy(p->X, X, p->n_particles * p->n_x * sizeof(double));
+    if (X) memcpy(p->X, X, (size_t)(p->n_particles) * p->n_x * sizeof(double));
     for (int i = 0; i < p->n_particles; i++) p->W[i] = 1.0 / p->n_particles;
 }
 
@@ -145,7 +145,7 @@ static void _systematic_resample(NPF *p) {
     double *cdf = (double *)malloc(N * sizeof(double));
     cdf[0] = p->W[0];
     for (int i = 1; i < N; i++) cdf[i] = cdf[i-1] + p->W[i];
-    double *X_new = (double *)malloc(N * p->n_x * sizeof(double));
+    double *X_new = (double *)malloc((size_t)N * p->n_x * sizeof(double));
     double u0 = _pf_uniform(&p->rng) / N;
     int j = 0;
     for (int i = 0; i < N; i++) {
@@ -153,7 +153,7 @@ static void _systematic_resample(NPF *p) {
         while (j < N - 1 && u > cdf[j]) j++;
         memcpy(X_new + i*p->n_x, p->X + j*p->n_x, p->n_x * sizeof(double));
     }
-    memcpy(p->X, X_new, N * p->n_x * sizeof(double));
+    memcpy(p->X, X_new, (size_t)N * p->n_x * sizeof(double));
     for (int i = 0; i < N; i++) p->W[i] = 1.0 / N;
     free(cdf); free(X_new);
 }

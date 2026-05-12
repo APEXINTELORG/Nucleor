@@ -95,7 +95,7 @@ long long nuc_bayes_mcmc_multi(long long log_post_ptr, long long x0_h,
     // Output: flat [n_samples * dim]
     BYVec *chain = (BYVec *)malloc(sizeof(BYVec));
     chain->len = 0; chain->cap = ns * dim;
-    chain->data = (long long *)malloc(ns * dim * sizeof(long long));
+    chain->data = (long long *)malloc((size_t)ns * dim * sizeof(long long));
 
     double *x_prop = (double *)malloc(dim * sizeof(double));
     for (int i = 0; i < ns + nb; i++) {

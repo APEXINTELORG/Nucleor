@@ -48,7 +48,7 @@ long long nuc_attn_flash(long long Q_h, long long K_h, long long V_h,
     if (bs < 1) bs = 32;
     double scale = 1.0 / sqrt((double)dim);
 
-    double *O = (double *)calloc(sq * dim, sizeof(double));
+    double *O = (double *)calloc((size_t)sq * dim, sizeof(double));
     double *row_max = (double *)malloc(sq * sizeof(double));
     double *row_sum = (double *)calloc(sq, sizeof(double));
     for (int i = 0; i < sq; i++) row_max[i] = -1e30;

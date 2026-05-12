@@ -96,7 +96,7 @@ long long nuc_prm_new(long long n_dim, long long seed) {
     NPRM *p = (NPRM *)calloc(1, sizeof(NPRM));
     p->n_dim = (int)n_dim;
     p->cap_nodes = 64;
-    p->nodes = (double *)malloc(p->cap_nodes * p->n_dim * sizeof(double));
+    p->nodes = (double *)malloc((size_t)(p->cap_nodes) * p->n_dim * sizeof(double));
     p->lower = (double *)calloc(p->n_dim, sizeof(double));
     p->upper = (double *)calloc(p->n_dim, sizeof(double));
     for (int k = 0; k < p->n_dim; k++) { p->lower[k] = -3.14159265358979; p->upper[k] = 3.14159265358979; }
@@ -135,7 +135,7 @@ long long nuc_prm_build(long long h, long long n_samples, long long k_neighbors,
         if (cf && cf(ch) == 0) continue;
         if (p->n_nodes >= p->cap_nodes) {
             p->cap_nodes *= 2;
-            p->nodes = (double *)realloc(p->nodes, p->cap_nodes * p->n_dim * sizeof(double));
+            p->nodes = (double *)realloc(p->nodes, (size_t)(p->cap_nodes) * p->n_dim * sizeof(double));
         }
         memcpy(p->nodes + p->n_nodes * p->n_dim, cfg, p->n_dim * sizeof(double));
         p->n_nodes++;
@@ -159,7 +159,7 @@ long long nuc_prm_build(long long h, long long n_samples, long long k_neighbors,
 
     // Pass 1: enumerate (i, j) i<j edges that are collision-free.
     typedef struct { int a; int b; double cost; } Cand;
-    Cand *cands = (Cand *)malloc(N * k * sizeof(Cand));
+    Cand *cands = (Cand *)malloc((size_t)N * k * sizeof(Cand));
     int n_cands = 0;
     for (int i = 0; i < N; i++) {
         // Pick k nearest j > -1 (any other node).
@@ -597,7 +597,7 @@ long long nuc_prm_build_lazy(long long h, long long n_samples, long long k_neigh
         if (cf && cf(ch) == 0) continue;
         if (p->n_nodes >= p->cap_nodes) {
             p->cap_nodes *= 2;
-            p->nodes = (double *)realloc(p->nodes, p->cap_nodes * p->n_dim * sizeof(double));
+            p->nodes = (double *)realloc(p->nodes, (size_t)p->cap_nodes * p->n_dim * sizeof(double));
         }
         memcpy(p->nodes + p->n_nodes * p->n_dim, cfg, p->n_dim * sizeof(double));
         p->n_nodes++;
@@ -618,7 +618,7 @@ long long nuc_prm_build_lazy(long long h, long long n_samples, long long k_neigh
     int *neighbor = (int *)malloc(k * sizeof(int));
     double *neighbor_d2 = (double *)malloc(k * sizeof(double));
     typedef struct { int a; int b; double cost; } Cand;
-    Cand *cands = (Cand *)malloc(N * k * sizeof(Cand));
+    Cand *cands = (Cand *)malloc((size_t)N * k * sizeof(Cand));
     int n_cands = 0;
     for (int i = 0; i < N; i++) {
         int filled = 0;

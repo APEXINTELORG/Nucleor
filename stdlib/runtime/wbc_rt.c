@@ -154,7 +154,7 @@ long long nuc_wbc_solve(long long h) {
     NWBC *p = (NWBC *)(void *)(size_t)h;
     if (!p) return 0;
     int n = p->n_dof;
-    double *A = (double *)calloc(n * n, sizeof(double));
+    double *A = (double *)calloc((size_t)n * n, sizeof(double));
     double *b = (double *)calloc(n, sizeof(double));
 
     // A = α I
