@@ -1,29 +1,29 @@
 # Release Signing
 
-Nucleor uses two different signing layers:
+Nucleor uses two signing layers:
 
-- Windows release artifacts are signed with DigiCert KeyLocker / Software Trust
-  Manager through the manual GitHub Actions workflow
+- Windows release binaries use user-mode Authenticode signing through SSL.com
+  eSigner in the manual GitHub Actions workflow
   `.github/workflows/sign-windows-release.yml`.
-- Nucleor package metadata is signed by `tools/native_release.ps1` using the
-  repository's package-signing format. That is separate from Windows
-  Authenticode signing.
+- Package metadata uses `tools/native_release.ps1` and Nucleor's package
+  signing format. That is separate from Windows Authenticode signing.
 
-## Windows Authenticode Signing
+Kernel-mode signing is not required for the current release artifacts. It would
+only apply if Nucleor shipped Windows drivers or other kernel-loaded
+components.
 
-The signing workflow is manual (`workflow_dispatch`) and is scoped to the
-public repository only:
+## Windows Authenticode
+
+The workflow is manual (`workflow_dispatch`) and scoped to:
 
 ```text
 APEXINTELORG/Nucleor
 ```
 
-It does not run in the archive repository and does not run on every push. This
-keeps release signing deliberate and avoids spending hosted runner minutes on
-ordinary development pushes.
+It does not run in the archive repository and does not run on every push. That
+keeps signing deliberate and avoids unnecessary hosted-runner cost.
 
-The workflow signs staged copies of these committed Windows artifacts and
-uploads the signed copies as a workflow artifact:
+The workflow signs staged copies of:
 
 ```text
 bin/nucleor.exe
@@ -31,55 +31,75 @@ bin/nucleor-lsp.exe
 bin/nucleor.exe.bootstrap
 ```
 
-Signed binaries are not committed back to Git. Authenticode signatures include
-timestamp data, so the signed files are release artifacts, not reproducible
-source-tree content.
+Signed binaries are release artifacts. They are not committed back to Git.
 
 ## GitHub Configuration
 
 Create a protected GitHub environment named `release-signing` on
-`APEXINTELORG/Nucleor`. Store the DigiCert values as environment secrets so
-GitHub redacts them from public workflow logs. `SM_HOST` and `SM_KEYPAIR_ALIAS`
-may also be repository variables for private testing, but release use should
-prefer environment secrets.
-
-Required values:
+`APEXINTELORG/Nucleor`. Store the SSL.com values as environment secrets:
 
 ```text
-SM_HOST
-SM_API_KEY
-SM_CLIENT_CERT_FILE_B64
-SM_CLIENT_CERT_PASSWORD
-SM_KEYPAIR_ALIAS
+SSL_COM_USERNAME
+SSL_COM_PASSWORD
+SSL_COM_CREDENTIAL_ID
+SSL_COM_TOTP_SECRET
 ```
 
-`SM_HOST` is the DigiCert ONE client-auth host for the account, for example
-`https://clientauth.one.digicert.com`. `SM_CLIENT_CERT_FILE_B64` is the base64
-contents of the `.p12` client authentication certificate generated for the
-service user. `SM_KEYPAIR_ALIAS` is the KeyLocker / Software Trust Manager
-keypair alias that owns the Windows code-signing certificate.
+Optional environment variable:
 
-The DigiCert service user must be allowed to sign with the selected keypair.
+```text
+SSL_COM_ENVIRONMENT_NAME
+```
+
+Use `PROD` for the production SSL.com account. The workflow defaults to `PROD`
+when the variable is unset.
+
+The SSL.com account must be allowed to sign with the selected credential ID.
+The workflow pins `SSLcom/esigner-codesign` to a specific commit rather than a
+floating branch.
+
+## Release Package
+
+The signing workflow produces:
+
+```text
+nucleor-v<version>-windows-x86_64.zip
+nucleor-v<version>-windows-x86_64.zip.sha256
+windows-artifacts.sha256
+windows-authenticode.json
+windows-release-summary.md
+```
+
+The GitHub source archive for the same tag remains the source package. The
+Windows zip is the binary overlay for that source archive.
 
 ## Operator Runbook
 
-1. Confirm the release commit already passed the normal verifier gates.
-2. Open GitHub Actions in `APEXINTELORG/Nucleor`.
-3. Run `Sign Windows Release Artifacts`.
-4. Use `main` or the release tag as the `ref` input.
-5. Download the `nucleor-windows-signed-<ref>` artifact.
-6. Verify the uploaded `windows-authenticode.json` reports `Valid` for every
-   binary.
-7. Attach the signed binaries and `windows-artifacts.sha256` to the release.
+1. Confirm the release commit has passed the normal verifier gates.
+2. Confirm `release-signing` has the SSL.com secrets above.
+3. Open GitHub Actions in `APEXINTELORG/Nucleor`.
+4. Run `Sign Windows Release Artifacts`.
+5. Use `main` or the release tag as `ref`.
+6. Use the release version without a leading `v` as `version`.
+7. Download the uploaded signed package artifact.
+8. Confirm `windows-authenticode.json` reports `Valid` for every binary.
+9. Attach the zip, checksums, Authenticode JSON, verifier summary, and source
+   archive to the GitHub release.
 
-Local artifact sanity check before a signing run:
+Local unsigned sanity check:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1
 ```
 
-Post-signature verification uses:
+Local package dry run without requiring signatures:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1 -RequireSigned
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\make_windows_release_package.ps1 -Version 1.1.0
+```
+
+Post-signature verification:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1 -RequireSigned -ArtifactRoot target\release-signing\signed -ArtifactPaths nucleor.exe,nucleor-lsp.exe,nucleor.exe.bootstrap
 ```

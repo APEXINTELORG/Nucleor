@@ -89,14 +89,13 @@ metadata-only `@law(...)` pass for the algebraic-laws roadmap.
    - `-(-x) → x`, `!(!x) → x`
 
 2. **`@law(...)` declarations** on user functions:
-   - Lex-time capture and audit/info surfacing are implemented.
+   - Lex-time capture and diagnostic surfacing are implemented.
    - The optimizer has a metadata-only law pass scaffold.
    - User-law-driven call-site rewrites, generated law property tests, and
-     SMT proof obligations are tracked for later RFC-0031 phases.
+     proof obligations are roadmap work.
 
 Run `nuc perf <file>.nr` to see optimizer/performance diagnostics. Treat
-`@law(...)` as documentation and audit metadata until the tracked
-Phase 2/3 algebraic-laws work lands.
+`@law(...)` as documentation and checker metadata until the rewrite pass lands.
 
 ## Performance diagnostics
 
@@ -145,10 +144,8 @@ Subsequent builds that do not change a source or the relevant cache
 flags can reuse these artifacts rather than re-emitting and relinking.
 Pass `--no-cache` to disable the IR/native cache path.
 
-Earlier cache documentation described the v0.2.x
-`.nuc_cache/<fn_hash>.ll` layout. Current code uses
-`target/.nuc_cache_v2/` for IR cache entries while keeping module-graph
-and link-log diagnostics under `.nuc_cache/`.
+Current builds use `target/.nuc_cache_v2/` for IR cache entries while keeping
+module-graph and link-log diagnostics under `.nuc_cache/`.
 
 ## What the runtime is not
 

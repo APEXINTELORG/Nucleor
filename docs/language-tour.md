@@ -42,10 +42,10 @@ fn main() -> i64 {
 ```
 
 Numeric literals default to `i64`. The lexer accepts decimal
-(`42`), hex (`0xFF` → `255`), binary (`0b1010` → `10`), and
-underscored (`1_000_000`) forms. RFC-0015 width / signedness
-suffixes (`100u8`, `1.5f32`) parse and type-check. **Since
-the v1 line strict-mode integer arithmetic is the default** —
+(`42`), hex (`0xFF` -> `255`), binary (`0b1010` -> `10`), and
+underscored (`1_000_000`) forms. Width and signedness suffixes
+(`100u8`, `1.5f32`) parse and type-check. Strict-mode integer
+arithmetic is the default:
 `+`, `-`, `*` panic on overflow rather than wrapping silently.
 Use `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
 blocks for intentional wrap behavior, or set
@@ -93,7 +93,7 @@ for x in arr {
 }
 ```
 
-Broader iterator-trait adapters are tracked in RFC-0024.
+Broader iterator-trait adapters are roadmap work.
 
 ## Strings
 
@@ -206,7 +206,7 @@ Enums are tagged unions. Variant constructors are `EnumName::Variant` (or `EnumN
 Function parameters that hold enum values must declare the enum type explicitly:
 the type checker treats each enum as its own type, not interchangeable with `i64`.
 
-## Pattern matching (RFC-0023)
+## Pattern Matching
 
 The basic `match` above handles enum variants. Nucleor's pattern
 language extends to ranges, guards, captures, slice patterns, and
@@ -262,7 +262,7 @@ the current surface. Express the same intent with a guard:
 `Point { x, y } if x == 0 && y == 0 => ...`. Trying the unsupported
 form halts cleanly with `MATCH-012`.
 
-## Generics (RFC-0024)
+## Generics
 
 Functions, structs, and enums all accept type parameters:
 
@@ -287,7 +287,7 @@ user-implementable `Iterator` trait. Bound check (`T: Trait`)
 already fires `TYP-025` at call sites where the concrete type
 doesn't `impl Trait`.
 
-## Result, Option, and `?` (RFC-0016)
+## Result, Option, and `?`
 
 ```nr
 enum LowErr { Boom }
@@ -300,7 +300,7 @@ impl From<LowErr> for HighErr {
 fn lower() -> Result<i32, LowErr> { return Err(LowErr::Boom); }
 
 fn higher() -> Result<i32, HighErr> {
-    let x: i32 = lower()?;     // auto-converts LowErr → HighErr via From
+    let x: i32 = lower()?;     // auto-converts LowErr to HighErr via From
     return Ok(x);
 }
 ```
@@ -309,7 +309,7 @@ fn higher() -> Result<i32, HighErr> {
 the source and target error types differ. Without an `impl From`, the
 compiler halts cleanly with `TRAIT-001`.
 
-## Real-time function attributes (RFC-0001)
+## Real-Time Function Attributes
 
 ```nr
 #[no_panic]
@@ -328,9 +328,9 @@ fn isr(/* hot ISR path */) { ... }
 Attributes compose. Violations produce diagnostics: `RT-001` for
 allocation in `#[no_alloc]`, `RT-002` for panicking calls in
 `#[no_panic]`, `RT-008` for direct recursion in `#[deadline]`
-without a `#[max_depth = N]` opt-out (RFC-0014).
+without a `#[max_depth = N]` opt-out.
 
-## Interrupt service routines (RFC-0008, v0.6.9)
+## Interrupt Service Routines
 
 ```nr
 #[isr]
@@ -358,7 +358,7 @@ parses + type-checks but the IR marker is conservative; a future ship
 will gate unsupported targets with `error[ISR-003]`. See
 `examples/28_isr_tour.nr`.
 
-## Atomics (RFC-0007)
+## Atomics
 
 ```nr
 import "stdlib/rods/atomic.nr"
@@ -383,7 +383,7 @@ consumer) and `MpscQueue<T>` (multi-producer single-consumer) built on
 the atomics surface. See `examples/06_perf_attrs.nr` and
 `stdlib/rods/queue_spsc.nr` / `queue_mpsc.nr`.
 
-## Bounded recursion (RFC-0014)
+## Bounded Recursion
 
 ```nr
 #[max_depth = 100]
@@ -406,9 +406,10 @@ static prover accepted).
 (`depth + K` with constant `K > 0`), helper-guard (entry-guard
 factored into a helper fn), no-recurse-callback (calling a
 non-recursive callback inside the body). See
-`examples/26_max_depth_tour.nr` and `tests/features/rfc0014_max_depth_*.nr`.
+`examples/26_max_depth_tour.nr` and the max-depth fixtures under
+`tests/features/`.
 
-## Effects in function types (RFC-0033 substrate)
+## Effects In Function Types
 
 ```nr
 fn pure_inc(x: i64) -> i64 with [no_alloc, no_panic] {
@@ -426,21 +427,17 @@ extern fn host_known(x: i64) -> i64 with [no_alloc, no_panic];
 ```
 
 The `with [...]` effect annotation moves the effect contract from
-fn-decl attributes into the function *type*. A callback whose type
-doesn't match the declared effect set is rejected at the call site
-rather than discovered after lowering. Diagnostics: `EFF-001..005`
-(see `CHANGELOG.md` `[0.6.0]` for the full set). Substrate ships in
-v0.6.0; gradual migration of stdlib declarations to the `with [...]`
-form will land across v0.6.x ships. See
-`examples/27_effects_with_tour.nr`.
+fn-decl attributes into the function type. A callback whose type does not match
+the declared effect set is rejected at the call site. Diagnostics use the
+`EFF-*` family. See `examples/27_effects_with_tour.nr`.
 
-## Tail expression vs statement (TYP-026, v0.6.1)
+## Tail Expression Vs Statement
 
 ```nr
-// v0.6.1: error[TYP-026] — trailing `;` discards the value but the
-// fn declares a non-void return.
+// error[TYP-026]: trailing `;` discards the value but the fn declares a
+// non-void return.
 fn nothing() -> i32 {
-    5;          // ← error[TYP-026]
+    5;          // error[TYP-026]
 }
 
 // Migrate by dropping the `;` (real tail expression):
@@ -448,18 +445,15 @@ fn nothing_ok() -> i32 {
     5
 }
 
-// …or keep the `;` and use an explicit return:
+// Or keep the `;` and use an explicit return:
 fn nothing_explicit() -> i32 {
     return 5;
 }
 ```
 
-Pre-v0.6.1 the parser silently ate the trailing `;` on a fn-body
-tail expression and the lowerer treated the value as the return,
-producing a silent miscompute that aligned with the value-producing
-intent only by accident. v0.6.1 tracks `had_semi` on the kind-25
-tail-expr AST node; TYP-026 fires on `kind-25 + had_semi==1` with
-the same shape as the kind-20 (let) and kind-21 (assign) checks.
+Nucleor treats `expr` and `expr;` differently at function tail position. The
+semicolon form is a statement and discards the value, so a non-void function
+reports `TYP-026`.
 
 ## Imports
 
@@ -516,7 +510,7 @@ fn dot(xs: Vec<i32>, ys: Vec<i32>, n: i64) -> i64 {
 }
 ```
 
-- `@law(...)` declares algebraic-law metadata. Current builds capture and report it; user-law-driven rewrites and generated property tests are tracked for later RFC-0031 algebraic-laws phases.
+- `@law(...)` declares algebraic-law metadata. Current builds capture and report it; user-law-driven rewrites and generated property tests are roadmap work.
 - `@const_fn` marks a function as eligible for compile-time evaluation.
 - `@hot` enforces no heap allocation, no string formatting, and no indirect dispatch in the function's body.
 

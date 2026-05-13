@@ -80,7 +80,7 @@ bash tools/bootstrap_linux.sh
   systems IO, data structures, codecs, plotting, and optional Rust/Python/GPU
   integration surfaces.
 - Tooling for build, run, test, check, stage dumps, diagnostic explanation,
-  manifests, packaging, audit output, and reproducibility checks.
+  manifests, packaging, release checks, and reproducibility checks.
 
 ## Verification
 
@@ -119,6 +119,7 @@ self-hosted or otherwise pinned runner.
 - [Benchmarks and performance gates](docs/benchmarks.md)
 - [Self-host integrity](docs/SELF_HOST_INTEGRITY.md)
 - [Release signing](docs/release-signing.md)
+- [Release checklist](docs/release-checklist.md)
 - [Examples](examples/README.md)
 
 ## Contributing

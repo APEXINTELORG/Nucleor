@@ -1,37 +1,20 @@
-# FFI Conventions — Null, Bounds, Lifetimes (RFC-0062 G-5 / G-9 Phase 1)
+# FFI Conventions
 
-This file documents the conventions every C-side `*_rt.c` runtime
-function adheres to when called from a Nucleor `extern fn` decl.
-RFC-0062 §3.3 G-5 (FFI null convention) and G-9 (FFI bounds-check
-trust) require these to be written down at every boundary; this
-doc is the single canonical source. Per-rod runtime files
-reference this file in their header comments rather than repeating
-the rules.
+This file documents the contract between Nucleor `extern fn` declarations and
+the C runtime files under `stdlib/runtime/`.
 
-## 1. Null convention
+## Nulls
 
-A Nucleor reference (`&T`, `&mut T`) crossing the FFI boundary into
-a C-side function is **never null**. The Nucleor compiler does not
-emit null pointers from safe code; every reference originates from
-a `let` binding, a struct field, or a function arg, all of which
-are validated at construction.
+A Nucleor reference (`&T`, `&mut T`) passed into a C runtime function is never
+null. Safe Nucleor code does not manufacture null references.
 
-The C-side function may therefore assume:
+If a C function accepts a pointer that may be null, expose that parameter on the
+Nucleor side as a raw pointer, not as `&T` or `&mut T`.
 
-- `*T` parameters are non-null when the corresponding Nucleor
-  declaration is `&T` or `&mut T`.
-- A C-runtime function that explicitly accepts a maybe-null
-  pointer must declare it as `*const c_void` (raw pointer) on the
-  Nucleor side, NOT `&T`. Today this convention is followed in
-  every `extern fn` decl in `stdlib/rods/*.nr`.
+C runtime functions may return null to signal failure. The Nucleor wrapper must
+check the raw return value before exposing it to safe code.
 
-**Exception — return values:** A C-runtime function CAN return
-NULL to signal failure (e.g., `fopen`, `malloc` exhaustion). The
-Nucleor wrapper (the `extern fn` declaration's caller in the rod)
-is responsible for null-checking before exposing the value to safe
-code. The conventional pattern is:
-
-```nucleor
+```nr
 extern fn vec_alloc_or_null(n: i64) -> *const c_void;
 
 fn vec_with_capacity(n: i64) -> Vec<i64> {
@@ -43,73 +26,32 @@ fn vec_with_capacity(n: i64) -> Vec<i64> {
 }
 ```
 
-The `*const c_void` → `Vec<i64>` translation only happens after
-the null check, so safe Nucleor code only ever sees non-null.
+## Bounds
 
-## 2. Bounds-check trust
+Safe Nucleor wrappers perform bounds checks before calling the C runtime. The C
+runtime assumes checked indexes are in range and keeps the hot path lean.
 
-Per RFC-0062 §3.3 G-9: **the Nucleor compiler emits bounds checks
-inside Nucleor-callable wrappers; the C runtime trusts the index
-arguments to be in-range and does NOT re-check.**
+Direct custom FFI calls bypass Nucleor's wrapper checks. Treat direct FFI as an
+unsafe surface and keep bounds checks on the Nucleor side.
 
-This trust is the entire reason `vec_get(v, i)` is fast: the
-inner `*_rt.c` function does pointer-arithmetic only.
+## Lifetimes
 
-The trust contract:
+A Nucleor reference passed to C is valid only for the duration of the C call.
+Runtime functions must not retain the pointer after returning.
 
-- If the Nucleor caller is safe code, the `i64` index parameter
-  has been bounds-checked by the `vec_get_*` lowering rule before
-  the C call.
-- If the Nucleor caller is `unsafe { vec_get_unchecked(v, i) }`
-  (when v1.0 ships that opt-out), the bounds check is skipped at
-  the caller's risk.
-- The C runtime is **never** responsible for bounds checking. It
-  is responsible for honoring the trust contract — i.e., being
-  correct given in-range inputs.
+## Allocator Pairing
 
-Adopters writing direct FFI calls (e.g., custom `extern fn` decls)
-must understand they bypass the safe-code bounds-check insertion.
-Direct FFI calls are documented as an unsafe surface even when no
-`unsafe { }` block is required syntactically. Phase 4 (v1.0) may
-require explicit `#[allow(direct_ffi)]` to silence a lint warning.
+Memory allocated by Nucleor runtime allocators must be freed by the matching
+Nucleor runtime deallocator. Do not free Nucleor heap objects with foreign
+`free()` calls.
 
-## 3. Lifetimes across FFI
+## Threading
 
-A Nucleor reference passed to a C-runtime function is valid for
-the duration of the C call only. The C-runtime function MUST NOT
-retain the pointer past return.
+Runtime data structures are not generally thread-safe unless the specific rod
+documents that they are. Do not pass mutable runtime-owned structures across OS
+threads unless the API explicitly supports it.
 
-Today this is honored by convention; Phase 4 will add a `@policy
-(no_ffi_retain)` enforcement that audits `*_rt.c` source for any
-function whose body stores a parameter pointer in a static or
-heap-reachable location.
+## Surface Inventory
 
-## 4. Allocator pairing
-
-Memory allocated by C-side `*_rt.c` allocators is freed by C-side
-deallocators only. Nucleor's drop semantics route to the matching
-deallocator via the type's drop glue. Adopters CANNOT free Nucleor
-heap with `free()` from foreign C code; the deallocator is
-type-specific (Vec uses `nuc_vec_free`, String uses `nuc_str_free`,
-etc.) and the type's tag determines which one runs.
-
-Mixing allocators (allocate with `malloc`, free with `nuc_vec_free`)
-is undefined behavior at the C level. The conventional pattern is
-to keep all allocations of a given type within a single allocator.
-
-## 5. Threading
-
-Per RFC-0062 §3.3 G-6 Phase 1: today the runtime assumes a single
-mutator thread. C-runtime data structures (Vec, HashMap, the
-governance registry, the energy-budget registry, etc.) are NOT
-thread-safe. Adopters who spawn OS threads and pass references
-across threads invoke undefined behavior.
-
-`@policy(sendable)` and the Sendable marker trait will gain
-enforcement in Phase 2; until then, single-thread mutator is the
-contract.
-
-## 6. C-runtime surface inventory
-
-The runtime FFI surface is implemented by the `*_rt.c` files under
-`stdlib/runtime/`.
+The C runtime surface is implemented by the `*_rt.c` files under
+`stdlib/runtime/`. Safe wrappers live in `stdlib/rods/*.nr`.
