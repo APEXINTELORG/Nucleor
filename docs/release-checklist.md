@@ -17,18 +17,25 @@ This checklist is for the public `APEXINTELORG/Nucleor` release path.
 
 ## Package
 
-- Create the release tag from the verified commit.
-- Run `Sign Windows Release Artifacts` in GitHub Actions.
+- Create the release tag from the verified commit when signing is ready.
+- Before signing is ready, run `Build Release Candidate Artifacts` in GitHub
+  Actions or run `tools\make_release_candidate.ps1` locally. This produces the
+  unsigned candidate package, source archives, checksums, and release-notes
+  draft.
+- After SSL.com or Azure signing verification completes, run
+  `Sign Windows Release Artifacts` in GitHub Actions.
 - Attach these assets to the GitHub release:
 
 ```text
 nucleor-v<version>-windows-x86_64.zip
 nucleor-v<version>-windows-x86_64.zip.sha256
+nucleor-v<version>-source.zip
+nucleor-v<version>-source.tar.gz
 windows-artifacts.sha256
 windows-authenticode.json
 windows-release-summary.md
-source zip
-source tar.gz
+SHA256SUMS.txt
+RELEASE_NOTES_DRAFT.md
 ```
 
 ## Verify Before Publishing
@@ -39,6 +46,8 @@ source tar.gz
 - Build and run `examples/01_hello.nr` from the release package.
 - Confirm release notes name the version, commit, verifier result, Linux
   status, Windows signing status, and known limitations.
+- If the package is unsigned, the release notes must say: "Windows
+  Authenticode signing is awaiting certificate/vendor verification completion."
 
 ## Notes
 
@@ -47,3 +56,5 @@ source tar.gz
   components.
 - Hosted GitHub runners are useful correctness gates. They are not a stable
   performance baseline unless the runner class is pinned and repeatable.
+- Do not publish the final signed release until the manual signing workflow
+  reports `Valid` Authenticode status for every Windows binary.

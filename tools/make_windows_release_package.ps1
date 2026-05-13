@@ -3,7 +3,8 @@ param(
     [string]$Version,
     [string]$ArtifactRoot = "",
     [string]$OutputDir = "",
-    [switch]$RequireSigned
+    [switch]$RequireSigned,
+    [string]$SigningStatusNote = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -77,32 +78,39 @@ foreach ($RelPath in @("nuc.bat", "README.md", "LICENSE", "NOTICE", "CHANGELOG.m
     }
 }
 
-$Readme = @"
-# Nucleor Windows Binary Overlay
+$ReadmeLines = @(
+    "# Nucleor Windows Binary Overlay",
+    "",
+    "Version: $Version",
+    "",
+    "This archive contains the Windows x86_64 release binaries and a minimal set of",
+    "release metadata. Use it together with the source archive from the same GitHub",
+    "release tag, or extract it over a clean checkout of the matching tag.",
+    "",
+    "Included binaries:",
+    "",
+    "- bin/nucleor.exe",
+    "- bin/nucleor-lsp.exe",
+    "- bin/nucleor.exe.bootstrap",
+    "",
+    "After extraction, run:",
+    "",
+    '```powershell',
+    ".\nuc.bat --version",
+    ".\nuc.bat build examples\01_hello.nr -o hello",
+    ".\target\hello.exe",
+    '```'
+)
+$ReadmeLines | Set-Content -LiteralPath (Join-Path $StageRoot "README-WINDOWS-ARTIFACTS.md") -Encoding UTF8
 
-Version: $Version
-
-This archive contains the Windows x86_64 release binaries and a minimal set of
-release metadata. Use it together with the source archive from the same GitHub
-release tag, or extract it over a clean checkout of the matching tag.
-
-Included binaries:
-
-- bin/nucleor.exe
-- bin/nucleor-lsp.exe
-- bin/nucleor.exe.bootstrap
-
-After extraction, run:
-
-```powershell
-.\nuc.bat --version
-.\nuc.bat build examples\01_hello.nr -o hello
-.\target\hello.exe
-```
-"@
-$Readme | Set-Content -LiteralPath (Join-Path $StageRoot "README-WINDOWS-ARTIFACTS.md") -Encoding UTF8
-
-Compress-Archive -Path (Join-Path $StageRoot "*") -DestinationPath $ZipPath -Force
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+if (Test-Path -LiteralPath $ZipPath) {
+    Remove-Item -LiteralPath $ZipPath -Force
+}
+[System.IO.Compression.ZipFile]::CreateFromDirectory($StageRoot, $ZipPath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+if (-not (Test-Path -LiteralPath $ZipPath)) {
+    throw "failed to create Windows release zip: $ZipPath"
+}
 
 $HashLines = New-Object System.Collections.Generic.List[string]
 foreach ($Name in $ArtifactNames) {
@@ -116,27 +124,38 @@ $ZipHash = (Get-FileHash -LiteralPath $ZipPath -Algorithm SHA256).Hash.ToLowerIn
 ("{0}  {1}" -f $ZipHash, (Split-Path -Leaf $ZipPath)) | Set-Content -LiteralPath $ZipHashPath -Encoding ASCII
 
 $Commit = (& git -C $Root rev-parse HEAD).Trim()
-$SignedMode = if ($RequireSigned) { "required" } else { "not required for this local package build" }
-$Summary = @"
-# Windows Release Summary
-
-- Version: $Version
-- Commit: $Commit
-- Package: $(Split-Path -Leaf $ZipPath)
-- Package SHA256: $ZipHash
-- Authenticode signature mode: $SignedMode
-
-Release assets to attach:
-
-- $(Split-Path -Leaf $ZipPath)
-- $(Split-Path -Leaf $ZipHashPath)
-- windows-artifacts.sha256
-- windows-authenticode.json
-
-The GitHub source archive for the same tag remains the source-of-truth source
-package. This zip is the Windows binary overlay for that source archive.
-"@
-$Summary | Set-Content -LiteralPath $SummaryPath -Encoding UTF8
+$SignedMode = if ($RequireSigned) {
+    "required; all binaries must report Authenticode Valid"
+} else {
+    "unsigned; Authenticode signing verification pending"
+}
+if (-not [string]::IsNullOrWhiteSpace($SigningStatusNote)) {
+    $SignedMode = $SigningStatusNote
+}
+$SummaryLines = @(
+    "# Windows Release Summary",
+    "",
+    "- Version: $Version",
+    "- Commit: $Commit",
+    "- Package: $(Split-Path -Leaf $ZipPath)",
+    "- Package SHA256: $ZipHash",
+    "- Authenticode signature mode: $SignedMode",
+    "",
+    "Release assets to attach:",
+    "",
+    "- $(Split-Path -Leaf $ZipPath)",
+    "- $(Split-Path -Leaf $ZipHashPath)",
+    "- windows-artifacts.sha256",
+    "- windows-authenticode.json",
+    "",
+    "The GitHub source archive for the same tag remains the source-of-truth source",
+    "package. This zip is the Windows binary overlay for that source archive.",
+    "",
+    "If Authenticode status is NotSigned, the Windows binaries are unsigned while",
+    "certificate/vendor verification is pending. Publish signed binaries when the",
+    "release-signing workflow succeeds."
+)
+$SummaryLines | Set-Content -LiteralPath $SummaryPath -Encoding UTF8
 
 Write-Host ("wrote {0}" -f $ZipPath)
 Write-Host ("wrote {0}" -f $ZipHashPath)

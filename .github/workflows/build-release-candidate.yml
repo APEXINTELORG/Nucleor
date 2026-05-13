@@ -1,0 +1,57 @@
+name: Build Release Candidate Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to package
+        required: true
+        default: main
+      version:
+        description: Release version, without leading v
+        required: true
+        default: 1.1.0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-release-candidate-${{ github.event.inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: package unsigned release candidate
+    if: github.repository == 'APEXINTELORG/Nucleor'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      - name: Build release-candidate assets
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\make_release_candidate.ps1 `
+            -Version "${{ github.event.inputs.version }}" `
+            -Ref "HEAD" `
+            -OutputDir "target\release"
+
+      - name: Upload release-candidate package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nucleor-release-candidate-${{ github.event.inputs.version }}-${{ github.event.inputs.ref }}
+          if-no-files-found: error
+          path: |
+            target/release/nucleor-v${{ github.event.inputs.version }}-source.zip
+            target/release/nucleor-v${{ github.event.inputs.version }}-source.tar.gz
+            target/release/nucleor-v${{ github.event.inputs.version }}-windows-x86_64.zip
+            target/release/nucleor-v${{ github.event.inputs.version }}-windows-x86_64.zip.sha256
+            target/release/windows-artifacts.sha256
+            target/release/windows-authenticode.json
+            target/release/windows-release-summary.md
+            target/release/SHA256SUMS.txt
+            target/release/RELEASE_NOTES_DRAFT.md

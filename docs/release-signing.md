@@ -60,6 +60,11 @@ floating branch.
 
 ## Release Package
 
+Until SSL.com/Azure verification completes, the release-candidate path can
+produce unsigned Windows binaries with a clear signing-pending disclaimer. That
+candidate path is for staging and review, not the final signed Windows trust
+path.
+
 The signing workflow produces:
 
 ```text
@@ -96,6 +101,19 @@ Local package dry run without requiring signatures:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\make_windows_release_package.ps1 -Version 1.1.0
+```
+
+Full unsigned release-candidate package:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\make_release_candidate.ps1 -Version 1.1.0
+```
+
+That writes source archives, Windows binary overlay, SHA256 manifests, and a
+release-notes draft under `target\release`. The generated notes include:
+
+```text
+Windows Authenticode signing is awaiting certificate/vendor verification completion.
 ```
 
 Post-signature verification:
