@@ -1,10 +1,10 @@
 @echo off
-rem nuc.bat - Nucleor CLI launcher (Windows)
+rem nuc.bat - Nucleor Windows CLI launcher
 rem
 rem Resolves clang.exe and prepends its directory to PATH, then invokes
 rem bin\nucleor.exe with all arguments passed through.
 rem
-rem Resolution order (first VERIFIED hit wins):
+rem Resolution order (first verified hit wins):
 rem   1. %NUCLEOR_CLANG_PATH%        - explicit override (full path to clang.exe)
 rem   2. %LLVM_SYS_180_PREFIX%\bin   - LLVM install pointer
 rem   3. C:\Program Files\LLVM\bin   - default Chocolatey / installer location
