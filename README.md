@@ -118,6 +118,7 @@ self-hosted or otherwise pinned runner.
 - [Feature inventory](docs/NUCLEOR_FEATURE_INVENTORY.md)
 - [Benchmarks and performance gates](docs/benchmarks.md)
 - [Self-host integrity](docs/SELF_HOST_INTEGRITY.md)
+- [Safety guidance](SAFETY.md)
 - [Release signing](docs/release-signing.md)
 - [Release checklist](docs/release-checklist.md)
 - [Examples](examples/README.md)
@@ -125,7 +126,8 @@ self-hosted or otherwise pinned runner.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports should follow
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](SECURITY.md). Robotics, hardware-control, and other physical
+system deployments should also review [SAFETY.md](SAFETY.md).
 
 ## License
 

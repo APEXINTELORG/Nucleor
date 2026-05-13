@@ -14,6 +14,8 @@ This checklist is for the public `APEXINTELORG/Nucleor` release path.
 - Secret inventory has no unresolved real credentials.
 - Public docs do not contain private paths, personal data, internal
   coordination notes, or unexplained development-only labels.
+- `SAFETY.md` is present, linked from the README, and still matches the current
+  robotics, control, real-time, and release-signing boundaries.
 
 ## Package
 
@@ -46,6 +48,8 @@ RELEASE_NOTES_DRAFT.md
 - Build and run `examples/01_hello.nr` from the release package.
 - Confirm release notes name the version, commit, verifier result, Linux
   status, Windows signing status, and known limitations.
+- Confirm release notes or README still point users to `SAFETY.md` for robotics,
+  hardware-control, real-time, and untrusted-code boundaries.
 - If the package is unsigned, the release notes must say: "Windows
   Authenticode signing is awaiting certificate/vendor verification completion."
 

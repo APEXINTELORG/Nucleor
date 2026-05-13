@@ -14,6 +14,8 @@ All notable public changes to Nucleor are documented here.
   `tools/check_self_host_md5.sh`.
 - Compiler-only and process-tree RSS performance accounting for release gates.
 - Public CLI maturity specification in `docs/spec/Nucleor_CLI_Maturity_Spec_2026-05-10.md`.
+- Public `SAFETY.md` covering robotics, hardware-control, real-time, untrusted
+  code, and release-artifact safety boundaries.
 
 ### Changed
 
@@ -46,6 +48,8 @@ All notable public changes to Nucleor are documented here.
 - The CLI is functional but still has a documented maturity roadmap covering
   installer behavior, REPL mode, command inventory parity, and machine-readable
   command output.
+- Robotics, control, and real-time features are not safety-certified; users
+  integrating with physical systems must follow `SAFETY.md`.
 
 ## [1.0.0] - 2026-05-08
 
