@@ -1,16 +1,16 @@
-// 22_rt_export.nr — C-callable kernel via #[export].
+// 22_rt_export.nr - C-callable kernel via #[export].
 //
 // Production robotics middleware (ROS, microROS, RTI Connext,
 // custom EtherCAT masters, embedded boot loaders) typically
 // owns the main loop and wants to call into Nucleor for one
-// RT-tight kernel at a time. The v0.3.4 #[export] surface +
+// RT-tight kernel at a time. The #[export] surface plus
 // `nuc gen-headers` gives those callers an unmangled C
 // signature without any FFI glue.
 //
 // Three #[export] kernels here:
-//   * nuc_scale (Vec3, f64) -> Vec3   — struct-in / struct-out
-//   * nuc_add   (i64, i64)  -> i64    — scalar-only
-//   * nuc_print_dot (Vec3, Vec3) -> i64 — struct-in, side-effect out
+//   * nuc_scale (Vec3, f64) -> Vec3 - struct-in / struct-out
+//   * nuc_add   (i64, i64)  -> i64  - scalar-only
+//   * nuc_print_dot (Vec3, Vec3) -> i64 - struct-in, side-effect out
 //
 // The #[repr(C)] struct matches the C ABI byte-for-byte, so
 // the host C side just `#include "kernel.h"` and calls into
@@ -27,18 +27,9 @@
 //     long nuc_add(long a, long b);
 //     long nuc_print_dot(Vec3 a, Vec3 b);
 //
-// (Pre-v0.3.53 a codegen bug forced a lifted-let workaround
-// for inline f64 ops on struct-field operands. v0.3.53
-// extended `binop_float_type` to recognize struct field
-// accesses, nested binops, and parenthesized wrappers as
-// f-typed operands; the natural inline form below now
-// computes correctly.)
-//
 // See examples/README.md and docs/language-reference.md for the C-side
 // caller pattern; tests/fixtures/t34_export.nr is the verify
-// gate fixture (compile-only — it doesn't surface the
-// codegen bug); this file shows the shipped surface in
-// runnable form.
+// gate fixture.
 
 #[repr(C)]
 struct Vec3 { x: f64, y: f64, z: f64 }
@@ -53,7 +44,7 @@ fn nuc_add(a: i64, b: i64) -> i64 {
     return a + b;
 }
 
-// Natural inline dot product — works correctly post-v0.3.53.
+// Natural inline dot product over repr(C) fields.
 #[export]
 fn nuc_print_dot(a: Vec3, b: Vec3) -> i64 {
     let dp: f64 = a.x * b.x + a.y * b.y + a.z * b.z;

@@ -1,17 +1,10 @@
-// 15_word_count.nr — Word frequency counter exercising the v0.2.x stdlib.
+// 15_word_count.nr - Word-frequency counter.
 //
 // Reads text from $NUC_TEXT_PATH if set, otherwise a bundled passage. Counts
 // word frequencies in a HashMap, then prints the top entries sorted by count
 // (using vec_sort_i64 over packed (count<<32 | hash) keys for a stable order).
 //
-// Demonstrates:
-//   v0.2.17  fnv1a_64_str (stable key hashing for tie-break sort)
-//   v0.2.20  env_has, env_get, str_to_lower, str_chars
-//   v0.2.24  str_to_i64, int_to_str
-//   v0.2.26  str_lines, str_pad_right, str_pad_left
-//   v0.2.27  hashmap_get_or, hashmap_keys
-//   v0.2.30  vec_sort_i64 (via existing sort), vec_len
-//   v0.1     hashmap_new, hashmap_insert, hashmap_contains, file_read_string
+// Demonstrates env vars, text tokenization, maps, sorting, and formatting.
 //
 // Build: nuc build examples/15_word_count.nr -o word_count
 // Run:   ./word_count.exe
@@ -65,7 +58,7 @@ fn tokenize(text: str) -> Vec<str> {
 }
 
 fn main() -> i64 {
-    print("=== Nucleor word-count demo (v0.2.x stdlib) ===");
+    print("=== Nucleor word-count demo ===");
 
     let raw: str = read_text_source();
     if str_len(raw) == 0 {

@@ -1,6 +1,7 @@
 # tools/check_perf_regression.ps1
 #
-# Cold + hot self-build perf check. Catches the v0.3.205 footgun pattern
+# Cold + hot self-build perf check. Catches expensive runtime-helper and
+# compiler hot-path regressions before release.
 # (a single line that adds O(N-source) per-call overhead). Reads
 # tools/perf_baseline.json for thresholds.
 #
@@ -355,6 +356,6 @@ Write-Host ""
 Write-Host "Fix path:"
 Write-Host "  1. ./bin/nucleor.exe build compiler/nucleor_s1_compiler.nr -o tmp --time-passes"
 Write-Host "     -> see which phase regressed; investigate code added there"
-Write-Host "  2. Compare against last good v0.3.x via git log"
+Write-Host "  2. Compare against the last good release-gated commit via git log"
 Write-Host "  3. Once fixed: ./tools/check_perf_regression.ps1 -Update"
 exit 1

@@ -9,13 +9,16 @@
 *.rs   text eol=lf
 *.toml text eol=lf
 *.md   text eol=lf
+*.json text eol=lf
 *.yml  text eol=lf
 *.yaml text eol=lf
+nuc    text eol=lf
+tools/examples.list text eol=lf
 
-# T1.7 (v0.2.339): the bootstrap IR seed must be byte-identical
-# everywhere — Linux clang reads it for stage-1 link, and the verify
-# gate sha256-compares it against a fresh Windows compile. Force LF
-# so Git's CRLF auto-conversion can't change the bytes.
+# The bootstrap IR seed must be byte-identical everywhere. Linux clang
+# reads it for stage-1 link, and verify gates compare it against a
+# fresh self-host compile. Force LF so Git line-ending conversion
+# cannot change the bytes.
 *.ll   text eol=lf
 *.sh   text eol=lf
 

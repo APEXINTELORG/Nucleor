@@ -1,15 +1,11 @@
-//! `with [effects]` tour — RFC-0033 effects-in-function-types showcase.
+//! `with [effects]` tour.
 //!
-//! Single runnable program exercising the v0.6 effects substrate.
+//! Single runnable program exercising effects in function types.
 //! Compile with `nuc build examples/27_effects_with_tour.nr` and run;
 //! prints 3 OK lines and exits 0.
 //!
-//! v0.6 ships RFC-0033 as a substrate: effect annotations that
-//! previously lived as `#[no_alloc]` / `#[no_panic]` / `#[no_dyn]`
-//! attributes can now appear in the function *type* via `with [...]`.
-//! That moves the contract from a fn-decl annotation to part of the
-//! type system, so passing a callback that *might* allocate is
-//! rejected at the call site rather than discovered after lowering.
+//! Effect annotations can appear in the function type via `with [...]`.
+//! That makes allocation and panic contracts visible at call sites.
 
 /// Function declared with effect contract on the type. The body runs
 /// in the no_alloc + no_panic world.

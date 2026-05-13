@@ -1,13 +1,12 @@
-// 06_perf_attrs.nr — V2 performance attributes: @hot, @law, @const_fn.
+// 06_perf_attrs.nr - performance attributes: @hot, @law, @const_fn.
 // Build: nuc build examples/06_perf_attrs.nr -o perf_demo
 // Inspect optimizer behavior: nuc perf examples/06_perf_attrs.nr
 //
-// @hot          — strict performance enforcement (no heap, no string format,
+// @hot          - strict performance enforcement (no heap, no string format,
 //                 no indirect dispatch in this function's body).
-// @law(...)     — algebraic-law metadata captured for audit today.
-//                 User-law rewrites and generated property tests are tracked
-//                 for later RFC-0031 algebraic-laws phases.
-// @const_fn     — function eligible for compile-time evaluation.
+// @law(...)     - algebraic-law metadata checked by bounded tooling
+//                 where supported.
+// @const_fn     - function eligible for compile-time evaluation.
 
 @law(commutative, associative, identity=0)
 fn add_i64(a: i64, b: i64) -> i64 {
@@ -45,13 +44,12 @@ fn str_from_int(n: i64) -> str {
 }
 
 fn main() -> i64 {
-    // This call chain is law-eligible metadata today. Built-in arithmetic
-    // folds still apply inside function bodies, but user-law call-site
-    // rewrites are tracked for later RFC-0031 algebraic-laws phases.
+    // This call chain records law metadata. Built-in arithmetic folds still
+    // apply inside function bodies; proof and rewrite use are separate tooling.
     let s: i64 = add_i64(add_i64(add_i64(10, 0), 20), add_i64(0, 12));
     print(str_concat("add chain (laws-eligible) = ", str_from_int(s)));
 
-    // square is @const_fn — compile-time evaluation eligible.
+    // square is @const_fn: compile-time evaluation eligible.
     let nine: i64 = square(3);
     print(str_concat("square(3) = ", str_from_int(nine)));
 

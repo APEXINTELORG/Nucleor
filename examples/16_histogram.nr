@@ -1,17 +1,11 @@
-// 16_histogram.nr — ASCII histogram of numeric data exercising the v0.2.x stdlib.
+// 16_histogram.nr - ASCII histogram of numeric data.
 //
 // Reads one number per line from $NUC_HIST_PATH (or a bundled sample),
 // buckets them into a fixed number of bins between observed min/max, and
 // prints an ASCII bar chart with one row per bucket.
 //
-// Demonstrates:
-//   v0.2.19  fs_temp_dir (informational)
-//   v0.2.20  env_has, env_get, str_trim, str_is_empty
-//   v0.2.24  str_to_i64, int_to_str, f64_to_str
-//   v0.2.26  str_lines, str_pad_right, str_pad_left, str_chars (unused
-//            but typical companion)
-//   v0.2.30  vec_min_i64, vec_max_i64, vec_range_i64, vec_mean_f64,
-//            vec_median_f64, vec_stddev_f64
+// Demonstrates env vars, string trimming, integer parsing, vector
+// statistics, and simple text formatting.
 //
 // Build: nuc build examples/16_histogram.nr -o histogram
 // Run:   ./histogram.exe                     # bundled sample
@@ -55,7 +49,7 @@ fn make_bar(count: i64, max_count: i64, width: i64) -> str {
 }
 
 fn main() -> i64 {
-    print("=== Nucleor histogram demo (v0.2.x stdlib) ===");
+    print("=== Nucleor histogram demo ===");
 
     let raw: str = read_data_source();
     let nums: Vec<i64> = parse_numbers(raw);

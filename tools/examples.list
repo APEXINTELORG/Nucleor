@@ -40,14 +40,14 @@
 12_autodiff
 13_test_framework
 
-# Tier 3 — v0.2.x stdlib showcase
+# Standard library showcase
 14_csv_summary
 15_word_count
 16_histogram
 17_linecount
 18_benchmark
 
-# Tier 4 — v0.3.x robotics RT showcase
+# Real-time and robotics showcase
 19_rt_pid
 20_rt_motor_ffi
 21_rt_state_machine
@@ -55,10 +55,10 @@
 23_rt_sensor_fusion
 24_rt_kalman_step
 
-# Tier 5 — v0.4.x language-feature showcase
+# Pattern matching showcase
 25_patterns_tour
 
-# Tier 6 — v0.6.x language-feature showcase
+# Effects, ISR, and recursion-bound showcase
 26_max_depth_tour
 27_effects_with_tour
 28_isr_tour

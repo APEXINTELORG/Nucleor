@@ -1,13 +1,12 @@
-//! Pattern matching tour — RFC-0023 feature showcase.
+//! Pattern matching tour.
 //!
-//! Single runnable program exercising every supported pattern
-//! form in v0.4. Compile with `nuc build examples/25_patterns_tour.nr`
-//! and run; should print 7 OK lines and exit 0.
+//! Single runnable program exercising every supported pattern form.
+//! Compile with `nuc build examples/25_patterns_tour.nr` and run;
+//! it should print 7 OK lines and exit 0.
 //!
-//! Audited shipping in v0.4.171: range patterns, or-patterns,
-//! pattern guards, @-bindings, slice patterns, struct destructure,
-//! same-name enum or-patterns. Field-equality literal patterns
-//! (`Point { x: 0 }`) deferred to v0.5+ — express via guard.
+//! Demonstrates range patterns, or-patterns, pattern guards,
+//! @-bindings, slice patterns, struct destructure, and same-name
+//! enum or-patterns.
 
 struct Point { x: i32, y: i32 }
 
@@ -17,7 +16,7 @@ enum Sign {
     Zero,
 }
 
-/// Range patterns — `1..=9`, `1..10`, half-open ranges.
+/// Range patterns: `1..=9`, `1..10`, half-open ranges.
 fn classify_char(c: i64) -> str {
     match c {
         48..=57           => "digit",
@@ -27,7 +26,7 @@ fn classify_char(c: i64) -> str {
     }
 }
 
-/// Pattern guards — `if cond` after pattern, evaluates only on match.
+/// Pattern guards: `if cond` after pattern, evaluates only on match.
 fn classify_score(x: i32) -> str {
     match x {
         n if n < 0    => "negative",
@@ -38,7 +37,7 @@ fn classify_score(x: i32) -> str {
     }
 }
 
-/// `@`-bindings — capture matched value while range-checking.
+/// `@`-bindings capture matched value while range-checking.
 fn squared_in_range(x: i32) -> i32 {
     match x {
         n @ 1..=10 => n * n,
@@ -47,7 +46,7 @@ fn squared_in_range(x: i32) -> i32 {
     }
 }
 
-/// Slice patterns on Vec — `[a, b, c]`, `[single]`, `[]`.
+/// Slice patterns on Vec: `[a, b, c]`, `[single]`, `[]`.
 fn slice_summary(v: Vec<i32>) -> i32 {
     match v {
         [a, middle, b] => a + middle + b,
@@ -57,14 +56,14 @@ fn slice_summary(v: Vec<i32>) -> i32 {
     }
 }
 
-/// Struct destructuring — bind every field as a local.
+/// Struct destructuring binds every field as a local.
 fn point_sum(p: Point) -> i32 {
     match p {
         Point { x, y } => x + y,
     }
 }
 
-/// Same-name enum or-patterns — multiple variants share the binding.
+/// Same-name enum or-patterns let multiple variants share the binding.
 fn sign_value(s: Sign) -> i32 {
     match s {
         Sign::Pos(n) | Sign::Neg(n) => n,
@@ -72,10 +71,7 @@ fn sign_value(s: Sign) -> i32 {
     }
 }
 
-/// Combined: struct destructure + guard for the deferred
-/// field-equality case. This is the v0.5+ idiom.
-/// (Pre-v0.4.202 had a silent-miscompute where the guard was
-/// ignored; closed by the lower_expr __struct guard wiring.)
+/// Combined: struct destructure plus guard for field equality.
 fn point_origin_or_distance(p: Point) -> i32 {
     match p {
         Point { x, y } if x == 0 && y == 0 => 0,
@@ -122,7 +118,7 @@ fn main() -> i32 {
     if point_origin_or_distance(origin) != 0          { print("FAIL guard-as-equality (origin)"); return 1; };
     let off: Point = Point { x: 3, y: 4 };
     if point_origin_or_distance(off) != 7             { print("FAIL guard-as-equality (off)"); return 1; };
-    print("OK guard-as-equality (v0.5+ deferred field-eq workaround)");
+    print("OK guard-as-equality");
 
     print("ALL OK 25_patterns_tour");
     0

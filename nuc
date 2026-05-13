@@ -18,7 +18,7 @@ ROOT="${NUCLEOR_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)}"
 BIN="${NUCLEOR_BIN:-$ROOT/bin/nucleor}"
 
 # --- Resolve clang onto PATH if not already there ---
-# Resolution order (matches docs/milestones/v0.3.0.md phase 2):
+# Resolution order:
 #   1. $NUCLEOR_CLANG_PATH      — explicit override
 #   2. $LLVM_SYS_180_PREFIX/bin — Rust-toolchain-style prefix env
 #   3. Linux distro paths       — /usr/lib/llvm-18, /usr/bin/clang-18, /usr/bin/clang
@@ -102,16 +102,16 @@ if [ ! -x "$BIN" ]; then
     cat >&2 <<EOF
 nuc: compiler binary not found at $BIN
 
-Nucleor v0.2.x ships a Windows x86_64 binary only. Native Linux and
-macOS binaries are scoped for v0.3.0 — see
-$ROOT/docs/milestones/v0.3.0.md.
+This release ships a Windows bootstrap binary and a portable LLVM IR
+seed for POSIX bootstrap. On Linux, build the native compiler with:
+
+  bash $ROOT/tools/bootstrap_linux.sh
 
 Workarounds in the interim:
   1. Run the Windows binary through Wine (experimental):
        wine $ROOT/bin/nucleor.exe "\$@"
-  2. Bootstrap from source on Linux (requires LLVM 18 + an existing
-     bin/nucleor.exe to stage from):
-       see $ROOT/docs/milestones/v0.3.0.md phase 1
+  2. Bootstrap from the committed IR seed on Linux:
+       bash $ROOT/tools/bootstrap_linux.sh
   3. Use the Windows release on a Windows host.
 
 EOF

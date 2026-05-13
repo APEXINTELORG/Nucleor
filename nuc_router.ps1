@@ -230,7 +230,7 @@ function Get-CommandSurfaceObject {
         [pscustomobject]@{ name = "bench"; kind = "analysis"; routes = @("self-hosted", "rust-opt-in"); source_optional = $true; outputs = @(".exe"); summary = "Build once and benchmark repeated runs" },
         [pscustomobject]@{ name = "perf"; kind = "analysis"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Compile-path performance analysis" },
         [pscustomobject]@{ name = "build-wasm"; kind = "compile"; routes = @("self-hosted", "rust-opt-in"); source_optional = $true; outputs = @(".wasm"); summary = "Build a WebAssembly target" },
-        [pscustomobject]@{ name = "audit"; kind = "analysis"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Run audit checks" },
+        [pscustomobject]@{ name = "audit"; kind = "analysis"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Run static analysis checks" },
         [pscustomobject]@{ name = "policy"; kind = "analysis"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Run policy checks" },
         [pscustomobject]@{ name = "certify"; kind = "analysis"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Run certification checks" },
         [pscustomobject]@{ name = "translate"; kind = "tool"; routes = @("self-hosted"); source_optional = $true; outputs = @(); summary = "Run translation helpers" },
@@ -678,7 +678,7 @@ function Invoke-SelfCompat {
                 if ($cmd -eq "test") {
                     $translated.Add($arg)
                 } else {
-                    Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law capture/audit metadata only." -ForegroundColor Cyan
+                    Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law metadata only." -ForegroundColor Cyan
                 }
                 continue
             }
@@ -873,8 +873,8 @@ if ($routeExt) {
     exit $LASTEXITCODE
 }
 
-# R14 law checks: pass `--check-laws` through to the tools-suite test
-# driver. Non-test commands still only have @law capture/audit metadata.
+# Law checks: pass `--check-laws` through to the tools-suite test
+# driver. Non-test commands still only capture @law metadata.
 $checkLawsRequested = $false
 foreach ($_chkArg in $selfHostedArgs) {
     if ($_chkArg -ieq "--check-laws") { $checkLawsRequested = $true }
@@ -883,28 +883,24 @@ if ($checkLawsRequested) {
     if ($cmd -eq "test") {
         Write-Host "info[CHECK-LAWS]: forwarding to bounded integer law-check driver."
     } else {
-        Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law capture/audit metadata only."
+        Write-Host "info[CHECK-LAWS]: --check-laws is active for nuc test; non-test commands keep @law metadata only."
     }
 }
 
-# R10-D1 Phase 1 (v0.8.278): validate --tier values. Pre-v0.8.278
-# the router accepted any --tier <X> token without checking X. Phase 1
-# rejects invalid tiers (must be 0, 1, or 2) at the router layer
-# with a clear diagnostic. Phase 2 wires the tier value through to
-# clang -O level + cache key + artifact metadata per
-# BUILD_PLAN_R10_performance_envelope.md §1 R10-D1.
+# Validate --tier values at the router layer so bad optimization
+# tier input fails before reaching the compiler.
 for ($_ti = 0; $_ti -lt $selfHostedArgs.Count; $_ti++) {
     $_targ = $selfHostedArgs[$_ti]
     if ($_targ -ieq "--tier" -and $_ti + 1 -lt $selfHostedArgs.Count) {
         $_tval = $selfHostedArgs[$_ti + 1]
         if ($_tval -notmatch '^[012]$') {
-            Write-Host "error[PERF-1]: invalid --tier value '$_tval'. Expected 0 (debug), 1 (default), or 2 (release). Phase 2 will wire the value through to clang -O level + cache key + artifact metadata."
+            Write-Host "error[PERF-1]: invalid --tier value '$_tval'. Expected 0 (debug), 1 (default), or 2 (release)."
             exit 2
         }
     } elseif ($_targ -match '^--tier=(.+)$') {
         $_tval = $matches[1]
         if ($_tval -notmatch '^[012]$') {
-            Write-Host "error[PERF-1]: invalid --tier=$_tval value. Expected 0 (debug), 1 (default), or 2 (release). Phase 2 will wire the value through to clang -O level + cache key + artifact metadata."
+            Write-Host "error[PERF-1]: invalid --tier=$_tval value. Expected 0 (debug), 1 (default), or 2 (release)."
             exit 2
         }
     }

@@ -70,10 +70,9 @@ This means `struct Foo { x: i8, y: u8 }` has `sizeof_struct(Foo)
 == 16` (2 fields × 8), not `2` (the natural C-aligned size).
 The trade-off: simpler runtime, no per-struct layout pass needed
 for the default case; users who need byte-tight layout opt into
-`#[repr(C)]` or `#[repr(packed)]` (Phase 3b.2 wires the
-attribute propagation).
+`#[repr(C)]` or `#[repr(packed)]`.
 
-## #[repr(C)] / #[repr(packed)] (Phase 3b.2)
+## #[repr(C)] / #[repr(packed)]
 
 Currently parsed and accepted by the lexer (via the generic
 attribute parsing at compiler:126), but not yet propagated
@@ -82,7 +81,7 @@ itself ALREADY supports the natural-aligned (`"C"`) and packed
 (`"packed"`) repr modes — the only remaining work is teaching
 the parser to attach the attribute to the struct AST node.
 
-Once 3b.2 lands:
+Example:
 ```nucleor
 #[repr(C)]
 struct PointC { x: i32, y: i32 }   // sizeof_struct(PointC) == 8
@@ -111,5 +110,5 @@ regardless of declared type. Switching alloca to honor declared
 width (e.g. `let x: u8` → `alloca i8`) requires touching every
 load/store in every Nucleor program — gigantic blast radius.
 
-Explicitly out of T1.1 scope. Lands when `Vec<T>` monomorphization
-makes per-element-width allocation load-bearing.
+This is intentionally separate from the public `sizeof_struct` surface.
+It should land only when per-element-width allocation is load-bearing.

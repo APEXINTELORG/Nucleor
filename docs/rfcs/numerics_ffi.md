@@ -113,8 +113,8 @@ void notify(void);
 ## Limitations
 
 - **Unsupported types in extern signatures**: Vec<T>, str,
-  generics, structs without `#[repr(C)]`. NUM-015 diagnostic
-  fires (Phase 10 wired) when an extern decl uses one of these.
+  generics, structs without `#[repr(C)]`. The compiler reports
+  NUM-015 when an extern declaration uses one of these.
 - **No header-to-extern reverse direction yet**: import an
   existing C header by hand-writing the matching extern fn
   decls. A `nuc parse-headers` reverse generator is future work.

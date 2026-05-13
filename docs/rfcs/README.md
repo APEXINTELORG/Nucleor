@@ -1,173 +1,85 @@
-# Nucleor RFCs
+# Nucleor Design Notes
 
-Design documents for major language and runtime changes. Each RFC
-specifies a single feature in enough depth that implementation can
-proceed without re-design.
+This directory contains design notes for major language, runtime, tooling, and
+standard-library surfaces. They are useful for implementation context, but the
+current user-facing contract lives in:
 
-## Status legend
+- [Language reference](../language-reference.md)
+- [Feature inventory](../NUCLEOR_FEATURE_INVENTORY.md)
+- [Error codes](../spec/Nucleor_Error_Codes.md)
+- [Getting started](../getting-started.md)
 
-- **Draft** — written, not yet approved by maintainer.
-- **Accepted** — design locked; implementation pending.
-- **Implemented** — landed in the named release.
-- **Decision** — RFC documents a deliberate non-implementation
-  or scope-bounding choice (e.g. RFC-0030 async); the decision
-  is the deliverable, not a code drop.
-- **Superseded by RFC-NNNN** — replaced.
-- **Withdrawn** — abandoned.
+When a design note and the language reference disagree, the language reference
+wins for the public release.
 
 ## Index
 
-### Cross-cutting contracts
+### Runtime, Safety, And Real-Time
 
-| Doc | Topic | Status |
-|---|---|---|
-| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Current manifest tracks 910 helpers; 836/910 policy rows are populated and 74 require explicit metadata review |
-| [helper_manifest.toml](helper_manifest.toml) | 910-helper schema map (TOML, generated) | Generated source of truth; header lists 7 class/linkage REVIEW REQUIRED helpers |
-| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | Current v1.1.0 schema and generated class-count table |
-| [rod_manifest.toml](rod_manifest.toml) | 288-rod catalog (TOML, generated) | Companion to helper manifest |
-| [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | Current generated rod-manifest schema |
+- [RFC-0001: Real-time attributes](RFC-0001-rt-attributes.md)
+- [RFC-0002: Allocator types](RFC-0002-allocator-types.md)
+- [RFC-0003: Typed coordinate frames](RFC-0003-typed-frames.md)
+- [RFC-0004: `#[assume]`](RFC-0004-assume.md)
+- [RFC-0005: Typed units](RFC-0005-units.md)
+- [RFC-0006: Design by contract](RFC-0006-design-by-contract.md)
+- [RFC-0007: Atomic and lock-free constraints](RFC-0007-atomic.md)
+- [RFC-0008: Interrupt service routines](RFC-0008-isr.md)
+- [RFC-0009: WCET analysis](RFC-0009-heptane-wcet.md)
+- [RFC-0035: Sendable and actors](RFC-0035-sendable-actors.md)
+- [RFC-0042: Auto-drop](RFC-0042-auto-drop.md)
+- [RFC-0056: Deterministic replay](RFC-0056-deterministic-replay.md)
+- [RFC-0057: Enclave types](RFC-0057-enclave-types.md)
 
-### Tier 1 — RT, robotics, allocator foundations
+### Language And Tooling
 
-| # | Title | Status | Target |
-|---|---|---|---|
-| [0001](RFC-0001-rt-attributes.md) | RT Function Attributes — `#[no_alloc, no_panic, no_dyn, deadline]` | Draft | v0.3.0 |
-| [0002](RFC-0002-allocator-types.md) | Allocator Types — `Box<T, A: Allocator>`, Arena / Pool / TLSF | Draft | v0.3.0 |
-| [0003](RFC-0003-typed-frames.md) | Typed Coordinate Frames — `Pose<F: Frame>` | Draft | v0.4.0 |
-| [0004](RFC-0004-assume.md) | `#[assume(...)]` — explicit non-panic / bounds proofs | Draft | v0.4.0 |
-| [0005](RFC-0005-units.md) | `unit<T, dim>` — typed dimensional units | Draft | v0.6.0 |
-| [0006](RFC-0006-design-by-contract.md) | DbC — `#[require], #[ensure], #[invariant]` | Draft | v0.5.0 |
-| [0007](RFC-0007-atomic.md) | `#[atomic]` + lock-free queues (SPSC, MPMC) | Draft | v0.5.0 |
-| [0008](RFC-0008-isr.md) | `#[isr]` — interrupt service routine attribute | Draft | v0.6.0 |
-| [0009](RFC-0009-heptane-wcet.md) | Static WCET via Heptane | Draft | v0.7.0 |
-| [0010](RFC-0010-dlpack.md) | DLPack — zero-copy tensor interchange | Draft | v0.7.0 |
-| [0035](RFC-0035-sendable-actors.md) | Sendable marker + actor isolation | Draft | v0.9.0 |
-| [0011](RFC-0011-nuc-cxx.md) | `nuc-cxx` — paired `.h` + `.nr` C++ FFI codegen | Draft | v0.4.0 |
-| [0012](RFC-0012-nuc-bindgen.md) | `nuc-bindgen` — libclang C/C++ binding generator | Draft | v0.4.0 |
-| [0013](RFC-0013-urdf-static-frames.md) | URDF-aware compile-time frame chain verification | Draft | v0.5.0 |
-| [0014](RFC-0014-max-depth.md) | `#[max_depth = N]` — bounded recursion attribute | Draft | v0.5.0 |
+- [RFC-0015: Numeric types](RFC-0015-numeric-types.md)
+- [RFC-0016: Result, Option, match, and `?`](RFC-0016-result-option-match.md)
+- [RFC-0017: Collections](RFC-0017-collections.md)
+- [RFC-0018: Modules](RFC-0018-modules.md)
+- [RFC-0019: Package manager](RFC-0019-package-manager.md)
+- [RFC-0020: Diagnostics](RFC-0020-diagnostics.md)
+- [RFC-0021: Test framework](RFC-0021-test-framework.md)
+- [RFC-0022: Cross-platform support](RFC-0022-cross-platform.md)
+- [RFC-0023: Pattern matching](RFC-0023-pattern-matching.md)
+- [RFC-0024: Iterators](RFC-0024-iterators.md)
+- [RFC-0025: Closures](RFC-0025-closures.md)
+- [RFC-0026: Trait objects](RFC-0026-trait-objects.md)
+- [RFC-0027: Lifetimes](RFC-0027-lifetimes.md)
+- [RFC-0028: Format strings](RFC-0028-format-strings.md)
+- [RFC-0029: Documentation generator](RFC-0029-doc-generator.md)
+- [RFC-0030: Async decision](RFC-0030-async-decision.md)
+- [RFC-0031: Algebraic laws](RFC-0031-algebraic-laws.md)
+- [RFC-0032: Effects](RFC-0032-effects.md)
+- [RFC-0033: Effects in function types](RFC-0033-effects-in-function-types.md)
+- [RFC-0034: Compile-time parameters](RFC-0034-compile-time-parameters.md)
 
-### Tier 2 — language essentials (v0.2 foundation)
+### Interop, Hardware, And Frontier Surfaces
 
-| # | Title | Status | Target |
-|---|---|---|---|
-| [0015](RFC-0015-numeric-types.md) | Numeric types — i8…i128, u8…u128, f16/bf16/f32/f64/f8 | **Implemented (partial)** v0.1.46–v0.1.64 | v0.2.0 (lattice + cast warnings) → v0.4 (strict-mode) |
-| [0016](RFC-0016-result-option-match.md) | Result/Option/match/`?` | **Implemented (partial)** v0.1.50–v0.1.61 | v0.2.0 (`?` operator + MATCH-001/002) → v0.4 (generic enums) |
-| [0017](RFC-0017-collections.md) | String, HashMap, BTreeMap, HashSet, VecDeque | **Implemented** v0.1.27–v0.1.47 | v0.2.0 |
-| [0018](RFC-0018-modules.md) | Module system — `mod`, `pub`, `use`, paths | **Implemented (partial)** v0.1.52–v0.1.65 | v0.2.0 (`use std::` + `mod foo;` + `nuc fix --imports`) → v0.4 (resolver, `pub use`) |
-| [0019](RFC-0019-package-manager.md) | Package manager — `nuc.toml`, registry, resolver | **Implemented (partial)** v0.1.33–v0.1.55 | v0.2.0 (manifest, lockfile, install, workspace) → v0.5.0 (registry, PubGrub, git) |
-| [0020](RFC-0020-diagnostics.md) | Diagnostic upgrade — spans, snippets, color, fixes | **Implemented (partial)** v0.1.34–v0.1.59 | v0.2.0 (LineMap + JSON + 38 explain entries) → v0.4 (full span migration) |
-| [0021](RFC-0021-test-framework.md) | Test framework — `#[test]`, `nuc test`, assertions | **Implemented** v0.1.10–v0.1.55 | v0.2.0 |
-| [0022](RFC-0022-cross-platform.md) | Cross-platform — Linux, macOS, cross-compile | **Implemented (partial)** v0.1.30 (POSIX `nuc` wrapper, `_WIN32` audit) | v0.2.0 → v0.3.0 (Linux/macOS bin) → v0.5.0 (sysroots) |
+- [RFC-0010: DLPack](RFC-0010-dlpack.md)
+- [RFC-0011: C++ interop](RFC-0011-nuc-cxx.md)
+- [RFC-0012: C/C++ binding generator](RFC-0012-nuc-bindgen.md)
+- [RFC-0013: URDF static frames](RFC-0013-urdf-static-frames.md)
+- [RFC-0014: Maximum recursion depth](RFC-0014-max-depth.md)
+- [RFC-0043: Fixed-point IR type](RFC-0043-fixed-point-IR-type.md)
+- [RFC-0044: Per-binop overflow mode](RFC-0044-per-binop-overflow-mode.md)
+- [RFC-0045: Differentiable attribute](RFC-0045-differentiable-attribute.md)
+- [RFC-0046: Coordinate-frame types](RFC-0046-coordinate-frame-types.md)
+- [RFC-0047: Seven-vector typed units](RFC-0047-typed-units-7vector.md)
+- [RFC-0048: Hardware capability queries](RFC-0048-hardware-capability-queries.md)
+- [RFC-0049: Memory-space type tags](RFC-0049-memory-space-type-tags.md)
+- [RFC-0050: Energy and thermal attributes](RFC-0050-energy-thermal-attributes.md)
+- [RFC-0051: Model provenance type](RFC-0051-model-provenance-type.md)
+- [RFC-0052: Photonic compute types](RFC-0052-photonic-types.md)
+- [RFC-0053: Neuromorphic compute types](RFC-0053-neuromorphic-types.md)
+- [RFC-0054: Logical qubit type](RFC-0054-logical-qubit-type.md)
+- [RFC-0055: Distributed collectives](RFC-0055-distributed-collectives.md)
+- [RFC-0058: Post-quantum crypto stdlib](RFC-0058-pq-crypto-stdlib.md)
+- [RFC-0059: Multi-level IR sketch](RFC-0059-multi-level-IR-sketch.md)
+- [RFC-0062: Effects extension](RFC-0062-effects-extension.md)
 
-### Tier 2 — language extensions (v0.4)
+### Generated Catalogs
 
-| # | Title | Status | Target |
-|---|---|---|---|
-| [0023](RFC-0023-pattern-matching.md) | Rich patterns — ranges, guards, slice, or-, @-bindings | Draft | v0.4.0 |
-| [0024](RFC-0024-iterators.md) | Iterator trait + adapter chain | **Implemented (partial)** v0.2.9 | v0.2 (Vec<i64> map/filter/fold/each/sum/min/max via fn-ptrs) → v0.4 (trait + adapter chain with closures) |
-| [0025](RFC-0025-closures.md) | Closures with capture (`Fn`, `FnMut`, `FnOnce`) | Draft | v0.4.0 |
-| [0026](RFC-0026-trait-objects.md) | Trait objects — `dyn Trait`, vtables | Draft | v0.4.0 |
-| [0027](RFC-0027-lifetimes.md) | Explicit lifetime parameters | Draft | v0.4.0 |
-| [0028](RFC-0028-format-strings.md) | Format strings — `format!`, `println!`, `Display`/`Debug` | **Implemented (partial)** v0.2.6 | v0.2 (`format_i64/str/hex/2_ii/2_si` builtins, one `{}` per call) → v0.4 (variadic + `Display`/`Debug` traits) |
-| [0029](RFC-0029-doc-generator.md) | Documentation generator — `nuc doc`, `///` comments, doc tests | **Implemented (skeleton)** v0.1.65 | v0.2.0 (skeleton) → v0.4 (param rendering, navigation, doc tests) |
-| [0030](RFC-0030-async-decision.md) | Async / await — decision and phased plan | **Decision** v0.2 — no first-class async in v0.x; `rod/tokio.nr` opt-in v0.5; native syntax v0.8 | v0.4 (decision doc) → v0.5 (`rod/tokio.nr`) → v0.8 (sugar) |
-
-### Tier 3 — Nucleor-unique differentiators
-
-| # | Title | Status | Target |
-|---|---|---|---|
-| [0031](RFC-0031-algebraic-laws.md) | Algebraic laws as a verified rewrite system | Draft | v0.5.0 |
-| [0032](RFC-0032-effects.md) | Effects — `pure fn`, `requires`, `restricts` | Draft | v0.6.0 |
-
-### Late-cycle production and frontier RFCs
-
-| Doc | Topic | Status |
-|---|---|---|
-| [RFC-0033-effects-in-function-types](RFC-0033-effects-in-function-types.md) | Effects in function types with `with [...]` | Draft |
-| [RFC-0034-compile-time-parameters](RFC-0034-compile-time-parameters.md) | Compile-time `[]` parameters vs runtime `()` parameters | Draft |
-| [RFC-0042-auto-drop](RFC-0042-auto-drop.md) | Opt-in auto-drop for owned locals | Draft |
-| [RFC-0043-fixed-point-IR-type](RFC-0043-fixed-point-IR-type.md) | Restore `fixed<I, F>` fixed-point IR type | Draft |
-| [RFC-0044-per-binop-overflow-mode](RFC-0044-per-binop-overflow-mode.md) | Per-binop overflow-mode IR field | Draft |
-| [RFC-0045-differentiable-attribute](RFC-0045-differentiable-attribute.md) | Restore `@differentiable` attribute | Draft |
-| [RFC-0046-coordinate-frame-types](RFC-0046-coordinate-frame-types.md) | Coordinate-frame types | Draft |
-| [RFC-0047-typed-units-7vector](RFC-0047-typed-units-7vector.md) | Seven-vector typed units | Draft |
-| [RFC-0048-hardware-capability-queries](RFC-0048-hardware-capability-queries.md) | Compile-time hardware capability queries | Draft |
-| [RFC-0049-memory-space-type-tags](RFC-0049-memory-space-type-tags.md) | Tensor memory-space type tags | Draft |
-| [RFC-0050-energy-thermal-attributes](RFC-0050-energy-thermal-attributes.md) | Energy and thermal budget attributes | Draft |
-| [RFC-0051-model-provenance-type](RFC-0051-model-provenance-type.md) | Foundation-model provenance type | Draft |
-| [RFC-0052-photonic-types](RFC-0052-photonic-types.md) | Photonic compute types | Draft |
-| [RFC-0053-neuromorphic-types](RFC-0053-neuromorphic-types.md) | Neuromorphic compute types | Draft |
-| [RFC-0054-logical-qubit-type](RFC-0054-logical-qubit-type.md) | Logical qubit type and quantum interop | Draft |
-| [RFC-0055-distributed-collectives](RFC-0055-distributed-collectives.md) | Distributed collectives and topology-aware sharding | Draft |
-| [RFC-0056-deterministic-replay](RFC-0056-deterministic-replay.md) | Deterministic replay across accelerators | Draft |
-| [RFC-0057-enclave-types](RFC-0057-enclave-types.md) | Enclave types and information-flow labels | Draft |
-| [RFC-0058-pq-crypto-stdlib](RFC-0058-pq-crypto-stdlib.md) | Post-quantum cryptography in `std.security` | Draft |
-| [RFC-0059-multi-level-IR-sketch](RFC-0059-multi-level-IR-sketch.md) | Multi-level IR sketch | Sketch |
-| [RFC-0062-effects-extension](RFC-0062-effects-extension.md) | G-10 effect annotations framework | Draft |
-
-The RFC directory is an engineering record, not a substitute for the
-current user-facing language reference. For the shipped v1.1 surface,
-start with [`../language-reference.md`](../language-reference.md) and
-[`../NUCLEOR_FEATURE_INVENTORY.md`](../NUCLEOR_FEATURE_INVENTORY.md).
-**RFC-0030 (async) accepted as a Decision RFC in v0.2** — Nucleor
-ships no first-class async runtime in v0.x; tokio binding is opt-in
-(v0.5) and native `async` syntax targets v0.8 (see the RFC for the
-phased plan).
-The post-RC v0.2.x sub-chain (through v0.2.134 as of this
-update) has been strictly additive on top of v0.2.0; no
-RFC implementation states changed. Current build, contribution,
-and safety guidance lives in the top-level public docs.
-
-## RFCs by release
-
-### v0.2.0 — foundation
-- 0015 numerics, 0016 Result/Option/match, 0017 collections, 0018 modules,
-  0019 packages (manifest+resolver), 0020 diagnostics, 0021 test framework,
-  0022 cross-platform (Linux+macOS)
-
-### v0.3.0 — Robotics Foundation
-- 0001 RT attributes, 0002 allocator types
-
-### v0.4.0 — Robotics Stack
-- 0003 typed frames, 0004 assume, 0011 nuc-cxx, 0012 nuc-bindgen,
-  0023 patterns, 0024 iterators, 0025 closures, 0026 trait objects,
-  0027 lifetimes, 0028 format strings, 0029 doc generator,
-  0030 async decision
-
-### v0.5.0 — Production Robotics
-- 0006 contracts, 0007 atomic, 0013 URDF, 0014 max_depth,
-  0019 packages (registry MVP), 0022 cross-platform (full),
-  0031 algebraic laws
-
-### v0.6.0 — Embedded + AI Inference
-- 0005 units, 0008 ISR, 0032 effects
-
-### v0.7.0 — AI Training + RT Linux
-- 0009 Heptane WCET, 0010 DLPack
-
-### v0.8.0 — Industrial RTOS + Async
-- 0030 async (sugar)
-
-## Authoring an RFC
-
-Every RFC follows the template:
-
-1. **Header** — Number, title, status, author, dates, target
-   release, dependencies.
-2. **Summary** — 5–10 lines plus a code example. The TL;DR.
-3. **Motivation** — what's wrong today, what other languages do
-   (table), what we want.
-4. **Design** — full specification with examples and diagnostics.
-5. **Implementation** — LOC estimates per component (compiler,
-   runtime, stdlib), test plan, migration story.
-6. **Alternatives considered** — at least three rejected designs
-   with reasons.
-7. **Open questions** — implementation-review items with author
-   recommendation.
-8. **Definition of done** — checklist of acceptance criteria.
-9. **Future extensions** — out-of-scope follow-ons.
-10. **Acceptance checklist** — sign-off gate before implementation.
-
-Open a PR with the RFC at `docs/rfcs/RFC-NNNN-slug.md`. Add an entry
-to the index above.
+- [Helper manifest schema](helper_manifest_schema.md)
+- [Helper manifest](helper_manifest.toml)
+- [Rod manifest schema](rod_manifest_schema.md)
+- [Rod manifest](rod_manifest.toml)

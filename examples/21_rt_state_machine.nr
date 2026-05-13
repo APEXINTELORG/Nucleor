@@ -1,11 +1,9 @@
-// 21_rt_state_machine.nr — Bounded-recursion state walk
-// demonstrating the v0.3.9 `#[max_depth = N]` opt-out for
-// the RT-008 recursive-call check.
+// 21_rt_state_machine.nr - Bounded-recursion state walk.
 //
 // State-machine and trajectory-planner code routinely
 // recurses by design (tree walk, iterative-deepening,
-// ladder-logic resolver, behavior tree tick). The v0.3.9
-// RT-008 check fires `warning[RT-008]` for any direct
+// ladder-logic resolver, behavior tree tick). The RT-008
+// check fires for direct
 // self-recursion in a `#[deadline]` fn, because unbounded
 // recursion can blow the WCET budget. `#[max_depth = N]`
 // declares the bound and tells the check to stay silent.
@@ -32,9 +30,7 @@
 //
 // Bounded by `remaining` decreasing strictly each call. The
 // caller passes `remaining <= 16` so #[max_depth = 16] is
-// honored. A future v0.4 AST-based RT-008 v2 will tighten
-// the check by walking the call graph; v1 takes the author
-// at their word via #[max_depth].
+// honored by the compiler.
 #[deadline = 500]
 #[no_alloc]
 #[no_panic]

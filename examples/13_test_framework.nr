@@ -1,4 +1,4 @@
-// examples/13_test_framework.nr — RFC-0021 test framework demo
+// examples/13_test_framework.nr - test framework demo
 // Run with: nuc test examples/13_test_framework.nr
 // Or via the legacy main() entry: nuc build examples/13_test_framework.nr
 
@@ -12,8 +12,7 @@ fn arithmetic_basics() {
 
 #[test]
 fn integer_overflow_modes() {
-    // wrapping_add / checked_add etc. ship in v0.2.0 with RFC-0015
-    // phase 4. For now just exercise basic arithmetic.
+    // Exercise basic arithmetic in the test harness.
     let a: i64 = 1000;
     let b: i64 = 2000;
     assert_eq(a + b, 3000);

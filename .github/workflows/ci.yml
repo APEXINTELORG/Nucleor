@@ -180,12 +180,10 @@ jobs:
           } | tee runner-info.txt
           true
       - name: Step 2 — bootstrap bin/nucleor from IR seed
-        # T1.7 (v0.2.339): the Linux verify gate now produces its own
-        # bin/nucleor by clang-linking bootstrap/nucleor_s1_seed.ll
-        # against the platform-portable C runtime, then validating the
-        # fixed-point invariant (stage-2 IR matches the seed). No
-        # pre-built Linux binary is checked into the repo — the .ll
-        # seed is the only artifact the bootstrap depends on.
+        # The Linux verify gate produces its own bin/nucleor by
+        # clang-linking bootstrap/nucleor_s1_seed.ll against the
+        # platform-portable C runtime, then validating the fixed-point
+        # invariant. No pre-built Linux binary is checked into the repo.
         run: |
           chmod +x tools/bootstrap_linux.sh
           ./tools/bootstrap_linux.sh

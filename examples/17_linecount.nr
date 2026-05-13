@@ -1,15 +1,12 @@
-// 17_linecount.nr — A wc-style line/word/char counter exercising the v0.2.x stdlib.
+// 17_linecount.nr - A wc-style line/word/char counter.
 //
 // Counts lines, words, and characters across one or more files. With a single
 // file, prints a one-line summary; with multiple, prints per-file rows plus
 // a total. File list comes from $NUC_LC_FILES (semicolon-separated) or a
 // bundled list of repo files.
 //
-// Demonstrates:
-//   v0.2.20  env_has, env_get, str_to_lower (unused — typical companion)
-//   v0.2.24  int_to_str
-//   v0.2.26  str_lines, str_pad_right, str_pad_left
-//   v0.1     fs_exists, fs_size, file_read_string, str_split, str_trim
+// Demonstrates env vars, file IO, string splitting, trimming, and
+// padded tabular output.
 //
 // Build: nuc build examples/17_linecount.nr -o linecount
 // Run:   ./linecount.exe                                # bundled file list
@@ -95,7 +92,7 @@ fn print_row(label: str, lines: i64, words: i64, chars: i64) {
 }
 
 fn main() -> i64 {
-    print("=== Nucleor linecount demo (v0.2.x stdlib) ===");
+    print("=== Nucleor linecount demo ===");
 
     let files: Vec<str> = read_file_list();
     let n: i64 = vec_len(files);

@@ -15,7 +15,7 @@ let b: u8 = 10;
 let c: u8 = a + b;   // c = 4 (260 mod 256)
 ```
 
-`a + b` evaluates at i64 register width (Phase 1 design); the
+`a + b` evaluates at i64 register width; the
 narrow_via_as hook on the let-binding inserts
 `__nucleor_as_u8(a + b)` which masks to 8 bits — equivalent to
 mod-256 wrap.
@@ -73,8 +73,8 @@ See `numerics_cast.md` for the full cast matrix.
 
 ## Future: `#[overflow(wrap | trap | saturate)]` attribute
 
-Phase 7.2 follow-up will add an attribute that changes the
-default `+ - *` behavior on a per-fn or per-module basis:
+A future attribute can change the default `+ - *` behavior on a per-fn
+or per-module basis:
 
 ```nucleor
 #[overflow(trap)]

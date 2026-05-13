@@ -9,7 +9,7 @@
 # This sample is documentation. It is intentionally not a package
 # manifest for the repository root.
 #
-# Schema (RFC-0019 §3.1):
+# Manifest schema:
 #   [package]
 #     name           required, snake_case identifier
 #     version        required, semver
@@ -71,4 +71,4 @@ panic = "abort"
 opt_level = 2
 debug = true
 panic = "abort"
-# Heptane WCET analyzer enabled (RFC-0009)
+# Certification-oriented profile for bounded-runtime builds.

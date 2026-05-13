@@ -1,5 +1,5 @@
-// robotic_arm.nr — End-to-end robotics showcase exercising the
-// full v0.2.174-212 stack: kinematics + fk_chain + ik_dls (with
+// robotic_arm.nr - End-to-end robotics showcase exercising
+// kinematics + fk_chain + ik_dls (with
 // joint limits + singularity + manipulability + nullspace) +
 // trajectory (with TOPP time-optimal parameterization) + collision
 // (sphere/AABB/GJK + EPA) + bvh + dynamics (RNEA inverse / forward

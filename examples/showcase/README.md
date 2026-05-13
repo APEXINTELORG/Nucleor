@@ -1,67 +1,35 @@
-# `examples/showcase/`
+# Showcase Examples
 
-End-to-end programs that exercise the v0.2.x stdlib in
-production-shaped scenarios. Larger and more domain-specific
-than the numbered examples in `examples/01..18`. **Build is
-gated** via the `showcase_build_smoke` step (added v0.2.90 to
-both `tools/verify.sh` and `tools/verify.ps1` — the gate
-verifies each `.exe` is produced); **execution is not gated**
-because the programs produce streaming visual output (ANSI
-heatmaps, dashboards, live charts) and are meant to be run
-interactively and watched, not auto-asserted.
+These programs exercise larger standard-library surfaces in production-shaped
+scenarios. They are more domain-specific than the numbered examples and are
+intended for interactive terminal runs.
 
-All four programs build with the shipped `bin/nucleor.exe` and
-share the local `_viz.nr` helper for ANSI cursor positioning,
-256-color heatmaps, horizontal bar charts, and progress
+The release verifier build-checks each showcase program. Runtime execution is
+manual because the programs produce streaming ANSI output such as heatmaps,
+dashboards, and live charts.
+
+All programs share [`_viz.nr`](_viz.nr), a small ANSI visualization helper for
+cursor positioning, color palettes, heatmaps, horizontal bars, and progress
 spinners.
 
 ## Programs
 
 | File | Topic | Notes |
 |---|---|---|
-| [`lorenz.nr`](lorenz.nr) | **Lorenz strange attractor** | RK4 integration of two trajectories started 1e-5 apart, rendered as a heatmap of trajectory density. The iconic butterfly shape emerges in your console; visual demonstration of sensitive dependence on initial conditions. |
-| [`vqe_h2.nr`](vqe_h2.nr) | **Variational Quantum Eigensolver** | Ground state of a 2-qubit Hamiltonian via parameter-shift gradient descent. Live convergence chart with parameter and energy bars updating in place. Other-stack equivalent: PennyLane + PyTorch + OpenFermion + SciPy. |
-| [`market_maker.nr`](market_maker.nr) | **Live options market-making engine** | Black-Scholes pricing + full Greeks + PID-driven delta hedging at simulated 10 ms tick. Bloomberg-style dashboard. Other-stack equivalent: Python + QuantLib + filterpy + simple-pid + a C++ rewrite for the latency path. |
-| [`wing_simulator.nr`](wing_simulator.nr) | **Coupled fluid + EM simulator** | Lattice Boltzmann (D2Q9) for aerodynamics + FDTD on a Yee grid for electromagnetics, both on the same airfoil cross-section in one file with one shared geometry. 256-color heatmaps for density, vorticity, and E_z field. Other-stack equivalent: OpenFOAM + Meep + a custom mesh bridge + matplotlib. |
+| [`lorenz.nr`](lorenz.nr) | Lorenz attractor | RK4 integration of two nearby trajectories rendered as a density heatmap. |
+| [`vqe_h2.nr`](vqe_h2.nr) | Variational quantum eigensolver | Two-qubit Hamiltonian minimized with parameter-shift gradient descent. |
+| [`market_maker.nr`](market_maker.nr) | Options market-making engine | Black-Scholes pricing, Greeks, and simulated delta hedging. |
+| [`wing_simulator.nr`](wing_simulator.nr) | Coupled fluid and EM simulator | Lattice Boltzmann aerodynamics plus FDTD electromagnetics on one airfoil cross-section. |
+| [`robotic_arm.nr`](robotic_arm.nr) | Robotics stack showcase | Kinematics, IK, trajectory, collision, BVH, and dynamics rods composed end to end. |
 
-## Helpers
-
-[`_viz.nr`](_viz.nr) — shared ANSI visualization helpers
-(cursor positioning, 24-bit-safe 256-color palette, heatmap
-palette, horizontal bar charts, progress spinner). Imported
-by all four showcase programs. Works in modern Windows
-Terminal, PowerShell 7, conhost, and any POSIX terminal that
-honors VT escapes.
-
-## Build & run
+## Build And Run
 
 ```bash
-# Any showcase program builds the same way as a regular example:
 bin/nucleor.exe build examples/showcase/lorenz.nr -o lorenz
-./lorenz.exe                    # POSIX
-target\lorenz.exe               # Windows
+target/lorenz.exe       # Windows
+./target/lorenz         # Linux
 ```
 
-These programs are visual — they expect a TTY and produce
-streaming ANSI output. Redirecting stdout to a file or piping
-to `head` will produce a noisy fragment of the live render.
-For automation use the numbered examples in `examples/01..18`,
-all of which produce non-streaming text output and are gated
-in `tools/verify.sh` / `tools/verify.ps1`.
-
-## Why no run-time gate coverage?
-
-The verify gate runs every numbered example to completion and
-checks non-empty stdout. The showcase programs:
-
-- Run for many seconds (or until the user interrupts) producing
-  thousands of lines of ANSI escape sequences;
-- Re-render the same screen region in place via cursor moves;
-- Aren't designed to "complete" — they're live dashboards.
-
-So end-to-end run gating doesn't fit. The build-only smoke
-(`showcase_build_smoke`, shipped v0.2.90) catches the cases that
-matter for the gate: a `.exe` not produced, an `import "examples/
-showcase/_viz.nr"` resolution break, an extern-fn typo against
-the runtime, or an LLVM emission failure. Run-time visual
-correctness remains a manual / human-eyeball verification.
+Run these in a terminal that supports ANSI cursor movement. For automation,
+use the numbered examples in `examples/`; those produce bounded text output and
+are run by the verifier.

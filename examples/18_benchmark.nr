@@ -1,4 +1,4 @@
-// 18_benchmark.nr — Micro-benchmark harness using v0.2.x time + stats helpers.
+// 18_benchmark.nr - Micro-benchmark harness using time and stats helpers.
 //
 // Times two CPU-bound workloads (integer Fibonacci and integer-isqrt of
 // random values) over N iterations each, then prints summary statistics:
@@ -7,14 +7,7 @@
 // Demonstrates the Nucleor "stats over a vec" idiom that's actually useful:
 // a benchmark report.
 //
-// Demonstrates:
-//   v0.2.21  time_elapsed_ms, time_wall_ms (already v0.1, used as anchor)
-//   v0.2.24  int_to_str, f64_to_str
-//   v0.2.26  str_pad_right, str_pad_left
-//   v0.2.29  random_int (alias for rng_int), rng_seed
-//   v0.2.30  vec_min_i64, vec_max_i64, vec_mean_f64, vec_median_f64,
-//            vec_stddev_f64, vec_percentile_f64
-//   v0.1     time_wall_ns, time_monotonic_ns, i64_isqrt
+// Demonstrates timers, seeded RNG, integer workloads, and vector stats.
 //
 // Build: nuc build examples/18_benchmark.nr -o benchmark
 // Run:   ./benchmark.exe
@@ -68,7 +61,7 @@ fn print_row(label: str, n: i64, samples: Vec<i64>) {
 }
 
 fn main() -> i64 {
-    print("=== Nucleor benchmark harness (v0.2.x stdlib) ===");
+    print("=== Nucleor benchmark harness ===");
     rng_seed(42, 1337);
 
     let n: i64 = iters_from_env();

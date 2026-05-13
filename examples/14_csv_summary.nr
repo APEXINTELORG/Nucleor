@@ -1,14 +1,11 @@
-// 14_csv_summary.nr — End-to-end demo of the v0.2.x stdlib enrichment.
+// 14_csv_summary.nr - CSV summary demo.
 //
 // Reads a CSV (bundled sample, or $NUC_CSV_PATH if set), parses integer
 // columns, and prints per-column count / min / max / mean / median / stddev
 // in a padded report.
 //
-// Demonstrates v0.2.x helpers from many releases:
-//   v0.2.20  env_has, env_get, str_trim, str_to_i64
-//   v0.2.24  int_to_str, f64_to_str, str_to_i64
-//   v0.2.26  str_lines, str_pad_left, str_pad_right
-//   v0.2.30  vec_mean_f64, vec_median_f64, vec_stddev_f64
+// Demonstrates env vars, string splitting, integer parsing, padding,
+// and vector statistics.
 //
 // The bundled sample uses integer-scaled data (e.g. tenths of a degree)
 // so the i64-based stats helpers operate cleanly. Real f64 columns can
@@ -31,7 +28,7 @@ fn read_csv_source() -> str {
 }
 
 fn main() -> i64 {
-    print("=== Nucleor CSV summary demo (v0.2.x stdlib) ===");
+    print("=== Nucleor CSV summary demo ===");
 
     let raw: str = read_csv_source();
     if str_len(raw) == 0 {

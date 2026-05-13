@@ -16,16 +16,14 @@ target/
 # Allow the shipped bootstrap binary
 !bin/nucleor.exe
 
-# T1.7 (v0.2.339): allow the cross-platform IR seed used by
-# tools/bootstrap_linux.sh to produce bin/nucleor on fresh Linux/macOS
-# hosts. See bootstrap/README.md for the refresh workflow.
+# Allow the cross-platform IR seed used by tools/bootstrap_linux.sh to
+# produce bin/nucleor on fresh Linux hosts.
 !bootstrap/nucleor_s1_seed.ll
 
 # Scratch binaries from self-host fixed-point checks. Chain commands
 # of the form `nuc build ... -o bin/nucleor_vNNN.exe` should write to
-# target/ instead, but the convention through v0.2.x left them in
-# bin/. Excluded here so they never slip into a commit. Do NOT add
-# a `!` exception for these. (See bin/README.md.)
+# target/ instead. Excluded here so they never slip into a commit. Do
+# NOT add a `!` exception for these.
 bin/nucleor_v*.exe
 bin/nucleor_tools.exe
 
@@ -66,10 +64,11 @@ NUL
 # recipe in tools/VERIFY_TIMING_RECIPE.md is the contract, the CSV
 # is rolling local-machine output that bloats history if committed.
 tools/verify_timings.csv
-# v0.5.19: per-agent CSV namespacing (NUC_VERIFY_AGENT=<name>) means
-# each agent writes its own tools/verify_timings.<name>.csv. Same
-# rolling-output rationale — don't track per-agent timing logs.
+# Per-agent CSV namespacing (NUC_VERIFY_AGENT=<name>) means each agent
+# writes its own tools/verify_timings.<name>.csv. Same rolling-output
+# rationale: do not track per-agent timing logs.
 tools/verify_timings.*.csv
+tools/memory_drift_profile.csv
 
 # Bootstrap iteration scratch (3-iter fixed-point check artifacts)
 out_v*.txt

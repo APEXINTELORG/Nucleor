@@ -63,12 +63,10 @@ Initial v1 public line:
 
 **Maintenance tag on the v1.0 line. Superseded by v1.1.0 for new installs.**
 
-Internal stabilization tag on the v1.0 line. Superseded by v1.1.0 for public
-release use.
+Maintenance tag on the v1.0 line. Superseded by v1.1.0 for new installs.
 
 ## [1.0.1] - 2026-05-08
 
 **Maintenance tag on the v1.0 line. Superseded by v1.1.0 for new installs.**
 
-Internal stabilization tag on the v1.0 line. Superseded by v1.1.0 for public
-release use.
+Maintenance tag on the v1.0 line. Superseded by v1.1.0 for new installs.

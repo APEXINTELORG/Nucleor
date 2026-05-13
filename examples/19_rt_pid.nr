@@ -1,7 +1,6 @@
-// 19_rt_pid.nr — Fully RT-annotated PID step.
+// 19_rt_pid.nr - Fully RT-annotated PID step.
 //
-// Demonstrates the full v0.3 robotics attribute stack working
-// together on a single tight inner loop:
+// Demonstrates the real-time attribute stack on a tight inner loop:
 //
 //   #[no_alloc]    — no Vec / String / format alloc allowed
 //   #[no_panic]    — no panic-prone calls (assert, unwrap, ...)

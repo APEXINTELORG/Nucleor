@@ -1,14 +1,13 @@
-// 24_rt_kalman_step.nr — Kalman-style state update step.
+// 24_rt_kalman_step.nr - Kalman-style state update step.
 //
-// Synthesis of the production-readiness arc (v0.3.51 → v0.3.69).
-// Combines the patterns from examples 19-23 with the
-// nested-indexing / matrix patterns shipped in v0.3.65-69:
+// Combines the patterns from examples 19-23 with nested-indexing
+// and matrix patterns:
 //
-//   - 3x3 transition matrix as Vec<Vec<f64>> (v0.3.55 + v0.3.68)
-//   - State as Vec<V3> trajectory (v0.3.59)
-//   - Position struct with f64 fields (v0.3.53)
-//   - Trait method on struct (v0.3.60)
-//   - Cast i64 → f64 inline (v0.3.61)
+//   - 3x3 transition matrix as Vec<Vec<f64>>
+//   - State as Vec<V3> trajectory
+//   - Position struct with f64 fields
+//   - Trait method on struct
+//   - Cast i64 to f64 inline
 //   - All composed in inline arithmetic without lifted-let
 //     workarounds
 //
@@ -28,13 +27,13 @@ struct V3 { x: f64, y: f64, z: f64 }
 
 impl Mag for V3 {
     fn norm_sq(self) -> f64 {
-        // Inline binop on struct fields (v0.3.53).
+        // Inline binop on struct fields.
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 }
 
 fn main() -> i32 {
-    print("Kalman-style state update synthesis (v0.3.51-69):");
+    print("Kalman-style state update synthesis:");
 
     // -- 3x3 transition matrix (Vec<Vec<f64>>) -----------------
     let mut A: Vec<Vec<f64>> = Vec::new();
@@ -47,7 +46,7 @@ fn main() -> i32 {
     let mut x: Vec<f64> = Vec::new();
     x.push(2.0); x.push(4.0); x.push(6.0);
 
-    // -- x' = A * x via nested indexing (v0.3.68 closes this) --
+    // -- x' = A * x via nested indexing -----------------------
     let mut x_next: Vec<f64> = Vec::new();
     let mut i: i64 = 0;
     while i < 3 {
@@ -91,7 +90,7 @@ fn main() -> i32 {
     print("path total dist_sq:");
     print_f64(total);       // 50.0
 
-    // -- Cast + inline binop (v0.3.61) -------------------------
+    // -- Cast plus inline binop --------------------------------
     let n: i64 = 3;
     let avg_dist: f64 = total / (n as f64);
     print("avg dist_sq per step:");
