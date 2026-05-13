@@ -1,17 +1,31 @@
 param(
     [switch]$RequireSigned,
-    [string]$JsonOut = ""
+    [string]$JsonOut = "",
+    [string]$ArtifactRoot = "",
+    [string[]]$ArtifactPaths = @()
 )
 
 $ErrorActionPreference = "Stop"
 
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 
-$Artifacts = @(
-    "bin/nucleor.exe",
-    "bin/nucleor-lsp.exe",
-    "bin/nucleor.exe.bootstrap"
-)
+if ([string]::IsNullOrWhiteSpace($ArtifactRoot)) {
+    $ArtifactRoot = $Root
+} elseif (-not [System.IO.Path]::IsPathRooted($ArtifactRoot)) {
+    $ArtifactRoot = [System.IO.Path]::GetFullPath((Join-Path $Root $ArtifactRoot))
+} else {
+    $ArtifactRoot = [System.IO.Path]::GetFullPath($ArtifactRoot)
+}
+
+if (-not $ArtifactPaths -or $ArtifactPaths.Count -eq 0) {
+    $ArtifactPaths = @(
+        "bin/nucleor.exe",
+        "bin/nucleor-lsp.exe",
+        "bin/nucleor.exe.bootstrap"
+    )
+} elseif ($ArtifactPaths.Count -eq 1 -and $ArtifactPaths[0].Contains(",")) {
+    $ArtifactPaths = @($ArtifactPaths[0].Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 
 function Test-PeHeader {
     param([string]$Path)
@@ -31,8 +45,8 @@ function Test-PeHeader {
 
 $Results = New-Object System.Collections.Generic.List[object]
 
-foreach ($RelPath in $Artifacts) {
-    $Path = Join-Path $Root $RelPath
+foreach ($RelPath in $ArtifactPaths) {
+    $Path = Join-Path $ArtifactRoot $RelPath
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "missing Windows release artifact: $RelPath"
     }

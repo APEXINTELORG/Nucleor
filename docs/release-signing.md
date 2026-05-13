@@ -2,8 +2,9 @@
 
 Nucleor uses two different signing layers:
 
-- Windows release artifacts are signed with Azure Artifact Signing through the
-  manual GitHub Actions workflow `.github/workflows/sign-windows-release.yml`.
+- Windows release artifacts are signed with DigiCert KeyLocker / Software Trust
+  Manager through the manual GitHub Actions workflow
+  `.github/workflows/sign-windows-release.yml`.
 - Nucleor package metadata is signed by `tools/native_release.ps1` using the
   repository's package-signing format. That is separate from Windows
   Authenticode signing.
@@ -21,8 +22,8 @@ It does not run in the archive repository and does not run on every push. This
 keeps release signing deliberate and avoids spending hosted runner minutes on
 ordinary development pushes.
 
-The workflow signs these committed Windows artifacts and uploads the signed
-copies as a workflow artifact:
+The workflow signs staged copies of these committed Windows artifacts and
+uploads the signed copies as a workflow artifact:
 
 ```text
 bin/nucleor.exe
@@ -37,32 +38,28 @@ source-tree content.
 ## GitHub Configuration
 
 Create a protected GitHub environment named `release-signing` on
-`APEXINTELORG/Nucleor`. Put the Azure signing values in environment secrets so
-GitHub redacts them from public workflow logs. The workflow also accepts
-repository variables for private testing, but release use should prefer secrets
-plus OpenID Connect.
+`APEXINTELORG/Nucleor`. Store the DigiCert values as environment secrets so
+GitHub redacts them from public workflow logs. `SM_HOST` and `SM_KEYPAIR_ALIAS`
+may also be repository variables for private testing, but release use should
+prefer environment secrets.
 
 Required values:
 
 ```text
-AZURE_CLIENT_ID
-AZURE_TENANT_ID
-AZURE_SUBSCRIPTION_ID
-AZURE_ARTIFACT_SIGNING_ENDPOINT
-AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME
-AZURE_ARTIFACT_SIGNING_CERT_PROFILE_NAME
+SM_HOST
+SM_API_KEY
+SM_CLIENT_CERT_FILE_B64
+SM_CLIENT_CERT_PASSWORD
+SM_KEYPAIR_ALIAS
 ```
 
-The Azure identity must be federated to GitHub Actions and must have the
-Artifact Signing certificate profile signer role on the signing account/profile.
+`SM_HOST` is the DigiCert ONE client-auth host for the account, for example
+`https://clientauth.one.digicert.com`. `SM_CLIENT_CERT_FILE_B64` is the base64
+contents of the `.p12` client authentication certificate generated for the
+service user. `SM_KEYPAIR_ALIAS` is the KeyLocker / Software Trust Manager
+keypair alias that owns the Windows code-signing certificate.
 
-Legacy variable names are also accepted during migration:
-
-```text
-AZURE_TRUSTED_SIGNING_ENDPOINT
-AZURE_TRUSTED_SIGNING_ACCOUNT_NAME
-AZURE_TRUSTED_SIGNING_CERT_PROFILE_NAME
-```
+The DigiCert service user must be allowed to sign with the selected keypair.
 
 ## Operator Runbook
 

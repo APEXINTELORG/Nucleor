@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: sign-windows-release-${{ github.event.inputs.ref }}
@@ -24,28 +23,26 @@ jobs:
     timeout-minutes: 30
     environment: release-signing
     env:
-      AZURE_CLIENT_ID_VALUE: ${{ secrets.AZURE_CLIENT_ID || vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID_VALUE: ${{ secrets.AZURE_TENANT_ID || vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID_VALUE: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
-      AZURE_SIGNING_ENDPOINT_VALUE: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT || secrets.AZURE_TRUSTED_SIGNING_ENDPOINT || vars.AZURE_ARTIFACT_SIGNING_ENDPOINT || vars.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-      AZURE_SIGNING_ACCOUNT_VALUE: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME || secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME || vars.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME || vars.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
-      AZURE_CERT_PROFILE_VALUE: ${{ secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE_NAME || secrets.AZURE_TRUSTED_SIGNING_CERT_PROFILE_NAME || vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE_NAME || vars.AZURE_TRUSTED_SIGNING_CERT_PROFILE_NAME }}
+      SM_HOST_VALUE: ${{ secrets.SM_HOST || vars.SM_HOST }}
+      SM_API_KEY_VALUE: ${{ secrets.SM_API_KEY }}
+      SM_CLIENT_CERT_FILE_B64_VALUE: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+      SM_CLIENT_CERT_PASSWORD_VALUE: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+      SM_KEYPAIR_ALIAS_VALUE: ${{ secrets.SM_KEYPAIR_ALIAS || vars.SM_KEYPAIR_ALIAS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.ref }}
 
-      - name: Validate Azure signing configuration
+      - name: Validate DigiCert signing configuration
         shell: pwsh
         run: |
           $required = @(
-            "AZURE_CLIENT_ID_VALUE",
-            "AZURE_TENANT_ID_VALUE",
-            "AZURE_SUBSCRIPTION_ID_VALUE",
-            "AZURE_SIGNING_ENDPOINT_VALUE",
-            "AZURE_SIGNING_ACCOUNT_VALUE",
-            "AZURE_CERT_PROFILE_VALUE"
+            "SM_HOST_VALUE",
+            "SM_API_KEY_VALUE",
+            "SM_CLIENT_CERT_FILE_B64_VALUE",
+            "SM_CLIENT_CERT_PASSWORD_VALUE",
+            "SM_KEYPAIR_ALIAS_VALUE"
           )
           $missing = New-Object System.Collections.Generic.List[string]
           foreach ($name in $required) {
@@ -55,51 +52,65 @@ jobs:
             }
           }
           if ($missing.Count -gt 0) {
-            throw ("Missing GitHub variable/secret value(s): {0}" -f ($missing -join ", "))
+            throw ("Missing DigiCert release-signing environment secret(s): {0}" -f ($missing -join ", "))
           }
-          Write-Host "Azure signing configuration is present."
+          Write-Host "DigiCert signing configuration is present."
 
-      - name: Validate artifact inputs
+      - name: Validate source artifact inputs
         shell: pwsh
         run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1
 
-      - name: Azure login
-        uses: azure/login@v3
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID_VALUE }}
-          tenant-id: ${{ env.AZURE_TENANT_ID_VALUE }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID_VALUE }}
+      - name: Stage signing copies
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD "target\release-signing\files"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -LiteralPath "bin\nucleor.exe" -Destination (Join-Path $stage "nucleor.exe") -Force
+          Copy-Item -LiteralPath "bin\nucleor-lsp.exe" -Destination (Join-Path $stage "nucleor-lsp.exe") -Force
+          Copy-Item -LiteralPath "bin\nucleor.exe.bootstrap" -Destination (Join-Path $stage "nucleor.exe.bootstrap.exe") -Force
 
-      - name: Sign Windows artifacts
-        uses: azure/artifact-signing-action@v1
+      - name: Decode DigiCert client certificate
+        shell: pwsh
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "sm_client_cert.p12"
+          $bytes = [System.Convert]::FromBase64String($env:SM_CLIENT_CERT_FILE_B64_VALUE)
+          [System.IO.File]::WriteAllBytes($certPath, $bytes)
+          "SM_CLIENT_CERT_FILE=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Sign staged Windows artifacts
+        uses: digicert/code-signing-software-trust-action@v1
         with:
-          endpoint: ${{ env.AZURE_SIGNING_ENDPOINT_VALUE }}
-          signing-account-name: ${{ env.AZURE_SIGNING_ACCOUNT_VALUE }}
-          certificate-profile-name: ${{ env.AZURE_CERT_PROFILE_VALUE }}
-          files: |
-            ${{ github.workspace }}\bin\nucleor.exe
-            ${{ github.workspace }}\bin\nucleor-lsp.exe
-            ${{ github.workspace }}\bin\nucleor.exe.bootstrap
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-          description: Nucleor Windows release artifacts
-          description-url: https://github.com/APEXINTELORG/Nucleor
-          timeout: 600
+          simple-signing-mode: true
+          input: ${{ github.workspace }}\target\release-signing\files
+          keypair-alias: ${{ env.SM_KEYPAIR_ALIAS_VALUE }}
+          unsigned: true
+          timestamp: true
+          fail-fast: true
+        env:
+          SM_HOST: ${{ env.SM_HOST_VALUE }}
+          SM_API_KEY: ${{ env.SM_API_KEY_VALUE }}
+          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ env.SM_CLIENT_CERT_PASSWORD_VALUE }}
 
       - name: Verify signed artifacts
         shell: pwsh
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1 -RequireSigned -JsonOut target\release-signing\windows-authenticode.json
+          $stage = Join-Path $PWD "target\release-signing\files"
+          Move-Item -LiteralPath (Join-Path $stage "nucleor.exe.bootstrap.exe") -Destination (Join-Path $stage "nucleor.exe.bootstrap") -Force
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\check_windows_release_artifacts.ps1 `
+            -RequireSigned `
+            -ArtifactRoot "target\release-signing\files" `
+            -ArtifactPaths "nucleor.exe,nucleor-lsp.exe,nucleor.exe.bootstrap" `
+            -JsonOut "target\release-signing\windows-authenticode.json"
           $paths = @(
-            "bin\nucleor.exe",
-            "bin\nucleor-lsp.exe",
-            "bin\nucleor.exe.bootstrap"
+            "nucleor.exe",
+            "nucleor-lsp.exe",
+            "nucleor.exe.bootstrap"
           )
-          New-Item -ItemType Directory -Force -Path target\release-signing | Out-Null
           $lines = foreach ($path in $paths) {
-            $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-            "{0}  {1}" -f $hash, $path.Replace("\", "/")
+            $full = Join-Path $stage $path
+            $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()
+            "{0}  {1}" -f $hash, $path
           }
           $lines | Set-Content -LiteralPath target\release-signing\windows-artifacts.sha256 -Encoding ASCII
 
@@ -109,8 +120,8 @@ jobs:
           name: nucleor-windows-signed-${{ github.event.inputs.ref }}
           if-no-files-found: error
           path: |
-            bin/nucleor.exe
-            bin/nucleor-lsp.exe
-            bin/nucleor.exe.bootstrap
+            target/release-signing/files/nucleor.exe
+            target/release-signing/files/nucleor-lsp.exe
+            target/release-signing/files/nucleor.exe.bootstrap
             target/release-signing/windows-authenticode.json
             target/release-signing/windows-artifacts.sha256
