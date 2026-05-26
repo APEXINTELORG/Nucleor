@@ -75,6 +75,28 @@ Target:
 - `bootstrap/nucleor_s1_seed.ll`: contains the diagnostic strings called
   out in §1.3. Will be regenerated after string sanitization.
 
+### 1.5 Python test references (clarification per maintainer)
+- 8 `.py` files exist in `tests/reference/ml/` (sklearn references) and
+  `tests/probes/pipeline_parity/` (output comparators).
+- **Confirmed scope:** these are optional test-data regeneration
+  artifacts. The Nucleor build and run paths do not require Python.
+- **Action:** keep them. They're the same kind of optional comparator
+  any scientific runtime keeps for cross-checking. Document this
+  status in CONTRIBUTING / test docs so the optics question doesn't
+  recur — "Python is only required if you're regenerating reference
+  data; never to build or run Nucleor itself."
+
+### 1.6 Rules of engagement (maintainer-set, applies to all branches)
+- **R-Helpers:** all new helper functions are written in `.nr`.
+  Existing C runtime is not extended.
+- **R-Deps:** nothing required to build or operate Nucleor beyond the
+  existing C toolchain and OS. Python (or any other language) cannot
+  be a build/run requirement.
+- **R-Production:** every design choice ships as a finished feature.
+  No "phase 2," no leaked memory, no shims that need follow-up.
+- **R-Trade-offs:** every design decision documents the alternatives
+  considered, their costs, and why the chosen path was picked.
+
 ### 1.5 Documentation tone
 - Existing public docs (`docs/architecture.md`, `docs/language-reference.md`,
   `docs/language-tour.md`, etc.) read as human-written technical docs.
