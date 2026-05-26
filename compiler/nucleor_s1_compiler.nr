@@ -331,17 +331,17 @@ fn classify_kw(w: str) -> i64 {
 #[manual_drop]
 fn f64_bits_is_nonfinite(bits: i64) -> i64 {
     // Positive-Inf bit pattern as i64: 0x7FF0_0000_0000_0000.
-    let pos_inf_f028: i64 = 9218868437227405312;
+    let pos_inf: i64 = 9218868437227405312;
     // Negative-Inf bit pattern as a signed-i64 value (sign bit set):
     // 0xFFF0_0000_0000_0000 = -4503599627370496.
-    let neg_inf_f028: i64 = 0 - 4503599627370496;
+    let neg_inf: i64 = 0 - 4503599627370496;
     // For positive bit patterns: bits in [pos_inf, i64::MAX] are non-finite
     // (the saturated exponent field maps to Inf or NaN).
-    if bits >= pos_inf_f028 { return 1; };
+    if bits >= pos_inf { return 1; };
     // For negative bit patterns: bits in [i64::MIN, neg_inf] are
-    // non-finite. Note `bits < 0 && bits <= neg_inf_f028` — anything more
+    // non-finite. Note `bits < 0 && bits <= neg_inf` — anything more
     // negative (closer to i64::MIN) has the exponent saturated too.
-    if bits < 0 && bits <= neg_inf_f028 { return 1; };
+    if bits < 0 && bits <= neg_inf { return 1; };
     return 0;
 }
 
@@ -468,15 +468,15 @@ fn lex(src: str) -> Vec<i32> {
                 };
             };
             if p + 8 < slen && str_eq_at(src, p + 2, "inline") == 1 {
-                let after_inline_v718: i64 = str_char_at(src, p + 8);
-                if after_inline_v718 == 93 || after_inline_v718 == 40 {
+                let after_inline: i64 = str_char_at(src, p + 8);
+                if after_inline == 93 || after_inline == 40 {
                     print("ERROR: `#[inline]` / `#[inline(always)]` attributes are not supported in Nucleor. Remove the attribute; the optimizer makes its own inline decisions.");
                     panic("nucleor: inline attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
             if p + 6 < slen && str_eq_at(src, p + 2, "cold") == 1 {
-                let after_cold_v718: i64 = str_char_at(src, p + 6);
-                if after_cold_v718 == 93 || after_cold_v718 == 40 {
+                let after_cold: i64 = str_char_at(src, p + 6);
+                if after_cold == 93 || after_cold == 40 {
                     print("ERROR: `#[cold]` attribute is not yet supported in Nucleor. Workaround: remove the attribute; Nucleor does not yet feed cold-path hints to LLVM.");
                     panic("nucleor: cold attribute not yet supported (see ERROR diagnostic above)");
                 };
@@ -496,14 +496,14 @@ fn lex(src: str) -> Vec<i32> {
             // (warning, not error); TYP-011 still fires correctly at use
             // sites for the dropped derives.
             if p + 9 < slen && str_eq_at(src, p + 2, "derive(") == 1 {
-                let derive_arg_start_v060: i64 = p + 9;
-                let mut derive_arg_end_v060: i64 = derive_arg_start_v060;
-                while derive_arg_end_v060 < slen && str_char_at(src, derive_arg_end_v060) != 41 {
-                    derive_arg_end_v060 = derive_arg_end_v060 + 1;
+                let derive_arg_start: i64 = p + 9;
+                let mut derive_arg_end: i64 = derive_arg_start;
+                while derive_arg_end < slen && str_char_at(src, derive_arg_end) != 41 {
+                    derive_arg_end = derive_arg_end + 1;
                 };
-                if derive_arg_end_v060 < slen {
-                    let derive_body_v060: str = str_substring(src, derive_arg_start_v060, derive_arg_end_v060);
-                    let trimmed_v060: str = str_trim(derive_body_v060);
+                if derive_arg_end < slen {
+                    let derive_body: str = str_substring(src, derive_arg_start, derive_arg_end);
+                    let trimmed_v060: str = str_trim(derive_body);
                     // v0.6.84 RFC V1.4: PartialEq is now auto-generated
                     // by `expand_derive_partialeq` as the helper fn
                     // `<TypeName>__derived_eq(a, b) -> i64` (returns 1
@@ -986,8 +986,8 @@ fn lex(src: str) -> Vec<i32> {
                 }
             } else {
                 if handled_radix == 0 && p < slen && str_char_at(src, p) == 46 {
-                    let next_after_dot_v110: i64 = if p + 1 < slen { str_char_at(src, p + 1) } else { 0 };
-                    if next_after_dot_v110 != 46 {
+                    let next_after_dot: i64 = if p + 1 < slen { str_char_at(src, p + 1) } else { 0 };
+                    if next_after_dot != 46 {
                         panic(str_concat("error[LEX-NUM-FLOAT-FORM]: trailing-dot float literal at byte ", str_concat(str_from_int(st), ". Nucleor requires at least one digit after the decimal point; write `1.0` instead of `1.`. Pre-fix this lexed as integer `1` followed by field-access `.`, causing wrong-class parser/type diagnostics.")));
                     };
                 };
@@ -1001,24 +1001,24 @@ fn lex(src: str) -> Vec<i32> {
                 // Hex/oct/bin literals (handled_radix == 1) keep the
                 // existing wrap behavior since their bit pattern is
                 // expected.
-                let dig_str_v119: str = if handled_radix == 1 { "" } else { sb_to_str(digit_sb) };
+                let dig_str: str = if handled_radix == 1 { "" } else { sb_to_str(digit_sb) };
                 if handled_radix == 0 {
-                    let dig_len_v119: i64 = str_len(dig_str_v119);
+                    let dig_len: i64 = str_len(dig_str);
                     let mut overflow_v119: i64 = 0;
-                    if dig_len_v119 > 20 { overflow_v119 = 1; };
-                    if dig_len_v119 == 20 {
+                    if dig_len > 20 { overflow_v119 = 1; };
+                    if dig_len == 20 {
                         let u64_max_v119: str = "18446744073709551615";
-                        let mut cmp_i_v119: i64 = 0;
-                        while cmp_i_v119 < 20 {
-                            let dc_v119: i64 = str_char_at(dig_str_v119, cmp_i_v119);
-                            let mc_v119: i64 = str_char_at(u64_max_v119, cmp_i_v119);
-                            if dc_v119 > mc_v119 { overflow_v119 = 1; cmp_i_v119 = 20; }
-                            else if dc_v119 < mc_v119 { cmp_i_v119 = 20; }
-                            else { cmp_i_v119 = cmp_i_v119 + 1; };
+                        let mut cmp_i: i64 = 0;
+                        while cmp_i < 20 {
+                            let dc_v119: i64 = str_char_at(dig_str, cmp_i);
+                            let mc_v119: i64 = str_char_at(u64_max_v119, cmp_i);
+                            if dc_v119 > mc_v119 { overflow_v119 = 1; cmp_i = 20; }
+                            else if dc_v119 < mc_v119 { cmp_i = 20; }
+                            else { cmp_i = cmp_i + 1; };
                         };
                     };
                     if overflow_v119 == 1 {
-                        panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str_v119, "` exceeds u64::MAX (18446744073709551615). Pre-v0.4.119 the value silently wrapped through the str_to_int accumulator and produced a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
+                        panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str, "` exceeds u64::MAX (18446744073709551615). Pre-v0.4.119 the value silently wrapped through the str_to_int accumulator and produced a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
                     };
                     // v0.6.68 (probe finding 2026-05-01-match-arm-literal-
                     // exceeds-i64-silently-dead): also halt on decimal
@@ -1036,12 +1036,12 @@ fn lex(src: str) -> Vec<i32> {
                     //   (c) use the canonical signed form:
                     //       `(-9223372036854775807) - 1` for i64::MIN,
                     //       which is already supported by v0.6.49.
-                    if overflow_v119 == 0 && dig_len_v119 == 19 {
+                    if overflow_v119 == 0 && dig_len == 19 {
                         let i64_max_v068: str = "9223372036854775807";
                         let mut over_i64_v068: i64 = 0;
                         let mut cmp_v068: i64 = 0;
                         while cmp_v068 < 19 {
-                            let dc_v068: i64 = str_char_at(dig_str_v119, cmp_v068);
+                            let dc_v068: i64 = str_char_at(dig_str, cmp_v068);
                             let mc_v068: i64 = str_char_at(i64_max_v068, cmp_v068);
                             if dc_v068 > mc_v068 { over_i64_v068 = 1; cmp_v068 = 19; }
                             else if dc_v068 < mc_v068 { cmp_v068 = 19; }
@@ -1080,21 +1080,21 @@ fn lex(src: str) -> Vec<i32> {
                             // is writing the canonical signed form,
                             // accept the literal.
                             if suf_v068_ok == 0 {
-                                let tcnt_v071: i64 = vec_len(tokens);
-                                if tcnt_v071 > 0 {
-                                    let prev_tok_v071: Vec<i32> = vec_get(tokens, tcnt_v071 - 1);
-                                    if tok_type(prev_tok_v071) == 21 {
+                                let tcnt: i64 = vec_len(tokens);
+                                if tcnt > 0 {
+                                    let prev_tok: Vec<i32> = vec_get(tokens, tcnt - 1);
+                                    if tok_type(prev_tok) == 21 {
                                         suf_v068_ok = 1;
                                     };
                                 };
                             };
                             if suf_v068_ok == 0 {
-                                panic(str_concat("error[NUM-021]: decimal literal `", str_concat(dig_str_v119, "` exceeds i64::MAX (9223372036854775807) and lacks an explicit unsigned suffix. Pre-v0.6.68 the value silently wrapped to a negative i64 bit pattern, producing the most-common failure mode `match x { <this> => ... }` where the arm never matches against an i64 scrutinee (silent dead arm). Workarounds: (a) add a `u64` suffix (`9223372036854775808u64`); (b) use the hex form (`0x8000000000000000`); (c) for i64::MIN specifically, use the canonical signed form `(-9223372036854775807) - 1` (already accepted as a const since v0.6.49).")));
+                                panic(str_concat("error[NUM-021]: decimal literal `", str_concat(dig_str, "` exceeds i64::MAX (9223372036854775807) and lacks an explicit unsigned suffix. Pre-v0.6.68 the value silently wrapped to a negative i64 bit pattern, producing the most-common failure mode `match x { <this> => ... }` where the arm never matches against an i64 scrutinee (silent dead arm). Workarounds: (a) add a `u64` suffix (`9223372036854775808u64`); (b) use the hex form (`0x8000000000000000`); (c) for i64::MIN specifically, use the canonical signed form `(-9223372036854775807) - 1` (already accepted as a const since v0.6.49).")));
                             };
                         };
                     };
                 };
-                let mut int_suffix_v110: i64 = 0;
+                let mut int_suffix: i64 = 0;
                 // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
                 if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
                     let suf_st: i64 = p;
@@ -1122,12 +1122,12 @@ fn lex(src: str) -> Vec<i32> {
                         // silent-drop path (F-012). Now: reject.
                         panic(str_concat("error[LEX-NUM-SUFFIX]: unknown integer-literal suffix `", str_concat(suf, str_concat("` at byte ", str_concat(str_from_int(suf_st), ". Recognized suffixes: i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize. Pre-fix the suffix was silently rewound and re-lexed as an identifier, dropping the user's typed-literal intent.")))));
                     };
-                    int_suffix_v110 = int_suffix_code(suf);
+                    int_suffix = int_suffix_code(suf);
                 };
-                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
-                let int_tok_pos_v110: i64 = tok_pos_encode_int_suffix(st, int_suffix_v110);
-                let mut int_tok_v110: Vec<i32> = tok_new(2, int_lit_value, int_tok_pos_v110);
-                tokens.push(int_tok_v110);
+                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str) };
+                let int_tok_pos: i64 = tok_pos_encode_int_suffix(st, int_suffix);
+                let mut int_tok: Vec<i32> = tok_new(2, int_lit_value, int_tok_pos);
+                tokens.push(int_tok);
                 // Lane 4 / F-022: an int literal immediately followed
                 // by an alphabetic byte (no `i`/`u` so the suffix branch
                 // didn't take) means the user wrote something like
@@ -1365,26 +1365,26 @@ fn lex(src: str) -> Vec<i32> {
                 // such as `<'a, 'b>` or ref types such as `&'a T` for
                 // malformed char literals just because a second lifetime
                 // apostrophe appears nearby.
-                let mut lifetime_like_v110: i64 = 0;
+                let mut lifetime_like: i64 = 0;
                 if p + 1 < slen {
                     let lt_c1_v110: i64 = str_char_at(src, p + 1);
-                    let lt_start_v110: i64 = if (lt_c1_v110 >= 97 && lt_c1_v110 <= 122) || (lt_c1_v110 >= 65 && lt_c1_v110 <= 90) || lt_c1_v110 == 95 { 1 } else { 0 };
-                    if lt_start_v110 == 1 {
-                        let mut lt_end_v110: i64 = p + 2;
-                        while lt_end_v110 < slen && (is_alnum(str_char_at(src, lt_end_v110)) == 1 || str_char_at(src, lt_end_v110) == 95) { lt_end_v110 = lt_end_v110 + 1; };
-                        if lt_end_v110 < slen {
-                            let after_lt_v110: i64 = str_char_at(src, lt_end_v110);
-                            if after_lt_v110 == 44 || after_lt_v110 == 62 || after_lt_v110 == 58 || after_lt_v110 == 43 || after_lt_v110 == 41 || after_lt_v110 == 123 || after_lt_v110 == 125 {
-                                lifetime_like_v110 = 1;
-                            } else if after_lt_v110 == 32 || after_lt_v110 == 9 || after_lt_v110 == 10 || after_lt_v110 == 13 {
-                                let mut ws_v110: i64 = lt_end_v110;
+                    let lt_start: i64 = if (lt_c1_v110 >= 97 && lt_c1_v110 <= 122) || (lt_c1_v110 >= 65 && lt_c1_v110 <= 90) || lt_c1_v110 == 95 { 1 } else { 0 };
+                    if lt_start == 1 {
+                        let mut lt_end: i64 = p + 2;
+                        while lt_end < slen && (is_alnum(str_char_at(src, lt_end)) == 1 || str_char_at(src, lt_end) == 95) { lt_end = lt_end + 1; };
+                        if lt_end < slen {
+                            let after_lt: i64 = str_char_at(src, lt_end);
+                            if after_lt == 44 || after_lt == 62 || after_lt == 58 || after_lt == 43 || after_lt == 41 || after_lt == 123 || after_lt == 125 {
+                                lifetime_like = 1;
+                            } else if after_lt == 32 || after_lt == 9 || after_lt == 10 || after_lt == 13 {
+                                let mut ws_v110: i64 = lt_end;
                                 while ws_v110 < slen {
                                     let wc_v110: i64 = str_char_at(src, ws_v110);
                                     if wc_v110 != 32 && wc_v110 != 9 && wc_v110 != 10 && wc_v110 != 13 { break; };
                                     ws_v110 = ws_v110 + 1;
                                 };
                                 if ws_v110 >= slen || str_char_at(src, ws_v110) != 39 {
-                                    lifetime_like_v110 = 1;
+                                    lifetime_like = 1;
                                 };
                             };
                         };
@@ -1400,7 +1400,7 @@ fn lex(src: str) -> Vec<i32> {
                     ap_chars = ap_chars + 1;
                     scan_ap = scan_ap + 1;
                 };
-                if lifetime_like_v110 == 0 && found_close_ap == 1 && ap_chars >= 2 {
+                if lifetime_like == 0 && found_close_ap == 1 && ap_chars >= 2 {
                     panic(str_concat("error[LEX-CHAR-MULTI]: multi-character literal at byte ", str_concat(str_from_int(st), str_concat(": `", str_concat(str_substring(src, st, scan_ap + 1), "`. A char literal must contain exactly one character. Use a string literal `\"...\"` for multi-character text, or split into separate char literals. Pre-fix this surfaced as the wrong-class \"loop labels not yet supported\" diagnostic.")))));
                 };
                 // T2.5 (v0.2.351) fallback: apostrophe → lifetime token.
@@ -1647,8 +1647,8 @@ fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             if pk(tokens, cp + 1) == 51 { cp = cp + 1; }
             else if pk(tokens, cp + 1) == 44 {
                 // Lane 4 / F-037: extra comma `h(1,, 2)` silent accept.
-                let v_args_byte_f037: i64 = tok_pos_at(tokens, cp + 1);
-                panic(str_concat("error[PARSE-ARGS-COMMA]: extra `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte_f037), ". Pre-fix `f(1,, 2)` silently dropped the missing argument expression. Remove the duplicate comma.")));
+                let v_args_byte: i64 = tok_pos_at(tokens, cp + 1);
+                panic(str_concat("error[PARSE-ARGS-COMMA]: extra `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte), ". Pre-fix `f(1,, 2)` silently dropped the missing argument expression. Remove the duplicate comma.")));
             }
             else {
                 r = parse_expr(tokens, cp + 1, pool); args.push(pr_val(r)); cp = pr_pos(r);
@@ -1813,7 +1813,7 @@ fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
 }
 
 #[manual_drop]
-fn halt_hrtb_not_supported_v718() -> i64 {
+fn halt_hrtb_not_supported() -> i64 {
     print("ERROR: higher-ranked trait bounds `for<'a> ...` are not yet supported in Nucleor. Workaround: replace the HRTB with a concrete fn-pointer type or a non-higher-ranked generic bound.");
     panic("nucleor: higher-ranked trait bounds `for<'a>` not yet supported (see ERROR diagnostic above)");
     return 0;
@@ -1851,21 +1851,21 @@ fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>
             continue;
         };
         cp = cp + 1; // past ':'
-        let mut lhs_known_v110: i64 = 0;
-        let lhs_gc_v110: i64 = vec_len(gparams);
-        let mut lhs_gi_v110: i64 = 0;
-        while lhs_gi_v110 < lhs_gc_v110 {
-            let lhs_entry_v110: str = vec_get(gparams, lhs_gi_v110);
-            if str_len(lhs_entry_v110) > 0 && str_char_at(lhs_entry_v110, 0) != 63
-               && str_char_at(lhs_entry_v110, 0) != 39
-               && str_eq(lhs_entry_v110, pname) == 1 {
-                lhs_known_v110 = 1;
-                lhs_gi_v110 = lhs_gc_v110;
+        let mut lhs_known: i64 = 0;
+        let lhs_gc: i64 = vec_len(gparams);
+        let mut lhs_gi: i64 = 0;
+        while lhs_gi < lhs_gc {
+            let lhs_entry: str = vec_get(gparams, lhs_gi);
+            if str_len(lhs_entry) > 0 && str_char_at(lhs_entry, 0) != 63
+               && str_char_at(lhs_entry, 0) != 39
+               && str_eq(lhs_entry, pname) == 1 {
+                lhs_known = 1;
+                lhs_gi = lhs_gc;
             } else {
-                lhs_gi_v110 = lhs_gi_v110 + 1;
+                lhs_gi = lhs_gi + 1;
             };
         };
-        if lhs_known_v110 == 0 {
+        if lhs_known == 0 {
             print(str_concat("error[TYP-008]: where-clause references unknown type parameter `", str_concat(pname, "`. The left-hand side of `where X: Trait` must name a type parameter declared by this item.")));
             diag_exit();
             panic(str_concat("nucleor: unknown where-clause type parameter `", str_concat(pname, "`")));
@@ -1876,7 +1876,7 @@ fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>
         // tokens (`+`, etc.) are skipped via the non-ident branch.
         while pk(tokens, cp) != 44 && pk(tokens, cp) != 52 && pk(tokens, cp) != 43 && pk(tokens, cp) != 0 {
             if pk(tokens, cp) == 56 {
-                halt_hrtb_not_supported_v718();
+                halt_hrtb_not_supported();
             };
             if pk(tokens, cp) == 1 {
                 let bname: str = pkv(tokens, cp);
@@ -2115,12 +2115,12 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
     // Nucleor's i64-everywhere ABI already passes by value.
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "ref") == 1 && pk(tokens, cp + 1) == 1 {
         let mut ref_form_v735: str = "ref";
-        let mut name_idx_v735: i64 = cp + 1;
+        let mut name_idx: i64 = cp + 1;
         if str_eq(pkv(tokens, cp + 1), "mut") == 1 && pk(tokens, cp + 2) == 1 {
             ref_form_v735 = "ref mut";
-            name_idx_v735 = cp + 2;
+            name_idx = cp + 2;
         };
-        let real_v735: str = pkv(tokens, name_idx_v735);
+        let real_v735: str = pkv(tokens, name_idx);
         print(str_concat("ERROR: top-level `", str_concat(ref_form_v735, str_concat("` binding mode in a `match` arm pattern (e.g. `match x { ", str_concat(ref_form_v735, str_concat(" ", str_concat(real_v735, " => ... }`)) is not yet supported in Nucleor. Pre-v0.7.35 surfaced as wrong-class `error[NR020]: expected '=>', got identifier`. Sister to v0.7.23 (`ref` inside variant pattern).")))))));
         print(str_concat("       Workaround: drop the `", str_concat(ref_form_v735, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `match x { ", str_concat(real_v735, " => ... }` has the same observable shape.")))));
         panic(str_concat("nucleor: top-level `", str_concat(ref_form_v735, "` binding mode in match arm not yet supported (see ERROR diagnostic above)")));
@@ -2275,9 +2275,9 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             // parser expected `)`. Sister to v0.7.22 MATCH-015 (bare negative
             // literal at outer pattern level). Workaround: use a guard.
             if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 2 {
-                let neg_lit_v724: i64 = pkv(tokens, cp + 1);
-                print(str_concat("ERROR: bare negative-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(-", str_concat(str_from_int(neg_lit_v724), ")`) is not yet supported in Nucleor. Pre-v0.7.24 this surfaced as wrong-class `error[NR020]: expected ')', got integer literal` because the variant-pattern parser swallowed `-` as the binding name. Sister to v0.7.22 MATCH-015 (bare negative literal at outer pattern level).")))));
-                print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == -", str_concat(str_from_int(neg_lit_v724), " => { ... } _ => { ... } }`.")))));
+                let neg_lit: i64 = pkv(tokens, cp + 1);
+                print(str_concat("ERROR: bare negative-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(-", str_concat(str_from_int(neg_lit), ")`) is not yet supported in Nucleor. Pre-v0.7.24 this surfaced as wrong-class `error[NR020]: expected ')', got integer literal` because the variant-pattern parser swallowed `-` as the binding name. Sister to v0.7.22 MATCH-015 (bare negative literal at outer pattern level).")))));
+                print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == -", str_concat(str_from_int(neg_lit), " => { ... } _ => { ... } }`.")))));
                 panic(str_concat("nucleor: bare negative-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
             };
             // v0.7.51 (CRITICAL — bare integer-literal payload inside a
@@ -2351,14 +2351,14 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                 // already, so `ref` is a no-op semantically — just drop it.
                 if str_eq(binding, "ref") == 1 && pk(tokens, cp) == 1 {
                     let mut ref_form: str = "ref";
-                    let mut next_cp_v723: i64 = cp;
+                    let mut next_cp: i64 = cp;
                     if str_eq(pkv(tokens, cp), "mut") == 1 && pk(tokens, cp + 1) == 1 {
                         ref_form = "ref mut";
-                        next_cp_v723 = cp + 1;
+                        next_cp = cp + 1;
                     };
-                    let real_binding_v723: str = pkv(tokens, next_cp_v723);
-                    print(str_concat("ERROR: `", str_concat(ref_form, str_concat("` binding mode inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(ref_form, str_concat(" ", str_concat(real_binding_v723, ")`) is not yet supported in Nucleor. Pre-v0.7.23 this surfaced as wrong-class `error[NR020]: expected ')', got identifier` because the pattern parser swallowed `ref` as the binding name.")))))))))));
-                    print(str_concat("       Workaround: drop the `", str_concat(ref_form, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `", str_concat(vname, str_concat("(", str_concat(real_binding_v723, ") => ...` has the same observable behavior.")))))));
+                    let real_binding: str = pkv(tokens, next_cp);
+                    print(str_concat("ERROR: `", str_concat(ref_form, str_concat("` binding mode inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(ref_form, str_concat(" ", str_concat(real_binding, ")`) is not yet supported in Nucleor. Pre-v0.7.23 this surfaced as wrong-class `error[NR020]: expected ')', got identifier` because the pattern parser swallowed `ref` as the binding name.")))))))))));
+                    print(str_concat("       Workaround: drop the `", str_concat(ref_form, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `", str_concat(vname, str_concat("(", str_concat(real_binding, ") => ...` has the same observable behavior.")))))));
                     panic(str_concat("nucleor: `", str_concat(ref_form, str_concat("` binding mode inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")))));
                 };
             };
@@ -2460,49 +2460,49 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // surface. Fall through to the v0.6.60 halt for any shape we
         // can't recognise so adopter code with an unsupported UFCS
         // shape still gets a clean diag with workaround pointer.
-        let mut ufcs_cp_v081: i64 = pos + 1;
-        let mut ufcs_ok_v081: i64 = 0;
-        let mut ufcs_type_v081: str = "";
-        let mut ufcs_method_v081: str = "";
-        let mut ufcs_args_pos_v081: i64 = 0 - 1;
-        if pk(tokens, ufcs_cp_v081) == 1 {
-            ufcs_type_v081 = pkv(tokens, ufcs_cp_v081);
-            ufcs_cp_v081 = ufcs_cp_v081 + 1;
-            if pk(tokens, ufcs_cp_v081) == 1 && str_eq(pkv(tokens, ufcs_cp_v081), "as") == 1 {
-                ufcs_cp_v081 = ufcs_cp_v081 + 1;
-                if pk(tokens, ufcs_cp_v081) == 1 {
-                    ufcs_cp_v081 = ufcs_cp_v081 + 1; // skip trait name (advisory under today's mangling)
-                    if pk(tokens, ufcs_cp_v081) == 32 {
-                        let mut ufcs_depth_v081: i64 = 1;
-                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
-                        while ufcs_cp_v081 < vec_len(tokens) && ufcs_depth_v081 > 0 {
-                            let ufcs_tt2_v081: i64 = pk(tokens, ufcs_cp_v081);
-                            if ufcs_tt2_v081 == 32 { ufcs_depth_v081 = ufcs_depth_v081 + 1; }
-                            else if ufcs_tt2_v081 == 33 { ufcs_depth_v081 = ufcs_depth_v081 - 1; };
-                            if ufcs_tt2_v081 == 0 { ufcs_depth_v081 = 0; };
-                            ufcs_cp_v081 = ufcs_cp_v081 + 1;
+        let mut ufcs_cp: i64 = pos + 1;
+        let mut ufcs_ok: i64 = 0;
+        let mut ufcs_type: str = "";
+        let mut ufcs_method: str = "";
+        let mut ufcs_args_pos: i64 = 0 - 1;
+        if pk(tokens, ufcs_cp) == 1 {
+            ufcs_type = pkv(tokens, ufcs_cp);
+            ufcs_cp = ufcs_cp + 1;
+            if pk(tokens, ufcs_cp) == 1 && str_eq(pkv(tokens, ufcs_cp), "as") == 1 {
+                ufcs_cp = ufcs_cp + 1;
+                if pk(tokens, ufcs_cp) == 1 {
+                    ufcs_cp = ufcs_cp + 1; // skip trait name (advisory under today's mangling)
+                    if pk(tokens, ufcs_cp) == 32 {
+                        let mut ufcs_depth: i64 = 1;
+                        ufcs_cp = ufcs_cp + 1;
+                        while ufcs_cp < vec_len(tokens) && ufcs_depth > 0 {
+                            let ufcs_tt2_v081: i64 = pk(tokens, ufcs_cp);
+                            if ufcs_tt2_v081 == 32 { ufcs_depth = ufcs_depth + 1; }
+                            else if ufcs_tt2_v081 == 33 { ufcs_depth = ufcs_depth - 1; };
+                            if ufcs_tt2_v081 == 0 { ufcs_depth = 0; };
+                            ufcs_cp = ufcs_cp + 1;
                         };
-                    } else if pk(tokens, ufcs_cp_v081) == 33 {
-                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                    } else if pk(tokens, ufcs_cp) == 33 {
+                        ufcs_cp = ufcs_cp + 1;
                     };
-                    if pk(tokens, ufcs_cp_v081) == 46 {
-                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
-                        if pk(tokens, ufcs_cp_v081) == 1 {
-                            ufcs_method_v081 = pkv(tokens, ufcs_cp_v081);
-                            ufcs_cp_v081 = ufcs_cp_v081 + 1;
-                            if pk(tokens, ufcs_cp_v081) == 50 {
-                                ufcs_args_pos_v081 = ufcs_cp_v081 + 1;
-                                ufcs_ok_v081 = 1;
+                    if pk(tokens, ufcs_cp) == 46 {
+                        ufcs_cp = ufcs_cp + 1;
+                        if pk(tokens, ufcs_cp) == 1 {
+                            ufcs_method = pkv(tokens, ufcs_cp);
+                            ufcs_cp = ufcs_cp + 1;
+                            if pk(tokens, ufcs_cp) == 50 {
+                                ufcs_args_pos = ufcs_cp + 1;
+                                ufcs_ok = 1;
                             };
                         };
                     };
                 };
             };
         };
-        if ufcs_ok_v081 == 1 {
-            let mut ufcs_ar_v081: Vec<i32> = parse_args(tokens, ufcs_args_pos_v081, pool);
-            let ufcs_mangled_v081: str = str_concat(ufcs_type_v081, str_concat("__", ufcs_method_v081));
-            return pr(pr_pos(ufcs_ar_v081), mk3(pool, 7, ufcs_mangled_v081, pr_val(ufcs_ar_v081)));
+        if ufcs_ok == 1 {
+            let mut ufcs_ar: Vec<i32> = parse_args(tokens, ufcs_args_pos, pool);
+            let ufcs_mangled: str = str_concat(ufcs_type, str_concat("__", ufcs_method));
+            return pr(pr_pos(ufcs_ar), mk3(pool, 7, ufcs_mangled, pr_val(ufcs_ar)));
         };
         print("ERROR: UFCS form `<Type as Trait>::method(args)` parsed but did not match the supported shape. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous.");
         panic("nucleor: UFCS expression form did not match supported shape (see ERROR diagnostic above)");
@@ -2535,10 +2535,10 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 cp = cp + 1;
             };
         };
-        let int_tok_v110: Vec<i32> = tok_at(tokens, pos);
-        let int_suffix_v110: i64 = tok_int_suffix_code(int_tok_v110);
-        let int_value_v110: i64 = tok_val(int_tok_v110);
-        if int_suffix_v110 != 0 { return pr(cp, mk3(pool, 1, int_value_v110, int_suffix_v110)); };
+        let int_tok: Vec<i32> = tok_at(tokens, pos);
+        let int_suffix: i64 = tok_int_suffix_code(int_tok);
+        let int_value_v110: i64 = tok_val(int_tok);
+        if int_suffix != 0 { return pr(cp, mk3(pool, 1, int_value_v110, int_suffix)); };
         return pr(cp, mk2(pool, 1, int_value_v110));
     };
     // f64 literal (token 70) — encoded as int_part*1000000 + frac_millionths
@@ -2696,25 +2696,25 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 let mut nr_v077: Vec<i32> = parse_expr(tokens, cp, pool);
                 cp = pr_pos(nr_v077);
                 cp = expect_tok(tokens, cp, 55);
-                let n_node_v077: i64 = pr_val(nr_v077);
-                let nk_v077: i64 = node_kind(pool, n_node_v077);
-                if nk_v077 != 1 {
+                let n_node: i64 = pr_val(nr_v077);
+                let nk: i64 = node_kind(pool, n_node);
+                if nk != 1 {
                     print("ERROR: `[VAL; N]` repeat-init only accepts a literal integer count today (parser-time expansion). Use `vec![VAL; N]` for a runtime-evaluated count — that form lowers to a runtime push-loop.");
                     panic("nucleor: non-literal repeat-count in `[VAL; N]`");
                 };
-                let n_val_v077: i64 = node_field(pool, n_node_v077, 1);
-                if n_val_v077 < 0 || n_val_v077 > 1024 {
+                let n_val: i64 = node_field(pool, n_node, 1);
+                if n_val < 0 || n_val > 1024 {
                     print("ERROR: `[VAL; N]` count must be in 0..=1024 (parser-time expansion bound). Pre-v0.6.77 this rejected with the wrong-class NR020. For larger or runtime-evaluated N use the `vec![VAL; N]` form (runtime loop).");
                     panic("nucleor: `[VAL; N]` count out of bounds");
                 };
-                let item_node_v077: i64 = vec_get(items, 0);
-                let mut rep_items_v077: Vec<i32> = Vec::new();
+                let item_node: i64 = vec_get(items, 0);
+                let mut rep_items: Vec<i32> = Vec::new();
                 let mut ri_v077: i64 = 0;
-                while ri_v077 < n_val_v077 {
-                    rep_items_v077.push(item_node_v077);
+                while ri_v077 < n_val {
+                    rep_items.push(item_node);
                     ri_v077 = ri_v077 + 1;
                 };
-                return pr(cp, mk2(pool, 47, mk_list(pool, rep_items_v077)));
+                return pr(cp, mk2(pool, 47, mk_list(pool, rep_items)));
             };
         };
         cp = expect_tok(tokens, cp, 55);
@@ -3122,13 +3122,13 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // parse_primary fails on the second `+`. Detect the `++`/`--`
     // shape after a primary and halt cleanly with `x = x + 1`
     // workaround pointer.
-    let node_kind_postfix_v110: i64 = node_kind(pool, node);
-    let node_lvalue_postfix_v110: i64 = if node_kind_postfix_v110 == 3 || node_kind_postfix_v110 == 9 || node_kind_postfix_v110 == 10 { 1 } else { 0 };
-    if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
+    let node_kind_postfix: i64 = node_kind(pool, node);
+    let node_lvalue_postfix: i64 = if node_kind_postfix == 3 || node_kind_postfix == 9 || node_kind_postfix == 10 { 1 } else { 0 };
+    if node_lvalue_postfix == 1 && pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
         print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context).");
         panic("nucleor: `x++` post-increment not supported (see ERROR diagnostic above)");
     };
-    if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
+    if node_lvalue_postfix == 1 && pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
         print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context).");
         panic("nucleor: `x--` post-decrement not supported (see ERROR diagnostic above)");
     };
@@ -3228,10 +3228,10 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // name shape) and halt with a clean diag pointing at the
             // workaround (omit the `[N]` from the call site — the
             // default erases anyway in RFC-0034 first-pass).
-            let idx_end_v063: i64 = pr_pos(ir);
-            let base_kind_v063: i64 = node_kind(pool, node);
-            cp = expect_tok(tokens, idx_end_v063, 55); node = mk3(pool, 10, node, pr_val(ir));
-            if pk(tokens, cp) == 50 && base_kind_v063 == 3 {
+            let idx_end: i64 = pr_pos(ir);
+            let base_kind: i64 = node_kind(pool, node);
+            cp = expect_tok(tokens, idx_end, 55); node = mk3(pool, 10, node, pr_val(ir));
+            if pk(tokens, cp) == 50 && base_kind == 3 {
                 print("ERROR: RFC-0034 explicit compile-time argument call form `name[ARGS](args)` is not yet supported in Nucleor's first-pass `[]` parser. Workaround: omit the `[N]` from the call site — RFC-0034 first-pass erases the CT-args at lower-time, so `f(args)` is observably equivalent to `f[N](args)` for the unspecialized version.");
                 panic("nucleor: RFC-0034 explicit CT-arg call form not yet supported (see ERROR diagnostic above)");
             };
@@ -3490,7 +3490,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         panic(str_concat("error[PARSE-TYPE-001]: expected a type, found ", str_concat(v_what_pt001, str_concat(" at byte ", str_concat(str_from_int(v_byte_pt001), ". Pre-fix this CRASHED the compiler with SIGSEGV on inputs like `let x: 1 + 1 = 5;` because the type-position parser dereferenced the token's value as a str pointer when the token actually carried an integer. Type positions accept type names (`i64`, `Vec<T>`, struct/enum names, etc.), not arbitrary expressions; if you meant to assign an expression, drop the type annotation: `let x: i64 = 1 + 1;` (with a real type) or `let x = 1 + 1;` (let inference fill in the type).")))));
     };
     if pk(tokens, pos) == 56 {
-        halt_hrtb_not_supported_v718();
+        halt_hrtb_not_supported();
     };
     if pk(tokens, pos) == 82 {
         let mut cp: i64 = pos + 1;
@@ -3647,33 +3647,33 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print(str_concat("ERROR: Rust path type `", str_concat(v0737_ns, "::<rest>` in type-annotation position is not yet supported in Nucleor. Workaround: drop the namespace prefix and use the unqualified Nucleor type name directly — `std::collections::HashMap<K,V>` -> `HashMap<K,V>`, `std::string::String` -> `String` (or `str` for literals), `std::vec::Vec<T>` -> `Vec<T>`, `core::option::Option<T>` -> `Option<T>`, `core::result::Result<T,E>` -> `Result<T,E>`.")));
         panic(str_concat("nucleor: path type `", str_concat(v0737_ns, "::<rest>` not supported in type position (see ERROR diagnostic above)")));
     };
-    let mut fixed_type_name_v091: i64 = 0;
-    if str_eq(name, "fixed") == 1 { fixed_type_name_v091 = 1; };
-    if str_eq(name, "ufixed") == 1 { fixed_type_name_v091 = 1; };
-    if fixed_type_name_v091 == 1 && pk(tokens, p2) == 32 {
+    let mut fixed_type_name: i64 = 0;
+    if str_eq(name, "fixed") == 1 { fixed_type_name = 1; };
+    if str_eq(name, "ufixed") == 1 { fixed_type_name = 1; };
+    if fixed_type_name == 1 && pk(tokens, p2) == 32 {
         let mut cp: i64 = p2 + 1;
         let mut depth: i64 = 1;
-        let mut inner_fixed_v091: str = "";
+        let mut inner_fixed: str = "";
         while depth > 0 && pk(tokens, cp) != 0 {
-            let tt_fixed_v091: i64 = pk(tokens, cp);
-            if tt_fixed_v091 == 32 {
+            let tt_fixed: i64 = pk(tokens, cp);
+            if tt_fixed == 32 {
                 depth = depth + 1;
-                if depth > 1 { inner_fixed_v091 = str_concat(inner_fixed_v091, "<"); };
+                if depth > 1 { inner_fixed = str_concat(inner_fixed, "<"); };
             }
-            else if tt_fixed_v091 == 33 {
+            else if tt_fixed == 33 {
                 depth = depth - 1;
-                if depth > 0 { inner_fixed_v091 = str_concat(inner_fixed_v091, ">"); };
+                if depth > 0 { inner_fixed = str_concat(inner_fixed, ">"); };
             }
-            else if tt_fixed_v091 == 44 {
-                inner_fixed_v091 = str_concat(inner_fixed_v091, ", ");
+            else if tt_fixed == 44 {
+                inner_fixed = str_concat(inner_fixed, ", ");
             } else {
-                let mut part_fixed_v091: str = pkv(tokens, cp);
-                if tt_fixed_v091 == 2 { part_fixed_v091 = str_from_int(pkv(tokens, cp)); };
-                inner_fixed_v091 = str_concat(inner_fixed_v091, part_fixed_v091);
+                let mut part_fixed: str = pkv(tokens, cp);
+                if tt_fixed == 2 { part_fixed = str_from_int(pkv(tokens, cp)); };
+                inner_fixed = str_concat(inner_fixed, part_fixed);
             };
             cp = cp + 1;
         };
-        return pr(cp, str_concat(name, str_concat("<", str_concat(inner_fixed_v091, ">"))));
+        return pr(cp, str_concat(name, str_concat("<", str_concat(inner_fixed, ">"))));
     };
     if str_eq(name, "unit") == 1 && pk(tokens, p2) == 32 {
         let mut cp: i64 = p2 + 1;
@@ -4395,11 +4395,11 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // — Nucleor's i64-everywhere ABI passes everything by value, so
     // `for x in &v` already binds the same observable shape.
     if pk(tokens, pos) == 82 {
-        let mut ref_form_v727: str = "&";
-        if pk(tokens, pos + 1) == 12 { ref_form_v727 = "&mut "; };
-        print(str_concat("ERROR: ref-pattern `", str_concat(ref_form_v727, str_concat("<binding>` in a `for` loop binding position (e.g. `for ", str_concat(ref_form_v727, "x in &v { ... }`) is not yet supported in Nucleor. Pre-v0.7.27 surfaced as wrong-class `error[NR020]: expected token 57 (in), got identifier` because parse_for_stmt tried to read `&` as the binding name.")))));
-        print(str_concat("       Workaround: drop the `", str_concat(ref_form_v727, "` — Nucleor's i64-everywhere ABI passes everything by value, so `for x in &v { ... }` already binds the same observable shape.")));
-        panic(str_concat("nucleor: ref-pattern `", str_concat(ref_form_v727, "<binding>` in `for` head not yet supported (see ERROR diagnostic above)")));
+        let mut ref_form: str = "&";
+        if pk(tokens, pos + 1) == 12 { ref_form = "&mut "; };
+        print(str_concat("ERROR: ref-pattern `", str_concat(ref_form, str_concat("<binding>` in a `for` loop binding position (e.g. `for ", str_concat(ref_form, "x in &v { ... }`) is not yet supported in Nucleor. Pre-v0.7.27 surfaced as wrong-class `error[NR020]: expected token 57 (in), got identifier` because parse_for_stmt tried to read `&` as the binding name.")))));
+        print(str_concat("       Workaround: drop the `", str_concat(ref_form, "` — Nucleor's i64-everywhere ABI passes everything by value, so `for x in &v { ... }` already binds the same observable shape.")));
+        panic(str_concat("nucleor: ref-pattern `", str_concat(ref_form, "<binding>` in `for` head not yet supported (see ERROR diagnostic above)")));
     };
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 57); // expect 'in'
@@ -4700,22 +4700,22 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if assign_tok == 130 || assign_tok == 131 {
         cp = cp + 1;
         if pk(tokens, cp) == 43 { cp = cp + 1; };
-        let inc_op_v846: i64 = if assign_tok == 130 { 20 } else { 21 };
+        let inc_op: i64 = if assign_tok == 130 { 20 } else { 21 };
         let one_v846: i64 = mk2(pool, 1, 1);
-        let rhs_v846: i64 = mk4(pool, 4, inc_op_v846, pr_val(er), one_v846);
+        let rhs_v846: i64 = mk4(pool, 4, inc_op, pr_val(er), one_v846);
         return pr(cp, mk3(pool, 21, pr_val(er), rhs_v846));
     };
-    let mut had_semi_v060: i64 = 0;
-    if pk(tokens, cp) == 43 { cp = cp + 1; had_semi_v060 = 1; }
+    let mut had_semi: i64 = 0;
+    if pk(tokens, cp) == 43 { cp = cp + 1; had_semi = 1; }
     else if pk(tokens, cp) != 53 && pk(tokens, cp) != 51 && pk(tokens, cp) != 55 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
-        let stmt_expr_kind_v110: i64 = node_kind(pool, pr_val(er));
-        let next_stmt_tt_v110: i64 = pk(tokens, cp);
-        let next_starts_expr_v110: i64 = if next_stmt_tt_v110 == 1 || next_stmt_tt_v110 == 2 || next_stmt_tt_v110 == 3 || next_stmt_tt_v110 == 50 { 1 } else { 0 };
-        if (stmt_expr_kind_v110 == 1 || stmt_expr_kind_v110 == 2 || stmt_expr_kind_v110 == 3 || stmt_expr_kind_v110 == 71 || stmt_expr_kind_v110 == 72 || stmt_expr_kind_v110 == 73) && next_starts_expr_v110 == 1 {
-            panic(str_concat("error[PARSE-STMT-SEMI]: expected `;` between statements at byte ", str_concat(str_from_int(tok_pos_at(tokens, cp)), str_concat(", got ", tok_name(next_stmt_tt_v110)))));
+        let stmt_expr_kind: i64 = node_kind(pool, pr_val(er));
+        let next_stmt_tt: i64 = pk(tokens, cp);
+        let next_starts_expr: i64 = if next_stmt_tt == 1 || next_stmt_tt == 2 || next_stmt_tt == 3 || next_stmt_tt == 50 { 1 } else { 0 };
+        if (stmt_expr_kind == 1 || stmt_expr_kind == 2 || stmt_expr_kind == 3 || stmt_expr_kind == 71 || stmt_expr_kind == 72 || stmt_expr_kind == 73) && next_starts_expr == 1 {
+            panic(str_concat("error[PARSE-STMT-SEMI]: expected `;` between statements at byte ", str_concat(str_from_int(tok_pos_at(tokens, cp)), str_concat(", got ", tok_name(next_stmt_tt)))));
         };
     };
-    return pr(cp, mk3(pool, 25, pr_val(er), had_semi_v060));
+    return pr(cp, mk3(pool, 25, pr_val(er), had_semi));
 }
 
 #[manual_drop]
@@ -4736,11 +4736,11 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // so where-clause bounds can splice ?Trait markers into the same list
     // that lower_fn reads — closes the where-clause sister gap of v0.5.31
     // Track Y. mk_list at the end of the fn just before the return.
-    let mut gparams_vec_v060: Vec<i32> = Vec::new();
+    let mut gparams_vec: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
         cp = pr_pos(gr);
-        gparams_vec_v060 = pr_val(gr);
+        gparams_vec = pr_val(gr);
     };
     if pk(tokens, cp) == 54 { cp = skip_compile_time_params(tokens, cp); };
     cp = expect_tok(tokens, cp, 50); // (
@@ -4867,10 +4867,10 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = skip_effect_clause(tokens, cp);
     // parse_where_clause_into_gparams replaces the old
     // skip_where_clause for parse_fn_decl. Extracts `T: Trait` bounds
-    // and splices them into gparams_vec_v060 so lower_fn captures them
+    // and splices them into gparams_vec so lower_fn captures them
     // exactly like inline `<T: Trait>` bounds. Closes the where-clause
     // sister gap of Track Y (v0.5.31).
-    cp = parse_where_clause_into_gparams(tokens, cp, gparams_vec_v060);
+    cp = parse_where_clause_into_gparams(tokens, cp, gparams_vec);
     // v0.7.52 (defensive halt — Rust forward declaration `fn h() -> i64;`
     // at module scope without a body). Pre-fix this surfaced as wrong-
     // class `error[NR020]: expected '{', got ';'`. In Rust, a body-less
@@ -4888,7 +4888,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(br), 53);
-    let gparams: i64 = mk_list(pool, gparams_vec_v060);
+    let gparams: i64 = mk_list(pool, gparams_vec);
     return pr(cp, mk6(pool, 30, name, mk_list(pool, params), rtype, pr_val(br), gparams));
 }
 
@@ -5015,7 +5015,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut fields: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 50 {
         cp = cp + 1; // past `(`
-        let mut tup_idx_v073: i64 = 0;
+        let mut tup_idx: i64 = 0;
         while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
             if vec_len(fields) > 0 {
                 cp = expect_tok(tokens, cp, 44);
@@ -5023,11 +5023,11 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             // Optional `pub` field-vis qualifier (matching Rust shape).
             if pk(tokens, cp) == 72 { cp = cp + 1; };
-            let mut tup_tr_v073: Vec<i32> = parse_type(tokens, cp);
-            cp = pr_pos(tup_tr_v073);
-            let synth_name_v073: str = str_concat("__", str_from_int(tup_idx_v073));
-            fields.push(mk3(pool, 41, synth_name_v073, pr_val(tup_tr_v073)));
-            tup_idx_v073 = tup_idx_v073 + 1;
+            let mut tup_tr: Vec<i32> = parse_type(tokens, cp);
+            cp = pr_pos(tup_tr);
+            let synth_name_v073: str = str_concat("__", str_from_int(tup_idx));
+            fields.push(mk3(pool, 41, synth_name_v073, pr_val(tup_tr)));
+            tup_idx = tup_idx + 1;
         };
         cp = expect_tok(tokens, cp, 51); // past `)`
         // Tuple structs end with `;`. Optional — accept brace-form
@@ -5244,17 +5244,17 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // separate. Same for data variants `enum E { Foo(i64),
         // Foo(str) }`. Mirror Rust E0428 ("the name `A` is defined
         // multiple times") at decl-time.
-        let mut dup_v_v062: i64 = 0;
-        while dup_v_v062 < vec_len(variants) {
-            let prior_var_v062: i64 = vec_get(variants, dup_v_v062);
-            let prior_vname_v062: str = node_field(pool, prior_var_v062, 1);
-            if str_eq(prior_vname_v062, vname) == 1 {
+        let mut dup_v: i64 = 0;
+        while dup_v < vec_len(variants) {
+            let prior_var: i64 = vec_get(variants, dup_v);
+            let prior_vname: str = node_field(pool, prior_var, 1);
+            if str_eq(prior_vname, vname) == 1 {
                 print(str_concat("error[TYP-040]: duplicate enum variant `", str_concat(vname, str_concat("` in `enum ", str_concat(name, "` (Rust E0428)."))))));
                 print("  Pre-v0.6.27 Nucleor silently kept duplicate variants distinct, so `match` saw the enum as having more variants than the source written suggested (MATCH-001 fired with the wrong arm-count). Variant names must be unique within an enum.");
                 print(str_concat("  Workaround: rename or remove the duplicate `", str_concat(vname, "`. If both shapes are needed (e.g. `Foo(i64)` and `Foo(str)`), give them distinct names (`FooInt`, `FooStr`) — Nucleor doesn't yet support trait-style overloaded variants.")));
                 panic(str_concat("duplicate enum variant: ", str_concat(name, str_concat("::", vname))));
             };
-            dup_v_v062 = dup_v_v062 + 1;
+            dup_v = dup_v + 1;
         };
         variants.push(mk3(pool, 37, vname, mk_list(pool, ptypes)));
     };
@@ -5595,8 +5595,8 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
             } else if pk(tokens, cp) == 53 {
                 // closing brace — allow trailing-comma-omitted form.
             } else {
-                let v_arm_byte_f036: i64 = tok_pos_at(tokens, cp);
-                panic(str_concat("error[PARSE-MATCH-COMMA]: missing `,` between match arms at byte ", str_concat(str_from_int(v_arm_byte_f036), str_concat(" — got ", str_concat(tok_name(pk(tokens, cp)), ". Match arms must be comma-separated (`pat => body, pat => body`). Pre-fix the missing comma was silently accepted, masking adopter typos.")))));
+                let v_arm_byte: i64 = tok_pos_at(tokens, cp);
+                panic(str_concat("error[PARSE-MATCH-COMMA]: missing `,` between match arms at byte ", str_concat(str_from_int(v_arm_byte), str_concat(" — got ", str_concat(tok_name(pk(tokens, cp)), ". Match arms must be comma-separated (`pat => body, pat => body`). Pre-fix the missing comma was silently accepted, masking adopter typos.")))));
             };
         };
         if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
@@ -10546,25 +10546,25 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
                     // doesn't apply (the names are forced by the trait
                     // signatures). Detect the `Type__method` shape and
                     // emit a UFCS-disambiguation diag instead.
-                    let mut dunder_pos_v060: i64 = 0 - 1;
+                    let mut dunder_pos: i64 = 0 - 1;
                     let fnlen_v060: i64 = str_len(fn_name);
-                    let mut sii_v060: i64 = 0;
-                    while sii_v060 < fnlen_v060 - 1 {
-                        if str_char_at(fn_name, sii_v060) == 95 && str_char_at(fn_name, sii_v060 + 1) == 95 {
-                            dunder_pos_v060 = sii_v060;
-                            sii_v060 = fnlen_v060;
+                    let mut sii: i64 = 0;
+                    while sii < fnlen_v060 - 1 {
+                        if str_char_at(fn_name, sii) == 95 && str_char_at(fn_name, sii + 1) == 95 {
+                            dunder_pos = sii;
+                            sii = fnlen_v060;
                         } else {
-                            sii_v060 = sii_v060 + 1;
+                            sii = sii + 1;
                         };
                     };
-                    let looks_like_method_v060: i64 = if dunder_pos_v060 > 0 && dunder_pos_v060 < fnlen_v060 - 2 { 1 } else { 0 };
-                    let first_char_upper_v060: i64 = if fnlen_v060 > 0 {
+                    let looks_like_method: i64 = if dunder_pos > 0 && dunder_pos < fnlen_v060 - 2 { 1 } else { 0 };
+                    let first_char_upper: i64 = if fnlen_v060 > 0 {
                         let fc_v060: i64 = str_char_at(fn_name, 0);
                         if fc_v060 >= 65 && fc_v060 <= 90 { 1 } else { 0 }
                     } else { 0 };
-                    if looks_like_method_v060 == 1 && first_char_upper_v060 == 1 {
-                        let type_name_v060: str = str_substring(fn_name, 0, dunder_pos_v060);
-                        let method_name_v060: str = str_substring(fn_name, dunder_pos_v060 + 2, fnlen_v060);
+                    if looks_like_method == 1 && first_char_upper == 1 {
+                        let type_name_v060: str = str_substring(fn_name, 0, dunder_pos);
+                        let method_name_v060: str = str_substring(fn_name, dunder_pos + 2, fnlen_v060);
                         // Lane 1 audit fix (2026-05-08) — partial close
                         // of F-019. Pre-fix the original message was
                         // "ERROR: ambiguous method ..." with no
@@ -15957,15 +15957,15 @@ fn validate_isr_prio(diags: Vec<i32>, fn_name: str, attr_text: str, line: i64, c
     let mut prio_at: i64 = 0 - 1;
     while q + 4 <= alen {
         if str_eq_at(attr_text, q, "prio") == 1 {
-            let pre_ok_v062: i64 = if q == 0 { 0 } else {
+            let pre_ok: i64 = if q == 0 { 0 } else {
                 let pc_v062: i64 = str_char_at(attr_text, q - 1);
                 if pc_v062 == 40 || pc_v062 == 44 || is_ws(pc_v062) == 1 { 1 } else { 0 }
             };
-            let post_ok_v062: i64 = if q + 4 >= alen { 1 } else {
+            let post_ok: i64 = if q + 4 >= alen { 1 } else {
                 let nc_v062: i64 = str_char_at(attr_text, q + 4);
                 if nc_v062 == 61 || nc_v062 == 44 || nc_v062 == 41 || is_ws(nc_v062) == 1 { 1 } else { 0 }
             };
-            if pre_ok_v062 == 1 && post_ok_v062 == 1 { prio_at = q; q = alen; }
+            if pre_ok == 1 && post_ok == 1 { prio_at = q; q = alen; }
             else { q = q + 1; };
         } else { q = q + 1; };
     };
@@ -15986,22 +15986,22 @@ fn validate_isr_prio(diags: Vec<i32>, fn_name: str, attr_text: str, line: i64, c
     r = r + 1;
     while r < alen && is_ws(str_char_at(attr_text, r)) == 1 { r = r + 1; };
     if r >= alen { return diags; };
-    let firstc_v062: i64 = str_char_at(attr_text, r);
+    let firstc: i64 = str_char_at(attr_text, r);
     // Gap (c) — string literal.
-    if firstc_v062 == 34 {
+    if firstc == 34 {
         diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = \"...\")]` rejected: prio must be a non-negative integer literal, not a string. Pre-v0.6.32 the string was silently ignored.", fn_name, line, col, "");
         return diags;
     };
     // Gap (b) — negative integer.
-    if firstc_v062 == 45 {
+    if firstc == 45 {
         diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = -N)]` rejected: prio must be NON-NEGATIVE (NVIC priorities are unsigned 0..255; PLIC unsigned 1..7). Pre-v0.6.32 negative integers were silently accepted with undefined effect on the target.", fn_name, line, col, "");
         return diags;
     };
     // Verify rest of the value up to `,)` or ws is all digits.
     while r < alen {
-        let vc_v062: i64 = str_char_at(attr_text, r);
-        if vc_v062 == 44 || vc_v062 == 41 || is_ws(vc_v062) == 1 { r = alen; }
-        else if vc_v062 < 48 || vc_v062 > 57 {
+        let vc: i64 = str_char_at(attr_text, r);
+        if vc == 44 || vc == 41 || is_ws(vc) == 1 { r = alen; }
+        else if vc < 48 || vc > 57 {
             diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = ...)]` rejected: prio must be a plain non-negative integer literal (e.g. `prio = 3`). Pre-v0.6.32 non-digit values were silently accepted.", fn_name, line, col, "");
             return diags;
         }
@@ -23318,11 +23318,11 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let f_param: i64 = list_get(pool, s_flist, f_idx);
                     let f_type: str = node_field(pool, f_param, 2);
                     if val_kind == 3 {
-                        let val_name_v840: str = node_field(pool, val_nid, 1);
-                        let val_type_v840: str = own_get_type(own, val_name_v840);
-                        if str_len(val_type_v840) > 0 && frame_mismatch_visible(f_type, val_type_v840) == 1 {
-                            let f_action_struct_v840: str = str_concat("cannot initialize field '", str_concat(struct_name, str_concat(".", str_concat(fname, "'"))));
-                            diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "FRAME-001", frame_mismatch_diag_message(f_action_struct_v840, f_type, val_type_v840), fn_name, "");
+                        let val_name: str = node_field(pool, val_nid, 1);
+                        let val_type: str = own_get_type(own, val_name);
+                        if str_len(val_type) > 0 && frame_mismatch_visible(f_type, val_type) == 1 {
+                            let f_action_struct: str = str_concat("cannot initialize field '", str_concat(struct_name, str_concat(".", str_concat(fname, "'"))));
+                            diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "FRAME-001", frame_mismatch_diag_message(f_action_struct, f_type, val_type), fn_name, "");
                             warns = warns + 1;
                         };
                     };
@@ -23434,21 +23434,21 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // `true => ...` as `__wild` with binding="true" (silently
         // matches ANY bool, returns the body for ALL inputs —
         // `match false { true => 1 }` returns 1).
-        let mut bool_arm_v134: i64 = 0;
-        let mut chk_v134: i64 = 0;
-        while chk_v134 < ac_e {
-            let arm_v134: i64 = list_get(pool, arms_e, chk_v134);
-            let arm_n_v134: str = node_field(pool, arm_v134, 1);
-            let arm_b_v134: str = node_field(pool, arm_v134, 3);
-            if str_eq(arm_n_v134, "__wild") == 1
-                && (str_eq(arm_b_v134, "true") == 1 || str_eq(arm_b_v134, "false") == 1) {
-                bool_arm_v134 = 1;
+        let mut bool_arm: i64 = 0;
+        let mut chk: i64 = 0;
+        while chk < ac_e {
+            let arm_v134: i64 = list_get(pool, arms_e, chk);
+            let arm_n: str = node_field(pool, arm_v134, 1);
+            let arm_b: str = node_field(pool, arm_v134, 3);
+            if str_eq(arm_n, "__wild") == 1
+                && (str_eq(arm_b, "true") == 1 || str_eq(arm_b, "false") == 1) {
+                bool_arm = 1;
             };
-            chk_v134 = chk_v134 + 1;
+            chk = chk + 1;
         };
-        if bool_arm_v134 == 1 {
-            let msg_b_v134: str = "bool literal arm in `match` (`true => ...` or `false => ...`) is parsed as a wildcard binding pre-v0.4.134, not as a value comparison — `match b { true => 1 }` matches ANY bool and silently returns 1 even for b=false. Use `if cond { ... } else { ... }` for two-way bool branching, or convert the bool to i64 (`match b as i64 { 1 => ..., 0 => ..., _ => ... }`).";
-            match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", msg_b_v134, fn_name);
+        if bool_arm == 1 {
+            let msg_b: str = "bool literal arm in `match` (`true => ...` or `false => ...`) is parsed as a wildcard binding pre-v0.4.134, not as a value comparison — `match b { true => 1 }` matches ANY bool and silently returns 1 even for b=false. Use `if cond { ... } else { ... }` for two-way bool branching, or convert the bool to i64 (`match b as i64 { 1 => ..., 0 => ..., _ => ... }`).";
+            match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", msg_b, fn_name);
             warns = warns + 1;
         };
         return warns;
@@ -24381,14 +24381,14 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     // i64 storage, but the type checker must preserve Q-format
     // identity. Permit raw integer storage to initialize a fixed value,
     // but do not let fixed widths collapse into each other or into i64.
-    let exp_fixed_v091: i64 = type_is_fixed_semantic(expected);
-    let act_fixed_v091: i64 = type_is_fixed_semantic(actual);
-    if exp_fixed_v091 == 1 || act_fixed_v091 == 1 {
-        if exp_fixed_v091 == 1 && act_fixed_v091 == 1 {
+    let exp_fixed: i64 = type_is_fixed_semantic(expected);
+    let act_fixed: i64 = type_is_fixed_semantic(actual);
+    if exp_fixed == 1 || act_fixed == 1 {
+        if exp_fixed == 1 && act_fixed == 1 {
             if str_eq(fixed_type_canonical(expected), fixed_type_canonical(actual)) == 1 { return 1; };
             return 0;
         };
-        if exp_fixed_v091 == 1 && fixed_accepts_integer_storage(actual) == 1 { return 1; };
+        if exp_fixed == 1 && fixed_accepts_integer_storage(actual) == 1 { return 1; };
         return 0;
     };
     // v0.6.75 RFC V1.2 (probe finding 2026-05-01-box-new-literal-doesnt-
@@ -24417,18 +24417,18 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         };
     };
     if box_v075_match == 1 {
-        let bearg_v075: str = type_first_arg(expected);
-        let baarg_v075: str = type_first_arg(actual);
-        if str_len(bearg_v075) > 0 && str_len(baarg_v075) > 0 {
-            let be_dyn_v075: str = strip_spaces(bearg_v075);
-            let ba_dyn_v075: str = strip_spaces(baarg_v075);
-            if str_starts_with(be_dyn_v075, "dyn ") == 1 || str_starts_with(ba_dyn_v075, "dyn ") == 1 {
+        let bearg: str = type_first_arg(expected);
+        let baarg: str = type_first_arg(actual);
+        if str_len(bearg) > 0 && str_len(baarg) > 0 {
+            let be_dyn: str = strip_spaces(bearg);
+            let ba_dyn: str = strip_spaces(baarg);
+            if str_starts_with(be_dyn, "dyn ") == 1 || str_starts_with(ba_dyn, "dyn ") == 1 {
                 return 0;
             };
-            if types_compatible(bearg_v075, baarg_v075) == 1 { return 1; };
-            if str_eq(baarg_v075, "i32") == 1 {
-                if str_eq(bearg_v075, "i64") == 1 || str_eq(bearg_v075, "i16") == 1 || str_eq(bearg_v075, "i8") == 1 { return 1; };
-                if str_eq(bearg_v075, "isize") == 1 { return 1; };
+            if types_compatible(bearg, baarg) == 1 { return 1; };
+            if str_eq(baarg, "i32") == 1 {
+                if str_eq(bearg, "i64") == 1 || str_eq(bearg, "i16") == 1 || str_eq(bearg, "i8") == 1 { return 1; };
+                if str_eq(bearg, "isize") == 1 { return 1; };
             };
         };
     };
@@ -25795,26 +25795,26 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
         };
         if str_eq(target_type, "char") == 1 {
-            let ch_const_v084: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
-            if const_i64_overflow(ch_const_v084) == 0 && vec_get(ch_const_v084, 0) == 1 {
-                let ch_cp_v084: i64 = vec_get(ch_const_v084, 1);
-                let mut ch_bad_v084: i64 = 0;
-                if ch_cp_v084 < 0 { ch_bad_v084 = 1; };
-                if ch_cp_v084 > 1114111 { ch_bad_v084 = 1; };
-                if ch_cp_v084 >= 55296 && ch_cp_v084 <= 57343 { ch_bad_v084 = 1; };
-                if ch_bad_v084 == 1 {
-                    let ch_msg_v084: str = str_concat("`as char` codepoint ", str_concat(str_from_int(ch_cp_v084), " is not a valid Unicode scalar value. Valid range is 0..0x10FFFF excluding surrogate range 0xD800..0xDFFF. Pre-fix, this cast silently accepted invalid codepoints and could produce invalid UTF-8 at char_to_str use sites."));
-                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_msg_v084, fn_name, "");
+            let ch_const: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
+            if const_i64_overflow(ch_const) == 0 && vec_get(ch_const, 0) == 1 {
+                let ch_cp: i64 = vec_get(ch_const, 1);
+                let mut ch_bad: i64 = 0;
+                if ch_cp < 0 { ch_bad = 1; };
+                if ch_cp > 1114111 { ch_bad = 1; };
+                if ch_cp >= 55296 && ch_cp <= 57343 { ch_bad = 1; };
+                if ch_bad == 1 {
+                    let ch_msg: str = str_concat("`as char` codepoint ", str_concat(str_from_int(ch_cp), " is not a valid Unicode scalar value. Valid range is 0..0x10FFFF excluding surrogate range 0xD800..0xDFFF. Pre-fix, this cast silently accepted invalid codepoints and could produce invalid UTF-8 at char_to_str use sites."));
+                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_msg, fn_name, "");
                 };
             } else {
-                let ch_src_v0845: i64 = node_field(pool, nid, 1);
-                let mut ch_guarded_v0845: i64 = 0;
-                if node_kind(pool, ch_src_v0845) == 3 {
-                    if tenv_has_char_guard(env, node_field(pool, ch_src_v0845, 1)) == 1 { ch_guarded_v0845 = 1; };
+                let ch_src: i64 = node_field(pool, nid, 1);
+                let mut ch_guarded: i64 = 0;
+                if node_kind(pool, ch_src) == 3 {
+                    if tenv_has_char_guard(env, node_field(pool, ch_src, 1)) == 1 { ch_guarded = 1; };
                 };
-                if ch_guarded_v0845 == 0 {
-                    let ch_dyn_msg_v0845: str = "`as char` on a non-constant value is not proven to be a valid Unicode scalar value. Guard the exact binding with `v >= 0 && v < 0xD800` or another recognized scalar-range proof before casting. Pre-fix, dynamic casts could silently produce invalid UTF-8 at char_to_str use sites.";
-                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_dyn_msg_v0845, fn_name, "");
+                if ch_guarded == 0 {
+                    let ch_dyn_msg: str = "`as char` on a non-constant value is not proven to be a valid Unicode scalar value. Guard the exact binding with `v >= 0 && v < 0xD800` or another recognized scalar-range proof before casting. Pre-fix, dynamic casts could silently produce invalid UTF-8 at char_to_str use sites.";
+                    diag_add_at_or_scan(diags, source, pool, nid, "as", "error", "type", "TYP-026", ch_dyn_msg, fn_name, "");
                 };
             };
         };
@@ -26023,29 +26023,29 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // their Q-format is part of the semantic type. Arithmetic must
         // not silently combine different fixed widths, and fixed/int
         // arithmetic requires an explicit raw-storage conversion.
-        let lt_fixed_v091: i64 = type_is_fixed_semantic(lt);
-        let rt_fixed_v091: i64 = type_is_fixed_semantic(rt);
-        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (lt_fixed_v091 == 1 || rt_fixed_v091 == 1) {
-            let op_fixed_v091: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
-            if lt_fixed_v091 == 1 && rt_fixed_v091 == 1 {
+        let lt_fixed: i64 = type_is_fixed_semantic(lt);
+        let rt_fixed: i64 = type_is_fixed_semantic(rt);
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (lt_fixed == 1 || rt_fixed == 1) {
+            let op_fixed: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            if lt_fixed == 1 && rt_fixed == 1 {
                 if str_eq(fixed_type_canonical(lt), fixed_type_canonical(rt)) == 0 {
-                    type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in `", str_concat(op_fixed_v091, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Convert explicitly through the fixed-point rod helpers or use matching fixed<I,F> parameters."))))));
+                    type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in `", str_concat(op_fixed, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Convert explicitly through the fixed-point rod helpers or use matching fixed<I,F> parameters."))))));
                 };
             } else {
-                type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("mixed fixed-point and non-fixed arithmetic in `", str_concat(op_fixed_v091, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Fixed<I,F> uses raw i64 storage, but arithmetic must make the Q-format explicit."))))));
+                type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("mixed fixed-point and non-fixed arithmetic in `", str_concat(op_fixed, "` binop: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`. Fixed<I,F> uses raw i64 storage, but arithmetic must make the Q-format explicit."))))));
             };
         };
-        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35) && lt_fixed_v091 == 1 && rt_fixed_v091 == 1 {
+        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35) && lt_fixed == 1 && rt_fixed == 1 {
             if str_eq(fixed_type_canonical(lt), fixed_type_canonical(rt)) == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-008", str_concat("fixed-point type mismatch in comparison: operands have types `", str_concat(lt, str_concat("` and `", str_concat(rt, "`.")))));
             };
         };
-        let frame_op_checked_v840: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 { 1 } else { 0 };
-        if frame_op_checked_v840 == 1 && str_index_of(lt, "Frame_") >= 0 && str_index_of(rt, "Frame_") >= 0 {
+        let frame_op_checked: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 { 1 } else { 0 };
+        if frame_op_checked == 1 && str_index_of(lt, "Frame_") >= 0 && str_index_of(rt, "Frame_") >= 0 {
             if frame_mismatch_visible(lt, rt) == 1 {
-                let frame_op_text_v840: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else if op == 24 { "%" } else if op == 30 { "==" } else if op == 31 { "!=" } else if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
-                let frame_op_action_v840: str = str_concat("cannot use operator '", str_concat(frame_op_text_v840, "' with frame-mismatched operands"));
-                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(frame_op_action_v840, lt, rt));
+                let frame_op_text: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else if op == 24 { "%" } else if op == 30 { "==" } else if op == 31 { "!=" } else if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
+                let frame_op_action: str = str_concat("cannot use operator '", str_concat(frame_op_text, "' with frame-mismatched operands"));
+                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(frame_op_action, lt, rt));
             };
         };
         // NUM-022 — integer vs float cross in comparison binop.
@@ -26063,32 +26063,32 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // Catches arith (20-24) and cmp (30-37) — bit-shift / mod skipped
         // because mixed int/float there is nonsensical and the parser
         // typically rejects narrow-float forms upstream.
-        let lt_is_int_v137: i64 = type_is_int(lt);
-        let rt_is_int_v137: i64 = type_is_int(rt);
-        let lt_is_flt_v137: i64 = type_is_float(lt);
-        let rt_is_flt_v137: i64 = type_is_float(rt);
+        let lt_is_int: i64 = type_is_int(lt);
+        let rt_is_int: i64 = type_is_int(rt);
+        let lt_is_flt: i64 = type_is_float(lt);
+        let rt_is_flt: i64 = type_is_float(rt);
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24
             || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37)
-            && ((lt_is_int_v137 == 1 && rt_is_flt_v137 == 1) || (lt_is_flt_v137 == 1 && rt_is_int_v137 == 1)) {
-            let int_side_v137: str = if lt_is_int_v137 == 1 { lt } else { rt };
-            let flt_side_v137: str = if lt_is_flt_v137 == 1 { lt } else { rt };
-            let is_arith_v141: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
-            let kind_label_v141: str = if is_arith_v141 == 1 { "arithmetic" } else { "comparison" };
-            let v22msg: str = str_concat("integer (`", str_concat(int_side_v137, str_concat("`) and float (`", str_concat(flt_side_v137, str_concat("`) operands in ", str_concat(kind_label_v141, " binop. Pre-v0.4.137/.141 each side's bit pattern was used as raw i64 — `5 == 5.0` returned FALSE; `5 + 5.0` produced meaningless i64 garbage; `5 < 5.0` returned TRUE (i64=5 reinterpreted as f64 is a tiny denormal). Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site."))))));
+            && ((lt_is_int == 1 && rt_is_flt == 1) || (lt_is_flt == 1 && rt_is_int == 1)) {
+            let int_side: str = if lt_is_int == 1 { lt } else { rt };
+            let flt_side: str = if lt_is_flt == 1 { lt } else { rt };
+            let is_arith: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
+            let kind_label_v141: str = if is_arith == 1 { "arithmetic" } else { "comparison" };
+            let v22msg: str = str_concat("integer (`", str_concat(int_side, str_concat("`) and float (`", str_concat(flt_side, str_concat("`) operands in ", str_concat(kind_label_v141, " binop. Pre-v0.4.137/.141 each side's bit pattern was used as raw i64 — `5 == 5.0` returned FALSE; `5 + 5.0` produced meaningless i64 garbage; `5 < 5.0` returned TRUE (i64=5 reinterpreted as f64 is a tiny denormal). Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site."))))));
             type_diag(diags, source, fn_name, fn_name, "NUM-022", v22msg);
         };
         // RFC-0015 requires distinct integer
         // widths/signedness to be joined explicitly with `as`. Before
         // this gate, `i32 + u32` and `i32 + i64` lowered through the
         // i64-everywhere ABI and returned a plausible but unsound value.
-        let is_int_arith_v110: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
-        let lhs_nid_v110: i64 = node_field(pool, nid, 2);
+        let is_int_arith: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
+        let lhs_nid: i64 = node_field(pool, nid, 2);
         let rhs_nid_v110: i64 = node_field(pool, nid, 3);
-        let lhs_unsuffixed_lit_v110: i64 = if node_kind(pool, lhs_nid_v110) == 1 && int_lit_suffix_code(pool, lhs_nid_v110) == 0 { 1 } else { 0 };
-        let rhs_unsuffixed_lit_v110: i64 = if node_kind(pool, rhs_nid_v110) == 1 && int_lit_suffix_code(pool, rhs_nid_v110) == 0 { 1 } else { 0 };
-        if is_int_arith_v110 == 1 && lhs_unsuffixed_lit_v110 == 0 && rhs_unsuffixed_lit_v110 == 0 && lt_is_int_v137 == 1 && rt_is_int_v137 == 1 && str_eq(type_base_name(lt), type_base_name(rt)) == 0 {
-            let opch_v110: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
-            let v001a: str = str_concat("mixed-width integer arithmetic `", str_concat(lt, str_concat(" ", str_concat(opch_v110, str_concat(" ", str_concat(rt, "` is not implicitly converted."))))));
+        let lhs_unsuffixed_lit: i64 = if node_kind(pool, lhs_nid) == 1 && int_lit_suffix_code(pool, lhs_nid) == 0 { 1 } else { 0 };
+        let rhs_unsuffixed_lit: i64 = if node_kind(pool, rhs_nid_v110) == 1 && int_lit_suffix_code(pool, rhs_nid_v110) == 0 { 1 } else { 0 };
+        if is_int_arith == 1 && lhs_unsuffixed_lit == 0 && rhs_unsuffixed_lit == 0 && lt_is_int == 1 && rt_is_int == 1 && str_eq(type_base_name(lt), type_base_name(rt)) == 0 {
+            let opch: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            let v001a: str = str_concat("mixed-width integer arithmetic `", str_concat(lt, str_concat(" ", str_concat(opch, str_concat(" ", str_concat(rt, "` is not implicitly converted."))))));
             let v001b: str = " RFC-0015 follows Rust's distinct-numeric-types rule: cast one operand explicitly with `as` so truncation, sign extension, and widening intent are visible.";
             type_diag(diags, source, fn_name, fn_name, "NUM-001", str_concat(v001a, v001b));
         };
@@ -26150,9 +26150,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // (typed `String` or `String<...>` if generic — currently
         // all-or-nothing since Nucleor's String is non-generic).
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) {
-            let lt_is_string_v150: i64 = if str_eq(type_base_name(lt), "String") == 1 { 1 } else { 0 };
-            let rt_is_string_v150: i64 = if str_eq(type_base_name(rt), "String") == 1 { 1 } else { 0 };
-            if lt_is_string_v150 == 1 || rt_is_string_v150 == 1 {
+            let lt_is_string: i64 = if str_eq(type_base_name(lt), "String") == 1 { 1 } else { 0 };
+            let rt_is_string: i64 = if str_eq(type_base_name(rt), "String") == 1 { 1 } else { 0 };
+            if lt_is_string == 1 || rt_is_string == 1 {
                 let v150op: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
                 let v150a: str = str_concat("`String", str_concat(" ", str_concat(v150op, " <other>` arithmetic is not meaningful — String is a heap-allocated buffer, and arithmetic lowers to i64 ops on the heap pointer, producing a garbage pointer / SIGSEGV at next use.")));
                 let v150b: str = " For string concatenation use `s.push_str(other)` (or build via the StringBuilder helpers `sb_append`); to compute on a numeric value, convert with `str_to_int(s.as_str())` first.";
@@ -26337,16 +26337,16 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // — UB / poison (returns 0 in practice). Adopters writing
             // canonical Rust narrow-width shifts got silent miscompute.
             // Now derive the bound from the LHS type's width.
-            let lt_strip_v063: str = strip_spaces(lt);
-            let mut sh_bound_v063: i64 = 64;
-            if str_eq(lt_strip_v063, "i8") == 1 || str_eq(lt_strip_v063, "u8") == 1 { sh_bound_v063 = 8; }
-            else if str_eq(lt_strip_v063, "i16") == 1 || str_eq(lt_strip_v063, "u16") == 1 { sh_bound_v063 = 16; }
-            else if str_eq(lt_strip_v063, "i32") == 1 || str_eq(lt_strip_v063, "u32") == 1 { sh_bound_v063 = 32; };
-            if sh_have == 1 && (sh_amt < 0 || sh_amt >= sh_bound_v063) {
+            let lt_strip: str = strip_spaces(lt);
+            let mut sh_bound: i64 = 64;
+            if str_eq(lt_strip, "i8") == 1 || str_eq(lt_strip, "u8") == 1 { sh_bound = 8; }
+            else if str_eq(lt_strip, "i16") == 1 || str_eq(lt_strip, "u16") == 1 { sh_bound = 16; }
+            else if str_eq(lt_strip, "i32") == 1 || str_eq(lt_strip, "u32") == 1 { sh_bound = 32; };
+            if sh_have == 1 && (sh_amt < 0 || sh_amt >= sh_bound) {
                 let sh_op: str = if op == 115 { "<<" } else { ">>" };
-                let bound_disp_v063: str = if sh_bound_v063 > 0 { str_from_int(sh_bound_v063 - 1) } else { "0" };
-                let lt_disp_v063: str = if str_len(lt_strip_v063) > 0 { lt_strip_v063 } else { "i64" };
-                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for ", str_concat(lt_disp_v063, str_concat(" (`", str_concat(sh_op, str_concat("` requires 0..=", str_concat(bound_disp_v063, "). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount or widen the LHS type."))))))));
+                let bound_disp: str = if sh_bound > 0 { str_from_int(sh_bound - 1) } else { "0" };
+                let lt_disp: str = if str_len(lt_strip) > 0 { lt_strip } else { "i64" };
+                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for ", str_concat(lt_disp, str_concat(" (`", str_concat(sh_op, str_concat("` requires 0..=", str_concat(bound_disp, "). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount or widen the LHS type."))))))));
                 type_diag(diags, source, fn_name, fn_name, "NUM-008", nm8_msg);
             };
         };
@@ -26367,8 +26367,8 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // tests/fixtures/repro_v53_vec_eq_pointer_guard_DEFERRED.nr.
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
-        if is_int_arith_v110 == 1 && lhs_unsuffixed_lit_v110 == 1 && rt_is_int_v137 == 1 { return rt; };
-        if is_int_arith_v110 == 1 && rhs_unsuffixed_lit_v110 == 1 && lt_is_int_v137 == 1 { return lt; };
+        if is_int_arith == 1 && lhs_unsuffixed_lit == 1 && rt_is_int == 1 { return rt; };
+        if is_int_arith == 1 && rhs_unsuffixed_lit == 1 && lt_is_int == 1 { return lt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
         // v0.4.72 NOT enforcing && / || bool-only — Nucleor's
         // i64-everywhere ABI accepts integer truthiness in logical
@@ -26431,14 +26431,14 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // hoist tprof gate to local var so the
         // tprof_mark sites in this kind-7 branch can short-circuit
         // without re-entering tprof_enabled / tprof_start.
-        let prof_on_v631: i64 = vec_len(tprof);
-        let call_start: i64 = if prof_on_v631 > 0 { now_ms() } else { 0 };
+        let prof_on: i64 = vec_len(tprof);
+        let call_start: i64 = if prof_on > 0 { now_ms() } else { 0 };
         let callee: str = node_field(pool, nid, 1);
         let args: i64 = node_field(pool, nid, 2);
         let argc: i64 = list_len(pool, args);
         if str_eq(callee, "sanitize") == 1 && argc > 0 {
             let arg_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
-            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+            if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
         };
@@ -26456,10 +26456,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let lt_v060: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
             let rt_v060: str = type_expr(pool, prog, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
             if str_eq(lt_v060, "str") == 1 && str_eq(rt_v060, "str") == 1 {
-                let macro_name_v060: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq!" } else { "assert_ne!" };
-                let cmp_op_v060: str = if str_eq(callee, "assert_eq") == 1 { "==" } else { "!=" };
+                let macro_name: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq!" } else { "assert_ne!" };
+                let cmp_op: str = if str_eq(callee, "assert_eq") == 1 { "==" } else { "!=" };
                 let hint_v060: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq(str_eq(a, b), 1)" } else { "assert_eq(str_eq(a, b), 0)" };
-                let v060a: str = str_concat("`", str_concat(macro_name_v060, str_concat("(a, b)` on `str` arguments does pointer comparison (silent miscompute — equal-bytes strs at different addresses ", str_concat(cmp_op_v060, " return FALSE)."))));
+                let v060a: str = str_concat("`", str_concat(macro_name, str_concat("(a, b)` on `str` arguments does pointer comparison (silent miscompute — equal-bytes strs at different addresses ", str_concat(cmp_op, " return FALSE)."))));
                 let v060b: str = str_concat(" Pre-v0.6.20 `assert_eq!(\"hello\", \"hello\")` always failed and `assert_ne!(\"x\", \"x\")` always passed because the macro lowered to i64 comparison on the str pointers. Use `", str_concat(hint_v060, "` to value-compare via the str_eq runtime helper. Sister to TYP-011 v0.4.52 `str == str` close."));
                 type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v060a, v060b));
             };
@@ -26642,7 +26642,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 let elem_t: str = strip_container_one_level(recv_t);
                 if str_len(elem_t) > 0 && vec_element_type_is_legacy_cell(elem_t) == 0 {
-                    if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+                    if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
                     return elem_t;
                 };
             };
@@ -26657,7 +26657,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 fast_ai = fast_ai + 1;
             };
-            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+            if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
             return fast_rt;
         };
         // walk every call arg through type_expr BEFORE the
@@ -26679,7 +26679,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 type_expr(pool, prog, list_get(pool, args, dh_ai), env, sigs, structs, fn_name, diags, source, tprof);
                 dh_ai = dh_ai + 1;
             };
-            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+            if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
             return "";
         };
         let sig_start: i64 = tprof_start(tprof);
@@ -26690,12 +26690,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let gparams_v421: i64 = sig_gparams_from_entry(sentry);
             let expected_argc: i64 = list_len(pool, plist);
             if argc != expected_argc { type_diag(diags, source, fn_name, callee, "TYP-005", str_concat("wrong number of arguments for '", str_concat(callee, "'"))); };
-            let mut bound_seen_v421: Vec<i32> = Vec::new();
+            let mut bound_seen: Vec<i32> = Vec::new();
             // collect gparam bindings as we walk args. Map is
             // alternating [name, concrete-type, name, concrete-type, ...].
             // After the loop, used to substitute gparams in rtype before
             // returning. Closes generic-T propagation finding.
-            let mut gparam_bindings_v513: Vec<i32> = Vec::new();
+            let mut gparam_bindings: Vec<i32> = Vec::new();
             let mut ai: i64 = 0;
             while ai < argc && ai < expected_argc {
                 let actual_t: str = type_expr(pool, prog, list_get(pool, args, ai), env, sigs, structs, fn_name, diags, source, tprof);
@@ -26705,8 +26705,8 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 tprof_mark(tprof, 7, 8, compat_start);
                 if compat_ok == 0 {
                     if frame_mismatch_visible(expected_t, actual_t) == 1 {
-                        let f_action_v840: str = str_concat("cannot pass argument ", str_concat(str_from_int(ai), str_concat(" to '", str_concat(callee, "'"))));
-                        type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action_v840, expected_t, actual_t));
+                        let f_action: str = str_concat("cannot pass argument ", str_concat(str_from_int(ai), str_concat(" to '", str_concat(callee, "'"))));
+                        type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action, expected_t, actual_t));
                     } else {
                         type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
                     };
@@ -26738,12 +26738,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 if gparams_v421 >= 0 && str_len(actual_t) > 0 && str_eq(actual_t, expected_t) == 0 {
                     let gc_v421: i64 = list_len(pool, gparams_v421);
                     let mut gp_v421: i64 = 0;
-                    let mut current_param_v421: str = "";
+                    let mut current_param: str = "";
                     while gp_v421 < gc_v421 {
-                        let ge_v421: str = list_get(pool, gparams_v421, gp_v421);
-                        if str_len(ge_v421) > 1 && str_char_at(ge_v421, 0) == 63 {
-                            if str_len(current_param_v421) > 0 && str_eq(current_param_v421, expected_t) == 1 {
-                                let bound_v421: str = str_substring(ge_v421, 1, str_len(ge_v421));
+                        let ge: str = list_get(pool, gparams_v421, gp_v421);
+                        if str_len(ge) > 1 && str_char_at(ge, 0) == 63 {
+                            if str_len(current_param) > 0 && str_eq(current_param, expected_t) == 1 {
+                                let bound_v421: str = str_substring(ge, 1, str_len(ge));
                                 // skip Rust marker traits at the
                                 // bound-impl check too — they're no-ops
                                 // under the i64-everywhere ABI (sister
@@ -26759,41 +26759,41 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                                 if str_eq(bound_v421, "Copy") == 1 { v700_marker = 1; };
                                 if str_eq(bound_v421, "Clone") == 1 { v700_marker = 1; };
                                 if v700_marker == 0 && str_len(bound_v421) > 0 && type_implements_trait(pool, prog, actual_t, bound_v421) == 0 {
-                                    let key_v421: str = str_concat(current_param_v421, str_concat("|", str_concat(bound_v421, str_concat("|", actual_t))));
-                                    if priv_string_vec_contains(bound_seen_v421, key_v421) == 0 {
-                                        bound_seen_v421.push(key_v421);
+                                    let key_v421: str = str_concat(current_param, str_concat("|", str_concat(bound_v421, str_concat("|", actual_t))));
+                                    if priv_string_vec_contains(bound_seen, key_v421) == 0 {
+                                        bound_seen.push(key_v421);
                                         let msg21a: str = str_concat("type '", str_concat(actual_t, str_concat("' does not implement trait '", str_concat(bound_v421, "'"))));
-                                        let msg21b: str = str_concat(" (required by bound on fn '", str_concat(callee, str_concat("<", str_concat(current_param_v421, str_concat(": ", str_concat(bound_v421, ">')"))))));
+                                        let msg21b: str = str_concat(" (required by bound on fn '", str_concat(callee, str_concat("<", str_concat(current_param, str_concat(": ", str_concat(bound_v421, ">')"))))));
                                         let msg21c: str = str_concat(". Add an 'impl ", str_concat(bound_v421, str_concat(" for ", str_concat(actual_t, "' block, or pass a type with that impl."))));
                                         type_diag(diags, source, fn_name, callee, "TYP-025", str_concat(msg21a, str_concat(msg21b, msg21c)));
                                     };
                                 };
                             };
                         } else {
-                            if str_len(ge_v421) > 0 && str_char_at(ge_v421, 0) != 39 {
-                                current_param_v421 = ge_v421;
+                            if str_len(ge) > 0 && str_char_at(ge, 0) != 39 {
+                                current_param = ge;
                                 // alongside the trait-bound check
                                 // already running here, attempt to extract
                                 // a concrete binding for this gparam from
                                 // the (expected, actual) arg pair. First
                                 // binding wins (no rebinding if a later
                                 // arg disagrees — keeps the path simple).
-                                let mut already_bound_v513: i64 = 0;
+                                let mut already_bound: i64 = 0;
                                 let mut bb: i64 = 0;
-                                let nb: i64 = vec_len(gparam_bindings_v513);
-                                while bb + 1 < nb && already_bound_v513 == 0 {
-                                    if str_eq(vec_get(gparam_bindings_v513, bb), ge_v421) == 1 { already_bound_v513 = 1; };
+                                let nb: i64 = vec_len(gparam_bindings);
+                                while bb + 1 < nb && already_bound == 0 {
+                                    if str_eq(vec_get(gparam_bindings, bb), ge) == 1 { already_bound = 1; };
                                     bb = bb + 2;
                                 };
-                                if already_bound_v513 == 0 {
-                                    let bind_v513: str = gparam_extract_binding(expected_t, actual_t, ge_v421);
+                                if already_bound == 0 {
+                                    let bind_v513: str = gparam_extract_binding(expected_t, actual_t, ge);
                                     if str_len(bind_v513) > 0 {
-                                        gparam_bindings_v513.push(ge_v421);
-                                        gparam_bindings_v513.push(bind_v513);
+                                        gparam_bindings.push(ge);
+                                        gparam_bindings.push(bind_v513);
                                     };
                                 };
                             } else {
-                                current_param_v421 = "";
+                                current_param = "";
                             };
                         };
                         gp_v421 = gp_v421 + 1;
@@ -26801,18 +26801,18 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 ai = ai + 1;
             };
-            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+            if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
             // substitute collected gparam bindings into rtype.
             // Falls through to the literal rtype if no bindings (e.g.
             // non-generic fn or gparams not inferable from args).
             let mut rtype_v513: str = vec_get(sentry, 1);
-            let nb_final: i64 = vec_len(gparam_bindings_v513);
+            let nb_final: i64 = vec_len(gparam_bindings);
             if nb_final >= 2 {
                 let mut bi: i64 = 0;
                 while bi + 1 < nb_final {
-                    let g_v513: str = vec_get(gparam_bindings_v513, bi);
-                    let conc_v513: str = vec_get(gparam_bindings_v513, bi + 1);
-                    rtype_v513 = substitute_gparam_in_rtype(rtype_v513, g_v513, conc_v513);
+                    let g_v513: str = vec_get(gparam_bindings, bi);
+                    let conc: str = vec_get(gparam_bindings, bi + 1);
+                    rtype_v513 = substitute_gparam_in_rtype(rtype_v513, g_v513, conc);
                     bi = bi + 2;
                 };
             };
@@ -26896,11 +26896,11 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 // `type StrAlias = str; let s: StrAlias = "..."; print(s);`
                 // pre-fix saw arg0_t = "StrAlias" and fired TYP-006.
                 let mut arg0_t_resolved_v067: str = arg0_t;
-                let mut alias_depth_v067: i64 = 0;
-                while alias_depth_v067 < 4 {
+                let mut alias_depth: i64 = 0;
+                while alias_depth < 4 {
                     let r_v067: str = type_alias_resolve(pool, prog, arg0_t_resolved_v067);
-                    if str_len(r_v067) == 0 { alias_depth_v067 = 4; }
-                    else { arg0_t_resolved_v067 = r_v067; alias_depth_v067 = alias_depth_v067 + 1; };
+                    if str_len(r_v067) == 0 { alias_depth = 4; }
+                    else { arg0_t_resolved_v067 = r_v067; alias_depth = alias_depth + 1; };
                 };
                 if str_len(arg0_t_resolved_v067) > 0 && str_eq(arg0_t_resolved_v067, "str") == 0 && str_eq(arg0_t_resolved_v067, "&str") == 0 && str_eq(arg0_t_resolved_v067, "_") == 0 {
                     // v0.6.80 (probe finding 2026-04-30 String-passed-to-str-
@@ -27023,10 +27023,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // Mirrors v0.4.117 (which fixed the same hazard for
         // type_dynamic_helper callees).
         if argc > 0 && sentry < 0 && type_dynamic_helper(callee) == 0 {
-            let mut walk_ai_v144: i64 = 0;
-            while walk_ai_v144 < argc {
-                type_expr(pool, prog, list_get(pool, args, walk_ai_v144), env, sigs, structs, fn_name, diags, source, tprof);
-                walk_ai_v144 = walk_ai_v144 + 1;
+            let mut walk_ai: i64 = 0;
+            while walk_ai < argc {
+                type_expr(pool, prog, list_get(pool, args, walk_ai), env, sigs, structs, fn_name, diags, source, tprof);
+                walk_ai = walk_ai + 1;
             };
         };
         // TYP-022 ext — bare struct name called like a fn.
@@ -27043,12 +27043,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // fast-fail check — tuple/regular struct names start
         // uppercase per Rust convention. Skip the structs-table scan
         // for lowercase callees (the dominant case).
-        let mut callee_uppercase_v074: i64 = 0;
+        let mut callee_uppercase: i64 = 0;
         if str_len(callee) > 0 {
             let cc0_v074: i64 = str_char_at(callee, 0);
-            if cc0_v074 >= 65 && cc0_v074 <= 90 { callee_uppercase_v074 = 1; };
+            if cc0_v074 >= 65 && cc0_v074 <= 90 { callee_uppercase = 1; };
         };
-        if sentry < 0 && callee_uppercase_v074 == 1 && struct_find_type(pool, structs, callee) >= 0 {
+        if sentry < 0 && callee_uppercase == 1 && struct_find_type(pool, structs, callee) >= 0 {
             // v0.6.74 RFC V1.1 step 2: tuple-struct constructor routing.
             // When the callee resolves to a tuple-style struct (all
             // fields named `__<digit>+`), accept the call as struct
@@ -27061,35 +27061,35 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let s_nid_v074: i64 = vec_get(structs, s_idx_v074);
             if struct_is_tuple_style(pool, s_nid_v074) == 1 {
                 // Verify argc == field count.
-                let s_flist_v074: i64 = node_field(pool, s_nid_v074, 2);
-                let s_fc_v074: i64 = list_len(pool, s_flist_v074);
-                if argc != s_fc_v074 {
-                    let argc_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` has ", str_concat(str_from_int(s_fc_v074), str_concat(" positional fields, but ", str_concat(str_from_int(argc), " arguments were supplied at the construction site."))))));
+                let s_flist: i64 = node_field(pool, s_nid_v074, 2);
+                let s_fc: i64 = list_len(pool, s_flist);
+                if argc != s_fc {
+                    let argc_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` has ", str_concat(str_from_int(s_fc), str_concat(" positional fields, but ", str_concat(str_from_int(argc), " arguments were supplied at the construction site."))))));
                     type_diag(diags, source, fn_name, callee, "TYP-022", argc_a);
                 } else {
                     // Type-check each arg against its corresponding
                     // synthetic field's declared type.
-                    let mut tup_ai_v074: i64 = 0;
-                    while tup_ai_v074 < argc {
-                        let arg_nid_v074: i64 = list_get(pool, args, tup_ai_v074);
-                        let arg_t_v074: str = type_expr(pool, prog, arg_nid_v074, env, sigs, structs, fn_name, diags, source, tprof);
-                        let s_fnid_v074: i64 = list_get(pool, s_flist_v074, tup_ai_v074);
-                        let exp_t_v074: str = node_field(pool, s_fnid_v074, 2);
-                        if str_len(arg_t_v074) > 0 && str_len(exp_t_v074) > 0 {
-                            if types_compatible_context(pool, prog, exp_t_v074, arg_t_v074) == 0 {
-                                if frame_mismatch_visible(exp_t_v074, arg_t_v074) == 1 {
-                                    let f_action_tup_v840: str = str_concat("cannot initialize tuple-struct '", str_concat(callee, str_concat("' field '__", str_concat(str_from_int(tup_ai_v074), "'"))));
-                                    type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action_tup_v840, exp_t_v074, arg_t_v074));
+                    let mut tup_ai: i64 = 0;
+                    while tup_ai < argc {
+                        let arg_nid_v074: i64 = list_get(pool, args, tup_ai);
+                        let arg_t: str = type_expr(pool, prog, arg_nid_v074, env, sigs, structs, fn_name, diags, source, tprof);
+                        let s_fnid: i64 = list_get(pool, s_flist, tup_ai);
+                        let exp_t: str = node_field(pool, s_fnid, 2);
+                        if str_len(arg_t) > 0 && str_len(exp_t) > 0 {
+                            if types_compatible_context(pool, prog, exp_t, arg_t) == 0 {
+                                if frame_mismatch_visible(exp_t, arg_t) == 1 {
+                                    let f_action_tup: str = str_concat("cannot initialize tuple-struct '", str_concat(callee, str_concat("' field '__", str_concat(str_from_int(tup_ai), "'"))));
+                                    type_diag(diags, source, fn_name, callee, "FRAME-001", frame_mismatch_diag_message(f_action_tup, exp_t, arg_t));
                                 } else {
-                                    let mismatch_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` field `__", str_concat(str_from_int(tup_ai_v074), str_concat("` expects type `", str_concat(exp_t_v074, str_concat("` but argument has type `", str_concat(arg_t_v074, "`."))))))));
+                                    let mismatch_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` field `__", str_concat(str_from_int(tup_ai), str_concat("` expects type `", str_concat(exp_t, str_concat("` but argument has type `", str_concat(arg_t, "`."))))))));
                                     type_diag(diags, source, fn_name, callee, "TYP-008", mismatch_a);
                                 };
                             };
                         };
-                        tup_ai_v074 = tup_ai_v074 + 1;
+                        tup_ai = tup_ai + 1;
                     };
                 };
-                if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+                if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
                 return callee;
             };
             let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn.")))));
@@ -27120,7 +27120,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // v0.4.132 TYP-020 (binop with void closure result), etc.
             let v156_rtype: str = tenv_get(env, str_concat("__closure_rtype_", callee));
             if str_len(v156_rtype) > 0 {
-                if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+                if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
                 return v156_rtype;
             };
         };
@@ -27158,19 +27158,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 diag_add_at_or_scan(diags, source, pool, nid, callee, "warning", "type", "TYP-005", str_concat("undefined function `", str_concat(callee, "()` at type-check time (will fail at clang link if not a privatized cross-module fn). Check spelling, or import the rod that defines it.")), fn_name, "");
             };
         };
-        if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
-        let builtin_ret_v421: str = builtin_rtype(callee);
-        if str_len(builtin_ret_v421) > 0 && argc > 0 {
-                let mut bai_v421: i64 = 0;
-                while bai_v421 < argc {
-                    let ba_v421: i64 = list_get(pool, args, bai_v421);
-                    if type_arg_needs_walk(pool, ba_v421) == 1 {
-                        type_expr(pool, prog, ba_v421, env, sigs, structs, fn_name, diags, source, tprof);
+        if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
+        let builtin_ret: str = builtin_rtype(callee);
+        if str_len(builtin_ret) > 0 && argc > 0 {
+                let mut bai: i64 = 0;
+                while bai < argc {
+                    let ba: i64 = list_get(pool, args, bai);
+                    if type_arg_needs_walk(pool, ba) == 1 {
+                        type_expr(pool, prog, ba, env, sigs, structs, fn_name, diags, source, tprof);
                     };
-                    bai_v421 = bai_v421 + 1;
+                    bai = bai + 1;
                 };
         };
-        return builtin_ret_v421;
+        return builtin_ret;
     };
     if kind == 8 {
         let recv_nid: i64 = node_field(pool, nid, 1);
@@ -27187,9 +27187,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // void-mutator returns "void" via the route added below; here
         // we halt before dispatching the outer call against it.
         if str_eq(recv_t, "void") == 1 {
-            let inner_mn_v139: str = if node_kind(pool, recv_nid) == 8 { node_field(pool, recv_nid, 2) } else { "" };
+            let inner_mn: str = if node_kind(pool, recv_nid) == 8 { node_field(pool, recv_nid, 2) } else { "" };
             let v23a: str = str_concat("chained method `.", str_concat(mname, "()` on a void-returning receiver."));
-            let v23b: str = if str_len(inner_mn_v139) > 0 { str_concat(" The inner `.", str_concat(inner_mn_v139, "()` is a void-mutator (push/pop/set/swap/extend/remove/insert/shuffle/free) — these don't return self for chaining in Nucleor.")) } else { "" };
+            let v23b: str = if str_len(inner_mn) > 0 { str_concat(" The inner `.", str_concat(inner_mn, "()` is a void-mutator (push/pop/set/swap/extend/remove/insert/shuffle/free) — these don't return self for chaining in Nucleor.")) } else { "" };
             let v23c: str = " Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header, producing 0 / wrong bool / garbage at runtime. Split into separate statements: call the mutator on its own line, then call the chained method on the receiver.";
             type_diag(diags, source, fn_name, fn_name, "TYP-023", str_concat(v23a, str_concat(v23b, v23c)));
         };
@@ -27530,13 +27530,13 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     && str_eq(ename, "None") == 0
                     && str_eq(ename, "Ok") == 0
                     && str_eq(ename, "Err") == 0 {
-                    let scrut_base_v0508: str = type_base_name(scrut_t);
-                    if str_len(scrut_base_v0508) > 0 && str_eq(scrut_base_v0508, ename) == 0 {
+                    let scrut_base: str = type_base_name(scrut_t);
+                    if str_len(scrut_base) > 0 && str_eq(scrut_base, ename) == 0 {
                         // Allow `i64`/`i32` scrutinees against any enum
                         // pattern (legacy as-int matching) to avoid
                         // breaking the rod-level int dispatch idiom.
-                        if str_eq(scrut_base_v0508, "i64") == 0
-                            && str_eq(scrut_base_v0508, "i32") == 0 {
+                        if str_eq(scrut_base, "i64") == 0
+                            && str_eq(scrut_base, "i32") == 0 {
                             let m12a: str = str_concat("pattern variant `", str_concat(ename, str_concat("::", str_concat(vname, str_concat("` belongs to enum `", str_concat(ename, "`, but the scrutinee type is `"))))));
                             let m12b: str = str_concat(scrut_t, "`. Pre-fix this lowered both enums to integer tags and silently matched by tag value — the canonical silent-miscompile pattern (Rust E0308 / E0532). Use a pattern from the scrutinee's enum type, or convert the scrutinee with an explicit cast / map.");
                             type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-016", str_concat(m12a, m12b));
@@ -27647,8 +27647,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // surface the void-rtype mismatch with TYP-021's existing diag
             // wording.
             if str_eq(init_t, "void") == 0 && node_kind(pool, init) == 7 {
-                let init_callee_v064: str = node_field(pool, init, 1);
-                if str_eq(init_callee_v064, "vec_pop") == 1 {
+                let init_callee: str = node_field(pool, init, 1);
+                if str_eq(init_callee, "vec_pop") == 1 {
                     init_t = "void";
                 };
             };
@@ -27666,70 +27666,70 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-021", v21msg);
             };
             if str_len(tstr) == 0 && node_kind(pool, init) == 7 {
-                let infer_callee_v110: str = node_field(pool, init, 1);
-                let infer_sentry_v110: i64 = sig_find(sigs, infer_callee_v110);
-                if infer_sentry_v110 >= 0 {
-                    let infer_gparams_v110: i64 = sig_gparams_from_entry(infer_sentry_v110);
-                    let infer_args_v110: i64 = node_field(pool, init, 2);
-                    let infer_rtype_v110: str = vec_get(infer_sentry_v110, 1);
-                    if gparams_type_count(pool, infer_gparams_v110) > 0
-                       && list_len(pool, infer_args_v110) == 0
-                       && type_contains_any_type_gparam(pool, infer_gparams_v110, infer_rtype_v110) == 1
+                let infer_callee: str = node_field(pool, init, 1);
+                let infer_sentry: i64 = sig_find(sigs, infer_callee);
+                if infer_sentry >= 0 {
+                    let infer_gparams: i64 = sig_gparams_from_entry(infer_sentry);
+                    let infer_args: i64 = node_field(pool, init, 2);
+                    let infer_rtype: str = vec_get(infer_sentry, 1);
+                    if gparams_type_count(pool, infer_gparams) > 0
+                       && list_len(pool, infer_args) == 0
+                       && type_contains_any_type_gparam(pool, infer_gparams, infer_rtype) == 1
                        && str_eq(vname, "_") == 0 {
-                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-027", str_concat("type annotation required for binding `", str_concat(vname, str_concat("`: generic call `", str_concat(infer_callee_v110, "()` returns a type containing an unconstrained type parameter.")))));
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-027", str_concat("type annotation required for binding `", str_concat(vname, str_concat("`: generic call `", str_concat(infer_callee, "()` returns a type containing an unconstrained type parameter.")))));
                     };
                 };
             };
             if str_len(tstr) > 0 {
-                let arity_base_v110: str = type_base_name(tstr);
-                let mut arity_gparams_v110: i64 = 0 - 1;
-                let arity_struct_idx_v110: i64 = struct_find_type(pool, structs, tstr);
-                if arity_struct_idx_v110 >= 0 {
-                    arity_gparams_v110 = node_field(pool, vec_get(structs, arity_struct_idx_v110), 3);
+                let arity_base: str = type_base_name(tstr);
+                let mut arity_gparams: i64 = 0 - 1;
+                let arity_struct_idx: i64 = struct_find_type(pool, structs, tstr);
+                if arity_struct_idx >= 0 {
+                    arity_gparams = node_field(pool, vec_get(structs, arity_struct_idx), 3);
                 } else {
-                    arity_gparams_v110 = enum_gparams_for_name(pool, prog, arity_base_v110);
+                    arity_gparams = enum_gparams_for_name(pool, prog, arity_base);
                 };
-                if arity_gparams_v110 >= 0 {
-                    let expected_arity_v110: i64 = gparams_type_count(pool, arity_gparams_v110);
-                    let actual_arity_v110: i64 = type_arg_count(tstr);
-                    if expected_arity_v110 != actual_arity_v110 {
+                if arity_gparams >= 0 {
+                    let expected_arity: i64 = gparams_type_count(pool, arity_gparams);
+                    let actual_arity: i64 = type_arg_count(tstr);
+                    if expected_arity != actual_arity {
                         // ROBO-7 frame tags are zero-cost phantoms over
                         // non-generic handle structs. Keep the check gated
                         // by base name so ordinary generic aliases like
                         // Vec<i32> do not pay per-use frame parsing cost.
-                        let mut frame_phantom_ok_v110: i64 = 0;
-                        if expected_arity_v110 == 0 {
-                            if (str_eq(arity_base_v110, "Pose") == 1 && actual_arity_v110 == 1) || ((str_eq(arity_base_v110, "Transform") == 1 || str_eq(arity_base_v110, "Se3Buf") == 1) && actual_arity_v110 == 2) {
-                                frame_phantom_ok_v110 = 1;
-                                let mut frame_arg_i_v110: i64 = 0;
-                                while frame_arg_i_v110 < actual_arity_v110 {
-                                    let frame_arg_v110: str = strip_spaces(type_arg_at(tstr, frame_arg_i_v110));
-                                    if str_starts_with(frame_arg_v110, "Frame_") == 0 { frame_phantom_ok_v110 = 0; };
-                                    frame_arg_i_v110 = frame_arg_i_v110 + 1;
+                        let mut frame_phantom_ok: i64 = 0;
+                        if expected_arity == 0 {
+                            if (str_eq(arity_base, "Pose") == 1 && actual_arity == 1) || ((str_eq(arity_base, "Transform") == 1 || str_eq(arity_base, "Se3Buf") == 1) && actual_arity == 2) {
+                                frame_phantom_ok = 1;
+                                let mut frame_arg_i: i64 = 0;
+                                while frame_arg_i < actual_arity {
+                                    let frame_arg: str = strip_spaces(type_arg_at(tstr, frame_arg_i));
+                                    if str_starts_with(frame_arg, "Frame_") == 0 { frame_phantom_ok = 0; };
+                                    frame_arg_i = frame_arg_i + 1;
                                 };
                             };
                         };
-                        if frame_phantom_ok_v110 == 0 {
-                            type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-005", str_concat("wrong number of type arguments for `", str_concat(arity_base_v110, str_concat("`: expected ", str_concat(str_from_int(expected_arity_v110), str_concat(", found ", str_from_int(actual_arity_v110)))))));
+                        if frame_phantom_ok == 0 {
+                            type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-005", str_concat("wrong number of type arguments for `", str_concat(arity_base, str_concat("`: expected ", str_concat(str_from_int(expected_arity), str_concat(", found ", str_from_int(actual_arity)))))));
                         };
                     };
                 };
-                if node_kind(pool, init) == 34 && arity_struct_idx_v110 >= 0
+                if node_kind(pool, init) == 34 && arity_struct_idx >= 0
                    && str_eq(type_base_name(tstr), node_field(pool, init, 1)) == 1 {
-                    let init_fields_v110: i64 = node_field(pool, init, 2);
-                    let init_fc_v110: i64 = list_len(pool, init_fields_v110);
-                    let mut init_fi_v110: i64 = 0;
-                    while init_fi_v110 < init_fc_v110 {
-                        let init_field_v110: i64 = list_get(pool, init_fields_v110, init_fi_v110);
-                        let init_fname_v110: str = node_field(pool, init_field_v110, 1);
-                        let exp_field_v110: str = struct_field_type_for_inst(pool, vec_get(structs, arity_struct_idx_v110), tstr, init_fname_v110);
-                        let act_field_v110: str = type_expr(pool, prog, node_field(pool, init_field_v110, 2), env, sigs, structs, fn_name, diags, source, tprof);
-                        if str_len(exp_field_v110) > 0 && str_len(act_field_v110) > 0 {
-                            if types_compatible_context(pool, prog, exp_field_v110, act_field_v110) == 0 {
-                                type_diag_at(diags, source, pool, init_field_v110, fn_name, init_fname_v110, "TYP-008", str_concat("generic struct field initializer mismatch for `", str_concat(arity_base_v110, str_concat(".", str_concat(init_fname_v110, str_concat("`: instantiated field type `", str_concat(exp_field_v110, str_concat("`, got `", str_concat(act_field_v110, "`.")))))))));
+                    let init_fields: i64 = node_field(pool, init, 2);
+                    let init_fc: i64 = list_len(pool, init_fields);
+                    let mut init_fi: i64 = 0;
+                    while init_fi < init_fc {
+                        let init_field: i64 = list_get(pool, init_fields, init_fi);
+                        let init_fname: str = node_field(pool, init_field, 1);
+                        let exp_field: str = struct_field_type_for_inst(pool, vec_get(structs, arity_struct_idx), tstr, init_fname);
+                        let act_field: str = type_expr(pool, prog, node_field(pool, init_field, 2), env, sigs, structs, fn_name, diags, source, tprof);
+                        if str_len(exp_field) > 0 && str_len(act_field) > 0 {
+                            if types_compatible_context(pool, prog, exp_field, act_field) == 0 {
+                                type_diag_at(diags, source, pool, init_field, fn_name, init_fname, "TYP-008", str_concat("generic struct field initializer mismatch for `", str_concat(arity_base, str_concat(".", str_concat(init_fname, str_concat("`: instantiated field type `", str_concat(exp_field, str_concat("`, got `", str_concat(act_field, "`.")))))))));
                             };
                         };
-                        init_fi_v110 = init_fi_v110 + 1;
+                        init_fi = init_fi + 1;
                     };
                 };
                 // Type-system hardening: numeric
@@ -27748,24 +27748,24 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("integer literal cannot initialize float binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "`. Numeric primitives are not implicitly converted; write a float literal such as `3.0`, or use an explicit conversion helper/cast.")))));
                 };
                 if node_kind(pool, init) == 12 && str_index_of(tstr, "<") >= 0 {
-                    let init_enum_name_v110: str = node_field(pool, init, 1);
-                    let init_variant_v110: str = node_field(pool, init, 2);
-                    if str_eq(type_base_name(tstr), init_enum_name_v110) == 1 {
-                        let enum_gparams_v110: i64 = enum_gparams_for_name(pool, prog, init_enum_name_v110);
-                        let init_args_v110: i64 = node_field(pool, init, 3);
-                        let init_argc_v110: i64 = list_len(pool, init_args_v110);
-                        let mut enum_ai_v110: i64 = 0;
-                        while enum_ai_v110 < init_argc_v110 {
-                            let raw_payload_v110: str = infer_enum_variant_payload_type(source, init_enum_name_v110, init_variant_v110, enum_ai_v110);
-                            let exp_payload_v110: str = substitute_gparams_from_list(pool, enum_gparams_v110, tstr, raw_payload_v110);
-                            let act_payload_v110: str = type_expr(pool, prog, list_get(pool, init_args_v110, enum_ai_v110), env, sigs, structs, fn_name, diags, source, tprof);
-                            if str_len(exp_payload_v110) > 0 && str_len(act_payload_v110) > 0 {
-                                if types_compatible_context(pool, prog, exp_payload_v110, act_payload_v110) == 0 {
-                                    let enum_msg_v110: str = str_concat("generic enum payload mismatch for `", str_concat(init_enum_name_v110, str_concat("::", str_concat(init_variant_v110, str_concat("`: declared binding type `", str_concat(tstr, str_concat("` requires payload `", str_concat(exp_payload_v110, str_concat("`, got `", str_concat(act_payload_v110, "`. Pre-fix the payload was bit-stored into the erased i64 slot with no type check."))))))))));
-                                    type_diag_at(diags, source, pool, init, fn_name, vname, "TYP-008", enum_msg_v110);
+                    let init_enum_name: str = node_field(pool, init, 1);
+                    let init_variant: str = node_field(pool, init, 2);
+                    if str_eq(type_base_name(tstr), init_enum_name) == 1 {
+                        let enum_gparams: i64 = enum_gparams_for_name(pool, prog, init_enum_name);
+                        let init_args: i64 = node_field(pool, init, 3);
+                        let init_argc: i64 = list_len(pool, init_args);
+                        let mut enum_ai: i64 = 0;
+                        while enum_ai < init_argc {
+                            let raw_payload: str = infer_enum_variant_payload_type(source, init_enum_name, init_variant, enum_ai);
+                            let exp_payload: str = substitute_gparams_from_list(pool, enum_gparams, tstr, raw_payload);
+                            let act_payload: str = type_expr(pool, prog, list_get(pool, init_args, enum_ai), env, sigs, structs, fn_name, diags, source, tprof);
+                            if str_len(exp_payload) > 0 && str_len(act_payload) > 0 {
+                                if types_compatible_context(pool, prog, exp_payload, act_payload) == 0 {
+                                    let enum_msg: str = str_concat("generic enum payload mismatch for `", str_concat(init_enum_name, str_concat("::", str_concat(init_variant, str_concat("`: declared binding type `", str_concat(tstr, str_concat("` requires payload `", str_concat(exp_payload, str_concat("`, got `", str_concat(act_payload, "`. Pre-fix the payload was bit-stored into the erased i64 slot with no type check."))))))))));
+                                    type_diag_at(diags, source, pool, init, fn_name, vname, "TYP-008", enum_msg);
                                 };
                             };
-                            enum_ai_v110 = enum_ai_v110 + 1;
+                            enum_ai = enum_ai + 1;
                         };
                     };
                 };
@@ -27798,11 +27798,11 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
                     };
                     } else {
-                        let box_dyn_trait_v117: str = box_dyn_trait_name(tstr);
-                        if str_len(box_dyn_trait_v117) > 0 {
-                            let box_actual_v117: str = box_new_concrete_arg_type(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
-                            if str_len(box_actual_v117) > 0 && str_len(dyn_trait_name(box_actual_v117)) == 0 {
-                                if type_implements_trait(pool, prog, box_actual_v117, box_dyn_trait_v117) == 0 {
+                        let box_dyn_trait: str = box_dyn_trait_name(tstr);
+                        if str_len(box_dyn_trait) > 0 {
+                            let box_actual: str = box_new_concrete_arg_type(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
+                            if str_len(box_actual) > 0 && str_len(dyn_trait_name(box_actual)) == 0 {
+                                if type_implements_trait(pool, prog, box_actual, box_dyn_trait) == 0 {
                                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
                                 };
                             };
@@ -27906,9 +27906,9 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 // and check for a negative result against unsigned types
                 // — fires NUM-019 for any const-foldable negative binop.
                 if str_len(tstr) > 0 && type_is_int(tstr) == 1 && type_signedness(tstr) == 2 {
-                    let cf_v064: Vec<i32> = const_i64_expr(pool, init, env);
-                    let cf_have_v064: i64 = vec_get(cf_v064, 0);
-                    let cf_val_v064: i64 = vec_get(cf_v064, 1);
+                    let cf: Vec<i32> = const_i64_expr(pool, init, env);
+                    let cf_have: i64 = vec_get(cf, 0);
+                    let cf_val: i64 = vec_get(cf, 1);
                     // Lane 1 audit fix (2026-05-08) — close C-007 / NUM-019
                     // false-fire for u64 div/rem. const_i64_expr does
                     // signed arithmetic on i64-cmap values, so a u64
@@ -27923,9 +27923,9 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     // panic_div_u64 / panic_rem_u64 does the right thing).
                     let v0508_skip_num19: i64 = if str_eq(type_base_name(tstr), "u64") == 1 { 1 } else { 0 };
                     if v0508_skip_num19 == 0
-                       && cf_have_v064 == 1 && cf_val_v064 < 0
+                       && cf_have == 1 && cf_val < 0
                        && node_kind(pool, init) != 5 && node_kind(pool, init) != 1 {
-                        let nm19b_msg: str = str_concat("expression evaluates to negative value `", str_concat(str_from_int(cf_val_v064), str_concat("` at compile time, cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, ". Pre-v0.6.45 the binop / cast form (e.g. `0 - 5`, `1000 - 2000`) evaded the kind-5 unary-minus NUM-019 check and silently two's-complement-wrapped at runtime. Use a non-negative result, change the type to a signed equivalent, or wrap explicitly with `(expr) as <type>`."))))));
+                        let nm19b_msg: str = str_concat("expression evaluates to negative value `", str_concat(str_from_int(cf_val), str_concat("` at compile time, cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, ". Pre-v0.6.45 the binop / cast form (e.g. `0 - 5`, `1000 - 2000`) evaded the kind-5 unary-minus NUM-019 check and silently two's-complement-wrapped at runtime. Use a non-negative result, change the type to a signed equivalent, or wrap explicitly with `(expr) as <type>`."))))));
                         type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-019", nm19b_msg);
                     };
                 };
@@ -27986,8 +27986,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         };
         if str_len(tstr) > 0 {
             if str_len(init_t) == 0 {
-                let tstr_base_v110: str = type_base_name(tstr);
-                if enum_gparams_for_name(pool, prog, tstr_base_v110) >= 0 {
+                let tstr_base: str = type_base_name(tstr);
+                if enum_gparams_for_name(pool, prog, tstr_base) >= 0 {
                     tenv_set(env, vname, tstr);
                 } else {
                     tenv_set(env, vname, "");
@@ -28010,21 +28010,21 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         // stores str pointers cast to i64), so the workaround mirrors
         // that pattern.
         if str_len(tstr) > 0 {
-            let mut hm_keyed_collection_v651: i64 = 0;
-            if str_starts_with(tstr, "HashMap<") == 1 { hm_keyed_collection_v651 = 1; };
-            if str_starts_with(tstr, "HashSet<") == 1 { hm_keyed_collection_v651 = 1; };
-            if str_starts_with(tstr, "BTreeMap<") == 1 { hm_keyed_collection_v651 = 1; };
-            if str_starts_with(tstr, "BTreeSet<") == 1 { hm_keyed_collection_v651 = 1; };
-            if hm_keyed_collection_v651 == 1 {
-                let key_t_v651: str = type_first_arg(tstr);
-                if str_len(key_t_v651) > 0 && str_eq(key_t_v651, "str") == 0 && str_eq(key_t_v651, "_") == 0 {
-                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys."))))));
-                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-026", hm_msg_v651);
+            let mut hm_keyed_collection: i64 = 0;
+            if str_starts_with(tstr, "HashMap<") == 1 { hm_keyed_collection = 1; };
+            if str_starts_with(tstr, "HashSet<") == 1 { hm_keyed_collection = 1; };
+            if str_starts_with(tstr, "BTreeMap<") == 1 { hm_keyed_collection = 1; };
+            if str_starts_with(tstr, "BTreeSet<") == 1 { hm_keyed_collection = 1; };
+            if hm_keyed_collection == 1 {
+                let key_t: str = type_first_arg(tstr);
+                if str_len(key_t) > 0 && str_eq(key_t, "str") == 0 && str_eq(key_t, "_") == 0 {
+                    let hm_msg: str = str_concat("non-str key type `", str_concat(key_t, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys."))))));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-026", hm_msg);
                 };
             };
         };
         if init >= 0 {
-            let init_const_v146: Vec<i32> = const_i64_expr(pool, init, env);
+            let init_const: Vec<i32> = const_i64_expr(pool, init, env);
             // v0.6.50 (probe finding 2026-05-02-num-021-coverage-gaps-
             // u64-imin-shift-divzero, gap 4): also fire NUM-021 at
             // compile time when a let-binding const expression
@@ -28045,24 +28045,24 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // u64 — e.g. `let x: u64 = i64::MAX + 1;` has i64 result
             // -9223372036854775808 which fits u64). For signed types
             // (or no annotation), use the existing i64-overflow path.
-            let mut is_unsigned_v064: i64 = 0;
+            let mut is_unsigned: i64 = 0;
             if str_len(tstr) > 0 && type_is_int(tstr) == 1 && type_signedness(tstr) == 2 {
-                is_unsigned_v064 = 1;
+                is_unsigned = 1;
             };
             let mut u64_overflow_v064: i64 = 0;
-            if is_unsigned_v064 == 1 && node_kind(pool, init) != 7 {
+            if is_unsigned == 1 && node_kind(pool, init) != 7 {
                 u64_overflow_v064 = const_u64_overflow(pool, init, env);
             };
             if u64_overflow_v064 == 1 {
                 let m21u_msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, str_concat("` overflows declared unsigned type `", str_concat(tstr, "` at compile time. Pre-fix this silently wrapped through u64 arithmetic during lowering and the binding silently held the wrapped value. Use explicit `wrapping_add_u64` / `saturating_add_u64` / `checked_add_u64` if wrapping is intentional, reduce the operands, or widen the type."))));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21u_msg);
                 tenv_clear_const(env, vname);
-            } else if is_unsigned_v064 == 0 && const_i64_overflow(init_const_v146) == 1 && node_kind(pool, init) != 7 {
+            } else if is_unsigned == 0 && const_i64_overflow(init_const) == 1 && node_kind(pool, init) != 7 {
                 let m21msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, "` overflows i64 at compile time. Pre-fix this PANICked at runtime startup via the strict-intrin trap — far from the source line. Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional."));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21msg);
                 tenv_clear_const(env, vname);
             }
-            else if vec_get(init_const_v146, 0) == 1 { tenv_set_const_i64(env, vname, vec_get(init_const_v146, 1)); }
+            else if vec_get(init_const, 0) == 1 { tenv_set_const_i64(env, vname, vec_get(init_const, 1)); }
             else { tenv_clear_const(env, vname); };
         } else {
             tenv_clear_const(env, vname);
@@ -28142,17 +28142,17 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let compat_ok: i64 = types_compatible_context(pool, prog, lhs_t, rhs_t);
             tprof_mark(tprof, 7, 8, compat_start);
             if compat_ok == 0 {
-                let lhs_name_assign_v840: str = node_field(pool, lhs, 1);
+                let lhs_name_assign: str = node_field(pool, lhs, 1);
                 if frame_mismatch_visible(lhs_t, rhs_t) == 1 {
-                    let f_action_assign_v840: str = str_concat("cannot assign to '", str_concat(lhs_name_assign_v840, "'"));
-                    type_diag(diags, source, fn_name, lhs_name_assign_v840, "FRAME-001", frame_mismatch_diag_message(f_action_assign_v840, lhs_t, rhs_t));
+                    let f_action_assign: str = str_concat("cannot assign to '", str_concat(lhs_name_assign, "'"));
+                    type_diag(diags, source, fn_name, lhs_name_assign, "FRAME-001", frame_mismatch_diag_message(f_action_assign, lhs_t, rhs_t));
                 } else {
-                    type_diag(diags, source, fn_name, lhs_name_assign_v840, "TYP-009", "assignment type mismatch");
+                    type_diag(diags, source, fn_name, lhs_name_assign, "TYP-009", "assignment type mismatch");
                 };
             };
             let lhs_name_v146: str = node_field(pool, lhs, 1);
-            let rhs_const_v146: Vec<i32> = const_i64_expr(pool, rhs, env);
-            if vec_get(rhs_const_v146, 0) == 1 { tenv_set_const_i64(env, lhs_name_v146, vec_get(rhs_const_v146, 1)); }
+            let rhs_const: Vec<i32> = const_i64_expr(pool, rhs, env);
+            if vec_get(rhs_const, 0) == 1 { tenv_set_const_i64(env, lhs_name_v146, vec_get(rhs_const, 1)); }
             else { tenv_clear_const(env, lhs_name_v146); };
         };
         // NUC-FEEDBACK silent-miscompute close for indexed
@@ -28173,8 +28173,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         let compat_idx: i64 = types_compatible_context(pool, prog, elem_t, rhs_t);
                         if compat_idx == 0 {
                             if frame_mismatch_visible(elem_t, rhs_t) == 1 {
-                                let f_action_idx_v840: str = str_concat("cannot assign indexed element of '", str_concat(vname, "'"));
-                                type_diag(diags, source, fn_name, vname, "FRAME-001", frame_mismatch_diag_message(f_action_idx_v840, elem_t, rhs_t));
+                                let f_action_idx: str = str_concat("cannot assign indexed element of '", str_concat(vname, "'"));
+                                type_diag(diags, source, fn_name, vname, "FRAME-001", frame_mismatch_diag_message(f_action_idx, elem_t, rhs_t));
                             } else {
                                 let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
                                 let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
@@ -28220,8 +28220,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         let compat_fld: i64 = types_compatible_context(pool, prog, f_t, rhs_t);
                         if compat_fld == 0 {
                             if frame_mismatch_visible(f_t, rhs_t) == 1 {
-                                let f_action_field_v840: str = str_concat("cannot assign field '", str_concat(recv_name, str_concat(".", str_concat(fname, "'"))));
-                                type_diag(diags, source, fn_name, recv_name, "FRAME-001", frame_mismatch_diag_message(f_action_field_v840, f_t, rhs_t));
+                                let f_action_field: str = str_concat("cannot assign field '", str_concat(recv_name, str_concat(".", str_concat(fname, "'"))));
+                                type_diag(diags, source, fn_name, recv_name, "FRAME-001", frame_mismatch_diag_message(f_action_field, f_t, rhs_t));
                             } else {
                                 let pa2: str = str_concat("field assignment type mismatch on `", str_concat(recv_name, str_concat(".", str_concat(fname, str_concat("`: field type `", str_concat(f_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))))));
                                 let pb2: str = " Pre-v0.4.65 the i64-everywhere ABI silently coerced any RHS to fit.";
@@ -28243,8 +28243,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             tprof_mark(tprof, 7, 8, compat_start);
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 if frame_mismatch_visible(rtype, val_t) == 1 {
-                    let f_action_return_v840: str = str_concat("cannot return from fn '", str_concat(fn_name, "'"));
-                    type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_return_v840, rtype, val_t));
+                    let f_action_return: str = str_concat("cannot return from fn '", str_concat(fn_name, "'"));
+                    type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_return, rtype, val_t));
                 } else {
                     type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
                 };
@@ -28281,8 +28281,8 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
     if kind == 23 {
         type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
-        let char_guard_v0845: str = char_guard_proven_var(pool, node_field(pool, nid, 1), env);
-        if str_len(char_guard_v0845) > 0 { tenv_set_char_guard(then_env, char_guard_v0845); };
+        let char_guard: str = char_guard_proven_var(pool, node_field(pool, nid, 1), env);
+        if str_len(char_guard) > 0 { tenv_set_char_guard(then_env, char_guard); };
         warns = warns + type_check_stmts(pool, prog, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
         vec_free(then_env);
         let enode: i64 = node_field(pool, nid, 3);
@@ -28412,12 +28412,12 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
             // ctype is unsigned, ONLY check u64-overflow (i64 may
             // "overflow" via wrap but still fit u64). For signed types
             // use existing i64-overflow path.
-            let mut is_unsigned_const_v064: i64 = 0;
+            let mut is_unsigned_const: i64 = 0;
             if str_len(ctype) > 0 && type_is_int(ctype) == 1 && type_signedness(ctype) == 2 {
-                is_unsigned_const_v064 = 1;
+                is_unsigned_const = 1;
             };
             let mut u64_overflow_const_v064: i64 = 0;
-            if is_unsigned_const_v064 == 1 {
+            if is_unsigned_const == 1 {
                 u64_overflow_const_v064 = const_u64_overflow(pool, cinit, env);
             };
             if u64_overflow_const_v064 == 1 {
@@ -28425,7 +28425,7 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
                 let m21u_b: str = " Pre-fix this silently wrapped through u64 arithmetic and the const held the wrapped value.";
                 let m21u_c: str = " Use explicit wrapping_add_u64 / saturating_add_u64 / checked_add_u64 if wrapping is intentional, reduce operands, or widen the type.";
                 type_diag_at(diags, source, pool, nid, cname, cname, "NUM-021", str_concat(m21u_a, str_concat(m21u_b, m21u_c)));
-            } else if is_unsigned_const_v064 == 0 && const_i64_overflow(cres) == 1 {
+            } else if is_unsigned_const == 0 && const_i64_overflow(cres) == 1 {
                 let msg21a: str = str_concat("integer constant expression for const `", str_concat(cname, "` overflows i64 at compile time."));
                 let msg21b: str = " Pre-fix this wrapped during lowering and could panic at runtime startup or emit misleading IR.";
                 let msg21c: str = " Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional.";
@@ -28677,8 +28677,8 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                         let tail_t: str = type_expr(pool, prog, tail_expr, env, sigs, structs, fn_name, diags, source, tprof);
                         if str_len(tail_t) > 0 && types_compatible_context(pool, prog, rtype, tail_t) == 0 {
                             if frame_mismatch_visible(rtype, tail_t) == 1 {
-                                let f_action_tail_v840: str = str_concat("cannot use tail expression for fn '", str_concat(fn_name, "'"));
-                                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_tail_v840, rtype, tail_t));
+                                let f_action_tail: str = str_concat("cannot use tail expression for fn '", str_concat(fn_name, "'"));
+                                type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_tail, rtype, tail_t));
                             } else {
                                 let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
                                 let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
@@ -30427,14 +30427,14 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // u64 right shift) joins the shift-panic dispatch so
             // non-literal RHS routes to panic_shr_u64 instead of leaving
             // raw LLVM that would still be lshr-correct but unguarded.
-            let shift_lenient_v146: str = env_get_or("NUCLEOR_SHIFT_LENIENT", "0");
-            if str_eq(shift_lenient_v146, "1") == 0 && (iop == 23 || iop == 24 || iop == 25) {
-                let rhs_shift_v146: i64 = node_field(pool, nid, 3);
-                let shift_const_v146: Vec<i32> = const_i64_expr(pool, rhs_shift_v146, sym);
-                let shift_have_v146: i64 = vec_get(shift_const_v146, 0);
-                let shift_amt_v146: i64 = vec_get(shift_const_v146, 1);
-                let shift_safe_lit_v146: i64 = if shift_have_v146 == 1 && shift_amt_v146 >= 0 && shift_amt_v146 < 64 { 1 } else { 0 };
-                if shift_safe_lit_v146 == 0 {
+            let shift_lenient: str = env_get_or("NUCLEOR_SHIFT_LENIENT", "0");
+            if str_eq(shift_lenient, "1") == 0 && (iop == 23 || iop == 24 || iop == 25) {
+                let rhs_shift: i64 = node_field(pool, nid, 3);
+                let shift_const: Vec<i32> = const_i64_expr(pool, rhs_shift, sym);
+                let shift_have: i64 = vec_get(shift_const, 0);
+                let shift_amt: i64 = vec_get(shift_const, 1);
+                let shift_safe_lit: i64 = if shift_have == 1 && shift_amt >= 0 && shift_amt < 64 { 1 } else { 0 };
+                if shift_safe_lit == 0 {
                     if iop == 25 { sh = "panic_shr_u64"; };
                     if iop == 23 { sh = "panic_shl"; };
                     if iop == 24 { sh = "panic_shr"; };
@@ -30444,8 +30444,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_eq(strict_intrin, "1") == 1 && arith_mode_explicit <= 0 && (iop == 2 || iop == 3 || iop == 4) {
                 let trap_lbl: i64 = ctr_next(lbls);
                 let cont_lbl: i64 = ctr_next(lbls);
-                let trap_width_v886: i64 = if u64_binop_v886 == 1 { 0 - 64 } else { 0 };
-                ir_block_add(cur, ir_binop_overflow(iop, r, lr, rr, trap_width_v886, trap_lbl));
+                let trap_width: i64 = if u64_binop_v886 == 1 { 0 - 64 } else { 0 };
+                ir_block_add(cur, ir_binop_overflow(iop, r, lr, rr, trap_width, trap_lbl));
             } else if str_len(sh) > 0 {
                 let mut sa: Vec<i32> = Vec::new();
                 sa.push(lr); sa.push(rr);
@@ -30488,10 +30488,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // No new runtime declares (sidesteps the v0.6.48-attempt-1
             // bootstrap-cycle hole that the earlier f<T>_neg helper
             // approach hit).
-            let sign_bit_v652: i64 = if str_eq(neg_ftype, "f32") == 1 { 2147483648 } else { const_i64_min() };
-            let mask_reg_v652: i64 = ctr_next(regs);
-            ir_block_add(cur, ir_const_int(mask_reg_v652, sign_bit_v652));
-            ir_block_add(cur, ir_binop(15, r, opr, mask_reg_v652));
+            let sign_bit: i64 = if str_eq(neg_ftype, "f32") == 1 { 2147483648 } else { const_i64_min() };
+            let mask_reg: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_const_int(mask_reg, sign_bit));
+            ir_block_add(cur, ir_binop(15, r, opr, mask_reg));
         } else {
             // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
             // u64-imin-shift-divzero, gap 2): canonical Rust literal
@@ -30527,10 +30527,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // (the older opt-in env var) is still honored on the `=1`
             // path for backward-compat.
             let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
-            let strict_intrin_env_v064: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
+            let strict_intrin_env: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
             let mut strict: i64 = 0;
             if str_eq(strict_env, "1") == 1 { strict = 1; };
-            if str_eq(strict_intrin_env_v064, "1") == 1 { strict = 1; };
+            if str_eq(strict_intrin_env, "1") == 1 { strict = 1; };
             if strict == 1 {
                 let mut na: Vec<i32> = Vec::new();
                 na.push(opr);
@@ -30564,36 +30564,36 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // uppercase-starting identifiers can be struct names per Rust
         // convention. Skips the struct-table scan for the dominant
         // case (lowercase fn names = regular fns).
-        let mut tup_si_v074: i64 = 0 - 1;
+        let mut tup_si: i64 = 0 - 1;
         let fnlen_v074: i64 = str_len(fn_name);
         if fnlen_v074 > 0 {
             let fnc0_v074: i64 = str_char_at(fn_name, 0);
             if fnc0_v074 >= 65 && fnc0_v074 <= 90 {
-                tup_si_v074 = struct_find_type(pool, structs, fn_name);
+                tup_si = struct_find_type(pool, structs, fn_name);
             };
         };
-        if tup_si_v074 >= 0 {
-            let tup_snid_v074: i64 = vec_get(structs, tup_si_v074);
-            if struct_is_tuple_style(pool, tup_snid_v074) == 1 {
-                let tup_args_v074: i64 = node_field(pool, nid, 2);
-                let tup_argc_v074: i64 = list_len(pool, tup_args_v074);
-                let tup_vr_v074: i64 = ctr_next(regs);
-                let mut tup_new_args_v074: Vec<i32> = Vec::new();
-                ir_block_add(blk, ir_call_ex(tup_vr_v074, "vec_new", tup_new_args_v074));
-                let mut tup_cur_v074: Vec<i32> = blk;
-                let mut tup_i_v074: i64 = 0;
-                while tup_i_v074 < tup_argc_v074 {
-                    let mut tup_vp_v074: Vec<i32> = lower_expr(pool, list_get(pool, tup_args_v074, tup_i_v074), tup_cur_v074, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-                    let tup_val_r_v074: i64 = lx_reg(tup_vp_v074);
-                    tup_cur_v074 = lx_blk(tup_vp_v074);
-                    let mut tup_push_args_v074: Vec<i32> = Vec::new();
-                    tup_push_args_v074.push(tup_vr_v074);
-                    tup_push_args_v074.push(tup_val_r_v074);
-                    let tup_pr_v074: i64 = ctr_next(regs);
-                    ir_block_add(tup_cur_v074, ir_call_ex(tup_pr_v074, "vec_push", tup_push_args_v074));
-                    tup_i_v074 = tup_i_v074 + 1;
+        if tup_si >= 0 {
+            let tup_snid: i64 = vec_get(structs, tup_si);
+            if struct_is_tuple_style(pool, tup_snid) == 1 {
+                let tup_args: i64 = node_field(pool, nid, 2);
+                let tup_argc: i64 = list_len(pool, tup_args);
+                let tup_vr: i64 = ctr_next(regs);
+                let mut tup_new_args: Vec<i32> = Vec::new();
+                ir_block_add(blk, ir_call_ex(tup_vr, "vec_new", tup_new_args));
+                let mut tup_cur: Vec<i32> = blk;
+                let mut tup_i: i64 = 0;
+                while tup_i < tup_argc {
+                    let mut tup_vp: Vec<i32> = lower_expr(pool, list_get(pool, tup_args, tup_i), tup_cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let tup_val_r: i64 = lx_reg(tup_vp);
+                    tup_cur = lx_blk(tup_vp);
+                    let mut tup_push_args: Vec<i32> = Vec::new();
+                    tup_push_args.push(tup_vr);
+                    tup_push_args.push(tup_val_r);
+                    let tup_pr: i64 = ctr_next(regs);
+                    ir_block_add(tup_cur, ir_call_ex(tup_pr, "vec_push", tup_push_args));
+                    tup_i = tup_i + 1;
                 };
-                return lx_new(tup_vr_v074, tup_cur_v074);
+                return lx_new(tup_vr, tup_cur);
             };
         };
         // T1.1 Phase 3b: sizeof_struct(StructName) — compile-time
@@ -31208,8 +31208,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // known non-callable scalar/string type.
             let type_v122: i64 = sym_get(sym, str_concat("__type_", fn_name));
             if type_v122 >= 0 {
-                let type_str_v122: str = type_v122;
-                let tbase_v122: str = type_base_name(type_str_v122);
+                let type_str: str = type_v122;
+                let tbase: str = type_base_name(type_str);
                 // removed i*/u* from the uncallable list. Pre-v0.4.164
                 // lumping integer types into TYP-014 broke
                 //   `let double: i64 = |x| x * 2;` (tests/lang/closures.nr) and
@@ -31223,13 +31223,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // var as a fn — returns to pre-v0.4.122 runtime SIGSEGV with
                 // no compile-time signal. Acceptable trade-off until proper
                 // fn-pointer types ship in RFC-0025.
-                let is_uncallable: i64 = if str_eq(tbase_v122, "str") == 1
-                    || str_eq(tbase_v122, "f32") == 1
-                    || str_eq(tbase_v122, "f64") == 1
-                    || str_eq(tbase_v122, "bool") == 1
-                    || str_eq(tbase_v122, "Vec") == 1 { 1 } else { 0 };
+                let is_uncallable: i64 = if str_eq(tbase, "str") == 1
+                    || str_eq(tbase, "f32") == 1
+                    || str_eq(tbase, "f64") == 1
+                    || str_eq(tbase, "bool") == 1
+                    || str_eq(tbase, "Vec") == 1 { 1 } else { 0 };
                 if is_uncallable == 1 {
-                    panic(str_concat("error[TYP-014]: cannot call `", str_concat(fn_name, str_concat("(...)` — `", str_concat(fn_name, str_concat("` is bound as type `", str_concat(type_str_v122, "`, which is not callable. Pre-v0.4.122 this lowered to an indirect call that interpreted the value's bits as a function pointer and SIGSEGV'd at runtime. Did you mean to call a different identifier, or to access an element via `[i]` / a method via `.method(args)`?"))))))));
+                    panic(str_concat("error[TYP-014]: cannot call `", str_concat(fn_name, str_concat("(...)` — `", str_concat(fn_name, str_concat("` is bound as type `", str_concat(type_str, "`, which is not callable. Pre-v0.4.122 this lowered to an indirect call that interpreted the value's bits as a function pointer and SIGSEGV'd at runtime. Did you mean to call a different identifier, or to access an element via `[i]` / a method via `.method(args)`?"))))))));
                 };
             };
             let fp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(fp_r, fn_slot));
@@ -31286,20 +31286,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut fn_name: str = "";
         if str_len(stype) > 0 { fn_name = trait_impl_find(trait_impls, stype, mname); };
         if str_len(fn_name) == 0 {
-            let gbound_count_v529: i64 = sym_get(sym, str_concat("__gparam_bound_count_", stype));
-            if gbound_count_v529 > 0 {
-                let mut gb_i_v529: i64 = 0;
-                while gb_i_v529 < gbound_count_v529 && str_len(fn_name) == 0 {
-                    let gb_name_v529: str = sym_get(sym, str_concat(str_concat("__gparam_bound_", stype), str_concat("_", str_from_int(gb_i_v529))));
-                    let gb_impl_v529: str = trait_impl_find_unique_bound_method(trait_impls, gb_name_v529, mname);
-                    if str_eq(gb_impl_v529, "__ambiguous_trait_bound_method") == 1 {
-                        let msg_v529a: str = str_concat("error[TYP-007]: generic trait-bound method dispatch for `", str_concat(stype, str_concat(": ", str_concat(gb_name_v529, str_concat("` method `.", str_concat(mname, "()` is ambiguous."))))));
+            let gbound_count: i64 = sym_get(sym, str_concat("__gparam_bound_count_", stype));
+            if gbound_count > 0 {
+                let mut gb_i: i64 = 0;
+                while gb_i < gbound_count && str_len(fn_name) == 0 {
+                    let gb_name: str = sym_get(sym, str_concat(str_concat("__gparam_bound_", stype), str_concat("_", str_from_int(gb_i))));
+                    let gb_impl: str = trait_impl_find_unique_bound_method(trait_impls, gb_name, mname);
+                    if str_eq(gb_impl, "__ambiguous_trait_bound_method") == 1 {
+                        let msg_v529a: str = str_concat("error[TYP-007]: generic trait-bound method dispatch for `", str_concat(stype, str_concat(": ", str_concat(gb_name, str_concat("` method `.", str_concat(mname, "()` is ambiguous."))))));
                         let msg_v529b: str = " Nucleor currently emits one ABI-level generic fn body rather than per-call-site specializations, so a generic receiver method can only lower when the bound has exactly one concrete impl for that method. Split the generic call or use an explicit concrete helper until monomorphized trait dispatch ships.";
                         print(str_concat(msg_v529a, msg_v529b));
                         panic(str_concat("nucleor: ambiguous generic trait-bound method dispatch for ", str_concat(stype, str_concat(".", mname))));
                     };
-                    if str_len(gb_impl_v529) > 0 { fn_name = gb_impl_v529; };
-                    gb_i_v529 = gb_i_v529 + 1;
+                    if str_len(gb_impl) > 0 { fn_name = gb_impl; };
+                    gb_i = gb_i + 1;
                 };
             };
         };
@@ -31350,8 +31350,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // stype = "str" so the existing v0.4.88 str-method dispatch
                 // (str_len / str_contains / str_replace / etc.) picks it up.
                 if recv_is_vec == 1 {
-                    let recv_check_v4135: i64 = node_field(pool, nid, 1);
-                    if node_kind(pool, recv_check_v4135) == 2 {
+                    let recv_check: i64 = node_field(pool, nid, 1);
+                    if node_kind(pool, recv_check) == 2 {
                         recv_is_vec = 0;
                         stype = "str";
                     };
@@ -31514,24 +31514,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 // runtime helpers (added in
                                 // nucleor_llvm_rt.c v0.4.90) if so.
                                 let recv_for_opt: i64 = node_field(pool, nid, 1);
-                                let mut routed_v490: i64 = 0;
+                                let mut routed: i64 = 0;
                                 if node_kind(pool, recv_for_opt) == 3 {
                                     let recv_name_v490: str = node_field(pool, recv_for_opt, 1);
-                                    let recv_type_id_v490: i64 = sym_get(sym, str_concat("__type_", recv_name_v490));
-                                    if recv_type_id_v490 >= 0 {
-                                        let recv_type_v490: str = recv_type_id_v490;
-                                        let recv_base_v490: str = type_base_name(recv_type_v490);
-                                        if str_eq(recv_base_v490, "Option") == 1 {
+                                    let recv_type_id: i64 = sym_get(sym, str_concat("__type_", recv_name_v490));
+                                    if recv_type_id >= 0 {
+                                        let recv_type_v490: str = recv_type_id;
+                                        let recv_base: str = type_base_name(recv_type_v490);
+                                        if str_eq(recv_base, "Option") == 1 {
                                             fn_name = str_concat("option_", mname);
-                                            routed_v490 = 1;
+                                            routed = 1;
                                         };
-                                        if str_eq(recv_base_v490, "Result") == 1 {
+                                        if str_eq(recv_base, "Result") == 1 {
                                             fn_name = str_concat("result_", mname);
-                                            routed_v490 = 1;
+                                            routed = 1;
                                         };
                                     };
                                 };
-                                if routed_v490 == 0 {
+                                if routed == 0 {
                                     let part_a: str = str_concat("ERROR: `.", str_concat(mname, "()` is an Option/Result method, not a Vec method."));
                                     let part_b: str = str_concat(" Receiver type unknown to the type-checker; pre-v0.4.53 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
                                     let part_c: str = " Workaround: ensure the receiver binding is typed `Option<T>` / `Result<T,E>`, or use the explicit `match expr { Some(x) => x, None => default }` pattern.";
@@ -31555,24 +31555,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // the receiver type. str has its own
                             // receiver-type-aware dispatch above
                             // (v0.4.88) so it doesn't reach this path.
-                            let stype_base_v107: str = type_base_name(stype);
-                            let is_primitive_recv: i64 = if str_eq(stype_base_v107, "i8") == 1
-                                || str_eq(stype_base_v107, "i16") == 1
-                                || str_eq(stype_base_v107, "i32") == 1
-                                || str_eq(stype_base_v107, "i64") == 1
-                                || str_eq(stype_base_v107, "u8") == 1
-                                || str_eq(stype_base_v107, "u16") == 1
-                                || str_eq(stype_base_v107, "u32") == 1
-                                || str_eq(stype_base_v107, "u64") == 1
-                                || str_eq(stype_base_v107, "f32") == 1
-                                || str_eq(stype_base_v107, "f64") == 1
-                                || str_eq(stype_base_v107, "bool") == 1 { 1 } else { 0 };
+                            let stype_base: str = type_base_name(stype);
+                            let is_primitive_recv: i64 = if str_eq(stype_base, "i8") == 1
+                                || str_eq(stype_base, "i16") == 1
+                                || str_eq(stype_base, "i32") == 1
+                                || str_eq(stype_base, "i64") == 1
+                                || str_eq(stype_base, "u8") == 1
+                                || str_eq(stype_base, "u16") == 1
+                                || str_eq(stype_base, "u32") == 1
+                                || str_eq(stype_base, "u64") == 1
+                                || str_eq(stype_base, "f32") == 1
+                                || str_eq(stype_base, "f64") == 1
+                                || str_eq(stype_base, "bool") == 1 { 1 } else { 0 };
                             if is_primitive_recv == 1 {
-                                let pa: str = str_concat("error[TYP-007]: receiver type `", str_concat(stype_base_v107, str_concat("` has no method `.", str_concat(mname, "()`."))));
+                                let pa: str = str_concat("error[TYP-007]: receiver type `", str_concat(stype_base, str_concat("` has no method `.", str_concat(mname, "()`."))));
                                 let pb: str = str_concat(" Pre-v0.4.107 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
                                 let pc: str = " Primitive numeric and bool types in Nucleor have no inherent methods today; use a free fn (e.g. `i64_to_str(x)`) or wrap in a struct that impls the method.";
                                 print(str_concat(pa, str_concat(pb, pc)));
-                                panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base_v107, "`")))));
+                                panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base, "`")))));
                             };
                             // v0.6.91 (defensive halt — Box<dyn Trait>
                             // receiver method dispatch): canonical Rust
@@ -31589,9 +31589,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // Halt cleanly with workaround pointer (use
                             // concrete type — `let d: Dog = Dog {}; ...`
                             // — and call the trait method directly).
-                            if str_len(stype_base_v107) > 4 && str_starts_with(stype_base_v107, "dyn ") == 1 {
-                                print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base_v107, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match).")))));
-                                panic(str_concat("nucleor: trait-object method dispatch on `Box<", str_concat(stype_base_v107, "> not yet supported (see ERROR diagnostic above)")));
+                            if str_len(stype_base) > 4 && str_starts_with(stype_base, "dyn ") == 1 {
+                                print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match).")))));
+                                panic(str_concat("nucleor: trait-object method dispatch on `Box<", str_concat(stype_base, "> not yet supported (see ERROR diagnostic above)")));
                             };
                             // borrowed-reference receiver guard.
                             // Pre-fix `r.foo()` for `r: &S` fell through every
@@ -31625,7 +31625,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     if v217_is_ref == 1 {
                                         let v217a: str = str_concat("error[TYP-007]: receiver type `", str_concat(v217_full, str_concat("` — method dispatch on borrowed references (`.", str_concat(mname, "()` on `&T` / `&mut T`) is not supported in Nucleor today."))));
                                         let v217b: str = " Pre-v0.4.217 the kind-8 catch-all synthesized `vec_<method>(<receiver>)` and the post-link diagnostic re-cast it as `receiver type 'Vec<T>' has no method ...` — confusing because the receiver is a borrowed reference, not a Vec.";
-                                        let v217c: str = str_concat(" Workaround: call the free fn directly with the reference — `", str_concat(mname, str_concat("(<receiver>)`, OR dereference the binding first (`let s_owned: ", str_concat(stype_base_v107, " = *<receiver>;`) and call methods on the owned value. Auto-deref method dispatch through borrowed references is tracked for a later RFC."))));
+                                        let v217c: str = str_concat(" Workaround: call the free fn directly with the reference — `", str_concat(mname, str_concat("(<receiver>)`, OR dereference the binding first (`let s_owned: ", str_concat(stype_base, " = *<receiver>;`) and call methods on the owned value. Auto-deref method dispatch through borrowed references is tracked for a later RFC."))));
                                         print(str_concat(v217a, str_concat(v217b, v217c)));
                                         panic(str_concat("nucleor: method dispatch on borrowed reference `", str_concat(v217_full, "` not supported (see TYP-007 above)")));
                                     };
@@ -31641,11 +31641,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // struct AND mname matches a field name on
                             // that struct. Emit TYP-015 with the right
                             // hint (likely `p.x = ...` or `let v = p.x;`).
-                            let struct_idx_v123: i64 = struct_find_type(pool, structs, stype);
-                            if struct_idx_v123 >= 0 {
-                                let struct_nid_v123: i64 = vec_get(structs, struct_idx_v123);
-                                let field_idx_v123: i64 = struct_field_idx(pool, struct_nid_v123, mname);
-                                if field_idx_v123 >= 0 {
+                            let struct_idx: i64 = struct_find_type(pool, structs, stype);
+                            if struct_idx >= 0 {
+                                let struct_nid_v123: i64 = vec_get(structs, struct_idx);
+                                let field_idx: i64 = struct_field_idx(pool, struct_nid_v123, mname);
+                                if field_idx >= 0 {
                                     let msg15a: str = str_concat("error[TYP-015]: `.", str_concat(mname, str_concat("(args)` is invalid — `.", str_concat(mname, str_concat("` is a FIELD on struct `", str_concat(stype, "`, not a method."))))));
                                     let msg15b: str = str_concat(" Pre-v0.4.123 the call lowered to `vec_", str_concat(mname, "(...)` and surfaced as an undefined-symbol TYP-005."));
                                     let msg15c: str = " Drop the parentheses to read the field as a value, or assign with `<recv>.<field> = <value>;`.";
@@ -31656,12 +31656,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // clean halt for `.clone()` on a user struct that
                             // does not have `#[derive(Clone)]`. Pre-fix this fell through
                             // to `vec_clone(...)` synthesis → undefined symbol TYP-005.
-                            if str_eq(mname, "clone") == 1 && struct_idx_v123 >= 0 {
+                            if str_eq(mname, "clone") == 1 && struct_idx >= 0 {
                                 let v764_sname: str = stype_base;
                                 print(str_concat("ERROR: `.clone()` called on struct `", str_concat(v764_sname, "` which does not `#[derive(Clone)]`. Workaround: add `#[derive(Clone)]` above the struct definition.")));
                                 panic(str_concat("nucleor: `.clone()` on struct `", str_concat(v764_sname, "` without #[derive(Clone)] (see ERROR diagnostic above)")));
                             };
-                            if struct_idx_v123 >= 0 {
+                            if struct_idx >= 0 {
                                 print(str_concat("error[TYP-007]: receiver type `", str_concat(stype_base, str_concat("` has no method `.", str_concat(mname, "()`.")))));
                                 print(str_concat("  Define an inherent `impl ", str_concat(stype_base, str_concat(" { fn ", str_concat(mname, "(self, ...) -> T { ... } }` method or implement a trait that provides the method. Pre-fix this fell through to `vec_", str_concat(mname, "(...)` and misreported the receiver as `Vec<T>`.")))));
                                 panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for struct receiver `", str_concat(stype_base, "`")))));
@@ -31946,10 +31946,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // halt cleanly before emitting `vec_get` on the str pointer.
         let recv_v117: i64 = node_field(pool, nid, 1);
         if node_kind(pool, recv_v117) == 3 {
-            let recv_n_v117: str = node_field(pool, recv_v117, 1);
-            let recv_t_v117: i64 = sym_get(sym, str_concat("__type_", recv_n_v117));
+            let recv_n: str = node_field(pool, recv_v117, 1);
+            let recv_t_v117: i64 = sym_get(sym, str_concat("__type_", recv_n));
             if recv_t_v117 >= 0 && str_eq(recv_t_v117, "str") == 1 {
-                panic(str_concat("error[TYP-011]: `str` does not support direct indexing with `", str_concat(recv_n_v117, str_concat("[i]`. The codegen would lower this to `vec_get` on the str pointer, returning garbage or OOB-panicking. Use `str_char_at(", str_concat(recv_n_v117, ", i)` to get a byte, or `str_substring(<name>, i, j)` for a substring."))))));
+                panic(str_concat("error[TYP-011]: `str` does not support direct indexing with `", str_concat(recv_n, str_concat("[i]`. The codegen would lower this to `vec_get` on the str pointer, returning garbage or OOB-panicking. Use `str_char_at(", str_concat(recv_n, ", i)` to get a byte, or `str_substring(<name>, i, j)` for a substring."))))));
             };
         };
         let mut obj_p: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -32711,8 +32711,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // the parenthesized-type shape and halt with a clean workaround
         // pointer (named tuple-struct).
         if str_len(stype) >= 2 && str_char_at(stype, 0) == 40 {
-            let stlen_v079: i64 = str_len(stype);
-            if str_char_at(stype, stlen_v079 - 1) == 41 {
+            let stlen: i64 = str_len(stype);
+            if str_char_at(stype, stlen - 1) == 41 {
                 print(str_concat("ERROR: anonymous tuple types `(T1, T2, ...)` are not yet supported in Nucleor. Workaround: declare a named tuple-struct (V1.1, shipped v0.6.74) and use it instead — `struct Pair(i64, i64); let p: Pair = Pair(5, 7); print_int(p.0 as i32);`.", ""));
                 panic("nucleor: anonymous tuple type field access not yet supported (use named tuple-struct — see ERROR diagnostic above)");
             };
@@ -33351,8 +33351,8 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         // to 0 / nonsense. Now: if the binop is a cmp/logic op, return
         // "" so the kind-99 path falls through to the int→int
         // as_i32/as_i64 helper which correctly produces 0/1.
-        let cmp_iop_v527: i64 = tok_to_ir(node_field(pool, nid, 1));
-        if is_cmp_or_logic(cmp_iop_v527) == 1 {
+        let cmp_iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        if is_cmp_or_logic(cmp_iop) == 1 {
             return "";
         };
         let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym, structs);
@@ -34777,28 +34777,28 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     // body, so this only enables conservative single-impl dispatch for
     // `T: Trait` receiver methods; ambiguous multi-impl bounds halt
     // instead of falling through to `vec_<method>`.
-    let fn_gparams_v529: i64 = node_field(pool, fn_nid, 5);
-    if fn_gparams_v529 >= 0 {
+    let fn_gparams: i64 = node_field(pool, fn_nid, 5);
+    if fn_gparams >= 0 {
         let mut gp_v529: i64 = 0;
-        let gp_count_v529: i64 = list_len(pool, fn_gparams_v529);
-        let mut current_gparam_v529: str = "";
-        while gp_v529 < gp_count_v529 {
-            let ge_v529: str = list_get(pool, fn_gparams_v529, gp_v529);
+        let gp_count: i64 = list_len(pool, fn_gparams);
+        let mut current_gparam: str = "";
+        while gp_v529 < gp_count {
+            let ge_v529: str = list_get(pool, fn_gparams, gp_v529);
             if str_len(ge_v529) > 1 && str_char_at(ge_v529, 0) == 63 {
-                if str_len(current_gparam_v529) > 0 {
-                    let bound_name_v529: str = str_substring(ge_v529, 1, str_len(ge_v529));
-                    let count_key_v529: str = str_concat("__gparam_bound_count_", current_gparam_v529);
-                    let mut bound_count_v529: i64 = sym_get(sym, count_key_v529);
-                    if bound_count_v529 < 0 { bound_count_v529 = 0; };
-                    sym_set(sym, str_concat(str_concat("__gparam_bound_", current_gparam_v529), str_concat("_", str_from_int(bound_count_v529))), bound_name_v529);
-                    sym_set(sym, count_key_v529, bound_count_v529 + 1);
+                if str_len(current_gparam) > 0 {
+                    let bound_name: str = str_substring(ge_v529, 1, str_len(ge_v529));
+                    let count_key: str = str_concat("__gparam_bound_count_", current_gparam);
+                    let mut bound_count: i64 = sym_get(sym, count_key);
+                    if bound_count < 0 { bound_count = 0; };
+                    sym_set(sym, str_concat(str_concat("__gparam_bound_", current_gparam), str_concat("_", str_from_int(bound_count))), bound_name);
+                    sym_set(sym, count_key, bound_count + 1);
                 };
             } else {
                 if str_len(ge_v529) > 0 && str_char_at(ge_v529, 0) != 39 {
-                    current_gparam_v529 = ge_v529;
-                    sym_set(sym, str_concat("__gparam_bound_count_", current_gparam_v529), 0);
+                    current_gparam = ge_v529;
+                    sym_set(sym, str_concat("__gparam_bound_count_", current_gparam), 0);
                 } else {
-                    current_gparam_v529 = "";
+                    current_gparam = "";
                 };
             };
             gp_v529 = gp_v529 + 1;
@@ -37830,51 +37830,51 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // case to enum-duplicate-variant + duplicate-pub-fn (existing).
     // Mirror Rust E0428 ("the name `W` is defined multiple times") at
     // collection time.
-    let mut seen_struct_names_v062: Vec<str> = Vec::new();
-    let mut seen_enum_names_v062: Vec<str> = Vec::new();
+    let mut seen_struct_names: Vec<str> = Vec::new();
+    let mut seen_enum_names: Vec<str> = Vec::new();
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
         if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); fn_decls.push(fn_nid); }
         else if node_kind(pool, fn_nid) == 33 {
             let sname_v062: str = node_field(pool, fn_nid, 1);
-            let mut dsi_v062: i64 = 0;
-            let mut dup_hit_v062: i64 = 0;
-            while dsi_v062 < vec_len(seen_struct_names_v062) {
-                if str_eq(vec_get(seen_struct_names_v062, dsi_v062), sname_v062) == 1 {
-                    dup_hit_v062 = 1;
-                    dsi_v062 = vec_len(seen_struct_names_v062);
+            let mut dsi: i64 = 0;
+            let mut dup_hit: i64 = 0;
+            while dsi < vec_len(seen_struct_names) {
+                if str_eq(vec_get(seen_struct_names, dsi), sname_v062) == 1 {
+                    dup_hit = 1;
+                    dsi = vec_len(seen_struct_names);
                 } else {
-                    dsi_v062 = dsi_v062 + 1;
+                    dsi = dsi + 1;
                 };
             };
-            if dup_hit_v062 == 1 {
+            if dup_hit == 1 {
                 print(str_concat("error[TYP-041]: duplicate struct decl `", str_concat(sname_v062, "` (Rust E0428).")));
                 print(str_concat("  Two `struct ", str_concat(sname_v062, "` decls in this compile unit. Nucleor's collection pass keeps both, but only the FIRST one wins for field-offset / construction; the second's fields are unreachable. Adopters refactoring across files (rename `Foo` to `Bar`, miss one) or running translators that emit duplicate decls hit silent miscompiles.")));
                 print(str_concat("  Workaround: rename or remove the duplicate `struct ", str_concat(sname_v062, "`. If both shapes are needed (e.g. version-skew between modules), give them distinct names.")));
                 panic(str_concat("duplicate struct decl: ", sname_v062));
             };
-            seen_struct_names_v062.push(sname_v062);
+            seen_struct_names.push(sname_v062);
             structs.push(fn_nid);
         }
         else if node_kind(pool, fn_nid) == 36 {
             let ename_v062: str = node_field(pool, fn_nid, 1);
-            let mut dei_v062: i64 = 0;
-            let mut edup_hit_v062: i64 = 0;
-            while dei_v062 < vec_len(seen_enum_names_v062) {
-                if str_eq(vec_get(seen_enum_names_v062, dei_v062), ename_v062) == 1 {
-                    edup_hit_v062 = 1;
-                    dei_v062 = vec_len(seen_enum_names_v062);
+            let mut dei: i64 = 0;
+            let mut edup_hit: i64 = 0;
+            while dei < vec_len(seen_enum_names) {
+                if str_eq(vec_get(seen_enum_names, dei), ename_v062) == 1 {
+                    edup_hit = 1;
+                    dei = vec_len(seen_enum_names);
                 } else {
-                    dei_v062 = dei_v062 + 1;
+                    dei = dei + 1;
                 };
             };
-            if edup_hit_v062 == 1 {
+            if edup_hit == 1 {
                 print(str_concat("error[TYP-041]: duplicate enum decl `", str_concat(ename_v062, "` (Rust E0428).")));
                 print(str_concat("  Two `enum ", str_concat(ename_v062, "` decls in this compile unit. Same hazard as duplicate-struct: only the FIRST wins for variant resolution; the second's variants are unreachable. Sister to v0.6.27 dup-variant-within-enum check.")));
                 print(str_concat("  Workaround: rename or remove the duplicate `enum ", str_concat(ename_v062, "`.")));
                 panic(str_concat("duplicate enum decl: ", ename_v062));
             };
-            seen_enum_names_v062.push(ename_v062);
+            seen_enum_names.push(ename_v062);
             enums.push(fn_nid);
         };
         if node_kind(pool, fn_nid) == 30 { fn_decls.push(fn_nid); };
@@ -42505,36 +42505,36 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                             // as part of the value expression and the count
                             // was silently dropped (`vec![7; 5]` produced a
                             // 1-element vec with value `7;5` parsed weirdly).
-                            let mut semi_pos_v064: i64 = 0 - 1;
-                            let mut sd_chk_v064: i64 = 0;
-                            let mut s_dq_chk_v064: i64 = 0;
-                            let mut s_sq_chk_v064: i64 = 0;
-                            let mut chk_idx_v064: i64 = 0;
-                            while chk_idx_v064 < il {
-                                let cc_v064: i64 = str_char_at(inner_expanded, chk_idx_v064);
-                                if s_dq_chk_v064 == 1 {
-                                    if cc_v064 == 92 && chk_idx_v064 + 1 < il { chk_idx_v064 = chk_idx_v064 + 1; }
-                                    else if cc_v064 == 34 { s_dq_chk_v064 = 0; };
-                                } else if s_sq_chk_v064 == 1 {
-                                    if cc_v064 == 92 && chk_idx_v064 + 1 < il { chk_idx_v064 = chk_idx_v064 + 1; }
-                                    else if cc_v064 == 39 { s_sq_chk_v064 = 0; };
-                                } else if cc_v064 == 34 { s_dq_chk_v064 = 1; }
-                                else if cc_v064 == 39 { s_sq_chk_v064 = 1; }
-                                else if cc_v064 == 40 || cc_v064 == 91 || cc_v064 == 123 { sd_chk_v064 = sd_chk_v064 + 1; }
-                                else if cc_v064 == 41 || cc_v064 == 93 || cc_v064 == 125 { sd_chk_v064 = sd_chk_v064 - 1; }
-                                else if cc_v064 == 59 && sd_chk_v064 == 0 {
-                                    semi_pos_v064 = chk_idx_v064;
-                                    chk_idx_v064 = il;
+                            let mut semi_pos: i64 = 0 - 1;
+                            let mut sd_chk: i64 = 0;
+                            let mut s_dq_chk: i64 = 0;
+                            let mut s_sq_chk: i64 = 0;
+                            let mut chk_idx: i64 = 0;
+                            while chk_idx < il {
+                                let cc_v064: i64 = str_char_at(inner_expanded, chk_idx);
+                                if s_dq_chk == 1 {
+                                    if cc_v064 == 92 && chk_idx + 1 < il { chk_idx = chk_idx + 1; }
+                                    else if cc_v064 == 34 { s_dq_chk = 0; };
+                                } else if s_sq_chk == 1 {
+                                    if cc_v064 == 92 && chk_idx + 1 < il { chk_idx = chk_idx + 1; }
+                                    else if cc_v064 == 39 { s_sq_chk = 0; };
+                                } else if cc_v064 == 34 { s_dq_chk = 1; }
+                                else if cc_v064 == 39 { s_sq_chk = 1; }
+                                else if cc_v064 == 40 || cc_v064 == 91 || cc_v064 == 123 { sd_chk = sd_chk + 1; }
+                                else if cc_v064 == 41 || cc_v064 == 93 || cc_v064 == 125 { sd_chk = sd_chk - 1; }
+                                else if cc_v064 == 59 && sd_chk == 0 {
+                                    semi_pos = chk_idx;
+                                    chk_idx = il;
                                 };
-                                chk_idx_v064 = chk_idx_v064 + 1;
+                                chk_idx = chk_idx + 1;
                             };
-                            if semi_pos_v064 >= 0 {
-                                let val_text_v064: str = str_substring(inner_expanded, 0, semi_pos_v064);
-                                let cnt_text_v064: str = str_substring(inner_expanded, semi_pos_v064 + 1, il);
+                            if semi_pos >= 0 {
+                                let val_text: str = str_substring(inner_expanded, 0, semi_pos);
+                                let cnt_text: str = str_substring(inner_expanded, semi_pos + 1, il);
                                 sb_append(sb, "{ let mut __nuc_vec: Vec<i64> = Vec::new(); let mut __nuc_repeat_i: i64 = 0; let __nuc_repeat_n: i64 = (");
-                                sb_append(sb, cnt_text_v064);
+                                sb_append(sb, cnt_text);
                                 sb_append(sb, ") as i64; while __nuc_repeat_i < __nuc_repeat_n { __nuc_vec.push(");
-                                sb_append(sb, val_text_v064);
+                                sb_append(sb, val_text);
                                 sb_append(sb, "); __nuc_repeat_i = __nuc_repeat_i + 1; }; __nuc_vec }");
                             } else {
                             sb_append(sb, "{ let mut __nuc_vec: Vec<i64> = Vec::new(); ");
@@ -43009,7 +43009,7 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                     // Detect the supported-method case and emit a fn-form-
                     // vs-method-form diag instead. The unsupported-method
                     // case still gets the original "no method" diag.
-                    let mut um_supported_v064: i64 = 0;
+                    let mut um_supported: i64 = 0;
                     if str_eq(user_method, "contains") == 1 || str_eq(user_method, "push") == 1
                         || str_eq(user_method, "pop") == 1 || str_eq(user_method, "len") == 1
                         || str_eq(user_method, "get") == 1 || str_eq(user_method, "set") == 1
@@ -43022,9 +43022,9 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                         || str_eq(user_method, "max") == 1 || str_eq(user_method, "index_of") == 1
                         || str_eq(user_method, "reverse") == 1 || str_eq(user_method, "sort") == 1
                         || str_eq(user_method, "clone") == 1 || str_eq(user_method, "clear") == 1 {
-                        um_supported_v064 = 1;
+                        um_supported = 1;
                     };
-                    if um_supported_v064 == 1 {
+                    if um_supported == 1 {
                         print(str_concat("error[TYP-005]: `vec_", str_concat(user_method, "(...)` is not a top-level fn — use the method form `vec.", str_concat(user_method, "(&value)` instead. The method-dispatch path resolves to the correct type-specific runtime helper (e.g. `__nucleor_vec_", str_concat(user_method, "_i64` for `Vec<i64>`); the bare fn-form bypasses that dispatch.")))));
                         print(str_concat("                Pre-v0.6.40 the diag said `no method .", str_concat(user_method, "()`, which was misleading — the method exists, only the fn-form does not.")));
                     } else {
@@ -43103,43 +43103,43 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
     // identifiers preceded by `.` (field/method access).
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(src);
-    let mut priv_pos_v886: i64 = 0;
+    let mut priv_pos: i64 = 0;
     let mut last_non_ws: i64 = 0;
-    while priv_pos_v886 < slen {
-        let c: i64 = str_char_at(src, priv_pos_v886);
-        if c == 47 && priv_pos_v886 + 1 < slen && str_char_at(src, priv_pos_v886 + 1) == 47 {
+    while priv_pos < slen {
+        let c: i64 = str_char_at(src, priv_pos);
+        if c == 47 && priv_pos + 1 < slen && str_char_at(src, priv_pos + 1) == 47 {
             // // line comment — copy through to newline
-            let comment_start: i64 = priv_pos_v886;
-            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 10 { priv_pos_v886 = priv_pos_v886 + 1; };
-            sb_append_range(sb, src, comment_start, priv_pos_v886);
+            let comment_start: i64 = priv_pos;
+            while priv_pos < slen && str_char_at(src, priv_pos) != 10 { priv_pos = priv_pos + 1; };
+            sb_append_range(sb, src, comment_start, priv_pos);
             last_non_ws = 10;
         } else if c == 34 {
             // double-quoted string literal — copy with backslash escapes
-            let str_start: i64 = priv_pos_v886;
-            priv_pos_v886 = priv_pos_v886 + 1;
-            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 34 {
-                if str_char_at(src, priv_pos_v886) == 92 && priv_pos_v886 + 1 < slen {
-                    priv_pos_v886 = priv_pos_v886 + 2;
+            let str_start: i64 = priv_pos;
+            priv_pos = priv_pos + 1;
+            while priv_pos < slen && str_char_at(src, priv_pos) != 34 {
+                if str_char_at(src, priv_pos) == 92 && priv_pos + 1 < slen {
+                    priv_pos = priv_pos + 2;
                 } else {
-                    priv_pos_v886 = priv_pos_v886 + 1;
+                    priv_pos = priv_pos + 1;
                 };
             };
-            if priv_pos_v886 < slen { priv_pos_v886 = priv_pos_v886 + 1; };
-            sb_append_range(sb, src, str_start, priv_pos_v886);
+            if priv_pos < slen { priv_pos = priv_pos + 1; };
+            sb_append_range(sb, src, str_start, priv_pos);
             last_non_ws = 34;
         } else if c == 39 {
             // single-quoted char literal
-            let char_start: i64 = priv_pos_v886;
-            priv_pos_v886 = priv_pos_v886 + 1;
-            while priv_pos_v886 < slen && str_char_at(src, priv_pos_v886) != 39 {
-                if str_char_at(src, priv_pos_v886) == 92 && priv_pos_v886 + 1 < slen {
-                    priv_pos_v886 = priv_pos_v886 + 2;
+            let char_start: i64 = priv_pos;
+            priv_pos = priv_pos + 1;
+            while priv_pos < slen && str_char_at(src, priv_pos) != 39 {
+                if str_char_at(src, priv_pos) == 92 && priv_pos + 1 < slen {
+                    priv_pos = priv_pos + 2;
                 } else {
-                    priv_pos_v886 = priv_pos_v886 + 1;
+                    priv_pos = priv_pos + 1;
                 };
             };
-            if priv_pos_v886 < slen { priv_pos_v886 = priv_pos_v886 + 1; };
-            sb_append_range(sb, src, char_start, priv_pos_v886);
+            if priv_pos < slen { priv_pos = priv_pos + 1; };
+            sb_append_range(sb, src, char_start, priv_pos);
             last_non_ws = 39;
         } else if is_alpha(c) == 1 || c == 95 {
             // Identifier start — gather to the end and decide whether
@@ -43147,29 +43147,29 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
             // because is_alpha rejects digits; identifiers can't
             // start with digit) and identifiers preceded by `.`
             // (struct field / method access).
-            let start: i64 = priv_pos_v886;
+            let start: i64 = priv_pos;
             let mut id_done: i64 = 0;
-            while priv_pos_v886 < slen && id_done == 0 {
-                let ch: i64 = str_char_at(src, priv_pos_v886);
-                if is_alnum(ch) == 1 || ch == 95 { priv_pos_v886 = priv_pos_v886 + 1; }
+            while priv_pos < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, priv_pos);
+                if is_alnum(ch) == 1 || ch == 95 { priv_pos = priv_pos + 1; }
                 else { id_done = 1; };
             };
             let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, priv_pos_v886) == 1 {
+            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, priv_pos) == 1 {
                 sb_append(sb, "__priv_");
                 sb_append(sb, file_id);
                 sb_append(sb, "__");
-                sb_append_range(sb, src, start, priv_pos_v886);
+                sb_append_range(sb, src, start, priv_pos);
             } else {
-                sb_append_range(sb, src, start, priv_pos_v886);
+                sb_append_range(sb, src, start, priv_pos);
             };
-            last_non_ws = str_char_at(src, priv_pos_v886 - 1);
+            last_non_ws = str_char_at(src, priv_pos - 1);
         } else {
-            sb_append_char_at(sb, src, priv_pos_v886);
+            sb_append_char_at(sb, src, priv_pos);
             // Track last non-whitespace so we can detect `.X` field
             // accesses through intervening whitespace too.
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
-            priv_pos_v886 = priv_pos_v886 + 1;
+            priv_pos = priv_pos + 1;
         };
     };
     return sb_to_str(sb);

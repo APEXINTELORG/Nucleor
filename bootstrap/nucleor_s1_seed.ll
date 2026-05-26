@@ -25883,7 +25883,7 @@ L5:
   ret i64 %r.60
 }
 
-define i64 @halt_hrtb_not_supported_v718() {
+define i64 @halt_hrtb_not_supported() {
 bb.entry:
   %r.0 = ptrtoint ptr @.str.227 to i64
   %r.1.a0 = inttoptr i64 %r.0 to ptr
@@ -26340,7 +26340,7 @@ L50:
   %br.197.cond = icmp ne i64 %r.197, 0
   br i1 %br.197.cond, label %L61, label %L63
 L61:
-  %r.198 = call i64 @halt_hrtb_not_supported_v718()
+  %r.198 = call i64 @halt_hrtb_not_supported()
   br label %L63
 L63:
   %r.199 = load i64, ptr %r.0
@@ -37933,7 +37933,7 @@ L26:
   %br.149.cond = icmp ne i64 %r.149, 0
   br i1 %br.149.cond, label %L45, label %L47
 L45:
-  %r.150 = call i64 @halt_hrtb_not_supported_v718()
+  %r.150 = call i64 @halt_hrtb_not_supported()
   br label %L47
 L47:
   %r.151 = load i64, ptr %r.0
@@ -277866,7 +277866,7 @@ L1947:
   %br.7291.cond = icmp ne i64 %r.7291, 0
   br i1 %br.7291.cond, label %L1948, label %L1950
 L1948:
-  %r.7293 = load i64, ptr %r.5541
+  %r.7293 = load i64, ptr %r.6917
   store i64 %r.7293, ptr %r.7292
   %r.7294 = ptrtoint ptr @.str.5387 to i64
   %r.7295 = load i64, ptr %r.7292
@@ -277905,7 +277905,7 @@ L1950:
   br i1 %br.7308.cond, label %L1951, label %L1953
 L1951:
   %r.7309 = ptrtoint ptr @.str.5357 to i64
-  %r.7310 = load i64, ptr %r.5541
+  %r.7310 = load i64, ptr %r.6917
   %r.7311 = ptrtoint ptr @.str.5358 to i64
   %r.7312 = load i64, ptr %r.5252
   %r.7313 = ptrtoint ptr @.str.5359 to i64
@@ -277929,7 +277929,7 @@ L1951:
   call void @__nucleor_print_str(ptr %r.7318.a0)
   %r.7318 = add i64 0, 0
   %r.7319 = ptrtoint ptr @.str.5391 to i64
-  %r.7320 = load i64, ptr %r.5541
+  %r.7320 = load i64, ptr %r.6917
   %r.7321 = ptrtoint ptr @.str.5392 to i64
   %r.7322 = load i64, ptr %r.5252
   %r.7323 = ptrtoint ptr @.str.5393 to i64
@@ -277962,7 +277962,7 @@ L1951:
   %r.7332 = ptrtoint ptr @.str.5362 to i64
   %r.7333 = load i64, ptr %r.5252
   %r.7334 = ptrtoint ptr @.str.5395 to i64
-  %r.7335 = load i64, ptr %r.5541
+  %r.7335 = load i64, ptr %r.6917
   %r.7336 = ptrtoint ptr @.str.232 to i64
   %r.7337.a0 = inttoptr i64 %r.7335 to ptr
   %r.7337.a1 = inttoptr i64 %r.7336 to ptr
