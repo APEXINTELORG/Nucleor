@@ -477,7 +477,7 @@ fn lex(src: str) -> Vec<i32> {
             if p + 6 < slen && str_eq_at(src, p + 2, "cold") == 1 {
                 let after_cold_v718: i64 = str_char_at(src, p + 6);
                 if after_cold_v718 == 93 || after_cold_v718 == 40 {
-                    print("ERROR: `#[cold]` attribute is not yet supported in Nucleor. Pre-v0.7.18 this attribute was silently dropped at lex time, so rare-path layout intent was lost without signal. Workaround: remove the attribute; Nucleor does not yet feed cold-path hints to LLVM.");
+                    print("ERROR: `#[cold]` attribute is not yet supported in Nucleor. Workaround: remove the attribute; Nucleor does not yet feed cold-path hints to LLVM.");
                     panic("nucleor: cold attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
@@ -582,7 +582,7 @@ fn lex(src: str) -> Vec<i32> {
             // "'br'". Halt at lex with a clean diag pointing at the
             // workaround.
             if c == 114 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
-                print("ERROR: raw string literals `r\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `r` lexed as an identifier and the parser tried to call a fn named `r` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'r'`. Workaround: write the canonical form `\"...\"` and escape backslashes / quotes manually (`\\\\`, `\\\"`, etc.).");
+                print("ERROR: raw string literals `r\"...\"` are not yet supported in Nucleor. Workaround: write the canonical form `\"...\"` and escape backslashes / quotes manually (`\\\\`, `\\\"`, etc.).");
                 panic("nucleor: raw string `r\"...\"` not yet supported (see ERROR diagnostic above)");
             };
             // v0.7.75 (defensive halt — Rust raw identifier prefix
@@ -598,11 +598,11 @@ fn lex(src: str) -> Vec<i32> {
             // surface itself isn't supported. Sister to v0.6.58 raw
             // string literal halt (same `r` prefix family).
             if c == 114 && p + 1 < slen && str_char_at(src, p + 1) == 35 {
-                print("ERROR: raw identifier prefix `r#name` (used in Rust to bind a name that collides with a keyword, e.g. `let r#type: i64 = 42;`) is not yet supported in Nucleor. Pre-v0.7.75 the `r` lexed as an ident and `#` as a separate punct, so the trailing `name` was read as a fresh token — if the trailing name was a Nucleor keyword (e.g. `type`, `fn`, `match`) downstream parsers tripped wrong-class on the keyword's normal use site (e.g. v0.7.47 local-type-alias halt). Workaround: rename the binding to a non-keyword spelling — Nucleor's keyword set is small and renames are usually mechanical.");
+                print("ERROR: raw identifier prefix `r#name` (used in Rust to bind a name that collides with a keyword, e.g. `let r#type: i64 = 42;`) is not yet supported in Nucleor. Workaround: rename the binding to a non-keyword spelling — Nucleor's keyword set is small and renames are usually mechanical.");
                 panic("nucleor: raw identifier `r#name` not yet supported (see ERROR diagnostic above)");
             };
             if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
-                print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `b` lexed as an identifier and the parser tried to call a fn named `b` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'b'`. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`.");
+                print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`.");
                 panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
             };
             // v0.7.68 (defensive halt — C string literal `c"..."`, the
@@ -612,7 +612,7 @@ fn lex(src: str) -> Vec<i32> {
             // `error[TYP-005]: undefined function 'c'`. Promoted from
             // probe finding 2026-05-03.
             if c == 99 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
-                print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Pre-v0.7.68 the `c` lexed as an identifier and the parser tried to call a fn named `c` on the trailing string literal, producing wrong-class `error[TYP-005]: undefined function 'c'`. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer.");
+                print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer.");
                 panic("nucleor: C string `c\"...\"` not yet supported (see ERROR diagnostic above)");
             };
             // v0.7.28 (defensive halt — Rust byte literal `b'A'`, the u8
@@ -628,7 +628,7 @@ fn lex(src: str) -> Vec<i32> {
                 panic("nucleor: byte literal `b'A'` not yet supported (see ERROR diagnostic above)");
             };
             if c == 99 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
-                print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Pre-v0.7.18 the `c` lexed as an identifier and the parser tried to call a fn named `c` on the trailing string literal, producing wrong-class `error[TYP-005]: undefined function 'c'`. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer.");
+                print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer.");
                 panic("nucleor: C string `c\"...\"` not yet supported (see ERROR diagnostic above)");
             };
             let st: i64 = p;
@@ -1251,7 +1251,7 @@ fn lex(src: str) -> Vec<i32> {
             // Halt at lex with a clear diag pointing at the line-
             // comment workaround. Sister to v0.6.58 raw-string
             // halt (same lex-time wrong-class family).
-            print("ERROR: block comments `/* ... */` (and doc-block `/** ... */`) are not yet supported in Nucleor. Pre-v0.7.78 the `/` lexed as token kind 23 and `*` as token kind 22; the parser then saw a stray `/` at expression start and emitted wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 23`. Workaround: convert each line of the block comment to a line comment — replace `/* abc */` with `// abc`, and a multi-line block with a sequence of `// ...` lines.");
+            print("ERROR: block comments `/* ... */` (and doc-block `/** ... */`) are not yet supported in Nucleor. Workaround: convert each line of the block comment to a line comment — replace `/* abc */` with `// abc`, and a multi-line block with a sequence of `// ...` lines.");
             panic("nucleor: block comment `/* ... */` not yet supported (see ERROR diagnostic above)");
         }
         else if c == 47 { tokens.push(tok_new(23, 0, p)); p = p + 1; }
@@ -1814,7 +1814,7 @@ fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
 
 #[manual_drop]
 fn halt_hrtb_not_supported_v718() -> i64 {
-    print("ERROR: higher-ranked trait bounds `for<'a> ...` are not yet supported in Nucleor. Pre-v0.7.18 the where-clause parser skipped the `for<'a>` wrapper and partially recorded inner identifiers like `Fn` and argument types as ordinary trait bounds, producing wrong-class `TYP-019` unknown-trait diagnostics. Workaround: replace the HRTB with a concrete fn-pointer type or a non-higher-ranked generic bound.");
+    print("ERROR: higher-ranked trait bounds `for<'a> ...` are not yet supported in Nucleor. Workaround: replace the HRTB with a concrete fn-pointer type or a non-higher-ranked generic bound.");
     panic("nucleor: higher-ranked trait bounds `for<'a>` not yet supported (see ERROR diagnostic above)");
     return 0;
 }
@@ -2059,7 +2059,7 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // (single-level destructure + dotted field access in the
             // arm body).
             if pk(tokens, cp) == 52 {
-                print(str_concat("ERROR: nested struct patterns in `match` arms (e.g. `Outer { inner: Inner { ... }, ... } => ...`) are not yet supported in Nucleor. Pre-v0.6.69 the inner `{` was rejected with the wrong-class `error[NR020]: expected ',', got '{'`. Workaround: bind the inner struct to a name and access its fields in the arm body — `match l { Outer { inner, ... } => { let x = inner.field_x; let y = inner.field_y; ... } }`."));
+                print(str_concat("ERROR: nested struct patterns in `match` arms (e.g. `Outer { inner: Inner { ... }, ... } => ...`) are not yet supported in Nucleor. Workaround: bind the inner struct to a name and access its fields in the arm body — `match l { Outer { inner, ... } => { let x = inner.field_x; let y = inner.field_y; ... } }`."));
                 panic("nucleor: nested struct pattern not yet supported (see ERROR diagnostic above)");
             };
         };
@@ -2162,7 +2162,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
         // read as the standalone int-lit pattern, leaving the trailing
         // `=>` to land where the parser expected an expression
         // continuation. Halt cleanly with a guard workaround.
-        panic("error[MATCH-015]: negative-literal patterns in match arms (e.g. `match x { -5 => ..., _ => ... }`) are not yet supported. Pre-v0.7.22 surfaced as wrong-class `error[NR020]: expected '=>', got integer literal` because the pattern parser had no unary-minus branch. Workaround: use a guard — `match x { n if n == -5 => { ... } _ => { ... } }` — the guard form supports negative literals natively.");
+        panic("error[MATCH-015]: negative-literal patterns in match arms (e.g. `match x { -5 => ..., _ => ... }`) are not yet supported. Workaround: use a guard — `match x { n if n == -5 => { ... } _ => { ... } }` — the guard form supports negative literals natively.");
     } else if att == 2 {
         let lo_val: i64 = pkv(tokens, cp);
         cp = cp + 1;
@@ -2324,7 +2324,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                 // Forward-roadmap: recursive pattern parser (sister to
                 // nested struct patterns at line 1364).
                 if pk(tokens, cp) == 50 {
-                    print(str_concat("ERROR: nested patterns in `if let` / `match` arms (e.g. `", str_concat(vname, str_concat("(Some(v))`, `", str_concat(vname, "(Ok(...))`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` surfaced as wrong-class `error[NR020]: expected ')', got '('` because the pattern parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ")))));
+                    print(str_concat("ERROR: nested patterns in `if let` / `match` arms (e.g. `", str_concat(vname, str_concat("(Some(v))`, `", str_concat(vname, "(Ok(...))`) are not yet supported in Nucleor. Workaround: destructure in two steps — `if let ")))));
                     print(str_concat("       ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`.")));
                     panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
                 };
@@ -2504,7 +2504,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let ufcs_mangled_v081: str = str_concat(ufcs_type_v081, str_concat("__", ufcs_method_v081));
             return pr(pr_pos(ufcs_ar_v081), mk3(pool, 7, ufcs_mangled_v081, pr_val(ufcs_ar_v081)));
         };
-        print("ERROR: UFCS form `<Type as Trait>::method(args)` parsed but did not match the supported shape. Pre-v0.6.60 any `<` at expression start was rejected with `error[NR020]: parse_primary cannot start an expression at token kind 32` — wrong-class; v0.6.60 halted with this workaround pointer; v0.6.81 added support for the canonical `<Type as Trait>::method(args)` shape (with optional `<...>` trait generics). Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous.");
+        print("ERROR: UFCS form `<Type as Trait>::method(args)` parsed but did not match the supported shape. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous.");
         panic("nucleor: UFCS expression form did not match supported shape (see ERROR diagnostic above)");
     };
     // v0.6.62 (probe finding 2026-05-01-keyword-silent-strip-audit,
@@ -2785,7 +2785,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // ident-then-`{` lookahead shape, but no semantic substrate yet
     // for the Result-wrapping rewrite.
     if tt == 1 && str_eq(pkv(tokens, pos), "try") == 1 && pk(tokens, pos + 1) == 52 {
-        print("ERROR: `try { ... }` block expressions (Rust experimental Result-wrapping form) are not yet supported in Nucleor. Pre-v0.7.74 the `try` ident lexed normally and the `{ ... }` parsed as a stray block, so the surface treated `try` as a fn call and clang link failed wrong-class with `error[TYP-005]: undefined function 'try()'`. Workaround: write the explicit Result construction manually — `let r: Result<T, E> = { let v = compute()?; Ok(v) };` — or match each fallible call directly.");
+        print("ERROR: `try { ... }` block expressions (Rust experimental Result-wrapping form) are not yet supported in Nucleor. Workaround: write the explicit Result construction manually — `let r: Result<T, E> = { let v = compute()?; Ok(v) };` — or match each fallible call directly.");
         panic("nucleor: `try { ... }` block expr not yet supported (see ERROR diagnostic above)");
     };
     // `wrapping { ... }` block form. Default i32/i64 arithmetic
@@ -2848,7 +2848,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // `vec_clear(v)`). Sister to v0.6.82 idiom-method halt
         // family (same Rust-prelude-not-yet-supported class).
         if str_eq(name, "drop") == 1 && pk(tokens, pos + 1) == 50 {
-            print("ERROR: Rust prelude `drop(value)` is not yet supported in Nucleor. Pre-v0.7.87 the call surfaced as wrong-class `warning[TYP-005]: undefined function 'drop'` at type-check then hard-failed at clang link with the same TYP-005 — adopters expected the Rust ownership-transfer / RAII-destructor semantics but got an undefined-symbol link error instead. Workaround: simply remove the `drop(v)` call. Nucleor's i64-everywhere ABI manages heap via reference-tracking and frees the value automatically when the last reference goes out of scope. For explicit Vec clearing use `vec_clear(v)`; for explicit String/file/socket cleanup, the rod's own `*_free` / `*_close` helper is the canonical form.");
+            print("ERROR: Rust prelude `drop(value)` is not yet supported in Nucleor. Workaround: simply remove the `drop(v)` call. Nucleor's i64-everywhere ABI manages heap via reference-tracking and frees the value automatically when the last reference goes out of scope. For explicit Vec clearing use `vec_clear(v)`; for explicit String/file/socket cleanup, the rod's own `*_free` / `*_close` helper is the canonical form.");
             panic("nucleor: Rust prelude `drop(value)` not yet supported (see ERROR diagnostic above)");
         };
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
@@ -2941,7 +2941,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             if pk(tokens, cp2 + 2) == 46 {
                 let v096_top: str = name;
                 if str_eq(v096_top, "std") == 1 || str_eq(v096_top, "core") == 1 || str_eq(v096_top, "alloc") == 1 {
-                    print(str_concat("ERROR: Rust stdlib namespace path `", str_concat(v096_top, str_concat("::", str_concat(qname, "::...(...)` is not yet supported in Nucleor. Pre-v0.6.96 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 46` after the parser desync'd on the second `::`. Workaround: most stdlib helpers have direct Nucleor equivalents — for `std::mem::swap(&mut a, &mut b)`, write the 3-line tmp swap (`let t = a; a = b; b = t;`); for `std::cmp::min/max`, use `if a < b { a } else { b }`; for collection ctors, use the unqualified Nucleor names (`Vec::new()`, `HashMap::new()`, `String::new()`).")))));
+                    print(str_concat("ERROR: Rust stdlib namespace path `", str_concat(v096_top, str_concat("::", str_concat(qname, "::...(...)` is not yet supported in Nucleor. Workaround: most stdlib helpers have direct Nucleor equivalents — for `std::mem::swap(&mut a, &mut b)`, write the 3-line tmp swap (`let t = a; a = b; b = t;`); for `std::cmp::min/max`, use `if a < b { a } else { b }`; for collection ctors, use the unqualified Nucleor names (`Vec::new()`, `HashMap::new()`, `String::new()`).")))));
                     panic(str_concat("nucleor: Rust stdlib path `", str_concat(v096_top, str_concat("::", str_concat(qname, "::..` not yet supported (see ERROR diagnostic above)")))));
                 };
             };
@@ -3083,7 +3083,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // token and parse_primary has no `'label:` prefix branch.
     // Halt cleanly with a workaround pointer (boolean flag).
     if fall_tt == 98 {
-        print("ERROR: loop labels (`'outer: for ... { break 'outer; }`, `'lbl: loop { continue 'lbl; }`) are not yet supported in Nucleor. Pre-v0.7.2 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 98` — token 98 is the lifetime/label token and parse_primary has no `'label:` prefix branch. Workaround: use a boolean flag to break out of nested loops — `let mut done: i64 = 0; for i in 0..5 { if done == 1 { break; }; for j in 0..5 { if i + j > 3 { done = 1; break; } } }`.");
+        print("ERROR: loop labels (`'outer: for ... { break 'outer; }`, `'lbl: loop { continue 'lbl; }`) are not yet supported in Nucleor. Workaround: use a boolean flag to break out of nested loops — `let mut done: i64 = 0; for i in 0..5 { if done == 1 { break; }; for j in 0..5 { if i + j > 3 { done = 1; break; } } }`.");
         panic("nucleor: loop labels not yet supported (see ERROR diagnostic above)");
     };
     // v0.6.94 (defensive halt — range-as-expression): canonical Rust
@@ -3095,7 +3095,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // Convert to a clean halt with workaround pointer.
     if fall_tt == 58 || fall_tt == 96 {
         let v094_op: str = if fall_tt == 58 { ".." } else { "..=" };
-        print(str_concat("ERROR: range expression `<lo>", str_concat(v094_op, "<hi>` at expression position is not yet supported in Nucleor. Pre-v0.6.94 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 58` (or 96 for `..=`). Range syntax today is only recognised in for-loop heads (`for i in 0..10`); the canonical Rust expression-position form `let r = 0..10;` and chained iterator forms `(0..10).step_by(2).map(...)` are not yet wired. Workaround: rewrite as a `while` loop with explicit counter — `let mut i: i64 = 0; while i < 10 { ...; i = i + 1; }` (or `i = i + STEP` for step_by).")));
+        print(str_concat("ERROR: range expression `<lo>", str_concat(v094_op, "<hi>` at expression position is not yet supported in Nucleor. Workaround: rewrite as a `while` loop with explicit counter — `let mut i: i64 = 0; while i < 10 { ...; i = i + 1; }` (or `i = i + STEP` for step_by).")));
         panic("nucleor: range expression at expression position not yet supported (see ERROR diagnostic above)");
     };
     if is_recovery_marker == 0 {
@@ -3125,11 +3125,11 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let node_kind_postfix_v110: i64 = node_kind(pool, node);
     let node_lvalue_postfix_v110: i64 = if node_kind_postfix_v110 == 3 || node_kind_postfix_v110 == 9 || node_kind_postfix_v110 == 10 { 1 } else { 0 };
     if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
-        print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 20` (the second `+`). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context).");
+        print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context).");
         panic("nucleor: `x++` post-increment not supported (see ERROR diagnostic above)");
     };
     if node_lvalue_postfix_v110 == 1 && pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
-        print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 21` (the second `-`). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context).");
+        print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context).");
         panic("nucleor: `x--` post-decrement not supported (see ERROR diagnostic above)");
     };
     while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 || pk(tokens, cp) == 97 {
@@ -3195,7 +3195,7 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                     let mut v098_ar: Vec<i32> = parse_args(tokens, v098_after_args + 1, pool);
                     cp = pr_pos(v098_ar); node = mk4(pool, 8, node, fname, pr_val(v098_ar));
                 } else {
-                    print(str_concat("ERROR: turbofish form `.", str_concat(fname, "::<...>` without trailing call `(...)` is not yet supported in Nucleor. Pre-v0.6.98 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 46`. Workaround: ensure the turbofish is followed by call args (`.collect::<Vec<i64>>()`), or drop the turbofish and let inference resolve (`let v: Vec<i64> = it.collect();`).")));
+                    print(str_concat("ERROR: turbofish form `.", str_concat(fname, "::<...>` without trailing call `(...)` is not yet supported in Nucleor. Workaround: ensure the turbofish is followed by call args (`.collect::<Vec<i64>>()`), or drop the turbofish and let inference resolve (`let v: Vec<i64> = it.collect();`).")));
                     panic("nucleor: turbofish without call args not yet supported (see ERROR diagnostic above)");
                 };
             } else if ctor_like == 1 {
@@ -3232,7 +3232,7 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let base_kind_v063: i64 = node_kind(pool, node);
             cp = expect_tok(tokens, idx_end_v063, 55); node = mk3(pool, 10, node, pr_val(ir));
             if pk(tokens, cp) == 50 && base_kind_v063 == 3 {
-                print("ERROR: RFC-0034 explicit compile-time argument call form `name[ARGS](args)` is not yet supported in Nucleor's first-pass `[]` parser. Pre-v0.6.63 the form parsed as `name[index]` followed by `(args)` call — the call lowered to an invalid IR and SEGFAULTed at runtime (rc=139). Workaround: omit the `[N]` from the call site — RFC-0034 first-pass erases the CT-args at lower-time, so `f(args)` is observably equivalent to `f[N](args)` for the unspecialized version.");
+                print("ERROR: RFC-0034 explicit compile-time argument call form `name[ARGS](args)` is not yet supported in Nucleor's first-pass `[]` parser. Workaround: omit the `[N]` from the call site — RFC-0034 first-pass erases the CT-args at lower-time, so `f(args)` is observably equivalent to `f[N](args)` for the unspecialized version.");
                 panic("nucleor: RFC-0034 explicit CT-arg call form not yet supported (see ERROR diagnostic above)");
             };
         };
@@ -3549,7 +3549,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // (use a concrete return type, or a `Box<dyn Trait>` once vtable
     // dispatch lands in v1.x).
     if pk(tokens, pos) == 67 {
-        print("ERROR: `impl Trait` (return-position or argument-position trait-bound sugar) is not yet supported in Nucleor. Pre-v0.6.92 surfaced as wrong-class `error[NR020]: expected '{', got identifier` because parse_type had no `impl` branch. Workaround: declare the concrete return type instead — for iterators, expose the Vec directly (`fn make_iter() -> Vec<i64>`); for closures, use a typed fn pointer (`fn cb() -> fn(i64) -> i64`); for trait-bound polymorphism, wait for vtable dispatch (v1.x trait-object substrate, sister to v0.6.91 `Box<dyn Trait>` halt).");
+        print("ERROR: `impl Trait` (return-position or argument-position trait-bound sugar) is not yet supported in Nucleor. Workaround: declare the concrete return type instead — for iterators, expose the Vec directly (`fn make_iter() -> Vec<i64>`); for closures, use a typed fn pointer (`fn cb() -> fn(i64) -> i64`); for trait-bound polymorphism, wait for vtable dispatch (v1.x trait-object substrate, sister to v0.6.91 `Box<dyn Trait>` halt).");
         panic("nucleor: `impl Trait` type position not yet supported (see ERROR diagnostic above)");
     };
     // v0.7.3 (defensive halt — raw pointer types `*const T` /
@@ -3564,7 +3564,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // store as i64 for FFI / unsafe-style transit).
     if pk(tokens, pos) == 22 {
         let v073_kind: str = if pk(tokens, pos + 1) == 73 { "const" } else if pk(tokens, pos + 1) == 12 { "mut" } else { "<expected const|mut>" };
-        print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Pre-v0.7.3 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 73` (the `const` keyword following `*`) because parse_type had no `*` branch. Nucleor's i64-everywhere ABI doesn't yet have an unsafe pointer type — values are passed as i64 (which IS the heap pointer for Box/Vec/String/etc.) without explicit raw-pointer typing. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through.")));
+        print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through.")));
         panic(str_concat("nucleor: raw pointer type `*", str_concat(v073_kind, " T` not yet supported (see ERROR diagnostic above)")));
     };
     // v0.7.11 (defensive halt): canonical Rust never type `!`
@@ -3577,7 +3577,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // before the fix. Halt cleanly with a workaround pointer
     // (use the unit type `()` or `i64` and `panic!()` in the body).
     if pk(tokens, pos) == 38 {
-        print("ERROR: never type `!` (used for diverging fns `fn forever() -> !`, `panic!()`-only bodies, etc.) is not yet supported in Nucleor. Pre-v0.7.11 the compiler CRASHED with SIGSEGV (rc=139) because parse_type had no `!` branch and fell through to a NULL deref. Workaround: declare the return type as `()` (unit) or any concrete type the body never actually reaches — the body's `panic!()` / infinite loop terminates execution before the return-type contract matters. For loop-forever shape: `fn forever() -> () { loop { ... } }`.");
+        print("ERROR: never type `!` (used for diverging fns `fn forever() -> !`, `panic!()`-only bodies, etc.) is not yet supported in Nucleor. Workaround: declare the return type as `()` (unit) or any concrete type the body never actually reaches — the body's `panic!()` / infinite loop terminates execution before the return-type contract matters. For loop-forever shape: `fn forever() -> () { loop { ... } }`.");
         panic("nucleor: never type `!` not yet supported (see ERROR diagnostic above)");
     };
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
@@ -3644,7 +3644,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         if ns_pos > pos { return parse_type(tokens, ns_pos); };
         let v0737_ns: str = name;
-        print(str_concat("ERROR: Rust path type `", str_concat(v0737_ns, "::<rest>` in type-annotation position is not yet supported in Nucleor. Pre-v0.7.37, the type parser consumed only the first path segment and left `::...` unconsumed, causing the let-binding or fn-param parser to see `::` where `=` or `,` was expected — triggering wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 46`. Workaround: drop the namespace prefix and use the unqualified Nucleor type name directly — `std::collections::HashMap<K,V>` -> `HashMap<K,V>`, `std::string::String` -> `String` (or `str` for literals), `std::vec::Vec<T>` -> `Vec<T>`, `core::option::Option<T>` -> `Option<T>`, `core::result::Result<T,E>` -> `Result<T,E>`.")));
+        print(str_concat("ERROR: Rust path type `", str_concat(v0737_ns, "::<rest>` in type-annotation position is not yet supported in Nucleor. Workaround: drop the namespace prefix and use the unqualified Nucleor type name directly — `std::collections::HashMap<K,V>` -> `HashMap<K,V>`, `std::string::String` -> `String` (or `str` for literals), `std::vec::Vec<T>` -> `Vec<T>`, `core::option::Option<T>` -> `Option<T>`, `core::result::Result<T,E>` -> `Result<T,E>`.")));
         panic(str_concat("nucleor: path type `", str_concat(v0737_ns, "::<rest>` not supported in type position (see ERROR diagnostic above)")));
     };
     let mut fixed_type_name_v091: i64 = 0;
@@ -3792,7 +3792,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // bare param name and then trips on the `:` + type that
             // follows. Halt cleanly with a workaround pointer
             // (use a regular fn-arg / a struct-decl-time const).
-            print("ERROR: const-generic params `<const N: usize>` are not yet supported in Nucleor. Pre-v0.7.10 surfaced as wrong-class `NR020: expected ',', got identifier` because parse_generic_params treats `const` as a bare param name. Workaround: pass the value as a regular fn arg (`fn id(n: i32) -> i32 { n }`), or hard-code the value at the use site. For struct-level CT-params, see RFC-0034 first-pass (which uses `[N: usize]` syntax — different parser path, currently halted at v0.6.65).");
+            print("ERROR: const-generic params `<const N: usize>` are not yet supported in Nucleor. Workaround: pass the value as a regular fn arg (`fn id(n: i32) -> i32 { n }`), or hard-code the value at the use site. For struct-level CT-params, see RFC-0034 first-pass (which uses `[N: usize]` syntax — different parser path, currently halted at v0.6.65).");
             panic("nucleor: const-generic param `<const N: ...>` not yet supported (see ERROR diagnostic above)");
         } else {
             params.push(pkv(tokens, cp));
@@ -3873,7 +3873,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let lname_v651: str = pkv(tokens, cp);
         let lc0_v651: i64 = if str_len(lname_v651) > 0 { str_char_at(lname_v651, 0) } else { 0 };
         if lc0_v651 >= 65 && lc0_v651 <= 90 {
-            print(str_concat("ERROR: struct destructure-in-let `let ", str_concat(lname_v651, " { ... } = expr;` is not yet supported in Nucleor. Pre-v0.6.61 the parser read the struct name as the binding name and the `{ field-list }` pattern as unparsed garbage, surfacing as wrong-class `error[TYP-008]: binding declared without initializer`. Workaround: bind the struct to a name, then access fields directly via field-access syntax — `let p: STRUCT = expr; let x: TYPE = p.x; let y: TYPE = p.y;`.")));
+            print(str_concat("ERROR: struct destructure-in-let `let ", str_concat(lname_v651, " { ... } = expr;` is not yet supported in Nucleor. Workaround: bind the struct to a name, then access fields directly via field-access syntax — `let p: STRUCT = expr; let x: TYPE = p.x; let y: TYPE = p.y;`.")));
             panic("nucleor: struct destructure-in-let not yet supported (see ERROR diagnostic above)");
         };
     };
@@ -3896,7 +3896,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // v0.6.61 struct-destructure-in-let and v0.3.81 tuple-
     // destructure-in-let halts (same pattern-in-let family).
     if pk(tokens, cp) == 54 {
-        print("ERROR: array destructure-in-let `let [a, b, c] = [1, 2, 3];` is not yet supported in Nucleor. Pre-v0.7.81 the parser swallowed `[` as the binding name, the LHS validator printed a 'tuple destructuring assignment not supported' note but the build continued, emitted broken IR, and clang link failed wrong-class `error[TYP-005]: undefined function '<first-element>()'`. Workaround: bind the array to a name, then index each slot — `let arr: [i64; 3] = [1, 2, 3]; let a: i64 = arr[0]; let b: i64 = arr[1]; let c: i64 = arr[2];`. Sister to v0.6.61 struct-destructure-in-let and v0.3.81 tuple-destructure-in-let halts.");
+        print("ERROR: array destructure-in-let `let [a, b, c] = [1, 2, 3];` is not yet supported in Nucleor. Workaround: bind the array to a name, then index each slot — `let arr: [i64; 3] = [1, 2, 3]; let a: i64 = arr[0]; let b: i64 = arr[1]; let c: i64 = arr[2];`. Sister to v0.6.61 struct-destructure-in-let and v0.3.81 tuple-destructure-in-let halts.");
         panic("nucleor: array destructure-in-let not yet supported (see ERROR diagnostic above)");
     };
     // v0.6.95 (defensive halt): canonical Rust let-else shape
@@ -3910,7 +3910,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 50 {
         let v095_lname: str = pkv(tokens, cp);
         if str_eq(v095_lname, "Some") == 1 || str_eq(v095_lname, "None") == 1 || str_eq(v095_lname, "Ok") == 1 || str_eq(v095_lname, "Err") == 1 {
-            print(str_concat("ERROR: ctor-pattern in `let` (e.g. `let ", str_concat(v095_lname, str_concat("(v) = opt;`, `let-else: let ", str_concat(v095_lname, "(v) = opt else { ... };`)) is not yet supported in Nucleor. Pre-v0.6.95 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 14` (the `else` keyword) or similar parser confusion after reading the ctor name as the binding name. Workaround: use `if let` for the optional-extract pattern — `if let ")))));
+            print(str_concat("ERROR: ctor-pattern in `let` (e.g. `let ", str_concat(v095_lname, str_concat("(v) = opt;`, `let-else: let ", str_concat(v095_lname, "(v) = opt else { ... };`)) is not yet supported in Nucleor. Workaround: use `if let` for the optional-extract pattern — `if let ")))));
             print(str_concat("       ", str_concat(v095_lname, "(v) = opt { ... } else { ... }`. For the let-else shape (early-return on None/Err), use `match`: `let v: T = match opt { ", str_concat(v095_lname, "(x) => x, _ => return ... };`.")))));
             panic(str_concat("nucleor: ctor-pattern-in-let `", str_concat(v095_lname, "(...)` not yet supported (see ERROR diagnostic above)")));
         };
@@ -4081,7 +4081,7 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                     // got '('` because the parser reads the binding
                     // slot as a single ident.
                     if pk(tokens, ip) == 50 {
-                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` after the binding name surfaced as wrong-class `error[NR020]: expected ')', got '('` because the parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`.")))));
+                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`.")))));
                         panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
                     };
                 };
@@ -4288,7 +4288,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                     // got '('` because the parser reads the binding
                     // slot as a single ident.
                     if pk(tokens, ip) == 50 {
-                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` after the binding name surfaced as wrong-class `error[NR020]: expected ')', got '('` because the parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`.")))));
+                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`.")))));
                         panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
                     };
                 };
@@ -4384,7 +4384,7 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // (use a tuple binding via let after destructuring inside the
     // body). Forward-roadmap: full tuple-pattern parse in for-head.
     if pk(tokens, pos) == 50 {
-        print("ERROR: tuple-destructuring patterns in `for` loop heads (e.g. `for (k, v) in &map { ... }`) are not yet supported in Nucleor. Pre-v0.6.59 the parser rejected with `error[NR020]: parse error ... expected token 57, got identifier` — wrong-class. Workaround: bind a single name and destructure in the body — `for kv in &map { let k: KT = kv.0; let v: VT = kv.1; ... }`.");
+        print("ERROR: tuple-destructuring patterns in `for` loop heads (e.g. `for (k, v) in &map { ... }`) are not yet supported in Nucleor. Workaround: bind a single name and destructure in the body — `for kv in &map { let k: KT = kv.0; let v: VT = kv.1; ... }`.");
         panic("nucleor: tuple-destructuring in `for` head not yet supported (see ERROR diagnostic above)");
     };
     // v0.7.27 (defensive halt — Rust ref-pattern in for-loop binding
@@ -4515,7 +4515,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // so user fns named `yield` keep working only via raw-ident
         // (which is itself halted at v0.7.75).
         if str_eq(pkv(tokens, pos), "yield") == 1 {
-            print("ERROR: `yield <expr>;` (Rust nightly generator / coroutine syntax) is not yet supported in Nucleor. Pre-v0.7.77 `yield` lexed as a plain identifier and `yield 1` parsed as a fn call to `yield(1)`, surfacing wrong-class `error[TYP-005]: undefined function 'yield()'` at clang link. Workaround: model the cooperative-step pattern with explicit state (e.g., a struct holding a `step: i64` field plus a `next()` method that switches on step), or use the existing thread/queue substrate (RFC-0007 SPSC/MPSC) for true producer/consumer flow.");
+            print("ERROR: `yield <expr>;` (Rust nightly generator / coroutine syntax) is not yet supported in Nucleor. Workaround: model the cooperative-step pattern with explicit state (e.g., a struct holding a `step: i64` field plus a `next()` method that switches on step), or use the existing thread/queue substrate (RFC-0007 SPSC/MPSC) for true producer/consumer flow.");
             panic("nucleor: `yield` statement not yet supported (see ERROR diagnostic above)");
         };
         // `loop` is a contextual keyword. When the next token
@@ -4574,7 +4574,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // with-value lowering is the v1 loop-as-expression ship.
         let next_tok: i64 = pk(tokens, cp);
         if next_tok != 43 && next_tok != 53 && next_tok != 0 && next_tok != 41 {
-            print("ERROR: `break` with a value (`break <expr>;` or `break <expr>` as last stmt of a loop body) is not yet supported in Nucleor. Pre-v0.6.57 the value was silently dropped — `break` parsed bare and the `<expr>` became a separate stmt, either tail-expr'ing the loop body (wrong semantics) or being dropped. Workaround: bind the result via a mutable outer variable (`let mut r: i64 = 0; loop { ... r = 42; break; }`); the loop-as-expression form will land in a future RFC.");
+            print("ERROR: `break` with a value (`break <expr>;` or `break <expr>` as last stmt of a loop body) is not yet supported in Nucleor. Workaround: bind the result via a mutable outer variable (`let mut r: i64 = 0; loop { ... r = 42; break; }`); the loop-as-expression form will land in a future RFC.");
             panic("nucleor: break-with-value not yet supported (see ERROR diagnostic above)");
         };
         if next_tok == 43 { cp = cp + 1; };
@@ -4592,7 +4592,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // any fn body) — module-level `type Foo = Bar;` works cleanly.
     if tt == 74 {
         let v747_alias_name: str = if pk(tokens, pos + 1) == 1 { pkv(tokens, pos + 1) } else { "<Alias>" };
-        print(str_concat("ERROR: local type alias `type ", str_concat(v747_alias_name, " = ...;` inside a fn body is not yet supported in Nucleor. Pre-v0.7.47 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 74` because the fn-body statement parser had no `type` branch. Workaround: hoist the alias to module scope — place `type ")));
+        print(str_concat("ERROR: local type alias `type ", str_concat(v747_alias_name, " = ...;` inside a fn body is not yet supported in Nucleor. Workaround: hoist the alias to module scope — place `type ")));
         print(str_concat(v747_alias_name, str_concat(" = ...;` above all fn definitions at the top level of the file; module-level type aliases work cleanly.")));
         panic("nucleor: local type alias in fn body not yet supported (see ERROR diagnostic above)");
     };
@@ -4605,7 +4605,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // to v0.7.47 local-type-alias halt.
     if tt == 73 {
         let v755_const_name: str = if pk(tokens, pos + 1) == 1 { pkv(tokens, pos + 1) } else { "<NAME>" };
-        print(str_concat("ERROR: local `const ", str_concat(v755_const_name, ": T = ...;` inside a fn body is not yet supported in Nucleor. Pre-v0.7.55 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 73` because the fn-body statement parser had no `const` branch. Workaround: hoist the const to module scope — place `const ")));
+        print(str_concat("ERROR: local `const ", str_concat(v755_const_name, ": T = ...;` inside a fn body is not yet supported in Nucleor. Workaround: hoist the const to module scope — place `const ")));
         print(str_concat(v755_const_name, str_concat(": T = ...;` above all fn definitions at the top level of the file; module-level consts work cleanly. Or use a regular `let` binding (`let ", str_concat(v755_const_name, ": T = ...;`) for fn-local constant values — Nucleor's let is statically-scoped and the const-vs-let distinction is mostly about top-level visibility. Sister to v0.7.47 local-type-alias halt.")))));
         panic("nucleor: local const in fn body not yet supported (see ERROR diagnostic above)");
     };
@@ -4652,7 +4652,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // Catch the trailing `=` after the RHS expression and panic
         // with NR023 before the broken stmt makes it into the AST.
         if pk(tokens, cp) == 40 {
-            panic("error[NR023]: chained assignment `a = b = c` is not supported in Nucleor — assignment is a statement, not an expression. Pre-v0.4.111 the second `= c` was silently dropped, leaving `a` and `b` with their pre-assignment values. Workaround: split into two statements — `b = c; a = b;` — which makes the order of evaluation explicit.");
+            panic("error[NR023]: chained assignment `a = b = c` is not supported in Nucleor — assignment is a statement, not an expression. Workaround: split into two statements — `b = c; a = b;` — which makes the order of evaluation explicit.");
         };
         if pk(tokens, cp) == 43 { cp = cp + 1; };
         return pr(cp, mk3(pool, 21, pr_val(er), pr_val(vr)));
@@ -4770,7 +4770,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // workaround. Caught BEFORE the binding name is read so the
         // diag is precise rather than the generic NR020.
         if pk(tokens, cp) == 12 {
-            print("ERROR: `mut` qualifier on fn parameter (e.g. `fn inc(mut x: i64) -> i64 { x = x + 1; ... }`) is not yet supported in Nucleor. Pre-v0.7.75 the `mut` ident landed in the binding slot and `x` was pushed to where the colon should be, surfacing as wrong-class `error[NR020]: expected ':', got identifier`. Workaround: rebind in the body — `fn inc(x: i64) -> i64 { let mut x: i64 = x; x = x + 1; return x; }`.");
+            print("ERROR: `mut` qualifier on fn parameter (e.g. `fn inc(mut x: i64) -> i64 { x = x + 1; ... }`) is not yet supported in Nucleor. Workaround: rebind in the body — `fn inc(x: i64) -> i64 { let mut x: i64 = x; x = x + 1; return x; }`.");
             panic("nucleor: `mut` qualifier on fn parameter not yet supported (see ERROR diagnostic above)");
         };
         let pn_byte: i64 = tok_pos_at(tokens, cp);
@@ -4934,7 +4934,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // (drop the `extern "C"` qualifier — Nucleor regular fns use
     // the C ABI by default).
     if pk(tokens, cp) == 52 {
-        print(str_concat("ERROR: `extern \"C\" fn ", str_concat(name, "(...) { body }` (Rust FFI-exposed fn with body) is not yet supported in Nucleor's extern-fn parser, which only knows declaration-form (`extern fn name(...);` no body). Pre-v0.7.4 the body landed at `{` after parse_extern_fn returned, and parse_program surfaced it as wrong-class `statement-level keyword at module scope`. Workaround: drop the `extern \"C\"` qualifier — Nucleor regular fns (`fn name(...) { body }`) already use the C ABI by default at the i64-everywhere runtime level, so the explicit qualifier is informational. For pure declarations of foreign symbols, use the bare `extern fn name(...);` declaration form.")));
+        print(str_concat("ERROR: `extern \"C\" fn ", str_concat(name, "(...) { body }` (Rust FFI-exposed fn with body) is not yet supported in Nucleor's extern-fn parser, which only knows declaration-form (`extern fn name(...);` no body). Workaround: drop the `extern \"C\"` qualifier — Nucleor regular fns (`fn name(...) { body }`) already use the C ABI by default at the i64-everywhere runtime level, so the explicit qualifier is informational. For pure declarations of foreign symbols, use the bare `extern fn name(...);` declaration form.")));
         panic(str_concat("nucleor: `extern \"C\" fn ", str_concat(name, "(...) { body }` form not yet supported (see ERROR diagnostic above)")));
     };
     if pk(tokens, cp) == 43 { cp = cp + 1; };
@@ -4958,7 +4958,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // — RFC-0034 first-pass erases CT-args at lower-time, so the
     // param has no observable effect on the unspecialized struct).
     if pk(tokens, cp) == 54 {
-        print("ERROR: RFC-0034 compile-time `[]` parameters on struct declarations (e.g. `struct Buf[N: usize] { data: Vec<i64> }`) are not yet supported in Nucleor's first-pass `[]` parser. Pre-v0.6.65 the parser rejected with `error[NR020]: parse error ... expected '{', got '['` — wrong-class. Workaround: drop the `[N]` from the struct decl (RFC-0034 first-pass erases CT-args at lower-time anyway, so the param has no observable effect on the unspecialized struct).");
+        print("ERROR: RFC-0034 compile-time `[]` parameters on struct declarations (e.g. `struct Buf[N: usize] { data: Vec<i64> }`) are not yet supported in Nucleor's first-pass `[]` parser. Workaround: drop the `[N]` from the struct decl (RFC-0034 first-pass erases CT-args at lower-time anyway, so the param has no observable effect on the unspecialized struct).");
         panic("nucleor: struct CT-params not yet supported (see ERROR diagnostic above)");
     };
     // Optional generic params: struct Name<T, U> { ... }
@@ -5138,7 +5138,7 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // Halt cleanly with a workaround pointer (write each field
         // explicitly).
         if pk(tokens, cp) == 58 {
-            print(str_concat("ERROR: struct-update syntax `", str_concat(name, " { <field>: <val>, ..<rest> }` (Rust functional record update) is not yet supported in Nucleor. Pre-v0.6.97 surfaced as wrong-class `error[NR020]: parse error: expected ':', got identifier` after the parser tried to read `..` as a field name. Workaround: write each field explicitly — `Point { x: 10, y: rest.y, z: rest.z }`.")));
+            print(str_concat("ERROR: struct-update syntax `", str_concat(name, " { <field>: <val>, ..<rest> }` (Rust functional record update) is not yet supported in Nucleor. Workaround: write each field explicitly — `Point { x: 10, y: rest.y, z: rest.z }`.")));
             panic(str_concat("nucleor: struct-update `..rest` syntax not yet supported (see ERROR diagnostic above)"));
         };
         let field_span: i64 = tok_pos_at(tokens, cp);
@@ -5317,7 +5317,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // nightly-only in Rust today (RFC 1733), so low-volume but
     // worth the halt.
     if pk(tokens, cp) == 40 {
-        print(str_concat("ERROR: trait alias `trait ", str_concat(name, " = <bounds>;` is not yet supported in Nucleor. Pre-v0.7.13 surfaced as wrong-class `NR020: expected '{', got '='`. (Trait aliases are nightly-only in Rust today, RFC 1733.) Workaround: declare a regular trait that names the bounds in its supertrait list — `trait Pretty: Show + Clone {}`. Adopters who want `Pretty` to mean `Show + Clone` get the same surface via inheritance.")));
+        print(str_concat("ERROR: trait alias `trait ", str_concat(name, " = <bounds>;` is not yet supported in Nucleor. Workaround: declare a regular trait that names the bounds in its supertrait list — `trait Pretty: Show + Clone {}`. Adopters who want `Pretty` to mean `Show + Clone` get the same surface via inheritance.")));
         panic(str_concat("nucleor: trait alias `trait ", str_concat(name, " = ...` not yet supported (see ERROR diagnostic above)")));
     };
     cp = expect_tok(tokens, cp, 52); // {
@@ -5347,7 +5347,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // pointer (use a generic param `trait Container<Item>` or hand-
         // wire the concrete type per impl).
         if pk(tokens, cp) == 74 {
-            print("ERROR: associated types in traits (`type Item;` or `type Item = i64;`) are not yet supported in Nucleor. Pre-v0.6.99 surfaced as wrong-class `NR020: expected token 10 (fn), got token 74 (type)` because parse_trait_decl's body loop only knows fn decls. Workaround: declare a generic param on the trait — `trait Container<Item> { fn get(self: &Self) -> Item; }` — and the impls instantiate it concretely (`impl Container<i64> for IntBox { fn get(self: &IntBox) -> i64 { ... } }`).");
+            print("ERROR: associated types in traits (`type Item;` or `type Item = i64;`) are not yet supported in Nucleor. Workaround: declare a generic param on the trait — `trait Container<Item> { fn get(self: &Self) -> Item; }` — and the impls instantiate it concretely (`impl Container<i64> for IntBox { fn get(self: &IntBox) -> i64 { ... } }`).");
             panic("nucleor: associated types in traits not yet supported (see ERROR diagnostic above)");
         };
         cp = expect_tok(tokens, cp, 10); // fn
@@ -5643,7 +5643,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
             // wrong-class `error[NR020]: parse_primary cannot start expression
             // at token kind 11`.
             if pk(tokens, cp) == 11 {
-                print("ERROR: `if let` guard in match arm (e.g. `x if let Some(v) = opt => ...`) is not yet supported in Nucleor. Pre-v0.7.17 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 11` because `parse_expr` has no `let` branch. Workaround: hoist the `if let` above the `match` — bind the value first, then use it as a boolean guard: `if let Some(v) = opt { match x { n if v > 0 => ..., _ => ... } } else { ... }`. Alternatively, convert the guard to an explicit boolean test: `match x { n if is_some(opt) => ..., _ => ... }`.");
+                print("ERROR: `if let` guard in match arm (e.g. `x if let Some(v) = opt => ...`) is not yet supported in Nucleor. Workaround: hoist the `if let` above the `match` — bind the value first, then use it as a boolean guard: `if let Some(v) = opt { match x { n if v > 0 => ..., _ => ... } } else { ... }`. Alternatively, convert the guard to an explicit boolean test: `match x { n if is_some(opt) => ..., _ => ... }`.");
                 panic("nucleor: `if let` guard in match arm not supported (see ERROR diagnostic above)");
             };
             let mut gr: Vec<i32> = parse_expr(tokens, cp, pool);
@@ -5818,7 +5818,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // parse error pointing at byte 9. Halt at parse with a clean
             // diag.
             if pk(tokens, cp + 1) == 10 {
-                print("ERROR: `const fn` declarations are not yet supported in Nucleor. Pre-v0.6.55 the parser saw `fn` after `const` and rejected with the wrong-class diagnostic `error[NR020]: parse error at byte 9: expected ':', got identifier`. Workaround: drop the `const` qualifier — Nucleor v0.6 does not yet evaluate fn bodies at compile time, so a `const fn` is informationally equivalent to a regular `fn` in this version.");
+                print("ERROR: `const fn` declarations are not yet supported in Nucleor. Workaround: drop the `const` qualifier — Nucleor v0.6 does not yet evaluate fn bodies at compile time, so a `const fn` is informationally equivalent to a regular `fn` in this version.");
                 panic("nucleor: `const fn` decl not yet supported (see ERROR diagnostic above)");
             };
             let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
@@ -5885,7 +5885,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // (no executor, no `.await`, no state-machine lowering).
             // Halt cleanly at the decl. Sister to v0.6.53 `unsafe fn`
             // halt (same shape, same dispatch lookahead).
-            print("ERROR: `async fn` is not yet supported in Nucleor. Pre-v0.7.71 the `async` keyword was silently stripped and the fn parsed as a regular synchronous fn — call sites got the inner value directly instead of a `Future<Output = T>` to `.await`. Workaround: drop the `async` qualifier and call the fn synchronously; for genuinely-concurrent work, use the existing thread/queue substrate (RFC-0007 SPSC/MPSC queues or Track G atomics) until the v1.x `async`/Future/executor substrate lands.");
+            print("ERROR: `async fn` is not yet supported in Nucleor. Workaround: drop the `async` qualifier and call the fn synchronously; for genuinely-concurrent work, use the existing thread/queue substrate (RFC-0007 SPSC/MPSC queues or Track G atomics) until the v1.x `async`/Future/executor substrate lands.");
             panic("nucleor: `async fn` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && pk(tokens, cp + 1) == 10 {
@@ -5898,7 +5898,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // forward-roadmap status (Nucleor v0.6 has no checked
             // operations to opt out of, so `unsafe fn` is informational
             // only; the silent-strip removed the visual signal).
-            print("ERROR: `unsafe fn` is not yet supported in Nucleor. Pre-v0.6.53 the `unsafe` keyword was silently stripped, leaving the fn body indistinguishable from a regular fn — adopters auditing Rust translation lost the visual marker. Workaround: drop the `unsafe` qualifier (Nucleor v0.6 has no checked operations to opt out of, so the qualifier is informational-only).");
+            print("ERROR: `unsafe fn` is not yet supported in Nucleor. Workaround: drop the `unsafe` qualifier (Nucleor v0.6 has no checked operations to opt out of, so the qualifier is informational-only).");
             panic("nucleor: `unsafe fn` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && (pk(tokens, cp + 1) == 66 || pk(tokens, cp + 1) == 67) {
@@ -5924,7 +5924,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // opaquely. Halt cleanly. Sister to v0.7.71 `async fn`
             // and v0.6.53 `unsafe fn` halts (same module-item
             // silent-strip class).
-            print("ERROR: `extern crate <name>;` declarations are not yet supported in Nucleor. Pre-v0.7.73 these were silently dropped at module-item dispatch with no signal — adopter intent that the named crate be pulled in was lost, and later `<name>::path` use sites failed opaquely as undefined idents. Workaround: Nucleor's current substrate uses the `import \"path\"` form for cross-file inclusion (RFC-0018 phase 1); there is no Cargo-style external-crate dependency manager yet.");
+            print("ERROR: `extern crate <name>;` declarations are not yet supported in Nucleor. Workaround: Nucleor's current substrate uses the `import \"path\"` form for cross-file inclusion (RFC-0018 phase 1); there is no Cargo-style external-crate dependency manager yet.");
             panic("nucleor: `extern crate ...` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "macro_rules") == 1 && pk(tokens, cp + 1) == 38 {
@@ -5935,7 +5935,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // { ... }` block was silently swallowed at module scope as
             // before v0.7.73. v0.8.28 fixes the token constant so the
             // halt properly fires on `macro_rules` + `!` (token 38).
-            print("ERROR: `macro_rules!` declarative-macro definitions are not yet supported in Nucleor. Pre-v0.7.73 the entire `macro_rules! name { ... }` block was silently dropped at module-item dispatch — adopter intent that the macro be defined was lost, and call sites either failed late at expand-time as undefined idents or silently produced no expansion. Pre-v0.8.28 the v0.7.73 halt also silently dropped (wrong token constant 97 vs 38). Workaround: rewrite the macro body as a regular fn (Nucleor's metaprogramming substrate is fn-call + the small set of built-in macros — `print!`, `println!`, `format!`, `vec!`, `panic!`).");
+            print("ERROR: `macro_rules!` declarative-macro definitions are not yet supported in Nucleor. Workaround: rewrite the macro body as a regular fn (Nucleor's metaprogramming substrate is fn-call + the small set of built-in macros — `print!`, `println!`, `format!`, `vec!`, `panic!`).");
             panic("nucleor: `macro_rules!` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
@@ -5946,7 +5946,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // confusing late error pointing at the use site, not the
             // unsupported decl. Now halt at the decl with a clean
             // diagnostic naming the v0.6 boundary.
-            print("ERROR: `union` items are not yet supported in Nucleor. Pre-v0.6.50 the declaration was silently dropped at parse time and use sites failed opaquely with `unknown struct <NAME>`. Workaround: model the union shape with an `enum` (Rust-canonical for tagged unions) or a `struct` whose fields cover the largest variant if you need the raw bit-pattern reuse.");
+            print("ERROR: `union` items are not yet supported in Nucleor. Workaround: model the union shape with an `enum` (Rust-canonical for tagged unions) or a `struct` whose fields cover the largest variant if you need the raw bit-pattern reuse.");
             panic("nucleor: `union` decl at module scope not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "static") == 1 {
@@ -15927,7 +15927,7 @@ fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
         };
         if str_len(next_item_kind_isr31) > 0 && str_eq(next_item_kind_isr31, "fn") == 0 {
             let line_isr31: i64 = byte_to_line(source, attr_start_isr31);
-            let msg4: str = str_concat("`#[isr]` may only be applied to fn items; found `", str_concat(next_item_kind_isr31, "` after the attribute. Pre-v0.6.31 the attribute was silently dropped here AND leaked to the next fn in the file, surfacing as a misleading ISR-001 diag pointing at the wrong fn (typically `main`). Workaround: remove this `#[isr]` (it has no effect on a non-fn item) or move it to the actual handler fn."));
+            let msg4: str = str_concat("`#[isr]` may only be applied to fn items; found `", str_concat(next_item_kind_isr31, "` after the attribute. Workaround: remove this `#[isr]` (it has no effect on a non-fn item) or move it to the actual handler fn."));
             diag_add_ex(diags, "error", "isr", "ISR-008", msg4, "", line_isr31, 1, "");
         };
         p = ae_isr31;
@@ -25741,7 +25741,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     || str_eq(qbase, "Option") == 1
                     || str_eq(qbase, "Vec") == 1 { 1 } else { 0 };
                 if qok == 0 {
-                    type_diag(diags, source, fn_name, qcallee, "TYP-011", str_concat("`?` operator requires receiver to return `Result<T,E>` or `Option<T>` (or the legacy untyped `Vec<i32>` stub) — `", str_concat(qcallee, str_concat("()` returns `", str_concat(qrtype, "`. Pre-v0.4.54 this silently SIGSEGVed at runtime. Workaround: change the fn signature to return Result/Option, or check the value explicitly with `if ... { return ...; }`.")))));
+                    type_diag(diags, source, fn_name, qcallee, "TYP-011", str_concat("`?` operator requires receiver to return `Result<T,E>` or `Option<T>` (or the legacy untyped `Vec<i32>` stub) — `", str_concat(qcallee, str_concat("()` returns `", str_concat(qrtype, "`. Workaround: change the fn signature to return Result/Option, or check the value explicitly with `if ... { return ...; }`.")))));
                 };
             };
         };
@@ -28018,7 +28018,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             if hm_keyed_collection_v651 == 1 {
                 let key_t_v651: str = type_first_arg(tstr);
                 if str_len(key_t_v651) > 0 && str_eq(key_t_v651, "str") == 0 && str_eq(key_t_v651, "_") == 0 {
-                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Pre-v0.6.51 this CRASHED at runtime with STATUS_ACCESS_VIOLATION on the first insert because the runtime helper dereferences the key as a string pointer. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys."))))));
+                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys."))))));
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-026", hm_msg_v651);
                 };
             };
@@ -29882,7 +29882,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // `__closure_id` in sym (set at closure-lowering entry, absent in
         // regular fn scope); halts cleanly with a workaround.
         if sym_get(sym, "__closure_id") >= 0 {
-            print("ERROR: `?` operator inside a closure body is not yet supported in Nucleor. Pre-v0.7.82 the `?` lowered a `ret` from the closure on the Err/None path — correct Rust semantics (closure early-return) — but Nucleor closures return i64 by ABI convention, not Result/Option. The Err/None Vec pointer was returned to the outer caller as an i64, producing wrong-class silent miscompute (caller saw a heap address where it expected the closure payload). Workaround: pull the `?` into the outer fn with an explicit match — `let r = match inner_result() { Ok(v) => v, Err(e) => return Err(e) };` — or use `if let Err(e) = inner_result() { return Err(e); };`.");
+            print("ERROR: `?` operator inside a closure body is not yet supported in Nucleor. Workaround: pull the `?` into the outer fn with an explicit match — `let r = match inner_result() { Ok(v) => v, Err(e) => return Err(e) };` — or use `if let Err(e) = inner_result() { return Err(e); };`.");
             panic("nucleor: `?` inside closure body not yet supported (see ERROR diagnostic above)");
         };
         // RFC-0016 phase 1: `?` postfix operator.
@@ -31590,7 +31590,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // concrete type — `let d: Dog = Dog {}; ...`
                             // — and call the trait method directly).
                             if str_len(stype_base_v107) > 4 && str_starts_with(stype_base_v107, "dyn ") == 1 {
-                                print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base_v107, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Pre-v0.6.91 the kind-8 catch-all synthesized `vec_<method>(receiver)` and the post-link diag re-cast as `receiver type 'Vec<T>' has no method ...` — wrong-class for adopters porting Rust code with `Box<dyn Trait>` polymorphism. Trait-object dispatch requires a vtable; Nucleor's i64-everywhere ABI doesn't yet have one. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match).")))));
+                                print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base_v107, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match).")))));
                                 panic(str_concat("nucleor: trait-object method dispatch on `Box<", str_concat(stype_base_v107, "> not yet supported (see ERROR diagnostic above)")));
                             };
                             // borrowed-reference receiver guard.
@@ -31658,7 +31658,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // to `vec_clone(...)` synthesis → undefined symbol TYP-005.
                             if str_eq(mname, "clone") == 1 && struct_idx_v123 >= 0 {
                                 let v764_sname: str = stype_base;
-                                print(str_concat("ERROR: `.clone()` called on struct `", str_concat(v764_sname, "` which does not `#[derive(Clone)]`. Pre-v0.7.64 this fell through to `vec_clone(...)` synthesis — wrong-class TYP-005 at clang link. Workaround: add `#[derive(Clone)]` above the struct definition.")));
+                                print(str_concat("ERROR: `.clone()` called on struct `", str_concat(v764_sname, "` which does not `#[derive(Clone)]`. Workaround: add `#[derive(Clone)]` above the struct definition.")));
                                 panic(str_concat("nucleor: `.clone()` on struct `", str_concat(v764_sname, "` without #[derive(Clone)] (see ERROR diagnostic above)")));
                             };
                             if struct_idx_v123 >= 0 {
@@ -32210,7 +32210,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             } else {
                 "<construct the type explicitly>"
             };
-            print(str_concat("ERROR: `", str_concat(tname, str_concat("::default()` (Default trait) is not yet supported in Nucleor. Pre-v0.7.6 surfaced via the generic 'unsupported associated-fn call' diag. The Default trait family needs per-type Default impls + ambient dispatch through type inference; not yet shipped. Workaround: use the literal default value for this type — `", str_concat(v076_hint, "`. Tracked for forward-roadmap (Default trait substrate is sister to V1.4 derive(PartialEq) — both annotation-driven trait derives).")))));
+            print(str_concat("ERROR: `", str_concat(tname, str_concat("::default()` (Default trait) is not yet supported in Nucleor. Workaround: use the literal default value for this type — `", str_concat(v076_hint, "`. Tracked for forward-roadmap (Default trait substrate is sister to V1.4 derive(PartialEq) — both annotation-driven trait derives).")))));
             panic(str_concat("nucleor: `", str_concat(tname, "::default()` not yet supported (see ERROR diagnostic above)")));
         };
         // surface a clear diagnostic instead of falling through
@@ -32611,7 +32611,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // Sister to v0.6.91 trait-object dispatch halt
             // family.
             if str_eq(sname, "Self") == 1 {
-                print("ERROR: `Self { ... }` struct constructor inside `impl` blocks is not yet supported in Nucleor. Pre-v0.7.95 surfaced as wrong-class `unknown struct Self` because the kind-34 struct-name lookup didn't resolve `Self` to the impl target. Workaround: write the struct name explicitly — `impl Counter { fn make(x: i64) -> Counter { return Counter { n: x }; } }`.");
+                print("ERROR: `Self { ... }` struct constructor inside `impl` blocks is not yet supported in Nucleor. Workaround: write the struct name explicitly — `impl Counter { fn make(x: i64) -> Counter { return Counter { n: x }; } }`.");
                 panic("nucleor: `Self { ... }` constructor in impl block not yet supported (see ERROR diagnostic above)");
             };
             print(str_concat("ERROR: unknown struct ", sname));
@@ -32700,7 +32700,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // expression to a let-binding first, then `.await` the
         // ident).
         if str_eq(fname, "await") == 1 {
-            print("ERROR: complex-receiver `.await` (e.g. `fetch().await`, `arr[0].await`, `expr.method().await`) is not yet supported in Nucleor. Pre-v0.7.8 surfaced as wrong-class `cannot resolve field access .await` because the expand_async_await textual pass only matches the simple `<ident>.await` form. Workaround: extract the expression to a let-binding first, then `.await` the ident — `let h: i64 = fetch(); let v: i64 = h.await;`.");
+            print("ERROR: complex-receiver `.await` (e.g. `fetch().await`, `arr[0].await`, `expr.method().await`) is not yet supported in Nucleor. Workaround: extract the expression to a let-binding first, then `.await` the ident — `let h: i64 = fetch(); let v: i64 = h.await;`.");
             panic("nucleor: complex-receiver `.await` not yet supported (see ERROR diagnostic above)");
         };
         // v0.6.79 (RFC V1.11 adopter wrong-class halt): canonical Rust
@@ -32713,7 +32713,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if str_len(stype) >= 2 && str_char_at(stype, 0) == 40 {
             let stlen_v079: i64 = str_len(stype);
             if str_char_at(stype, stlen_v079 - 1) == 41 {
-                print(str_concat("ERROR: anonymous tuple types `(T1, T2, ...)` are not yet supported in Nucleor. Pre-v0.6.79 the field-access `t.0` / `t.1` surfaced as the generic `cannot resolve field access` diag — wrong class. Workaround: declare a named tuple-struct (V1.1, shipped v0.6.74) and use it instead — `struct Pair(i64, i64); let p: Pair = Pair(5, 7); print_int(p.0 as i32);`.", ""));
+                print(str_concat("ERROR: anonymous tuple types `(T1, T2, ...)` are not yet supported in Nucleor. Workaround: declare a named tuple-struct (V1.1, shipped v0.6.74) and use it instead — `struct Pair(i64, i64); let p: Pair = Pair(5, 7); print_int(p.0 as i32);`.", ""));
                 panic("nucleor: anonymous tuple type field access not yet supported (use named tuple-struct — see ERROR diagnostic above)");
             };
         };
@@ -36368,15 +36368,15 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
     let mut tail_v718: i64 = path_end;
     while tail_v718 < eol && str_char_at(line, tail_v718) == 32 { tail_v718 = tail_v718 + 1; };
     if tail_v718 + 2 <= eol && str_eq_at(line, tail_v718, "as") == 1 {
-        print("ERROR: `use path as Alias` import aliases are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the alias tail after rewriting the path, so adopter code could believe `Alias` was bound when only the original flattened module symbols were imported. Workaround: import the module path directly and call the existing exported names, or use `import \"...\"` for the current flat namespace model. Tracked for RFC-0018 resolver phase 2.");
+        print("ERROR: `use path as Alias` import aliases are not yet supported in Nucleor. Workaround: import the module path directly and call the existing exported names, or use `import \"...\"` for the current flat namespace model. Tracked for RFC-0018 resolver phase 2.");
         panic("nucleor: `use ... as ...` aliases not yet supported (see ERROR diagnostic above)");
     };
     if tail_v718 < eol && str_char_at(line, tail_v718) == 42 {
-        print("ERROR: glob imports `use path::*` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver stopped before `*`, built the wrong rewritten path, and the build could continue without importing the requested names. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
+        print("ERROR: glob imports `use path::*` are not yet supported in Nucleor. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
         panic("nucleor: `use ...::*` glob import not yet supported (see ERROR diagnostic above)");
     };
     if tail_v718 < eol && str_char_at(line, tail_v718) == 123 {
-        print("ERROR: selective import lists `use path::{a, b}` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the list tail after rewriting the path, so selected bindings were not actually introduced. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
+        print("ERROR: selective import lists `use path::{a, b}` are not yet supported in Nucleor. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
         panic("nucleor: `use ...::{...}` selective import not yet supported (see ERROR diagnostic above)");
     };
     let raw_path: str = str_substring(line, qp, path_end);
@@ -36439,7 +36439,7 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
         let mut prefix_len: i64 = 0;
         let mut is_mod_decl: i64 = 0;
         if line_len >= 8 && str_eq_at(src, lp, "pub use ") == 1 {
-            print("ERROR: `pub use ...` re-exports are not yet supported in Nucleor. Pre-v0.7.18 `pub use` at module scope was silently preserved and then ignored by the parser, so no re-export binding was created. Workaround: import the target module directly at each use site or expose a `pub fn` wrapper from the module. Tracked for RFC-0018 resolver phase 2.");
+            print("ERROR: `pub use ...` re-exports are not yet supported in Nucleor. Workaround: import the target module directly at each use site or expose a `pub fn` wrapper from the module. Tracked for RFC-0018 resolver phase 2.");
             panic("nucleor: `pub use` re-export not yet supported (see ERROR diagnostic above)");
         };
         if line_len >= 8 && str_eq_at(src, lp, "import ") == 1 { prefix_len = 7; };
@@ -39649,7 +39649,7 @@ fn expand_async_strip_keyword(src: str) -> str {
                 let mut blk_peek: i64 = p;
                 while blk_peek < slen && (str_char_at(src, blk_peek) == 32 || str_char_at(src, blk_peek) == 9 || str_char_at(src, blk_peek) == 10 || str_char_at(src, blk_peek) == 13) { blk_peek = blk_peek + 1; };
                 if blk_peek < slen && str_char_at(src, blk_peek) == 123 {
-                    print("ERROR: `async { ... }` block expression is not yet supported in Nucleor. Pre-v0.7.9 surfaced as wrong-class `error[TYP-005]: undefined function async()` because expand_async_strip_keyword only handles `async fn` (not `async {`), and parse_primary then treats `async` as a fn call. Workaround: drop the `async` keyword — Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle.");
+                    print("ERROR: `async { ... }` block expression is not yet supported in Nucleor. Workaround: drop the `async` keyword — Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle.");
                     panic("nucleor: `async { ... }` block expression not yet supported (see ERROR diagnostic above)");
                 };
                 // Look ahead past whitespace for `fn`.
@@ -42654,7 +42654,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // declared (but silently dropped — see the companion fix in
                 // the module-level macro_rules halt above).
                 if mode == 0 - 1 {
-                    print(str_concat("ERROR: user-defined or unrecognized macro invocation `", str_concat(name, "!(...)` is not supported in Nucleor. Pre-v0.8.28 surfaced as wrong-class `error[TYP-002]: unary \\`!\\` requires a \\`bool\\` operand (got i32)` because the unrecognized macro name was left in the expanded output with the `!` preserved, and the expression parser then read `!` as unary NOT applied to the following argument. Workaround: rewrite the macro body as a regular fn — replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.).")));
+                    print(str_concat("ERROR: user-defined or unrecognized macro invocation `", str_concat(name, "!(...)` is not supported in Nucleor. Workaround: rewrite the macro body as a regular fn — replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.).")));
                     panic(str_concat("nucleor: unknown macro `", str_concat(name, "!(...)` not supported (see ERROR diagnostic above)")));
                 };
                 if mode >= 0 {
