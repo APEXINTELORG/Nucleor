@@ -131,7 +131,7 @@ fn name(p1: T1, p2: T2) -> ReturnType {
 - Function names are first-class values when evaluated outside a call.
 - Prefix a function with `pub` to export it from `nuc build-shared`.
 
-Closures are stored as function-pointer or closure-handle values:
+Closures are first-class values typed as `i64`:
 
 ```nr
 let f: i64 = |x, y| x + y;
@@ -140,6 +140,42 @@ let z: i64 = || 42;
 ```
 
 Apply closures with normal call syntax: `f(1, 2)`.
+
+A closure captures the surrounding scope's bindings by **value
+snapshot** at literal-evaluation time — the value of each captured
+local at the point the literal is reached is copied into the
+closure's environment. Subsequent mutations to the outer binding
+do not affect the captured value:
+
+```nr
+let mut k: i64 = 3;
+let f: i64 = |x| x * k;        // captures k = 3
+k = 999;
+print_int(f(7));               // 21
+```
+
+Each evaluation of a closure literal produces an independent
+closure value — two calls to a factory fn that returns a closure
+yield two closures with independent captures, callable in any order:
+
+```nr
+fn make_scaler(k: i64) -> i64 { return |x| x * k; }
+let two: i64 = make_scaler(2);
+let three: i64 = make_scaler(3);
+print_int(two(10));            // 20
+print_int(three(10));          // 30
+```
+
+Closures are heap-owned. They release at end of the enclosing scope
+(fn return or end of loop iteration) the same way `Vec<T>` and `str`
+do. Passing a closure to a higher-order fn does not transfer
+ownership; the caller may continue to invoke it.
+
+Closures are not thread-portable. Calling the same closure value
+from multiple threads with mutable captures has undefined behavior
+without external synchronization (same status as `Vec` and `str`).
+
+Internal representation is documented in `docs/internals/closures.md`.
 
 ## 4. Structs
 
