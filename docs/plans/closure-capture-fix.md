@@ -414,6 +414,17 @@ This branch is mergeable when **all** of the following are true:
     — write rationale in `docs/internals/closures.md` instead. (We are
     *not* perpetuating the optics anti-pattern flagged in the critique
     analysis, even on our own fix.)
+13. No new `// Pre-fix ...`, `probe finding`, `forward-roadmap`,
+    `sister to v...`, or probe-finding-style identifiers
+    (e.g. `_v751`, `_f053` suffixes) introduced anywhere in this branch.
+    See `docs/plans/llm-evidence-removal.md` §N7.
+14. Commits on this branch carry no `Co-Authored-By: Claude` trailer
+    and no `claude.ai/code/session_*` footer.
+15. Any diagnostic string this branch *touches* (in passing, while
+    changing closure code) gets sanitized to the style in
+    `docs/plans/llm-evidence-removal.md` §N1 — even if it's outside the
+    closure work. We don't merge new code next to existing LLM-style
+    strings without fixing the strings.
 
 ## 6. Risks and Mitigations
 
