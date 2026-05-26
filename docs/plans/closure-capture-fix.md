@@ -147,29 +147,41 @@ follow-up branch once the type system grows closure typing.
 copy/drop. In exchange: pass-back, store-in-vec, return-from-fn all
 work naturally with the same semantics users get from Vec<T>.
 
-### D5 — Helper implementation language
+### D5 — Helper implementation language (UPDATED post-Step-B investigation)
 
-| Option | New C? | Lines of new C | Lines of new `.nr` | Notes |
+| Option | New C? | New file in build? | Bootstrap-safe? | Notes |
 |---|---|---|---|---|
-| A: All `.c` | Yes | ~80 | 0 | **REJECTED — violates R2.** |
-| **B: All `.nr`, new compiler intrinsics for raw ops** | No | 0 | ~80 | Codegen intrinsics emit inline LLVM IR; no symbol. |
-| C: All `.nr`, `extern fn` to existing C primitives | No (uses existing) | 0 | ~80 | Existing `_nuc_xmalloc` already in `nuc_alloc.h`. |
+| A: All `.c` | Yes | No | Yes | **REJECTED — violates R2.** |
+| B: All `.nr` in `stdlib/runtime/core_closures.nr`, auto-included by the compiler at every build | No | Yes (`.nr` auto-load) | **No — breaks self-rebuild.** Old seed compiler doesn't recognize `__nuc_raw_*` intrinsics, so when it compiles the new closure runtime during its own rebuild, it emits unresolved `call @__nuc_raw_alloc_i64s` and fails at link. Would need a gated two-stage bootstrap. | Cleanest separation; fragile bootstrap. |
+| **C: Compiler emits closure-helper functions as LLVM IR text from Nucleor source, embedded in every program's `.ll`** | No | No | **Yes** | Same pattern as `emit_externs` (declares), `emit_atomic_ordered_call` (atomic intrinsics). Helpers are real LLVM functions in every binary; DCE elides if unused. Generator is Nucleor; emitted IR is LLVM. |
+| D: All `.nr`, `extern fn` to existing C primitives | No | No | Yes | Reaches `_nuc_xmalloc` etc. through the existing C runtime. Adds `extern fn` declarations but no helpers in C. |
 
-**Decision: B.** Justification:
-- B and C both satisfy R2 — both keep the helper logic in `.nr`. B is
-  preferred because it emits *less* IR (raw `inttoptr`+`load`/`store`
-  is 3 ops; a `call` to an extern is 1 call but the callee has its own
-  prologue/epilogue and is opaque to LLVM optimization).
-- Compiler intrinsics are the **same pattern** used for the existing
-  ~90 builtins (vec_push, str_eq, print, etc. — see
-  `get_rt_name:7011`). Adding 4 more is mechanical.
-- R3 satisfied: no new symbols outside the compiler; existing libc
-  malloc/free reached via codegen-emitted `call` not via wrapped
-  helpers.
+**Decision: C (updated from prior B).** Justification:
+- v1 of this plan called for B with auto-include. Discovered during
+  Step B prep that B has a bootstrap chicken-and-egg: the old seed
+  compiler doesn't know `__nuc_raw_*` are intrinsics and would emit
+  unresolved calls when compiling the new closure runtime as part of
+  its own self-rebuild. Would require a two-stage gated bootstrap
+  cycle — fragile, exactly the kind of "shim that needs follow-up"
+  R1 rules out.
+- C matches the prevailing pattern in the codebase: helper IR is
+  emitted as text strings from Nucleor source in the compiler. The
+  atomic intrinsics work this way (`emit_atomic_ordered_call`,
+  line 6147). The runtime declares work this way (`emit_externs`,
+  line 8884). C is the *exact same* pattern.
+- C satisfies R2 in spirit: the implementation language at the
+  source level is Nucleor — the compiler's Nucleor source contains
+  the logic that produces the helper IR. There is no `.c` file. The
+  helpers as functions in the output binary are LLVM IR (the same
+  language used for every other emitted function).
+- C satisfies R3: no new build-time dependencies; no new file to
+  auto-load; no multi-file import path.
 
-**What we give up vs C:** ~30 lines of codegen vs ~30 lines of
-`extern fn` declarations. About the same complexity; B wins on
-optimization clarity.
+**What we give up vs B:** the helpers are LLVM IR strings inside
+`sb_append` calls in the compiler source instead of `.nr` functions
+in a separate file. Less ergonomic for future edits, but the pattern
+is identical to what's already in the compiler. Documenting this so
+future readers see why we chose C over the more "obvious" B.
 
 ### D6 — Allocation source
 
@@ -264,9 +276,24 @@ These are **codegen primitives**, recognized by name in
 `emit_builtin_call`. They produce no extern symbol. The malloc/free
 calls go directly to libc.
 
-### 3.4 Closure helpers in Nucleor
+### 3.4 Closure helpers — emitted as LLVM IR text from Nucleor source
 
-New file: `stdlib/runtime/core_closures.nr`.
+Per D5 (updated): the closure runtime is emitted by a new function
+`emit_closure_runtime(sb)` in `compiler/nucleor_s1_compiler.nr`, called
+from the program-emit path next to `emit_externs`. The emitted IR
+defines 8 LLVM functions per program (`nuc_closure_env_new`,
+`nuc_closure_env_retain`, `nuc_closure_env_release`,
+`nuc_closure_env_set_cap`, `nuc_closure_env_get_cap`,
+`nuc_closure_env_fn_ptr`, `nuc_closure_box`, `nuc_closure_unbox`).
+
+DCE elides them in any program that doesn't use closures (cost paid
+once at codegen + small constant in unoptimized debug builds; zero in
+release builds).
+
+**The conceptual Nucleor source** these correspond to is below — the
+*logic* shape that the compiler's `sb_append` calls reconstruct in
+LLVM IR. Reading this gives the intent; the actual implementation is
+in `emit_closure_runtime`.
 
 ```nr
 // core_closures.nr — closure environment runtime.

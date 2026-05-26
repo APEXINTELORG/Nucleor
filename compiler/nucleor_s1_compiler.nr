@@ -10304,6 +10304,118 @@ fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
 }
 
 #[manual_drop]
+// Closure-environment runtime. Emitted as LLVM function definitions
+// into every program's .ll output (DCE elides them if unused).
+//
+// Layout (i64 offset → field):
+//   0  refcount    (1 at construction; incremented on retain, decremented
+//                   on release; env is freed when release brings it to 0)
+//   1  fn_ptr      (address of the closure body function)
+//   2  cap_count   (number of capture slots)
+//   3+ caps        (i64 each)
+//
+// Closure value at the surface is `env_ptr | 1` (low-bit tag). The bare
+// `env_ptr` (the heap address) is what these helpers operate on; box/unbox
+// is the conversion between the surface value and the env pointer.
+//
+// Thread safety: non-atomic. Closures inherit the language's existing
+// "shared mutable state is the caller's responsibility" rule (matches
+// Vec/str). Documented in docs/internals/closures.md.
+#[manual_drop]
+fn emit_closure_runtime() -> str {
+    let mut sb: i64 = sb_new();
+
+    sb_append(sb, "define i64 @nuc_closure_env_new(i64 %fn_ptr, i64 %cap_count) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %total_slots = add i64 %cap_count, 3\n");
+    sb_append(sb, "  %nbytes = mul i64 %total_slots, 8\n");
+    sb_append(sb, "  %p = call ptr @malloc(i64 %nbytes)\n");
+    sb_append(sb, "  %is_null = icmp eq ptr %p, null\n");
+    sb_append(sb, "  br i1 %is_null, label %oom, label %ok\n");
+    sb_append(sb, "oom:\n");
+    sb_append(sb, "  %nul.panic = call i64 @__nucleor_panic(ptr @.nuc_closure_oom_msg)\n");
+    sb_append(sb, "  unreachable\n");
+    sb_append(sb, "ok:\n");
+    sb_append(sb, "  store i64 1, ptr %p, align 8\n");
+    sb_append(sb, "  %off_fn = getelementptr i64, ptr %p, i64 1\n");
+    sb_append(sb, "  store i64 %fn_ptr, ptr %off_fn, align 8\n");
+    sb_append(sb, "  %off_cnt = getelementptr i64, ptr %p, i64 2\n");
+    sb_append(sb, "  store i64 %cap_count, ptr %off_cnt, align 8\n");
+    sb_append(sb, "  %env = ptrtoint ptr %p to i64\n");
+    sb_append(sb, "  ret i64 %env\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_env_retain(i64 %env) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %p = inttoptr i64 %env to ptr\n");
+    sb_append(sb, "  %rc_old = load i64, ptr %p, align 8\n");
+    sb_append(sb, "  %rc_new = add i64 %rc_old, 1\n");
+    sb_append(sb, "  store i64 %rc_new, ptr %p, align 8\n");
+    sb_append(sb, "  ret i64 %env\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_env_release(i64 %env) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %is_zero = icmp eq i64 %env, 0\n");
+    sb_append(sb, "  br i1 %is_zero, label %ret_zero, label %check_rc\n");
+    sb_append(sb, "ret_zero:\n");
+    sb_append(sb, "  ret i64 0\n");
+    sb_append(sb, "check_rc:\n");
+    sb_append(sb, "  %p = inttoptr i64 %env to ptr\n");
+    sb_append(sb, "  %rc = load i64, ptr %p, align 8\n");
+    sb_append(sb, "  %is_last = icmp sle i64 %rc, 1\n");
+    sb_append(sb, "  br i1 %is_last, label %do_free, label %dec\n");
+    sb_append(sb, "do_free:\n");
+    sb_append(sb, "  call void @free(ptr %p)\n");
+    sb_append(sb, "  ret i64 0\n");
+    sb_append(sb, "dec:\n");
+    sb_append(sb, "  %rc_new = sub i64 %rc, 1\n");
+    sb_append(sb, "  store i64 %rc_new, ptr %p, align 8\n");
+    sb_append(sb, "  ret i64 %rc_new\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_env_set_cap(i64 %env, i64 %idx, i64 %val) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %p = inttoptr i64 %env to ptr\n");
+    sb_append(sb, "  %off = add i64 %idx, 3\n");
+    sb_append(sb, "  %slot = getelementptr i64, ptr %p, i64 %off\n");
+    sb_append(sb, "  store i64 %val, ptr %slot, align 8\n");
+    sb_append(sb, "  ret i64 %val\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_env_get_cap(i64 %env, i64 %idx) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %p = inttoptr i64 %env to ptr\n");
+    sb_append(sb, "  %off = add i64 %idx, 3\n");
+    sb_append(sb, "  %slot = getelementptr i64, ptr %p, i64 %off\n");
+    sb_append(sb, "  %v = load i64, ptr %slot, align 8\n");
+    sb_append(sb, "  ret i64 %v\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_env_fn_ptr(i64 %env) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %p = inttoptr i64 %env to ptr\n");
+    sb_append(sb, "  %off = getelementptr i64, ptr %p, i64 1\n");
+    sb_append(sb, "  %fn = load i64, ptr %off, align 8\n");
+    sb_append(sb, "  ret i64 %fn\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_box(i64 %env) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %r = or i64 %env, 1\n");
+    sb_append(sb, "  ret i64 %r\n");
+    sb_append(sb, "}\n");
+
+    sb_append(sb, "define i64 @nuc_closure_unbox(i64 %raw) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %r = and i64 %raw, -2\n");
+    sb_append(sb, "  ret i64 %r\n");
+    sb_append(sb, "}\n");
+
+    return sb_to_str(sb);
+}
+
+#[manual_drop]
 fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>, src: str) -> str {
     // Pre-size the IR builder to ~2 MB. The s1 self-host produces
     // 2.7 MB of IR; without pre-sizing the SB grows from 256 B
@@ -10315,6 +10427,7 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     sb_append(sb, emit_externs());
     sb_append(sb, emit_user_externs(pool, externs));
     sb_append(sb, emit_str_constants(strtab));
+    sb_append(sb, emit_closure_runtime());
     // v0.4.5 RFC-NRT-001: always-emit .nucleor_provenance section
     sb_append(sb, emit_provenance_section());
     // v0.4.1 RFC-NRT-004 §H: detect same-name pub fn collisions across
