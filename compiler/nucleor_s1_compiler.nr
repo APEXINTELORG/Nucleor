@@ -6193,6 +6193,79 @@ fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32
     return 0;
 }
 
+// Raw-memory codegen intrinsics. Recognized by name and lowered inline
+// to LLVM ops directly; no extern symbol is emitted. Used by the
+// closure-environment helpers in stdlib/runtime/core_closures.nr to
+// allocate and access closure capture records without a C runtime
+// helper. The names below are reserved by the leading `__nuc_raw_`
+// prefix (the language reserves all `__`-prefixed identifiers).
+#[manual_drop]
+fn is_nuc_raw_intrinsic(name: str) -> i64 {
+    if str_eq(name, "__nuc_raw_alloc_i64s") == 1 { return 1; };
+    if str_eq(name, "__nuc_raw_free") == 1 { return 1; };
+    if str_eq(name, "__nuc_raw_load_i64") == 1 { return 1; };
+    if str_eq(name, "__nuc_raw_store_i64") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn emit_nuc_raw_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let ds: str = str_from_int(d);
+    if str_eq(name, "__nuc_raw_alloc_i64s") == 1 && argc == 1 {
+        let cnt: str = str_from_int(vec_get(args, 0));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".alloc.nbytes = mul i64 %r.");
+        sb_append(sb, cnt); sb_append(sb, ", 8\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".alloc.p = call ptr @malloc(i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".alloc.nbytes)\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".alloc.null = icmp eq ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".alloc.p, null\n");
+        sb_append(sb, "  br i1 %r."); sb_append(sb, ds);
+        sb_append(sb, ".alloc.null, label %L_raw_oom_"); sb_append(sb, ds);
+        sb_append(sb, ", label %L_raw_ok_"); sb_append(sb, ds); sb_append(sb, "\n");
+        sb_append(sb, "L_raw_oom_"); sb_append(sb, ds); sb_append(sb, ":\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".alloc.panic = call i64 @__nucleor_panic(ptr @.nuc_closure_oom_msg)\n");
+        sb_append(sb, "  unreachable\n");
+        sb_append(sb, "L_raw_ok_"); sb_append(sb, ds); sb_append(sb, ":\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = ptrtoint ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".alloc.p to i64\n");
+        return 0;
+    };
+    if str_eq(name, "__nuc_raw_free") == 1 && argc == 1 {
+        let p: str = str_from_int(vec_get(args, 0));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".free.p = inttoptr i64 %r.");
+        sb_append(sb, p); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  call void @free(ptr %r."); sb_append(sb, ds); sb_append(sb, ".free.p)\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    if str_eq(name, "__nuc_raw_load_i64") == 1 && argc == 2 {
+        let p: str = str_from_int(vec_get(args, 0));
+        let off: str = str_from_int(vec_get(args, 1));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".load.p = inttoptr i64 %r.");
+        sb_append(sb, p); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".load.gep = getelementptr i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".load.p, i64 %r."); sb_append(sb, off); sb_append(sb, "\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = load i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".load.gep, align 8\n");
+        return 0;
+    };
+    if str_eq(name, "__nuc_raw_store_i64") == 1 && argc == 3 {
+        let p: str = str_from_int(vec_get(args, 0));
+        let off: str = str_from_int(vec_get(args, 1));
+        let v: str = str_from_int(vec_get(args, 2));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".store.p = inttoptr i64 %r.");
+        sb_append(sb, p); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".store.gep = getelementptr i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".store.p, i64 %r."); sb_append(sb, off); sb_append(sb, "\n");
+        sb_append(sb, "  store i64 %r."); sb_append(sb, v); sb_append(sb, ", ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".store.gep, align 8\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 %r."); sb_append(sb, v); sb_append(sb, ", 0\n");
+        return 0;
+    };
+    sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    return 0;
+}
+
 // v0.4.196 RFC-0015 phase 3a: typed allocas/loads/stores. Existing
 // untyped builders (ir_alloca, ir_load, ir_store) call these with
 // width=0 to preserve byte-identical IR output for current call sites.
@@ -8756,7 +8829,9 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 37 { emit_overflow_arith(sb, "mul", d, ir_op1(inst), ir_op2(inst), ir_tid(inst), ir_extra(inst)); }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
-        if is_atomic_ordered_builtin(fn_name) == 1 {
+        if is_nuc_raw_intrinsic(fn_name) == 1 {
+            emit_nuc_raw_call(sb, fn_name, d, argc, args);
+        } else if is_atomic_ordered_builtin(fn_name) == 1 {
             emit_atomic_ordered_call(sb, fn_name, d, argc, args);
         } else {
             let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);
@@ -9272,6 +9347,14 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_assert_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
+    // Closure-environment / raw-memory intrinsics: declare libc
+    // malloc/free for use by the __nuc_raw_* codegen primitives,
+    // and the OOM panic message they share. Both symbols are
+    // libc; no new dependency. Tagged unique so they don't collide
+    // with anything else in the emitted IR.
+    sb_append(sb, "declare ptr @malloc(i64)\n");
+    sb_append(sb, "declare void @free(ptr)\n");
+    sb_append(sb, "@.nuc_closure_oom_msg = private unnamed_addr constant [38 x i8] c\"out of memory: closure env allocation\\00\"\n");
     let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
     if str_eq(strict_intrin, "1") == 1 {
         sb_append(sb, "@.nuc_overflow_intrin_msg = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n");
@@ -24625,6 +24708,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
     if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
     if is_atomic_ordered_builtin(name) == 1 { return "i64"; };
+    if is_nuc_raw_intrinsic(name) == 1 { return "i64"; };
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
     // v0.6.42 (probe finding 2026-04-30-vec-pop-void-coerce-to-zero):
