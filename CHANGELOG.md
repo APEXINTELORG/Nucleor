@@ -2,6 +2,46 @@
 
 All notable public changes to Nucleor are documented here.
 
+## [1.1.1] - unreleased
+
+**Closure capture correctness + per-iteration drop emission.**
+
+### Fixed
+
+- Closure captures are now per-closure-instance, not per-literal. Two
+  closures produced from the same literal (e.g. via a factory fn)
+  carry independent captures and can be called in any order with
+  correct results. Pre-fix, the global capture table keyed only by
+  the literal's lex-time id meant every subsequent call to the
+  factory stomped the prior closure's captures. See
+  `tests/lang/closure_capture_*.nr` for the regression fixtures and
+  `docs/internals/closures.md` for the implementation.
+- Owned values declared inside `while` / `for` loop bodies (Vec,
+  HashMap, str, Closure) now release at the end of each iteration
+  instead of accumulating until fn return. Pre-fix RSS grew
+  linearly with iteration count; post-fix RSS stays bounded.
+  Verified with closure-in-loop and Vec-in-loop stress tests at
+  100M and 10M iterations respectively.
+
+### Changed
+
+- Closure values are now tagged i64 pointers (`env_ptr | 1`) rather
+  than bare function pointers. The i64-everywhere ABI is preserved;
+  indirect call sites dispatch on the low bit to handle both bare
+  fn-ptrs and closures. Existing user code is unaffected.
+- C runtime helpers that accept a `fn_ptr` argument
+  (`vec_map_i64`, `vec_filter_i64`, `vec_fold_i64`, etc.;
+  `thread_spawn`, `async_spawn`) now dispatch through tag-aware
+  inline helpers. Accepts both bare fn-ptrs and boxed closure values
+  transparently.
+
+### Deprecated
+
+- `__nucleor_capture_set` / `__nucleor_capture_get` and the
+  associated `g_capture_table` static buffer are retained as
+  compatibility shims but no longer emitted by the codegen. Slated
+  for removal in a future release.
+
 ## [1.1.0] - 2026-05-12
 
 **Linux bootstrap, release verification, Windows perf gate, and public-doc cleanup.**

@@ -2520,7 +2520,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "move") == 1 {
         let mv_next: i64 = pk(tokens, pos + 1);
         if mv_next == 65 || mv_next == 37 {
-            print("ERROR: `move` closure capture form `move ||` / `move |args|` is not yet supported in Nucleor. Pre-v0.6.62 the `move` keyword lexed as an identifier and the parser produced a clang-link error `@move undefined` or wrong-class TYP-005 'undefined function move'. Workaround: drop the `move` keyword — Nucleor v0.6 closures capture references to the enclosing scope, which is the same observable behavior as Rust's `move` for the i64-everywhere ABI's pointer-equality semantics. Tracked for forward-roadmap (when v1 borrow-checker arrives, `move` will gain meaning).");
+            print("ERROR: `move` closure capture is not supported in Nucleor. Drop the `move` keyword — Nucleor closures capture the enclosing scope's bindings by value snapshot (the env stores a copy of each captured i64 at literal-evaluation time), which is the observable equivalent of `move` under the i64-everywhere ABI.");
             panic("nucleor: `move` closure form not yet supported (see ERROR diagnostic above)");
         };
     };
@@ -2647,7 +2647,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 // works for all three. Full indirect-call lowering
                 // remains the multi-ship real fix.
                 if inner_kind == 42 || inner_kind == 7 || inner_kind == 99 {
-                    print("ERROR: `(expr)(args)` direct-call form not yet supported for IIFE / call-result / cast inner expressions (`(|x| x*2)(21)`, `(get_handler())(21)`, `(p as fn(i64)->i64)(21)`). Pre-v0.6.28 the parser silently dropped the `(args)` and returned the inner expression's *value* (closure address, fn-pointer, or cast result) instead of CALLING it — adopters got giant address-like numbers (140703...) where they expected the call result (probe finding 2026-05-02-paren-call-still-miscomputes-on-iife-call-result-cast).");
+                    print("ERROR: `(expr)(args)` direct-call form not supported for parenthesized inner expressions (`(|x| x*2)(21)`, `(get_handler())(21)`, `(p as fn(i64)->i64)(21)`). Bind the inner expression to a name and call that: `let f = |x| x * 2; f(21)`.");
                     print("  Workaround: extract the callable to a local variable first, then call it.");
                     print("    IIFE:        let f = |x: i64| x * 2; let v = f(21);");
                     print("    Call result: let f = get_handler();    let v = f(21);");
@@ -3033,12 +3033,12 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // parse_primary on the recovery-marker token (`;`/`)`/`,`/
             // `}`/`]`/`=`/EOF) and silently produced `int_lit(0)` as
             // the closure body — no diag, hidden no-op. Reject cleanly.
-            let v_cl_tt_f053: i64 = pk(tokens, cp);
-            if v_cl_tt_f053 == 0 || v_cl_tt_f053 == 40 || v_cl_tt_f053 == 41
-                || v_cl_tt_f053 == 43 || v_cl_tt_f053 == 44
-                || v_cl_tt_f053 == 51 || v_cl_tt_f053 == 53 || v_cl_tt_f053 == 55 {
-                let v_cl_byte_f053: i64 = tok_pos_at(tokens, cp);
-                panic(str_concat("error[PARSE-CLOSURE-NO-BODY]: closure literal at byte ", str_concat(str_from_int(v_cl_byte_f053), str_concat(" has no body — got ", str_concat(tok_name(v_cl_tt_f053), ". Closure form is `|args| <expr>` or `|args| { <stmts> }`. Pre-fix the missing body silently became `int_lit(0)`, producing a closure that returns 0 with no diagnostic.")))));
+            let closure_body_tok: i64 = pk(tokens, cp);
+            if closure_body_tok == 0 || closure_body_tok == 40 || closure_body_tok == 41
+                || closure_body_tok == 43 || closure_body_tok == 44
+                || closure_body_tok == 51 || closure_body_tok == 53 || closure_body_tok == 55 {
+                let closure_body_byte: i64 = tok_pos_at(tokens, cp);
+                panic(str_concat("error[PARSE-CLOSURE-NO-BODY]: closure literal at byte ", str_concat(str_from_int(closure_body_byte), str_concat(" has no body — got ", str_concat(tok_name(closure_body_tok), ". Closure form is `|args| <expr>` or `|args| { <stmts> }`.")))));
             };
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);
