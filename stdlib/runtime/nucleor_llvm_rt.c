@@ -3023,38 +3023,78 @@ void __nucleor_dyn_box_free(long long box) {
 //   vec_min_i64(v)            — minimum element (returns 0 if empty)
 //   vec_max_i64(v)            — maximum element (returns 0 if empty)
 
+// Closure-aware indirect call. The i64 passed in `raw` is either a
+// bare fn-ptr (low bit 0; text addresses are >=4-byte aligned on
+// x86_64 so the low bit is reserved) or a boxed closure value (low
+// bit 1; raw == env_ptr | 1, where env_ptr[1] holds the body's fn
+// address). Matches the codegen at op==30 in compiler/
+// nucleor_s1_compiler.nr — keep both paths in sync if the env layout
+// changes.
+static inline long long _nuc_call_clo_0(long long raw) {
+    if (raw & 1LL) {
+        long long env = raw & ~1LL;
+        long long *eptr = (long long *)(intptr_t)env;
+        long long fn_addr = eptr[1];
+        long long (*fn)(long long) = (long long (*)(long long))(intptr_t)fn_addr;
+        return fn(env);
+    }
+    long long (*fn)(void) = (long long (*)(void))(intptr_t)raw;
+    return fn();
+}
+static inline long long _nuc_call_clo_1(long long raw, long long a0) {
+    if (raw & 1LL) {
+        long long env = raw & ~1LL;
+        long long *eptr = (long long *)(intptr_t)env;
+        long long fn_addr = eptr[1];
+        long long (*fn)(long long, long long) =
+            (long long (*)(long long, long long))(intptr_t)fn_addr;
+        return fn(env, a0);
+    }
+    long long (*fn)(long long) = (long long (*)(long long))(intptr_t)raw;
+    return fn(a0);
+}
+static inline long long _nuc_call_clo_2(long long raw, long long a0, long long a1) {
+    if (raw & 1LL) {
+        long long env = raw & ~1LL;
+        long long *eptr = (long long *)(intptr_t)env;
+        long long fn_addr = eptr[1];
+        long long (*fn)(long long, long long, long long) =
+            (long long (*)(long long, long long, long long))(intptr_t)fn_addr;
+        return fn(env, a0, a1);
+    }
+    long long (*fn)(long long, long long) =
+        (long long (*)(long long, long long))(intptr_t)raw;
+    return fn(a0, a1);
+}
+
 NVec *__nucleor_vec_map_i64(NVec *v, long long fn_ptr) {
     if (!v || !fn_ptr) return __nucleor_vec_new();
-    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
     NVec *out = __nucleor_vec_new();
     for (int i = 0; i < v->len; i++) {
-        __nucleor_vec_push(out, fn(v->data[i]));
+        __nucleor_vec_push(out, _nuc_call_clo_1(fn_ptr, v->data[i]));
     }
     return out;
 }
 
 NVec *__nucleor_vec_filter_i64(NVec *v, long long fn_ptr) {
     if (!v || !fn_ptr) return __nucleor_vec_new();
-    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
     NVec *out = __nucleor_vec_new();
     for (int i = 0; i < v->len; i++) {
-        if (pred(v->data[i]) != 0) __nucleor_vec_push(out, v->data[i]);
+        if (_nuc_call_clo_1(fn_ptr, v->data[i]) != 0) __nucleor_vec_push(out, v->data[i]);
     }
     return out;
 }
 
 long long __nucleor_vec_fold_i64(NVec *v, long long init, long long fn_ptr) {
     if (!v || !fn_ptr) return init;
-    long long (*fn)(long long, long long) = (long long (*)(long long, long long))(void *)(intptr_t)fn_ptr;
     long long acc = init;
-    for (int i = 0; i < v->len; i++) acc = fn(acc, v->data[i]);
+    for (int i = 0; i < v->len; i++) acc = _nuc_call_clo_2(fn_ptr, acc, v->data[i]);
     return acc;
 }
 
 long long __nucleor_vec_each_i64(NVec *v, long long fn_ptr) {
     if (!v || !fn_ptr) return 0;
-    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-    for (int i = 0; i < v->len; i++) fn(v->data[i]);
+    for (int i = 0; i < v->len; i++) _nuc_call_clo_1(fn_ptr, v->data[i]);
     return (long long)v->len;
 }
 
@@ -3215,9 +3255,8 @@ long long __nucleor_vec_chain_i64(NVec *a, NVec *b) {
 //                        or -1 if none. Pred is fn(i64) -> i64.
 long long __nucleor_vec_position_i64(NVec *v, long long fn_ptr) {
     if (!v || fn_ptr == 0) return -1;
-    long long (*pred)(long long) = (long long (*)(long long))(intptr_t)fn_ptr;
     for (long long i = 0; i < v->len; i++) {
-        if (pred(v->data[i]) != 0) return i;
+        if (_nuc_call_clo_1(fn_ptr, v->data[i]) != 0) return i;
     }
     return -1;
 }
@@ -3257,9 +3296,8 @@ long long __nucleor_vec_nth_i64(NVec *v, long long n) {
 //                     return, so callers should pre-check is_empty).
 long long __nucleor_vec_reduce_i64(NVec *v, long long fn_ptr) {
     if (!v || v->len == 0 || fn_ptr == 0) return 0;
-    long long (*fn)(long long, long long) = (long long (*)(long long, long long))(intptr_t)fn_ptr;
     long long acc = v->data[0];
-    for (long long i = 1; i < v->len; i++) acc = fn(acc, v->data[i]);
+    for (long long i = 1; i < v->len; i++) acc = _nuc_call_clo_2(fn_ptr, acc, v->data[i]);
     return acc;
 }
 
@@ -3330,15 +3368,13 @@ long long __nucleor_vec_count_eq_i64(NVec *v, long long needle) {
 
 long long __nucleor_vec_any_i64(NVec *v, long long fn_ptr) {
     if (!v || !fn_ptr) return 0;
-    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-    for (int i = 0; i < v->len; i++) if (pred(v->data[i]) != 0) return 1;
+    for (int i = 0; i < v->len; i++) if (_nuc_call_clo_1(fn_ptr, v->data[i]) != 0) return 1;
     return 0;
 }
 
 long long __nucleor_vec_all_i64(NVec *v, long long fn_ptr) {
     if (!v || !fn_ptr) return v ? 1 : 0;
-    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-    for (int i = 0; i < v->len; i++) if (pred(v->data[i]) == 0) return 0;
+    for (int i = 0; i < v->len; i++) if (_nuc_call_clo_1(fn_ptr, v->data[i]) == 0) return 0;
     return 1;
 }
 
@@ -9370,8 +9406,7 @@ NVec *__nucleor_option_map(NVec *opt, long long fn_ptr) {
     if (!opt || !fn_ptr) return opt;
     NVec *out = __nucleor_vec_new();
     if (__nucleor_vec_get(opt, 0) == 0) {
-        long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-        long long mapped = fn(__nucleor_vec_get(opt, 1));
+        long long mapped = _nuc_call_clo_1(fn_ptr, __nucleor_vec_get(opt, 1));
         __nucleor_vec_push(out, 0); // Some tag
         __nucleor_vec_push(out, mapped);
     } else {
@@ -9383,8 +9418,7 @@ NVec *__nucleor_option_and_then(NVec *opt, long long fn_ptr) {
     // f returns Option<U>; if Some, call f on payload and return f's result.
     if (!opt || !fn_ptr) return opt;
     if (__nucleor_vec_get(opt, 0) == 0) {
-        NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
-        return fn(__nucleor_vec_get(opt, 1));
+        return (NVec *)(intptr_t)_nuc_call_clo_1(fn_ptr, __nucleor_vec_get(opt, 1));
     }
     NVec *out = __nucleor_vec_new();
     __nucleor_vec_push(out, 1);
@@ -9393,15 +9427,13 @@ NVec *__nucleor_option_and_then(NVec *opt, long long fn_ptr) {
 long long __nucleor_option_unwrap_or_else(NVec *opt, long long fn_ptr) {
     if (opt && __nucleor_vec_get(opt, 0) == 0) return __nucleor_vec_get(opt, 1);
     if (!fn_ptr) return 0;
-    long long (*fn)(void) = (long long (*)(void))(void *)(intptr_t)fn_ptr;
-    return fn();
+    return _nuc_call_clo_0(fn_ptr);
 }
 NVec *__nucleor_result_map(NVec *res, long long fn_ptr) {
     if (!res || !fn_ptr) return res;
     NVec *out = __nucleor_vec_new();
     if (__nucleor_vec_get(res, 0) == 1) {
-        long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-        long long mapped = fn(__nucleor_vec_get(res, 1));
+        long long mapped = _nuc_call_clo_1(fn_ptr, __nucleor_vec_get(res, 1));
         __nucleor_vec_push(out, 1);
         __nucleor_vec_push(out, mapped);
     } else {
@@ -9413,8 +9445,7 @@ NVec *__nucleor_result_map(NVec *res, long long fn_ptr) {
 NVec *__nucleor_result_and_then(NVec *res, long long fn_ptr) {
     if (!res || !fn_ptr) return res;
     if (__nucleor_vec_get(res, 0) == 1) {
-        NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
-        return fn(__nucleor_vec_get(res, 1));
+        return (NVec *)(intptr_t)_nuc_call_clo_1(fn_ptr, __nucleor_vec_get(res, 1));
     }
     // Pass through Err.
     NVec *out = __nucleor_vec_new();
@@ -9425,8 +9456,7 @@ NVec *__nucleor_result_and_then(NVec *res, long long fn_ptr) {
 long long __nucleor_result_unwrap_or_else(NVec *res, long long fn_ptr) {
     if (res && __nucleor_vec_get(res, 0) == 1) return __nucleor_vec_get(res, 1);
     if (!fn_ptr) return 0;
-    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
-    return fn(res ? __nucleor_vec_get(res, 1) : 0);
+    return _nuc_call_clo_1(fn_ptr, res ? __nucleor_vec_get(res, 1) : 0);
 }
 // === Recursive Debug formatters for Vec/Option/Result (v0.4.97) ===
 // Format element/payload as i64 (Nucleor cell convention). Strings
@@ -9542,8 +9572,7 @@ NVec *__nucleor_result_or_else(NVec *res, long long fn_ptr) {
         __nucleor_vec_push(out, __nucleor_vec_get(res, 1));
         return out;
     }
-    NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
-    return fn(__nucleor_vec_get(res, 1));
+    return (NVec *)(intptr_t)_nuc_call_clo_1(fn_ptr, __nucleor_vec_get(res, 1));
 }
 
 // === RNG ===
