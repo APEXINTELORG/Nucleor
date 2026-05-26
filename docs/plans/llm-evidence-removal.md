@@ -87,8 +87,25 @@ Target:
 
 ## 2. Decisions That Need Explicit Authorization
 
-These are destructive or identity-touching. **No action without explicit
-"go" from the maintainer.**
+These are destructive or identity-touching. Maintainer decisions are
+recorded below. **No action without explicit "go" from the maintainer.**
+
+### Decision log (2026-05-26)
+- **D1 — History:** Squash-merge going forward; do **not** rewrite
+  existing history. The 27 Claude-authored commits stay where they are
+  on dead feature branches; `main` going forward only carries
+  maintainer-authored squash commits. Release-signing chain preserved.
+- **D2 — Identity:** Working identity stays as `Claude
+  <noreply@anthropic.com>` on feature branches. Maintainer squashes
+  under their own identity at merge time. Git config is **not**
+  changed.
+- **D3 — Branch names:** Rename `claude/<name>` to `fix/<name>` (or
+  `feat/`, `refactor/`) before each push. One `git branch -m` step per
+  branch.
+- **D4 — Analysis docs:** Pre-merge final commit on each feature
+  branch moves `docs/critique-analysis.md` and `docs/plans/*.md` to
+  `.work/` (gitignored). Squash-merge then ships clean `docs/` on
+  `main`. Branch tip still has them for review.
 
 ### D1 — Rewrite public git history
 - Use `git filter-repo --replace-refs delete-no-add` to:

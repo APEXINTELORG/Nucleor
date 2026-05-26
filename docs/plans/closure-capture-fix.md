@@ -333,6 +333,16 @@ holds because we rebuild the seed in step F.
   new test set.
 - Confirm `tools/verify.sh` still hits `PASS=1653 + new` with `FAIL=0`.
 
+### Step I — Pre-merge cleanup (per D4)
+- Move `docs/critique-analysis.md` → `.work/critique-analysis.md`.
+- Move `docs/plans/closure-capture-fix.md` → `.work/plans/closure-capture-fix.md`.
+- Move `docs/plans/llm-evidence-removal.md` → `.work/plans/llm-evidence-removal.md`.
+- Add `.work/` to `.gitignore` if not already present.
+- This is the **last commit on the branch**, so the squash-merge to
+  `main` ships clean `docs/` without these analysis docs.
+- The branch tip still contains them for reviewer reference; only
+  `main` excludes them.
+
 ## 4. Perf Measurement Protocol
 
 Cold-compile is the gated metric. We measure at three checkpoints: pre-fix
