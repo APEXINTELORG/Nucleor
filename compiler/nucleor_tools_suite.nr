@@ -6,7 +6,7 @@
 //   source -> lex -> parse -> lower -> emit LLVM IR -> clang -> native exe
 // Usage: nucleor_s1 <source.nr> <output_name>
 // =====================================================
-// v0.8.303: file-wide PERF-3 suppression — same rationale as
+// file-wide PERF-3 suppression — same rationale as
 // nucleor_s1_compiler.nr v0.8.302. Tools-suite shares lex / parse
 // helpers from s1; 26 sites are intentional bounded per-token
 // allocation.
@@ -19,7 +19,7 @@ import "nucleor_rfc0063_shared_wave2.nr"
 // (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
 // large IR constants format correctly under Phase 1's narrow-as
 // hook.
-// v0.4.72: doc-#2 §5 P1 mirror — see nucleor_s1_compiler.nr.
+// doc-#2 §5 P1 mirror — see nucleor_s1_compiler.nr.
 
 // v0.5 (v0.4.233 integration) — mirror of compiler-side cleanup.
 // Param widened i32 → i64 to match runtime ABI.
@@ -38,7 +38,7 @@ extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
 
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
-        // v0.4.82: mirror s1's v0.4.78 NR020 close — was print +
+        // mirror s1's v0.4.78 NR020 close — was print +
         // return pos+1, silently producing a likely-broken AST.
         let tok: Vec<i32> = tok_at(tokens, pos);
         let byte_pos: i64 = vec_get(tok, 2);
@@ -120,14 +120,14 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); return r; };
-    // v0.3.140: removed dead tt==76 (restricts) parse_primary branch.
+    // removed dead tt==76 (restricts) parse_primary branch.
     // See compiler-side notes — kw classification was dropped to close
     // the silent-miscompute hazard for user fns named `restricts`.
-    // v0.3.149: tt == 77 (unsafe) branch is dead code since classify_kw
+    // tt == 77 (unsafe) branch is dead code since classify_kw
     // no longer maps unsafe to 77. The block form `unsafe { ... }` is
     // unused in any source the tools-suite parses.
-    // v0.3.150: dead tt == 78/79 branches removed (wrapping/saturating).
-    // v0.4.153: re-add `saturating { ... }` parse for tools_suite so
+    // dead tt == 78/79 branches removed (wrapping/saturating).
+    // re-add `saturating { ... }` parse for tools_suite so
     // `nuc check`/`nuc test` over a file using saturating blocks
     // recognize the syntax (per-op lowering only fires inside this
     // block — without the parse, the block opens an ambiguous expr).
@@ -373,9 +373,9 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 15 { let mut r: Vec<i32> = parse_while_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 56 { let mut r: Vec<i32> = parse_for_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
-    // v0.3.140: removed dead tt==76 (restricts) parse_stmts branch.
+    // removed dead tt==76 (restricts) parse_stmts branch.
     // Same dead-code pattern as the v0.3.138 scope/spawn removal.
-    // v0.3.138: removed dead `tt == 80 || tt == 81` branch — see
+    // removed dead `tt == 80 || tt == 81` branch — see
     // compiler-side notes (the `scope` / `spawn` kw classifications
     // were dropped to close the silent-miscompute hazard).
     if tt == 16 { return parse_return_stmt(tokens, pos + 1, pool); };
@@ -664,7 +664,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = cp + 1;
         } else if att == 1 && pk(tokens, cp + 1) == 46 {
             // Enum pattern: EnumName::Variant or EnumName::Variant(b1, b2, ...)
-            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2110-2119.
+            // sync from nucleor_s1_compiler.nr:2110-2119.
             // Pre-sync: this site only handled a single binding -- the second
             // and later bindings cascaded into "expected token 51 got 44"
             // parse errors, so multi-payload variants like Pair(a, b) failed
@@ -740,7 +740,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, pr_pos(br), 53); // }
             body_list = pr_val(br);
         } else if pk(tokens, cp) == 16 {
-            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2189-2207.
+            // sync from nucleor_s1_compiler.nr:2189-2207.
             // Pre-sync: arm body `return EXPR` fell into the parse_expr
             // fallback below, which left cp parked on `return`, producing
             // cascading "expected token 64 got 44/16" parse errors as the
@@ -760,7 +760,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             body_list = mk_list(pool, rstmts);
         } else if pk(tokens, cp) == 18 {
-            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2210-2215.
+            // sync from nucleor_s1_compiler.nr:2210-2215.
             // Arm body `break;` (or bare `break`).
             cp = cp + 1;
             if pk(tokens, cp) == 43 { cp = cp + 1; };
@@ -768,7 +768,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             bstmts.push(mk2(pool, 26, 0));
             body_list = mk_list(pool, bstmts);
         } else if pk(tokens, cp) == 19 {
-            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2217-2222.
+            // sync from nucleor_s1_compiler.nr:2217-2222.
             // Arm body `continue;` (or bare `continue`).
             cp = cp + 1;
             if pk(tokens, cp) == 43 { cp = cp + 1; };
@@ -1013,7 +1013,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
     if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
     if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
-    // v0.4.90 mirror: Option<T> / Result<T,E> method runtime helpers.
+    // Option<T> / Result<T,E> method runtime helpers.
     if str_eq(name, "option_unwrap") { return "__nucleor_option_unwrap"; };
     if str_eq(name, "option_unwrap_or") { return "__nucleor_option_unwrap_or"; };
     if str_eq(name, "option_is_some") { return "__nucleor_option_is_some"; };
@@ -1035,7 +1035,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
     if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
     if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
-    // v0.4.97 mirror: recursive Debug formatters.
+    // recursive Debug formatters.
     if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
     if str_eq(name, "vec_to_debug_str_str") { return "__nucleor_vec_to_debug_str_str"; };
     if str_eq(name, "vec_to_debug_str_option_i64") { return "__nucleor_vec_to_debug_str_option_i64"; };
@@ -1346,9 +1346,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
     if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
     if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
-    // v1.0.1 perf fix: C-side preflight bare-CR scan.
+    // C-side preflight bare-CR scan.
     if str_eq(name, "__nucleor_source_bare_cr_offset") { return "__nucleor_source_bare_cr_offset"; };
-    // v0.4.20 perf: generic str-keyed source-cache
+    // generic str-keyed source-cache
     if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
     if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
     if str_eq(name, "__nucleor_str_cache_put_miss") { return "__nucleor_str_cache_put_miss"; };
@@ -1864,11 +1864,11 @@ fn get_rt_name(name: str) -> str {
     return "";
 }
 fn is_ptr_ret(name: str) -> i64 {
-    // v0.4.101 mirror: vec_chain_i64 returns NVec*.
+    // vec_chain_i64 returns NVec*.
     if str_eq(name, "vec_chain_i64") { return 1; };
-    // v0.4.125 mirror: vec_step_by_i64 returns NVec*.
+    // vec_step_by_i64 returns NVec*.
     if str_eq(name, "vec_step_by_i64") { return 1; };
-    // v0.4.92 mirror: Option/Result helpers that return NVec*.
+    // Option/Result helpers that return NVec*.
     if str_eq(name, "option_map") { return 1; };
     if str_eq(name, "option_and_then") { return 1; };
     if str_eq(name, "result_map") { return 1; };
@@ -1888,7 +1888,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
     if str_eq(name, "int_to_str") { return 1; };
-    // v0.4.97 mirror: recursive Debug formatters return ptr (heap str).
+    // recursive Debug formatters return ptr (heap str).
     if str_eq(name, "vec_to_debug_str_i64") { return 1; };
     if str_eq(name, "vec_to_debug_str_str") { return 1; };
     if str_eq(name, "vec_to_debug_str_option_i64") { return 1; };
@@ -2377,7 +2377,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_extend(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_remove_at(ptr, i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_insert_at(ptr, i64, i64)\n");
-    // v0.4.90 mirror: Option<T> / Result<T,E> method helpers (declares).
+    // Option<T> / Result<T,E> method helpers (declares).
     sb_append(sb, "declare i64 @__nucleor_option_unwrap(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_option_unwrap_or(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_option_is_some(ptr)\n");
@@ -2399,7 +2399,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_result_and_then(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap_or_else(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_result_or_else(ptr, i64)\n");
-    // v0.4.97 mirror: recursive Debug formatters.
+    // recursive Debug formatters.
     sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_str(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_option_i64(ptr)\n");
@@ -2602,9 +2602,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_parse_depth_dec()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_get()\n");
     sb_append(sb, "declare i64 @__nucleor_parse_depth_reset()\n");
-    // v1.0.1 perf fix: C-side preflight bare-CR scan.
+    // C-side preflight bare-CR scan.
     sb_append(sb, "declare i64 @__nucleor_source_bare_cr_offset(ptr)\n");
-    // v0.4.20 perf: generic str-keyed source-cache
+    // generic str-keyed source-cache
     sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_cache_put_miss(ptr, ptr)\n");
@@ -2875,7 +2875,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
-    // v0.5.10: narrow-width div/rem panic helpers (mirror of
+    // narrow-width div/rem panic helpers (mirror of
     // nucleor_s1_compiler.nr — drift gate enforces this).
     sb_append(sb, "declare i64 @__nucleor_panic_div_i32(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i32(i64, i64)\n");
@@ -5062,7 +5062,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let env_start: i64 = tprof_start(tprof);
         let out: str = tenv_get(env, name);
         tprof_mark(tprof, 3, 4, env_start);
-        // v0.4.138 mirror: TYP-022 — struct name used as a value.
+        // TYP-022 — struct name used as a value.
         if str_len(out) == 0 && struct_find_type(pool, structs, name) >= 0 {
             let v22sval_msg_t: str = str_concat("`", str_concat(name, str_concat("` is a struct type, not a value. Pre-v0.4.138 this lowered to `ptrtoint ptr @", str_concat(name, " to i64` and failed late at clang link with an undefined-symbol error. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor."))));
             type_diag(diags, source, fn_name, name, "TYP-022", v22sval_msg_t);
@@ -5079,8 +5079,8 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && type_is_unit(rt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 0 {
             type_diag(diags, source, fn_name, fn_name, "TYP-003", "unit operands for addition/subtraction must match");
         };
-        // v0.4.137 mirror: NUM-022 — int vs float in cmp binop.
-        // v0.4.141: extended to arith ops 20-24.
+        // NUM-022 — int vs float in cmp binop.
+        // extended to arith ops 20-24.
         // Inline predicate (tools_suite has no type_is_int/float helper).
         let lt_is_int_v137_t: i64 = if str_eq(lt, "i64") == 1 || str_eq(lt, "i32") == 1 || str_eq(lt, "i16") == 1 || str_eq(lt, "i8") == 1 || str_eq(lt, "u64") == 1 || str_eq(lt, "u32") == 1 || str_eq(lt, "u16") == 1 || str_eq(lt, "u8") == 1 { 1 } else { 0 };
         let rt_is_int_v137_t: i64 = if str_eq(rt, "i64") == 1 || str_eq(rt, "i32") == 1 || str_eq(rt, "i16") == 1 || str_eq(rt, "i8") == 1 || str_eq(rt, "u64") == 1 || str_eq(rt, "u32") == 1 || str_eq(rt, "u16") == 1 || str_eq(rt, "u8") == 1 { 1 } else { 0 };
@@ -5109,7 +5109,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if is_int_arith_v110_t == 1 && lhs_unsuffixed_lit_v110_t == 1 && rt_is_int_v137_t == 1 { return rt; };
         if is_int_arith_v110_t == 1 && rhs_unsuffixed_lit_v110_t == 1 && lt_is_int_v137_t == 1 { return lt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
-        // v0.4.147 mirror: TYP-011 — struct == / != / ord silently
+        // TYP-011 — struct == / != / ord silently
         // does pointer comparison.
         if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
             let v147_lstruct_t: i64 = struct_find_type(pool, structs, lt);
@@ -5186,7 +5186,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             tprof_mark(tprof, 9, 10, call_start);
             return vec_get(sentry, 1);
         };
-        // v0.4.144 mirror: walk every arg through type_expr for
+        // walk every arg through type_expr for
         // diagnostic side effects on non-sig non-dynamic-helper
         // callees so nested calls' TYP-005 / TYP-008 etc. fire.
         if argc > 0 {
@@ -5196,12 +5196,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 walk_ai_v144_t = walk_ai_v144_t + 1;
             };
         };
-        // v0.4.148 mirror: TYP-022 ext — struct as fn call.
+        // TYP-022 ext — struct as fn call.
         if struct_find_type(pool, structs, callee) >= 0 {
             let v148msg_t: str = str_concat("`", str_concat(callee, "(...)` is not how struct values are constructed — `<Name>` is a struct type, not a fn. Use struct-init syntax `<Name> { field1: val1, ... }`."));
             type_diag(diags, source, fn_name, callee, "TYP-022", v148msg_t);
         };
-        // v0.4.146 mirror: closure call-site argc check.
+        // closure call-site argc check.
         let v146_argc_str_t: str = tenv_get(env, str_concat("__closure_argc_", callee));
         if str_len(v146_argc_str_t) > 0 {
             let v146_expected_t: i64 = str_to_int(v146_argc_str_t);
@@ -5209,7 +5209,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 let v146msg_t: str = str_concat("wrong number of arguments to closure `", str_concat(callee, str_concat("`: expected ", str_concat(str_from_int(v146_expected_t), str_concat(", got ", str_from_int(argc))))));
                 type_diag(diags, source, fn_name, callee, "TYP-005", v146msg_t);
             };
-            // v0.4.156 mirror: return closure body rtype.
+            // return closure body rtype.
             let v156_rtype_t: str = tenv_get(env, str_concat("__closure_rtype_", callee));
             if str_len(v156_rtype_t) > 0 {
                 tprof_mark(tprof, 9, 10, call_start);
@@ -5222,7 +5222,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     if kind == 8 {
         let recv_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let mname: str = node_field(pool, nid, 2);
-        // v0.4.139 mirror: TYP-023 + void-mutator return type.
+        // TYP-023 + void-mutator return type.
         if str_eq(recv_t, "void") == 1 {
             let v23msg_t: str = str_concat("chained method `.", str_concat(mname, "()` on a void-returning receiver. Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header. Split into separate statements."));
             type_diag(diags, source, fn_name, fn_name, "TYP-023", v23msg_t);
@@ -5283,7 +5283,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let args: i64 = node_field(pool, nid, 3);
         if str_eq(tname, "Box") == 1 {
             let mname_ts: str = node_field(pool, nid, 2);
-            // v0.8.63 mirror: Box::leak(b: Box<T>) -> &T
+            // Box::leak(b: Box<T>) -> &T
             if str_eq(mname_ts, "leak") == 1 {
                 if list_len(pool, args) > 0 {
                     let box_t_ts: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
@@ -5327,7 +5327,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let vname: str = node_field(pool, nid, 1);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
-        // v0.4.155 mirror: TYP-008 — reject named no-init bindings
+        // TYP-008 — reject named no-init bindings
         // uniformly (both `let x: T;` and `let mut x: T;`).
         if init < 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 {
             if str_eq(vname, "__tuple_destructure_unsupported__") == 0 {
@@ -5337,7 +5337,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
-            // v0.4.136 mirror: TYP-021 — void RHS in bare-let.
+            // TYP-021 — void RHS in bare-let.
             if str_len(tstr) == 0 && (str_eq(init_t, "void") == 1 || type_is_unit(init_t) == 1)
                 && str_eq(vname, "_") == 0 {
                 let v21msg_t: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn or split the side-effect into its own statement above the let."));
@@ -5370,8 +5370,8 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
-        // v0.4.146 mirror: register closure argc on the binding.
-        // v0.4.156 mirror: also register the closure's body rtype.
+        // register closure argc on the binding.
+        // also register the closure's body rtype.
         if init >= 0 && node_kind(pool, init) == 42 {
             let v146_pc_t: i64 = list_len(pool, node_field(pool, init, 1));
             tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc_t));
@@ -5408,7 +5408,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
             };
-            // v0.4.142 mirror: TYP-010 ext — return-with-value in
+            // TYP-010 ext — return-with-value in
             // void/unit/implicit-void fn.
             let v142_void_ret_t: i64 = if str_len(rtype) == 0 || str_eq(rtype, "void") == 1 || type_is_unit(rtype) == 1 { 1 } else { 0 };
             let v142_val_nonvoid_t: i64 = if str_len(val_t) > 0 && str_eq(val_t, "void") == 0 && type_is_unit(val_t) == 0 { 1 } else { 0 };
@@ -6071,7 +6071,7 @@ fn preflight_source_check(source: str) -> i64 {
 // It is handled by the taint checker at compile time
 
 fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64) -> Vec<i32> {
-    // v0.4.2 RFC-NRT-004 §G: kept for back-compat. Untyped path; calls
+    // kept for back-compat. Untyped path; calls
     // through to the typed variant with ename/vname == "" so the
     // __type_<name> sym_set is a no-op (unknown enum/variant -> no
     // payload type information available).
@@ -6274,7 +6274,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let r: i64 = ctr_next(regs);
         if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
         else {
-            // v0.4.153 mirror: per-op saturating dispatch when inside
+            // per-op saturating dispatch when inside
             // a `saturating { ... }` block (sym["__arith_mode"] == 2
             // set by the kind-52 branch).
             let mut sh_sat: str = "";
@@ -6400,7 +6400,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ai = ai + 1;
         };
         let mut stype: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
-        // v0.4.135 mirror: str-literal receiver (kind 2) gets empty stype
+        // str-literal receiver (kind 2) gets empty stype
         // from expr_struct_type. Without this, .len/.contains/etc. on a
         // str literal would route to vec_*_i64 in the iter check below
         // and silent-miscompute reading the str header as a vec header.
@@ -6421,13 +6421,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_len(fn_name) == 0 {
                 // T2.2 (v0.2.348) — synced from s1: route Vec iterator
                 // methods to typed `vec_*_i64` runtime helpers.
-                // v0.4.135: gate the iter dispatch on receiver-not-being-str,
+                // gate the iter dispatch on receiver-not-being-str,
                 // so `"abc".contains("b")` falls through to the str_contains
                 // branch below instead of hitting vec_contains_i64.
                 if iter_method_for_vec(mname) == 1 && str_eq(type_base_name(stype), "str") != 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
-                    // v0.4.90: mirror s1 v0.4.87/88/89 — str-receiver
+                    // mirror s1 v0.4.87/88/89 — str-receiver
                     // dispatch + insert/remove _at aliasing. Pre-fix
                     // tools_suite paths (nuc check, summary, audit)
                     // had the same vec_<mname> fall-through that s1
@@ -6437,7 +6437,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     let mut alias_mname_t: str = mname;
                     if str_eq(mname, "insert") == 1 { alias_mname_t = "insert_at"; };
                     if str_eq(mname, "remove") == 1 { alias_mname_t = "remove_at"; };
-                    // v0.4.91: mirror s1 v0.4.90 Option/Result dispatch.
+                    // mirror s1 v0.4.90 Option/Result dispatch.
                     // Falls back to var-ref __type_<name> lookup when
                     // expr_struct_type returned empty stype (some code
                     // paths don't populate it for Option/Result vars).
@@ -6505,7 +6505,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(blk, ir_const_int(zr, 0));
             return lx_new(zr, blk);
         };
-        // v0.8.63 mirror: Box::leak pass-through
+        // Box::leak pass-through
         if str_eq(tname, "Box") && str_eq(mname, "leak") {
             if list_len(pool, args_list) > 0 {
                 return lower_expr(pool, list_get(pool, args_list, 0), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -6557,7 +6557,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     if kind == 52 {
         let mode: i64 = node_field(pool, nid, 1);
         let body: i64 = node_field(pool, nid, 2);
-        // v0.4.153 mirror: per-op saturating dispatch via __arith_mode.
+        // per-op saturating dispatch via __arith_mode.
         let body_sym_sat_t: Vec<i32> = sym_clone(sym);
         if mode == 2 { sym_set(body_sym_sat_t, "__arith_mode", 2); };
         let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, body_sym_sat_t, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -6812,7 +6812,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let init_list: i64 = node_field(pool, nid, 2);
         let si: i64 = struct_find_type(pool, structs, sname);
         if si < 0 {
-            // v0.4.81: mirror s1's v0.4.36 close — was silent
+            // mirror s1's v0.4.36 close — was silent
             // -1 register that produced %r.-1 invalid IR.
             print(str_concat("ERROR: unknown struct ", sname));
             panic(str_concat("nucleor_tools: unknown struct ", sname));
@@ -6872,7 +6872,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(r, "vec_get", get_args));
             return lx_new(r, cur);
         };
-        // v0.4.81: mirror s1's v0.4.36 close — was silent -1 reg.
+        // mirror s1's v0.4.36 close — was silent -1 reg.
         print(str_concat("ERROR: cannot resolve field access type for .", fname));
         panic(str_concat("nucleor_tools: cannot resolve field access .", fname));
         return lx_new(0 - 1, cur);
@@ -6942,7 +6942,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         ir_block_add(cur, ir_fn_ptr(r, clo_name));
         return lx_new(r, cur);
     };
-    // v0.4.81: mirror s1's v0.4.34 close — was silent -1 reg.
+    // mirror s1's v0.4.34 close — was silent -1 reg.
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     panic(str_concat("nucleor_tools: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
@@ -7293,7 +7293,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if lh >= 0 { ir_block_add(cur, ir_br(lh)); };
         return cur;
     };
-    // v0.4.81: mirror s1's v0.4.34 close — was silent stmt drop.
+    // mirror s1's v0.4.34 close — was silent stmt drop.
     print(str_concat("ERROR: unknown stmt kind ", str_from_int(kind)));
     panic(str_concat("nucleor_tools: unknown stmt kind ", str_from_int(kind)));
     return cur;
@@ -9297,7 +9297,7 @@ fn extract_fn_name_from_line(line: str) -> str {
     return str_substring(line, start, stop);
 }
 
-// v0.4.167: extract a struct or enum name from a declaration line.
+// extract a struct or enum name from a declaration line.
 // Recognizes leading "struct " / "enum " (with optional "pub " prefix)
 // followed by an identifier. Returns the name, or "" if no match.
 // `kind_kw` selects which to look for: "struct" or "enum".
@@ -10078,7 +10078,7 @@ fn find_substr(haystack: str, needle: str) -> i64 {
 // signature line. Returns (params, return_type) where each piece is a
 // trimmed string fragment for direct rendering. Empty strings on parse
 // failure (caller falls back to the raw signature line).
-// v0.4.175: demote leading `#`-headings in /// doc content by two
+// demote leading `#`-headings in /// doc content by two
 // levels so a `/// # Examples` line renders as `### Examples` under
 // the parent fn's `## fn_name` heading. Pre-fix the `#` was emitted
 // raw, producing an H1 sibling to the document title — semantically
@@ -10109,7 +10109,7 @@ fn doc_demote_headings(text: str) -> str {
     return sb_to_str(sb);
 }
 
-// v0.4.174: scan a type-or-signature string and replace any identifier
+// scan a type-or-signature string and replace any identifier
 // token that matches a known type name with a markdown anchor link.
 // Used to cross-link param/return types in fn signatures to the
 // struct/enum anchor sections defined in the same file. Tokens are
@@ -10157,7 +10157,7 @@ fn link_known_types_md(sig: str, type_names: Vec<i32>) -> str {
     return sb_to_str(sb);
 }
 
-// v0.4.166: extract module-level doc comments (`//!` lines at the top
+// extract module-level doc comments (`//!` lines at the top
 // of a source file). Walks from line 0, collecting `//!` content into
 // a single newline-joined string, and stops at the first non-doc-comment,
 // non-blank line. Empty `//!` lines preserve as paragraph breaks.
@@ -10198,7 +10198,7 @@ fn doc_extract_module_doc(src: str) -> str {
     return str_substring(raw, 0, e);
 }
 
-// v0.4.165: split a params string (the text between `(` and `)` of a
+// split a params string (the text between `(` and `)` of a
 // fn signature) into a Vec of trimmed individual parameter strings.
 // Respects nested `<>` and `()` so generic params like `Vec<i32>` and
 // fn-typed params like `fn(i64) -> i64` survive the split. Empty
@@ -10266,7 +10266,7 @@ fn doc_extract_signature(line: str) -> Vec<i32> {
         while tp < llen && (str_char_at(line, tp) == 32 || str_char_at(line, tp) == 9) { tp = tp + 1; };
         let mut re: i64 = tp;
         while re < llen && str_char_at(line, re) != 123 && str_char_at(line, re) != 59 { re = re + 1; };
-        // v0.4.165: trim trailing whitespace from the return type so
+        // trim trailing whitespace from the return type so
         // `**Returns:** `i64`` doesn't render as `i64 ` with a stray space.
         while re > tp && (str_char_at(line, re - 1) == 32 || str_char_at(line, re - 1) == 9) { re = re - 1; };
         vec_set(out, 1, str_substring(line, tp, re));
@@ -10274,7 +10274,7 @@ fn doc_extract_signature(line: str) -> Vec<i32> {
     return out;
 }
 
-// v0.4.173: doc-test extraction. Walks `///` comment blocks looking
+// doc-test extraction. Walks `///` comment blocks looking
 // for ```nucleor code fences and emits a listing of each block with
 // the function it documents. Pending blocks (collected before the
 // next fn declaration) are flushed with that fn's name; module-level
@@ -10408,13 +10408,13 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
     sb_append(sb, "# ");
     sb_append(sb, src_path);
     sb_append(sb, "\n\nGenerated by `nuc doc` (RFC-0029).\n\n");
-    // v0.4.166: module-level docs from `//!` lines at the file head.
+    // module-level docs from `//!` lines at the file head.
     let mod_doc_md: str = doc_extract_module_doc(src);
     if str_len(mod_doc_md) > 0 {
         sb_append(sb, mod_doc_md);
         sb_append(sb, "\n");
     };
-    // v0.4.167: build fn + struct + enum indexes in a single pass.
+    // build fn + struct + enum indexes in a single pass.
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
     let mut fn_count: i64 = 0;
@@ -10438,7 +10438,7 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
         };
         p = eol + 1;
     };
-    // v0.4.174: combined type set (struct + enum) for cross-link resolution.
+    // combined type set (struct + enum) for cross-link resolution.
     let mut type_names: Vec<i32> = Vec::new();
     let mut sn_i: i64 = 0;
     while sn_i < vec_len(struct_names) { type_names.push(vec_get(struct_names, sn_i)); sn_i = sn_i + 1; };
@@ -10449,7 +10449,7 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
         let mut si: i64 = 0;
         while si < vec_len(struct_names) {
             let sn: str = vec_get(struct_names, si);
-            // v0.4.174: link to the Type anchor section below.
+            // link to the Type anchor section below.
             sb_append(sb, "- [`"); sb_append(sb, sn); sb_append(sb, "`](#type-"); sb_append(sb, sn); sb_append(sb, ")\n");
             si = si + 1;
         };
@@ -10468,7 +10468,7 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
     sb_append(sb, "## Function index\n\n");
     sb_append(sb, sb_to_str(fn_index_sb));
     sb_append(sb, "\n");
-    // v0.4.174: anchored Types section. Per-struct/enum DETAIL sections
+    // anchored Types section. Per-struct/enum DETAIL sections
     // (field/variant tables) deferred to a future ship; this provides
     // the link target so cross-refs from fn signatures resolve.
     if vec_len(type_names) > 0 {
@@ -10512,7 +10512,7 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
                 sb_append(sb, fn_name);
                 sb_append(sb, "`\n\n");
                 if last_doc_lines > 0 {
-                    // v0.4.175: demote `#`-headings inside doc text.
+                    // demote `#`-headings inside doc text.
                     sb_append(sb, doc_demote_headings(sb_to_str(last_doc_sb)));
                     sb_append(sb, "\n");
                 };
@@ -10529,9 +10529,9 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
                     sb_append(sb, ret_t);
                 };
                 sb_append(sb, "\n```\n\n");
-                // v0.4.165: per-parameter rendering. Closes RFC-0029
+                // per-parameter rendering. Closes RFC-0029
                 // "param rendering" deferral. Skip when zero-arg.
-                // v0.4.174: each param + return type runs through
+                // each param + return type runs through
                 // `link_known_types_md` to cross-link in-file struct
                 // and enum names to their `#type-<Name>` anchors.
                 // No backticks around the line — Markdown code spans
@@ -10607,7 +10607,7 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
     sb_append(sb, doc_html_escape(src_path));
     sb_append(sb, "</h1>\n");
     sb_append(sb, "<p class=\"meta\">Generated by <code>nuc doc --html</code> (RFC-0029).</p>\n");
-    // v0.4.166: module-level docs from `//!` lines at the file head.
+    // module-level docs from `//!` lines at the file head.
     let mod_doc_html: str = doc_extract_module_doc(src);
     if str_len(mod_doc_html) > 0 {
         sb_append(sb, "<div class=\"module-doc\"><p>");
@@ -10630,7 +10630,7 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
         };
         sb_append(sb, "</p></div>\n");
     };
-    // v0.4.167: build fn + struct + enum indexes in one pass.
+    // build fn + struct + enum indexes in one pass.
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
     let mut fn_count: i64 = 0;
@@ -10696,7 +10696,7 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
             let mut bp: i64 = lp + 3;
             if bp < llen && str_char_at(line, bp) == 32 { bp = bp + 1; };
             let inner_html: str = str_substring(line, bp, llen);
-            // v0.4.176: HTML mode — recognize `#`-headings inside /// blocks
+            // HTML mode — recognize `#`-headings inside /// blocks
             // and emit them as <h3>/<h4>/<h5> elements (demoted by 2 levels
             // since the parent fn heading is <h2>). Pre-fix `# Examples`
             // rendered as a literal "# Examples" string with <br>.
@@ -10744,7 +10744,7 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
                     sb_append(sb, doc_html_escape(ret_t));
                 };
                 sb_append(sb, "\n</code></pre>\n");
-                // v0.4.165: per-parameter rendering for HTML mode.
+                // per-parameter rendering for HTML mode.
                 let split_params_h: Vec<i32> = doc_split_params(params);
                 let pcount_h: i64 = vec_len(split_params_h);
                 if pcount_h > 0 {
@@ -10861,7 +10861,7 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
     };
     let imported: Vec<i32> = vec_get(bundle, 1);
     let harness_source: str = build_test_harness_source_with_imports(str_concat(resolved_source, law_source), tests, imported);
-    // v0.2.69 fix: ensure target/ exists before writing the harness file.
+    // ensure target/ exists before writing the harness file.
     // Without this, `nuc test foo.nr` from a fresh directory fails with
     // "ERROR: cannot read target/foo__test_harness.nr" because
     // file_write_string silently fails when the parent dir doesn't exist.
@@ -11201,7 +11201,7 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         };
         return fmt_conversion_for_spec("", arg_expr, src);
     };
-    // v0.4.29: drift-parity with s1_compiler — `:b` is binary radix (Rust),
+    // drift-parity with s1_compiler — `:b` is binary radix (Rust),
     // routes to int_to_bin. Pre-v0.4.29 routed to bool_to_str.
     if str_eq(spec, ":b") == 1 { return str_concat("int_to_bin(", str_concat(arg_expr, ")")); };
     if str_eq(spec, ":x") == 1 { return str_concat("int_to_hex(", str_concat(arg_expr, ")")); };
@@ -11887,7 +11887,7 @@ fn path_normalize_slashes(path: str) -> str {
 }
 
 fn path_shell_native(path: str) -> str {
-    // v0.8.323 PKG-1 fix: only rewrite forward-slashes to backslashes on
+    // only rewrite forward-slashes to backslashes on
     // Windows. On POSIX hosts the unconditional rewrite mangled paths
     // passed to pwsh (e.g. tools/native_release.ps1 became
     // tools\native_release.ps1, which pwsh treated as a relative path
@@ -12936,7 +12936,7 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
     let versions: Vec<i32> = registry_package_versions_native(registry_dir, package_name);
     if vec_len(versions) == 0 { return ""; };
     if str_eq(selector, "latest") == 1 || str_len(selector) == 0 { return vec_get(versions, 0); };
-    // v0.8.52 PKG-3 Phase 1: detect unsupported semver syntax
+    // detect unsupported semver syntax
     // and emit a clear diagnostic. Pre-fix the resolver returned
     // "" silently when the selector wasn't an exact match,
     // producing "no matching version" with no clue about the
@@ -13295,7 +13295,7 @@ fn invoke_native_package_sign(package_root: str, key_id: str) -> Vec<i32> {
     out.push(0);
     out.push("");
     out.push("");
-    // v0.8.51 PKG-1 fix: use the C-runtime cross-platform mkdir
+    // use the C-runtime cross-platform mkdir
     // (POSIX `mkdir(2)` syscall) instead of `system("mkdir ...
     // 2>NUL")` which only worked on Windows. fs_create_dir_all
     // is idempotent — succeeds whether the dir exists or not.
@@ -13307,7 +13307,7 @@ fn invoke_native_package_sign(package_root: str, key_id: str) -> Vec<i32> {
     if str_len(key_id) > 0 {
         ps_cmd = str_concat(ps_cmd, str_concat(" '", str_concat(key_id, "'")));
     };
-    // v0.8.51 PKG-1 fix: use `pwsh` (PowerShell 7+ cross-platform
+    // use `pwsh` (PowerShell 7+ cross-platform
     // binary) instead of `powershell` (Windows-only legacy 5.1).
     // Adopters on Linux/macOS install pwsh via the standard
     // package channels per docs.microsoft.com/powershell/scripting.
@@ -13315,7 +13315,7 @@ fn invoke_native_package_sign(package_root: str, key_id: str) -> Vec<i32> {
     cmd = str_concat(cmd, str_concat(" > ", str_concat(shell_quote(path_shell_native(output_path)), " 2>&1")));
     let rc: i64 = system(cmd);
     let raw: str = file_read_string(output_path);
-    // v0.8.51 PKG-1 fix: leave the temp file in .nuc_cache (it's
+    // leave the temp file in .nuc_cache (it's
     // gitignored). The previous Windows `del /q` cleanup failed
     // silently on Linux. Cleaner to skip the cleanup; .nuc_cache
     // is the standard scratch dir.
@@ -13334,7 +13334,7 @@ fn invoke_native_package_verify(package_root: str) -> Vec<i32> {
     out.push(0);
     out.push("");
     out.push("");
-    // v0.8.51 PKG-1 fix: cross-platform — fs_create_dir_all, pwsh, no del
+    // cross-platform — fs_create_dir_all, pwsh, no del
     fs_create_dir_all(".nuc_cache");
     let output_path: str = str_concat(".nuc_cache/package_verify_", str_concat(str_from_int(now_ms()), ".json"));
     let repo_root: str = native_release_repo_root();
@@ -15138,7 +15138,7 @@ fn run_registry_command(argc: i64) -> i64 {
     return 1;
 }
 
-// v0.8.42 RFC-0062 G-1: top-level command dispatcher. Heap-backed
+// top-level command dispatcher. Heap-backed
 // locals are arg-parsing scratch. Annotated as safety guardrail
 // before the unconditional default-flip.
 #[manual_drop]
@@ -15852,7 +15852,7 @@ fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 {
 
 
 
-// v0.8.42 RFC-0062 G-1: top-level entry point. Annotated as
+// top-level entry point. Annotated as
 // safety guardrail before the unconditional default-flip.
 #[manual_drop]
 fn main() -> i64 {
@@ -15905,7 +15905,7 @@ fn main() -> i64 {
         // T2.7 (v0.2.352): --html selects the HTML renderer instead
         // of Markdown. If --out is given without --html, we also
         // auto-detect by file extension (.html / .htm => HTML mode).
-        // v0.4.173: --test-list enumerates every ```nucleor code
+        // --test-list enumerates every ```nucleor code
         // block found in /// comments (extraction half of doc tests;
         // execution will ship in a future release).
         let mut tgt: str = "";
