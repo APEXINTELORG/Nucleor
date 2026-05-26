@@ -8897,24 +8897,65 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
         sb_append(sb, " to i64\n");
     }
     else if op == 30 {
-        // indirect_call: inttoptr fn ptr, call through it
+        // Indirect call with tag-bit dispatch.
+        // The i64 closure value's low bit distinguishes:
+        //   bit 0 = 1 → closure: env_ptr | 1; call body(env, args...)
+        //   bit 0 = 0 → bare fn-ptr; call directly with just args
+        // (Allocations are 8-byte aligned and text addresses are 4-byte
+        //  aligned on x86_64, so the low bit is free for tagging.)
         let clo_reg: i64 = ir_op1(inst);
         let argc: i64 = ir_op2(inst);
         let args: Vec<i32> = ir_extra(inst);
         let ds: str = str_from_int(d);
-        // Step 1: inttoptr to function pointer
-        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fp = inttoptr i64 %r.");
-        sb_append(sb, str_from_int(clo_reg)); sb_append(sb, " to ptr\n");
-        // Step 2: call fn_ptr(arg1, arg2, ...)
-        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = call i64 %r.");
-        sb_append(sb, ds); sb_append(sb, ".fp(");
+        let crs: str = str_from_int(clo_reg);
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".tag = and i64 %r.");
+        sb_append(sb, crs); sb_append(sb, ", 1\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".is_clo = icmp ne i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".tag, 0\n");
+        sb_append(sb, "  br i1 %r."); sb_append(sb, ds);
+        sb_append(sb, ".is_clo, label %L_clo_"); sb_append(sb, ds);
+        sb_append(sb, ", label %L_fnp_"); sb_append(sb, ds); sb_append(sb, "\n");
+        // Closure path
+        sb_append(sb, "L_clo_"); sb_append(sb, ds); sb_append(sb, ":\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".env = and i64 %r.");
+        sb_append(sb, crs); sb_append(sb, ", -2\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".envp = inttoptr i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".env to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fnoff = getelementptr i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".envp, i64 1\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fpi = load i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".fnoff, align 8\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fp_clo = inttoptr i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".fpi to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".cres = call i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".fp_clo(i64 %r."); sb_append(sb, ds); sb_append(sb, ".env");
         let mut ai: i64 = 0;
+        while ai < argc {
+            sb_append(sb, ", i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai)));
+            ai = ai + 1;
+        };
+        sb_append(sb, ")\n");
+        sb_append(sb, "  br label %L_join_"); sb_append(sb, ds); sb_append(sb, "\n");
+        // Bare fn-ptr path
+        sb_append(sb, "L_fnp_"); sb_append(sb, ds); sb_append(sb, ":\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fp_bare = inttoptr i64 %r.");
+        sb_append(sb, crs); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".fres = call i64 %r.");
+        sb_append(sb, ds); sb_append(sb, ".fp_bare(");
+        ai = 0;
         while ai < argc {
             if ai > 0 { sb_append(sb, ", "); };
             sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai)));
             ai = ai + 1;
         };
         sb_append(sb, ")\n");
+        sb_append(sb, "  br label %L_join_"); sb_append(sb, ds); sb_append(sb, "\n");
+        // Join
+        sb_append(sb, "L_join_"); sb_append(sb, ds); sb_append(sb, ":\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = phi i64 [ %r.");
+        sb_append(sb, ds); sb_append(sb, ".cres, %L_clo_"); sb_append(sb, ds);
+        sb_append(sb, " ], [ %r."); sb_append(sb, ds); sb_append(sb, ".fres, %L_fnp_");
+        sb_append(sb, ds); sb_append(sb, " ]\n");
     };
     return 0;
 }
@@ -29257,10 +29298,16 @@ fn capture_names_to_string(caps: Vec<i32>) -> str {
 }
 
 #[manual_drop]
-fn closure_writeback_captures(cap_names: str, clo_id: i64, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>) -> Vec<i32> {
+fn closure_writeback_captures(cap_names: str, clo_local_slot: i64, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let clen: i64 = str_len(cap_names);
-    if clo_id < 0 || clen == 0 { return cur; };
+    if clo_local_slot < 0 || clen == 0 { return cur; };
+    // Load the boxed closure value (env_ptr | 1) from the local slot
+    // that holds it, then unbox to get the bare env pointer. Once per
+    // writeback block (shared across all caps).
+    let raw_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(raw_r, clo_local_slot));
+    let mut unbox_args: Vec<i32> = Vec::new(); unbox_args.push(raw_r);
+    let env_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(env_r, "nuc_closure_unbox", unbox_args));
     let mut start: i64 = 0;
     let mut capi: i64 = 0;
     while start < clen {
@@ -29270,10 +29317,9 @@ fn closure_writeback_captures(cap_names: str, clo_id: i64, blk: Vec<i32>, regs: 
         if str_len(name) > 0 {
             let slot: i64 = sym_get(sym, name);
             if slot >= 0 {
-                let clo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(clo_r, clo_id));
                 let cap_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(cap_r, capi));
-                let mut get_args: Vec<i32> = Vec::new(); get_args.push(clo_r); get_args.push(cap_r);
-                let val_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(val_r, "__nucleor_capture_get", get_args));
+                let mut get_args: Vec<i32> = Vec::new(); get_args.push(env_r); get_args.push(cap_r);
+                let val_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(val_r, "nuc_closure_env_get_cap", get_args));
                 ir_block_add(cur, ir_store(val_r, slot));
             };
         };
@@ -31174,7 +31220,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let caps_meta: i64 = sym_get(sym, str_concat("__closure_caps_", fn_name));
                 if caps_meta >= 0 {
                     let cap_names: str = caps_meta;
-                    cur = closure_writeback_captures(cap_names, clo_id_meta, cur, regs, sym);
+                    // Pass the closure-value's local slot (not the per-
+                    // literal clo_id) so the writeback can read captures
+                    // from the per-instance env at runtime.
+                    cur = closure_writeback_captures(cap_names, fn_slot, cur, regs, sym);
                 };
             };
             return lx_new(r, cur);
@@ -32667,7 +32716,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let body_list: i64 = node_field(pool, nid, 2);
         let clo_idx: i64 = vec_len(closures);
         let clo_name: str = str_concat("__closure_", str_from_int(clo_idx));
-        let pc: i64 = list_len(pool, param_list);
+        let user_pc: i64 = list_len(pool, param_list);
+        // Closure body takes a leading synthetic %p.0 = __env (the
+        // unboxed environment pointer); user params shift to %p.1..N.
+        let pc: i64 = user_pc + 1;
         let mut clo_regs: Vec<i32> = ctr_new();
         let mut clo_lbls: Vec<i32> = ctr_new();
         let mut clo_sym: Vec<i32> = sym_new();
@@ -32683,19 +32735,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             closure_collect_capture_stmt(pool, list_get(pool, body_list, bi), sym, param_list, captures);
             bi = bi + 1;
         };
+        // Synthetic __env param at slot 0 (the unboxed env pointer).
+        // Stash the reg in clo_sym so the assign-to-capture path inside
+        // the body can emit env_set_cap on the right env.
+        let env_param_reg: i64 = ctr_next(clo_regs);
+        ir_block_add(clo_b0, ir_param_ref(env_param_reg, 0));
+        sym_set(clo_sym, "__env_reg", env_param_reg);
         let mut cpi: i64 = 0;
-        while cpi < pc {
+        while cpi < user_pc {
             let cpname: str = list_get(pool, param_list, cpi);
             let car: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_alloca(car));
-            let cpr: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_param_ref(cpr, cpi));
+            // User params shift by +1 because env occupies slot 0.
+            let cpr: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_param_ref(cpr, cpi + 1));
             ir_block_add(clo_b0, ir_store(cpr, car));
             sym_set(clo_sym, cpname, car);
-            // v0.3.177: register the closure parameter's type so
-            // print(p) inside the closure body doesn't fall through
-            // to print_str. Default to i64 (matches Nucleor's
-            // i64-everywhere ABI for closure params; the
-            // param_list only stores names, not parsed types).
-            // Pre-fix `apply(|n: i64| { print(n); }, 42)` SIGSEGV'd.
             sym_set(clo_sym, str_concat("__type_", cpname), "i64");
             cpi = cpi + 1;
         };
@@ -32703,10 +32756,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         while capi < vec_len(captures) {
             let capname: str = vec_get(captures, capi);
             let car: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_alloca(car));
-            let clo_id_r: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_const_int(clo_id_r, clo_idx));
+            // Load captured value from the per-instance env, not the
+            // legacy per-literal global table.
             let cap_id_r: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_const_int(cap_id_r, capi));
-            let mut get_args: Vec<i32> = Vec::new(); get_args.push(clo_id_r); get_args.push(cap_id_r);
-            let cval: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_call_ex(cval, "__nucleor_capture_get", get_args));
+            let mut get_args: Vec<i32> = Vec::new(); get_args.push(env_param_reg); get_args.push(cap_id_r);
+            let cval: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_call_ex(cval, "nuc_closure_env_get_cap", get_args));
             ir_block_add(clo_b0, ir_store(cval, car));
             sym_set(clo_sym, capname, car);
             sym_set(clo_sym, str_concat("__capid_", capname), capi);
@@ -32786,25 +32840,45 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(clo_fb, ir_ret(czr));
             };
         };
-        let mut capi2: i64 = 0;
         let mut cur: Vec<i32> = blk;
+        // Closure literal evaluation:
+        //   env = nuc_closure_env_new(fn_ptr, cap_count)
+        //   for each capture i: nuc_closure_env_set_cap(env, i, value)
+        //   raw = nuc_closure_box(env)     ; surface i64 = env_ptr | 1
+        // The closure value at the surface is `raw`, a tagged pointer
+        // distinguishable from a bare fn-ptr at indirect-call sites.
+        let fn_ptr_r: i64 = ctr_next(regs);
+        ir_block_add(cur, ir_fn_ptr(fn_ptr_r, clo_name));
+        let cap_count_r: i64 = ctr_next(regs);
+        ir_block_add(cur, ir_const_int(cap_count_r, vec_len(captures)));
+        let mut env_new_args: Vec<i32> = Vec::new();
+        env_new_args.push(fn_ptr_r);
+        env_new_args.push(cap_count_r);
+        let env_r: i64 = ctr_next(regs);
+        ir_block_add(cur, ir_call_ex(env_r, "nuc_closure_env_new", env_new_args));
+        let mut capi2: i64 = 0;
         while capi2 < vec_len(captures) {
             let capname2: str = vec_get(captures, capi2);
             let capslot: i64 = sym_get(sym, capname2);
             if capslot >= 0 {
                 let capv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(capv, capslot));
-                let clo_id_r2: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(clo_id_r2, clo_idx));
-                let cap_id_r2: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(cap_id_r2, capi2));
-                let mut set_args: Vec<i32> = Vec::new(); set_args.push(clo_id_r2); set_args.push(cap_id_r2); set_args.push(capv);
-                let dr: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(dr, "__nucleor_capture_set", set_args));
+                let idx_r2: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r2, capi2));
+                let mut set_args: Vec<i32> = Vec::new();
+                set_args.push(env_r); set_args.push(idx_r2); set_args.push(capv);
+                let dr: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(dr, "nuc_closure_env_set_cap", set_args));
             };
             capi2 = capi2 + 1;
         };
+        let mut box_args: Vec<i32> = Vec::new();
+        box_args.push(env_r);
+        let boxed_r: i64 = ctr_next(regs);
+        ir_block_add(cur, ir_call_ex(boxed_r, "nuc_closure_box", box_args));
+        // Stash metadata so the let-and-call writeback path can find
+        // the right closure-local slot at the call site.
         sym_set(sym, "__last_closure_id", clo_idx);
         sym_set(sym, "__last_closure_caps", capture_names_to_string(captures));
-        let r: i64 = ctr_next(regs);
-        ir_block_add(cur, ir_fn_ptr(r, clo_name));
-        return lx_new(r, cur);
+        return lx_new(boxed_r, cur);
     };
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     // v0.4.34: pre-fix this returned `lx_new(-1, blk)` which lowered
@@ -33881,14 +33955,18 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(cur, ir_store_t(tr21, ar, aw21));
         };
         auto_drop_mark_live(sym, lhs_name);
-        let clo_id: i64 = sym_get(sym, "__closure_id");
-        if clo_id >= 0 {
+        let env_reg_a: i64 = sym_get(sym, "__env_reg");
+        if env_reg_a >= 0 {
             let cap_id: i64 = sym_get(sym, str_concat("__capid_", lhs_name));
             if cap_id >= 0 {
-                let clo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(clo_r, clo_id));
+                // We're inside a closure body and lhs_name is a
+                // captured local — mirror the local-alloca write into
+                // the env so mutations are observable post-call.
                 let cap_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(cap_r, cap_id));
-                let mut set_args: Vec<i32> = Vec::new(); set_args.push(clo_r); set_args.push(cap_r); set_args.push(vr);
-                let dr: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(dr, "__nucleor_capture_set", set_args));
+                let mut set_args: Vec<i32> = Vec::new();
+                set_args.push(env_reg_a); set_args.push(cap_r); set_args.push(vr);
+                let dr: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(dr, "nuc_closure_env_set_cap", set_args));
             };
         };
         if node_kind(pool, node_field(pool, nid, 2)) == 42 {
