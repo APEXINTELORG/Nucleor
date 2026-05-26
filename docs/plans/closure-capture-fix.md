@@ -149,21 +149,24 @@ follow-up branch once the type system grows closure typing.
   transfer (`let g = f;`) all integrate with auto_drop. Release fires
   at fn return.
 
-**Known limitation (documented for follow-up):**
-Nucleor's auto_drop framework does NOT emit per-iteration drops in
-`while` loops today. This affects Vec, HashMap, and now Closure
-equally — owned bindings inside a loop body accumulate without
-release until the function returns. Verified: a `Vec::new()`-in-loop
-test grows from 4 MB to 5.5 GB over 10M iterations. The closure
-work introduces no new leak class; it inherits this pre-existing
-language limitation. Fix is a separate workstream
-(`fix/loop-iter-drops`) that adds emit_live to while-body lowering;
-out of scope for this branch because:
-1. The change affects every owned-type usage in loops, not just
-   closures; needs its own perf gate and verifier sweep.
-2. May expose pre-existing bugs in code that accidentally relied on
-   the leak (Vec dropped earlier than expected).
-3. Doesn't block any test on this branch.
+**Per-iteration drop emission (implemented in this branch):**
+The original Nucleor auto_drop framework did NOT emit drops at end
+of `while`/`for` iteration — bindings accumulated until fn return.
+Verified pre-fix: a `Vec::new()`-in-loop test grew from 4 MB to
+5.5 GB over 10M iters; the closure equivalent grew from 4 MB to
+4.7 GB over 100M iters. This branch adds `auto_drop_emit_live_above`
+that emits releases only for indices >= the count snapshotted before
+loop-body lowering — drops only the bindings declared *inside* the
+body, not anything inherited from enclosing scope (inner loops do
+not free outer loop's bindings). Wired into kind==24 (while) and
+kind==28 (for-range) lowering at the brace-back point.
+
+Post-fix verification:
+- Closure-in-loop 100M iters: RSS held at 1.7 MB throughout. Result
+  correct.
+- Vec-in-loop 10M iters: RSS held at 1.9 MB, no segfault (scoping
+  prevents inner-loop from dropping outer Vec).
+- All 73 buildable tests/lang/*.nr pass.
 
 ### D5 — Helper implementation language (UPDATED post-Step-B investigation)
 
@@ -587,18 +590,11 @@ All required for merge:
 
 None for the design above. Everything in §2 is RECOMMEND-and-execute.
 
-## 8a. Follow-Up Branches Identified During Implementation
+## 8a. Per-Iteration Drop Emission
 
-- **`fix/loop-iter-drops`** — emit `auto_drop_emit_live` at end of
-  while-loop body so owned bindings (Vec, HashMap, Closure, str)
-  free per iteration instead of accumulating until fn return. This
-  is a pre-existing Nucleor language limitation, NOT introduced by
-  the closure work. Verified: a `Vec::new()`-in-loop test grows
-  from 4 MB → 5.5 GB over 10M iterations on Linux. Closures inherit
-  the same behavior. Out of scope here because the change is
-  generic (affects every owned type), warrants its own perf gate
-  and verifier sweep, and may expose pre-existing bugs in code that
-  accidentally relied on the leak.
+Fixed in this branch alongside Step G. See D4 → "Per-iteration drop
+emission" for details. The fix is generic — it also eliminates the
+pre-existing Vec/HashMap/str leak class in loop bodies.
 
 ## 9. What This Branch Does Not Cover
 

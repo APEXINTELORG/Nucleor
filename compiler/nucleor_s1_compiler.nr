@@ -33657,6 +33657,23 @@ fn auto_drop_emit_named(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, vname: str
     return auto_drop_emit_index(cur, regs, sym, idx, "");
 }
 
+// Scoped variant of emit_live: only emits drops for indices >= min_idx.
+// Used by loop-body lowering to drop bindings introduced inside the
+// body without touching bindings inherited from outer scope.
+#[manual_drop]
+fn auto_drop_emit_live_above(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, min_idx: i64) -> Vec<i32> {
+    if auto_drop_is_enabled(sym) == 0 { return cur; };
+    let count: i64 = sym_get(sym, "__auto_drop_count");
+    if count <= min_idx { return cur; };
+    let mut i: i64 = count - 1;
+    let mut out: Vec<i32> = cur;
+    while i >= min_idx {
+        out = auto_drop_emit_index(out, regs, sym, i, "");
+        i = i - 1;
+    };
+    return out;
+}
+
 #[manual_drop]
 fn auto_drop_emit_live(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, skip_name: str) -> Vec<i32> {
     if auto_drop_is_enabled(sym) == 0 { return cur; };
@@ -34355,8 +34372,17 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         hb = lx_blk(cp);
         ir_block_add(hb, ir_br_cond(cr, bl, xl));
         let mut bb: Vec<i32> = ir_block_new(bl); ir_fn_add_block(fir, bb);
-        bb = lower_stmts(pool, node_field(pool, nid, 2), bb, regs, lbls, sym_clone(sym), fir, strtab, hl, xl, structs, closures, trait_impls);
-        if block_has_term(bb) == 0 { ir_block_add(bb, ir_br(hl)); };
+        let body_sym: Vec<i32> = sym_clone(sym);
+        // Snapshot the outer scope's auto-drop count so per-iter drops
+        // affect only bindings declared inside this loop body, not
+        // anything inherited from an enclosing scope.
+        let body_drop_floor: i64 = sym_get(body_sym, "__auto_drop_count");
+        let body_drop_min: i64 = if body_drop_floor < 0 { 0 } else { body_drop_floor };
+        bb = lower_stmts(pool, node_field(pool, nid, 2), bb, regs, lbls, body_sym, fir, strtab, hl, xl, structs, closures, trait_impls);
+        if block_has_term(bb) == 0 {
+            bb = auto_drop_emit_live_above(bb, regs, body_sym, body_drop_min);
+            ir_block_add(bb, ir_br(hl));
+        };
         let mut xb: Vec<i32> = ir_block_new(xl); ir_fn_add_block(fir, xb); return xb;
     };
     if kind == 28 {
@@ -34387,8 +34413,14 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let cv: i64 = ctr_next(regs); ir_block_add(hb, ir_cmpop(9, cv, lv, ev));
         ir_block_add(hb, ir_br_cond(cv, bl, xl));
         let mut bb: Vec<i32> = ir_block_new(bl); ir_fn_add_block(fir, bb);
-        bb = lower_stmts(pool, node_field(pool, nid, 4), bb, regs, lbls, sym_clone(loop_sym), fir, strtab, il, xl, structs, closures, trait_impls);
-        if block_has_term(bb) == 0 { ir_block_add(bb, ir_br(il)); };
+        let for_body_sym: Vec<i32> = sym_clone(loop_sym);
+        let for_body_drop_floor: i64 = sym_get(for_body_sym, "__auto_drop_count");
+        let for_body_drop_min: i64 = if for_body_drop_floor < 0 { 0 } else { for_body_drop_floor };
+        bb = lower_stmts(pool, node_field(pool, nid, 4), bb, regs, lbls, for_body_sym, fir, strtab, il, xl, structs, closures, trait_impls);
+        if block_has_term(bb) == 0 {
+            bb = auto_drop_emit_live_above(bb, regs, for_body_sym, for_body_drop_min);
+            ir_block_add(bb, ir_br(il));
+        };
         let mut ib: Vec<i32> = ir_block_new(il); ir_fn_add_block(fir, ib);
         let lv2: i64 = ctr_next(regs); ir_block_add(ib, ir_load(lv2, ar));
         let one: i64 = ctr_next(regs); ir_block_add(ib, ir_const_int(one, 1));
