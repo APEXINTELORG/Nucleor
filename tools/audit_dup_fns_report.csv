@@ -51,7 +51,7 @@ preflight_source_check,1,1,74,9,1,0,SIG_MATCH_BODY_DIFFERS
 match_bind_payloads_typed,7,7,25,60,1,0,SIG_MATCH_BODY_DIFFERS
 match_bind_payloads,6,5,29,7,0,0,SIG_DIFFERS
 lower_expr,13,13,3184,764,1,0,SIG_MATCH_BODY_DIFFERS
-lower_stmt,13,13,879,344,1,0,SIG_MATCH_BODY_DIFFERS
+lower_stmt,13,13,864,344,1,0,SIG_MATCH_BODY_DIFFERS
 lower_fn,18,8,493,75,0,0,SIG_DIFFERS
 cache_v2_canonical_flags,1,1,14,10,1,0,SIG_MATCH_BODY_DIFFERS
 cache_v2_store,5,4,17,11,0,0,SIG_DIFFERS
