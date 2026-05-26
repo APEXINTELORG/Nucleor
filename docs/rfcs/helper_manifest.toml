@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 910
-# Of which REVIEW REQUIRED: 7
+# Total helpers: 912
+# Of which REVIEW REQUIRED: 9
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,6 +22,8 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   free                                     (undefined)
+#   malloc                                   (undefined)
 #   __nucleor_own_put_i_full                 (Unclassified)
 #   __nucleor_source_bare_cr_offset          (Unclassified)
 #   __nucleor_sym_linear_lookup              (Unclassified)
@@ -483,6 +485,34 @@ proof_obligation = "none"
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""
+
+[[helper]]
+name             = "free"
+class            = "Allocation"
+symbol           = "free"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "experimental"
+since            = "0.1.0"
+notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "malloc"
+class            = "Allocation"
+symbol           = "malloc"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "alloc_capability_or_arena_owned"
+stability        = "experimental"
+since            = "0.1.0"
+notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
 
 [[helper]]
 name             = "ptr_is_null"

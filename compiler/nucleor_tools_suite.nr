@@ -3102,6 +3102,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_os_family()\n");
     sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
+    // Mirror compiler/nucleor_s1_compiler.nr: declare libc malloc/free
+    // for the closure-env codegen intrinsics (__nuc_raw_alloc_i64s /
+    // __nuc_raw_free) and the OOM panic message they share.
+    sb_append(sb, "declare ptr @malloc(i64)\n");
+    sb_append(sb, "declare void @free(ptr)\n");
+    sb_append(sb, "@.nuc_closure_oom_msg = private unnamed_addr constant [38 x i8] c\"out of memory: closure env allocation\\00\"\n");
     let strict_intrin_t: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
     if str_eq(strict_intrin_t, "1") == 1 {
         sb_append(sb, "@.nuc_overflow_intrin_msg = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n");
@@ -11237,7 +11243,7 @@ fn package_exports_rust_file_name() -> str { return "Nucleor.exports.rs"; }
 fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json"; }
 
 fn compiler_version_label() -> str {
-    return "1.1.0";
+    return "1.1.1";
     // Mirrors s1. History: 0.4.180 (caught up from stale 0.2.0-v2) →
     // 0.8.323 (RFC-0063 Phase 1 follow-on) → 1.0.0 (RFC-0062 closure +
     // RFC-0063 unification) → 1.0.1 (hardening sweep) →

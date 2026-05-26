@@ -1152,8 +1152,13 @@ fn main() -> i64 {
         let sym: str = vec_get(ir_keys_sorted, ki3);
         if hashmap_contains(bs_seen, sym) == 0 {
             hashmap_insert(bs_seen, sym, 1);
-            // short = sym[len("__nucleor_"):]
-            let short: str = str_substring(sym, 10, str_len(sym));
+            // short = sym[len("__nucleor_"):] — guard against short
+            // libc-style externs (e.g. `malloc`, `free`) that don't
+            // carry the prefix; for those the short form is just the
+            // sym itself.
+            let short: str = if str_starts_with(sym, "__nucleor_") == 1 {
+                str_substring(sym, 10, str_len(sym))
+            } else { sym };
             vec_push(bs_syms, sym);
             vec_push(bs_names, short);
         };

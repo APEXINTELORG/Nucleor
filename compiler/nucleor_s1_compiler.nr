@@ -43234,7 +43234,7 @@ fn content_hash(s: str) -> str {
 
 #[manual_drop]
 fn compiler_version_label() -> str {
-    return "1.1.0";
+    return "1.1.1";
     // History: 0.2.0-v2 → 0.3.134 → 0.4.180 (caught up from 0.4.21) →
     // 0.8.322 (caught up from 0.4.180) → 0.8.323 (RFC-0063 Phase 1) →
     // 1.0.0 (RFC-0062 hard-error closure G-1..G-11) → 1.0.1
