@@ -16,12 +16,6 @@ All notable public changes to Nucleor are documented here.
   factory stomped the prior closure's captures. See
   `tests/lang/closure_capture_*.nr` for the regression fixtures and
   `docs/internals/closures.md` for the implementation.
-- Owned values declared inside `while` / `for` loop bodies (Vec,
-  HashMap, str, Closure) now release at the end of each iteration
-  instead of accumulating until fn return. Pre-fix RSS grew
-  linearly with iteration count; post-fix RSS stays bounded.
-  Verified with closure-in-loop and Vec-in-loop stress tests at
-  100M and 10M iterations respectively.
 
 ### Changed
 
@@ -34,6 +28,19 @@ All notable public changes to Nucleor are documented here.
   `thread_spawn`, `async_spawn`) now dispatch through tag-aware
   inline helpers. Accepts both bare fn-ptrs and boxed closure values
   transparently.
+
+### Known Limitations
+
+- Owned values (Vec, HashMap, str, Closure) declared inside a
+  `while` / `for` loop body are not released until the enclosing
+  function returns. RSS grows linearly with iteration count for
+  such patterns. The conservative fix (emit drops at end of body)
+  was attempted but reverted because the auto-drop framework's
+  handoff tracker only recognizes built-in `vec_push` / `vec_set`
+  / `hashmap_insert` / `node_add` and misses user-defined fns that
+  take ownership (e.g. `json_array_push(arr, elem)`). Proper
+  per-iteration drops require either a wider handoff tracker or
+  escape analysis. Tracked separately as `fix/loop-iter-drops`.
 
 ### Deprecated
 
