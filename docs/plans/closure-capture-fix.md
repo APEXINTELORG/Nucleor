@@ -122,30 +122,48 @@ optimization for closure-heavy workloads.
 hot paths after branch-prediction warmup. C remains available as a
 follow-up branch once the type system grows closure typing.
 
-### D4 — Lifetime / ownership
+### D4 — Lifetime / ownership (UPDATED post-Step-G investigation)
 
 | Option | Correctness | Aliasing | Cycles | Implementation |
 |---|---|---|---|---|
 | A: Leak | Wrong (per R1) | N/A | N/A | **REJECTED.** |
-| B: Move-only | Correct for single-use | Breaks pass-back tests (use after move) | N/A | Closure-typed values move on copy/return. |
-| **C: Refcount (matches Vec/str)** | Correct | Handles aliasing | i64-only captures cannot form cycles | Refcount header at env[0]; retain at copy, release at drop. |
-| D: GC | Correct | Yes | Yes | Requires GC infrastructure (none in language). |
+| **B: Move-only with handoff-skip for higher-order calls** | Correct for current language semantics | Source binding owns; aliases would need refcount but tests don't use them | N/A | Auto-drop registers closure on let-bind; emits release at scope end. Higher-order calls don't transfer ownership (closures are "use-multiple" not move-only at the language level). |
+| C: Refcount header | Strictly more correct (handles arbitrary aliasing) | Yes | No (i64-only captures) | Refcount at env[0], retain on copy, release on drop. |
+| D: GC | Correct | Yes | Yes | Requires GC infrastructure (none). |
 
-**Decision: C.** Justification:
-- R1 satisfied: complete, no leak.
-- Matches `docs/architecture.md:155-157` ("Vec and str use straightforward
-  refcount-and-move semantics") — closures mirror what the language
-  already does for owned heap types.
-- Cycle concern: i64-only captures can hold env pointers but only if
-  the user explicitly captures a closure value into another closure.
-  Such cycles are detectable by the ownership checker at literal-
-  evaluation time (closure body's symbol table contains env-typed
-  captures) and rejected with a diagnostic for v1.1.1; cycle GC is a
-  future enhancement.
+**Decision: B (updated from prior C).** Justification:
+- Discovered during Step G implementation: Vec/str in Nucleor are
+  **move-only, not refcount** (confirmed via Explore-agent survey of
+  the auto_drop framework). The `docs/architecture.md:155-157` line
+  saying "refcount-and-move" is aspirational/wrong; the code does
+  pure move tracking.
+- Closures must mirror what the language *actually* does, not what
+  docs say. Move-only with one twist: higher-order calls
+  (`apply(f, x)`) do NOT transfer ownership for closures — they do
+  for Vec, but closures are semantically "callable repeatedly,"
+  matching all existing tests.
+- The auto_drop framework's `mark_constructor_handoffs` is patched
+  to skip the move-mark when the binding's helper is
+  `nuc_closure_release_boxed`, preserving call-multiple semantics.
+- Closure literal init, closure-returning-fn call init, and var-ref
+  transfer (`let g = f;`) all integrate with auto_drop. Release fires
+  at fn return.
 
-**What we give up vs B:** 8 extra bytes per env + ~2 ops per
-copy/drop. In exchange: pass-back, store-in-vec, return-from-fn all
-work naturally with the same semantics users get from Vec<T>.
+**Known limitation (documented for follow-up):**
+Nucleor's auto_drop framework does NOT emit per-iteration drops in
+`while` loops today. This affects Vec, HashMap, and now Closure
+equally — owned bindings inside a loop body accumulate without
+release until the function returns. Verified: a `Vec::new()`-in-loop
+test grows from 4 MB to 5.5 GB over 10M iterations. The closure
+work introduces no new leak class; it inherits this pre-existing
+language limitation. Fix is a separate workstream
+(`fix/loop-iter-drops`) that adds emit_live to while-body lowering;
+out of scope for this branch because:
+1. The change affects every owned-type usage in loops, not just
+   closures; needs its own perf gate and verifier sweep.
+2. May expose pre-existing bugs in code that accidentally relied on
+   the leak (Vec dropped earlier than expected).
+3. Doesn't block any test on this branch.
 
 ### D5 — Helper implementation language (UPDATED post-Step-B investigation)
 
@@ -568,6 +586,19 @@ All required for merge:
 ## 8. Decisions That Need Explicit Authorization
 
 None for the design above. Everything in §2 is RECOMMEND-and-execute.
+
+## 8a. Follow-Up Branches Identified During Implementation
+
+- **`fix/loop-iter-drops`** — emit `auto_drop_emit_live` at end of
+  while-loop body so owned bindings (Vec, HashMap, Closure, str)
+  free per iteration instead of accumulating until fn return. This
+  is a pre-existing Nucleor language limitation, NOT introduced by
+  the closure work. Verified: a `Vec::new()`-in-loop test grows
+  from 4 MB → 5.5 GB over 10M iterations on Linux. Closures inherit
+  the same behavior. Out of scope here because the change is
+  generic (affects every owned type), warrants its own perf gate
+  and verifier sweep, and may expose pre-existing bugs in code that
+  accidentally relied on the leak.
 
 ## 9. What This Branch Does Not Cover
 

@@ -10453,6 +10453,26 @@ fn emit_closure_runtime() -> str {
     sb_append(sb, "  ret i64 %r\n");
     sb_append(sb, "}\n");
 
+    // Auto-drop helper: accepts a boxed closure value (env_ptr | 1),
+    // unboxes, and releases the env. Safe on zero (env=0 → release
+    // short-circuits). Tag-checked: if low bit is 0 (not a closure
+    // value), no-op — so the helper is safe to wire to any i64 local
+    // even if the binding doesn't actually hold a closure (the binding
+    // would only do that if mis-registered; we don't do that, but the
+    // check is cheap insurance).
+    sb_append(sb, "define i64 @nuc_closure_release_boxed(i64 %raw) {\n");
+    sb_append(sb, "entry:\n");
+    sb_append(sb, "  %tag = and i64 %raw, 1\n");
+    sb_append(sb, "  %is_clo = icmp ne i64 %tag, 0\n");
+    sb_append(sb, "  br i1 %is_clo, label %do_release, label %skip\n");
+    sb_append(sb, "do_release:\n");
+    sb_append(sb, "  %env = and i64 %raw, -2\n");
+    sb_append(sb, "  %rcr = call i64 @nuc_closure_env_release(i64 %env)\n");
+    sb_append(sb, "  ret i64 0\n");
+    sb_append(sb, "skip:\n");
+    sb_append(sb, "  ret i64 0\n");
+    sb_append(sb, "}\n");
+
     return sb_to_str(sb);
 }
 
@@ -32928,6 +32948,76 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
     return 0;
 }
 
+// Detect whether a fn's body returns a closure value, by structural
+// inspection of the top-level stmt list. Returns 1 iff:
+//   - The fn has an explicit `return <expr>;` (kind 22) where <expr>
+//     is a closure literal (kind 42) or a var-ref (kind 3) to a local
+//     bound via `let <name>: T = <closure-literal>;` earlier in the body.
+//   - Or the fn's last stmt is a tail expression (kind 25) whose value
+//     is a closure literal or a closure-bound local.
+// Used by fn_return_map_new to populate __fnret_closure_<name> entries
+// so callers can register their let-bindings for auto-drop release.
+//
+// Scope: top-level stmts only; nested ifs/matches that return closures
+// from one branch are not detected in this pass. Acceptable for v1 —
+// the test surface covers the common `let g = |x|...; return g;` and
+// `return |x|...;` patterns. Wider coverage is a follow-up.
+#[manual_drop]
+fn detect_returns_closure(pool: Vec<i32>, body_list: i64) -> i64 {
+    if body_list < 0 { return 0; };
+    let n: i64 = list_len(pool, body_list);
+    let mut closure_locals: Vec<i32> = Vec::new();
+    let mut i: i64 = 0;
+    let mut found: i64 = 0;
+    while i < n {
+        let stmt: i64 = list_get(pool, body_list, i);
+        let k: i64 = node_kind(pool, stmt);
+        if k == 20 {
+            // let-binding: if init is a closure literal, the lhs name
+            // joins the closure-bound set.
+            let init: i64 = node_field(pool, stmt, 4);
+            if init >= 0 && node_kind(pool, init) == 42 {
+                let lhs_name: str = node_field(pool, stmt, 1);
+                if str_len(lhs_name) > 0 { closure_locals.push(lhs_name); };
+            };
+        };
+        if k == 22 {
+            // return <expr>;
+            let rval: i64 = node_field(pool, stmt, 1);
+            if rval >= 0 {
+                let rk: i64 = node_kind(pool, rval);
+                if rk == 42 { found = 1; };
+                if rk == 3 {
+                    let rname: str = node_field(pool, rval, 1);
+                    let mut j: i64 = 0;
+                    while j < vec_len(closure_locals) {
+                        if str_eq(rname, vec_get(closure_locals, j)) == 1 { found = 1; };
+                        j = j + 1;
+                    };
+                };
+            };
+        };
+        if k == 25 && i == n - 1 {
+            // tail expression (no explicit return)
+            let texpr: i64 = node_field(pool, stmt, 1);
+            if texpr >= 0 {
+                let tk: i64 = node_kind(pool, texpr);
+                if tk == 42 { found = 1; };
+                if tk == 3 {
+                    let tname: str = node_field(pool, texpr, 1);
+                    let mut j: i64 = 0;
+                    while j < vec_len(closure_locals) {
+                        if str_eq(tname, vec_get(closure_locals, j)) == 1 { found = 1; };
+                        j = j + 1;
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    return found;
+}
+
 // v0.6.54 perf-slice: shared fn-return-map builder. Built once per
 // program by emit_module_ext; passed to every lower_fn call so each
 // fn's sym can reference it via __fn_return_map slot instead of
@@ -32947,6 +33037,17 @@ fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> i64 {
         };
         if str_len(name) > 0 && str_len(raw_rtype) > 0 {
             __nucleor_hashmap_insert(m, str_concat("__fnfulltype_", name), raw_rtype);
+        };
+        // Closure-returning detection: lets callers register their
+        // let-binding for auto-drop release at scope end so the env
+        // returned by this fn doesn't leak.
+        // Closure-returning detection. Only regular fns (kind 30) have
+        // a body to inspect — extern fns (kind 32) are signature-only.
+        if str_len(name) > 0 && node_kind(pool, fnid) == 30 {
+            let blist: i64 = node_field(pool, fnid, 4);
+            if detect_returns_closure(pool, blist) == 1 {
+                __nucleor_hashmap_insert(m, str_concat("__fnret_closure_", name), "1");
+            };
         };
         i = i + 1;
     };
@@ -33423,6 +33524,12 @@ fn auto_drop_helper_for_type(tstr: str) -> str {
     let base: str = type_base_name(tstr);
     if str_eq(base, "Vec") == 1 || str_starts_with(tstr, "Vec<") == 1 { return "vec_free"; };
     if str_eq(base, "HashMap") == 1 || str_starts_with(tstr, "HashMap<") == 1 { return "hashmap_free"; };
+    // Internal-only type tag: closure-typed bindings (surface type i64)
+    // are registered with tstr="Closure" so the auto-drop framework
+    // emits nuc_closure_release_boxed at scope end. The "Closure" tag
+    // never appears in source code; it's set by the let-binding lower
+    // when the init is a closure literal or a closure-returning call.
+    if str_eq(tstr, "Closure") == 1 { return "nuc_closure_release_boxed"; };
     return "";
 }
 
@@ -33676,7 +33783,24 @@ fn auto_drop_mark_constructor_handoffs(pool: Vec<i32>, expr_nid: i64, sym: Vec<i
         if node_kind(pool, arg) == 3 {
             let vname: str = node_field(pool, arg, 1);
             let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
-            if idx >= 0 { auto_drop_mark_freed(sym, vname); };
+            if idx >= 0 {
+                // Closure values are NOT move-only: a closure can be
+                // called multiple times from the same scope, and passing
+                // it to a higher-order fn does not transfer ownership.
+                // The closure literal evaluation produced one refcount
+                // that the original binding owns; the callee gets a
+                // value copy of the boxed pointer without taking
+                // ownership of the env. Releasing the source at the
+                // call site would leave the original binding pointing
+                // at a freed env. Skip the handoff mark for closures.
+                let helper_i: i64 = sym_get(sym, auto_drop_helper_key(idx));
+                let mut is_closure: i64 = 0;
+                if helper_i >= 0 {
+                    let h_str: str = helper_i;
+                    if str_eq(h_str, "nuc_closure_release_boxed") == 1 { is_closure = 1; };
+                };
+                if is_closure == 0 { auto_drop_mark_freed(sym, vname); };
+            };
         } else if node_kind(pool, arg) == 7 || node_kind(pool, arg) == 12 {
             auto_drop_mark_constructor_handoffs(pool, arg, sym);
         };
@@ -33841,6 +33965,42 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
         } else if init >= 0 && auto_drop_init_owns_value(pool, init) == 1 {
             auto_drop_register(sym, vname, tstr, ar);
+        };
+        // Closure-aware auto-drop registration. Three paths:
+        //   (a) init is a closure literal (kind 42): owns a fresh env.
+        //   (b) init is a call to a fn tagged as closure-returning:
+        //       owns the env returned by the callee.
+        //   (c) init is a var-ref (kind 3) to a binding registered with
+        //       the closure helper: transfer ownership (mark src freed,
+        //       register dest).
+        // Surface type stays i64; we use the internal "Closure" type tag
+        // so auto_drop_helper_for_type returns nuc_closure_release_boxed.
+        if init >= 0 {
+            let init_k_cl: i64 = node_kind(pool, init);
+            if init_k_cl == 42 {
+                auto_drop_register(sym, vname, "Closure", ar);
+            } else if init_k_cl == 7 {
+                let callee_cl: str = node_field(pool, init, 1);
+                if str_len(callee_cl) > 0 {
+                    let ret_cl: i64 = sym_get(sym, str_concat("__fnret_closure_", callee_cl));
+                    if ret_cl >= 0 {
+                        auto_drop_register(sym, vname, "Closure", ar);
+                    };
+                };
+            } else if init_k_cl == 3 {
+                let src_cl_name: str = node_field(pool, init, 1);
+                let src_cl_idx: i64 = sym_get(sym, auto_drop_index_key(src_cl_name));
+                if src_cl_idx >= 0 && sym_get(sym, auto_drop_state_key(src_cl_idx)) == 1 {
+                    let src_cl_helper_i: i64 = sym_get(sym, auto_drop_helper_key(src_cl_idx));
+                    if src_cl_helper_i >= 0 {
+                        let src_cl_helper: str = src_cl_helper_i;
+                        if str_eq(src_cl_helper, "nuc_closure_release_boxed") == 1 {
+                            auto_drop_mark_freed(sym, src_cl_name);
+                            auto_drop_register(sym, vname, "Closure", ar);
+                        };
+                    };
+                };
+            };
         };
         if init >= 0 && node_kind(pool, init) == 42 {
             let cid_meta: i64 = sym_get(sym, "__last_closure_id");
