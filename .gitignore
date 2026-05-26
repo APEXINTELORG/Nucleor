@@ -2,6 +2,12 @@
 target/
 .nuc_cache/
 .nuc_rt_cache/
+
+# Per-branch working scratch (engineering notes, analysis docs, plans
+# that are useful for the maintainer during a branch's life but not
+# part of the public docs tree). Branch tips may carry files here for
+# local reference; squash-merges to main strip them.
+.work/
 *.exe
 *.dll
 *.lib
