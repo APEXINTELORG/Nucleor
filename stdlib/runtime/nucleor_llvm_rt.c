@@ -3879,16 +3879,18 @@ long long __nucleor_now_ms(void) {
 
 // === Structured Concurrency (S14) ===
 #ifdef _WIN32
-typedef struct { long long (*fn)(long long); long long arg; } NThreadData;
+// Stores the raw i64 fn-value (bare fn-ptr or tagged closure env).
+// Resolved at call site via _nuc_call_clo_1.
+typedef struct { long long fn_raw; long long arg; } NThreadData;
 static DWORD WINAPI nucleor_thread_proc(LPVOID param) {
     NThreadData *td = (NThreadData*)param;
-    td->fn(td->arg);
+    _nuc_call_clo_1(td->fn_raw, td->arg);
     free(td);
     return 0;
 }
 long long __nucleor_thread_spawn(long long fn_ptr, long long arg) {
     NThreadData *td = (NThreadData*)malloc(sizeof(NThreadData));
-    td->fn = (long long(*)(long long))(void*)fn_ptr;
+    td->fn_raw = fn_ptr;
     td->arg = arg;
     HANDLE h = CreateThread(NULL, 0, nucleor_thread_proc, td, CREATE_SUSPENDED, NULL);
     if (!h) { free(td); return 0; }
@@ -3930,7 +3932,7 @@ void __nucleor_thread_join(long long handle) {
 // table. PANIC at registration if full.
 typedef struct NAsyncTask {
     HANDLE thread_handle;
-    long long (*fn)(long long);
+    long long fn_raw;      // raw i64; bare fn-ptr or tagged closure env
     long long arg;
     long long result;
 } NAsyncTask;
@@ -3973,14 +3975,14 @@ static int __nuc_async_registry_remove(NAsyncTask *t) {
 }
 static DWORD WINAPI nucleor_async_proc(LPVOID param) {
     NAsyncTask *t = (NAsyncTask*)param;
-    t->result = t->fn(t->arg);
+    t->result = _nuc_call_clo_1(t->fn_raw, t->arg);
     return 0;
 }
 long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
     __nuc_async_registry_init();
     NAsyncTask *t = (NAsyncTask*)malloc(sizeof(NAsyncTask));
     if (!t) return 0;
-    t->fn = (long long(*)(long long))(void*)fn_ptr;
+    t->fn_raw = fn_ptr;
     t->arg = arg;
     t->result = 0;
     if (!__nuc_async_registry_add(t)) {
@@ -4209,16 +4211,18 @@ long long __nucleor_cpu_count(void) {
 // POSIX stubs
 #include <pthread.h>
 #include <unistd.h>
-typedef struct { long long (*fn)(long long); long long arg; } NThreadData;
+// Stores the raw i64 fn-value (may be a bare fn-ptr or a tagged
+// closure-env-pointer). Resolved at call site via _nuc_call_clo_1.
+typedef struct { long long fn_raw; long long arg; } NThreadData;
 static void* nucleor_thread_proc(void *param) {
     NThreadData *td = (NThreadData*)param;
-    td->fn(td->arg);
+    _nuc_call_clo_1(td->fn_raw, td->arg);
     free(td);
     return NULL;
 }
 long long __nucleor_thread_spawn(long long fn_ptr, long long arg) {
     NThreadData *td = (NThreadData*)malloc(sizeof(NThreadData));
-    td->fn = (long long(*)(long long))(void*)fn_ptr;
+    td->fn_raw = fn_ptr;
     td->arg = arg;
     pthread_t *t = (pthread_t*)malloc(sizeof(pthread_t));
     pthread_create(t, NULL, nucleor_thread_proc, td);
@@ -4238,7 +4242,7 @@ void __nucleor_thread_join(long long handle) {
 // async_await-invalid-handle segfault).
 typedef struct NAsyncTask {
     pthread_t thread;
-    long long (*fn)(long long);
+    long long fn_raw;      // raw i64; bare fn-ptr or tagged closure env
     long long arg;
     long long result;
     int started;
@@ -4274,13 +4278,13 @@ static int __nuc_async_registry_remove(NAsyncTask *t) {
 }
 static void* nucleor_async_proc(void *param) {
     NAsyncTask *t = (NAsyncTask*)param;
-    t->result = t->fn(t->arg);
+    t->result = _nuc_call_clo_1(t->fn_raw, t->arg);
     return NULL;
 }
 long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
     NAsyncTask *t = (NAsyncTask*)malloc(sizeof(NAsyncTask));
     if (!t) return 0;
-    t->fn = (long long(*)(long long))(void*)fn_ptr;
+    t->fn_raw = fn_ptr;
     t->arg = arg;
     t->result = 0;
     t->started = 0;
