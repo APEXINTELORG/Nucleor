@@ -2365,7 +2365,11 @@ t323_diag_code_drift() {
     # sh-vs-ps1 drift, which a same-script check can't see).
     # Asserts all three sets are pairwise equal.
     local s1_set sh_set ps1_set
-    s1_set=$(grep -oE 'str_eq\(code, "[A-Z]+-?[0-9]+"\)' "$ROOT/compiler/nucleor_s1_compiler.nr" \
+    # is_known_diag_code lives in compiler/s1/diag.nr post-file-split.
+    # The grep walks both the main file (legacy location) and the s1/*.nr
+    # modules so this check survives further extraction.
+    s1_set=$(grep -hoE 'str_eq\(code, "[A-Z]+-?[0-9]+"\)' \
+                "$ROOT/compiler/nucleor_s1_compiler.nr" "$ROOT"/compiler/s1/*.nr \
              | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
     sh_set=$(awk '/local codes=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
              | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
