@@ -28,6 +28,7 @@ fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
 
 
 
+#[manual_drop]
 fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
     if tt == 2 {
@@ -168,6 +169,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 }
 
 
+#[manual_drop]
 fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, pos) == 21 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 5, pr_val(r))); };
     if pk(tokens, pos) == 38 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 6, pr_val(r))); };
@@ -203,6 +205,7 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_add(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -215,6 +218,7 @@ fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 
 
+#[manual_drop]
 fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     if pk(tokens, pos) == 82 {
         let mut cp: i64 = pos + 1;
@@ -319,6 +323,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk5(pool, 20, name, is_mut, tstr, init_id));
 }
 
+#[manual_drop]
 fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 42);
@@ -335,6 +340,7 @@ fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 
 
+#[manual_drop]
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
     if tt == 11 { return parse_let(tokens, pos + 1, pool); };
@@ -401,6 +407,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk6(pool, 30, name, mk_list(pool, params), rtype, pr_val(br), gparams));
 }
 
+#[manual_drop]
 fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'extern fn', at the name
     let name: i64 = pkv(tokens, pos);
@@ -424,6 +431,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 }
 
 
+#[manual_drop]
 fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points at name, next is {
     let name: i64 = pkv(tokens, pos);
