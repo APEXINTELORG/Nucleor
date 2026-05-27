@@ -1,7 +1,11 @@
 // 11_pid.nr — A PID controller drives a noisy plant toward a setpoint.
 
-use std::control;
-use std::complex;
+// `use std::*` would be the shorter form, but the use-std-* path has a
+// known cfile-collection bug that drops rod-side C files from the clang
+// link line. Explicit import composes the correct link set; tracked
+// separately as a compiler issue.
+import "stdlib/rods/control.nr"
+import "stdlib/rods/complex.nr"
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

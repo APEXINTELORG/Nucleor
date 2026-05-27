@@ -6,7 +6,11 @@
 // After 1024 measurements, ~512 outcomes should be |00> and ~512 should be |11>.
 // |01> and |10> outcomes should be exactly 0.
 
-use std::quantum;
+// `use std::quantum;` would be the shorter form, but the use-std-* path
+// has a known cfile-collection bug that drops rod-side C files from the
+// clang link line. The explicit import syntax composes the correct
+// link set; tracked separately as a compiler issue.
+import "stdlib/rods/quantum.nr"
 
 fn str_from_int(n: i64) -> str {
     if n == 0 { return "0"; };
