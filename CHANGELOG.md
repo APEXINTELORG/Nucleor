@@ -2,6 +2,64 @@
 
 All notable public changes to Nucleor are documented here.
 
+## [1.1.1] - unreleased
+
+**Closure capture correctness + per-iteration drop emission.**
+
+### Fixed
+
+- Closure captures are now per-closure-instance, not per-literal. Two
+  closures produced from the same literal (e.g. via a factory fn)
+  carry independent captures and can be called in any order with
+  correct results. Pre-fix, the global capture table keyed only by
+  the literal's lex-time id meant every subsequent call to the
+  factory stomped the prior closure's captures. See
+  `tests/lang/closure_capture_*.nr` for the regression fixtures and
+  `docs/internals/closures.md` for the implementation.
+- `use std::*` / `use crate::*` / `use super::*` / `mod foo;` directives
+  now compose imported rods' `#cfile` entries into the clang link line.
+  Pre-fix the early raw-source cache fast path detected only line-start
+  `import "..."` directives; sources using only `use`/`mod` forms took
+  the fast path with `imported = [src_path]`, so `collect_native_directives`
+  walked only the top-level file and missed rod-side C sources. The
+  resulting link failed with undefined references like `rods_f64_div`,
+  `rods_trace_enabled` only on a warm cache_v2 hit (cold path was
+  unaffected because the .ll cache didn't exist yet). The detector now
+  flags all four directive forms; false positives just route through
+  the slow path (same correct output, ~10× build-time penalty).
+
+### Changed
+
+- Closure values are now tagged i64 pointers (`env_ptr | 1`) rather
+  than bare function pointers. The i64-everywhere ABI is preserved;
+  indirect call sites dispatch on the low bit to handle both bare
+  fn-ptrs and closures. Existing user code is unaffected.
+- C runtime helpers that accept a `fn_ptr` argument
+  (`vec_map_i64`, `vec_filter_i64`, `vec_fold_i64`, etc.;
+  `thread_spawn`, `async_spawn`) now dispatch through tag-aware
+  inline helpers. Accepts both bare fn-ptrs and boxed closure values
+  transparently.
+
+### Known Limitations
+
+- Owned values (Vec, HashMap, str, Closure) declared inside a
+  `while` / `for` loop body are not released until the enclosing
+  function returns. RSS grows linearly with iteration count for
+  such patterns. The conservative fix (emit drops at end of body)
+  was attempted but reverted because the auto-drop framework's
+  handoff tracker only recognizes built-in `vec_push` / `vec_set`
+  / `hashmap_insert` / `node_add` and misses user-defined fns that
+  take ownership (e.g. `json_array_push(arr, elem)`). Proper
+  per-iteration drops require either a wider handoff tracker or
+  escape analysis. Tracked separately as `fix/loop-iter-drops`.
+
+### Deprecated
+
+- `__nucleor_capture_set` / `__nucleor_capture_get` and the
+  associated `g_capture_table` static buffer are retained as
+  compatibility shims but no longer emitted by the codegen. Slated
+  for removal in a future release.
+
 ## [1.1.0] - 2026-05-12
 
 **Linux bootstrap, release verification, Windows perf gate, and public-doc cleanup.**
@@ -50,6 +108,19 @@ All notable public changes to Nucleor are documented here.
   command output.
 - Robotics, control, and real-time features are not safety-certified; users
   integrating with physical systems must follow `SAFETY.md`.
+- `@law(...)` is **scaffolded, not active**. Lex-time capture and
+  diagnostic surfacing work; user-law-driven call-site rewrites,
+  generated property tests, and proof obligations are roadmap work
+  (`docs/architecture.md:91-95`). Treat `@law` as documentation and
+  checker metadata until the rewrite pass lands.
+- Const-generic dimensions for scientific types (`Matrix<R, C>`,
+  `QState<N>`, `f64<Unit>`) are not yet in the language. The
+  typed-newtype-wrapper pattern (`examples/30_typed_matrix.nr`,
+  `docs/internals/typed-wrappers.md`) is the current best practice;
+  shape and unit checks remain runtime, not compile-time.
+- Module-level `pub`/private granularity (RFC-0018) is partial — some
+  cross-module helpers need lifting to `pub` on the file-split branch.
+  No ABI risk; cosmetic visibility surface only.
 
 ## [1.0.0] - 2026-05-08
 

@@ -256,8 +256,44 @@ fn main() -> i64 {
     let tools_path: str = "compiler/nucleor_tools_suite.nr";
     let out_path: str = "tools/audit_dup_fns_report.csv";
 
-    let s1_src: str = file_read_string(s1_path);
-    let tools_src: str = file_read_string(tools_path);
+    // Compose the s1 source: main file plus every extracted module in
+    // compiler/s1/*.nr. The compiler uses `import` to inline these at
+    // compile time; the audit walks them explicitly so its fn count
+    // continues to reflect the real s1 surface after the file split.
+    let mut s1_src: str = file_read_string(s1_path);
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/ir.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/lex.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/parse.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/optim.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/builtins.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/get_rt_name.gen.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/emit.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/lower.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/diag.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/check_eff.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/check_own.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/check_type.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/cache.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/modules.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/cli.nr"));
+    // Same flattening for the tools-suite after its file split. Main file
+    // post-split holds only the stdlib bridge + the kept-in-place
+    // compiler_version_label; the 14 module files contain everything else.
+    let mut tools_src: str = file_read_string(tools_path);
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/parse.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/optim.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/builtins.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/emit.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/lower.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/diag.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/review.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/check_own.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/check_eff.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/check_taint.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/cache.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/pipeline.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/modules.nr"));
+    tools_src = str_concat(tools_src, "\n"); tools_src = str_concat(tools_src, file_read_string("compiler/ts/cli.nr"));
     if str_len(s1_src) == 0 || str_len(tools_src) == 0 {
         print("ERROR: audit_dup_fns: cannot read one or both compiler files");
         return 1;

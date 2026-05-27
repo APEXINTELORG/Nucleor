@@ -47,6 +47,33 @@ TOOLS="$ROOT/compiler/nucleor_tools_suite.nr"
 TMP="$(mktemp -d)"
 trap "rm -rf $TMP" EXIT
 
+# Compose combined source files spanning the post-file-split tree.
+# The compiler's `import` directive inlines modules at compile time;
+# the drift extractors need the same flattened view, otherwise they
+# grep only the main file (which post-split is the stdlib bridge and
+# 14 imports) and silently return empty sets — every extractor reports
+# matching empty sets, and the gate falsely reports OK on real drift.
+# Mirrors the audit_dup_fns.nr concat done for the same reason after
+# the s1 split.
+S1_FULL="$TMP/s1_full.nr"
+TOOLS_FULL="$TMP/tools_full.nr"
+{
+    cat "$S1"
+    for f in "$ROOT"/compiler/s1/*.nr; do
+        [ -f "$f" ] && { printf '\n'; cat "$f"; }
+    done
+} > "$S1_FULL"
+{
+    cat "$TOOLS"
+    for f in "$ROOT"/compiler/ts/*.nr; do
+        [ -f "$f" ] && { printf '\n'; cat "$f"; }
+    done
+} > "$TOOLS_FULL"
+# Aliases used through the rest of the script. Some checks still need
+# to grep the literal main file (e.g. `pub fn` floor, `compiler_version_label`
+# location enforcement); use $S1 / $TOOLS for those, $S1_FULL / $TOOLS_FULL
+# for content-bearing extractors.
+
 extract_get_rt_name() {
     grep -E 'if str_eq\(name, "[^"]+"\) \{ return "__nucleor_' "$1" \
         | sed -E 's/.*if str_eq\(name, "([^"]+)"\).*return "([^"]+)".*/\1\t\2/' \
@@ -74,14 +101,14 @@ extract_decls() {
 }
 
 # --- Diff each table ---
-extract_get_rt_name "$S1"    > "$TMP/s1_rt.txt"
-extract_get_rt_name "$TOOLS" > "$TMP/tools_rt.txt"
-extract_fn_block_names "$S1"    is_ptr_ret > "$TMP/s1_pr.txt"
-extract_fn_block_names "$TOOLS" is_ptr_ret > "$TMP/tools_pr.txt"
-extract_fn_block_names "$S1"    is_ptr_arg > "$TMP/s1_pa.txt"
-extract_fn_block_names "$TOOLS" is_ptr_arg > "$TMP/tools_pa.txt"
-extract_decls "$S1"    > "$TMP/s1_dec.txt"
-extract_decls "$TOOLS" > "$TMP/tools_dec.txt"
+extract_get_rt_name "$S1_FULL"    > "$TMP/s1_rt.txt"
+extract_get_rt_name "$TOOLS_FULL" > "$TMP/tools_rt.txt"
+extract_fn_block_names "$S1_FULL"    is_ptr_ret > "$TMP/s1_pr.txt"
+extract_fn_block_names "$TOOLS_FULL" is_ptr_ret > "$TMP/tools_pr.txt"
+extract_fn_block_names "$S1_FULL"    is_ptr_arg > "$TMP/s1_pa.txt"
+extract_fn_block_names "$TOOLS_FULL" is_ptr_arg > "$TMP/tools_pa.txt"
+extract_decls "$S1_FULL"    > "$TMP/s1_dec.txt"
+extract_decls "$TOOLS_FULL" > "$TMP/tools_dec.txt"
 
 drift_count=0
 report_drift() {
@@ -147,8 +174,8 @@ extract_fn_line_count() {
 
 check_parser_fn_drift() {
     local fn="$1"
-    extract_fn_token_witnesses "$S1"    "$fn" > "$TMP/s1_${fn}.txt"
-    extract_fn_token_witnesses "$TOOLS" "$fn" > "$TMP/tools_${fn}.txt"
+    extract_fn_token_witnesses "$S1_FULL"    "$fn" > "$TMP/s1_${fn}.txt"
+    extract_fn_token_witnesses "$TOOLS_FULL" "$fn" > "$TMP/tools_${fn}.txt"
     if [ ! -s "$TMP/s1_${fn}.txt" ] || [ ! -s "$TMP/tools_${fn}.txt" ]; then
         # one side missing the function entirely -- skip rather than
         # false-positive on optional-only-in-s1 helpers
@@ -164,8 +191,8 @@ check_parser_fn_drift() {
     # fixtures because of this.
     local missing s1_lines tools_lines
     missing=$(comm -23 "$TMP/s1_${fn}.txt" "$TMP/tools_${fn}.txt" | wc -l | tr -d ' ')
-    s1_lines=$(extract_fn_line_count "$S1" "$fn")
-    tools_lines=$(extract_fn_line_count "$TOOLS" "$fn")
+    s1_lines=$(extract_fn_line_count "$S1_FULL" "$fn")
+    tools_lines=$(extract_fn_line_count "$TOOLS_FULL" "$fn")
     if [ "$missing" -gt 0 ] || [ "$s1_lines" -gt 0 ] && [ "$tools_lines" -gt 0 ]; then
         local divergence_pct=0
         if [ "$s1_lines" -gt 0 ]; then
@@ -202,23 +229,21 @@ check_parser_fn_drift parse_expr
 extract_manual_drop_parse_fns() {
     # $1 = file. Print every parse_* fn name where the line above is
     # `#[manual_drop]`. Output one fn-name per line, sorted unique.
+    # POSIX-awk only (mawk on Ubuntu doesn't support the gawk 3-arg
+    # match(str, /re/, array) form). The earlier gawk-branch + POSIX
+    # fallback design emitted a parse-time syntax error on mawk that
+    # made the whole drift gate fail-silent into a false-OK.
     awk '
         /^#\[manual_drop\][ \t]*$/ { md = 1; next }
         /^fn parse_[A-Za-z0-9_]+\(/ {
             if (md == 1) {
-                # Extract just the fn name between "fn " and "(".
-                if (match($0, /^fn (parse_[A-Za-z0-9_]+)/, m)) {
-                    print m[1]
-                } else {
-                    # POSIX awk fallback (no 3-arg match): split + index.
-                    s = $0
-                    p = index(s, "fn ")
-                    if (p > 0) {
-                        rest = substr(s, p + 3)
-                        q = index(rest, "(")
-                        if (q > 0) {
-                            print substr(rest, 1, q - 1)
-                        }
+                s = $0
+                p = index(s, "fn ")
+                if (p > 0) {
+                    rest = substr(s, p + 3)
+                    q = index(rest, "(")
+                    if (q > 0) {
+                        print substr(rest, 1, q - 1)
                     }
                 }
             }
@@ -229,8 +254,8 @@ extract_manual_drop_parse_fns() {
     ' "$1" | sort -u
 }
 
-s1_md_fns=$(extract_manual_drop_parse_fns "$S1")
-tools_md_fns=$(extract_manual_drop_parse_fns "$TOOLS")
+s1_md_fns=$(extract_manual_drop_parse_fns "$S1_FULL")
+tools_md_fns=$(extract_manual_drop_parse_fns "$TOOLS_FULL")
 md_drift_count=0
 echo "$s1_md_fns" > "$TMP/s1_manual_drop_parse_fns.txt"
 echo "$tools_md_fns" > "$TMP/tools_manual_drop_parse_fns.txt"
@@ -247,7 +272,7 @@ strict="${NUC_VERIFY_STRICT:-0}"
 md_missing_list=""
 while IFS= read -r fn; do
     [ -z "$fn" ] && continue
-    if ! grep -q "^fn $fn(" "$TOOLS"; then continue; fi
+    if ! grep -q "^fn $fn(" "$TOOLS_FULL"; then continue; fi
     if ! echo "$tools_md_fns" | grep -qx "$fn"; then
         md_missing_list="${md_missing_list}${fn}\n"
         md_drift_count=$((md_drift_count + 1))
@@ -619,18 +644,18 @@ fi
 # 2.0.3 ships and either (a) explicitly marks the right surface as
 # pub or (b) RFC-NRT-004 §H module-prefixed lowering lands, neither
 # file should carry a top-level `pub fn`.
-pub_fn_s1=$(grep -cE '^pub fn ' "$S1" 2>/dev/null; true)
-pub_fn_tools=$(grep -cE '^pub fn ' "$TOOLS" 2>/dev/null; true)
+pub_fn_s1=$(grep -cE '^pub fn ' "$S1_FULL" 2>/dev/null; true)
+pub_fn_tools=$(grep -cE '^pub fn ' "$TOOLS_FULL" 2>/dev/null; true)
 if [ "$pub_fn_s1" != "0" ] || [ "$pub_fn_tools" != "0" ]; then
     echo ""
     echo "FAIL: top-level 'pub fn' present in compiler source files."
     if [ "$pub_fn_s1" != "0" ]; then
-        echo "  $S1: $pub_fn_s1 'pub fn' declaration(s) — silently mangles every other fn"
-        grep -nE '^pub fn ' "$S1" | head -5 | sed 's/^/    /'
+        echo "  s1 tree (main + s1/*.nr): $pub_fn_s1 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$S1" "$ROOT"/compiler/s1/*.nr 2>/dev/null | head -5 | sed 's/^/    /'
     fi
     if [ "$pub_fn_tools" != "0" ]; then
-        echo "  $TOOLS: $pub_fn_tools 'pub fn' declaration(s) — silently mangles every other fn"
-        grep -nE '^pub fn ' "$TOOLS" | head -5 | sed 's/^/    /'
+        echo "  tools-suite tree (main + ts/*.nr): $pub_fn_tools 'pub fn' declaration(s) — silently mangles every other fn"
+        grep -nE '^pub fn ' "$TOOLS" "$ROOT"/compiler/ts/*.nr 2>/dev/null | head -5 | sed 's/^/    /'
     fi
     echo "  See docs/rfcs/README.md"
     echo "  for the privatization model. Until RFC-0063 Phase 2.0.3 (parser unification)"
