@@ -444,7 +444,17 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
                         active_paths.push(path);
-                        sb_append(result, resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths));
+                        // The recursive call returns a freshly-allocated string
+                        // (sb_to_str at fn return). Pre-fix that allocation
+                        // leaked because the surrounding fn is #[manual_drop]
+                        // and the temporary was bound only to the sb_append
+                        // arg slot. For the file-split compiler with 14
+                        // sibling imports, each iteration leaked ~1 MB; total
+                        // cold-memory tax across the loop ~14 MB. Naming the
+                        // result lets us free it explicitly after the append.
+                        let resolved_imp: str = resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths);
+                        sb_append(result, resolved_imp);
+                        str_free(resolved_imp);
                         active_paths.pop();
                         sb_append(result, "\n");
                     } else {
@@ -496,7 +506,12 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
                         active_paths.push(path);
-                        sb_append(result, resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths));
+                        // Mirror of the use-arm comment above — free the
+                        // recursive resolver's return string after append
+                        // to avoid the per-iteration leak.
+                        let resolved_imp: str = resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths);
+                        sb_append(result, resolved_imp);
+                        str_free(resolved_imp);
                         active_paths.pop();
                         sb_append(result, "\n");
                     } else {
@@ -559,7 +574,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let is_compiler_src: i64 = if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 1 { 1 }
         else if str_ends_with(src_path, "nucleor_tools_suite.nr") == 1 { 1 }
         else { 0 };
-    if use_cache == 1 && is_compiler_src == 0 {
+    // module-graph cache was historically disabled for the
+    // compiler self-build because compiler/nucleor_s1_compiler.nr was a
+    // single 44 KLOC file with no imports — there was nothing for the
+    // cache to save. Post file-split, the compiler reads 14 module files
+    // every hot rebuild; the resolve_source phase took 215 ms (3.5x the
+    // pre-split build time). The module-graph manifest validates by
+    // content-hashing every imported file, so a stale cached resolved
+    // source is impossible — any module edit invalidates the manifest
+    // and forces a re-resolve. Enabling the cache for compiler sources
+    // gets hot rebuilds back to ~20 ms.
+    if use_cache == 1 {
         let manifest: str = file_read_string(manifest_path);
         let cached_source: str = file_read_string(source_path);
         let cached_max_depth_source: str = file_read_string(max_depth_path);
@@ -1418,9 +1443,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let after_derive_eq: str = expand_derive_partialeq(after_max_depth);
     let after_derive_clone: str = expand_derive_clone(after_derive_eq);
     let source: str = expand_actor_decl_keyword(expand_closures(after_derive_clone));
-    if use_cache == 1 && is_compiler_src == 0 {
-        // Use the cross-platform builtin instead of `mkdir ... 2>NUL`,
-        // which on Linux silently creates a literal file named `NUL`.
+    // Module-graph cache write enabled for compiler sources too;
+    // see the matching read-side comment in this fn. Without the write,
+    // the read would never hit.
+    if use_cache == 1 {
         fs_create_dir_all(".nuc_cache");
         file_write_string(manifest_path, module_records_serialize(module_records));
         file_write_string(source_path, source);
