@@ -36,7 +36,7 @@ self-hosted runner or a stable dedicated cloud VM with host details recorded in
 ## Scientific Workload Numbers
 
 Real numerical workloads users actually run. Measured by
-`examples/19_scientific_benchmark.nr`. All times are median per-iteration
+`examples/29_scientific_benchmark.nr`. All times are median per-iteration
 wall-clock nanoseconds over 20 iterations on hosted Linux x86_64
 (Ubuntu 24.04, LLVM 18), -O2 compiler binary, default Nucleor optimization.
 
@@ -63,7 +63,7 @@ pattern is to call into a vendor library via the existing `extern fn` surface
 **Reproduce.** From the repo root with a built `bin/nucleor`:
 
 ```bash
-./bin/nucleor build examples/19_scientific_benchmark.nr -o sci_bench
+./bin/nucleor build examples/29_scientific_benchmark.nr -o sci_bench
 ./sci_bench
 
 # Higher iteration counts for tighter confidence intervals
