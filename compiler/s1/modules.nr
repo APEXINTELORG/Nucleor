@@ -440,21 +440,30 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                     let isrc: str = file_read_string(path);
                     source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
-                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        // Inline priv_apply_if_opted_in so we know whether the
+                        // returned source is an alias of isrc or a fresh
+                        // allocation. Without that distinction we cannot free
+                        // either string safely (alias case double-frees; fresh
+                        // case under-frees). For the file-split compiler with
+                        // 14 sibling imports, this matters: each iteration's
+                        // ~1 MB file source was being held to fn-return, since
+                        // the enclosing fn is #[manual_drop].
+                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
+                        let mut isrc_used: str = isrc;
+                        let mut isrc_mangled: i64 = 0;
+                        if vec_len(private_names) > 0 {
+                            isrc_used = priv_mangle_private_fns(isrc, content_hash(path), private_names);
+                            isrc_mangled = 1;
+                        };
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
                         active_paths.push(path);
-                        // The recursive call returns a freshly-allocated string
-                        // (sb_to_str at fn return). Pre-fix that allocation
-                        // leaked because the surrounding fn is #[manual_drop]
-                        // and the temporary was bound only to the sb_append
-                        // arg slot. For the file-split compiler with 14
-                        // sibling imports, each iteration leaked ~1 MB; total
-                        // cold-memory tax across the loop ~14 MB. Naming the
-                        // result lets us free it explicitly after the append.
                         let resolved_imp: str = resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths);
                         sb_append(result, resolved_imp);
                         str_free(resolved_imp);
+                        if isrc_mangled == 1 { str_free(isrc_used); };
+                        str_free(isrc);
+                        vec_free(private_names);
                         active_paths.pop();
                         sb_append(result, "\n");
                     } else {
@@ -502,16 +511,25 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                     let isrc: str = file_read_string(path);
                     source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
-                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        // Mirror of the use-arm above; inline the priv_apply
+                        // logic so the per-file source can be freed after
+                        // the recursive call returns.
+                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
+                        let mut isrc_used: str = isrc;
+                        let mut isrc_mangled: i64 = 0;
+                        if vec_len(private_names) > 0 {
+                            isrc_used = priv_mangle_private_fns(isrc, content_hash(path), private_names);
+                            isrc_mangled = 1;
+                        };
                         module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
                         active_paths.push(path);
-                        // Mirror of the use-arm comment above — free the
-                        // recursive resolver's return string after append
-                        // to avoid the per-iteration leak.
                         let resolved_imp: str = resolve_source_with_records_active(isrc_used, idir, imported, module_records, active_paths);
                         sb_append(result, resolved_imp);
                         str_free(resolved_imp);
+                        if isrc_mangled == 1 { str_free(isrc_used); };
+                        str_free(isrc);
+                        vec_free(private_names);
                         active_paths.pop();
                         sb_append(result, "\n");
                     } else {
