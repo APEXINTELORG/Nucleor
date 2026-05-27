@@ -307,6 +307,33 @@ STEP_INDEX=0
 STEP_TOTAL=0
 FAILURES=()
 
+# Categorize a step name into a coarse bucket for the end-of-run
+# tagged breakdown. Bucket names line up with the architecture
+# surfaces a reviewer is likely to ask about. Pattern matching is
+# case-sensitive against the step name as printed.
+_step_bucket() {
+    local n="$1"
+    case "$n" in
+        *example\ *|*examples/*|*showcase*)             echo "examples" ;;
+        *negative\ *|*err/*|*EXPECT*|*error*halt*)      echo "diagnostics" ;;
+        *test\ lang/*|*test\ features/*|*test\ rods/*|*test\ runtime/*|*test\ attrs/*) echo "tests" ;;
+        *RFC-*|*Lane\ *)                                echo "rfcs" ;;
+        *drift*|*manifest*|*synced*|*mojibake*|*matches\ *) echo "drift" ;;
+        *RSS*|*perf*|*budget*|*cold*compile*|*fixed\ point*) echo "perf" ;;
+        OWN-*|*OWN\ *|*ownership*|*auto_drop*|*move*)   echo "ownership" ;;
+        TYP-*|*TYP\ *|*type-check*|*type\ check*|*typecheck*) echo "type" ;;
+        NUM-*|*NUM\ *|*overflow*|*divide*|*shift*)      echo "arith" ;;
+        NR0*|*NR0*|*parser*|*parse*|*lex*)              echo "parser" ;;
+        *CLI:\ *)                                       echo "cli" ;;
+        *atomic*|*concurrency*|*mutex*|*thread*|*async*) echo "concurrency" ;;
+        *Vec*|*HashMap*|*hashmap*|*vec_*)               echo "collections" ;;
+        *closure*|*Closure*)                            echo "closures" ;;
+        T1.*|T2.*|T3.*|*PROBE*)                         echo "regression" ;;
+        *)                                              echo "other" ;;
+    esac
+}
+declare -A BUCKET_PASS BUCKET_FAIL BUCKET_SKIP
+
 # v0.4.22 — per-step timing CSV. Set NUC_VERIFY_CSV=path to enable.
 # Defaults to tools/verify_timings.csv. Each row: index,seconds,status,name.
 # Header is written once at first step; subsequent runs append a separator
@@ -388,10 +415,12 @@ step() {
     rc=$?
     end=$(_now_ms)
     secs=$(awk -v s="$start" -v e="$end" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')
+    local bucket
+    bucket="$(_step_bucket "$name")"
     case "$rc" in
-        0)  echo "$prefix $(green 'OK  ')  $name  ($(printf '%6.2fs' "$secs"))"; status=PASS; TOTAL_PASS=$((TOTAL_PASS + 1)) ;;
-        2)  echo "$prefix $(yellow 'SKIP')  $name  ($(printf '%6.2fs' "$secs"))"; status=SKIP; TOTAL_SKIP=$((TOTAL_SKIP + 1)) ;;
-        *)  echo "$prefix $(red   'FAIL')  $name  ($(printf '%6.2fs' "$secs"))"; status=FAIL; TOTAL_FAIL=$((TOTAL_FAIL + 1)); FAILURES+=("$name") ;;
+        0)  echo "$prefix $(green 'OK  ')  $name  ($(printf '%6.2fs' "$secs"))"; status=PASS; TOTAL_PASS=$((TOTAL_PASS + 1)); BUCKET_PASS[$bucket]=$((${BUCKET_PASS[$bucket]:-0} + 1)) ;;
+        2)  echo "$prefix $(yellow 'SKIP')  $name  ($(printf '%6.2fs' "$secs"))"; status=SKIP; TOTAL_SKIP=$((TOTAL_SKIP + 1)); BUCKET_SKIP[$bucket]=$((${BUCKET_SKIP[$bucket]:-0} + 1)) ;;
+        *)  echo "$prefix $(red   'FAIL')  $name  ($(printf '%6.2fs' "$secs"))"; status=FAIL; TOTAL_FAIL=$((TOTAL_FAIL + 1)); FAILURES+=("$name"); BUCKET_FAIL[$bucket]=$((${BUCKET_FAIL[$bucket]:-0} + 1)) ;;
     esac
     if [ "$NUC_VERIFY_CSV_ENABLED" = "1" ]; then
         # Quote name to survive commas/quotes; double any embedded ".
@@ -1870,17 +1899,22 @@ run_parallel_fixture_steps() {
         fi
         tsum=$(awk -v a="$tsum" -v b="$dt" 'BEGIN{printf "%.3f", a+b}')
         prefix="$(printf '[%3d/%d]' "$((base_index + i))" "$STEP_TOTAL")"
+        local bucket
+        bucket="$(_step_bucket "$label")"
         case "$status" in
             PASS)
                 pass=$((pass + 1))
+                BUCKET_PASS[$bucket]=$((${BUCKET_PASS[$bucket]:-0} + 1))
                 [ "$VERIFY_PARALLEL_LIST" = "1" ] && echo "$prefix $(green 'OK  ')  $label  ($(printf '%6.2fs' "$dt"))"
                 ;;
             SKIP)
                 skip=$((skip + 1))
+                BUCKET_SKIP[$bucket]=$((${BUCKET_SKIP[$bucket]:-0} + 1))
                 [ "$VERIFY_PARALLEL_LIST" = "1" ] && echo "$prefix $(yellow 'SKIP')  $label  ($(printf '%6.2fs' "$dt"))"
                 ;;
             *)
                 fail=$((fail + 1))
+                BUCKET_FAIL[$bucket]=$((${BUCKET_FAIL[$bucket]:-0} + 1))
                 echo "$prefix $(red 'FAIL')  $label  ($(printf '%6.2fs' "$dt"))"
                 [ -n "$reason" ] && echo "       $reason"
                 FAILURES+=("$label")
@@ -6533,6 +6567,24 @@ if [ "$TOTAL_FAIL" -gt 0 ]; then
     echo "FAIL: $(red "$TOTAL_FAIL")"
     echo "$(red 'Failed steps:')"
     for f in "${FAILURES[@]}"; do echo "$(dim "  - $f")"; done
+fi
+
+# Tagged breakdown — bucket the step tally by area so the
+# "1657 PASS" headline becomes concrete. Buckets are coarse and
+# pattern-matched on step names by _step_bucket (search the same
+# helper for the full pattern list).
+echo ""
+echo "$(dim 'breakdown by area:')"
+printf "  %-14s %7s %7s %7s\n" "area" "pass" "skip" "fail"
+_buckets="$(printf '%s\n' "${!BUCKET_PASS[@]}" "${!BUCKET_SKIP[@]}" "${!BUCKET_FAIL[@]}" | sort -u)"
+for b in $_buckets; do
+    bp=${BUCKET_PASS[$b]:-0}
+    bs=${BUCKET_SKIP[$b]:-0}
+    bf=${BUCKET_FAIL[$b]:-0}
+    printf "  %-14s %7d %7d %7d\n" "$b" "$bp" "$bs" "$bf"
+done
+
+if [ "$TOTAL_FAIL" -gt 0 ]; then
     exit 1
 fi
 exit 0
