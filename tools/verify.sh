@@ -6226,7 +6226,7 @@ rfc0042_auto_drop_ir_smoke() {
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
-step "get_rt_name TSV manifest matches source" rt_name_table_in_sync
+step "get_rt_name generator output matches committed .gen.nr" rt_name_table_in_sync
 step "rod extern void-return ABI parity" rod_void_abi_clean
 step "tools-suite rebuild" tools_rebuild
 step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke

@@ -1,79 +1,72 @@
 #!/usr/bin/env bash
-# check_rt_name_table.sh — drift gate for compiler/s1/get_rt_name.tsv
+# check_rt_name_table.sh — drift gate for the get_rt_name dispatch.
 #
-# Auditability artifact for the get_rt_name dispatch in
-# compiler/s1/builtins.nr. The TSV is a flat 2-column view of the
-# (nuc_name -> rt_name) table; this script extracts the same mapping
-# from the live .nr source and fails if the two diverge.
+# Source-of-truth chain:
 #
-# Why a TSV alongside instead of a generator:
-#   - The .nr table is part of the bootstrap fixed-point loop.
-#     Code-gen at build time adds a tool dependency to the seed regen.
-#   - The TSV captures the mapping in a form a human reviewer can
-#     diff against without parsing Nucleor source. That covers the
-#     "the dispatch becomes auditable" half of the Tier 2 #4 goal
-#     from docs/critique-analysis.md; the "file shrinks" half can
-#     follow on a dedicated branch when the seed regen pipeline grows
-#     a code-gen step.
+#   compiler/s1/get_rt_name.tsv      (canonical; edit this)
+#                |
+#                v   tools/gen_rt_name_fn.nr
+#                |
+#   compiler/s1/get_rt_name.gen.nr   (auto-generated; checked in)
+#                |
+#                v   import directive in compiler/s1/builtins.nr
+#                |
+#   inlined into the compiler source at build time
+#
+# This script enforces the .tsv ⇄ .gen.nr leg. It re-runs the generator
+# against the current TSV (in-memory) and diffs the result against the
+# committed .gen.nr file; any drift fails the gate. The .gen.nr ⇄
+# inlined-compiler leg is trivially enforced by the bootstrap fixed
+# point — if the .gen.nr changes, the stage-2 IR changes, and the seed
+# regen is mandatory.
 
 set -euo pipefail
 
-SRC=compiler/s1/builtins.nr
 TSV=compiler/s1/get_rt_name.tsv
+GEN=compiler/s1/get_rt_name.gen.nr
+GENERATOR_SRC=tools/gen_rt_name_fn.nr
+GENERATOR_BIN=target/gen_rt_name_fn
 
-if [[ ! -f $SRC ]]; then
-  echo "ERROR: $SRC not found"
-  exit 1
-fi
 if [[ ! -f $TSV ]]; then
-  echo "ERROR: $TSV not found; regenerate from $SRC via tools/check_rt_name_table.sh --regen"
+  echo "ERROR: $TSV not found"
+  exit 1
+fi
+if [[ ! -f $GEN ]]; then
+  echo "ERROR: $GEN not found"
+  exit 1
+fi
+if [[ ! -f $GENERATOR_SRC ]]; then
+  echo "ERROR: $GENERATOR_SRC not found"
   exit 1
 fi
 
-extract() {
-  awk '
-    /^fn get_rt_name/ {in_fn=1; next}
-    in_fn && /^}/ {in_fn=0; exit}
-    in_fn && /if str_eq\(name, "/ {
-      line = $0
-      if (match(line, /"[^"]+"/)) {
-        n1 = substr(line, RSTART+1, RLENGTH-2)
-        rest = substr(line, RSTART + RLENGTH)
-        if (match(rest, /"[^"]+"/)) {
-          n2 = substr(rest, RSTART+1, RLENGTH-2)
-          print n1 "\t" n2
-        }
-      }
-    }
-  ' "$SRC" | awk 'BEGIN{seen[""]=1} {if(!seen[$0]){print; seen[$0]=1}}'
-}
+# Ensure the generator is built (mirrors how verify.sh re-builds other tools).
+if [[ ! -x $GENERATOR_BIN || $GENERATOR_SRC -nt $GENERATOR_BIN ]]; then
+  ./bin/nucleor build "$GENERATOR_SRC" -o "$(basename "$GENERATOR_BIN")" >/dev/null 2>&1
+fi
 
-if [[ "${1:-}" == "--regen" ]]; then
-  {
-    echo "# nuc_name\trt_name"
-    extract
-  } > "$TSV"
-  echo "Regenerated $TSV ($(wc -l < $TSV) lines)"
+# Run the generator into a temp file (it writes to a fixed path; we
+# stash and restore the committed file around the invocation).
+TMP_OUT=$(mktemp)
+trap 'rm -f "$TMP_OUT"' EXIT
+
+cp "$GEN" "$TMP_OUT"
+"./$GENERATOR_BIN" >/dev/null
+# Now $GEN is the freshly-generated output; $TMP_OUT is the committed version.
+if cmp -s "$GEN" "$TMP_OUT"; then
+  cp "$TMP_OUT" "$GEN"
+  entries=$(grep -c "if str_eq" "$GEN")
+  echo "OK: get_rt_name generator output matches committed $GEN ($entries entries)"
   exit 0
 fi
 
-LIVE=$(extract)
-EXPECTED=$(grep -v '^#' "$TSV")
-
-if [[ "$LIVE" == "$EXPECTED" ]]; then
-  echo "OK: get_rt_name table matches TSV manifest ($(echo "$LIVE" | wc -l) entries)"
-  exit 0
-fi
-
-echo "FAIL: get_rt_name table drifted from $TSV"
-echo "--- live (from $SRC):"
-echo "$LIVE" | head -3
-echo "..."
-echo "$LIVE" | tail -3
-echo "--- expected (from $TSV):"
-echo "$EXPECTED" | head -3
-echo "..."
-echo "$EXPECTED" | tail -3
+# Drift detected. Show a brief diff and restore the committed file
+# so this script is non-destructive when run without --regen.
+echo "FAIL: $GEN differs from generator output of $TSV"
+echo "--- committed ($GEN) vs regenerated:"
+diff "$TMP_OUT" "$GEN" | head -20 || true
+cp "$TMP_OUT" "$GEN"
 echo
-echo "Run 'bash tools/check_rt_name_table.sh --regen' if the source change is intentional."
+echo "Run './$GENERATOR_BIN' (after building it from $GENERATOR_SRC) to"
+echo "regenerate $GEN, then commit the result alongside the TSV edit."
 exit 1

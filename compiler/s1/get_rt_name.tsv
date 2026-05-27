@@ -1,4 +1,6 @@
 # nuc_name	rt_name
+# (Lines starting with '# ' are passed through as // comments
+# by tools/gen_rt_name_fn.nr into compiler/s1/get_rt_name.gen.nr.)
 print	__nucleor_print_str
 putchar	__nucleor_putchar
 str_len	__nucleor_str_len
@@ -44,7 +46,17 @@ vec_swap	__nucleor_vec_swap
 vec_extend	__nucleor_vec_extend
 vec_remove_at	__nucleor_vec_remove_at
 vec_insert_at	__nucleor_vec_insert_at
+# `ptr_is_null` is the
+# prescribed remediation in the FFI-G5-NULL-DEREF diagnostic
+# text but the function was not defined anywhere in stdlib —
+# adopters who followed the diagnostic's advice got a
+# TYP-005 link failure ("undefined function 'ptr_is_null()'").
+# Add it as a builtin intrinsic backed by a runtime helper
+# that returns 1 iff the i64 pointer is 0.
 ptr_is_null	__nucleor_ptr_is_null
+# Option<T> / Result<T,E> method runtime helpers.
+# See nucleor_llvm_rt.c v0.4.90 block. Tag layout:
+# Option Some=0 None=1; Result Ok=1 Err=0.
 option_unwrap	__nucleor_option_unwrap
 option_unwrap_or	__nucleor_option_unwrap_or
 option_is_some	__nucleor_option_is_some
@@ -58,6 +70,7 @@ result_is_err	__nucleor_result_is_err
 result_ok	__nucleor_result_ok
 result_err	__nucleor_result_err
 result_expect	__nucleor_result_expect
+# Option/Result fn-arg helpers (map/and_then/unwrap_or_else).
 option_map	__nucleor_option_map
 option_and_then	__nucleor_option_and_then
 option_unwrap_or_else	__nucleor_option_unwrap_or_else
@@ -65,6 +78,7 @@ result_map	__nucleor_result_map
 result_and_then	__nucleor_result_and_then
 result_unwrap_or_else	__nucleor_result_unwrap_or_else
 result_or_else	__nucleor_result_or_else
+# recursive Debug formatters.
 vec_to_debug_str_i64	__nucleor_vec_to_debug_str_i64
 vec_to_debug_str_str	__nucleor_vec_to_debug_str_str
 vec_to_debug_str_option_i64	__nucleor_vec_to_debug_str_option_i64
@@ -74,9 +88,12 @@ args_count	__nucleor_args_count
 args_get	__nucleor_args_get
 print_int	__nucleor_print_i64
 print_bool	__nucleor_print_bool
+# Stdin read helpers (RFC-0015 phase 4 completion)
 read_line	__nucleor_read_line
 read_i64	__nucleor_read_i64
 read_byte	__nucleor_read_byte
+# RFC-0028 phase 1 — format string builtins (one {} placeholder per call,
+# multi-placeholder via format2_*; full variadic + Display/Debug in v0.4)
 format_i64	__nucleor_format_i64
 str_to_i64	__nucleor_str_to_i64
 str_to_f64	__nucleor_str_to_f64
@@ -84,17 +101,28 @@ str_to_int	__nucleor_str_to_int
 str_to_int_strict	__nucleor_str_to_int_strict
 str_to_bool	__nucleor_str_to_bool
 int_to_str	__nucleor_int_to_str
+# Rust-style alias. The canonical Rust idiom for
+# i64→string is `i.to_string()` or `String::from(i)`; the closest
+# ergonomic helper Nucleor exposes is `int_to_str(n)`. Pre-v0.3.103,
+# users (and the s1 compiler's own source!) wrote `str_from_int(n)`
+# and hit `clang: undefined value '@str_from_int'` because only
+# `int_to_str` was registered. Both names now route to the same
+# runtime helper.
 str_from_int	__nucleor_int_to_str
 f64_to_str	__nucleor_f64_to_str
 f32_to_str	__nucleor_f32_to_str
+# precision-aware float formatters.
 f64_to_str_prec	__nucleor_f64_to_str_prec
 f32_to_str_prec	__nucleor_f32_to_str_prec
 bool_to_str	__nucleor_bool_to_str
 int_to_hex	__nucleor_int_to_hex
 int_to_bin	__nucleor_int_to_bin
 int_to_oct	__nucleor_int_to_oct
+# `{:+}` force-sign helper.
 int_to_str_force_sign	__nucleor_int_to_str_force_sign
+# `{:X}` upper-case hex helper.
 int_to_hex_upper	__nucleor_int_to_hex_upper
+# `{:e}` / `{:E}` scientific notation for f64.
 f64_to_str_sci	__nucleor_f64_to_str_sci
 f64_to_str_sci_upper	__nucleor_f64_to_str_sci_upper
 f64_to_str_sci_prec	__nucleor_f64_to_str_sci_prec
@@ -119,6 +147,8 @@ format2_fi	__nucleor_format2_fi
 format2_if	__nucleor_format2_if
 format3_fff	__nucleor_format3_fff
 format_f64	__nucleor_format_f64
+# RFC-0024 phase 1: Vec<i64> functional helpers (function-pointer args)
+# T2.4 (v0.2.350): trait object 2-cell handle helpers.
 dyn_box_make	__nucleor_dyn_box_make
 dyn_box_type	__nucleor_dyn_box_type
 dyn_box_data	__nucleor_dyn_box_data
@@ -128,6 +158,7 @@ vec_collect_i64	__nucleor_vec_collect_i64
 vec_count_i64	__nucleor_vec_count_i64
 vec_take_i64	__nucleor_vec_take_i64
 vec_chain_i64	__nucleor_vec_chain_i64
+# extended iter surface
 vec_position_i64	__nucleor_vec_position_i64
 vec_product_i64	__nucleor_vec_product_i64
 vec_step_by_i64	__nucleor_vec_step_by_i64
@@ -150,6 +181,7 @@ vec_clear_i64	__nucleor_vec_clear_i64
 vec_sum_f64	__nucleor_vec_sum_f64
 vec_min_f64	__nucleor_vec_min_f64
 vec_max_f64	__nucleor_vec_max_f64
+# String utilities (RFC-0017 / RFC-0028 stdlib enrichment)
 str_to_lower	__nucleor_str_to_lower
 str_to_upper	__nucleor_str_to_upper
 str_trim	__nucleor_str_trim
@@ -185,6 +217,7 @@ vec_dot_i64	__nucleor_vec_dot_i64
 vec_count_eq_i64	__nucleor_vec_count_eq_i64
 vec_any_i64	__nucleor_vec_any_i64
 vec_all_i64	__nucleor_vec_all_i64
+# Char predicates / transformations (RFC-0017 stdlib enrichment)
 char_is_alpha	__nucleor_char_is_alpha
 char_is_digit	__nucleor_char_is_digit
 char_is_alnum	__nucleor_char_is_alnum
@@ -197,18 +230,26 @@ char_is_ascii	__nucleor_char_is_ascii
 char_to_upper	__nucleor_char_to_upper
 char_to_lower	__nucleor_char_to_lower
 char_digit_value	__nucleor_char_digit_value
+# Note: hashmap_keys/values + time_iso_now/format_iso are exposed below
+# (later in this map) — listed there next to the rest of the v0.2.16
+# helpers.
+# RNG primitives (rng_seed/random_uniform/random_normal already mapped above)
 rng_int	__nucleor_rng_int
 rng_uniform	__nucleor_rng_uniform
 rng_normal	__nucleor_rng_normal
 rng_bernoulli	__nucleor_rng_bernoulli
 rng_exponential	__nucleor_rng_exponential
+# HashMap iteration (RFC-0017 enrichment)
 hashmap_keys	__nucleor_hashmap_keys
 hashmap_values	__nucleor_hashmap_values
+# ISO 8601 time formatting (RFC-0017 enrichment)
 time_iso_now	__nucleor_time_iso_now
 time_format_iso	__nucleor_time_format_iso
+# Hash helpers (RFC-0017 stdlib enrichment)
 fnv1a_64_str	__nucleor_fnv1a_64_str
 fnv1a_64_i64	__nucleor_fnv1a_64_i64
 murmur3_64	__nucleor_murmur3_64
+# Print without trailing newline (RFC-0017 ergonomics)
 print_raw	__nucleor_print_raw
 eprint_raw	__nucleor_eprint_raw
 file_append_string	__nucleor_file_append_string
@@ -224,6 +265,7 @@ pipe_close	__nucleor_pipe_close
 sha256	__nucleor_sha256
 thread_spawn	__nucleor_thread_spawn
 thread_join	__nucleor_thread_join
+# T2.8 (v0.2.353): async runtime — threads-only per RFC-0027.
 async_spawn	__nucleor_async_spawn
 async_await	__nucleor_async_await
 mutex_new	__nucleor_mutex_new_value
@@ -345,6 +387,7 @@ arena_destroy	__nucleor_arena_destroy
 assert_eq	__nucleor_assert_eq
 assert_ne	__nucleor_assert_ne
 panic	__nucleor_panic
+# RFC-0015 phase 2: `as` cast helpers
 as_i8	__nucleor_as_i8
 as_i16	__nucleor_as_i16
 as_i32	__nucleor_as_i32
@@ -355,6 +398,7 @@ as_u32	__nucleor_as_u32
 as_u64	__nucleor_as_u64
 as_f32	__nucleor_as_f32
 as_f64	__nucleor_as_f64
+# T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
 sizeof_i8	__nucleor_sizeof_i8
 sizeof_i16	__nucleor_sizeof_i16
 sizeof_i32	__nucleor_sizeof_i32
@@ -374,6 +418,7 @@ sizeof_f64	__nucleor_sizeof_f64
 sizeof_bool	__nucleor_sizeof_bool
 sizeof_char	__nucleor_sizeof_char
 sizeof_ptr	__nucleor_sizeof_ptr
+# RFC-0015 phase 4: overflow-mode arithmetic
 wrapping_add	__nucleor_wrapping_add_i64
 wrapping_sub	__nucleor_wrapping_sub_i64
 wrapping_mul	__nucleor_wrapping_mul_i64
@@ -391,6 +436,7 @@ wrapping_div	__nucleor_wrapping_div_i64
 wrapping_rem	__nucleor_wrapping_rem_i64
 wrapping_neg	__nucleor_wrapping_neg_i64
 saturating_neg	__nucleor_saturating_neg_i64
+# panic-on-overflow ergonomic surface (no flag-check needed)
 panic_add	__nucleor_panic_add_i64
 panic_sub	__nucleor_panic_sub_i64
 panic_mul	__nucleor_panic_mul_i64
@@ -399,10 +445,22 @@ panic_sub_u64	__nucleor_panic_sub_u64
 panic_mul_u64	__nucleor_panic_mul_u64
 panic_div	__nucleor_panic_div_i64
 panic_rem	__nucleor_panic_rem_i64
+# Lane 1 audit fix (2026-05-08) — close C-002, C-003.
 panic_div_u64	__nucleor_panic_div_u64
 panic_rem_u64	__nucleor_panic_rem_u64
 panic_shr_u64	__nucleor_panic_shr_u64
+# Lane 1 audit fix (2026-05-08) — diag_exit reserved for a future
+# bootstrap iteration. The runtime helper __nucleor_diag_exit ships
+# alongside this fix (see stdlib/runtime/nucleor_llvm_rt.c) so that
+# a follow-on bootstrap can wire the F-019 / F-026 PANIC-as-
+# diagnostic anti-pattern fix without re-introducing the runtime
+# surface. The current shipping binary cannot resolve `diag_exit()`
+# at type-check time (it predates this name table entry), so the
+# F-019 / F-026 sites still call panic(...) for now and emit only
+# the improved `error[CODE]:` text.
 diag_exit	__nucleor_diag_exit
+# Lane 1 audit fix (2026-05-08) — close F-NUM-001 (f-to-narrow
+# saturating-truncate per RFC-0015 §3.5).
 f64_to_i8	__nucleor_f64_to_i8
 f64_to_u8	__nucleor_f64_to_u8
 f64_to_i16	__nucleor_f64_to_i16
@@ -423,6 +481,7 @@ panic_shr	__nucleor_panic_shr_i64
 infer_var_type_cached	__nucleor_infer_var_type
 infer_fn_return_type_cached	__nucleor_infer_fn_return_type
 str_substring_strict	__nucleor_str_substring_strict
+# RFC-0015 phase 4 — per-narrow-width overflow primitives
 wrapping_add_i8	__nucleor_wrapping_add_i8
 wrapping_sub_i8	__nucleor_wrapping_sub_i8
 wrapping_mul_i8	__nucleor_wrapping_mul_i8
@@ -486,6 +545,7 @@ saturating_mul_u64	__nucleor_saturating_mul_u64
 checked_add_u64	__nucleor_checked_add_u64
 checked_sub_u64	__nucleor_checked_sub_u64
 checked_mul_u64	__nucleor_checked_mul_u64
+# RFC-0015 phase 5: per-width print helpers
 print_i8	__nucleor_print_i8
 print_i16	__nucleor_print_i16
 print_i32	__nucleor_print_i32
@@ -495,6 +555,7 @@ print_u32	__nucleor_print_u32
 print_u64	__nucleor_print_u64
 print_hex	__nucleor_print_hex
 print_bin	__nucleor_print_bin
+# RFC-0015 phase 5b: typed Vec storage
 vec_u8_new	__nucleor_vec_u8_new
 vec_u8_with_capacity	__nucleor_vec_u8_with_capacity
 vec_u8_push	__nucleor_vec_u8_push
@@ -510,18 +571,21 @@ vec_f32_push_bits	__nucleor_vec_f32_push_bits
 vec_f32_get_bits	__nucleor_vec_f32_get_bits
 vec_f32_len	__nucleor_vec_f32_len
 vec_f32_free	__nucleor_vec_f32_free
+# RFC-0015 phase 6: f32 distinct compute path
 f32_from_int	__nucleor_f32_from_int
 f32_to_int	__nucleor_f32_to_int
 f32_add	__nucleor_f32_add
 f32_sub	__nucleor_f32_sub
 f32_mul	__nucleor_f32_mul
 f32_div	__nucleor_f32_div
+# T1.1 Phase 5: f32 comparisons.
 f32_lt	__nucleor_f32_lt
 f32_gt	__nucleor_f32_gt
 f32_le	__nucleor_f32_le
 f32_ge	__nucleor_f32_ge
 f32_eq	__nucleor_f32_eq
 f32_ne	__nucleor_f32_ne
+# T1.1 Phase 5: native f64 arithmetic + comparisons.
 f64_add	__nucleor_f64_add
 f64_sub	__nucleor_f64_sub
 f64_mul	__nucleor_f64_mul
@@ -532,6 +596,7 @@ f64_le	__nucleor_f64_le
 f64_ge	__nucleor_f64_ge
 f64_eq	__nucleor_f64_eq
 f64_ne	__nucleor_f64_ne
+# T1.1 Phase 4: float↔int converters (Rust `as` saturating).
 f32_to_i32	__nucleor_f32_to_i32
 f32_to_i64	__nucleor_f32_to_i64
 f32_to_u32	__nucleor_f32_to_u32
@@ -542,6 +607,8 @@ i64_to_f32	__nucleor_i64_to_f32
 f64_to_i64	__nucleor_f64_to_i64
 f64_to_u32	__nucleor_f64_to_u32
 i64_to_f64	__nucleor_i64_to_f64
+f64_to_i32	__nucleor_f64_to_i32
+i32_to_f64	__nucleor_i32_to_f64
 f32_to_f64	__nucleor_f32_to_f64
 f64_to_f32	__nucleor_f64_to_f32
 f32_neg	__nucleor_f32_neg
@@ -552,7 +619,13 @@ f32_log	__nucleor_f32_log
 f32_sin	__nucleor_f32_sin
 f32_cos	__nucleor_f32_cos
 f32_pow	__nucleor_f32_pow
+f32_lt	__nucleor_f32_lt
+f32_gt	__nucleor_f32_gt
+f32_eq	__nucleor_f32_eq
+f32_to_f64	__nucleor_f32_to_f64
+f64_to_f32	__nucleor_f64_to_f32
 print_f32	__nucleor_print_f32
+# bf16 / f16 / f8 emulation
 bf16_from_f32	__nucleor_bf16_from_f32
 bf16_to_f32	__nucleor_bf16_to_f32
 bf16_add	__nucleor_bf16_add
@@ -569,11 +642,13 @@ f8e4m3_to_str	__nucleor_f8e4m3_to_str
 f8e5m2_to_str	__nucleor_f8e5m2_to_str
 f8e4m3_to_f32	__nucleor_f8e4m3_to_f32
 f8e5m2_to_f32	__nucleor_f8e5m2_to_f32
+# Debug + stderr helpers
 dbg	__nucleor_dbg_i64
 dbg_f64	__nucleor_dbg_f64
 dbg_str	__nucleor_dbg_str
 eprint	__nucleor_eprint_str
 eprint_int	__nucleor_eprint_int
+# RFC-0033 (preview): SIMD vector types
 f32x4_new	__nucleor_f32x4_new
 f32x4_splat	__nucleor_f32x4_splat
 f32x4_get	__nucleor_f32x4_get
@@ -594,6 +669,7 @@ i32x4_sub	__nucleor_i32x4_sub
 i32x4_mul	__nucleor_i32x4_mul
 i32x4_sum	__nucleor_i32x4_sum
 i32x4_free	__nucleor_i32x4_free
+# RFC-0017 partial: heap-allocated String type
 string_new	__nucleor_string_new
 string_with_capacity	__nucleor_string_with_capacity
 string_from_str	__nucleor_string_from_str
@@ -612,6 +688,7 @@ string_ends_with	__nucleor_string_ends_with
 string_contains	__nucleor_string_contains
 string_clone	__nucleor_string_clone
 string_free	__nucleor_string_free
+# extended String surface
 string_is_empty	__nucleor_string_is_empty
 string_to_uppercase	__nucleor_string_to_uppercase
 string_to_lowercase	__nucleor_string_to_lowercase
@@ -622,6 +699,7 @@ string_find	__nucleor_string_find
 string_substring	__nucleor_string_substring
 string_char_at	__nucleor_string_char_at
 string_as_str	__nucleor_string_as_str
+# RFC-0017 partial: HashMap<str, i64>
 hashmap_new	__nucleor_hashmap_new
 hashmap_with_capacity	__nucleor_hashmap_with_capacity
 hashmap_insert	__nucleor_hashmap_insert
@@ -637,9 +715,11 @@ hashmap_is_empty	__nucleor_hashmap_is_empty
 hashmap_get_or	__nucleor_hashmap_get_or
 hashmap_merge	__nucleor_hashmap_merge
 hashmap_clone	__nucleor_hashmap_clone
+# Typed time
 time_monotonic_ns	__nucleor_time_monotonic_ns
 time_monotonic_us	__nucleor_time_monotonic_us
 time_monotonic_ms	__nucleor_time_monotonic_ms
+# T3.1: runtime #[deadline] check helper.
 deadline_enter	__nucleor_deadline_enter
 deadline_exit	__nucleor_deadline_exit
 deadline_poll	__nucleor_deadline_poll
@@ -661,15 +741,18 @@ time_day_of_year	__nucleor_time_day_of_year
 time_elapsed_ms	__nucleor_time_elapsed_ms
 sleep_ms	__nucleor_sleep_ms
 sleep_us	__nucleor_sleep_us
+# Env
 env_get	__nucleor_env_get
 env_get_or	__nucleor_env_get_or
 env_set	__nucleor_env_set
 env_unset	__nucleor_env_unset
 env_has	__nucleor_env_has
 env_keys	__nucleor_env_keys
+# OS info
 process_id	__nucleor_process_id
 os_family	__nucleor_os_family
 os_pointer_width	__nucleor_os_pointer_width
+# RFC-0017 phase 4: VecDeque + HashSet
 vecdeque_new	__nucleor_vecdeque_new
 vecdeque_with_capacity	__nucleor_vecdeque_with_capacity
 vecdeque_push_back	__nucleor_vecdeque_push_back
@@ -690,6 +773,7 @@ hashset_remove	__nucleor_hashset_remove
 hashset_len	__nucleor_hashset_len
 hashset_clear	__nucleor_hashset_clear
 hashset_free	__nucleor_hashset_free
+# RFC-0017 phase 3: BTreeMap / BTreeSet (ordered collections)
 btreemap_new	__nucleor_btreemap_new
 btreemap_insert	__nucleor_btreemap_insert
 btreemap_get	__nucleor_btreemap_get
@@ -709,6 +793,7 @@ btreeset_len	__nucleor_btreeset_len
 btreeset_at	__nucleor_btreeset_at
 btreeset_clear	__nucleor_btreeset_clear
 btreeset_free	__nucleor_btreeset_free
+# RFC-0018/0019: File system primitives
 fs_exists	__nucleor_fs_exists
 fs_is_file	__nucleor_fs_is_file
 fs_is_dir	__nucleor_fs_is_dir
@@ -734,13 +819,16 @@ path_normalize	__nucleor_path_normalize
 path_with_extension	__nucleor_path_with_extension
 path_strip_extension	__nucleor_path_strip_extension
 path_components	__nucleor_path_components
+# RFC-0019 phase 1: TOML parser
 toml_parse_string	__nucleor_toml_parse_string
 toml_parse_file	__nucleor_toml_parse_file
 toml_get_str	__nucleor_toml_get_str
 toml_get_int	__nucleor_toml_get_int
 toml_has	__nucleor_toml_has
+# RFC-0019 phase 1: manifest validation
 manifest_validate	__nucleor_manifest_validate
 manifest_report	__nucleor_manifest_report
+# Decisions §B5: byte-buffer + endian helpers + MessagePack subset
 buf_write_u8	__nucleor_buf_write_u8
 buf_write_u16_le	__nucleor_buf_write_u16_le
 buf_write_u16_be	__nucleor_buf_write_u16_be
@@ -759,12 +847,16 @@ msgpack_write_nil	__nucleor_msgpack_write_nil
 msgpack_write_bool	__nucleor_msgpack_write_bool
 msgpack_write_uint	__nucleor_msgpack_write_uint
 msgpack_write_str	__nucleor_msgpack_write_str
+# Hash + checksum
 crc32	__nucleor_crc32
 crc32_update	__nucleor_crc32_update
 sha256_hex	__nucleor_sha256_hex
+# Base64
 base64_encode	__nucleor_base64_encode
 base64_decode	__nucleor_base64_decode
+# UUID
 uuid_v4	__nucleor_uuid_v4
+# RFC-0007 partial: AtomicI64
 atomic_i64_new	__nucleor_atomic_i64_new
 atomic_i64_free	__nucleor_atomic_i64_free
 atomic_i64_load	__nucleor_atomic_i64_load
@@ -776,6 +868,7 @@ atomic_i64_fetch_or	__nucleor_atomic_i64_fetch_or
 atomic_i64_fetch_xor	__nucleor_atomic_i64_fetch_xor
 atomic_i64_swap	__nucleor_atomic_i64_swap
 atomic_i64_cas	__nucleor_atomic_i64_cas
+# Bit-twiddling
 popcount	__nucleor_popcount
 leading_zeros	__nucleor_leading_zeros
 trailing_zeros	__nucleor_trailing_zeros
@@ -784,6 +877,7 @@ rotate_left	__nucleor_rotate_left
 rotate_right	__nucleor_rotate_right
 count_ones	__nucleor_count_ones
 count_zeros	__nucleor_count_zeros
+# Math primitives — i64 helpers
 i64_abs	__nucleor_i64_abs
 i64_min	__nucleor_i64_min
 i64_max	__nucleor_i64_max
@@ -793,6 +887,7 @@ i64_pow	__nucleor_i64_pow
 i64_isqrt	__nucleor_i64_isqrt
 i64_gcd	__nucleor_i64_gcd
 i64_lcm	__nucleor_i64_lcm
+# Math primitives — f64 transcendentals
 f64_sin	__nucleor_f64_sin
 f64_cos	__nucleor_f64_cos
 f64_tan	__nucleor_f64_tan
@@ -804,6 +899,7 @@ f64_sinh	__nucleor_f64_sinh
 f64_cosh	__nucleor_f64_cosh
 f64_tanh	__nucleor_f64_tanh
 f64_exp	__nucleor_f64_exp
+# NUC-IMPROVE-007 special functions for SciPy stats parity
 f64_erf	__nucleor_f64_erf
 f64_erfc	__nucleor_f64_erfc
 f64_lgamma	__nucleor_f64_lgamma
@@ -841,29 +937,40 @@ f64_ln2	__nucleor_f64_ln2
 f64_ln10	__nucleor_f64_ln10
 f64_deg_to_rad	__nucleor_f64_deg_to_rad
 f64_rad_to_deg	__nucleor_f64_rad_to_deg
+# V2: parallelism runtime
 par_map	__nucleor_par_map
 par_fold	__nucleor_par_fold
 par_reduce	__nucleor_par_reduce
+# V2: region/arena
 region_new	__nucleor_region_new
 region_alloc	__nucleor_region_alloc
 region_free	__nucleor_region_free
 region_reset	__nucleor_region_reset
+# HashMap
 __nucleor_hashmap_new	__nucleor_hashmap_new
 __nucleor_hashmap_insert	__nucleor_hashmap_insert
 __nucleor_hashmap_get	__nucleor_hashmap_get
 __nucleor_hashmap_contains	__nucleor_hashmap_contains
+# v0.3.236 Phase A — sym-aux side hashmap helpers (hash-backed
+# sym_get refactor). Mappings ship in Phase A so that Phase B
+# source migration can be compiled by a Phase-A binary.
 __nucleor_sym_aux_get	__nucleor_sym_aux_get
 __nucleor_sym_aux_create	__nucleor_sym_aux_create
 __nucleor_sym_aux_built_at	__nucleor_sym_aux_built_at
 __nucleor_sym_aux_set_built_at	__nucleor_sym_aux_set_built_at
+# v0.4.10 Phase A — compile-source side table for deep helpers
 __nucleor_compile_src_set	__nucleor_compile_src_set
 __nucleor_compile_src_get	__nucleor_compile_src_get
 __nucleor_compile_src_clear	__nucleor_compile_src_clear
+# Lane 4 / F-002: parse-depth side table for recursion guard.
 __nucleor_parse_depth_inc	__nucleor_parse_depth_inc
 __nucleor_parse_depth_dec	__nucleor_parse_depth_dec
 __nucleor_parse_depth_get	__nucleor_parse_depth_get
 __nucleor_parse_depth_reset	__nucleor_parse_depth_reset
+# C-side preflight bare-CR scan (replaces 7 s pure-
+# Nucleor str_char_at loop).
 __nucleor_source_bare_cr_offset	__nucleor_source_bare_cr_offset
+# generic str-keyed source-cache for new scanners
 __nucleor_str_cache_get	__nucleor_str_cache_get
 __nucleor_str_cache_put	__nucleor_str_cache_put
 __nucleor_str_cache_put_miss	__nucleor_str_cache_put_miss

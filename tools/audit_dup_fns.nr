@@ -266,6 +266,7 @@ fn main() -> i64 {
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/parse.nr"));
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/optim.nr"));
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/builtins.nr"));
+    s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/get_rt_name.gen.nr"));
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/emit.nr"));
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/lower.nr"));
     s1_src = str_concat(s1_src, "\n"); s1_src = str_concat(s1_src, file_read_string("compiler/s1/diag.nr"));
