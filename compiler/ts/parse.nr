@@ -702,10 +702,27 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             binding = pkv(tokens, cp);
             cp = cp + 1;
         };
+        // s1-parity defensive halt: or-patterns (`Some(x) | None => ...`)
+        // are accepted on the s1 path; the tools-suite parser rejects
+        // them here with the same diagnostic shape so users get a
+        // friendly error instead of a cryptic "expected `=>`" further
+        // down. Tracked for unification under RFC-0063 Phase 2.0.
+        if pk(tokens, cp) == 65 {
+            print("ERROR: or-patterns (e.g. `Some(x) | None => body`) in match arms are not yet supported on the tools-suite parser path. Workaround: split into separate arms (`Some(x) => body, None => body`). Tracked for RFC-0063 Phase 2.0 (parser unification).");
+            panic("nucleor: or-pattern in match arm not yet supported on tools-suite path");
+        };
         // Optional guard: if condition
         let mut guard_nid: i64 = 0;
         if pk(tokens, cp) == 13 {
             cp = cp + 1;
+            // s1-parity defensive halt: `if let PAT = expr` guards in
+            // match arms are accepted on the s1 path; reject here with
+            // a friendly error rather than fall into a cryptic parse
+            // failure. Same tracker.
+            if pk(tokens, cp) == 11 {
+                print("ERROR: `if let` guard in a match arm (`x if let Some(v) = opt => ...`) is not yet supported on the tools-suite parser path. Workaround: hoist the `if let` above the `match`, or convert the guard to an explicit boolean test. Tracked for RFC-0063 Phase 2.0.");
+                panic("nucleor: if-let guard in match arm not yet supported on tools-suite path");
+            };
             let mut gr: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(gr);
             guard_nid = pr_val(gr);
@@ -756,6 +773,14 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         } else {
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);
+            // s1-parity defensive halt: assignment in arm body (`pat => x = 5`)
+            // is accepted on the s1 path (it lowers to a kind-21 assign stmt).
+            // Reject here with a friendly error directing users to the
+            // block form. Same RFC-0063 Phase 2.0 tracker.
+            if pk(tokens, cp) == 40 {
+                print("ERROR: assignment in a match-arm body (`pat => x = 5`) is not yet supported on the tools-suite parser path. Workaround: wrap the body in a block (`pat => { x = 5 }`). Tracked for RFC-0063 Phase 2.0.");
+                panic("nucleor: assignment in match-arm body not yet supported on tools-suite path");
+            };
             let mut stmts: Vec<i32> = Vec::new();
             stmts.push(mk2(pool, 25, pr_val(er)));
             body_list = mk_list(pool, stmts);
