@@ -1,4 +1,4 @@
-// 19_scientific_benchmark.nr — Real numerical-workload benchmarks.
+// 29_scientific_benchmark.nr — Real numerical-workload benchmarks.
 //
 // Times scientific-computing primitives users actually run: dense
 // matrix solve, matrix multiply, FFT, sort, dot product. Reports
@@ -6,7 +6,7 @@
 // throughput. Pairs with examples/18_benchmark.nr (which covers
 // integer micro-benchmarks).
 //
-// Build: nuc build examples/19_scientific_benchmark.nr -o sci_bench
+// Build: nuc build examples/29_scientific_benchmark.nr -o sci_bench
 // Run:   ./sci_bench
 //        NUC_BENCH_ITERS=50 ./sci_bench
 //
