@@ -156,6 +156,15 @@ design.
   Linux baseline ceiling has been moved from 350 to 425 MB to
   reflect this structural cost; reclaim is tracked as future work
   (stream-discard per-file source after parse).
+- Hot compile time loses the early raw-source cache fast path
+  because the main file now has 14 `import` lines (was 0 pre-split).
+  `compile_file_mode`'s `has_import` returns 1 and the slow
+  `load_resolved_source_bundle` + module-graph cache check runs on
+  every hot build. Measured hot is ~0.70 s (was 0.034 s pre-split);
+  baseline ceiling moved from 0.5 s to 1.2 s. Reclaim is tracked
+  as future work (extend the early-cache machinery to recognize
+  per-file invalidation, or combine all imports into one cache key
+  for the fast-path probe).
 - The `verify.sh` step "tools-suite ABI tables match
   nucleor_s1_compiler.nr" continues to pass (tools-suite mirror
   may need its own split per item above).

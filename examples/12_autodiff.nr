@@ -4,12 +4,8 @@
 // At x = 1.5: f(1.5) = sin(2.25) + 1.5 ≈ 2.278
 //             f'(1.5) = 3·cos(2.25) + 1 ≈ -0.881
 
-// `use std::*` would be the shorter form, but the use-std-* path has a
-// known cfile-collection bug that drops rod-side C files from the clang
-// link line. Explicit import composes the correct link set; tracked
-// separately as a compiler issue.
-import "stdlib/rods/autodiff.nr"
-import "stdlib/rods/complex.nr"
+use std::autodiff;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

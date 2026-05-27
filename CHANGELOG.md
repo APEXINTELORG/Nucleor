@@ -16,6 +16,17 @@ All notable public changes to Nucleor are documented here.
   factory stomped the prior closure's captures. See
   `tests/lang/closure_capture_*.nr` for the regression fixtures and
   `docs/internals/closures.md` for the implementation.
+- `use std::*` / `use crate::*` / `use super::*` / `mod foo;` directives
+  now compose imported rods' `#cfile` entries into the clang link line.
+  Pre-fix the early raw-source cache fast path detected only line-start
+  `import "..."` directives; sources using only `use`/`mod` forms took
+  the fast path with `imported = [src_path]`, so `collect_native_directives`
+  walked only the top-level file and missed rod-side C sources. The
+  resulting link failed with undefined references like `rods_f64_div`,
+  `rods_trace_enabled` only on a warm cache_v2 hit (cold path was
+  unaffected because the .ll cache didn't exist yet). The detector now
+  flags all four directive forms; false positives just route through
+  the slow path (same correct output, ~10× build-time penalty).
 
 ### Changed
 

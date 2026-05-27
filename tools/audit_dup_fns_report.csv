@@ -61,7 +61,7 @@ link_native_module,6,6,238,66,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_import_path,2,2,51,13,1,0,SIG_MATCH_BODY_DIFFERS
 resolve_source_with_records,4,4,4,151,1,0,SIG_MATCH_BODY_DIFFERS
 load_resolved_source_bundle,2,2,882,49,1,0,SIG_MATCH_BODY_DIFFERS
-compile_file_mode,6,6,789,205,1,0,SIG_MATCH_BODY_DIFFERS
+compile_file_mode,6,6,798,205,1,0,SIG_MATCH_BODY_DIFFERS
 compile_file,2,2,3,3,1,0,SIG_MATCH_BODY_DIFFERS
 dl_extract_int_value,1,1,17,15,1,0,SIG_MATCH_BODY_DIFFERS
 fmt_conversion_for_spec,3,3,930,157,1,0,SIG_MATCH_BODY_DIFFERS

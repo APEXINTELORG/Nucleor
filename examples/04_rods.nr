@@ -2,12 +2,8 @@
 // Build: nuc build examples/04_rods.nr -o rods_demo
 // Run:   ./rods_demo.exe
 
-// `use std::*` would be the shorter form, but the use-std-* path has a
-// known cfile-collection bug that drops rod-side C files from the clang
-// link line. Explicit import composes the correct link set; tracked
-// separately as a compiler issue.
-import "stdlib/rods/strings.nr"
-import "stdlib/rods/json.nr"
+use std::strings;
+use std::json;
 
 fn main() -> i64 {
     // String utilities from stdlib/rods/strings.nr

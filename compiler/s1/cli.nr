@@ -25,17 +25,26 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     if use_cache == 1 {
         let raw_probe: str = file_read_string(src_path);
         source_reject_nul_truncation(src_path, raw_probe);
-        // Only take fast path when source starts at column 0 with a
-        // sentinel that says "no imports" — practically: scan for a
-        // line-start `import "` directive. The compiler source itself
-        // contains the literal "import \"" inside string literals (error
-        // messages); a substring check would false-positive. We approximate
-        // a line-start check by looking for a leading newline + the
-        // directive. Sources legitimately starting with import on line 1
-        // are caught by the missing-leading-newline branch below.
+        // The fast path returns with `imported = [src_path]` only and
+        // relies on `collect_native_directives` to scan that single
+        // file for `#cfile` directives. That's correct for self-contained
+        // sources, but wrong for any file whose link surface depends on
+        // imported rods. Detect all directive forms that pull external
+        // sources into the link: `import "..."`, `use foo;` (incl.
+        // `use std::*`, `use crate::*`, `use super::*`), and `mod foo;`.
+        // Missing any of them leaves rod-side #cfile entries off the clang
+        // command line and produces undefined-reference link failures only
+        // visible on a warm cache_v2 hit (cold path is unaffected since the
+        // .ll file doesn't exist yet). False-positives on the substring
+        // probe just send us through the slow path — same correct output,
+        // a few hundred ms slower.
         let has_import: i64 = if str_len(raw_probe) >= 8
             && str_starts_with(raw_probe, "import \"") == 1 { 1 }
             else if str_contains(raw_probe, "\nimport \"") == 1 { 1 }
+            else if str_len(raw_probe) >= 4 && str_starts_with(raw_probe, "use ") == 1 { 1 }
+            else if str_contains(raw_probe, "\nuse ") == 1 { 1 }
+            else if str_len(raw_probe) >= 4 && str_starts_with(raw_probe, "mod ") == 1 { 1 }
+            else if str_contains(raw_probe, "\nmod ") == 1 { 1 }
             else { 0 };
         if str_len(raw_probe) > 0 && has_import == 0 {
             early_cache_key = build_cache_key(raw_probe, strict_mode);

@@ -2,12 +2,8 @@
 // Input: 256-sample signal containing 5 Hz and 13 Hz components.
 // Expected: power spectrum has peaks near bins 5 and 13.
 
-// `use std::*` would be the shorter form, but the use-std-* path has a
-// known cfile-collection bug that drops rod-side C files from the clang
-// link line. Explicit import composes the correct link set; tracked
-// separately as a compiler issue.
-import "stdlib/rods/fft.nr"
-import "stdlib/rods/complex.nr"
+use std::fft;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

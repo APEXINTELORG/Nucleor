@@ -2,12 +2,8 @@
 // Build: nuc build examples/08_linalg.nr -o linalg_demo
 // Run:   ./linalg_demo.exe
 
-// `use std::*` would be the shorter form, but the use-std-* path has a
-// known cfile-collection bug that drops rod-side C files from the clang
-// link line. Explicit import composes the correct link set; tracked
-// separately as a compiler issue.
-import "stdlib/rods/linalg.nr"
-import "stdlib/rods/complex.nr"
+use std::linalg;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };
