@@ -5928,6 +5928,10 @@ compiler_tables_synced() {
     bash "$ROOT/tools/check_compiler_drift.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+rt_name_table_in_sync() {
+    bash "$ROOT/tools/check_rt_name_table.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+
 rod_void_abi_clean() {
     bash "$ROOT/tools/check_rod_void_abi.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
@@ -6218,6 +6222,7 @@ rfc0042_auto_drop_ir_smoke() {
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
+step "get_rt_name TSV manifest matches source" rt_name_table_in_sync
 step "rod extern void-return ABI parity" rod_void_abi_clean
 step "tools-suite rebuild" tools_rebuild
 step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke
