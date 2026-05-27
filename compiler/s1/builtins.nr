@@ -1,0 +1,1448 @@
+// =====================================================
+// BUILTIN MAPPING (NEW in T30)
+// =====================================================
+#[manual_drop]
+fn get_rt_name(name: str) -> str {
+    if str_eq(name, "print") { return "__nucleor_print_str"; };
+    if str_eq(name, "putchar") { return "__nucleor_putchar"; };
+    if str_eq(name, "str_len") { return "__nucleor_str_len"; };
+    if str_eq(name, "str_eq") { return "__nucleor_str_eq"; };
+    if str_eq(name, "str_char_at") { return "__nucleor_str_char_at"; };
+    if str_eq(name, "str_char_at_strict") { return "__nucleor_str_char_at_strict"; };
+    if str_eq(name, "str_substring") { return "__nucleor_str_substring"; };
+    if str_eq(name, "str_concat") { return "__nucleor_str_concat"; };
+    if str_eq(name, "str_intern") { return "__nucleor_str_intern"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup") { return "__nucleor_sym_linear_lookup"; };
+    if str_eq(name, "__nucleor_sym_linear_lookup_idx") { return "__nucleor_sym_linear_lookup_idx"; };
+    if str_eq(name, "__nucleor_own_put_i_full") { return "__nucleor_own_put_i_full"; };
+    if str_eq(name, "str_free") { return "__nucleor_str_free"; };
+    if str_eq(name, "str_arena_new") { return "__nucleor_str_arena_new"; };
+    if str_eq(name, "str_arena_free") { return "__nucleor_str_arena_free"; };
+    if str_eq(name, "str_arena_bytes") { return "__nucleor_str_arena_bytes"; };
+    if str_eq(name, "str_arena_concat") { return "__nucleor_str_arena_concat"; };
+    if str_eq(name, "str_arena_substring") { return "__nucleor_str_arena_substring"; };
+    if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
+    if str_eq(name, "file_read_string_or_panic") { return "__nucleor_file_read_string_or_panic"; };
+    if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
+    if str_eq(name, "file_bytes_equal") { return "__nucleor_file_bytes_equal"; };
+    if str_eq(name, "system") { return "__nucleor_system"; };
+    if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
+    if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
+    if str_eq(name, "sb_append_char") { return "__nucleor_sb_append_char"; };
+    if str_eq(name, "sb_append_char_at") { return "__nucleor_sb_append_char_at"; };
+    if str_eq(name, "sb_append_range") { return "__nucleor_sb_append_range"; };
+    if str_eq(name, "sb_new_with_cap") { return "__nucleor_sb_new_with_cap"; };
+    if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
+    if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
+    if str_eq(name, "vec_with_capacity") { return "__nucleor_vec_with_capacity"; };
+    if str_eq(name, "vec_push") { return "__nucleor_vec_push"; };
+    if str_eq(name, "vec_get") { return "__nucleor_vec_get"; };
+    if str_eq(name, "vec_len") { return "__nucleor_vec_len"; };
+    if str_eq(name, "vec_pop") { return "__nucleor_vec_pop"; };
+    if str_eq(name, "vec_free") { return "__nucleor_vec_free"; };
+    if str_eq(name, "vec_set") { return "__nucleor_vec_set"; };
+    if str_eq(name, "vec_first") { return "__nucleor_vec_first"; };
+    if str_eq(name, "vec_last") { return "__nucleor_vec_last"; };
+    if str_eq(name, "vec_is_empty") { return "__nucleor_vec_is_empty"; };
+    if str_eq(name, "vec_swap") { return "__nucleor_vec_swap"; };
+    if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
+    if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
+    if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
+    // `ptr_is_null` is the
+    // prescribed remediation in the FFI-G5-NULL-DEREF diagnostic
+    // text but the function was not defined anywhere in stdlib —
+    // adopters who followed the diagnostic's advice got a
+    // TYP-005 link failure ("undefined function 'ptr_is_null()'").
+    // Add it as a builtin intrinsic backed by a runtime helper
+    // that returns 1 iff the i64 pointer is 0.
+    if str_eq(name, "ptr_is_null") { return "__nucleor_ptr_is_null"; };
+    // Option<T> / Result<T,E> method runtime helpers.
+    // See nucleor_llvm_rt.c v0.4.90 block. Tag layout:
+    // Option Some=0 None=1; Result Ok=1 Err=0.
+    if str_eq(name, "option_unwrap") { return "__nucleor_option_unwrap"; };
+    if str_eq(name, "option_unwrap_or") { return "__nucleor_option_unwrap_or"; };
+    if str_eq(name, "option_is_some") { return "__nucleor_option_is_some"; };
+    if str_eq(name, "option_is_none") { return "__nucleor_option_is_none"; };
+    if str_eq(name, "option_expect") { return "__nucleor_option_expect"; };
+    if str_eq(name, "result_unwrap") { return "__nucleor_result_unwrap"; };
+    if str_eq(name, "result_unwrap_err") { return "__nucleor_result_unwrap_err"; };
+    if str_eq(name, "result_unwrap_or") { return "__nucleor_result_unwrap_or"; };
+    if str_eq(name, "result_is_ok") { return "__nucleor_result_is_ok"; };
+    if str_eq(name, "result_is_err") { return "__nucleor_result_is_err"; };
+    if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
+    if str_eq(name, "result_err") { return "__nucleor_result_err"; };
+    if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
+    // Option/Result fn-arg helpers (map/and_then/unwrap_or_else).
+    if str_eq(name, "option_map") { return "__nucleor_option_map"; };
+    if str_eq(name, "option_and_then") { return "__nucleor_option_and_then"; };
+    if str_eq(name, "option_unwrap_or_else") { return "__nucleor_option_unwrap_or_else"; };
+    if str_eq(name, "result_map") { return "__nucleor_result_map"; };
+    if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
+    if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
+    if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
+    // recursive Debug formatters.
+    if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
+    if str_eq(name, "vec_to_debug_str_str") { return "__nucleor_vec_to_debug_str_str"; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return "__nucleor_vec_to_debug_str_option_i64"; };
+    if str_eq(name, "option_to_debug_str_i64") { return "__nucleor_option_to_debug_str_i64"; };
+    if str_eq(name, "result_to_debug_str_i64") { return "__nucleor_result_to_debug_str_i64"; };
+    if str_eq(name, "args_count") { return "__nucleor_args_count"; };
+    if str_eq(name, "args_get") { return "__nucleor_args_get"; };
+    if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
+    if str_eq(name, "print_bool") { return "__nucleor_print_bool"; };
+    // Stdin read helpers (RFC-0015 phase 4 completion)
+    if str_eq(name, "read_line") { return "__nucleor_read_line"; };
+    if str_eq(name, "read_i64") { return "__nucleor_read_i64"; };
+    if str_eq(name, "read_byte") { return "__nucleor_read_byte"; };
+    // RFC-0028 phase 1 — format string builtins (one {} placeholder per call,
+    // multi-placeholder via format2_*; full variadic + Display/Debug in v0.4)
+    if str_eq(name, "format_i64") { return "__nucleor_format_i64"; };
+    if str_eq(name, "str_to_i64") { return "__nucleor_str_to_i64"; };
+    if str_eq(name, "str_to_f64") { return "__nucleor_str_to_f64"; };
+    if str_eq(name, "str_to_int") { return "__nucleor_str_to_int"; };
+    if str_eq(name, "str_to_int_strict") { return "__nucleor_str_to_int_strict"; };
+    if str_eq(name, "str_to_bool") { return "__nucleor_str_to_bool"; };
+    if str_eq(name, "int_to_str") { return "__nucleor_int_to_str"; };
+    // Rust-style alias. The canonical Rust idiom for
+    // i64→string is `i.to_string()` or `String::from(i)`; the closest
+    // ergonomic helper Nucleor exposes is `int_to_str(n)`. Pre-v0.3.103,
+    // users (and the s1 compiler's own source!) wrote `str_from_int(n)`
+    // and hit `clang: undefined value '@str_from_int'` because only
+    // `int_to_str` was registered. Both names now route to the same
+    // runtime helper.
+    if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
+    if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
+    if str_eq(name, "f32_to_str") { return "__nucleor_f32_to_str"; };
+    // precision-aware float formatters.
+    if str_eq(name, "f64_to_str_prec") { return "__nucleor_f64_to_str_prec"; };
+    if str_eq(name, "f32_to_str_prec") { return "__nucleor_f32_to_str_prec"; };
+    if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
+    if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
+    if str_eq(name, "int_to_bin") { return "__nucleor_int_to_bin"; };
+    if str_eq(name, "int_to_oct") { return "__nucleor_int_to_oct"; };
+    // `{:+}` force-sign helper.
+    if str_eq(name, "int_to_str_force_sign") { return "__nucleor_int_to_str_force_sign"; };
+    // `{:X}` upper-case hex helper.
+    if str_eq(name, "int_to_hex_upper") { return "__nucleor_int_to_hex_upper"; };
+    // `{:e}` / `{:E}` scientific notation for f64.
+    if str_eq(name, "f64_to_str_sci") { return "__nucleor_f64_to_str_sci"; };
+    if str_eq(name, "f64_to_str_sci_upper") { return "__nucleor_f64_to_str_sci_upper"; };
+    if str_eq(name, "f64_to_str_sci_prec") { return "__nucleor_f64_to_str_sci_prec"; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return "__nucleor_f64_to_str_sci_prec_upper"; };
+    if str_eq(name, "str_to_i64_radix") { return "__nucleor_str_to_i64_radix"; };
+    if str_eq(name, "parse_hex") { return "__nucleor_parse_hex"; };
+    if str_eq(name, "parse_bin") { return "__nucleor_parse_bin"; };
+    if str_eq(name, "str_pad_left") { return "__nucleor_str_pad_left"; };
+    if str_eq(name, "str_pad_right") { return "__nucleor_str_pad_right"; };
+    if str_eq(name, "str_center") { return "__nucleor_str_center"; };
+    if str_eq(name, "str_join") { return "__nucleor_str_join"; };
+    if str_eq(name, "str_lines") { return "__nucleor_str_lines"; };
+    if str_eq(name, "str_chars") { return "__nucleor_str_chars"; };
+    if str_eq(name, "format_str") { return "__nucleor_format_str"; };
+    if str_eq(name, "format_hex") { return "__nucleor_format_hex"; };
+    if str_eq(name, "format2_ii") { return "__nucleor_format2_ii"; };
+    if str_eq(name, "format2_si") { return "__nucleor_format2_si"; };
+    if str_eq(name, "format2_ss") { return "__nucleor_format2_ss"; };
+    if str_eq(name, "format2_is") { return "__nucleor_format2_is"; };
+    if str_eq(name, "format2_ff") { return "__nucleor_format2_ff"; };
+    if str_eq(name, "format2_fi") { return "__nucleor_format2_fi"; };
+    if str_eq(name, "format2_if") { return "__nucleor_format2_if"; };
+    if str_eq(name, "format3_fff") { return "__nucleor_format3_fff"; };
+    if str_eq(name, "format_f64") { return "__nucleor_format_f64"; };
+    // RFC-0024 phase 1: Vec<i64> functional helpers (function-pointer args)
+    // T2.4 (v0.2.350): trait object 2-cell handle helpers.
+    if str_eq(name, "dyn_box_make") { return "__nucleor_dyn_box_make"; };
+    if str_eq(name, "dyn_box_type") { return "__nucleor_dyn_box_type"; };
+    if str_eq(name, "dyn_box_data") { return "__nucleor_dyn_box_data"; };
+    if str_eq(name, "dyn_box_free") { return "__nucleor_dyn_box_free"; };
+    if str_eq(name, "vec_iter_i64") { return "__nucleor_vec_iter_i64"; };
+    if str_eq(name, "vec_collect_i64") { return "__nucleor_vec_collect_i64"; };
+    if str_eq(name, "vec_count_i64") { return "__nucleor_vec_count_i64"; };
+    if str_eq(name, "vec_take_i64") { return "__nucleor_vec_take_i64"; };
+    if str_eq(name, "vec_chain_i64") { return "__nucleor_vec_chain_i64"; };
+    // extended iter surface
+    if str_eq(name, "vec_position_i64") { return "__nucleor_vec_position_i64"; };
+    if str_eq(name, "vec_product_i64") { return "__nucleor_vec_product_i64"; };
+    if str_eq(name, "vec_step_by_i64") { return "__nucleor_vec_step_by_i64"; };
+    if str_eq(name, "vec_nth_i64") { return "__nucleor_vec_nth_i64"; };
+    if str_eq(name, "vec_reduce_i64") { return "__nucleor_vec_reduce_i64"; };
+    if str_eq(name, "vec_skip_i64") { return "__nucleor_vec_skip_i64"; };
+    if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
+    if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
+    if str_eq(name, "vec_fold_i64") { return "__nucleor_vec_fold_i64"; };
+    if str_eq(name, "vec_each_i64") { return "__nucleor_vec_each_i64"; };
+    if str_eq(name, "vec_sum_i64") { return "__nucleor_vec_sum_i64"; };
+    if str_eq(name, "vec_min_i64") { return "__nucleor_vec_min_i64"; };
+    if str_eq(name, "vec_max_i64") { return "__nucleor_vec_max_i64"; };
+    if str_eq(name, "vec_contains_i64") { return "__nucleor_vec_contains_i64"; };
+    if str_eq(name, "vec_index_of_i64") { return "__nucleor_vec_index_of_i64"; };
+    if str_eq(name, "vec_reverse_i64") { return "__nucleor_vec_reverse_i64"; };
+    if str_eq(name, "vec_sort_i64") { return "__nucleor_vec_sort_i64"; };
+    if str_eq(name, "vec_clone_i64") { return "__nucleor_vec_clone_i64"; };
+    if str_eq(name, "vec_clear_i64") { return "__nucleor_vec_clear_i64"; };
+    if str_eq(name, "vec_sum_f64") { return "__nucleor_vec_sum_f64"; };
+    if str_eq(name, "vec_min_f64") { return "__nucleor_vec_min_f64"; };
+    if str_eq(name, "vec_max_f64") { return "__nucleor_vec_max_f64"; };
+    // String utilities (RFC-0017 / RFC-0028 stdlib enrichment)
+    if str_eq(name, "str_to_lower") { return "__nucleor_str_to_lower"; };
+    if str_eq(name, "str_to_upper") { return "__nucleor_str_to_upper"; };
+    if str_eq(name, "str_trim") { return "__nucleor_str_trim"; };
+    if str_eq(name, "str_starts_with") { return "__nucleor_str_starts_with"; };
+    if str_eq(name, "str_ends_with") { return "__nucleor_str_ends_with"; };
+    if str_eq(name, "str_index_of") { return "__nucleor_str_index_of"; };
+    if str_eq(name, "str_contains") { return "__nucleor_str_contains"; };
+    if str_eq(name, "str_replace") { return "__nucleor_str_replace"; };
+    if str_eq(name, "str_repeat") { return "__nucleor_str_repeat"; };
+    if str_eq(name, "str_split") { return "__nucleor_str_split"; };
+    if str_eq(name, "str_trim_start") { return "__nucleor_str_trim_start"; };
+    if str_eq(name, "str_trim_end") { return "__nucleor_str_trim_end"; };
+    if str_eq(name, "str_is_empty") { return "__nucleor_str_is_empty"; };
+    if str_eq(name, "str_count") { return "__nucleor_str_count"; };
+    if str_eq(name, "str_reverse") { return "__nucleor_str_reverse"; };
+    if str_eq(name, "format_bool") { return "__nucleor_format_bool"; };
+    if str_eq(name, "format3_iii") { return "__nucleor_format3_iii"; };
+    if str_eq(name, "format3_sii") { return "__nucleor_format3_sii"; };
+    if str_eq(name, "format3_iss") { return "__nucleor_format3_iss"; };
+    if str_eq(name, "format3_sss") { return "__nucleor_format3_sss"; };
+    if str_eq(name, "format3_ssi") { return "__nucleor_format3_ssi"; };
+    if str_eq(name, "format3_sis") { return "__nucleor_format3_sis"; };
+    if str_eq(name, "format3_iis") { return "__nucleor_format3_iis"; };
+    if str_eq(name, "format3_isi") { return "__nucleor_format3_isi"; };
+    if str_eq(name, "format3_iif") { return "__nucleor_format3_iif"; };
+    if str_eq(name, "format3_iff") { return "__nucleor_format3_iff"; };
+    if str_eq(name, "format3_sff") { return "__nucleor_format3_sff"; };
+    if str_eq(name, "format3_ssf") { return "__nucleor_format3_ssf"; };
+    if str_eq(name, "format3_sif") { return "__nucleor_format3_sif"; };
+    if str_eq(name, "format3_isf") { return "__nucleor_format3_isf"; };
+    if str_eq(name, "vec_avg_i64") { return "__nucleor_vec_avg_i64"; };
+    if str_eq(name, "vec_dot_i64") { return "__nucleor_vec_dot_i64"; };
+    if str_eq(name, "vec_count_eq_i64") { return "__nucleor_vec_count_eq_i64"; };
+    if str_eq(name, "vec_any_i64") { return "__nucleor_vec_any_i64"; };
+    if str_eq(name, "vec_all_i64") { return "__nucleor_vec_all_i64"; };
+    // Char predicates / transformations (RFC-0017 stdlib enrichment)
+    if str_eq(name, "char_is_alpha") { return "__nucleor_char_is_alpha"; };
+    if str_eq(name, "char_is_digit") { return "__nucleor_char_is_digit"; };
+    if str_eq(name, "char_is_alnum") { return "__nucleor_char_is_alnum"; };
+    if str_eq(name, "char_is_whitespace") { return "__nucleor_char_is_whitespace"; };
+    if str_eq(name, "char_is_upper") { return "__nucleor_char_is_upper"; };
+    if str_eq(name, "char_is_lower") { return "__nucleor_char_is_lower"; };
+    if str_eq(name, "char_is_hex_digit") { return "__nucleor_char_is_hex_digit"; };
+    if str_eq(name, "char_is_punct") { return "__nucleor_char_is_punct"; };
+    if str_eq(name, "char_is_ascii") { return "__nucleor_char_is_ascii"; };
+    if str_eq(name, "char_to_upper") { return "__nucleor_char_to_upper"; };
+    if str_eq(name, "char_to_lower") { return "__nucleor_char_to_lower"; };
+    if str_eq(name, "char_digit_value") { return "__nucleor_char_digit_value"; };
+    // Note: hashmap_keys/values + time_iso_now/format_iso are exposed below
+    // (later in this map) — listed there next to the rest of the v0.2.16
+    // helpers.
+    // RNG primitives (rng_seed/random_uniform/random_normal already mapped above)
+    if str_eq(name, "rng_int") { return "__nucleor_rng_int"; };
+    if str_eq(name, "rng_uniform") { return "__nucleor_rng_uniform"; };
+    if str_eq(name, "rng_normal") { return "__nucleor_rng_normal"; };
+    if str_eq(name, "rng_bernoulli") { return "__nucleor_rng_bernoulli"; };
+    if str_eq(name, "rng_exponential") { return "__nucleor_rng_exponential"; };
+    // HashMap iteration (RFC-0017 enrichment)
+    if str_eq(name, "hashmap_keys") { return "__nucleor_hashmap_keys"; };
+    if str_eq(name, "hashmap_values") { return "__nucleor_hashmap_values"; };
+    // ISO 8601 time formatting (RFC-0017 enrichment)
+    if str_eq(name, "time_iso_now") { return "__nucleor_time_iso_now"; };
+    if str_eq(name, "time_format_iso") { return "__nucleor_time_format_iso"; };
+    // Hash helpers (RFC-0017 stdlib enrichment)
+    if str_eq(name, "fnv1a_64_str") { return "__nucleor_fnv1a_64_str"; };
+    if str_eq(name, "fnv1a_64_i64") { return "__nucleor_fnv1a_64_i64"; };
+    if str_eq(name, "murmur3_64") { return "__nucleor_murmur3_64"; };
+    // Print without trailing newline (RFC-0017 ergonomics)
+    if str_eq(name, "print_raw") { return "__nucleor_print_raw"; };
+    if str_eq(name, "eprint_raw") { return "__nucleor_eprint_raw"; };
+    if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
+    if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
+    if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
+    if str_eq(name, "isatty_stdout") { return "__nucleor_isatty_stdout"; };
+    if str_eq(name, "chr") { return "__nucleor_chr"; };
+    if str_eq(name, "getcwd") { return "__nucleor_getcwd"; };
+    if str_eq(name, "getenv") { return "__nucleor_getenv"; };
+    if str_eq(name, "pipe_create") { return "__nucleor_pipe_create"; };
+    if str_eq(name, "pipe_write") { return "__nucleor_pipe_write"; };
+    if str_eq(name, "pipe_close") { return "__nucleor_pipe_close"; };
+    if str_eq(name, "sha256") { return "__nucleor_sha256"; };
+    if str_eq(name, "thread_spawn") { return "__nucleor_thread_spawn"; };
+    if str_eq(name, "thread_join") { return "__nucleor_thread_join"; };
+    // T2.8 (v0.2.353): async runtime — threads-only per RFC-0027.
+    if str_eq(name, "async_spawn") { return "__nucleor_async_spawn"; };
+    if str_eq(name, "async_await") { return "__nucleor_async_await"; };
+    if str_eq(name, "mutex_new") { return "__nucleor_mutex_new_value"; };
+    if str_eq(name, "mutex_lock") { return "__nucleor_mutex_lock_value"; };
+    if str_eq(name, "mutex_unlock") { return "__nucleor_mutex_unlock_value"; };
+    if str_eq(name, "channel_new") { return "__nucleor_channel_new"; };
+    if str_eq(name, "channel_send") { return "__nucleor_channel_send"; };
+    if str_eq(name, "channel_recv") { return "__nucleor_channel_recv"; };
+    if str_eq(name, "channel_len") { return "__nucleor_channel_len"; };
+    if str_eq(name, "channel") { return "__nucleor_channel_new"; };
+    if str_eq(name, "chan_send") { return "__nucleor_channel_send"; };
+    if str_eq(name, "chan_recv") { return "__nucleor_channel_recv"; };
+    if str_eq(name, "chan_len") { return "__nucleor_channel_len"; };
+    if str_eq(name, "atomic_new") { return "__nucleor_atomic_new"; };
+    if str_eq(name, "atomic_add") { return "__nucleor_atomic_add"; };
+    if str_eq(name, "atomic_load") { return "__nucleor_atomic_load"; };
+    if str_eq(name, "cpu_count") { return "__nucleor_cpu_count"; };
+    if str_eq(name, "print_f64") { return "__nucleor_print_f64"; };
+    if str_eq(name, "f64_from_scaled") { return "__nucleor_f64_from_scaled"; };
+    if str_eq(name, "f32_from_scaled") { return "__nucleor_f32_from_scaled"; };
+    if str_eq(name, "f64_from_bits") { return "__nucleor_f64_from_bits"; };
+    if str_eq(name, "f64_to_bits") { return "__nucleor_f64_to_bits"; };
+    if str_eq(name, "f32_from_bits") { return "__nucleor_f32_from_bits"; };
+    if str_eq(name, "f32_to_bits") { return "__nucleor_f32_to_bits"; };
+    if str_eq(name, "f64_to_i32") { return "__nucleor_f64_to_i32"; };
+    if str_eq(name, "i32_to_f64") { return "__nucleor_i32_to_f64"; };
+    if str_eq(name, "fabs") { return "__nucleor_fabs"; };
+    if str_eq(name, "fmod") { return "__nucleor_fmod"; };
+    if str_eq(name, "sqrt") { return "__nucleor_sqrt"; };
+    if str_eq(name, "sin") { return "__nucleor_sin"; };
+    if str_eq(name, "cos") { return "__nucleor_cos"; };
+    if str_eq(name, "pow") { return "__nucleor_pow"; };
+    if str_eq(name, "floor") { return "__nucleor_floor"; };
+    if str_eq(name, "ceil") { return "__nucleor_ceil"; };
+    if str_eq(name, "round") { return "__nucleor_round"; };
+    if str_eq(name, "exp") { return "__nucleor_exp"; };
+    if str_eq(name, "log") { return "__nucleor_log"; };
+    if str_eq(name, "sigmoid") { return "__nucleor_sigmoid"; };
+    if str_eq(name, "tanh") { return "__nucleor_tanh"; };
+    if str_eq(name, "tanh_act") { return "__nucleor_tanh"; };
+    if str_eq(name, "relu") { return "__nucleor_relu"; };
+    if str_eq(name, "gelu") { return "__nucleor_gelu"; };
+    if str_eq(name, "abs") { return "__nucleor_abs"; };
+    if str_eq(name, "min") { return "__nucleor_min"; };
+    if str_eq(name, "max") { return "__nucleor_max"; };
+    if str_eq(name, "clamp") { return "__nucleor_clamp"; };
+    if str_eq(name, "assert") { return "__nucleor_assert"; };
+    if str_eq(name, "contract_require") { return "__nucleor_contract_require"; };
+    if str_eq(name, "contract_ensure") { return "__nucleor_contract_ensure"; };
+    if str_eq(name, "contract_invariant") { return "__nucleor_contract_invariant"; };
+    if str_eq(name, "profile_start") { return "__nucleor_profile_start"; };
+    if str_eq(name, "profile_end") { return "__nucleor_profile_end"; };
+    if str_eq(name, "ambient_random") { return "__nucleor_ambient_random"; };
+    if str_eq(name, "rng_seed") { return "__nucleor_rng_seed"; };
+    if str_eq(name, "random_uniform") { return "__nucleor_random_uniform"; };
+    if str_eq(name, "random_normal") { return "__nucleor_random_normal"; };
+    if str_eq(name, "random_int") { return "__nucleor_random_int"; };
+    if str_eq(name, "random_bool") { return "__nucleor_random_bool"; };
+    if str_eq(name, "random_choice") { return "__nucleor_random_choice"; };
+    if str_eq(name, "vec_shuffle") { return "__nucleor_vec_shuffle"; };
+    if str_eq(name, "vec_sample") { return "__nucleor_vec_sample"; };
+    if str_eq(name, "random_fill") { return "__nucleor_random_fill"; };
+    if str_eq(name, "vec_mean_f64") { return "__nucleor_vec_mean_f64"; };
+    if str_eq(name, "vec_median_f64") { return "__nucleor_vec_median_f64"; };
+    if str_eq(name, "vec_variance_f64") { return "__nucleor_vec_variance_f64"; };
+    if str_eq(name, "vec_stddev_f64") { return "__nucleor_vec_stddev_f64"; };
+    if str_eq(name, "vec_range_i64") { return "__nucleor_vec_range_i64"; };
+    if str_eq(name, "vec_percentile_f64") { return "__nucleor_vec_percentile_f64"; };
+    if str_eq(name, "arena_reset") { return "__nucleor_arena_reset"; };
+    if str_eq(name, "device_alloc") { return "__nucleor_device_alloc"; };
+    if str_eq(name, "device_transfer") { return "__nucleor_device_transfer"; };
+    if str_eq(name, "device_free") { return "__nucleor_device_free"; };
+    if str_eq(name, "tensor_view") { return "__nucleor_tensor_view"; };
+    if str_eq(name, "py_eval") { return "__nucleor_py_eval"; };
+    if str_eq(name, "kvcache_new") { return "__nucleor_kvcache_new"; };
+    if str_eq(name, "kvcache_append") { return "__nucleor_kvcache_append"; };
+    if str_eq(name, "kvcache_read_prefix") { return "__nucleor_kvcache_read_prefix"; };
+    if str_eq(name, "kvcache_evict") { return "__nucleor_kvcache_evict"; };
+    if str_eq(name, "kvcache_compact") { return "__nucleor_kvcache_compact"; };
+    if str_eq(name, "kvcache_free") { return "__nucleor_kvcache_free"; };
+    if str_eq(name, "kvprefix_free") { return "__nucleor_kvprefix_free"; };
+    if str_eq(name, "simd_add") { return "__nucleor_simd_add"; };
+    if str_eq(name, "simd_mul") { return "__nucleor_simd_mul"; };
+    if str_eq(name, "simd_fma") { return "__nucleor_simd_fma"; };
+    if str_eq(name, "vector_new") { return "__nucleor_vector_new"; };
+    if str_eq(name, "vector_add") { return "__nucleor_vector_add"; };
+    if str_eq(name, "vector_mul") { return "__nucleor_vector_mul"; };
+    if str_eq(name, "vector_fma") { return "__nucleor_vector_fma"; };
+    if str_eq(name, "vector_broadcast") { return "__nucleor_vector_broadcast"; };
+    if str_eq(name, "vector_reduce_sum") { return "__nucleor_vector_reduce_sum"; };
+    if str_eq(name, "vec_iter") { return "__nucleor_vec_iter"; };
+    if str_eq(name, "vec_sum") { return "__nucleor_vec_sum"; };
+    if str_eq(name, "vec_take") { return "__nucleor_vec_take"; };
+    if str_eq(name, "vec_skip") { return "__nucleor_vec_skip"; };
+    if str_eq(name, "vec_chain") { return "__nucleor_vec_chain"; };
+    if str_eq(name, "vec_map") { return "__nucleor_vec_map"; };
+    if str_eq(name, "vec_filter") { return "__nucleor_vec_filter"; };
+    if str_eq(name, "vec_any") { return "__nucleor_vec_any"; };
+    if str_eq(name, "vec_all") { return "__nucleor_vec_all"; };
+    if str_eq(name, "vec_count") { return "__nucleor_vec_count"; };
+    if str_eq(name, "vec_fold") { return "__nucleor_vec_fold"; };
+    if str_eq(name, "rods_f64_encode") { return "__nucleor_rods_f64_encode"; };
+    if str_eq(name, "rods_f64_add") { return "__nucleor_rods_f64_add"; };
+    if str_eq(name, "rods_f64_sub") { return "__nucleor_rods_f64_sub"; };
+    if str_eq(name, "rods_f64_div") { return "__nucleor_rods_f64_div"; };
+    if str_eq(name, "wrap_i32") { return "__nucleor_wrap_i32"; };
+    if str_eq(name, "sat_i32") { return "__nucleor_sat_i32"; };
+    if str_eq(name, "ambient_scheduler") { return "__nucleor_ambient_scheduler"; };
+    if str_eq(name, "rwlock_new") { return "__nucleor_rwlock_new"; };
+    if str_eq(name, "rwlock_read") { return "__nucleor_rwlock_read"; };
+    if str_eq(name, "rwlock_write") { return "__nucleor_rwlock_write"; };
+    if str_eq(name, "rwlock_unlock") { return "__nucleor_rwlock_unlock"; };
+    if str_eq(name, "cancel_token_new") { return "__nucleor_cancel_token_new"; };
+    if str_eq(name, "cancel_token_cancel") { return "__nucleor_cancel_token_cancel"; };
+    if str_eq(name, "cancel_token_is_cancelled") { return "__nucleor_cancel_token_is_cancelled"; };
+    if str_eq(name, "arena_new") { return "__nucleor_arena_new"; };
+    if str_eq(name, "arena_alloc") { return "__nucleor_arena_alloc"; };
+    if str_eq(name, "arena_destroy") { return "__nucleor_arena_destroy"; };
+    if str_eq(name, "assert_eq") { return "__nucleor_assert_eq"; };
+    if str_eq(name, "assert_ne") { return "__nucleor_assert_ne"; };
+    if str_eq(name, "panic") { return "__nucleor_panic"; };
+    // RFC-0015 phase 2: `as` cast helpers
+    if str_eq(name, "as_i8") { return "__nucleor_as_i8"; };
+    if str_eq(name, "as_i16") { return "__nucleor_as_i16"; };
+    if str_eq(name, "as_i32") { return "__nucleor_as_i32"; };
+    if str_eq(name, "as_i64") { return "__nucleor_as_i64"; };
+    if str_eq(name, "as_u8") { return "__nucleor_as_u8"; };
+    if str_eq(name, "as_u16") { return "__nucleor_as_u16"; };
+    if str_eq(name, "as_u32") { return "__nucleor_as_u32"; };
+    if str_eq(name, "as_u64") { return "__nucleor_as_u64"; };
+    if str_eq(name, "as_f32") { return "__nucleor_as_f32"; };
+    if str_eq(name, "as_f64") { return "__nucleor_as_f64"; };
+    // T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
+    if str_eq(name, "sizeof_i8") { return "__nucleor_sizeof_i8"; };
+    if str_eq(name, "sizeof_i16") { return "__nucleor_sizeof_i16"; };
+    if str_eq(name, "sizeof_i32") { return "__nucleor_sizeof_i32"; };
+    if str_eq(name, "sizeof_i64") { return "__nucleor_sizeof_i64"; };
+    if str_eq(name, "sizeof_i128") { return "__nucleor_sizeof_i128"; };
+    if str_eq(name, "sizeof_u8") { return "__nucleor_sizeof_u8"; };
+    if str_eq(name, "sizeof_u16") { return "__nucleor_sizeof_u16"; };
+    if str_eq(name, "sizeof_u32") { return "__nucleor_sizeof_u32"; };
+    if str_eq(name, "sizeof_u64") { return "__nucleor_sizeof_u64"; };
+    if str_eq(name, "sizeof_u128") { return "__nucleor_sizeof_u128"; };
+    if str_eq(name, "sizeof_usize") { return "__nucleor_sizeof_usize"; };
+    if str_eq(name, "sizeof_isize") { return "__nucleor_sizeof_isize"; };
+    if str_eq(name, "sizeof_f16") { return "__nucleor_sizeof_f16"; };
+    if str_eq(name, "sizeof_bf16") { return "__nucleor_sizeof_bf16"; };
+    if str_eq(name, "sizeof_f32") { return "__nucleor_sizeof_f32"; };
+    if str_eq(name, "sizeof_f64") { return "__nucleor_sizeof_f64"; };
+    if str_eq(name, "sizeof_bool") { return "__nucleor_sizeof_bool"; };
+    if str_eq(name, "sizeof_char") { return "__nucleor_sizeof_char"; };
+    if str_eq(name, "sizeof_ptr") { return "__nucleor_sizeof_ptr"; };
+    // RFC-0015 phase 4: overflow-mode arithmetic
+    if str_eq(name, "wrapping_add") { return "__nucleor_wrapping_add_i64"; };
+    if str_eq(name, "wrapping_sub") { return "__nucleor_wrapping_sub_i64"; };
+    if str_eq(name, "wrapping_mul") { return "__nucleor_wrapping_mul_i64"; };
+    if str_eq(name, "saturating_add") { return "__nucleor_saturating_add_i64"; };
+    if str_eq(name, "saturating_sub") { return "__nucleor_saturating_sub_i64"; };
+    if str_eq(name, "saturating_mul") { return "__nucleor_saturating_mul_i64"; };
+    if str_eq(name, "checked_add") { return "__nucleor_checked_add_i64"; };
+    if str_eq(name, "checked_sub") { return "__nucleor_checked_sub_i64"; };
+    if str_eq(name, "checked_mul") { return "__nucleor_checked_mul_i64"; };
+    if str_eq(name, "checked_overflow_flag") { return "__nucleor_checked_overflow_flag"; };
+    if str_eq(name, "checked_div") { return "__nucleor_checked_div_i64"; };
+    if str_eq(name, "checked_rem") { return "__nucleor_checked_rem_i64"; };
+    if str_eq(name, "checked_neg") { return "__nucleor_checked_neg_i64"; };
+    if str_eq(name, "wrapping_div") { return "__nucleor_wrapping_div_i64"; };
+    if str_eq(name, "wrapping_rem") { return "__nucleor_wrapping_rem_i64"; };
+    if str_eq(name, "wrapping_neg") { return "__nucleor_wrapping_neg_i64"; };
+    if str_eq(name, "saturating_neg") { return "__nucleor_saturating_neg_i64"; };
+    // panic-on-overflow ergonomic surface (no flag-check needed)
+    if str_eq(name, "panic_add") { return "__nucleor_panic_add_i64"; };
+    if str_eq(name, "panic_sub") { return "__nucleor_panic_sub_i64"; };
+    if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
+    if str_eq(name, "panic_add_u64") { return "__nucleor_panic_add_u64"; };
+    if str_eq(name, "panic_sub_u64") { return "__nucleor_panic_sub_u64"; };
+    if str_eq(name, "panic_mul_u64") { return "__nucleor_panic_mul_u64"; };
+    if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
+    if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    // Lane 1 audit fix (2026-05-08) — close C-002, C-003.
+    if str_eq(name, "panic_div_u64") { return "__nucleor_panic_div_u64"; };
+    if str_eq(name, "panic_rem_u64") { return "__nucleor_panic_rem_u64"; };
+    if str_eq(name, "panic_shr_u64") { return "__nucleor_panic_shr_u64"; };
+    // Lane 1 audit fix (2026-05-08) — diag_exit reserved for a future
+    // bootstrap iteration. The runtime helper __nucleor_diag_exit ships
+    // alongside this fix (see stdlib/runtime/nucleor_llvm_rt.c) so that
+    // a follow-on bootstrap can wire the F-019 / F-026 PANIC-as-
+    // diagnostic anti-pattern fix without re-introducing the runtime
+    // surface. The current shipping binary cannot resolve `diag_exit()`
+    // at type-check time (it predates this name table entry), so the
+    // F-019 / F-026 sites still call panic(...) for now and emit only
+    // the improved `error[CODE]:` text.
+    if str_eq(name, "diag_exit") { return "__nucleor_diag_exit"; };
+    // Lane 1 audit fix (2026-05-08) — close F-NUM-001 (f-to-narrow
+    // saturating-truncate per RFC-0015 §3.5).
+    if str_eq(name, "f64_to_i8") { return "__nucleor_f64_to_i8"; };
+    if str_eq(name, "f64_to_u8") { return "__nucleor_f64_to_u8"; };
+    if str_eq(name, "f64_to_i16") { return "__nucleor_f64_to_i16"; };
+    if str_eq(name, "f64_to_u16") { return "__nucleor_f64_to_u16"; };
+    if str_eq(name, "f32_to_i8") { return "__nucleor_f32_to_i8"; };
+    if str_eq(name, "f32_to_u8") { return "__nucleor_f32_to_u8"; };
+    if str_eq(name, "f32_to_i16") { return "__nucleor_f32_to_i16"; };
+    if str_eq(name, "f32_to_u16") { return "__nucleor_f32_to_u16"; };
+    if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
+    if str_eq(name, "panic_rem_i32") { return "__nucleor_panic_rem_i32"; };
+    if str_eq(name, "panic_div_i16") { return "__nucleor_panic_div_i16"; };
+    if str_eq(name, "panic_rem_i16") { return "__nucleor_panic_rem_i16"; };
+    if str_eq(name, "panic_div_i8") { return "__nucleor_panic_div_i8"; };
+    if str_eq(name, "panic_rem_i8") { return "__nucleor_panic_rem_i8"; };
+    if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
+    if str_eq(name, "panic_shl") { return "__nucleor_panic_shl_i64"; };
+    if str_eq(name, "panic_shr") { return "__nucleor_panic_shr_i64"; };
+    if str_eq(name, "infer_var_type_cached") { return "__nucleor_infer_var_type"; };
+    if str_eq(name, "infer_fn_return_type_cached") { return "__nucleor_infer_fn_return_type"; };
+    if str_eq(name, "str_substring_strict") { return "__nucleor_str_substring_strict"; };
+    // RFC-0015 phase 4 — per-narrow-width overflow primitives
+    if str_eq(name, "wrapping_add_i8") { return "__nucleor_wrapping_add_i8"; };
+    if str_eq(name, "wrapping_sub_i8") { return "__nucleor_wrapping_sub_i8"; };
+    if str_eq(name, "wrapping_mul_i8") { return "__nucleor_wrapping_mul_i8"; };
+    if str_eq(name, "saturating_add_i8") { return "__nucleor_saturating_add_i8"; };
+    if str_eq(name, "saturating_sub_i8") { return "__nucleor_saturating_sub_i8"; };
+    if str_eq(name, "saturating_mul_i8") { return "__nucleor_saturating_mul_i8"; };
+    if str_eq(name, "checked_add_i8") { return "__nucleor_checked_add_i8"; };
+    if str_eq(name, "checked_sub_i8") { return "__nucleor_checked_sub_i8"; };
+    if str_eq(name, "checked_mul_i8") { return "__nucleor_checked_mul_i8"; };
+    if str_eq(name, "wrapping_add_i16") { return "__nucleor_wrapping_add_i16"; };
+    if str_eq(name, "wrapping_sub_i16") { return "__nucleor_wrapping_sub_i16"; };
+    if str_eq(name, "wrapping_mul_i16") { return "__nucleor_wrapping_mul_i16"; };
+    if str_eq(name, "saturating_add_i16") { return "__nucleor_saturating_add_i16"; };
+    if str_eq(name, "saturating_sub_i16") { return "__nucleor_saturating_sub_i16"; };
+    if str_eq(name, "saturating_mul_i16") { return "__nucleor_saturating_mul_i16"; };
+    if str_eq(name, "checked_add_i16") { return "__nucleor_checked_add_i16"; };
+    if str_eq(name, "checked_sub_i16") { return "__nucleor_checked_sub_i16"; };
+    if str_eq(name, "checked_mul_i16") { return "__nucleor_checked_mul_i16"; };
+    if str_eq(name, "wrapping_add_i32") { return "__nucleor_wrapping_add_i32"; };
+    if str_eq(name, "wrapping_sub_i32") { return "__nucleor_wrapping_sub_i32"; };
+    if str_eq(name, "wrapping_mul_i32") { return "__nucleor_wrapping_mul_i32"; };
+    if str_eq(name, "saturating_add_i32") { return "__nucleor_saturating_add_i32"; };
+    if str_eq(name, "saturating_sub_i32") { return "__nucleor_saturating_sub_i32"; };
+    if str_eq(name, "saturating_mul_i32") { return "__nucleor_saturating_mul_i32"; };
+    if str_eq(name, "checked_add_i32") { return "__nucleor_checked_add_i32"; };
+    if str_eq(name, "checked_sub_i32") { return "__nucleor_checked_sub_i32"; };
+    if str_eq(name, "checked_mul_i32") { return "__nucleor_checked_mul_i32"; };
+    if str_eq(name, "wrapping_add_u8") { return "__nucleor_wrapping_add_u8"; };
+    if str_eq(name, "wrapping_sub_u8") { return "__nucleor_wrapping_sub_u8"; };
+    if str_eq(name, "wrapping_mul_u8") { return "__nucleor_wrapping_mul_u8"; };
+    if str_eq(name, "saturating_add_u8") { return "__nucleor_saturating_add_u8"; };
+    if str_eq(name, "saturating_sub_u8") { return "__nucleor_saturating_sub_u8"; };
+    if str_eq(name, "saturating_mul_u8") { return "__nucleor_saturating_mul_u8"; };
+    if str_eq(name, "checked_add_u8") { return "__nucleor_checked_add_u8"; };
+    if str_eq(name, "checked_sub_u8") { return "__nucleor_checked_sub_u8"; };
+    if str_eq(name, "checked_mul_u8") { return "__nucleor_checked_mul_u8"; };
+    if str_eq(name, "wrapping_add_u16") { return "__nucleor_wrapping_add_u16"; };
+    if str_eq(name, "wrapping_sub_u16") { return "__nucleor_wrapping_sub_u16"; };
+    if str_eq(name, "wrapping_mul_u16") { return "__nucleor_wrapping_mul_u16"; };
+    if str_eq(name, "saturating_add_u16") { return "__nucleor_saturating_add_u16"; };
+    if str_eq(name, "saturating_sub_u16") { return "__nucleor_saturating_sub_u16"; };
+    if str_eq(name, "saturating_mul_u16") { return "__nucleor_saturating_mul_u16"; };
+    if str_eq(name, "checked_add_u16") { return "__nucleor_checked_add_u16"; };
+    if str_eq(name, "checked_sub_u16") { return "__nucleor_checked_sub_u16"; };
+    if str_eq(name, "checked_mul_u16") { return "__nucleor_checked_mul_u16"; };
+    if str_eq(name, "wrapping_add_u32") { return "__nucleor_wrapping_add_u32"; };
+    if str_eq(name, "wrapping_sub_u32") { return "__nucleor_wrapping_sub_u32"; };
+    if str_eq(name, "wrapping_mul_u32") { return "__nucleor_wrapping_mul_u32"; };
+    if str_eq(name, "saturating_add_u32") { return "__nucleor_saturating_add_u32"; };
+    if str_eq(name, "saturating_sub_u32") { return "__nucleor_saturating_sub_u32"; };
+    if str_eq(name, "saturating_mul_u32") { return "__nucleor_saturating_mul_u32"; };
+    if str_eq(name, "checked_add_u32") { return "__nucleor_checked_add_u32"; };
+    if str_eq(name, "checked_sub_u32") { return "__nucleor_checked_sub_u32"; };
+    if str_eq(name, "checked_mul_u32") { return "__nucleor_checked_mul_u32"; };
+    if str_eq(name, "wrapping_add_u64") { return "__nucleor_wrapping_add_u64"; };
+    if str_eq(name, "wrapping_sub_u64") { return "__nucleor_wrapping_sub_u64"; };
+    if str_eq(name, "wrapping_mul_u64") { return "__nucleor_wrapping_mul_u64"; };
+    if str_eq(name, "saturating_add_u64") { return "__nucleor_saturating_add_u64"; };
+    if str_eq(name, "saturating_sub_u64") { return "__nucleor_saturating_sub_u64"; };
+    if str_eq(name, "saturating_mul_u64") { return "__nucleor_saturating_mul_u64"; };
+    if str_eq(name, "checked_add_u64") { return "__nucleor_checked_add_u64"; };
+    if str_eq(name, "checked_sub_u64") { return "__nucleor_checked_sub_u64"; };
+    if str_eq(name, "checked_mul_u64") { return "__nucleor_checked_mul_u64"; };
+    // RFC-0015 phase 5: per-width print helpers
+    if str_eq(name, "print_i8") { return "__nucleor_print_i8"; };
+    if str_eq(name, "print_i16") { return "__nucleor_print_i16"; };
+    if str_eq(name, "print_i32") { return "__nucleor_print_i32"; };
+    if str_eq(name, "print_u8") { return "__nucleor_print_u8"; };
+    if str_eq(name, "print_u16") { return "__nucleor_print_u16"; };
+    if str_eq(name, "print_u32") { return "__nucleor_print_u32"; };
+    if str_eq(name, "print_u64") { return "__nucleor_print_u64"; };
+    if str_eq(name, "print_hex") { return "__nucleor_print_hex"; };
+    if str_eq(name, "print_bin") { return "__nucleor_print_bin"; };
+    // RFC-0015 phase 5b: typed Vec storage
+    if str_eq(name, "vec_u8_new") { return "__nucleor_vec_u8_new"; };
+    if str_eq(name, "vec_u8_with_capacity") { return "__nucleor_vec_u8_with_capacity"; };
+    if str_eq(name, "vec_u8_push") { return "__nucleor_vec_u8_push"; };
+    if str_eq(name, "vec_u8_get") { return "__nucleor_vec_u8_get"; };
+    if str_eq(name, "vec_u8_set") { return "__nucleor_vec_u8_set"; };
+    if str_eq(name, "vec_u8_len") { return "__nucleor_vec_u8_len"; };
+    if str_eq(name, "vec_u8_capacity") { return "__nucleor_vec_u8_capacity"; };
+    if str_eq(name, "vec_u8_clear") { return "__nucleor_vec_u8_clear"; };
+    if str_eq(name, "vec_u8_free") { return "__nucleor_vec_u8_free"; };
+    if str_eq(name, "vec_f32_new") { return "__nucleor_vec_f32_new"; };
+    if str_eq(name, "vec_f32_with_capacity") { return "__nucleor_vec_f32_with_capacity"; };
+    if str_eq(name, "vec_f32_push_bits") { return "__nucleor_vec_f32_push_bits"; };
+    if str_eq(name, "vec_f32_get_bits") { return "__nucleor_vec_f32_get_bits"; };
+    if str_eq(name, "vec_f32_len") { return "__nucleor_vec_f32_len"; };
+    if str_eq(name, "vec_f32_free") { return "__nucleor_vec_f32_free"; };
+    // RFC-0015 phase 6: f32 distinct compute path
+    if str_eq(name, "f32_from_int") { return "__nucleor_f32_from_int"; };
+    if str_eq(name, "f32_to_int") { return "__nucleor_f32_to_int"; };
+    if str_eq(name, "f32_add") { return "__nucleor_f32_add"; };
+    if str_eq(name, "f32_sub") { return "__nucleor_f32_sub"; };
+    if str_eq(name, "f32_mul") { return "__nucleor_f32_mul"; };
+    if str_eq(name, "f32_div") { return "__nucleor_f32_div"; };
+    // T1.1 Phase 5: f32 comparisons.
+    if str_eq(name, "f32_lt") { return "__nucleor_f32_lt"; };
+    if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
+    if str_eq(name, "f32_le") { return "__nucleor_f32_le"; };
+    if str_eq(name, "f32_ge") { return "__nucleor_f32_ge"; };
+    if str_eq(name, "f32_eq") { return "__nucleor_f32_eq"; };
+    if str_eq(name, "f32_ne") { return "__nucleor_f32_ne"; };
+    // T1.1 Phase 5: native f64 arithmetic + comparisons.
+    if str_eq(name, "f64_add") { return "__nucleor_f64_add"; };
+    if str_eq(name, "f64_sub") { return "__nucleor_f64_sub"; };
+    if str_eq(name, "f64_mul") { return "__nucleor_f64_mul"; };
+    if str_eq(name, "f64_div") { return "__nucleor_f64_div"; };
+    if str_eq(name, "f64_lt") { return "__nucleor_f64_lt"; };
+    if str_eq(name, "f64_gt") { return "__nucleor_f64_gt"; };
+    if str_eq(name, "f64_le") { return "__nucleor_f64_le"; };
+    if str_eq(name, "f64_ge") { return "__nucleor_f64_ge"; };
+    if str_eq(name, "f64_eq") { return "__nucleor_f64_eq"; };
+    if str_eq(name, "f64_ne") { return "__nucleor_f64_ne"; };
+    // T1.1 Phase 4: float↔int converters (Rust `as` saturating).
+    if str_eq(name, "f32_to_i32") { return "__nucleor_f32_to_i32"; };
+    if str_eq(name, "f32_to_i64") { return "__nucleor_f32_to_i64"; };
+    if str_eq(name, "f32_to_u32") { return "__nucleor_f32_to_u32"; };
+    if str_eq(name, "f32_to_u64") { return "__nucleor_f32_to_u64"; };
+    if str_eq(name, "f64_to_u64") { return "__nucleor_f64_to_u64"; };
+    if str_eq(name, "i32_to_f32") { return "__nucleor_i32_to_f32"; };
+    if str_eq(name, "i64_to_f32") { return "__nucleor_i64_to_f32"; };
+    if str_eq(name, "f64_to_i64") { return "__nucleor_f64_to_i64"; };
+    if str_eq(name, "f64_to_u32") { return "__nucleor_f64_to_u32"; };
+    if str_eq(name, "i64_to_f64") { return "__nucleor_i64_to_f64"; };
+    if str_eq(name, "f64_to_i32") { return "__nucleor_f64_to_i32"; };
+    if str_eq(name, "i32_to_f64") { return "__nucleor_i32_to_f64"; };
+    if str_eq(name, "f32_to_f64") { return "__nucleor_f32_to_f64"; };
+    if str_eq(name, "f64_to_f32") { return "__nucleor_f64_to_f32"; };
+    if str_eq(name, "f32_neg") { return "__nucleor_f32_neg"; };
+    if str_eq(name, "f32_abs") { return "__nucleor_f32_abs"; };
+    if str_eq(name, "f32_sqrt") { return "__nucleor_f32_sqrt"; };
+    if str_eq(name, "f32_exp") { return "__nucleor_f32_exp"; };
+    if str_eq(name, "f32_log") { return "__nucleor_f32_log"; };
+    if str_eq(name, "f32_sin") { return "__nucleor_f32_sin"; };
+    if str_eq(name, "f32_cos") { return "__nucleor_f32_cos"; };
+    if str_eq(name, "f32_pow") { return "__nucleor_f32_pow"; };
+    if str_eq(name, "f32_lt") { return "__nucleor_f32_lt"; };
+    if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
+    if str_eq(name, "f32_eq") { return "__nucleor_f32_eq"; };
+    if str_eq(name, "f32_to_f64") { return "__nucleor_f32_to_f64"; };
+    if str_eq(name, "f64_to_f32") { return "__nucleor_f64_to_f32"; };
+    if str_eq(name, "print_f32") { return "__nucleor_print_f32"; };
+    // bf16 / f16 / f8 emulation
+    if str_eq(name, "bf16_from_f32") { return "__nucleor_bf16_from_f32"; };
+    if str_eq(name, "bf16_to_f32") { return "__nucleor_bf16_to_f32"; };
+    if str_eq(name, "bf16_add") { return "__nucleor_bf16_add"; };
+    if str_eq(name, "bf16_mul") { return "__nucleor_bf16_mul"; };
+    if str_eq(name, "f16_from_f32") { return "__nucleor_f16_from_f32"; };
+    if str_eq(name, "f16_to_f32") { return "__nucleor_f16_to_f32"; };
+    if str_eq(name, "f16_add") { return "__nucleor_f16_add"; };
+    if str_eq(name, "f16_mul") { return "__nucleor_f16_mul"; };
+    if str_eq(name, "f16_to_str") { return "__nucleor_f16_to_str"; };
+    if str_eq(name, "bf16_to_str") { return "__nucleor_bf16_to_str"; };
+    if str_eq(name, "f8e4m3_from_f32") { return "__nucleor_f8e4m3_from_f32"; };
+    if str_eq(name, "f8e5m2_from_f32") { return "__nucleor_f8e5m2_from_f32"; };
+    if str_eq(name, "f8e4m3_to_str") { return "__nucleor_f8e4m3_to_str"; };
+    if str_eq(name, "f8e5m2_to_str") { return "__nucleor_f8e5m2_to_str"; };
+    if str_eq(name, "f8e4m3_to_f32") { return "__nucleor_f8e4m3_to_f32"; };
+    if str_eq(name, "f8e5m2_to_f32") { return "__nucleor_f8e5m2_to_f32"; };
+    // Debug + stderr helpers
+    if str_eq(name, "dbg") { return "__nucleor_dbg_i64"; };
+    if str_eq(name, "dbg_f64") { return "__nucleor_dbg_f64"; };
+    if str_eq(name, "dbg_str") { return "__nucleor_dbg_str"; };
+    if str_eq(name, "eprint") { return "__nucleor_eprint_str"; };
+    if str_eq(name, "eprint_int") { return "__nucleor_eprint_int"; };
+    // RFC-0033 (preview): SIMD vector types
+    if str_eq(name, "f32x4_new") { return "__nucleor_f32x4_new"; };
+    if str_eq(name, "f32x4_splat") { return "__nucleor_f32x4_splat"; };
+    if str_eq(name, "f32x4_get") { return "__nucleor_f32x4_get"; };
+    if str_eq(name, "f32x4_add") { return "__nucleor_f32x4_add"; };
+    if str_eq(name, "f32x4_sub") { return "__nucleor_f32x4_sub"; };
+    if str_eq(name, "f32x4_mul") { return "__nucleor_f32x4_mul"; };
+    if str_eq(name, "f32x4_div") { return "__nucleor_f32x4_div"; };
+    if str_eq(name, "f32x4_dot") { return "__nucleor_f32x4_dot"; };
+    if str_eq(name, "f32x4_sum") { return "__nucleor_f32x4_sum"; };
+    if str_eq(name, "f32x4_max") { return "__nucleor_f32x4_max"; };
+    if str_eq(name, "f32x4_min") { return "__nucleor_f32x4_min"; };
+    if str_eq(name, "f32x4_free") { return "__nucleor_f32x4_free"; };
+    if str_eq(name, "i32x4_new") { return "__nucleor_i32x4_new"; };
+    if str_eq(name, "i32x4_splat") { return "__nucleor_i32x4_splat"; };
+    if str_eq(name, "i32x4_get") { return "__nucleor_i32x4_get"; };
+    if str_eq(name, "i32x4_add") { return "__nucleor_i32x4_add"; };
+    if str_eq(name, "i32x4_sub") { return "__nucleor_i32x4_sub"; };
+    if str_eq(name, "i32x4_mul") { return "__nucleor_i32x4_mul"; };
+    if str_eq(name, "i32x4_sum") { return "__nucleor_i32x4_sum"; };
+    if str_eq(name, "i32x4_free") { return "__nucleor_i32x4_free"; };
+    // RFC-0017 partial: heap-allocated String type
+    if str_eq(name, "string_new") { return "__nucleor_string_new"; };
+    if str_eq(name, "string_with_capacity") { return "__nucleor_string_with_capacity"; };
+    if str_eq(name, "string_from_str") { return "__nucleor_string_from_str"; };
+    if str_eq(name, "string_push_byte") { return "__nucleor_string_push_byte"; };
+    if str_eq(name, "string_push_str") { return "__nucleor_string_push_str"; };
+    if str_eq(name, "string_len") { return "__nucleor_string_len"; };
+    if str_eq(name, "string_capacity") { return "__nucleor_string_capacity"; };
+    if str_eq(name, "string_get_byte") { return "__nucleor_string_get_byte"; };
+    if str_eq(name, "string_clear") { return "__nucleor_string_clear"; };
+    if str_eq(name, "string_as_ptr") { return "__nucleor_string_as_ptr"; };
+    if str_eq(name, "string_print") { return "__nucleor_string_print"; };
+    if str_eq(name, "string_eq") { return "__nucleor_string_eq"; };
+    if str_eq(name, "string_eq_str") { return "__nucleor_string_eq_str"; };
+    if str_eq(name, "string_starts_with") { return "__nucleor_string_starts_with"; };
+    if str_eq(name, "string_ends_with") { return "__nucleor_string_ends_with"; };
+    if str_eq(name, "string_contains") { return "__nucleor_string_contains"; };
+    if str_eq(name, "string_clone") { return "__nucleor_string_clone"; };
+    if str_eq(name, "string_free") { return "__nucleor_string_free"; };
+    // extended String surface
+    if str_eq(name, "string_is_empty") { return "__nucleor_string_is_empty"; };
+    if str_eq(name, "string_to_uppercase") { return "__nucleor_string_to_uppercase"; };
+    if str_eq(name, "string_to_lowercase") { return "__nucleor_string_to_lowercase"; };
+    if str_eq(name, "string_trim") { return "__nucleor_string_trim"; };
+    if str_eq(name, "string_trim_start") { return "__nucleor_string_trim_start"; };
+    if str_eq(name, "string_trim_end") { return "__nucleor_string_trim_end"; };
+    if str_eq(name, "string_find") { return "__nucleor_string_find"; };
+    if str_eq(name, "string_substring") { return "__nucleor_string_substring"; };
+    if str_eq(name, "string_char_at") { return "__nucleor_string_char_at"; };
+    if str_eq(name, "string_as_str") { return "__nucleor_string_as_str"; };
+    // RFC-0017 partial: HashMap<str, i64>
+    if str_eq(name, "hashmap_new") { return "__nucleor_hashmap_new"; };
+    if str_eq(name, "hashmap_with_capacity") { return "__nucleor_hashmap_with_capacity"; };
+    if str_eq(name, "hashmap_insert") { return "__nucleor_hashmap_insert"; };
+    if str_eq(name, "hashmap_get") { return "__nucleor_hashmap_get"; };
+    if str_eq(name, "hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    if str_eq(name, "hashmap_contains_key") { return "__nucleor_hashmap_contains_key"; };
+    if str_eq(name, "hashmap_remove") { return "__nucleor_hashmap_remove"; };
+    if str_eq(name, "hashmap_len") { return "__nucleor_hashmap_len"; };
+    if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
+    if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
+    if str_eq(name, "hashmap_free") { return "__nucleor_hashmap_free"; };
+    if str_eq(name, "hashmap_is_empty") { return "__nucleor_hashmap_is_empty"; };
+    if str_eq(name, "hashmap_get_or") { return "__nucleor_hashmap_get_or"; };
+    if str_eq(name, "hashmap_merge") { return "__nucleor_hashmap_merge"; };
+    if str_eq(name, "hashmap_clone") { return "__nucleor_hashmap_clone"; };
+    // Typed time
+    if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
+    if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
+    if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
+    // T3.1: runtime #[deadline] check helper.
+    if str_eq(name, "deadline_enter") { return "__nucleor_deadline_enter"; };
+    if str_eq(name, "deadline_exit") { return "__nucleor_deadline_exit"; };
+    if str_eq(name, "deadline_poll") { return "__nucleor_deadline_poll"; };
+    if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
+    if str_eq(name, "max_depth_enter") { return "__nucleor_max_depth_enter"; };
+    if str_eq(name, "max_depth_exit") { return "__nucleor_max_depth_exit"; };
+    if str_eq(name, "time_wall_ns") { return "__nucleor_time_wall_ns"; };
+    if str_eq(name, "time_wall_us") { return "__nucleor_time_wall_us"; };
+    if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
+    if str_eq(name, "time_wall_seconds") { return "__nucleor_time_wall_seconds"; };
+    if str_eq(name, "time_year") { return "__nucleor_time_year"; };
+    if str_eq(name, "time_month") { return "__nucleor_time_month"; };
+    if str_eq(name, "time_day") { return "__nucleor_time_day"; };
+    if str_eq(name, "time_hour") { return "__nucleor_time_hour"; };
+    if str_eq(name, "time_minute") { return "__nucleor_time_minute"; };
+    if str_eq(name, "time_second") { return "__nucleor_time_second"; };
+    if str_eq(name, "time_weekday") { return "__nucleor_time_weekday"; };
+    if str_eq(name, "time_day_of_year") { return "__nucleor_time_day_of_year"; };
+    if str_eq(name, "time_elapsed_ms") { return "__nucleor_time_elapsed_ms"; };
+    if str_eq(name, "sleep_ms") { return "__nucleor_sleep_ms"; };
+    if str_eq(name, "sleep_us") { return "__nucleor_sleep_us"; };
+    // Env
+    if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_get_or") { return "__nucleor_env_get_or"; };
+    if str_eq(name, "env_set") { return "__nucleor_env_set"; };
+    if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
+    if str_eq(name, "env_has") { return "__nucleor_env_has"; };
+    if str_eq(name, "env_keys") { return "__nucleor_env_keys"; };
+    // OS info
+    if str_eq(name, "process_id") { return "__nucleor_process_id"; };
+    if str_eq(name, "os_family") { return "__nucleor_os_family"; };
+    if str_eq(name, "os_pointer_width") { return "__nucleor_os_pointer_width"; };
+    // RFC-0017 phase 4: VecDeque + HashSet
+    if str_eq(name, "vecdeque_new") { return "__nucleor_vecdeque_new"; };
+    if str_eq(name, "vecdeque_with_capacity") { return "__nucleor_vecdeque_with_capacity"; };
+    if str_eq(name, "vecdeque_push_back") { return "__nucleor_vecdeque_push_back"; };
+    if str_eq(name, "vecdeque_push_front") { return "__nucleor_vecdeque_push_front"; };
+    if str_eq(name, "vecdeque_pop_front") { return "__nucleor_vecdeque_pop_front"; };
+    if str_eq(name, "vecdeque_pop_back") { return "__nucleor_vecdeque_pop_back"; };
+    if str_eq(name, "vecdeque_get") { return "__nucleor_vecdeque_get"; };
+    if str_eq(name, "vecdeque_set") { return "__nucleor_vecdeque_set"; };
+    if str_eq(name, "vecdeque_len") { return "__nucleor_vecdeque_len"; };
+    if str_eq(name, "vecdeque_capacity") { return "__nucleor_vecdeque_capacity"; };
+    if str_eq(name, "vecdeque_clear") { return "__nucleor_vecdeque_clear"; };
+    if str_eq(name, "vecdeque_free") { return "__nucleor_vecdeque_free"; };
+    if str_eq(name, "hashset_new") { return "__nucleor_hashset_new"; };
+    if str_eq(name, "hashset_with_capacity") { return "__nucleor_hashset_with_capacity"; };
+    if str_eq(name, "hashset_insert") { return "__nucleor_hashset_insert"; };
+    if str_eq(name, "hashset_contains") { return "__nucleor_hashset_contains"; };
+    if str_eq(name, "hashset_remove") { return "__nucleor_hashset_remove"; };
+    if str_eq(name, "hashset_len") { return "__nucleor_hashset_len"; };
+    if str_eq(name, "hashset_clear") { return "__nucleor_hashset_clear"; };
+    if str_eq(name, "hashset_free") { return "__nucleor_hashset_free"; };
+    // RFC-0017 phase 3: BTreeMap / BTreeSet (ordered collections)
+    if str_eq(name, "btreemap_new") { return "__nucleor_btreemap_new"; };
+    if str_eq(name, "btreemap_insert") { return "__nucleor_btreemap_insert"; };
+    if str_eq(name, "btreemap_get") { return "__nucleor_btreemap_get"; };
+    if str_eq(name, "btreemap_contains") { return "__nucleor_btreemap_contains"; };
+    if str_eq(name, "btreemap_contains_key") { return "__nucleor_btreemap_contains_key"; };
+    if str_eq(name, "btreemap_remove") { return "__nucleor_btreemap_remove"; };
+    if str_eq(name, "btreemap_len") { return "__nucleor_btreemap_len"; };
+    if str_eq(name, "btreemap_key_at") { return "__nucleor_btreemap_key_at"; };
+    if str_eq(name, "btreemap_val_at") { return "__nucleor_btreemap_val_at"; };
+    if str_eq(name, "btreemap_clear") { return "__nucleor_btreemap_clear"; };
+    if str_eq(name, "btreemap_free") { return "__nucleor_btreemap_free"; };
+    if str_eq(name, "btreeset_new") { return "__nucleor_btreeset_new"; };
+    if str_eq(name, "btreeset_insert") { return "__nucleor_btreeset_insert"; };
+    if str_eq(name, "btreeset_contains") { return "__nucleor_btreeset_contains"; };
+    if str_eq(name, "btreeset_remove") { return "__nucleor_btreeset_remove"; };
+    if str_eq(name, "btreeset_len") { return "__nucleor_btreeset_len"; };
+    if str_eq(name, "btreeset_at") { return "__nucleor_btreeset_at"; };
+    if str_eq(name, "btreeset_clear") { return "__nucleor_btreeset_clear"; };
+    if str_eq(name, "btreeset_free") { return "__nucleor_btreeset_free"; };
+    // RFC-0018/0019: File system primitives
+    if str_eq(name, "fs_exists") { return "__nucleor_fs_exists"; };
+    if str_eq(name, "fs_is_file") { return "__nucleor_fs_is_file"; };
+    if str_eq(name, "fs_is_dir") { return "__nucleor_fs_is_dir"; };
+    if str_eq(name, "fs_size") { return "__nucleor_fs_size"; };
+    if str_eq(name, "fs_mtime") { return "__nucleor_fs_mtime"; };
+    if str_eq(name, "fs_create_dir") { return "__nucleor_fs_create_dir"; };
+    if str_eq(name, "fs_create_dir_all") { return "__nucleor_fs_create_dir_all"; };
+    if str_eq(name, "fs_remove_file") { return "__nucleor_fs_remove_file"; };
+    if str_eq(name, "fs_rename") { return "__nucleor_fs_rename"; };
+    if str_eq(name, "fs_list_dir") { return "__nucleor_fs_list_dir"; };
+    if str_eq(name, "fs_join") { return "__nucleor_fs_join"; };
+    if str_eq(name, "fs_basename") { return "__nucleor_fs_basename"; };
+    if str_eq(name, "fs_dirname") { return "__nucleor_fs_dirname"; };
+    if str_eq(name, "fs_extension") { return "__nucleor_fs_extension"; };
+    if str_eq(name, "fs_temp_dir") { return "__nucleor_fs_temp_dir"; };
+    if str_eq(name, "fs_current_dir") { return "__nucleor_fs_current_dir"; };
+    if str_eq(name, "fs_remove_dir") { return "__nucleor_fs_remove_dir"; };
+    if str_eq(name, "fs_copy_file") { return "__nucleor_fs_copy_file"; };
+    if str_eq(name, "fs_canonicalize") { return "__nucleor_fs_canonicalize"; };
+    if str_eq(name, "path_separator") { return "__nucleor_path_separator"; };
+    if str_eq(name, "path_is_absolute") { return "__nucleor_path_is_absolute"; };
+    if str_eq(name, "path_normalize") { return "__nucleor_path_normalize"; };
+    if str_eq(name, "path_with_extension") { return "__nucleor_path_with_extension"; };
+    if str_eq(name, "path_strip_extension") { return "__nucleor_path_strip_extension"; };
+    if str_eq(name, "path_components") { return "__nucleor_path_components"; };
+    // RFC-0019 phase 1: TOML parser
+    if str_eq(name, "toml_parse_string") { return "__nucleor_toml_parse_string"; };
+    if str_eq(name, "toml_parse_file") { return "__nucleor_toml_parse_file"; };
+    if str_eq(name, "toml_get_str") { return "__nucleor_toml_get_str"; };
+    if str_eq(name, "toml_get_int") { return "__nucleor_toml_get_int"; };
+    if str_eq(name, "toml_has") { return "__nucleor_toml_has"; };
+    // RFC-0019 phase 1: manifest validation
+    if str_eq(name, "manifest_validate") { return "__nucleor_manifest_validate"; };
+    if str_eq(name, "manifest_report") { return "__nucleor_manifest_report"; };
+    // Decisions §B5: byte-buffer + endian helpers + MessagePack subset
+    if str_eq(name, "buf_write_u8") { return "__nucleor_buf_write_u8"; };
+    if str_eq(name, "buf_write_u16_le") { return "__nucleor_buf_write_u16_le"; };
+    if str_eq(name, "buf_write_u16_be") { return "__nucleor_buf_write_u16_be"; };
+    if str_eq(name, "buf_write_u32_le") { return "__nucleor_buf_write_u32_le"; };
+    if str_eq(name, "buf_write_u32_be") { return "__nucleor_buf_write_u32_be"; };
+    if str_eq(name, "buf_write_u64_le") { return "__nucleor_buf_write_u64_le"; };
+    if str_eq(name, "buf_write_u64_be") { return "__nucleor_buf_write_u64_be"; };
+    if str_eq(name, "buf_read_u8") { return "__nucleor_buf_read_u8"; };
+    if str_eq(name, "buf_read_u16_le") { return "__nucleor_buf_read_u16_le"; };
+    if str_eq(name, "buf_read_u16_be") { return "__nucleor_buf_read_u16_be"; };
+    if str_eq(name, "buf_read_u32_le") { return "__nucleor_buf_read_u32_le"; };
+    if str_eq(name, "buf_read_u32_be") { return "__nucleor_buf_read_u32_be"; };
+    if str_eq(name, "buf_read_u64_le") { return "__nucleor_buf_read_u64_le"; };
+    if str_eq(name, "buf_read_u64_be") { return "__nucleor_buf_read_u64_be"; };
+    if str_eq(name, "msgpack_write_nil") { return "__nucleor_msgpack_write_nil"; };
+    if str_eq(name, "msgpack_write_bool") { return "__nucleor_msgpack_write_bool"; };
+    if str_eq(name, "msgpack_write_uint") { return "__nucleor_msgpack_write_uint"; };
+    if str_eq(name, "msgpack_write_str") { return "__nucleor_msgpack_write_str"; };
+    // Hash + checksum
+    if str_eq(name, "crc32") { return "__nucleor_crc32"; };
+    if str_eq(name, "crc32_update") { return "__nucleor_crc32_update"; };
+    if str_eq(name, "sha256_hex") { return "__nucleor_sha256_hex"; };
+    // Base64
+    if str_eq(name, "base64_encode") { return "__nucleor_base64_encode"; };
+    if str_eq(name, "base64_decode") { return "__nucleor_base64_decode"; };
+    // UUID
+    if str_eq(name, "uuid_v4") { return "__nucleor_uuid_v4"; };
+    // RFC-0007 partial: AtomicI64
+    if str_eq(name, "atomic_i64_new") { return "__nucleor_atomic_i64_new"; };
+    if str_eq(name, "atomic_i64_free") { return "__nucleor_atomic_i64_free"; };
+    if str_eq(name, "atomic_i64_load") { return "__nucleor_atomic_i64_load"; };
+    if str_eq(name, "atomic_i64_store") { return "__nucleor_atomic_i64_store"; };
+    if str_eq(name, "atomic_i64_fetch_add") { return "__nucleor_atomic_i64_fetch_add"; };
+    if str_eq(name, "atomic_i64_fetch_sub") { return "__nucleor_atomic_i64_fetch_sub"; };
+    if str_eq(name, "atomic_i64_fetch_and") { return "__nucleor_atomic_i64_fetch_and"; };
+    if str_eq(name, "atomic_i64_fetch_or") { return "__nucleor_atomic_i64_fetch_or"; };
+    if str_eq(name, "atomic_i64_fetch_xor") { return "__nucleor_atomic_i64_fetch_xor"; };
+    if str_eq(name, "atomic_i64_swap") { return "__nucleor_atomic_i64_swap"; };
+    if str_eq(name, "atomic_i64_cas") { return "__nucleor_atomic_i64_cas"; };
+    // Bit-twiddling
+    if str_eq(name, "popcount") { return "__nucleor_popcount"; };
+    if str_eq(name, "leading_zeros") { return "__nucleor_leading_zeros"; };
+    if str_eq(name, "trailing_zeros") { return "__nucleor_trailing_zeros"; };
+    if str_eq(name, "byte_swap") { return "__nucleor_byte_swap"; };
+    if str_eq(name, "rotate_left") { return "__nucleor_rotate_left"; };
+    if str_eq(name, "rotate_right") { return "__nucleor_rotate_right"; };
+    if str_eq(name, "count_ones") { return "__nucleor_count_ones"; };
+    if str_eq(name, "count_zeros") { return "__nucleor_count_zeros"; };
+    // Math primitives — i64 helpers
+    if str_eq(name, "i64_abs") { return "__nucleor_i64_abs"; };
+    if str_eq(name, "i64_min") { return "__nucleor_i64_min"; };
+    if str_eq(name, "i64_max") { return "__nucleor_i64_max"; };
+    if str_eq(name, "i64_clamp") { return "__nucleor_i64_clamp"; };
+    if str_eq(name, "i64_sign") { return "__nucleor_i64_sign"; };
+    if str_eq(name, "i64_pow") { return "__nucleor_i64_pow"; };
+    if str_eq(name, "i64_isqrt") { return "__nucleor_i64_isqrt"; };
+    if str_eq(name, "i64_gcd") { return "__nucleor_i64_gcd"; };
+    if str_eq(name, "i64_lcm") { return "__nucleor_i64_lcm"; };
+    // Math primitives — f64 transcendentals
+    if str_eq(name, "f64_sin") { return "__nucleor_f64_sin"; };
+    if str_eq(name, "f64_cos") { return "__nucleor_f64_cos"; };
+    if str_eq(name, "f64_tan") { return "__nucleor_f64_tan"; };
+    if str_eq(name, "f64_asin") { return "__nucleor_f64_asin"; };
+    if str_eq(name, "f64_acos") { return "__nucleor_f64_acos"; };
+    if str_eq(name, "f64_atan") { return "__nucleor_f64_atan"; };
+    if str_eq(name, "f64_atan2") { return "__nucleor_f64_atan2"; };
+    if str_eq(name, "f64_sinh") { return "__nucleor_f64_sinh"; };
+    if str_eq(name, "f64_cosh") { return "__nucleor_f64_cosh"; };
+    if str_eq(name, "f64_tanh") { return "__nucleor_f64_tanh"; };
+    if str_eq(name, "f64_exp") { return "__nucleor_f64_exp"; };
+    // NUC-IMPROVE-007 special functions for SciPy stats parity
+    if str_eq(name, "f64_erf") { return "__nucleor_f64_erf"; };
+    if str_eq(name, "f64_erfc") { return "__nucleor_f64_erfc"; };
+    if str_eq(name, "f64_lgamma") { return "__nucleor_f64_lgamma"; };
+    if str_eq(name, "f64_tgamma") { return "__nucleor_f64_tgamma"; };
+    if str_eq(name, "f64_betainc") { return "__nucleor_f64_betainc"; };
+    if str_eq(name, "f64_student_t_sf2") { return "__nucleor_f64_student_t_sf2"; };
+    if str_eq(name, "f64_norm_cdf") { return "__nucleor_f64_norm_cdf"; };
+    if str_eq(name, "f64_norm_sf") { return "__nucleor_f64_norm_sf"; };
+    if str_eq(name, "f64_exp2") { return "__nucleor_f64_exp2"; };
+    if str_eq(name, "f64_log") { return "__nucleor_f64_log"; };
+    if str_eq(name, "f64_log2") { return "__nucleor_f64_log2"; };
+    if str_eq(name, "f64_log10") { return "__nucleor_f64_log10"; };
+    if str_eq(name, "f64_pow_v") { return "__nucleor_f64_pow_v"; };
+    if str_eq(name, "f64_floor") { return "__nucleor_f64_floor"; };
+    if str_eq(name, "f64_ceil") { return "__nucleor_f64_ceil"; };
+    if str_eq(name, "f64_round") { return "__nucleor_f64_round"; };
+    if str_eq(name, "f64_trunc") { return "__nucleor_f64_trunc"; };
+    if str_eq(name, "f64_fmod") { return "__nucleor_f64_fmod"; };
+    if str_eq(name, "f64_hypot") { return "__nucleor_f64_hypot"; };
+    if str_eq(name, "f64_clamp") { return "__nucleor_f64_clamp"; };
+    if str_eq(name, "f64_abs") { return "__nucleor_f64_abs"; };
+    if str_eq(name, "f64_min") { return "__nucleor_f64_min"; };
+    if str_eq(name, "f64_max") { return "__nucleor_f64_max"; };
+    if str_eq(name, "f64_sign") { return "__nucleor_f64_sign"; };
+    if str_eq(name, "f64_copy_sign") { return "__nucleor_f64_copy_sign"; };
+    if str_eq(name, "f64_lerp") { return "__nucleor_f64_lerp"; };
+    if str_eq(name, "f64_is_nan") { return "__nucleor_f64_is_nan"; };
+    if str_eq(name, "f64_is_inf") { return "__nucleor_f64_is_inf"; };
+    if str_eq(name, "f64_is_finite") { return "__nucleor_f64_is_finite"; };
+    if str_eq(name, "f64_pi") { return "__nucleor_f64_pi"; };
+    if str_eq(name, "f64_tau") { return "__nucleor_f64_tau"; };
+    if str_eq(name, "f64_e") { return "__nucleor_f64_e"; };
+    if str_eq(name, "f64_sqrt2") { return "__nucleor_f64_sqrt2"; };
+    if str_eq(name, "f64_ln2") { return "__nucleor_f64_ln2"; };
+    if str_eq(name, "f64_ln10") { return "__nucleor_f64_ln10"; };
+    if str_eq(name, "f64_deg_to_rad") { return "__nucleor_f64_deg_to_rad"; };
+    if str_eq(name, "f64_rad_to_deg") { return "__nucleor_f64_rad_to_deg"; };
+    // V2: parallelism runtime
+    if str_eq(name, "par_map") { return "__nucleor_par_map"; };
+    if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
+    if str_eq(name, "par_reduce") { return "__nucleor_par_reduce"; };
+    // V2: region/arena
+    if str_eq(name, "region_new") { return "__nucleor_region_new"; };
+    if str_eq(name, "region_alloc") { return "__nucleor_region_alloc"; };
+    if str_eq(name, "region_free") { return "__nucleor_region_free"; };
+    if str_eq(name, "region_reset") { return "__nucleor_region_reset"; };
+    // HashMap
+    if str_eq(name, "__nucleor_hashmap_new") { return "__nucleor_hashmap_new"; };
+    if str_eq(name, "__nucleor_hashmap_insert") { return "__nucleor_hashmap_insert"; };
+    if str_eq(name, "__nucleor_hashmap_get") { return "__nucleor_hashmap_get"; };
+    if str_eq(name, "__nucleor_hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    // v0.3.236 Phase A — sym-aux side hashmap helpers (hash-backed
+    // sym_get refactor). Mappings ship in Phase A so that Phase B
+    // source migration can be compiled by a Phase-A binary.
+    if str_eq(name, "__nucleor_sym_aux_get") { return "__nucleor_sym_aux_get"; };
+    if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
+    if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
+    if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
+    // v0.4.10 Phase A — compile-source side table for deep helpers
+    if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
+    if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
+    if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
+    // Lane 4 / F-002: parse-depth side table for recursion guard.
+    if str_eq(name, "__nucleor_parse_depth_inc") { return "__nucleor_parse_depth_inc"; };
+    if str_eq(name, "__nucleor_parse_depth_dec") { return "__nucleor_parse_depth_dec"; };
+    if str_eq(name, "__nucleor_parse_depth_get") { return "__nucleor_parse_depth_get"; };
+    if str_eq(name, "__nucleor_parse_depth_reset") { return "__nucleor_parse_depth_reset"; };
+    // C-side preflight bare-CR scan (replaces 7 s pure-
+    // Nucleor str_char_at loop).
+    if str_eq(name, "__nucleor_source_bare_cr_offset") { return "__nucleor_source_bare_cr_offset"; };
+    // generic str-keyed source-cache for new scanners
+    if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
+    if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
+    if str_eq(name, "__nucleor_str_cache_put_miss") { return "__nucleor_str_cache_put_miss"; };
+    if str_eq(name, "__nucleor_str_cache_is_miss_marker") { return "__nucleor_str_cache_is_miss_marker"; };
+    return "";
+}
+#[manual_drop]
+fn is_void_ret(name: str) -> i64 {
+    if str_eq(name, "print") { return 1; };
+    if str_eq(name, "str_free") { return 1; };
+    if str_eq(name, "str_arena_free") { return 1; };
+    if str_eq(name, "print_raw") { return 1; };
+    if str_eq(name, "eprint_raw") { return 1; };
+    if str_eq(name, "file_write_string") { return 1; };
+    if str_eq(name, "sb_append") { return 1; };
+    if str_eq(name, "sb_append_char") { return 1; };
+    if str_eq(name, "sb_append_char_at") { return 1; };
+    if str_eq(name, "sb_append_range") { return 1; };
+    if str_eq(name, "sb_new_with_cap") { return 0; };
+    if str_eq(name, "vec_push") { return 1; };
+    if str_eq(name, "vec_pop") { return 1; };
+    if str_eq(name, "vec_free") { return 1; };
+    if str_eq(name, "vec_set") { return 1; };
+    if str_eq(name, "vec_swap") { return 1; };
+    if str_eq(name, "vec_extend") { return 1; };
+    if str_eq(name, "vec_remove_at") { return 1; };
+    if str_eq(name, "vec_insert_at") { return 1; };
+    // Option/Result helpers all return i64 — NOT in is_void_ret.
+    // (Their existence-table entries are below in the runtime-helper-
+    // exists fn around line 4196; this table is for void-returning fns.)
+    if str_eq(name, "vec_shuffle") { return 1; };
+    if str_eq(name, "random_fill") { return 1; };
+    if str_eq(name, "print_bool") { return 1; };
+    if str_eq(name, "print_f64") { return 1; };
+    if str_eq(name, "__nucleor_tensor_set") { return 1; };
+    if str_eq(name, "file_append_string") { return 1; };
+    if str_eq(name, "sb_free") { return 1; };
+    if str_eq(name, "pipe_write") { return 1; };
+    if str_eq(name, "pipe_close") { return 1; };
+    if str_eq(name, "thread_join") { return 1; };
+    if str_eq(name, "mutex_unlock") { return 1; };
+    if str_eq(name, "channel_send") { return 1; };
+    if str_eq(name, "chan_send") { return 1; };
+    if str_eq(name, "cancel_token_cancel") { return 1; };
+    if str_eq(name, "rwlock_unlock") { return 1; };
+    if str_eq(name, "vec_shuffle") { return 1; };
+    if str_eq(name, "random_fill") { return 1; };
+    return 0;
+}
+#[manual_drop]
+fn is_ptr_ret(name: str) -> i64 {
+    // vec_chain_i64 returns NVec*.
+    if str_eq(name, "vec_chain_i64") { return 1; };
+    // vec_step_by_i64 returns NVec* (new vec).
+    if str_eq(name, "vec_step_by_i64") { return 1; };
+    // Option/Result helpers that return NVec* (ptr).
+    if str_eq(name, "option_map") { return 1; };
+    if str_eq(name, "option_and_then") { return 1; };
+    if str_eq(name, "result_map") { return 1; };
+    if str_eq(name, "result_and_then") { return 1; };
+    if str_eq(name, "result_or_else") { return 1; };
+    if str_eq(name, "str_concat") { return 1; };
+    if str_eq(name, "str_intern") { return 1; };
+    if str_eq(name, "str_arena_concat") { return 1; };
+    if str_eq(name, "str_arena_substring") { return 1; };
+    if str_eq(name, "str_substring") { return 1; };
+    if str_eq(name, "file_read_string") { return 1; };
+    if str_eq(name, "file_read_string_or_panic") { return 1; };
+    if str_eq(name, "sb_to_str") { return 1; };
+    if str_eq(name, "vec_new") { return 1; };
+    if str_eq(name, "vec_with_capacity") { return 1; };
+    if str_eq(name, "args_get") { return 1; };
+    if str_eq(name, "read_line") { return 1; };
+    if str_eq(name, "format_i64") { return 1; };
+    if str_eq(name, "int_to_str") { return 1; };
+    // recursive Debug formatters return ptr (heap str).
+    if str_eq(name, "vec_to_debug_str_i64") { return 1; };
+    if str_eq(name, "vec_to_debug_str_str") { return 1; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return 1; };
+    if str_eq(name, "option_to_debug_str_i64") { return 1; };
+    if str_eq(name, "result_to_debug_str_i64") { return 1; };
+    if str_eq(name, "str_from_int") { return 1; };
+    if str_eq(name, "f64_to_str") { return 1; };
+    if str_eq(name, "f32_to_str") { return 1; };
+    if str_eq(name, "f64_to_str_prec") { return 1; };
+    if str_eq(name, "f32_to_str_prec") { return 1; };
+    if str_eq(name, "f16_to_str") { return 1; };
+    if str_eq(name, "bf16_to_str") { return 1; };
+    if str_eq(name, "f8e4m3_to_str") { return 1; };
+    if str_eq(name, "f8e5m2_to_str") { return 1; };
+    if str_eq(name, "bool_to_str") { return 1; };
+    if str_eq(name, "int_to_hex") { return 1; };
+    if str_eq(name, "int_to_bin") { return 1; };
+    if str_eq(name, "int_to_oct") { return 1; };
+    // v0.4.30 force-sign helper returns ptr (str)
+    if str_eq(name, "int_to_str_force_sign") { return 1; };
+    if str_eq(name, "int_to_hex_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci") { return 1; };
+    if str_eq(name, "f64_to_str_sci_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return 1; };
+    if str_eq(name, "str_pad_left") { return 1; };
+    if str_eq(name, "str_pad_right") { return 1; };
+    if str_eq(name, "str_center") { return 1; };
+    if str_eq(name, "str_join") { return 1; };
+    if str_eq(name, "str_lines") { return 1; };
+    if str_eq(name, "str_chars") { return 1; };
+    if str_eq(name, "format_str") { return 1; };
+    if str_eq(name, "format_hex") { return 1; };
+    if str_eq(name, "format2_ii") { return 1; };
+    if str_eq(name, "format2_si") { return 1; };
+    if str_eq(name, "format2_ss") { return 1; };
+    if str_eq(name, "format2_is") { return 1; };
+    if str_eq(name, "format2_ff") { return 1; };
+    if str_eq(name, "format2_fi") { return 1; };
+    if str_eq(name, "format2_if") { return 1; };
+    if str_eq(name, "format3_fff") { return 1; };
+    if str_eq(name, "format_f64") { return 1; };
+    if str_eq(name, "format_bool") { return 1; };
+    if str_eq(name, "format3_iii") { return 1; };
+    if str_eq(name, "format3_sii") { return 1; };
+    if str_eq(name, "format3_iss") { return 1; };
+    if str_eq(name, "format3_sss") { return 1; };
+    if str_eq(name, "format3_ssi") { return 1; };
+    if str_eq(name, "format3_sis") { return 1; };
+    if str_eq(name, "format3_iis") { return 1; };
+    if str_eq(name, "format3_isi") { return 1; };
+    if str_eq(name, "format3_iif") { return 1; };
+    if str_eq(name, "format3_iff") { return 1; };
+    if str_eq(name, "format3_sff") { return 1; };
+    if str_eq(name, "format3_ssf") { return 1; };
+    if str_eq(name, "format3_sif") { return 1; };
+    if str_eq(name, "format3_isf") { return 1; };
+    if str_eq(name, "dyn_box_make") { return 1; };
+    if str_eq(name, "dyn_box_type") { return 1; };
+    if str_eq(name, "dyn_box_data") { return 1; };
+    if str_eq(name, "dyn_box_free") { return 1; };
+    if str_eq(name, "vec_iter_i64") { return 1; };
+    if str_eq(name, "vec_collect_i64") { return 1; };
+    if str_eq(name, "vec_count_i64") { return 0; };
+    if str_eq(name, "vec_take_i64") { return 1; };
+    if str_eq(name, "vec_chain_i64") { return 1; };
+    // extended iter — only step_by returns ptr; rest are i64.
+    if str_eq(name, "vec_step_by_i64") { return 1; };
+    if str_eq(name, "vec_position_i64") { return 0; };
+    if str_eq(name, "vec_product_i64") { return 0; };
+    if str_eq(name, "vec_nth_i64") { return 0; };
+    if str_eq(name, "vec_reduce_i64") { return 0; };
+    if str_eq(name, "vec_skip_i64") { return 1; };
+    if str_eq(name, "vec_map_i64") { return 1; };
+    if str_eq(name, "vec_filter_i64") { return 1; };
+    if str_eq(name, "vec_reverse_i64") { return 1; };
+    if str_eq(name, "vec_sort_i64") { return 1; };
+    if str_eq(name, "vec_clone_i64") { return 1; };
+    if str_eq(name, "str_to_lower") { return 1; };
+    if str_eq(name, "str_to_upper") { return 1; };
+    if str_eq(name, "str_trim") { return 1; };
+    if str_eq(name, "str_trim_start") { return 1; };
+    if str_eq(name, "str_trim_end") { return 1; };
+    if str_eq(name, "str_replace") { return 1; };
+    if str_eq(name, "str_repeat") { return 1; };
+    if str_eq(name, "str_split") { return 1; };
+    if str_eq(name, "str_reverse") { return 1; };
+    if str_eq(name, "env_keys") { return 1; };
+    if str_eq(name, "sha256") { return 1; };
+    if str_eq(name, "py_eval") { return 1; };
+    if str_eq(name, "chr") { return 1; };
+    if str_eq(name, "getcwd") { return 1; };
+    if str_eq(name, "getenv") { return 1; };
+    if str_eq(name, "fs_join") { return 1; };
+    if str_eq(name, "fs_basename") { return 1; };
+    if str_eq(name, "fs_dirname") { return 1; };
+    if str_eq(name, "fs_extension") { return 1; };
+    if str_eq(name, "fs_temp_dir") { return 1; };
+    if str_eq(name, "fs_current_dir") { return 1; };
+    if str_eq(name, "fs_canonicalize") { return 1; };
+    if str_eq(name, "path_separator") { return 1; };
+    if str_eq(name, "path_normalize") { return 1; };
+    if str_eq(name, "path_with_extension") { return 1; };
+    if str_eq(name, "path_strip_extension") { return 1; };
+    if str_eq(name, "path_components") { return 1; };
+    if str_eq(name, "manifest_report") { return 1; };
+    if str_eq(name, "sha256_hex") { return 1; };
+    if str_eq(name, "base64_encode") { return 1; };
+    if str_eq(name, "base64_decode") { return 1; };
+    if str_eq(name, "uuid_v4") { return 1; };
+    if str_eq(name, "hashmap_keys") { return 1; };
+    if str_eq(name, "hashmap_values") { return 1; };
+    if str_eq(name, "time_iso_now") { return 1; };
+    if str_eq(name, "time_format_iso") { return 1; };
+    return 0;
+}
+#[manual_drop]
+fn is_ptr_arg(name: str, idx: i64) -> i64 {
+    if str_eq(name, "print") { return 1; };
+    if str_eq(name, "print_raw") { return 1; };
+    if str_eq(name, "eprint_raw") { return 1; };
+    if str_eq(name, "panic") { return 1; };
+    if str_eq(name, "dbg_str") { return 1; };
+    if str_eq(name, "eprint") { return 1; };
+    if str_eq(name, "fnv1a_64_str") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "string_from_str") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "string_push_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "string_eq_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "string_starts_with") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "string_ends_with") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "string_contains") { if idx == 1 { return 1; }; return 0; };
+    // extended String surface — find takes a needle ptr at idx 1.
+    if str_eq(name, "string_find") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_get") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_get_or") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { return 1; };
+    if str_eq(name, "env_set") { return 1; };
+    if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "hashset_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashset_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashset_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreemap_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreemap_get") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreemap_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreemap_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreeset_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreeset_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "btreeset_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "fs_exists") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_is_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_is_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_size") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_mtime") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_create_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_create_dir_all") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_remove_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_rename") { return 1; };
+    if str_eq(name, "fs_list_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_join") { return 1; };
+    if str_eq(name, "fs_basename") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_dirname") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_extension") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_remove_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_copy_file") { return 1; };
+    if str_eq(name, "fs_canonicalize") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "path_is_absolute") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "path_normalize") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "path_with_extension") { return 1; };
+    if str_eq(name, "path_strip_extension") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "path_components") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_parse_string") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_parse_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_get_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "toml_get_int") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "toml_has") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "msgpack_write_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "crc32") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "crc32_update") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sha256_hex") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "base64_encode") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "base64_decode") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_eq") { return 1; };
+    if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_char_at_strict") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_substring") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_concat") { return 1; };
+    if str_eq(name, "str_intern") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_free") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_arena_concat") { if idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "str_arena_substring") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "file_read_string") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "file_read_string_or_panic") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "file_write_string") { return 1; };
+    if str_eq(name, "file_bytes_equal") { return 1; };
+    if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_append_char") { return 0; };
+    if str_eq(name, "sb_append_char_at") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_append_range") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_new_with_cap") { return 0; };
+    if str_eq(name, "vec_push") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_len") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_pop") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_free") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_set") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_first") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_last") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_is_empty") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_swap") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_extend") { return 1; };
+    if str_eq(name, "vec_remove_at") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_insert_at") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "random_choice") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_shuffle") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_sample") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "random_fill") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_mean_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_median_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_variance_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_stddev_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_range_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_percentile_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "file_append_string") { return 1; };
+    if str_eq(name, "pipe_create") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "pipe_write") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sha256") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "profile_start") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "profile_end") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "py_eval") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "getenv") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_int") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_int_strict") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_bool") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_i64_radix") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "parse_hex") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "parse_bin") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_pad_left") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_pad_right") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_center") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_join") { return 1; };
+    if str_eq(name, "str_lines") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_chars") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format_str") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format_hex") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_ii") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_si") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format2_ss") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format2_is") { if idx == 0 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format2_ff") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_fi") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_if") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_fff") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_iter_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_collect_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_count_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_take_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_chain_i64") { if idx == 0 { return 1; }; if idx == 1 { return 1; }; return 0; };
+    // extended iter — Vec arg is at idx 0 for all five.
+    if str_eq(name, "vec_position_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_product_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_step_by_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_nth_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_reduce_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_skip_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_fold_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_each_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_sum_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_min_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_max_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_contains_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_index_of_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_reverse_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_sort_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_clone_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_clear_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_sum_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_min_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_max_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_lower") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_upper") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_start") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_end") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_is_empty") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_count") { return 1; };
+    if str_eq(name, "str_reverse") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_starts_with") { return 1; };
+    if str_eq(name, "str_ends_with") { return 1; };
+    if str_eq(name, "str_index_of") { return 1; };
+    if str_eq(name, "str_contains") { return 1; };
+    if str_eq(name, "str_replace") { return 1; };
+    if str_eq(name, "str_repeat") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_split") { return 1; };
+    if str_eq(name, "env_has") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format_bool") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_iii") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_sii") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format3_iss") { if idx == 0 || idx == 2 || idx == 3 { return 1; }; return 0; };
+    if str_eq(name, "format3_sss") { if idx == 0 || idx == 1 || idx == 2 || idx == 3 { return 1; }; return 0; };
+    if str_eq(name, "format3_ssi") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format3_sis") { if idx == 0 || idx == 1 || idx == 3 { return 1; }; return 0; };
+    if str_eq(name, "format3_iis") { if idx == 0 || idx == 3 { return 1; }; return 0; };
+    if str_eq(name, "format3_isi") { if idx == 0 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format3_iif") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_iff") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_sff") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format3_ssf") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format3_sif") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format3_isf") { if idx == 0 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "vec_avg_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_dot_i64") { return 1; };
+    if str_eq(name, "vec_count_eq_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_any_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_all_i64") { if idx == 0 { return 1; }; return 0; };
+    return 0;
+}
+
+#[manual_drop]
+fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let ds: str = str_from_int(d);
+    // inline str_char_at as GEP+load to eliminate the
+    // function-call overhead. Cold self-host compile makes 1.6 BILLION
+    // str_char_at calls; each runtime call adds ~3-5ns of linkage on top
+    // of the actual byte load. Inlining drops to 4 IR instructions = ~1ns
+    // each. Net: cold self-host 8.33s -> 4.82s (-42%, sub-5s achieved).
+    // Trade-off: NULL str now segfaults instead of returning 0. Compiler
+    // internal callers all source `s` from non-null strings; adopters who
+    // rely on the null-returns-0 behavior should null-check before calling.
+    if str_eq(name, "str_char_at") == 1 && argc == 2 {
+        let s_reg: str = str_from_int(vec_get(args, 0));
+        let i_reg: str = str_from_int(vec_get(args, 1));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.ptr = inttoptr i64 %r.");
+        sb_append(sb, s_reg); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.gep = getelementptr i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.ptr, i64 %r."); sb_append(sb, i_reg); sb_append(sb, "\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.byte = load i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.gep\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = zext i8 %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.byte to i64\n");
+        return 0;
+    };
+    // Step 1: inttoptr for ptr args
+    let mut ai: i64 = 0;
+    while ai < argc {
+        if is_ptr_arg(name, ai) == 1 {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, str_from_int(ai));
+            sb_append(sb, " = inttoptr i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); sb_append(sb, " to ptr\n");
+        };
+        ai = ai + 1;
+    };
+    // Step 2: emit call with correct return type
+    let vr: i64 = is_void_ret(name);
+    let pret: i64 = is_ptr_ret(name);
+    if vr == 1 {
+        sb_append(sb, "  call void @"); sb_append(sb, rn); sb_append(sb, "(");
+    } else if pret == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".rv = call ptr @"); sb_append(sb, rn); sb_append(sb, "(");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = call i64 @"); sb_append(sb, rn); sb_append(sb, "(");
+    };
+    // Step 3: emit args with correct types
+    ai = 0;
+    while ai < argc {
+        if ai > 0 { sb_append(sb, ", "); };
+        if is_ptr_arg(name, ai) == 1 {
+            sb_append(sb, "ptr %r."); sb_append(sb, ds); sb_append(sb, ".a"); sb_append(sb, str_from_int(ai));
+        } else {
+            sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai)));
+        };
+        ai = ai + 1;
+    };
+    sb_append(sb, ")\n");
+    // Step 4: handle return conversion
+    if vr == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    } else if pret == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = ptrtoint ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".rv to i64\n");
+    };
+    return 0;
+}
+

@@ -256,7 +256,28 @@ fn main() -> i64 {
     let tools_path: str = "compiler/nucleor_tools_suite.nr";
     let out_path: str = "tools/audit_dup_fns_report.csv";
 
-    let s1_src: str = file_read_string(s1_path);
+    // Compose the s1 source: main file plus every extracted module in
+    // compiler/s1/*.nr. The compiler uses `import` to inline these at
+    // compile time; the audit walks them explicitly so its fn count
+    // continues to reflect the real s1 surface after the file split.
+    let s1_main: str = file_read_string(s1_path);
+    let s1_src: str = str_concat(
+        s1_main, str_concat("\n",
+        str_concat(file_read_string("compiler/s1/ir.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/lex.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/parse.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/optim.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/builtins.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/emit.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/lower.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/diag.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/check_eff.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/check_own.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/check_type.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/cache.nr"), str_concat("\n",
+        str_concat(file_read_string("compiler/s1/modules.nr"), str_concat("\n",
+        file_read_string("compiler/s1/cli.nr")
+        ))))))))))))))))))))))))))));
     let tools_src: str = file_read_string(tools_path);
     if str_len(s1_src) == 0 || str_len(tools_src) == 0 {
         print("ERROR: audit_dup_fns: cannot read one or both compiler files");
