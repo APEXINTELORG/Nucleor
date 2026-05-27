@@ -630,28 +630,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     } else {
         resolved = resolve_source_with_records_active(raw_source, extract_dir(src_path), imported, module_records, active_paths_seed);
     };
-    // v0.7.88 (defensive halt — Rust compile_error ! macro invocation).
-    // Pre-fix the macro-call shape compile_error ! (...) was
-    // silently dropped by the parser (Nucleor's `!`-after-ident
-    // handling treats it as a logical-not on the args, which
-    // then gets DCE'd as a discarded value), so adopters writing
-    // compile_error ! ("required feature missing") got a
-    // successful build instead of the explicit compile-time
-    // failure they wrote to force. Detect the literal
-    // compile_error+!( byte sequence in the resolved source
-    // and halt cleanly (the macro is now honored as the canonical
-    // build-failure trigger).
-    // skip when compiling the compiler itself (self-host
-    // fixed-point path). The compiler source contains the search
-    // pattern in string literals and comments; the textual pre-pass
-    // would fire on self-compilation — a Linux-bootstrap false-positive.
-    // str_concat avoids the literal pattern appearing in source text
-    // so the search string is constructed at runtime.
-    // RFC-0063 Phase 2.0.3 prep: also exempt
-    // nucleor_tools_suite.nr — same rationale (compiler source contains
-    // the pattern in error-message strings) and the parser-unification
-    // ship needs tools_suite to be able to `import "...nucleor_s1_compiler.nr"`
-    // without the detector tripping on s1's strings.
     let ce_halt: str = str_concat("compile_error", "!(");
     if is_compiler_src == 0 {
         if str_contains(resolved, ce_halt) == 1 {
@@ -685,14 +663,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // scanning and printing the compiler's own multi-megabyte source
     // during self-host/perf gates.
     if is_compiler_src == 0 {
-    // v0.8.5 (RFC-0045 Phase B step-1) — `@differentiable` audit.
-    // The lex-time `@`-attribute skip (line ~247) already accepts
-    // the attribute silently. Phase B-step-1 adds a build-time
-    // count + one-line audit print so adopters get the
-    // "Discovery: no way to grep for all differentiable fns in
-    // a codebase" surface that v0.7.93 Phase A's runtime
-    // registry was paired with. Phase B-step-2 (deferred) does
-    // the symbol-alias emit for autodiff dispatch.
     let v085_diff_count: i64 = differentiable_audit_count(after_async);
     if v085_diff_count > 0 {
         print(str_concat("audit: @differentiable fns in build: ", str_from_int(v085_diff_count)));
@@ -702,13 +672,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   differentiable fns: ", v0815_diff_names));
         };
     };
-    // v0.8.6 (RFC-0050 Phase B step-1) — `@energy(max=...)` and
-    // `@thermal(max_temp=...)` audit. Same shape as v0.8.5
-    // @differentiable: lex-time `@`-attribute skip already accepts
-    // these silently; this audit pass counts annotated fns and
-    // emits a one-line build summary. Phase A (v0.7.89) added the
-    // runtime budget registry; Phase B step-2 (deferred) parses
-    // the literal value + unit and stores as fn metadata.
     let v086_energy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@ene", "rgy("));
     if v086_energy_count > 0 {
         print(str_concat("audit: @energy budgets in build: ", str_from_int(v086_energy_count)));
@@ -731,9 +694,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   thermal values: ", v0813_thermal_vals));
         };
     };
-    // v0.8.7 (RFC-0052/53/57/60 Phase B step-1) — extended
-    // attribute audit. Same shape as v0.8.5 / v0.8.6: count
-    // annotated fns, emit one-line summary per attribute kind.
     let v087_photonic_count: i64 = simple_attribute_audit_count(after_async, str_concat("@photo", "nic"));
     if v087_photonic_count > 0 {
         print(str_concat("audit: @photonic fns in build: ", str_from_int(v087_photonic_count)));
@@ -807,21 +767,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   timing values: ", v0811_within_vals));
         };
     };
-    // v0.8.143 (RFC-0043 Phase B step-1, V1.12 drift restoration)
-    // — `fixed<I, F>` + `ufixed<I, F>` audit. The type still
-    // collapses to i64 storage at line ~9902 (Phase B step-2
-    // deferred — true IrTypeFixed width tracking is the ~300 LOC
-    // ship). This Phase B step-1 surfaces adopter usage by
-    // counting type-position occurrences and emitting a one-line
-    // build summary, matching the @differentiable / @energy /
-    // @thermal pattern. Position-aware needles (`: ` and `-> `
-    // prefix) avoid false positives on identifiers ending in
-    // "fixed" or "ufixed".
-    // gate the per-needle scans behind a single
-    // cheap probe. Most builds don't contain `fixed<` or `ufixed<`
-    // — without the gate this block ran 4 full-source scans
-    // unconditionally on every compile. Same shape applied to the
-    // other audit families below.
     if str_index_of(after_async, "fixed<") >= 0 {
         let v0143_fixed_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": fix", "ed<"));
         let v0143_fixed_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> fix", "ed<"));
@@ -832,17 +777,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: fixed<I,F>/ufixed<I,F> type-position occurrences: ", str_from_int(v0143_fixed_total)));
         };
     };
-    // v0.8.173 (RFC-0044 Phase B step-1, V1.13 drift restoration)
-    // — per-BinOp `OverflowMode` audit. RFC-0044 calls for two
-    // surface forms:
-    //   - block: `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
-    //   - inline-suffix: `*#wrap`, `+#sat`, `/#trap`, `as#sat`, etc.
-    // V2 carried `OverflowMode` as a per-BinOp IR field; OSS retained
-    // only the block form (and even that may not be implemented yet
-    // in current main). Phase B step-1 (this audit) surfaces adopter
-    // usage of either form so future ships can lock the block-form
-    // wiring + add the inline-suffix lex extension. Phase B step-2
-    // (real per-BinOp lowering) is the larger ~150 LOC compiler ship.
     if str_index_of(after_async, "wrapping ") >= 0 || str_index_of(after_async, "saturating ") >= 0 || str_index_of(after_async, "#wrap") >= 0 || str_index_of(after_async, "#sat") >= 0 || str_index_of(after_async, "#trap") >= 0 {
         let v0173_wrap_block: i64 = simple_attribute_audit_count(after_async, str_concat("wrap", "ping {"));
         let v0173_sat_block: i64 = simple_attribute_audit_count(after_async, str_concat("satur", "ating {"));
@@ -855,17 +789,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: per-BinOp OverflowMode usages (block + inline): ", str_from_int(v0173_overflow_total)));
         };
     };
-    // v0.8.145 (RFC-0046 Phase B step-1, V2.1 frontier easy-win)
-    // — `Pose<F>` + `Frame_*` marker audit. The `kinematics_frame`
-    // rod already ships zero-cost marker structs (`Frame_World`,
-    // `Frame_Base`, `Frame_Camera`, `Frame_Lidar`, `Frame_IMU`).
-    // Adopters using these as phantom frame tags get a build-time
-    // discovery counter from this audit pass. Phase B step-2 —
-    // true phantom-type checking, `types_compatible(Pose<Camera>,
-    // Pose<Base>) == 0` with a FRAME-001 diagnostic at let-binding
-    // site — shipped v0838 (ROBO-7); see `frame_mismatch_visible`
-    // and the FRAME-001 emit at the let-binding TYP-008 site.
-    // Architectural pattern matches RFC-0043 fixed<I,F>.
     if str_index_of(after_async, "Pose<") >= 0 || str_index_of(after_async, "Frame_") >= 0 {
         let v0145_pose_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Po", "se<"));
         let v0145_pose_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Po", "se<"));
@@ -878,16 +801,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: Frame_* marker uses (let/arg position): ", str_from_int(v0145_frame_marker)));
         };
     };
-    // v0.8.146 (RFC-0047 Phase B step-1, V2.2 frontier easy-win)
-    // — typed dimensional units `unit<T, [kg, m, s, A, K, mol,
-    // cd]>` audit. Same architectural pattern as RFC-0046
-    // Pose<F>: phantom dimensional type parameter, zero runtime
-    // cost. Phase B step-2 (real dim-vector arithmetic in
-    // type-check) is the ~400 LOC compiler ship per the RFC.
-    // This Phase B step-1 surfaces type-position usage of
-    // unit<T, [...]> + the existing dimension-aliased `Mass<>`
-    // / `Length<>` / `Force<>` / `Acceleration<>` shapes that
-    // adopters might already be drafting.
     if str_index_of(after_async, "unit<") >= 0 || str_index_of(after_async, "Mass<") >= 0 || str_index_of(after_async, "Length<") >= 0 || str_index_of(after_async, "Force<") >= 0 || str_index_of(after_async, "Acceleration<") >= 0 {
         let v0146_unit_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": un", "it<"));
         let v0146_unit_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> un", "it<"));
@@ -900,14 +813,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: unit<T,[...]> typed-dim type-position occurrences: ", str_from_int(v0146_unit_total)));
         };
     };
-    // v0.8.147 (RFC-0048 Phase B step-1, V2.3 frontier easy-win)
-    // — hardware capability query audit. Adopters use
-    // `target.has(FP4)` / `target.has(AVX512)` / `target.os(...)`
-    // for compile-time-resolved kernel selection. Phase B step-2
-    // (real compile-time evaluation that prunes non-target
-    // branches via DCE before lowering) is the larger ship.
-    // This Phase B step-1 surfaces usage by counting `target.has(`
-    // and `target.os(` occurrences.
     if str_index_of(after_async, "target.") >= 0 {
         let v0147_target_has: i64 = simple_attribute_audit_count(after_async, str_concat("target.h", "as("));
         let v0147_target_os: i64 = simple_attribute_audit_count(after_async, str_concat("target.", "os("));
@@ -916,12 +821,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: target.has()/target.os() compile-time queries: ", str_from_int(v0147_target_total)));
         };
     };
-    // v0.8.148 (RFC-0049 Phase B step-1, V2.4 frontier easy-win)
-    // — memory-space type-tag audit. Same architectural pattern
-    // as RFC-0046 Pose<F>: phantom Space parameter on Tensor.
-    // Surfaces adopter usage of `Tensor<f32, MemSpace_HBM>` etc.
-    // Phase B step-2 (types_compatible enforcement on Space) is
-    // the real ship.
     if str_index_of(after_async, "MemSpace_") >= 0 {
         let v0148_memspace: i64 = simple_attribute_audit_count(after_async, str_concat(": MemSp", "ace_"));
         let v0148_tensor_space: i64 = simple_attribute_audit_count(after_async, str_concat(", MemSp", "ace_"));
@@ -930,13 +829,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: MemSpace_* type-position occurrences: ", str_from_int(v0148_memspace_total)));
         };
     };
-    // v0.8.149 (RFC-0051 Phase B step-1, V2.6 frontier easy-win)
-    // — Model<Arch, ...> provenance audit. Surfaces adopter
-    // usage of typed foundation-model wrappers carrying
-    // weights_hash / dataset_lineage / license / safety_eval /
-    // quantization at the type level. Phase B step-2 (real
-    // type-checked Model<...> with SPDX-validated license arg
-    // etc.) is the larger ship.
     if str_index_of(after_async, "Model<") >= 0 {
         let v0149_model_colon: i64 = simple_attribute_audit_count(after_async, str_concat(": Mo", "del<"));
         let v0149_model_arrow: i64 = simple_attribute_audit_count(after_async, str_concat("-> Mo", "del<"));
@@ -945,13 +837,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit: Model<Arch,...> provenance type-position occurrences: ", str_from_int(v0149_model_total)));
         };
     };
-    // v0.8.8 (Phase B step-1, core-attr audit) — extend the
-    // discovery surface to existing core Nucleor attributes that
-    // adopters use today: @hot (strict perf), @const_fn (compile-
-    // time eligible), @max_depth (RFC-0014 / Track I), @deadline
-    // (RT-004). The expansions for @max_depth + @deadline DO
-    // produce metadata; the audit count adds a plain-language
-    // build summary alongside.
     let v088_hot_count: i64 = simple_attribute_audit_count(after_async, str_concat("@h", "ot"));
     if v088_hot_count > 0 {
         print(str_concat("audit: @hot fns in build: ", str_from_int(v088_hot_count)));
@@ -988,20 +873,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   deadline fns: ", v0815_dl_names));
         };
     };
-    // v0.8.17 RFC-0062 G-2 Phase 1 — BR-7 lifetime parameter
-    // diagnostic-only mode. Per the gap RFC §3.3 G-2 P1: emit a
-    // build-time warning for every `<'a>` lifetime annotation
-    // present in user code, surfacing the gap that lifetime
-    // annotations parse but the borrow checker does not yet
-    // enforce them. Phase 4 promotes the warning to error.
-    // Detection: count occurrences of `<'` (lifetime-param-list
-    // open) preceded by `fn ` or by `struct ` or by `impl `.
-    // Per the gap RFC §2.2 BR-7: "the syntax `fn f<'a>(x: &'a str)
-    // -> &'a str` parses cleanly. The lexer accepts the lifetime
-    // tokens, the parser builds the AST, the function compiles.
-    // The borrow checker does NOT actually enforce the lifetime
-    // annotation."
-    // collapsed 3 separate scans into 1 single-pass scan.
     let v0817_br7_total: i64 = audit_count_three_needles_total(after_async,
         str_concat("<'", "a"), str_concat("<'", "b"), str_concat("&'", "static"));
     if v0817_br7_total > 0 {
@@ -1062,14 +933,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("warning[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 3 (v1.0): `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Vec-of-reference flow analysis is post-v1.0 hardening.");
     };
-    // v0.8.62 QM-8/9 + ROBO-8 Phase 1 — Wave 3 final Tier C
-    // closure. v0828 closes the high-level qsim wrapper half of
-    // QM-8/QM-9: qsim_cnot/CZ/CRK/CCX now update qsim_graph
-    // entanglement and gate-DAG records through checked wrappers.
-    // Raw runtime tracker unification remains open. QM-9: the raw
-    // gate-influence DAG still caps at 4096 gates, but Nucleor callers
-    // now have checked status/preflight helpers. ROBO-8: CHOMP uses approximated pre-conditioning
-    // (clamp-magnitude vs full covariant A⁻¹∇F).
     let v0862_has_qsim_cnot: i64 = if str_index_of(after_async, str_concat("qsim_", "cnot")) >= 0 { 1 } else { 0 };
     let v0862_has_qsim_gate_record: i64 = if str_index_of(after_async, str_concat("qsim_gate_", "record")) >= 0 { 1 } else { 0 };
     let v0862_has_chomp: i64 = if str_index_of(after_async, str_concat("chomp", "_")) >= 0 { 1 } else { 0 };
@@ -1083,13 +946,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  QM-8/QM-9 Phase 2a/2b is wired at the high-level stdlib wrapper surface: qsim_cnot/CZ/CRK/CCX call qsim_graph entanglement registration and checked gate-DAG recording in the same semantic places their trace hooks declare entanglement. Raw runtime tracker unification remains open, and raw nuc_qsim_gate_record still caps at 4096 gates; larger circuits should use qsim_gate_record_checked/preflight for explicit status. ROBO-8: CHOMP uses approximated pre-conditioning (per-step clamp-magnitude vs covariant A^-1 grad-F); convergence degrades on narrow corridors / high-DOF robots. Future work adds raw-runtime unification, overflow hardening, and full pre-conditioner.");
         };
     };
-    // v0.8.61 ML-2/3/5/6/10 Phase 1 — Tensor/ML/Autodiff surface
-    // info. Detects adopter use of tensor_nd or transformer rods
-    // — surfaces have multiple HIGH-severity gaps: ML-2 missing
-    // 2D matmul, ML-3 missing transpose, ML-5 SSM no backward,
-    // ML-6 no FP8 gemv / grouped quantization, ML-10 transformer
-    // no causal mask / no encoder-decoder. Phase 2b adds the
-    // missing primitives.
     let v0861_has_tensor: i64 = if str_index_of(after_async, str_concat("tensor_", "nd")) >= 0 { 1 } else { 0 };
     let v0861_has_transformer: i64 = if str_index_of(after_async, str_concat("transformer", ".nr")) >= 0 { 1 } else { 0 };
     let v0861_has_ssm: i64 = if str_index_of(after_async, str_concat("nuc_", "ssm_")) >= 0 { 1 } else { 0 };
@@ -1103,12 +959,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Tensor/ML/Autodiff caveats: tensor_nd is missing some higher-level typed shape surfaces; SSM rods have no backward / gradient paths, so autodiff via these is forward-only. Quantize lacks some grouped/FP8 surfaces. Transformer has no causal mask and no encoder-decoder path; only encoder-only attention is implemented. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source.");
         };
     };
-    // v0.8.60 NUM-G2/8/9 Phase 1 — additional numeric-correctness
-    // audit. Detects adopter use of math_abs (NUM-G2 i64::MIN
-    // wrap), checked_* family (NUM-G8 thread-unsafe global flag),
-    // @const_fn (NUM-G9 silently ignored). Phase 2b: panic-on-
-    // saturate for math_abs, thread-local checked flag, real
-    // comptime evaluation for @const_fn.
     let v0860_has_math_abs: i64 = if str_index_of(after_async, str_concat("math_", "abs(")) >= 0 { 1 } else { 0 };
     let v0860_has_checked: i64 = if str_index_of(after_async, str_concat("checked_", "")) >= 0 { 1 } else { 0 };
     let v0860_has_const_fn: i64 = if str_index_of(after_async, str_concat("@const_", "fn")) >= 0 { 1 } else { 0 };
@@ -1122,16 +972,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Numeric-correctness caveats: math_abs(i64::MIN) returns i64::MIN in non-strict mode; checked_* uses a shared overflow flag and should not be treated as thread-safe; @const_fn is parsed but not yet a full compile-time evaluator. Future work: panic-on-saturate for math_abs, thread-local checked flags, and real comptime evaluation for @const_fn.");
         };
     };
-    // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
-    // pass info. Detects adopter use of the Clifford-stabilizer
-    // rod (coverage still bounded; QM-7) and frame-typed
-    // robotics rod. v0838 (ROBO-7 Phase B): the compiler-side
-    // FRAME-001 frame-mismatch check at let-binding sites is now
-    // live for `Pose<Frame_*>`-style phantom-tag annotations;
-    // Frame_Unknown remains the documented migration sentinel.
-    // Untagged kinematics surface (plain i64 handles, untagged
-    // Pose) still bypasses the check by construction — adopter
-    // opt-in via the typed annotation is the trigger.
     let v0859_has_clifford: i64 = if str_index_of(after_async, str_concat("clifford", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_kinematics: i64 = if str_index_of(after_async, str_concat("kinematics", ".nr")) >= 0 { 1 } else { 0 };
     let v0859_has_frame: i64 = if str_index_of(after_async, str_concat("frame_", "tag")) >= 0 { 1 } else { 0 };
@@ -1145,11 +985,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Tier C correctness caveats: the Clifford-stabilizer rod has verify coverage for Bell/GHZ entanglement, gate identities, reset/rebuild, stabilizer-distance smoke tests, and Surface-17 smoke tests. Published weight-enumerator validation remains open until the rod exposes enumerator APIs. FRAME-001 phantom-tag mismatch checking is live for `Pose<Frame_*>` annotations; `Frame_Unknown` is the migration sentinel and untagged Pose handles bypass the check by construction. Prefer `Pose<Frame_X>`-tagged annotations over bare `Pose`.");
         };
     };
-    // v0.8.58 LAW-1/2/3 Phase 1, refreshed after R14
-    // `--check-laws` wiring. @law(...) is captured and reported;
-    // the main compiler still does not attach it to AST/IR rewrite
-    // metadata. The tools-suite test driver can generate bounded
-    // integer checks for low-risk forms under `nuc test --check-laws`.
     let v0858_has_law: i64 = if str_index_of(after_async, str_concat("@law(", "")) >= 0 { 1 } else { 0 };
     if v0858_has_law == 1 {
         let v0858_count: i64 = simple_attribute_audit_count(after_async, str_concat("@law(", ""));
@@ -1196,12 +1031,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             panic("nucleor: LAW-003 optimizer rewrite gate without check-laws audit");
         };
     };
-    // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
-    // info. Today `[features]` sections in nucleor.toml parse +
-    // store but no compiler path consumes them; `--features X`
-    // to `nuc build` does not gate any code. Adopter using
-    // @cfg(feature = "...") gets the body included regardless.
-    // Phase 2b adds proper feature-gating in lower_fn.
     let v0857_has_cfg_feature: i64 = if str_index_of(after_async, str_concat("@cfg(", "feature")) >= 0 { 1 } else { 0 };
     if v0857_has_cfg_feature == 1 {
         let v0857_count: i64 = simple_attribute_audit_count(after_async, str_concat("@cfg(", "feature"));
@@ -1210,11 +1039,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Conditional compilation `@cfg(feature = \"X\")` is parsed but the gate is NOT honored — the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection; use module-level imports or runtime checks.");
         };
     };
-    // v0.8.54 RT Phase 1 — real-time/determinism partial-enforcement
-    // info. Detects #[deadline], #[no_alloc], #[no_panic], #[isr]
-    // annotations and warns adopters about known gaps in enforcement
-    // (RT-G1 transitive callee, RT-G3 panic-check incomplete, RT-G5
-    // deadline marketing-claim unbacked, RT-G6 no embedded sysroots).
     let v0854_has_deadline: i64 = if str_index_of(after_async, str_concat("#[dead", "line")) >= 0 { 1 } else { 0 };
     let v0854_has_no_alloc: i64 = if str_index_of(after_async, str_concat("#[no_", "alloc]")) >= 0 { 1 } else { 0 };
     let v0854_has_no_panic: i64 = if str_index_of(after_async, str_concat("#[no_", "panic]")) >= 0 { 1 } else { 0 };
@@ -1230,12 +1054,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Real-time/determinism caveats: #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse, but enforcement still has known false-negative surfaces. no_alloc/no_panic scan annotated bodies, tagged callees, and bounded same-file helper chains; closure escape, fn-pointer indirect calls, and deeper-than-bound paths still escape detection. #[deadline=N] installs runtime deadline context and loop polling, but RT-004 estimates remain heuristic rather than certified WCET. #[isr] runs on the host target. Do NOT rely on these annotations as complete compile-time hard guarantees.");
         };
     };
-    // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
-    // The concurrency.nr rod's cancel_token (C-1) and POSIX channel
-    // (C-2) helpers are silently broken on Linux: cancel_token is a
-    // linker bomb (extern fn declared, body absent), POSIX channel
-    // is a no-op stub. Detect adopter use of the concurrency rod
-    // or its functions and surface the Linux platform risk.
     let v0850_has_concurrency: i64 = if str_index_of(after_async, str_concat("concurrency", ".nr")) >= 0 { 1 } else { 0 };
     let v0850_has_cancel: i64 = if str_index_of(after_async, str_concat("cancel_", "token")) >= 0 { 1 } else { 0 };
     let v0850_has_channel: i64 = if str_index_of(after_async, str_concat("channel_", "send")) >= 0 { 1 } else { 0 };
@@ -1249,20 +1067,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Concurrency caveats: cancel_token is not implemented on the POSIX runtime path, and POSIX channel helpers are incomplete. Programs using these on Linux can fail at link time or run with broken concurrency. Adopter discipline today: avoid these helpers if targeting Linux until the POSIX implementations are complete.");
         };
     };
-    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability build-summary info.
-    // v0.8.307/v0.8.309 later closed the direct `pure fn` build-path
-    // no-signal class with EFF-001 for print/alloc/ambient capability use.
-    // v0829/v0831 add bounded same-file pure-call checking for user helpers
-    // whose bodies contain direct side effects, requires-row surfaces, and
-    // builtin print-family I/O.
-    // The remaining trust gap is the effect-row surface:
-    // `requires [...]`, real block-form `restricts [...]` enforcement,
-    // transitive requires-row propagation, and cross-module propagation
-    // are not fully enforced by s1. Block-form `restricts [...] { ... }` now
-    // fails closed with EFF-003 until that enforcement lands.
-    // Phase 2b moves effect-row enforcement into the main build path.
-    // Shared gate: skip if none of the three keywords are textually
-    // present (most adopter code doesn't use these keywords).
     let v0848_has_pure: i64 = if str_index_of(after_async, str_concat("pure ", "fn ")) >= 0 { 1 } else { 0 };
     let v0848_has_requires_spaced: i64 = if str_index_of(after_async, str_concat("requires", " [")) >= 0 { 1 } else { 0 };
     let v0848_has_requires_compact: i64 = if str_index_of(after_async, str_concat("requires", "[")) >= 0 { 1 } else { 0 };
@@ -1280,13 +1084,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Effect/capability caveats: direct `pure fn` side effects fail with EFF-001, and same-file pure calls plus bounded requires/restricts checks are enforced through known builtin effects and helper chains up to depth=8. Cross-module flat-namespace imports are handled through the resolved-source pre-pass. Remaining open surfaces include deeper chains, ambiguous same-name methods, closures and function-pointer effect capture, broader effect-row subtyping, and selective/glob import forms. Treat unvalidated rows as documentation until the broader effect-row enforcement lands.");
         };
     };
-    // v0.8.46 T-3 Phase 1 — char-cast build-summary info. Counts
-    // `as char` cast occurrences in source. Today, casting an int
-    // to char silently accepts any value including out-of-range
-    // codepoints (>0x10FFFF) and surrogate range (0xD800-0xDFFF),
-    // producing invalid UTF-8 downstream. Phase 2b will add
-    // codepoint validation at the cast site. Phase 4 promotes to
-    // hard error for invalid codepoints.
     let v0846_has_as_char: i64 = if str_index_of(after_async, str_concat(" as ", "char")) >= 0 { 1 } else { 0 };
     if v0846_has_as_char == 1 {
         let v0846_count: i64 = simple_attribute_audit_count(after_async, str_concat(" as ", "char"));
@@ -1305,15 +1102,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // info[NUM-G1] would have wrong-class-flagged adopter code
     // that was actually correct. Audit and helper count_long_float_
     // literals retained for diagnostic purposes but not invoked.
-    // v0.8.34 Q2 — slice-pattern diagnostic refinement.
-    // Pre-existing behavior: slice match with rest element hit
-    // parse_primary's token-58 panic and emitted the range-
-    // expression diagnostic, wrong-class. Pre-detect the
-    // textual shape (rest at slice-pattern closing bracket and
-    // related sites — rare in prose) and halt cleanly.
-    // Self-host safe: needles constructed via str_concat AND
-    // the diagnostic message + comments avoid the literal
-    // detected sequences (use spaced forms throughout).
     let v0834_has_dotdot_mid: i64 = if str_index_of(after_async, str_concat(", ..", ",")) >= 0 { 1 } else { 0 };
     let v0834_has_dotdot_close: i64 = if str_index_of(after_async, str_concat(", ..", "]")) >= 0 { 1 } else { 0 };
     let v0834_has_bracket_dotdot: i64 = if str_index_of(after_async, str_concat("[..", ",")) >= 0 { 1 } else { 0 };
@@ -1360,32 +1148,15 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC-0062 G-6 Phase 3 (v1.0, closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable. spawn-call sites may silently accept closures with non-Sendable captures today. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Per-closure capture-set audit is post-v1.0 hardening.");
         };
     };
-    // v1.0 RFC-0062 G-7 Phase 3 — `unsafe { }` block audit. The
-    // OSS compiler self-host source contains zero unsafe blocks;
-    // adopter code introducing unsafe blocks gets surfaced here
-    // so reviewers can audit the surface. Phase 3 is a warning
-    // (not an error) — unsafe is a legitimate language feature.
-    // Phase 4 promotion (post-v1.0): require `#[allow(unsafe)]`
-    // attribute on the enclosing fn.
     let v1000_unsafe_count: i64 = simple_attribute_audit_count(after_async, str_concat("unsafe ", "{"));
     if v1000_unsafe_count > 0 {
         print(str_concat("warning[UNSAFE-G7]: `unsafe { }` blocks in build: ", str_from_int(v1000_unsafe_count)));
         print("  Per RFC-0062 G-7 Phase 3 (v1.0): the OSS compiler self-host source contains zero unsafe blocks; any unsafe block in adopter code is a manual-audit surface. Each unsafe block bypasses borrow-checking, lifetime-tracking, and bounds-check insertion within its body. Adopter discipline: justify each unsafe block in a comment naming the invariant being preserved. `#[allow(unsafe)]` attribute enforcement is post-v1.0 hardening. Reference: RFC-0003 §unsafe blocks.");
     };
-    // v0.8.38 G-1 Phase 2b-3 — env-gated default-flip status
-    // diagnostic. Reads NUC_AUTO_DROP_DEFAULT env var. When set
-    // to "1", the compiler treats auto-drop as enabled by
-    // default for all fns. Adopters can opt in to test the
-    // future Phase 2b-3 semantics. Default-off remains opt-in
-    // via #[auto_drop].
     let v0838_flip_state: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
     if str_eq(v0838_flip_state, "1") == 1 {
         print("info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 — Phase 2b-3 default-flip ENABLED for this build.");
         print("  Per RFC-0062 G-1 Phase 2b-3 experiment: every fn auto-drops local Vec / HashMap / Box / String / VecDeque unless `#[manual_drop]` opt-out is present. Adopter discipline: this is an experimental flip mode for validating code against the future default. Remove the env var or set it to anything other than \"1\" to revert to v0.x opt-in semantics.");
-        // v0.8.73 G-3 Phase 2b — strong warning when flip is on
-        // and source contains handoff patterns. Catches the gap
-        // identified in v0.8.71 testing: vec_push(<param>, local)
-        // patterns that auto-drop would dangle.
         let v0873_vec_push_count: i64 = if str_index_of(after_async, str_concat("vec_", "push(")) >= 0 {
             simple_attribute_audit_count(after_async, str_concat("vec_", "push("))
         } else { 0 };
@@ -1546,4 +1317,3 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
     result.push(sb_to_str(libpaths));
     return result;
 }
-

@@ -1815,9 +1815,6 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
     // Without this, `nuc test foo.nr` from a fresh directory fails with
     // "ERROR: cannot read target/foo__test_harness.nr" because
     // file_write_string silently fails when the parent dir doesn't exist.
-    // v0.2.339 (T1.7): switched from `mkdir target 2>NUL` shell-out to
-    // the cross-platform fs_create_dir_all builtin so `nuc test` works
-    // on Linux + macOS without cmd.exe.
     fs_create_dir_all("target");
     let temp_src: str = sanitize(str_concat("target/", str_concat(out_name, "__test_harness.nr")));
     file_write_string(temp_src, harness_source);
@@ -2276,10 +2273,6 @@ fn bootstrap_corpus_listing_path(tag: str) -> str {
 }
 
 fn bootstrap_collect_corpus_files(tag: str) -> Vec<i32> {
-    // v0.2.339 (T1.7): replaced `dir /b examples\*.nr` shell-out with
-    // fs_list_dir + a .nr extension filter. The (unused-after-this)
-    // `tag` parameter is kept for API compatibility; the temp listing
-    // file path is no longer needed since we never write to disk.
     let _ = tag;
     fs_create_dir_all("target");
     let entries: Vec<i32> = fs_list_dir("examples");
@@ -3047,10 +3040,6 @@ fn lock_should_skip_file(package_dir: str, file_path: str) -> i64 {
 }
 
 fn package_checksum_native(package_dir: str) -> str {
-    // v0.2.339 (T1.7): replaced `dir /b /s` shell-out with the
-    // platform-portable walk_dir_recursive_native helper. The output
-    // ordering matches the prior cmd.exe `/on` (alphabetical), so
-    // pre-existing checksums in Nucleor.lock files remain stable.
     let root_dir: str = trim_trailing_sep(package_dir);
     if str_len(root_dir) == 0 { return secure_hash(package_dir); };
     let files: Vec<i32> = walk_dir_recursive_native(root_dir);
@@ -3142,10 +3131,6 @@ fn lock_build_graph_recursive(manifest_path: str, graph: Vec<i32>, seen: Vec<i32
     return 0;
 }
 
-// v0.8.149 RFC-0061 Tier 2 (V1.17b) — render the lock-graph in
-// one of four formats for `nuc deps graph`. Reuses the existing
-// lock_build_graph_recursive output. Pure additive; doesn't
-// touch the lockfile renderer.
 fn render_deps_graph_native(root_manifest: str, graph: Vec<i32>, fmt: str) -> str {
     let mut sb: i64 = sb_new();
     let n: i64 = vec_len(graph);
@@ -3421,10 +3406,6 @@ fn manifest_replace_dependencies_section_native(manifest_path: str, deps: Vec<i3
 }
 
 fn dir_list_native(dir_path: str, dirs_only: i64) -> Vec<i32> {
-    // v0.2.339 (T1.7): replaced the prior `dir /b` shell-out with the
-    // cross-platform __nucleor_fs_list_dir builtin so this works on
-    // both Windows and POSIX without needing cmd.exe. dirs_only
-    // post-filters via fs_is_dir on the joined path.
     let mut items: Vec<i32> = Vec::new();
     let entries: Vec<i32> = fs_list_dir(dir_path);
     let n: i64 = vec_len(entries);
@@ -3445,11 +3426,6 @@ fn dir_list_native(dir_path: str, dirs_only: i64) -> Vec<i32> {
 }
 
 fn walk_dir_recursive_native(root_dir: str) -> Vec<i32> {
-    // v0.2.339 (T1.7): cross-platform replacement for `dir /b /s /a-d /on`.
-    // Returns an ordered Vec<str> of every regular file's full path under
-    // root_dir, walked via fs_list_dir + fs_is_dir. Used by package
-    // checksum + publish — both call sites used to shell out to cmd.exe
-    // which broke `nuc lock` and `nuc publish` on Linux/macOS.
     let mut out: Vec<i32> = Vec::new();
     let mut stack: Vec<i32> = Vec::new();
     stack.push(root_dir);
@@ -3604,10 +3580,6 @@ fn json_extract_string_value(raw: str, key: str) -> str {
 }
 
 fn copy_package_tree_native(src_root: str, dst_root: str) -> i64 {
-    // v0.2.339 (T1.7): replaced `dir /b /s` walk + `mkdir`/`copy /Y`
-    // shell-outs with the cross-platform fs_* runtime builtins.
-    // walk_dir_recursive_native + fs_create_dir_all + fs_copy_file work
-    // identically on Windows and POSIX.
     let root_dir: str = trim_trailing_sep(src_root);
     fs_create_dir_all(dst_root);
     let files: Vec<i32> = walk_dir_recursive_native(root_dir);
@@ -3892,12 +3864,6 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
     let is_tilde: i64 = if sel_first == 126 { 1 } else { 0 };      // ~
     let is_compare: i64 = if sel_first == 60 || sel_first == 62 { 1 } else { 0 };  // < or >
     let has_wildcard: i64 = if str_index_of(selector, "*") >= 0 { 1 } else { 0 };
-    // v0.8.89 PKG-3 Phase 2 — caret resolution.
-    // `^X.Y.Z` matches the highest version in the registry that
-    // satisfies `>=X.Y.Z, <next_compatible(X.Y.Z)` per semver.org:
-    //   X > 0  : upper exclusive = (X+1).0.0
-    //   X == 0, Y > 0 : upper exclusive = 0.(Y+1).0
-    //   X == 0, Y == 0 : upper exclusive = 0.0.(Z+1)  (effectively pinned)
     if is_caret == 1 {
         let base: str = str_substring(selector, 1, str_len(selector));
         let base_score: i64 = semver_score(base);
@@ -3926,9 +3892,6 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         // No candidate in [base, upper). Fall through to the
         // diagnostic so the user sees what's missing.
     };
-    // v0.8.90 PKG-3 Phase 2 — tilde resolution.
-    // `~X.Y.Z` matches `[X.Y.Z, X.(Y+1).0)` — patch-level changes
-    // permitted, minor pinned. Always pins major + minor.
     if is_tilde == 1 {
         let tbase: str = str_substring(selector, 1, str_len(selector));
         let tbase_score: i64 = semver_score(tbase);
@@ -3947,10 +3910,6 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         // No candidate in [base, upper). Fall through to the
         // tilde-no-match diagnostic below.
     };
-    // v0.8.91 PKG-3 Phase 3 — wildcard resolution.
-    // `*`        same as `latest`
-    // `X.*`      [X.0.0, (X+1).0.0)
-    // `X.Y.*`    [X.Y.0, X.(Y+1).0)
     if has_wildcard == 1 {
         if str_eq(selector, "*") == 1 { return vec_get(versions, 0); };
         // Strip `.*` suffix and parse the prefix.
@@ -3995,11 +3954,6 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         print(str_concat("error[PKG-3]: wildcard form `", str_concat(selector, "` not yet supported. Use `X.*` or `X.Y.*` (wildcard at trailing position only) or pin exactly.")));
         return "";
     };
-    // v0.8.93 PKG-3 Phase 4 sister — compound multi-token range.
-    //   >=X.Y.Z <=A.B.C    AND of two comparisons
-    //   >X.Y.Z <A.B.C      strict variants
-    // Splits on whitespace, parses each token as a single comparison,
-    // ANDs the bounds, walks versions desc, returns first match.
     let has_space: i64 = if str_index_of(selector, " ") >= 0 { 1 } else { 0 };
     if is_compare == 1 && has_space == 1 {
         let tokens: Vec<i32> = str_split(selector, " ");
@@ -4064,11 +4018,6 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         // bad_token: fall through to single-token branch which will
         // emit its own error for the malformed input.
     };
-    // v0.8.92 PKG-3 Phase 4 — single-token comparison resolution.
-    //   >=X.Y.Z   highest version with score >= base_score
-    //   >X.Y.Z    highest version with score > base_score
-    //   <=X.Y.Z   highest version with score <= base_score
-    //   <X.Y.Z    highest version with score < base_score
     if is_compare == 1 {
         // Detect operator length (>= vs > vs <= vs <).
         let mut op_len: i64 = 1;
@@ -6915,9 +6864,6 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "init") {
         // nuc init [name] — scaffold a new project.
-        // v0.2.339 (T1.7): switched from `mkdir name\src` shell-out
-        // (Windows-only path separator) to fs_create_dir_all which
-        // accepts forward slashes on every platform.
         let mut proj_name: str = "myproject";
         if argc >= 3 { proj_name = args_get(2); };
         fs_create_dir_all(proj_name);

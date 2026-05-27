@@ -158,11 +158,6 @@ fn cache_v2_file_size_mb(path: str) -> i64 {
 }
 
 #[manual_drop]
-// v1.1.x perf: precompiled-rt.o cache key/path. Returns "" if caching
-// is disabled (env opt-out). The .o is keyed on the rt.c content,
-// alloc.h content, opt level, and clang version proxy (toolchain
-// path). Cache lives outside .nuc_cache so source-cache cold checks
-// still avoid recompiling the unchanged runtime C translation unit.
 #[manual_drop]
 fn rt_o_cache_path(rt_arg: str, alloc_hdr: str, opt_flag: str) -> str {
     if str_eq(env_get_or("NUCLEOR_RT_O_CACHE", "1"), "0") == 1 { return ""; };
@@ -471,20 +466,6 @@ fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
     // thread stack to 16 MiB so deep recursion in the compiler works.
-    // v0.4.10 RFC-NRT-003 follow-on (Translate SPEC-2 Task 2 finding):
-    // lld-link embeds wall-clock timestamps in the PE COFF header
-    // (offset 0x108) by default, breaking byte-reproducible builds
-    // even when the LLVM IR is byte-identical. This blocked SLSA-
-    // Build-Level-3 attestation for the Translate team. /Brepro tells
-    // lld-link to write a deterministic content-hash instead of a
-    // timestamp, matching the SOURCE_DATE_EPOCH spirit.
-    // ELF: clang's lld can be deterministic, but the GNU `ld` that
-    // ships on stock Debian/Ubuntu embeds a per-link build-id in the
-    // ELF .note.gnu.build-id section by default. Two builds of
-    // byte-identical IR therefore produce byte-different EXEs and
-    // RFC-NRT-003 verify-reproducible (which compares EXE bytes)
-    // fails. -Wl,--build-id=none drops the section entirely so the
-    // EXE stays byte-deterministic across runs on the same machine.
     if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
     return " -Wl,-z,stacksize=16777216 -Wl,--build-id=none -lm -lpthread";
 }
@@ -808,11 +789,6 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     let clang_start: i64 = now_ms();
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
     let opt_flag_raw_iso: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
-    // v1.1.x perf: precompile rt.c -> rt.o once per (rt content, alloc
-    // hdr content, opt level). Saves ~1.2s per cold build because clang
-    // skips re-compiling the 8 KLOC runtime each time. Cache disabled
-    // when extra cfiles are imported (their content isn't keyed) or
-    // when env opt-out is set.
     let rt_o_path: str = rt_o_cache_path(rt_arg, alloc_hdr, opt_flag_raw_iso);
     let mut rt_link_arg: str = "";
     let mut alloc_include_use: str = "";
@@ -880,4 +856,3 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     native_link_cache_store(native_cache_key, exe_path);
     return 0;
 }
-

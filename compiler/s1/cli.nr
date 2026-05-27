@@ -393,20 +393,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print_phase_time(time_passes, "type", now_ms() - type_start);
     tprof_dump(type_prof);
     vec_free(type_prof);
-    // v0.4.257 RFC-0006 Liskov compile-time check.
-    // For each `impl Trait for Type { fn METHOD ... }` method,
-    // compare its #[require] / #[ensure] count against the trait
-    // declaration's count for the same method name. Liskov:
-    // - impl precondition COUNT must NOT exceed trait's
-    //   (CONTRACT-004 — strengthened pre).
-    // - impl postcondition COUNT must NOT be below trait's
-    //   (CONTRACT-005 — weakened post).
-    // Count-based comparison is conservative — if the predicates
-    // are textually different but semantically equivalent, this
-    // check still passes. Strict semantic equality would require
-    // a separate analysis pass (deferred). Accuracy: catches the
-    // canonical violation classes (impl adds a require, impl
-    // drops an ensure) without expensive AST equality.
     let liskov_trait_attrs: Vec<i32> = collect_trait_method_attrs(source);
     let liskov_impl_attrs: Vec<i32> = collect_impl_trait_method_attrs(source);
     let mut li: i64 = 0;
@@ -555,23 +541,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     };
     vec_free(diags);
     let mut closures: Vec<i32> = Vec::new();
-    // v0.4.245 RFC-0006 — pre-process #[require(EXPR)] attributes.
-    // Source-text scanner produces (fn_name, expr_text) pairs. For
-    // each, lex+parse the expression text into the existing pool;
-    // store (fn_name, expr_nid) for lower_fn to look up. The lex
-    // and parse_expr functions are reentrant — they take a fresh
-    // token stream and return an AST nid in the supplied pool.
-    // v0.4.252 RFC-0006 — build-mode strip-out via NUCLEOR_DBC_MODE.
-    // Per spec section 1 — "Build modes":
-    //   debug (default) | unset → all contracts active
-    //   safe-release → require active; ensure / invariant elided
-    //   release → all contracts elided
-    //   cert → all elided (statically proven elsewhere — that
-    //          analysis pass is a future ship; until then cert
-    //          behaves like release for runtime emit)
-    // Implementation: skip the relevant pre-pass populations.
-    // Empty Vecs flow through to lower_fn; the existing walk-all
-    // lookups find no matches; no contract IR emits.
     let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
     // validate the env value. Pre-fix, any unrecognized
     // value (e.g. `off`, `disabled`,
@@ -592,10 +561,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     };
     let dbc_emit_require: i64 = if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
     let dbc_emit_ensure_inv: i64 = if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
-    // v0.4.258 RFC-0006 — `#[no_check]` per-fn opt-out. Scanner
-    // populates a list of fn names whose contracts should be
-    // skipped (e.g. hot-path fns). Pre-passes filter their entries
-    // out of require_exprs / ensure_exprs.
     let dbc_no_check: Vec<i32> = if dbc_emit_require == 1 || dbc_emit_ensure_inv == 1 { collect_no_check_fns(source) } else { Vec::new() };
     // RFC-0042 first cut — opt-in owned-local auto-drop. Empty list
     // keeps the default path bytecode-close and avoids scanning cost
@@ -642,11 +607,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         free_token_vec(req_tokens);
         rti = rti + 2;
     };
-    // v0.4.246 RFC-0006 — pre-process #[ensure(EXPR)] attributes.
-    // also rewrite `old(EXPR)` patterns inside the
-    // ensure expression to synthesized binding names, lex+parse
-    // each inner separately, and store (fn_name, synth_name,
-    // inner_nid) triples in old_snapshots for fn-entry pre-eval.
     let ens_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_fn_ensures(source) } else { Vec::new() };
     let mut ensure_exprs: Vec<i32> = Vec::new();
     let mut old_snapshots: Vec<i32> = Vec::new();
@@ -718,10 +678,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         free_token_vec(ens_tokens);
         eti = eti + 2;
     };
-    // v0.4.248 RFC-0006 — pre-process #[invariant(EXPR)] attributes
-    // on inherent + trait impl blocks. Stored by TYPE name; lower_fn
-    // splits the mangled method name (`Type__method`) on `__` and
-    // looks up the type's invariant.
     let inv_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_impl_invariants(source) } else { Vec::new() };
     let mut invariant_exprs: Vec<i32> = Vec::new();
     let mut iti: i64 = 0;
@@ -1118,14 +1074,6 @@ fn differentiable_audit_count(src: str) -> i64 {
 // attribute-audit passes. Sister to differentiable_audit_count;
 // extracted for reuse across @energy / @thermal / future
 // @authored / @policy / etc. discoveries.
-// v0.8.44 NUM-G1 — count source-level float literals with >6
-// fractional digits. Walks src once; on each digit, scans forward
-// to find a dot, then counts fractional digits. If >=7, increments
-// counter. Self-host safe: comments and strings are scanned too,
-// but most legit content doesn't have long-decimal float literals
-// outside of test fixtures. Comment-text mentions like
-// "3.14159265" in this file's own diagnostic message would trip
-// this — kept in this file via str_concat construction below.
 #[manual_drop]
 fn count_long_float_literals(src: str) -> i64 {
     let slen: i64 = str_len(src);
@@ -2061,19 +2009,6 @@ fn expand_async_strip_keyword(src: str) -> str {
                             sb_append(sb, async_fn_name);
                             sb_append(sb, "\n");
                         } else {
-                            // v0.5.19 closes probe finding
-                            // 2026-05-01-async-keyword-silently-stripped.
-                            // Plain `async fn foo()` (no RT attribute) was
-                            // silently stripped pre-fix — adopter wrote the
-                            // canonical Rust async pattern, the keyword
-                            // dropped, the fn ran sync, no signal. Now we
-                            // emit an ASYNC-001 warning marker that the
-                            // scanner picks up post-strip. Marker shape
-                            // mirrors RT-006's `//__NUC6T:` for symmetry.
-                            // Note: the runtime DOES support threading via
-                            // async_spawn / async_await (RFC-0027 phase 1) —
-                            // the warning points adopters at that, rather
-                            // than halting cleanly.
                             sb_append(sb, "\n//__NUC6X:");
                             sb_append(sb, async_fn_name);
                             sb_append(sb, "\n");
@@ -4370,13 +4305,6 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     //       3 = eprintln! → eprint(...)        v0.5.22
     //       4 = eprint!   → eprint_raw(...)    v0.5.22
     let parts: Vec<i32> = fmt_split_args(args_text);
-    // v0.7.43 (defensive halt — Rust named format-arg `format!("{x}",
-    // x = 5)`). Pre-fix this surfaced as wrong-class `error[TYP-005]:
-    // undefined function 'x()'` because the expander used the literal
-    // expression `x = 5` as the value to format, parsed it as an
-    // assignment, and `x` was undefined. Detect any arg part matching
-    // `<ident>\s*=\s*<expr>` and halt cleanly. (Does NOT fire on `==`
-    // / `!=` / `<=` / `>=` because those have a non-`=` second char.)
     let mut v743_idx: i64 = 1;
     while v743_idx < vec_len(parts) {
         let v743_arg: str = vec_get(parts, v743_idx);
@@ -4458,19 +4386,6 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                     parities.push(1);
                     arg_idx = arg_idx + 1;
                 } else {
-                    // v0.7.41 (defensive halt — Rust 1.58+ inline format-arg
-                    // placeholders `{name}` where `name` is an identifier
-                    // bound in the caller's scope). Pre-fix this surfaced
-                    // as the v0.4.70 generic "more `{}` than args" error
-                    // even though the args ARE inline in the format string.
-                    // Detect the spec being a bare identifier (no format-
-                    // spec colons / dots / commas) and halt with a clear
-                    // explicit-arg workaround.
-                    // require the first char to be alpha or `_` so
-                    // `{0}` / `{1}` (positional-arg refs, a separate Rust
-                    // feature) don't collide with the v0.7.41 inline-arg
-                    // halt. Digits-only specs are positional references and
-                    // get a different diagnostic just below.
                     let mut v741_inline_ident: i64 = 0;
                     if str_len(spec) > 0 {
                         let v741_c0: i64 = str_char_at(spec, 0);
@@ -4490,9 +4405,6 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                         print(str_concat("       Workaround: use the explicit-arg form — `format!(\"{}\", ", str_concat(spec, ")` (or `println!`/`print!`/etc.). For multiple inline args, list each as a separate trailing arg in the same order they appear in the format string.")));
                         panic(str_concat("nucleor: inline format-arg `{", str_concat(spec, "}` not yet supported (see ERROR diagnostic above)")));
                     };
-                    // v0.7.42 (defensive halt — Rust positional format-arg
-                    // `{0}` / `{1}` / etc.). Detect digits-only spec and
-                    // halt with an explicit `{}`-only workaround pointer.
                     let mut v742_pos_arg: i64 = if str_len(spec) > 0 { 1 } else { 0 };
                     let mut v742_pi: i64 = 0;
                     while v742_pi < str_len(spec) && v742_pos_arg == 1 {
@@ -4634,23 +4546,6 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // `unreachable` removed from this strip-and-
                 // continue list — the mode-5 path below now expands it
                 // to `panic("internal error: entered unreachable code")`.
-                // v0.6.76 RFC V1.9
-                // canonical Rust `assert!(cond, "fmt {}", arg)` pre-fix
-                // stripped `!` and emitted `assert(cond, "fmt {}", arg)`
-                // — a 3-arg call to the 1-arg `__nucleor_assert(i64)`
-                // helper. Format args dropped, `{}` stayed literal, and
-                // assert(cond_truthy=1) silently passed even with broken
-                // format args. v0.6.73 attempt regressed cold +1.7s due
-                // to per-call comma walking; this ship limits the walk
-                // to assert/assert_eq/assert_ne calls only (cheap name
-                // gate), and only when 2+ (assert) / 3+ (assert_eq/ne)
-                // top-level commas are present (format-arg shape).
-                // Rewrite shape:
-                //   assert!(c, "fmt", args)   →  if !(c) { panic("fmt-built"); };
-                //   assert_eq!(a, b, "fmt", args) →  if !((a) == (b)) { panic("fmt-built"); };
-                //   assert_ne!(a, b, "fmt", args) →  if !((a) != (b)) { panic("fmt-built"); };
-                // The `panic("fmt-built")` part is built via mode-5
-                // fmt_build_expansion — same path panic! mode-5 uses.
                 let mut v076_assert_kind: i64 = 0; // 0=not, 1=assert, 2=assert_eq, 3=assert_ne
                 if str_eq(name, "assert") == 1 { v076_assert_kind = 1; };
                 if str_eq(name, "assert_eq") == 1 { v076_assert_kind = 2; };
@@ -4953,30 +4848,11 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // about the missing tail expression.
                 if str_eq(name, "todo") == 1 { mode = 5; };
                 if str_eq(name, "unimplemented") == 1 { mode = 5; };
-                // v0.7.20 (defensive halt — Rust built-in macros NOT supported
-                // in Nucleor's textual macro layer: file!/line!/column!/
-                // module_path!/stringify!/concat!/env!/option_env!/include_str!/
-                // include_bytes!). These need a const-eval pass which Nucleor
-                // doesn't have yet. Pre-fix: wrong-class NR020 (zero-arg) or
-                // TYP-005 (arg-bearing). v0.7.25: tightened to a single token-
-                // boundary string-contains scan + one multi-line message.
                 if mode == 0 - 1 && (str_eq(name, "file") == 1 || str_eq(name, "line") == 1 || str_eq(name, "column") == 1 || str_eq(name, "module_path") == 1 || str_eq(name, "stringify") == 1 || str_eq(name, "concat") == 1 || str_eq(name, "env") == 1 || str_eq(name, "option_env") == 1 || str_eq(name, "include_str") == 1 || str_eq(name, "include_bytes") == 1) {
                     print(str_concat("ERROR: Rust built-in macro `", str_concat(name, "!(...)` is not yet supported in Nucleor. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).")));
                     print("       Workarounds: file!/line!/column!/module_path!/stringify! → hard-coded literal; concat! → str_concat at runtime or single literal; env!/option_env! → args_get / wrapper script; include_str!/include_bytes! → file_read_string at runtime.");
                     panic(str_concat("nucleor: built-in macro `", str_concat(name, "!(...)` not yet supported (see ERROR diagnostic above)")));
                 };
-                // v0.8.28 (defensive halt — user-defined / unknown macro
-                // invocation `name!(args)` in expression position).
-                // Pre-v0.8.28 any unrecognized `name!(args)` fell through
-                // the macro expansion pass with the `!` preserved in the
-                // output. The token-level parser then saw `name` (identifier)
-                // followed by `!` (token 38, unary NOT) applied to `(args)`
-                // (i32 / str expression) — producing wrong-class
-                // `error[TYP-002]: unary \`!\` requires a \`bool\` operand
-                // (got i32)`. This was the observable failure for code like
-                // `square!(5)` when `macro_rules! square { ... }` had been
-                // declared (but silently dropped — see the companion fix in
-                // the module-level macro_rules halt above).
                 if mode == 0 - 1 {
                     print(str_concat("ERROR: user-defined or unrecognized macro invocation `", str_concat(name, "!(...)` is not supported in Nucleor. Workaround: rewrite the macro body as a regular fn — replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.).")));
                     panic(str_concat("nucleor: unknown macro `", str_concat(name, "!(...)` not supported (see ERROR diagnostic above)")));
@@ -6611,14 +6487,6 @@ fn main() -> i64 {
     if str_eq(cmd, "explain") {
         return run_explain_command(argc);
     };
-    // v0.8.150 V1.16 Phase A0 — `--lsp-mode` flag stub.
-    // SPEC-LSP-server.md calls for ~600 LOC subprocess-mode LSP
-    // daemon. Phase A0 wires the flag and emits the server-
-    // capabilities advertisement as JSON-on-stdout so editor
-    // extensions can probe what's supported. Phase A1 (real LSP
-    // base protocol with Content-Length-framed JSON-RPC) is the
-    // follow-on ship — needs raw stdin byte reads added to the
-    // io_rt surface first.
     if str_eq(cmd, "--lsp-mode") {
         print("{\"server\":\"nucleor-lsp\",\"version\":\"v0.8.150\",\"phase\":\"A0\",\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1},\"diagnosticProvider\":{\"interFileDependencies\":false,\"workspaceDiagnostics\":false},\"hoverProvider\":false,\"definitionProvider\":false,\"completionProvider\":{\"triggerCharacters\":[\".\"]},\"codeActionProvider\":true,\"documentFormattingProvider\":true},\"phaseA0\":\"capabilities-advertisement-only; real LSP base protocol lands in Phase A1 (needs raw stdin byte-read primitive)\"}");
         return 0;

@@ -16,10 +16,6 @@ fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg);
 // pre-populate them. Cuts per-fn sym_set workload (was ~2 entries
 // per declared fn × N fns = 2*N^2 sym_set calls; now ~1 sym_set
 // per fn-body).
-// v0.7.x P2: store the shared table in a dedicated runtime hashmap.
-// The original shared Vec removed the N^2 sym_set cost but still did a
-// backward linear scan for every fallback lookup; caller attribution
-// showed ~48M vec_get + ~48M str_eq calls here in one self-host build.
 #[manual_drop]
 fn fn_return_map_get(m: i64, key: str) -> i64 {
     if m <= 0 { return 0 - 1; };
@@ -27,45 +23,9 @@ fn fn_return_map_get(m: i64, key: str) -> i64 {
     return 0 - 1;
 }
 
-// v0.4.3 Phase B redo — hash-backed sym_get on a single warm-cache
-// hashmap (one allocation total in the runtime; see nucleor_llvm_rt.c
-// __nucleor_sym_aux_create comment for the design rationale).
-// v0.3.237's per-sym aux model failed because sym_clone -> new aux
-// per clone -> 1.8x peak-memory regression. The warm cache fixes
-// that: ONE NHashMap exists in the runtime; when sym_get is called
-// on a different handle than the cached one, the hashmap is cleared
-// and rebuilt from the new sym. Memory cost is bounded by the size
-// of the largest single sym ever cached.
-// Size threshold: for small syms (< 128 pairs / 256 vec entries),
-// the linear backward scan is competitive (cache-friendly, no
-// hashmap touch) AND avoids warm-cache thrash on the many small
-// clones that branch isolation creates. The hash path only fires
-// for syms above the threshold -- in practice, the long-lived
-// outer module-scope sym that linear scan was actually slow on.
-// Most-recent-entry vec fast path is preserved -- the just-set
-// lookup never touches the hashmap or the threshold check.
-// Correctness invariants (validated by the bootstrap fixed-point
-// gate -- if any of these are wrong, stage_b != stage_c IR diff
-// fires):
-//   sym_set: appends to vec only. Catchup loop in sym_get re-inserts;
-//     hashmap_insert overwrites on duplicate key, so last-write-wins
-//     gives the same answer the backward scan would.
-//   own_put_i / own_put_s: in-place vec_set + hashmap_insert sync
-//     IF this sym is currently the warm one. Without the sync the
-//     hash would return the stale pre-update value.
-//   own_restore: clears the hash if this sym is warm + resets
-//     built_at = 0 so the next sym_get rebuilds from the post-
-//     restore vec.
-//   sym_clone: copies vec contents only. The new sym_handle is
-//     different; on first sym_get against the clone, the warm
-//     cache will reset and rebuild from the clone's vec.
 #[manual_drop]
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let n: i64 = vec_len(s);
-    // v1.1.x perf: collapse the n>=2 tail check + n<64 linear scan
-    // into a single C call. Helper scans backward from tail anyway,
-    // so the explicit tail check was redundant. Saves one FFI call
-    // per sym_get (~9M / build).
     if n < 64 {
         if n < 2 { return 0 - 1; };
         let lhit: i64 = __nucleor_sym_linear_lookup(s, name);
@@ -1073,11 +1033,6 @@ fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
     return 0 - 1;
 }
 
-// v0.6.74 RFC V1.1 step 2: tuple-struct shape detection. A struct is
-// tuple-style if all field names match `__<digit>+` pattern (synthesized
-// by parse_struct_decl when the decl uses paren-form). Used by
-// constructor routing (kind-7 → struct ctor when callee is tuple-style)
-// and field-access lowering (`p.0` → `p.__0`).
 #[manual_drop]
 fn struct_is_tuple_style(pool: Vec<i32>, struct_nid: i64) -> i64 {
     let flist: i64 = node_field(pool, struct_nid, 2);
@@ -1309,4 +1264,3 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
     sym_set(sym, "__eargs_Result_Err", 1);
     return 0;
 }
-

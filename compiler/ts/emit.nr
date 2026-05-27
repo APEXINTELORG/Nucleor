@@ -172,7 +172,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_result_ok(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_err(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_expect(ptr, ptr)\n");
-    // v0.4.92 mirror.
     sb_append(sb, "declare ptr @__nucleor_option_map(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_option_and_then(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_option_unwrap_or_else(ptr, i64)\n");
@@ -366,7 +365,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
-    // v0.3.236 Phase A — sym-aux side hashmap helpers
     sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup(i64, i64)\n");
@@ -374,7 +372,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_own_put_i_full(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
-    // v0.4.10 Phase A — compile-source side table
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
@@ -1119,4 +1116,3 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     while fi < vec_len(fns) { sb_append(sb, emit_fn(vec_get(fns, fi), pool, externs)); sb_append(sb, "\n"); fi = fi + 1; };
     return sb_to_str(sb);
 }
-

@@ -954,14 +954,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "__nucleor_hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "__nucleor_hashmap_contains") { return "__nucleor_hashmap_contains"; };
-    // v0.3.236 Phase A — sym-aux side hashmap helpers (hash-backed
-    // sym_get refactor). Mappings ship in Phase A so that Phase B
-    // source migration can be compiled by a Phase-A binary.
     if str_eq(name, "__nucleor_sym_aux_get") { return "__nucleor_sym_aux_get"; };
     if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
     if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
     if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
-    // v0.4.10 Phase A — compile-source side table for deep helpers
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };

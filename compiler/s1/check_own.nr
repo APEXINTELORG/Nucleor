@@ -5,16 +5,10 @@
 fn own_new() -> Vec<i32> { return Vec::new(); }
 #[manual_drop]
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
-    // v1.1.x perf: full body in C. Pre-fix this paid 3-5 FFI calls
-    // per put (lookup + vec_set + sym_aux_get + maybe hashmap_insert
-    // OR two vec_push). Now one FFI call.
     return __nucleor_own_put_i_full(o, key, val);
 }
 #[manual_drop]
 fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
-    // v1.1.x perf: same full-body hoist. str values are stored as
-    // i64-cast pointers under the i64-everywhere ABI, so the same C
-    // helper works.
     return __nucleor_own_put_i_full(o, key, val);
 }
 #[manual_drop]
@@ -504,11 +498,6 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
 }
 #[manual_drop]
 fn own_merge_state_key(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>, key: str, va_in: i64, vb_in: i64) -> i64 {
-    // v1.1.x perf: dispatch on
-    // str_char_at(key, 2) instead of testing every prefix sequentially.
-    // Pure source refactor — no new externs, no compiler registration
-    // changes, no runtime/seed change. Same semantics, fewer per-call
-    // str_starts_with lookups.
     let klen_dsp: i64 = str_len(key);
     if klen_dsp >= 5 {
         let c2_dsp: i64 = str_char_at(key, 2);
@@ -614,13 +603,6 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     };
     let nA: i64 = vec_len(a);
     let nB: i64 = vec_len(b);
-    // v1.1.x perf: pre-build a
-    // hashmap of `a`'s keys for the second loop's "is this key in
-    // a?" check. Only when nA is large enough that the linear sym_get
-    // cost (per b-key × nA) exceeds the hashmap setup overhead.
-    // Threshold 128 (= 64 pairs) matches the existing warm-aux
-    // gate, where hashmap O(1) becomes worth the setup cost vs
-    // linear backward scan.
     let use_hash: i64 = if nA >= 128 { 1 } else { 0 };
     let a_idx: i64 = if use_hash == 1 { __nucleor_hashmap_with_capacity(nA) } else { 0 - 1 };
     if use_hash == 1 {
@@ -1301,14 +1283,6 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         if state == 2 {
             let source_text_move: str = own_source(own);
             let diag_vec_move: Vec<i32> = own_diags(own);
-            // v0.5 ship 7 final: span-aware caret. Pre-fix, the OWN-001
-            // line/col came from `find_in_source` / `find_column_in_source`
-            // which scan the function body for the FIRST textual
-            // occurrence of `vname` — wrong-caret bug for any variable
-            // used multiple times in the same fn (the fix points at the
-            // first use, not the actual use-after-move site). With var-
-            // ref nids now spanned in parse_primary, we read the use
-            // site directly.
             let move_sp: i64 = node_get_span(pool, nid);
             let mut ln: i64 = 0;
             let mut col: i64 = 0;
@@ -1323,10 +1297,6 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // Lane 3 (F-DIAG-003): OWN-001 was emitted at "warning" severity,
             // which combined with the regex-only negative-test gate let
             // use-after-move ship a binary at RC=0 past every layer of
-            // v1.0 enforcement. The other ownership-family codes (OWN-G4,
-            // OWN-G8, BORROW-G2, INIT-G11, ALIAS-G3-*, SEND-G6-*) all emit
-            // at "error" severity via own_diag; OWN-001 was the lone
-            // outlier. Now consistent.
             let d_idx: i64 = diag_add_ex(diag_vec_move, "error", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
             // Add child note: where was it moved?
             let moved_by: str = own_get_type(own, str_concat("__moved_by_", vname));
@@ -1877,11 +1847,6 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // provably non-exhaustive (cannot list every i32/i64/str
             // value). Pre-fix `match x { 1 => 10, 2 => 20 }` for
             // x=5 silently returned 0 — same hazard class as the
-            // v0.4.59 enum match-as-expr close, but the existing
-            // exhaustiveness check explicitly excluded __int/__str
-            // (lines 9760/10060) so int/str matches escaped MATCH-001
-            // entirely. Now: any int/str match-as-expr without an
-            // `_` arm is MATCH-001.
             if (str_eq(first_ename_e, "__int") == 1 || str_eq(first_ename_e, "__str") == 1) && has_wild_e == 0 {
                 let kind_label: str = if str_eq(first_ename_e, "__int") == 1 { "integer" } else { "string" };
                 let msg_int_e: str = str_concat("non-exhaustive ", str_concat(kind_label, str_concat(" match (in expression context): ", str_concat(str_from_int(ac_e), " arms with no `_` wildcard. The set of values is unbounded so the unmatched case silently fell through to 0 pre-v0.4.109 — add a `_ => default_value,` arm to cover it explicitly."))));
@@ -2290,8 +2255,6 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // RFC-0023 §3.1 + MATCH-007: range pattern with bounds in
             // wrong order (LO > HI) — would never match.
             if str_eq(ename, "__range_bad") {
-                // v0.4.43 (RFC-0020 Phase 3, v0.2 deferred row #8):
-                // span migration — use line + col instead of line-only.
                 match_diag_at(diag_vec, source_text, pool, nid, "warning", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name);
                 warns = warns + 1;
             };
@@ -2683,4 +2646,3 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
     };
     return w;
 }
-

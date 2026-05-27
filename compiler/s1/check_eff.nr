@@ -617,14 +617,6 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // early-return left adopters with `gates off` as the implicit
     // default for unannotated source — the headline claim
     // "RFC-0062 closed all 11 G-gates at hard-error severity in
-    // v1.0" was structurally honest only for files that opted in.
-    // Now: when no opt-in attribute exists BUT the source has at
-    // least one extern fn or unsafe block, surface a warning-level
-    // disclosure that the framework is inactive for this TU. This
-    // is the Phase A remediation from the audit (info diag), at
-    // warning severity so adopters cannot miss it; Phase B is the
-    // `#[file_effects(default_on)]` outer-attribute opt-in for
-    // file-level enable, scheduled post-v1.0.
     if str_contains(source, "#[effect(") == 0 && str_contains(source, "#[allow_effect(") == 0 {
         let stripped_g10_cliff: str = strip_strings_and_line_comments(source);
         if str_contains(stripped_g10_cliff, "extern fn ") == 1 || str_contains(stripped_g10_cliff, "unsafe {") == 1 {
@@ -1393,19 +1385,6 @@ fn collect_no_alloc_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
-// v0.4.244 RFC-0006 substrate — `#[require(EXPR)]` source-text
-// scanner. Mirrors `collect_no_alloc_fns` shape: scans the source
-// for the literal pattern, walks paren-balanced expression text,
-// captures the next `fn NAME` identifier, and stores a flat
-// (fn_name, expr_text) pair in the result Vec. Lex-time the `#[
-// require(...)]` is discarded as an unknown attribute, so the
-// parser never sees it; this side-channel scanner recovers the
-// information.
-// Returns a flat Vec of alternating (fn_name, expr_text) entries:
-//   [name0, expr0, name1, expr1, ...]
-// String-literal and `//` comment skipping mirror the no_alloc
-// pattern so the s1 compiler doesn't false-positive on the literal
-// pattern strings inside its own scanner code.
 #[manual_drop]
 fn collect_fn_requires(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
@@ -1508,9 +1487,6 @@ fn lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str {
     return "";
 }
 
-// v0.4.246 RFC-0006 substrate — `#[ensure(EXPR)]` source-text
-// scanner. Mirror of collect_fn_requires but for the ensure
-// attribute (postcondition checked at fn exit).
 #[manual_drop]
 fn collect_fn_ensures(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
@@ -1592,17 +1568,6 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
     return entries;
 }
 
-// v0.4.251 RFC-0006 — `old(expr)` snapshot text rewriter.
-// Walks the ensure expression's TEXT, finds every `old(...)`
-// pattern (paren-balanced, string-literal aware), and rewrites
-// each to a synthesized binding name `__old_<fn_name>_<idx>`.
-// The inner expression text per `old(...)` is captured separately.
-// Returns a flat Vec encoding [rewritten_text, n, synth0, inner0,
-// synth1, inner1, ...] where n is the number of olds.
-// At lower-time, the pre-pass lex+parses each inner into the AST
-// pool, and lower_fn pre-evaluates each inner at fn entry storing
-// to an alloca. The rewritten ensure expression's `__old_*`
-// var-refs then resolve to loads from those allocas.
 #[manual_drop]
 fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
@@ -1695,12 +1660,6 @@ fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
     return "";
 }
 
-// v0.4.248 RFC-0006 substrate — `#[invariant(EXPR)]` source-text
-// scanner. Matches inherent impl blocks: `#[invariant(EXPR)] impl
-// <Type> { ... }`. Trait-impl form (`impl Trait for Type`) is
-// recognized by walking past the trait identifier and the `for`
-// keyword to find the receiver type. Returns flat (type_name,
-// expr_text) pairs.
 #[manual_drop]
 fn collect_impl_invariants(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
@@ -1812,13 +1771,6 @@ fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
     return "";
 }
 
-// v0.4.258 RFC-0006 — `#[no_check]` per-fn opt-out scanner.
-// Returns flat Vec of fn names that carry the `#[no_check]`
-// attribute; the require/ensure pre-passes skip these so the
-// contract emit-sites produce no runtime checks. Useful for
-// hot-path fns where the contract is documentation-only.
-// `#[no_check]` does NOT take an expression — marker attr only.
-// Pattern: `#[no_check]` followed by whitespace and `fn NAME`.
 #[manual_drop]
 fn collect_no_check_fns(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
@@ -1960,39 +1912,9 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
         if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
         i = i + 1;
     };
-    // v0.8.75 RFC-0062 G-1 Phase 2b-3 FINAL — unconditional
-    // default-flip. Auto-drop is now ON BY DEFAULT for every fn.
-    // Safe path validated:
-    //   - v0.8.31/32  #[manual_drop] suppress mechanism
-    //   - v0.8.35     safety audit (89 candidates classified)
-    //   - v0.8.41/42  13 fns annotated #[manual_drop]
-    //   - v0.8.64     cache-key correctness fix
-    //   - v0.8.68/69  sentinel double-free guard (opt-in)
-    //   - v0.8.73     handoff-risk warning under flip
-    //   - v0.8.74     proper dataflow handoff suppression at
-    //                 ExprStmt lowering (catches vec_push /
-    //                 vec_set / hashmap_insert patterns and
-    //                 suppresses auto-drop on the local that
-    //                 was handed off)
-    // v0.8.65 ATTEMPTED unconditional flip and segfaulted on
-    // attention2.nr import because the static heuristic missed
-    // rod-side handoffs. v0.8.74 closes that gap by detecting
-    // handoffs at lowering time and suppressing immediately.
-    // Re-test confirmed v0.8.75 ready: attention2.nr import
-    // compiles cleanly under flip ON. The dataflow detection
-    // is conservative (over-suppresses some local-only cases
-    // → leaks instead of dropping; never dangling pointer).
-    // Phase 2c will refine via receiver-locality + alias
-    // tracking for tighter coverage. Phase 3 deny-by-default
-    // for misuse. Phase 4 hard-error promotion at v1.0 cut.
     return 1;
 }
 
-// v0.8.32 RFC-0062 G-1 Phase 2b-2 — collect `#[manual_drop]`
-// fn names. Sister of collect_auto_drop_fns. Phase 2b-2: when
-// a fn is in BOTH lists, manual_drop suppresses the auto-drop.
-// Phase 2b-3 (default-flip): every fn gets auto-drop unless
-// in this list.
 #[manual_drop]
 fn collect_manual_drop_fns(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
@@ -2064,13 +1986,6 @@ fn name_in_manual_drop(manual_drop: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
-// v0.4.271 RFC-0006 — heap-aliased type detection for `old()` reject.
-// The i64-everywhere ABI represents Vec/String/HashMap/HashSet/
-// BTreeMap/BTreeSet/VecDeque/Box as a single i64 pointer to heap
-// storage. Snapshotting the i64 captures the POINTER, not the
-// buffer contents — so `old(v)` for `v: Vec<T>` aliases the post-
-// mutation pointer and gives wrong ensure semantics. Reject at
-// compile time with CONTRACT-006.
 #[manual_drop]
 fn is_heap_aliased_type(ty: str) -> i64 {
     if str_starts_with(ty, "Vec<") == 1 { return 1; };
@@ -2085,13 +2000,6 @@ fn is_heap_aliased_type(ty: str) -> i64 {
     return 0;
 }
 
-// v0.4.271 RFC-0006 — text-level lookup of a fn's named param type.
-// Finds `fn FNAME(...)`, scans the param list with paren/angle-
-// bracket depth tracking so `Vec<HashMap<i64, str>>` parses correctly,
-// and returns the type-text of the param matching PNAME. Returns ""
-// on miss. Used by the old() heap-aliased reject; matching pattern
-// shape with the no_check / require / ensure scanners (text-level
-// pre-pass before the AST is built).
 #[manual_drop]
 fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
@@ -2272,11 +2180,6 @@ fn fn_callee_param_is_borrow(source: str, fn_name: str, idx: i64) -> i64 {
     return 0;
 }
 
-// v0.4.272 RFC-0006 — text-level lookup of a fn's return type.
-// Finds `fn FNAME(...)`, walks past the param list with paren
-// depth tracking, then returns the text between `->` and `{`
-// trimmed. Returns "" if the fn has no return arrow (i.e. void
-// return type). Used by the void-fn-result-ref reject.
 #[manual_drop]
 fn fn_return_type(source: str, fn_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
@@ -2755,34 +2658,6 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
     return 0;
 }
 
-// v0.6.84 RFC V1.4
-//  row): canonical Rust
-// `#[derive(PartialEq)] struct Point { x: i64, y: i64 }` pre-fix
-// emitted only the v0.6.26 `warning[DERIVE-001]` and the derive was
-// silently a no-op. Adopters writing `if a == b { ... }` later got
-// the v0.4.147 TYP-011 ptr-compare diag with workaround pointer
-// "write a helper fn that does the field walk" — but the helper
-// wasn't auto-generated.
-// This pass walks the source, finds `#[derive(...PartialEq...)]`
-// attribute lines followed by a `struct NAME { ... }` or `struct
-// NAME(...);` decl, and APPENDS a generated helper fn at end of
-// source: `fn <NAME>__derived_eq(a: <NAME>, b: <NAME>) -> i64 {
-//     if a.<f1> != b.<f1> { return 0; };
-//     ...
-//     return 1;
-// }`. Adopters can call the generated fn directly; auto-dispatch
-// of `==`/`!=` to the helper is deferred to a follow-on V1.4 ship
-// (needs lower_expr binop kind-4 routing + side-table threading).
-// Conservative scope: skip generic structs (`struct Pair<T>`),
-// skip where-clauses, skip empty unit structs. For named struct
-// fields, walk to the next top-level comma or `}` (depth-tracked
-// for `<>`/`()`/`[]` so generic field types parse correctly). For
-// tuple structs, count types and synthesize `__0`/`__1` names
-// matching the V1.1 (v0.6.74) tuple-struct positional-field
-// synthesis.
-// `!=` on a struct field today does pointer-compare for nested
-// structs (silent miscompute); the per-field helper still works
-// for primitive-typed fields. Document the limitation in CHANGELOG.
 #[manual_drop]
 fn expand_derive_partialeq(src: str) -> str {
     let slen: i64 = str_len(src);
@@ -3832,12 +3707,6 @@ fn enforce_sendable_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
-// v0.4.277 RFC-0006 — scan a contract-predicate text for `old(`
-// pseudo-call. Same word-boundary technique as
-// `ensure_text_uses_result`: `old` must be preceded by start-of-
-// text or non-ident char (so `older` / `bold(...)` don't match)
-// and followed by `(`. Used to reject `#[require(old(...) ...)]`
-// at compile time.
 #[manual_drop]
 fn contract_text_uses_old(text: str) -> i64 {
     let needle: str = "old";
@@ -3861,20 +3730,6 @@ fn contract_text_uses_old(text: str) -> i64 {
     return 0;
 }
 
-// v0.4.283 RFC-0006 — scan a contract-predicate text for any
-// identifier that doesn't resolve to a fn parameter, a DbC
-// keyword (result / old / self / true / false / None / Some /
-// Ok / Err / null), a CamelCase type or enum variant (first
-// char uppercase), an ALL_CAPS const (all chars uppercase /
-// digits / underscores), or a fn-call site (followed by `(`).
-// Returns the unbound ident name on first match, or "" if all
-// idents resolve. Conservative: we'd rather miss a real
-// undefined-ident (false negative — adopter sees the existing
-// clang-link error) than reject a valid identifier.
-// Regression fixed in v0.4.283: pre-fix,
-// `#[require(undefined_var > 0)]` surfaced a misleading clang-
-// link "undefined function `undefined_var()`" error. CONTRACT-011
-// halts at parse time with the actual unbound ident named.
 #[manual_drop]
 fn find_unbound_ident_in_contract(source: str, fn_name: str, predicate: str) -> str {
     let n: i64 = str_len(predicate);
@@ -3955,11 +3810,6 @@ fn find_unbound_ident_in_contract(source: str, fn_name: str, predicate: str) -> 
     return "";
 }
 
-// v0.4.272 RFC-0006 — scan an ensure-predicate text for a bare
-// `result` identifier reference. Walks the text, tracking word
-// boundaries: a hit must be preceded by start-of-text or non-
-// ident char, and followed by end-of-text or non-ident char.
-// Used to reject `#[ensure(result ...)]` on void fns.
 #[manual_drop]
 fn ensure_text_uses_result(text: str) -> i64 {
     let needle: str = "result";
@@ -3988,12 +3838,6 @@ fn ensure_text_uses_result(text: str) -> i64 {
     return 0;
 }
 
-// v0.4.271 RFC-0006 — quick check whether `text` is a bare identifier
-// (only `[A-Za-z_][A-Za-z0-9_]*`, no whitespace / punctuation /
-// operators). Conservative: complex `old()` expressions like
-// `old(self.field)` or `old(get_vec())` skip the heap-aliased
-// reject (false negative is preferred over false positive — the
-// runtime panic still surfaces in those edge cases).
 #[manual_drop]
 fn is_bare_ident(text: str) -> i64 {
     let t: str = str_trim(text);
@@ -4016,17 +3860,6 @@ fn is_bare_ident(text: str) -> i64 {
     return 1;
 }
 
-// v0.4.257 RFC-0006 Liskov substrate — count #[require] and
-// #[ensure] attributes per trait method declaration. Returns flat
-// Vec of (trait_name, method_name, req_count, ens_count) tuples
-// where the count fields are stored as decimal strings (the flat
-// Vec<i32> representation forces all entries to be the same shape).
-// Walking heuristic: scan source for `trait NAME {` blocks; track
-// brace depth so nested decls don't escape; within the trait,
-// scan for `fn METHOD(`; before each fn, scan back/forward for
-// preceding `#[require(...)]` / `#[ensure(...)]` attributes
-// (those that fall between the previous statement boundary and
-// the fn keyword).
 #[manual_drop]
 fn collect_trait_method_attrs(source: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
@@ -4165,11 +3998,6 @@ fn collect_trait_method_attrs(source: str) -> Vec<i32> {
     return out;
 }
 
-// v0.4.257 RFC-0006 Liskov substrate — count #[require] and
-// #[ensure] attributes per impl-trait method definition. Returns
-// flat Vec of (trait_name, type_name, method_name, req_count,
-// ens_count) tuples. Only trait impls (the `impl Trait for Type`
-// form) are captured; inherent impls (`impl Type`) are skipped.
 #[manual_drop]
 fn collect_impl_trait_method_attrs(source: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
@@ -8115,4 +7943,3 @@ fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
     };
     return cnt;
 }
-

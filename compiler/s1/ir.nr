@@ -272,9 +272,6 @@ fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, 
 // `<op> iN`. Caller is lower_expr kind 4 narrow path.
 #[manual_drop]
 fn ir_binop_t(iop: i64, d: i64, a: i64, b: i64, w: i64) -> Vec<i32> { return ir_inst(iop, d, w, a, b, 0); }
-// v0.5 3e.1 spike: signed LLVM overflow-intrinsic arithmetic.
-// Opcodes 35/36/37 mirror add/sub/mul. tid carries width (0 => i64),
-// extra carries the trap label; the continuation label is trap + 1.
 #[manual_drop]
 fn ir_add_with_overflow(d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> Vec<i32> { return ir_inst(35, d, w, a, b, trap_lbl); }
 #[manual_drop]
@@ -360,13 +357,6 @@ fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
     let mut f: Vec<i32> = Vec::with_capacity(5); f.push(name); f.push(pc);
     let mut entry_allocas: Vec<i32> = Vec::new(); f.push(entry_allocas);
     let mut blocks: Vec<i32> = Vec::new(); f.push(blocks);
-    // v0.4.209 RFC-0015 phase 3a-step-3 (Option F-light): per-fn
-    // widths-by-reg table. Slot 4 stores a Vec<i32> indexed by
-    // alloca-reg id; values are sign-encoded narrow widths
-    // (positive=signed, negative=unsigned, 0=untyped/i64). Grows
-    // on demand at set time. Read at every var-ref load + store
-    // for typed-IR dispatch. Two vec_gets per read on the hot path
-    // — no str_concat, no sym_get hash.
     let mut widths_by_reg: Vec<i32> = Vec::new(); f.push(widths_by_reg);
     return f;
 }
@@ -483,4 +473,3 @@ fn block_has_term(blk: Vec<i32>) -> i64 {
     let op: i64 = ir_op(ir_block_get_inst(blk, ic - 1));
     if op == 20 || op == 21 || op == 22 { return 1; }; return 0;
 }
-

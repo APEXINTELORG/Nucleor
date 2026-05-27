@@ -68,7 +68,6 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
     if str_eq(name, "result_err") { return "__nucleor_result_err"; };
     if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
-    // v0.4.92 mirror.
     if str_eq(name, "option_map") { return "__nucleor_option_map"; };
     if str_eq(name, "option_and_then") { return "__nucleor_option_and_then"; };
     if str_eq(name, "option_unwrap_or_else") { return "__nucleor_option_unwrap_or_else"; };
@@ -373,12 +372,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "__nucleor_hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "__nucleor_hashmap_contains") { return "__nucleor_hashmap_contains"; };
-    // v0.3.236 Phase A — sym-aux side hashmap helpers
     if str_eq(name, "__nucleor_sym_aux_get") { return "__nucleor_sym_aux_get"; };
     if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
     if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
     if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
-    // v0.4.10 Phase A — compile-source side table
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
@@ -824,7 +821,6 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
     if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
-    // v0.3.0 (T3.1): synced from s1.
     if str_eq(name, "deadline_enter") { return "__nucleor_deadline_enter"; };
     if str_eq(name, "deadline_exit") { return "__nucleor_deadline_exit"; };
     if str_eq(name, "deadline_poll") { return "__nucleor_deadline_poll"; };
@@ -1257,4 +1253,3 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     return 0;
 }
-

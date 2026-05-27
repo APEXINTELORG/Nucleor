@@ -185,22 +185,6 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         if exp_fixed == 1 && fixed_accepts_integer_storage(actual) == 1 { return 1; };
         return 0;
     };
-    // v0.6.75 RFC V1.2
-    //  canonical Rust `let b: Box<i64> = Box::new(5);`
-    // pre-fix failed TYP-008 because `Box::new(5)` types as `Box<i32>`
-    // (i32 is the literal-default for unsuffixed int literals) and
-    // `types_compatible(Box<i64>, Box<i32>)` returned 0 (no Box<T>
-    // recursion or literal-widening path).
-    // Note: `type_base_name("Box<T>")` strips the Box wrapper and
-    // returns the inner type's base, so we must dispatch the Box<T>
-    // shape BEFORE the type_base_name call below — using
-    // str_starts_with directly. The literal-default widening rule
-    // accepts i32 actual into any wider/narrower int-typed expected
-    // (i32 is the canonical default for unsuffixed int literals).
-    // Cheap first-char gate: skip the str_starts_with calls unless both
-    // expected and actual begin with 'B' (ASCII 66). Box<T> compares are
-    // a vanishingly small fraction of types_compatible calls and the hot
-    // path must remain a few char compares.
     let mut box_v075_match: i64 = 0;
     if str_len(expected) > 4 && str_len(actual) > 4 {
         if str_char_at(expected, 0) == 66 && str_char_at(actual, 0) == 66 {
@@ -1604,11 +1588,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
         };
         if sw > 0 && tw > 0 && ss == ts && tw < sw {
-            // v0.5 ship 7: span-aware caret. Use the cast nid's span
-            // (set in parse_unary at the `as` token) when available;
-            // fall back to the legacy fn-name scan otherwise. This
-            // makes NUM-003 caret at the cast site instead of the
-            // function declaration.
             let nloc: Vec<i32> = if node_get_span(pool, nid) >= 0 {
                 let lm99: Vec<i32> = linemap_build(source);
                 let sp99: i64 = node_get_span(pool, nid);
@@ -1650,21 +1629,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, v216_line, v216_col, "");
             };
         };
-        // v0.4.72 NOT enforcing `str as <numeric>` — Nucleor's
-        // i64-everywhere ABI makes str pointers castable to i64 by
-        // convention (used by intern/hash code in tools_suite + s1).
-        // Rust errors here but Nucleor does not. Documented as a
-        // Nucleor design choice, not a silent miscompute.
-        // NUM-023 — float / bool as-cast to `str`. Pre-fix
-        // `let s: str = x as str` for `x: f64` lowered to a no-op
-        // (the i64-cell holding the f64 bit pattern was reinterpreted
-        // as a char ptr) and SIGSEGV'd at print time when the bit
-        // pattern was dereferenced. Same hazard for bool — `true as
-        // str` produced a str ptr equal to 1, segfault on print. The
-        // i*/u* -> str direction stays allowed (the v0.4.72
-        // i64-everywhere convention covers heap-pointer pun); only
-        // f* and bool sources halt because their i64 cells are
-        // never legitimate heap pointers.
         if str_eq(target_type, "str") == 1 && (type_is_float(source_t) == 1 || str_eq(source_t, "bool") == 1) {
             let v23a: str = str_concat("`", str_concat(source_t, "` cannot be `as`-cast to `str`."));
             let v23b: str = str_concat(" Pre-v0.4.143 `let s: str = x as str` for `x: ", str_concat(source_t, "` lowered to a no-op (the i64 cell holding the value was reinterpreted as a char ptr) and SIGSEGV'd at the next print/str operation when the bit pattern was dereferenced as a heap address."));
@@ -1734,9 +1698,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     };
                     let part1: str = str_concat("`", str_concat(surface, str_concat(" as ", str_concat(target_type, "` numeric-casts the i64 cell holding the "))));
                     let part2: str = str_concat(velt, str_concat(" bit pattern; use ", str_concat(hint, str_concat("(", str_concat(surface, ") for bit-reinterpret")))));
-                    // v0.5 ship 7: span-aware caret. The kind-99 cast nid
-                    // carries the `as` token's byte offset (set in
-                    // parse_unary), so this lands at the cast site.
                     diag_add_at_or_scan(diags, source, pool, nid, vname, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, "");
                 };
             };
@@ -2010,30 +1971,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // `if a == b { ... }` for str values directly.
         // TYP-011 ext — `String == String` / `String != String`
         // silent ptr compare. Sister to v0.4.52 (str == str) and
-        // v0.4.147 (struct ==). String is a heap-allocated buffer
-        // (NOT a user-defined struct, so v0.4.147's struct_find_type
-        // check skipped it). Pre-fix `s == s2` for `s, s2: String`
-        // returned FALSE for two String values at different heap
-        // addresses even when their bytes matched. The runtime helper
-        // `__nucleor_string_eq` exists; this is the missing
-        // surface-level dispatch from `==` to it.
-        // String ==/!= now auto-dispatches to string_eq at
-        // lower-time (paired lower_expr edit). Suppress TYP-011 — adopters
-        // can write canonical `if s1 == s2 { ... }` directly.
-        // NUC-FEEDBACK silent-miscompute close for str
-        // ordering ops `<`, `<=`, `>`, `>=`. Pre-fix `a < b` for two
-        // str values did integer pointer compare — wholly disconnected
-        // from lexicographic byte order. Adopters writing canonical
-        // Rust (which does lex compare via PartialOrd) got a quiet
-        // wrong result.
-        //  the original v0.4.67 workaround text recommended
-        // `str_cmp(a, b) <op> 0` — but `str_cmp` was never wired to a
-        // runtime helper, so adopters following the recommendation hit
-        // TYP-005 / clang link `error: undefined function 'str_cmp()'`.
-        // The diag now points at a manual element-wise loop using
-        // `str_char_at(s, i)` and `str_len(s)` — both ARE in the
-        // runtime. A future ship may add a real `str_cmp` helper, at
-        // which point this diag can be reverted to the simpler form.
         if (op == 32 || op == 33 || op == 34 || op == 35) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
             let ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
             let ord_msga: str = str_concat("`str ", str_concat(ord_op, " str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order)."));
@@ -2046,20 +1983,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // when every field matched. Adopters writing canonical Rust
         // (which would derive PartialEq and do field-wise compare)
         // got a quiet wrong result. Sister to v0.4.52 (str ==) and
-        // v0.4.61 (Vec ==). Catches when both sides resolve to the
-        // SAME user-defined struct type — cross-struct cmp is a
-        // type error caught elsewhere; struct cmp against
-        // non-struct goes through the existing TYP-008 machinery.
         if (op == 30 || op == 31) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
             let v147_lstruct: i64 = struct_find_type(pool, structs, lt);
             if v147_lstruct >= 0 {
-                // v0.6.85 RFC V1.4 (auto-dispatch): if the textual pre-pass
-                // (v0.6.84 expand_derive_partialeq) generated a derived-eq
-                // helper for this struct, suppress TYP-011 — the lower_expr
-                // kind-4 branch (sister edit) routes the binop to the
-                // helper instead of the silent ptr-compare.
-                // base-name for generic instantiations (Pair<i64>
-                // dispatches through Pair__derived_eq).
                 let v085_helper_name: str = str_concat(type_base_name(strip_spaces(lt)), "__derived_eq");
                 let v085_has_derived: str = sig_rtype(sigs, v085_helper_name);
                 if str_len(v085_has_derived) == 0 {
@@ -2152,11 +2078,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         if is_int_arith == 1 && lhs_unsuffixed_lit == 1 && rt_is_int == 1 { return rt; };
         if is_int_arith == 1 && rhs_unsuffixed_lit == 1 && lt_is_int == 1 { return lt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
-        // v0.4.72 NOT enforcing && / || bool-only — Nucleor's
-        // i64-everywhere ABI accepts integer truthiness in logical
-        // ops by convention (used pervasively in tools_suite + s1).
-        // Rust errors here but Nucleor does not. Documented as a
-        // Nucleor design choice, not a silent miscompute.
         if op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37 { return "bool"; };
         return lt;
     };
@@ -2491,16 +2412,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
                     };
                 };
-                // v0.5 (v0.4.228 integration) phase 3c.1 — cross-width
-                // call-site audit. Compatibility passes for i64-into-iN-
-                // param via Nucleor's i64-everywhere ABI, but the
-                // narrowing is implicit. NUM-024 is OPT-IN via
-                // NUCLEOR_AUDIT_NUM024=1 — every narrow-typed param
-                // call is technically cross-width under the i64 ABI
-                // (literals default to i64), so default-on would be
-                // too noisy. v0.4.230's str_from_int widening dropped
-                // the audit surface to 0/0; the verify gate ratchets
-                // that as a regression floor.
                 let v228_audit_on: str = env_get_or("NUCLEOR_AUDIT_NUM024", "0");
                 if str_eq(v228_audit_on, "1") == 1 && compat_ok == 1 && str_len(expected_t) > 0 && str_len(actual_t) > 0 {
                     let v228_e_base: str = type_base_name(expected_t);
@@ -2681,15 +2592,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     else { arg0_t_resolved_v067 = r_v067; alias_depth = alias_depth + 1; };
                 };
                 if str_len(arg0_t_resolved_v067) > 0 && str_eq(arg0_t_resolved_v067, "str") == 0 && str_eq(arg0_t_resolved_v067, "&str") == 0 && str_eq(arg0_t_resolved_v067, "_") == 0 {
-                    // v0.6.80 (probe finding 2026-04-30 String-passed-to-str-
-                    // helper): adopters porting Rust code commonly pass a
-                    // `String` value to `print` / `str_eq` / `str_concat` /
-                    // etc. and pre-fix saw the bare TYP-006 "must be str"
-                    // diag without learning that Nucleor's String is a
-                    // distinct heap-buffer struct (`{ data, len, cap }`)
-                    // from str (NUL-terminated borrowed view), and that the
-                    // safe coercion is `string_as_str(s)`. Append a hint
-                    // when the actual type is String / &String.
                     let mut hint_v080: str = "";
                     if str_eq(arg0_t_resolved_v067, "String") == 1 || str_eq(arg0_t_resolved_v067, "&String") == 1 {
                         hint_v080 = ". Nucleor's String is a distinct heap-buffer struct from str — the safe coercion is `string_as_str(s)` (returns the underlying NUL-terminated buffer pointer). Adopters porting Rust code usually want str directly: `let s: str = \"...\";` rather than the heap String form.";
@@ -2697,34 +2599,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, str_concat("' must be str (runtime helper)", hint_v080))));
                 };
             };
-            // v0.3.159/160 ROLLED BACK in v0.3.161: Nucleor's
-            // i64-everywhere ABI treats f64_to_str(i64), f32_to_int(i64),
-            // etc. as bit-pattern conversions (the i64 IS the f-value's
-            // bit representation). Adopters who store f32/f64 values in
-            // i64 (the canonical pattern -- see tests/rods/numeric.nr)
-            // pass the i64 directly. Strict type checking on these
-            // helpers breaks the round-trip pattern.
-            // The ADOPTER HAZARD (calling f64_to_str(100) thinking 100
-            // is a numeric value -> garbage subnormal output) is real
-            // but the fix needs a different approach: deprecate the
-            // bit-pattern semantics and add explicit
-            // f64_value_to_str(f: f64) helpers, OR add a compile-time
-            // warning (not error) when arg looks like an int literal.
-            // Deferred for proper design.
-            // literal-only diagnostic for f64_to_str /
-            // f32_to_str when arg 0 is an INT LITERAL (kind 1). Catches
-            // the specific adopter mistake `f64_to_str(100)` -- where
-            // the user means "print the number 100" but the i64-everywhere
-            // ABI reinterprets 100 as a subnormal f64 bit pattern,
-            // printing "4.94066e-322". Variables (which might
-            // legitimately hold f64 bit patterns per the rods/numeric
-            // pattern) are NOT flagged. This is the conservative middle
-            // ground between the rolled-back v0.3.159/160 (too strict)
-            // and pre-fix (no diagnostic at all).
-            // Diagnostic is INFORMATIONAL (uses print, not type_diag) so
-            // the build doesn't halt. Adopters who genuinely want the
-            // bit-pattern behavior can suppress by calling via a variable
-            // (e.g. `let b: i64 = 100; f64_to_str(b);`).
             if argc > 0 {
                 let lit_helper: i64 = if str_eq(callee, "f64_to_str") == 1
                     || str_eq(callee, "f32_to_str") == 1 { 1 } else { 0 };
@@ -2823,14 +2697,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             if cc0_v074 >= 65 && cc0_v074 <= 90 { callee_uppercase = 1; };
         };
         if sentry < 0 && callee_uppercase == 1 && struct_find_type(pool, structs, callee) >= 0 {
-            // v0.6.74 RFC V1.1 step 2: tuple-struct constructor routing.
-            // When the callee resolves to a tuple-style struct (all
-            // fields named `__<digit>+`), accept the call as struct
-            // construction with positional args mapped to `__0`,
-            // `__1`, ... synthetic fields. Type-check each arg
-            // against the corresponding declared field type.
-            // Non-tuple structs still emit TYP-022 (must use brace-
-            // init syntax).
             let s_idx_v074: i64 = struct_find_type(pool, structs, callee);
             let s_nid_v074: i64 = vec_get(structs, s_idx_v074);
             if struct_is_tuple_style(pool, s_nid_v074) == 1 {
@@ -2891,7 +2757,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // at let-stmt time) so callers see "void" / "i64" / etc.
             // instead of the blanket "" from builtin_rtype. Cascades
             // into v0.4.136 TYP-021 (`let r = void_closure(args)`),
-            // v0.4.132 TYP-020 (binop with void closure result), etc.
             let v156_rtype: str = tenv_get(env, str_concat("__closure_rtype_", callee));
             if str_len(v156_rtype) > 0 {
                 if prof_on > 0 { tprof_mark(tprof, 9, 10, call_start); };
@@ -3425,11 +3290,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // TYP-021 — void-typed RHS in `let` binding without
             // type annotation. Pre-fix `let x = print_int(5);` silently
             // bound `x` to the void return coerced to 0 — sister bug to
-            // v0.4.132 (binop void). The annotated form
-            // `let x: i64 = print_int(5);` already halts with TYP-008
-            // (type mismatch); the bare-let case sailed through every
-            // check because tstr is empty so the str_len(tstr) > 0
-            // branch below is skipped. Detect init_t == void here.
             if str_len(tstr) == 0 && (str_eq(init_t, "void") == 1 || type_is_unit(init_t) == 1)
                 && str_eq(vname, "_") == 0 {
                 let v21msg: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement above the let."));
@@ -3588,8 +3448,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 // 3.14 reinterpreted as i64). Total silent miscompute.
                 // Adopters writing canonical Rust got E0308 mismatched
                 // types. NUM-018 was already reserved (RFC-0015 /
-                // v0.2.319 expansion) but never wired. Catches the
-                // literal float (kind 71) in integer-typed binding.
                 if node_kind(pool, init) == 71 && type_is_int(tstr) == 1 {
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
                 };
@@ -5319,13 +5177,6 @@ fn enum_etag_for_node(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> i64 {
     return sym_get(sym, key);
 }
 
-// v0.4.213 RFC-0015 phase 3b extension — detect narrow expression
-// chains (var-ref + literal + nested binop) at any depth so kind-4
-// can dispatch to a width-correct narrow-emit path. Returns the
-// sign-encoded narrow width if `nid`'s value resolves at one
-// consistent narrow width, else 0. Tree-recursive but fast-exits
-// on non-narrow nodes (kind != 1/3/4) — most expressions in
-// real code are non-narrow and bail in O(1).
 #[manual_drop]
 fn detect_narrow_chain(pool: Vec<i32>, nid: i64, sym: Vec<i32>, fir: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
@@ -5819,20 +5670,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(ecur, ir_cmpop(eiop, er, lt_tag, rt_tag));
                 return lx_new(er, ecur);
             };
-            // v0.6.85 RFC V1.4 (auto-dispatch): when both sides resolve
-            // to the same struct type AND the textual pre-pass
-            // `expand_derive_partialeq` (v0.6.84) generated the helper
-            // fn `<Type>__derived_eq(a, b) -> i64`, route the binop to
-            // that helper instead of the silent ptr-compare. The helper-
-            // existence probe is `sym_get(sym, "__fnret_<Type>__derived_eq")`
-            // — populated by populate_fn_returns_in_sym at lower_fn entry.
-            // For `!=`: emit `1 - <eq>` so the result is canonical 0/1.
-            // Closes V1.4 (paired with v0.6.84 helper-fn generation).
-            // The TYP-011 ptr-compare diag at line ~17027 still fires at
-            // type-check time for non-derived structs (pre-existing
-            // behavior); for derived structs it would be misleading, so
-            // type_expr's TYP-011 path also suppresses when the helper
-            // exists (sister edit below).
             let v085_lhs_t: str = expr_struct_type(pool, lhs_n, sym, structs);
             let v085_rhs_t: str = expr_struct_type(pool, rhs_n, sym, structs);
             if str_len(v085_lhs_t) > 0 && str_eq(strip_spaces(v085_lhs_t), strip_spaces(v085_rhs_t)) == 1 {
@@ -5870,19 +5707,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     };
                 };
             };
-            // v0.6.87 (probe finding 2026-04-30 str/String == silent
-            // miscompute): canonical Rust `a == b` for two `str` or two
-            // `String` values pre-fix lowered to integer pointer
-            // compare — TYP-011 fires as a WARNING but the build
-            // succeeds with silently broken IR (two equal-bytes values
-            // at different addresses return FALSE). The runtime helpers
-            // `__nucleor_str_eq` and `__nucleor_string_eq` already
-            // exist; this is the missing surface-level dispatch from
-            // `==`/`!=` to them.
-            // Now: auto-route to the right runtime helper for both
-            // forms. For `==`: helper(a, b). For `!=`: 1 - helper(a, b).
-            // Sister to v0.6.85's struct ==/!= auto-dispatch via
-            // derive(PartialEq) — same architectural pattern.
             let v087_lhs_t: str = expr_struct_type(pool, lhs_n, sym, structs);
             let v087_rhs_t: str = expr_struct_type(pool, rhs_n, sym, structs);
             let v087_lb: str = type_base_name(v087_lhs_t);
@@ -5937,9 +5761,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // the result alloca (mid-function placement), which broke stage C
         // self-host with a silent exit on large source. Stage A's compiler
         // didn't tolerate mid-function allocas in the way LLVM expected.
-        // v0.3.148 hoists allocas to the entry block via
-        // `ir_fn_add_entry_alloca` — the same pattern the while/loop
-        // lowering already uses for its loop-counter alloca.
         let bopz: i64 = node_field(pool, nid, 1);
         if bopz == 36 {
             let mut lpz: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -6293,12 +6114,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 7 {
         let fn_name: str = node_field(pool, nid, 1);
-        // v0.6.74 RFC V1.1 step 2: tuple-struct constructor lowering.
-        // When fn_name resolves to a tuple-style struct, emit struct
-        // construction IR instead of fn call. Fast-fail on shape: only
-        // uppercase-starting identifiers can be struct names per Rust
-        // convention. Skips the struct-table scan for the dominant
-        // case (lowercase fn names = regular fns).
         let mut tup_si: i64 = 0 - 1;
         let fnlen_v074: i64 = str_len(fn_name);
         if fnlen_v074 > 0 {
@@ -6422,9 +6237,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // (varargs-style behaviour) and dropped all but the first.
             // Adopters writing `print("x is", x)` got "x is" with no
             // diagnostic that x was lost. Same hazard class as the
-            // v0.3.143 print(int) SIGSEGV: silent data loss with no
-            // error. Direct adopters to println!/print! macros for
-            // multi-arg formatting.
             if argc > 1 {
                 print(str_concat("ERROR: print() takes exactly 1 argument (got ", str_concat(str_from_int(argc), "). For multi-arg formatting, use print!/println! macros (e.g. println!(\"x={} y={}\", x, y)). The bare print() function lowers to __nucleor_print_str/i64/f64/bool and only consumes the first arg.")));
                 // pre-fix the lowering kept going with argc==1
@@ -6502,11 +6314,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     if str_len(p_helper) == 0 {
                         // HashMap<K, V>.get / hashmap_get
                         // value-type lookup. Same hazard class as the
-                        // v0.3.181 Vec<str> fix -- pre-fix
-                        // print(hashmap_get(h, k)) for HashMap<K, str>
-                        // printed the str pointer as int. Parse the
-                        // receiver's full type to extract V (the second
-                        // generic parameter).
                         let hm_val_callee: i64 = if str_eq(pfn_name, "hashmap_get") == 1
                             || str_eq(pfn_name, "hashmap_get_or") == 1
                             || str_eq(pfn_name, "hashmap_remove") == 1
@@ -6595,10 +6402,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // 006 hazard; queued for a follow-on if it
                         // surfaces.
                         if str_len(p_helper) == 0 {
-                        // v0.3.182 superseded hashmap_get/hashmap_get_or/
-                        // hashmap_remove/btreemap_get -- those are now
-                        // handled by the value-type lookup above. Only
-                        // *_len/*_capacity (always i64) remain here.
                         if str_eq(pfn_name, "hashmap_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashmap_capacity") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashset_len") == 1 { p_helper = "__nucleor_print_i64"; };
@@ -6858,7 +6661,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // generics. Pre-fix `print(h.get("a"))` for
                             // HashMap<str, i64> SIGSEGV'd because the
                             // method-name fallback for "get" was removed in
-                            // v0.3.181 and the Vec-only lookup didn't match.
                             if str_len(p_helper) == 0 {
                                 let mut mrecv_full: str = "";
                                 if node_kind(pool, mrecv_nid) == 3 {
@@ -7156,8 +6958,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // root cause as Option above.
                         fn_name = str_concat("result_", mname);
                     } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap_or_default") == 1 || str_eq(mname, "as_ref") == 1 || str_eq(mname, "as_mut") == 1 || str_eq(mname, "iter") == 1 || str_eq(mname, "map_err") == 1 || str_eq(mname, "expect_err") == 1 || str_eq(mname, "cloned") == 1 || str_eq(mname, "copied") == 1) {
-                        // v0.6.83 sister halt for Result methods not in
-                        // the runtime surface yet.
                         let v083_workaround_res: str = if str_eq(mname, "unwrap_or_default") == 1 {
                             "use `unwrap_or(<default>)` with an explicit default value"
                         } else if str_eq(mname, "map_err") == 1 {
@@ -7306,21 +7106,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat(pa, str_concat(pb, pc)));
                                 panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base, "`")))));
                             };
-                            // v0.6.91 (defensive halt — Box<dyn Trait>
-                            // receiver method dispatch): canonical Rust
-                            // `let d: Box<dyn Animal> = Box::new(Dog{});
-                            // d.speak();` pre-fix fell through every
-                            // typed-receiver branch and the kind-8
-                            // catch-all synthesized `vec_speak(d)` —
-                            // surfacing as wrong-class TYP-005 'Vec<T>
-                            // has no method'. Trait-object dispatch
-                            // requires a vtable; Nucleor's i64-everywhere
-                            // ABI doesn't yet have one. The Box wrapper
-                            // strip in `type_base_name` (line ~8378)
-                            // leaves `dyn Trait` as the visible base.
-                            // Halt cleanly with workaround pointer (use
-                            // concrete type — `let d: Dog = Dog {}; ...`
-                            // — and call the trait method directly).
                             if str_len(stype_base) > 4 && str_starts_with(stype_base, "dyn ") == 1 {
                                 print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match).")))));
                                 panic(str_concat("nucleor: trait-object method dispatch on `Box<", str_concat(stype_base, "> not yet supported (see ERROR diagnostic above)")));
@@ -7882,16 +7667,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly.")))))))))));
             panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
         };
-        // v0.7.12 (defensive halt — Rust stdlib smart-pointer types):
-        // canonical Rust `Cell::new(v)`, `RefCell::new(v)`, `Rc::new(v)`,
-        // `Arc::new(v)`, `Mutex::new(v)`, `RwLock::new(v)`,
-        // `RefCell::borrow_mut()`, `Rc::clone(&r)` etc. pre-fix
-        // surfaced via the generic v0.3.71 "unsupported associated-fn
-        // call" diag mentioning Vec/String/etc. — not adopter-actionable.
-        // None of these wrappers are needed in Nucleor's i64-everywhere
-        // ABI (no borrow-checker enforcement, no shared-ownership
-        // requirement under single-threaded default). Halt cleanly with
-        // type-specific workaround pointers.
         let mut v712_smart_kind: str = "";
         if str_eq(tname, "Cell") == 1 { v712_smart_kind = "interior mutability"; };
         if str_eq(tname, "RefCell") == 1 { v712_smart_kind = "interior mutability"; };
@@ -8327,18 +8102,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let init_list: i64 = node_field(pool, nid, 2);
         let si: i64 = struct_find_type(pool, structs, sname);
         if si < 0 {
-            // v0.7.95 (defensive halt — `Self { ... }` struct
-            // constructor inside `impl` blocks). Pre-fix the
-            // `Self` ident reached the kind-34 lowering as a
-            // literal struct-name lookup that failed with the
-            // generic "unknown struct Self" diag — adopters
-            // writing `impl Counter { fn make(x: i64) -> Self
-            // { return Self { n: x }; } }` got wrong-class
-            // error pointing at "Self" instead of the real
-            // missing feature (Self-as-type-alias inside impl
-            // blocks). Halt with a precise diag + workaround.
-            // Sister to v0.6.91 trait-object dispatch halt
-            // family.
             if str_eq(sname, "Self") == 1 {
                 print("ERROR: `Self { ... }` struct constructor inside `impl` blocks is not yet supported in Nucleor. Workaround: write the struct name explicitly — `impl Counter { fn make(x: i64) -> Counter { return Counter { n: x }; } }`.");
                 panic("nucleor: `Self { ... }` constructor in impl block not yet supported (see ERROR diagnostic above)");
@@ -9443,20 +9206,6 @@ fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
     return node_field(pool, first_arg, 1);
 }
 
-// v0.8.74 RFC-0062 G-3 Phase 2b — proper dataflow handoff
-// detection. If an ExprStmt is a Call to vec_push / vec_set /
-// hashmap_insert and the VALUE argument is an identifier
-// referencing a registered auto-drop binding, return that
-// binding's name. Caller then calls auto_drop_set_state(sym,
-// name, 0) to suppress the auto-drop emit at fn return.
-// vec_push(receiver, value)        — value is arg index 1
-// vec_set(receiver, idx, value)    — value is arg index 2
-// hashmap_insert(map, key, value)  — value is arg index 2
-// Conservative: fires for ANY identifier-typed value arg whose
-// name is in the auto-drop set, regardless of receiver locality.
-// Over-suppresses (might leave a leak instead of correctly
-// dropping a never-handed-off Vec) but never produces a
-// dangling pointer. Phase 2c adds receiver-locality refinement.
 #[manual_drop]
 fn auto_drop_handoff_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     if expr_nid < 0 { return ""; };
@@ -9659,14 +9408,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         };
         let sbase: str = type_base_name(tstr);
         if str_eq(sbase, "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
-        // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): inline narrow-
-        // width detection. Sign-encoded same as type_expr kind-3:
-        // positive=signed, negative=unsigned, 0=untyped (i64).
-        // Trunc/store don't care about sign — only abs width matters
-        // for memory-shape — so we extract abs(w) for the IR ops.
-        // expanded to i32/u32 — completes the
-        // i8/i16/i32/u8/u16/u32 narrow set for typed memory ops.
-        // i64/u64 stays at the i64 ABI (untyped, w=0).
         let sblen20: i64 = str_len(sbase);
         let mut w20: i64 = 0;
         if sblen20 == 2 {
@@ -9941,11 +9682,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 22 {
         let vn: i64 = node_field(pool, nid, 1);
-        // v0.4.247 RFC-0006 — `#[ensure(EXPR)]` at explicit
-        // mid-body `return X;` sites. lower_fn stashed the fn's
-        // ensure expr nid in sym["__current_fn_ensure_nid"] before
-        // body lowering. Read it here and emit the check before
-        // the ret. Mirror of the tail-return path in lower_fn.
         let ens_stmt_nid: i64 = sym_get(sym, "__current_fn_ensure_nid");
         if vn >= 0 {
             let mut vp: Vec<i32> = lower_expr(pool, vn, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -9988,7 +9724,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let ens_cr: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(ens_cr, "contract_ensure", ens_args));
             };
-            // v0.4.249 RFC-0006 — invariant exit-emit at mid-body return.
             let invx_stmt_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_stmt_nid >= 0 {
                 let invx_stmt_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
@@ -10055,7 +9790,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let ens_cr2: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(ens_cr2, "contract_ensure", ens_args2));
             };
-            // v0.4.249 RFC-0006 — invariant exit-emit at bare return;.
             let invx_bare_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_bare_nid >= 0 {
                 let invx_bare_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
@@ -10583,26 +10317,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         let pnid: i64 = list_get(pool, plist, pi);
         let pname: str = node_field(pool, pnid, 1);
         // phase 3c (typed param alloca) REVERTED. The
-        // v0.4.221 ship that introduced typed-iN allocas for narrow
-        // params + trunc-on-entry broke the compiler's own self-build
-        // because the compiler abuses Nucleor's i64-everywhere ABI:
-        // e.g. `fn str_from_int(n: i32)` is called with i64 values
-        // relying on the historical alloca-i64-for-all-params
-        // behavior. Trunc-on-i32-entry collapsed those i64 values to
-        // -1, breaking ~34 verify tests on fresh self-build. v0.5
-        // work is needed to make phase 3c safe — likely call-site
-        // type-info propagation that detects cross-width abuse and
-        // emits explicit `as` casts at call boundaries. For v0.4
-        // closeout, params stay alloca-i64 (the pre-3c convention).
-        // Adopter narrow-typed fn bodies still benefit from phase
-        // 3a/3b (typed allocas for let-stmts + narrow arith chains).
-        // v0.5 (v0.4.233 integration) phase 3c.3 — typed param alloca
-        // RESTORED. v0.4.221 originally landed this and v0.4.224 reverted
-        // it because `str_from_int(n: i32)` was being called with i64
-        // magnitudes. With v0.4.230's i32→i64 widening above, the
-        // cross-width abuse is gone and trunc-on-entry is a no-op for
-        // in-range values. Numeric-heavy adopter code regains phase
-        // 3b's narrow-arith dispatch on fn params.
         let ptype: str = node_field(pool, pnid, 2);
         let sbase: str = type_base_name(ptype);
         if str_eq(sbase, "u64") == 1 { sym_set(sym, "__has_u64_v886", 1); };
@@ -10664,15 +10378,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         if str_len(gtype) > 0 { sym_set(sym, str_concat("__fulltype_", gname), gtype); };
         gi = gi + 1;
     };
-    // v0.4.251 RFC-0006 — pre-evaluate `old(EXPR)` snapshots at
-    // fn entry. The pre-pass collected (fn_name, synth_name,
-    // inner_nid) triples in old_snapshots; for each match with
-    // the current fn name, allocate a slot, lower the inner
-    // expression now (when input args are still in their entry
-    // state), store the result, and bind synth_name → alloca in
-    // sym. The rewritten ensure predicate's `__old_*` var-refs
-    // resolve via this binding to a load from the snapshot slot
-    // when the predicate is evaluated at fn exit.
     let mut osi: i64 = 0;
     let os_count: i64 = vec_len(old_snapshots);
     while osi + 2 < os_count {
@@ -10689,15 +10394,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         };
         osi = osi + 3;
     };
-    // v0.4.247 RFC-0006 — stash this fn's ensure expr nids in sym
-    // so lower_stmt's kind-22 explicit `return X;` handler can
-    // emit the ensure check at mid-body return sites.
-    // v0.4.254 RFC-0006 — multi-ensure support at mid-body returns.
-    // Pre-fix only the FIRST ensure attribute fired at mid-body
-    // return (sym holds a single i64 nid). Now: walk all matches,
-    // sym_set "__current_fn_ensure_count" = N, then "__current_fn_
-    // ensure_nid_0" .. "__current_fn_ensure_nid_<N-1>". lower_stmt
-    // reads the count and loops emitting contract_ensure per nid.
     let mut ens_pre_walk: i64 = 0;
     let mut ens_pre_n: i64 = 0;
     let ens_pre_count: i64 = vec_len(ensure_exprs);
@@ -10714,25 +10410,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         // Back-compat: legacy single-nid lookup still works.
         sym_set(sym, "__current_fn_ensure_nid", sym_get(sym, "__current_fn_ensure_nid_0"));
     };
-    // v0.4.245 RFC-0006 Design by Contract — `#[require(EXPR)]`
-    // runtime check at fn entry. The substrate scanner ran in the
-    // main pipeline (collect_fn_requires + lex+parse pre-pass);
-    // require_exprs is a flat (fn_name, expr_nid) Vec. If this fn
-    // has a require, lower the expr into ebb0, then call the
-    // runtime helper __nucleor_contract_require(result) — the
-    // helper prints CONTRACT-001 + exits on a 0 result. The fn's
-    // body lowering follows on a fresh ebb0 (ebb0 may have been
-    // updated by the require expression's own block-control if
-    // the predicate is non-trivial — e.g. a chain of && that
-    // short-circuits into multiple basic blocks).
-    // v0.4.250 RFC-0006 — multiple #[require(...)] attributes per
-    // fn. Walk ALL matching entries (the pre-pass pushes one entry
-    // per attribute, so a fn with two `#[require(a > 0)]
-    // #[require(b > 0)]` headers yields two entries with the same
-    // fn_name). Each match emits its own contract_require call —
-    // the predicates are conjuncted by short-circuit: a violation of
-    // any one panics. Pre-fix only the first match emitted; later
-    // requires were silently ignored.
     let mut req_idx: i64 = 0;
     let req_count: i64 = vec_len(require_exprs);
     while req_idx + 1 < req_count {
@@ -10749,14 +10426,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         };
         req_idx = req_idx + 2;
     };
-    // v0.4.248 RFC-0006 — `#[invariant(EXPR)]` runtime check at
-    // method entry. Method names get mangled to `Type__method` at
-    // parse time (see line 19629 area). Extract the type prefix
-    // by splitting on `__`. If the type has an invariant, lower
-    // it in ebb0 (after params + require) and emit the helper
-    // call. Predicate references `self.field` which resolves via
-    // the existing kind-3 var-ref + kind-* field-access lowering;
-    // `self` is bound in sym from the param walk above.
     let mut inv_split: i64 = 0;
     let inv_name_len: i64 = str_len(name);
     let mut found_split: i64 = 0;
@@ -10797,13 +10466,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                     let first_p: i64 = list_get(pool, plist, 0);
                     if str_eq(node_field(pool, first_p, 1), "self") == 1 { is_self_method = 1; };
                 };
-                // v0.4.253 RFC-0006 — constructor path: fn returns
-                // the parent type but takes no `self`. Per spec §3.4,
-                // invariants fire on exit from constructors (no
-                // entry-emit possible — self doesn't exist yet). At
-                // exit-emit time, the existing tail-return code
-                // checks `__current_method_is_ctor` and binds `self`
-                // to the rv before lowering the predicate.
                 let rtype: str = node_field(pool, fn_nid, 3);
                 let mut is_ctor: i64 = 0;
                 if is_self_method == 0 {
@@ -10848,13 +10510,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                 rv = ctr_next(regs);
                 ir_block_add(fb, ir_const_int(rv, 0));
             };
-            // v0.4.246 RFC-0006 — `#[ensure(EXPR)]` runtime check at
-            // tail return.
-            // multiple #[ensure(...)] attributes per fn.
-            // Count matching entries; if any present, bind `result`
-            // ONCE to a fresh alloca holding rv; then loop over all
-            // matches lowering each predicate and emitting one
-            // contract_ensure call per attribute.
             let mut ens_first_idx: i64 = 0 - 1;
             let mut ens_walk: i64 = 0;
             let ens_count: i64 = vec_len(ensure_exprs);
@@ -10884,10 +10539,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                     ens_emit_idx = ens_emit_idx + 2;
                 };
             };
-            // v0.4.249 RFC-0006 — invariant exit-emit at tail return.
-            // if this fn is a constructor (returns the
-            // parent type, no self param), bind `self` to rv before
-            // lowering the predicate so `self.field` resolves.
             let invx_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_nid >= 0 {
                 let invx_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
@@ -10928,8 +10579,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     fb = lower_stmts(pool, blist, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
     if block_has_term(fb) == 0 {
         let zr: i64 = ctr_next(regs); ir_block_add(fb, ir_const_int(zr, 0));
-        // v0.4.246/250 RFC-0006 — multiple ensure checks at
-        // implicit-zero return.
         let mut ens2_first: i64 = 0 - 1;
         let mut ens2_walk: i64 = 0;
         let ens2_count: i64 = vec_len(ensure_exprs);
@@ -10959,8 +10608,6 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                 ens2_emit = ens2_emit + 2;
             };
         };
-        // v0.4.249 RFC-0006 — invariant exit-emit at implicit-zero
-        // return (no explicit body tail expression).
         let invx2_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
         if invx2_nid >= 0 {
             let invx2_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
@@ -10994,4 +10641,3 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     };
     return fir;
 }
-

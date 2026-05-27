@@ -95,7 +95,6 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
     if str_eq(name, "int_to_oct") { return 1; };
-    // v0.4.30 force-sign helper returns ptr (str)
     if str_eq(name, "int_to_str_force_sign") { return 1; };
     if str_eq(name, "int_to_hex_upper") { return 1; };
     if str_eq(name, "f64_to_str_sci") { return 1; };
@@ -473,4 +472,3 @@ fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i
     };
     return 0;
 }
-

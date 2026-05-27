@@ -719,7 +719,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
-    // v0.3.236 Phase A — sym-aux side hashmap helpers
     sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_linear_lookup(i64, i64)\n");
@@ -727,7 +726,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_own_put_i_full(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
-    // v0.4.10 Phase A — compile-source side table
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
@@ -1442,26 +1440,6 @@ fn emit_externs() -> str {
     return sb_to_str(sb);
 }
 
-// v0.6.70 perf-slice extension (string constant pool
-// dedup): when adding a string literal to strtab, return the existing
-// index if the string was already added. Significantly shrinks the
-// .ll output and reduces clang link time on programs with repeated
-// diagnostic strings, IR opcode strings, and rod-helper names.
-// the warm-hashmap
-// substrate is contended with sym_get (every sym_get on a different
-// vec clears the hashmap, causing strtab_intern to re-catchup from 0
-// each call). Net cost was +1s cold (worse than linear).
-// Linear-scan cost on self-host: ~9400 inserts × ~3500 avg scan
-// length = ~33M str_eq compares. With first-byte-fail on most
-// uniques, ~80ms total. Acceptable.
-// v0.7.x P2: keep the tiny-table linear path, then switch to a
-// dedicated strtab-only hashmap threaded alongside the strtab. This
-// avoids the shared warm-cache contention that killed the v0.6.72
-// attempt while preserving low overhead for small adopter programs.
-// Backward-scan optimization: many string literals are emitted in
-// blocks (e.g. emit_externs declarations, repeated diagnostic
-// substrings) where recent inserts are likely to match. Scan from
-// the END toward the start to hit those fast.
 #[manual_drop]
 fn strtab_intern(strtab: Vec<i32>, fir: Vec<i32>, s: str) -> i64 {
     let n: i64 = vec_len(strtab);
@@ -2086,4 +2064,3 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     vec_free(isr_entries);
     return out;
 }
-

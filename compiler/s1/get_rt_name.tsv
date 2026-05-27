@@ -951,14 +951,10 @@ __nucleor_hashmap_new	__nucleor_hashmap_new
 __nucleor_hashmap_insert	__nucleor_hashmap_insert
 __nucleor_hashmap_get	__nucleor_hashmap_get
 __nucleor_hashmap_contains	__nucleor_hashmap_contains
-# v0.3.236 Phase A — sym-aux side hashmap helpers (hash-backed
-# sym_get refactor). Mappings ship in Phase A so that Phase B
-# source migration can be compiled by a Phase-A binary.
 __nucleor_sym_aux_get	__nucleor_sym_aux_get
 __nucleor_sym_aux_create	__nucleor_sym_aux_create
 __nucleor_sym_aux_built_at	__nucleor_sym_aux_built_at
 __nucleor_sym_aux_set_built_at	__nucleor_sym_aux_set_built_at
-# v0.4.10 Phase A — compile-source side table for deep helpers
 __nucleor_compile_src_set	__nucleor_compile_src_set
 __nucleor_compile_src_get	__nucleor_compile_src_get
 __nucleor_compile_src_clear	__nucleor_compile_src_clear

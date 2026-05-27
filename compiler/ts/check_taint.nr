@@ -1414,16 +1414,6 @@ fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32
 }
 
 fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, ename: str, vname: str) -> Vec<i32> {
-    // v0.4.2 RFC-NRT-004 §G (sync from nucleor_s1_compiler.nr:
-    // match_bind_payloads_per_idx, lines 10498-10540): per-binding
-    // payload-type lookup. Each binding in the pipe-separated list
-    // gets its own __type_<name> based on the variant's payload-
-    // type table populated by enum_populate_sym. Without this, a
-    // struct-typed enum payload binding (Outcome::Err(e) where e:
-    // ErrInfo) leaves the binding's type unknown; the subsequent
-    // e.message lookup in the lowering returns -1 (the field-not-
-    // resolved sentinel) which clang rejects as an undefined SSA
-    // register %r.-1.
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
     if blen == 0 { return cur; };
@@ -1450,8 +1440,6 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
                         resolved = 1;
                     };
                 };
-                // v0.4.4 SPEC-1.5 wishlist: Option<str> / Result<*, str>
-                // hardcoded defaults (sync from s1's match_bind_payloads_per_idx).
                 if resolved == 0 {
                     if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 {
                         sym_set(sym, str_concat("__type_", name), "str");
@@ -2710,4 +2698,3 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     };
     return fir;
 }
-

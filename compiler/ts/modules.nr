@@ -1144,7 +1144,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // T2.8 (v0.2.353): async syntax — strip `async` keyword + rewrite
     // `<ident>.await`. Synced from s1.
     let after_async: str = expand_async_syntax(after_format);
-    // v0.3.0 (T3.1): #[deadline = N] runtime-check rewrite (synced).
     let after_deadline: str = expand_deadline(after_async);
     // T2.3 (v0.2.349): expand closure literals (synced from s1).
     let source: str = expand_actor_decl_keyword(expand_closures(after_deadline));
@@ -1158,5 +1157,4 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     out.push(0);
     return out;
 }
-
 

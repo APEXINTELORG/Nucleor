@@ -181,11 +181,6 @@ fn classify_kw(w: str) -> i64 {
     // user fn call), it MUST be an identifier. Pre-v0.3.142, classifying
     // it as kw 86 unconditionally triggered the same silent-miscompute
     // trap as the v0.3.137 `pure` / v0.3.138 `scope`/`spawn` /
-    // v0.3.139 `requires` / v0.3.140 `restricts` / v0.3.141 `loop`
-    // fixes — `parse_primary` had no branch for token 86 so any user
-    // fn or call site named `as` collapsed to silent `int_lit 0` in
-    // the IR with no diagnostic. The cast operator's parse_postfix_cast
-    // check is rewritten to use pkv lookahead.
     return 1;
 }
 // Lane 4 / F-028: detect IEEE-754 f64 Inf/NaN bit patterns in a freshly
@@ -455,18 +450,6 @@ fn lex(src: str) -> Vec<i32> {
                 print("ERROR: raw string literals `r\"...\"` are not yet supported in Nucleor. Workaround: write the canonical form `\"...\"` and escape backslashes / quotes manually (`\\\\`, `\\\"`, etc.).");
                 panic("nucleor: raw string `r\"...\"` not yet supported (see ERROR diagnostic above)");
             };
-            // v0.7.75 (defensive halt — Rust raw identifier prefix
-            // `r#name`, used to write a binding whose spelling clashes
-            // with a Rust keyword like `type`, `match`, `fn`, etc.).
-            // Pre-fix the `r` lexed as an ident and `#` was emitted
-            // as a separate punct token, leaving `name` to be lexed
-            // as a fresh ident. The downstream parser then tripped
-            // on whichever production saw three tokens (e.g. `r # type`
-            // surfaced as v0.7.47's local-type-alias halt because
-            // `type` got read as keyword token 74). Halt at lex with
-            // a precise diag so adopters know the raw-identifier
-            // surface itself isn't supported. Sister to v0.6.58 raw
-            // string literal halt (same `r` prefix family).
             if c == 114 && p + 1 < slen && str_char_at(src, p + 1) == 35 {
                 print("ERROR: raw identifier prefix `r#name` (used in Rust to bind a name that collides with a keyword, e.g. `let r#type: i64 = 42;`) is not yet supported in Nucleor. Workaround: rename the binding to a non-keyword spelling — Nucleor's keyword set is small and renames are usually mechanical.");
                 panic("nucleor: raw identifier `r#name` not yet supported (see ERROR diagnostic above)");
@@ -475,23 +458,10 @@ fn lex(src: str) -> Vec<i32> {
                 print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`.");
                 panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
             };
-            // v0.7.68 (defensive halt — C string literal `c"..."`, the
-            // NUL-terminated FFI buffer form). Pre-fix the `c` lexed as
-            // an ident and the parser tried to call fn `c` on the
-            // trailing string literal, producing the wrong-class
-            // `error[TYP-005]: undefined function 'c'`. Promoted from
-            // probe finding 2026-05-03.
             if c == 99 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
                 print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer.");
                 panic("nucleor: C string `c\"...\"` not yet supported (see ERROR diagnostic above)");
             };
-            // v0.7.28 (defensive halt — Rust byte literal `b'A'`, the u8
-            // value of an ASCII char). Pre-fix the `b` lexed as an
-            // identifier and the parser saw `b ('A')` — a fn call on a
-            // char literal — surfacing as wrong-class `error[TYP-005]:
-            // undefined function 'b()'`. Sister to v0.6.58 byte-string
-            // halt and probe's c-string halt. Workaround: use a regular
-            // char literal and cast — `'A' as i64` (or `as u8`).
             if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 39 {
                 print("ERROR: byte literal `b'A'` (Rust u8 ASCII-value form) is not yet supported in Nucleor. Sister to the existing `b\"...\"` (byte string) halt.");
                 print("       Workaround: use a regular char literal and cast — `'A' as i64` or `'A' as u8`.");
@@ -1107,16 +1077,6 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 42 { tokens.push(tok_new(22, 0, p)); p = p + 1; }
         else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(113, 0, p)); p = p + 2; }
         else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 42 {
-            // v0.7.78 (defensive halt — Rust block comments
-            // `/* ... */` and doc-block `/** ... */`). Pre-fix the
-            // `/` lexed as token 23 and `*` as token 22; the parser
-            // saw a stray `/` at expression start and emitted
-            // wrong-class `error[NR020]: parse_primary cannot start
-            // an expression at token kind 23`. Adopters porting
-            // Rust code with block comments hit this constantly.
-            // Halt at lex with a clear diag pointing at the line-
-            // comment workaround. Sister to v0.6.58 raw-string
-            // halt (same lex-time wrong-class family).
             print("ERROR: block comments `/* ... */` (and doc-block `/** ... */`) are not yet supported in Nucleor. Workaround: convert each line of the block comment to a line comment — replace `/* abc */` with `// abc`, and a multi-line block with a sequence of `// ...` lines.");
             panic("nucleor: block comment `/* ... */` not yet supported (see ERROR diagnostic above)");
         }
@@ -1193,14 +1153,6 @@ fn lex(src: str) -> Vec<i32> {
                 p = p + 4;
                 handled = 1;
             };
-            // v0.7.29 (defensive halt — Rust Unicode-escape char literal
-            // `'\u{1F600}'`, `'\u{0041}'`, etc.). Pre-fix the char-lit
-            // lexer matched only 1-char and 1-backslash-1-char forms;
-            // the multi-char `\u{NNNN}` escape fell through to the
-            // lifetime-token path (kind 98) and the v0.7.2 loop-label
-            // halt fired with a wrong-class diagnostic talking about
-            // labels, not Unicode escapes. Detect `'\u{` here and halt
-            // with a hex-cast workaround pointer.
             if handled == 0 && p + 4 < slen && str_char_at(src, p + 1) == 92 && str_char_at(src, p + 2) == 117 && str_char_at(src, p + 3) == 123 {
                 print("ERROR: Unicode-escape char literal `'\\u{NNNN}'` (e.g. `'\\u{0041}'`, `'\\u{1F600}'`) is not yet supported in Nucleor. Pre-v0.7.29 the char-lit lexer fell through to the lifetime-token path and the v0.7.2 loop-label halt fired with a wrong-class diagnostic about labels.");
                 print("       Workaround: write the codepoint as an integer literal cast — `let c: i64 = 0x0041;` (for 'A') or `let c: i64 = 0x1F600;` (for an emoji codepoint). All Nucleor char-equivalent comparisons are integer-equivalent under the i64-everywhere ABI.");
@@ -1330,4 +1282,3 @@ fn tok_at(tokens: Vec<i32>, idx: i64) -> Vec<i32> {
 fn tok_type_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_type(tok_at(tokens, idx)); }
 #[manual_drop]
 fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens, idx)); }
-
