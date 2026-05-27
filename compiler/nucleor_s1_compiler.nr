@@ -85,7 +85,6 @@ fn str_to_int(s: str) -> i64 {
     // under strict-arithmetic mode without panicking. The accumulator
     // is intentionally allowed to wrap into the negative i64 range
     // (the resulting bit pattern is what u64 callers want anyway).
-    //
     // also use wrapping_sub for the final neg step. Pre-fix
     // `str_to_int("-9223372036854775808")` (canonical i64::MIN as a
     // negative-prefixed decimal string) panicked under strict-intrin
@@ -315,15 +314,12 @@ fn classify_kw(w: str) -> i64 {
 // parsed float literal. Pre-fix `1e400` strtod-parsed to +Inf and the
 // raw bit pattern `0x7FF0000000000000` was stored silently — adopters
 // got NaN/Inf in their numeric pipeline with no diagnostic.
-//
 // IEEE-754 f64 layout: sign(1) | exp(11) | mantissa(52). All-ones
 // exponent indicates Inf (mantissa==0) or NaN (mantissa!=0). The
 // canonical positive-Inf bits are 0x7FF0000000000000 = 9218868437227405312
 // and negative-Inf bits are 0xFFF0000000000000. Cheaper than re-parsing
 // strtod's output: we just compare the absolute-value bit pattern.
-//
 // Returns 1 if the bit pattern is non-finite (Inf or NaN), 0 otherwise.
-//
 // Implementation note: bitwise/shift ops are available but unused in the
 // rest of the compiler self-host; we factor the check into a separate fn
 // to keep the inline lex path minimal and avoid surprising the bootstrap
@@ -449,8 +445,6 @@ fn lex(src: str) -> Vec<i32> {
             // Lex-time skip with quoted-string + bracket-depth awareness.
             // Forward-compatible with RFC-0001/0021 attribute family; semantics
             // ship in later RFC implementation phases.
-            //
-            // 
             // detect `#[cfg(...)]` and `#[cfg_attr(...)]` BEFORE the silent
             // skip and halt with a clear workaround pointer. Pre-fix, paired
             // `#[cfg(target_os="X")] fn foo() ... #[cfg(not(...))] fn foo()`
@@ -484,7 +478,6 @@ fn lex(src: str) -> Vec<i32> {
             // RFC-0021: `#[test]` is supported by `nuc test`.
             // Discovery happens in tools-suite; normal build/check paths
             // lexically consume this metadata below.
-            // 
             // `#[derive(A, B, C)]` is silently dropped except for `Debug`
             // which is honored. Adopters writing `#[derive(PartialEq)]`
             // expect equality on field-wise values; Nucleor only honors
@@ -504,7 +497,7 @@ fn lex(src: str) -> Vec<i32> {
                 if derive_arg_end < slen {
                     let derive_body: str = str_substring(src, derive_arg_start, derive_arg_end);
                     let trimmed_v060: str = str_trim(derive_body);
-                    // v0.6.84 RFC V1.4: PartialEq is now auto-generated
+                    // PartialEq is now auto-generated
                     // by `expand_derive_partialeq` as the helper fn
                     // `<TypeName>__derived_eq(a, b) -> i64` (returns 1
                     // when field-wise equal, 0 otherwise). Adopters call
@@ -570,8 +563,7 @@ fn lex(src: str) -> Vec<i32> {
             while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
         }
         else if is_alpha(c) == 1 {
-            // v0.6.58 (probe finding 2026-05-01-rust-syntax-translation-
-            // fidelity-audit, raw-string and byte-string rows): canonical
+            //  canonical
             // Rust prefix-quoted string literals `r"..."` (raw string,
             // no escapes), `b"..."` (byte string), `c"..."` (C string),
             // `r#"..."#` (raw with hashes), `br"..."` (byte raw) all pre-fix lexed as the
@@ -623,7 +615,7 @@ fn lex(src: str) -> Vec<i32> {
             // halt and probe's c-string halt. Workaround: use a regular
             // char literal and cast — `'A' as i64` (or `as u8`).
             if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 39 {
-                print("ERROR: byte literal `b'A'` (Rust u8 ASCII-value form) is not yet supported in Nucleor. Pre-v0.7.28 surfaced as wrong-class `error[TYP-005]: undefined function 'b()'` because the `b` lexed as an identifier and `('A')` looked like a fn call on a char literal. Sister to the existing `b\"...\"` (byte string) halt.");
+                print("ERROR: byte literal `b'A'` (Rust u8 ASCII-value form) is not yet supported in Nucleor. Sister to the existing `b\"...\"` (byte string) halt.");
                 print("       Workaround: use a regular char literal and cast — `'A' as i64` or `'A' as u8`.");
                 panic("nucleor: byte literal `b'A'` not yet supported (see ERROR diagnostic above)");
             };
@@ -694,7 +686,7 @@ fn lex(src: str) -> Vec<i32> {
                     // F-021 — overflow: >16 hex digits = >u64. Mirrors
                     // the existing decimal NUM-021 check.
                     if v_hex_digits > 16 {
-                        panic(str_concat("error[NUM-021]: hex literal at byte ", str_concat(str_from_int(st), str_concat(" has ", str_concat(str_from_int(v_hex_digits), " hex digits, exceeding u64::MAX (16 hex digits = 0xFFFFFFFFFFFFFFFF). Pre-fix the wrapping_mul/add accumulator silently wrapped, producing a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or split into multiple operations.")))));
+                        panic(str_concat("error[NUM-021]: hex literal at byte ", str_concat(str_from_int(st), str_concat(" has ", str_concat(str_from_int(v_hex_digits), " hex digits, exceeding u64::MAX (16 hex digits = 0xFFFFFFFFFFFFFFFF). Use a smaller literal, switch to a wide-int library, or split into multiple operations.")))));
                     };
                     handled_radix = 1;
                 } else if nx == 111 || nx == 79 {
@@ -817,7 +809,6 @@ fn lex(src: str) -> Vec<i32> {
                 };
             };
             // digits-only e/E exponent (no fractional dot).
-            // Closes part of probe finding 2026-05-01-float-to-int-cast-out-of-range-silent-ub
             // — probe's repro `let big: f64 = 1e20;` actually demonstrated
             // a LEXER bug, not the saturating-cast UB it claimed (the
             // saturating cast already works correctly per v0.3.208 et al.).
@@ -855,7 +846,7 @@ fn lex(src: str) -> Vec<i32> {
                 let bits: i64 = str_to_f64(lit_text);
                 // Lane 4 / F-028: Inf/NaN range check.
                 if f64_bits_is_nonfinite(bits) == 1 {
-                    panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(lit_st), " evaluates to a non-finite value (Inf or NaN). Pre-fix the bit pattern was stored silently and adopters got Inf/NaN propagating through their numeric pipeline with no diagnostic. f64 finite range is approximately ±1.7976931348623157e308; values outside this range cannot be represented as a finite f64.")))));
+                    panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(lit_st), " evaluates to a non-finite value (Inf or NaN). f64 finite range is approximately ±1.7976931348623157e308; values outside this range cannot be represented as a finite f64.")))));
                 };
                 tokens.push(tok_new(124, bits, lit_st));
                 p = exp_p;
@@ -879,7 +870,6 @@ fn lex(src: str) -> Vec<i32> {
                 // the encoder's 6-digit (millionth) precision BEFORE
                 // computing frac_div. The truncate path handles literals
                 // where the first 6 frac digits carry meaningful value.
-                //
                 // NUC-FEEDBACK-006 — for SUB-MICRO literals
                 // (`0.00000001` = 1e-8 used as AdamW eps, etc.), the
                 // first 6 frac digits are all '0' and truncation still
@@ -891,7 +881,6 @@ fn lex(src: str) -> Vec<i32> {
                 // lower_expr emits as a direct const_int (no
                 // f64_from_scaled divide needed since the value IS
                 // already the f64 bit pattern).
-                //
                 // NUC-FEEDBACK-005 corrected — the all-zero
                 // gate was too narrow. Long literals with non-zero
                 // first six digits like `0.7978845608028654` still
@@ -943,7 +932,7 @@ fn lex(src: str) -> Vec<i32> {
                     let bits: i64 = str_to_f64(lit_text);
                     // Lane 4 / F-028: Inf/NaN range check.
                     if f64_bits_is_nonfinite(bits) == 1 {
-                        panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(st), " evaluates to a non-finite value (Inf or NaN). Pre-fix the bit pattern was stored silently and adopters got Inf/NaN propagating through their numeric pipeline with no diagnostic. f64 finite range is approximately ±1.7976931348623157e308.")))));
+                        panic(str_concat("error[LEX-NUM-FLOAT-OVERFLOW]: float literal `", str_concat(lit_text, str_concat("` at byte ", str_concat(str_from_int(st), " evaluates to a non-finite value (Inf or NaN). f64 finite range is approximately ±1.7976931348623157e308.")))));
                     };
                     tokens.push(tok_new(124, bits, st));
                 } else {
@@ -968,7 +957,7 @@ fn lex(src: str) -> Vec<i32> {
                         // Not actually a suffix; rewind.
                         p = suf_st;
                     } else if str_eq(suf, "f32") == 1 {
-                        // v0.4.24 (NUC-FEEDBACK-002 fix): rewrite the just-
+                        // NUC-FEEDBACK-002 fix: rewrite the just-
                         // emitted token type from 70 (generic float) to 125
                         // (f32-typed) so the parser/lowerer can route the
                         // literal through f32_from_scaled instead of
@@ -1018,10 +1007,9 @@ fn lex(src: str) -> Vec<i32> {
                         };
                     };
                     if overflow_v119 == 1 {
-                        panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str, "` exceeds u64::MAX (18446744073709551615). Pre-v0.4.119 the value silently wrapped through the str_to_int accumulator and produced a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
+                        panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str, "` exceeds u64::MAX (18446744073709551615). Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
                     };
-                    // v0.6.68 (probe finding 2026-05-01-match-arm-literal-
-                    // exceeds-i64-silently-dead): also halt on decimal
+                    //  also halt on decimal
                     // literals in (i64::MAX, u64::MAX] that lack an
                     // explicit unsigned suffix (`u8`/`u16`/`u32`/`u64`/
                     // `usize`/`u128`). Pre-fix these wrapped silently to
@@ -1162,7 +1150,7 @@ fn lex(src: str) -> Vec<i32> {
                     if nc == 110 { sb_append(sb, "\n"); } else if nc == 116 { sb_append(sb, "\t"); }
                     else if nc == 34 { sb_append(sb, "\""); } else if nc == 92 { sb_append(sb, "\\"); }
                     else if nc == 114 { sb_append_char(sb, 13); }                          // v0.5.20: \r → CR byte (ASCII 13)
-                    else if nc == 48  { sb_append_char(sb, 0); }                           // v0.5.20: \0 → NUL byte (ASCII 0). Closes probe finding 2026-05-01-str-escape-null-byte-silently-literal.
+                    else if nc == 48  { sb_append_char(sb, 0); }                           // v0.5.20: \0 → NUL byte (ASCII 0).
                     else if nc == 39  { sb_append(sb, "'"); }                              // \' — single quote
                     else {
                         // unknown escape sequence. Pre-fix the
@@ -1174,7 +1162,7 @@ fn lex(src: str) -> Vec<i32> {
                         // get the literal next char, escape the
                         // backslash explicitly: `"a\\zb"`.
                         let bad_esc: str = str_substring(src, p, p + 2);
-                        panic(str_concat("error[NR025]: unknown escape sequence `", str_concat(bad_esc, "` in string literal. Pre-v0.4.121 the backslash was silently dropped and the next char emitted as-is. Recognized escapes: `\\n`, `\\t`, `\\\"`, `\\\\`, `\\r`, `\\0`, `\\'`. To get a literal backslash + char, escape the backslash explicitly (e.g. `\\\\z`).")));
+                        panic(str_concat("error[NR025]: unknown escape sequence `", str_concat(bad_esc, "` in string literal. Recognized escapes: `\\n`, `\\t`, `\\\"`, `\\\\`, `\\r`, `\\0`, `\\'`. To get a literal backslash + char, escape the backslash explicitly (e.g. `\\\\z`).")));
                     };
                     p = p + 2;
                 } else if str_char_at(src, p) == 92 {
@@ -1348,7 +1336,6 @@ fn lex(src: str) -> Vec<i32> {
                 // loop-label halt fired with a wrong-class diagnostic.
                 // Detect specific malformed-char-literal shapes BEFORE
                 // taking the lifetime fallback.
-                //
                 // Empty char `''` — token at p+1 is the closing apostrophe.
                 if p + 1 < slen && str_char_at(src, p + 1) == 39 {
                     panic(str_concat("error[LEX-CHAR-EMPTY]: empty character literal `''` at byte ", str_concat(str_from_int(st), ". A char literal must contain exactly one character (or one escape sequence). Pre-fix this surfaced as the wrong-class \"loop labels not yet supported\" diagnostic.")));
@@ -1360,7 +1347,6 @@ fn lex(src: str) -> Vec<i32> {
                 // apostrophe; if found within 8 chars and the first
                 // post-apos char isn't an identifier-start/colon,
                 // it's a multi-char literal.
-                //
                 // do not mistake lifetime lists
                 // such as `<'a, 'b>` or ref types such as `&'a T` for
                 // malformed char literals just because a second lifetime
@@ -1421,7 +1407,6 @@ fn lex(src: str) -> Vec<i32> {
             // with the offending bytes deleted. Now: emit a precise
             // lex-time diagnostic at the offending byte. Special-case
             // a couple of common typos so the message is actionable.
-            //
             // F-011 (NUL byte): also caught here because preflight's
             // C-string read truncates at the first NUL. The preflight
             // check we add reports it explicitly with byte offset, but
@@ -1453,7 +1438,7 @@ fn lex(src: str) -> Vec<i32> {
             let hi: i64 = (c / 16) % 16;
             let lo: i64 = c % 16;
             let hex_str: str = str_concat(str_substring(hex_chars, hi, hi + 1), str_substring(hex_chars, lo, lo + 1));
-            panic(str_concat("error[LEX-001]: unexpected byte 0x", str_concat(hex_str, str_concat(" at byte ", str_concat(str_from_int(p), str_concat(hint, ". Pre-fix the byte was silently consumed by the lexer's terminal fall-through, masking ~10 silent-accept findings (F-003 through F-010, F-066). Remove or replace the offending byte.")))))));
+            panic(str_concat("error[LEX-001]: unexpected byte 0x", str_concat(hex_str, str_concat(" at byte ", str_concat(str_from_int(p), str_concat(hint, ". Remove or replace the offending byte.")))))));
         };
     };
     tokens.push(tok_new(0, 0, slen));
@@ -1639,7 +1624,7 @@ fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // Lane 4 / F-037: leading comma `h(,1)` silent accept. Reject.
         if pk(tokens, cp) == 44 {
             let v_args_byte_f037l: i64 = tok_pos_at(tokens, cp);
-            panic(str_concat("error[PARSE-ARGS-COMMA]: leading `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte_f037l), ". Pre-fix `f(,1)` was silently accepted as a 1-arg call. Remove the leading comma.")));
+            panic(str_concat("error[PARSE-ARGS-COMMA]: leading `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte_f037l), ". Remove the leading comma.")));
         };
         let mut r: Vec<i32> = parse_expr(tokens, cp, pool);
         args.push(pr_val(r)); cp = pr_pos(r);
@@ -1648,7 +1633,7 @@ fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             else if pk(tokens, cp + 1) == 44 {
                 // Lane 4 / F-037: extra comma `h(1,, 2)` silent accept.
                 let v_args_byte: i64 = tok_pos_at(tokens, cp + 1);
-                panic(str_concat("error[PARSE-ARGS-COMMA]: extra `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte), ". Pre-fix `f(1,, 2)` silently dropped the missing argument expression. Remove the duplicate comma.")));
+                panic(str_concat("error[PARSE-ARGS-COMMA]: extra `,` in fn-call argument list at byte ", str_concat(str_from_int(v_args_byte), ". Remove the duplicate comma.")));
             }
             else {
                 r = parse_expr(tokens, cp + 1, pool); args.push(pr_val(r)); cp = pr_pos(r);
@@ -1819,14 +1804,12 @@ fn halt_hrtb_not_supported() -> i64 {
     return 0;
 }
 
-// v0.6.11 (probe finding 2026-05-01-generic-T-trait-bound-where-clause):
 // Track Y (v0.5.31) closes the inline `<T: Trait>` form by capturing
 // `?Trait` markers in the gparams list at parse time. The where-clause
 // form `where T: Trait` was being silently skipped via `skip_where_clause`,
 // so `lower_fn`'s gparam-bound walk never saw the bound and `lower_expr`
 // kind-8 method dispatch fell through to the `vec_<method>` synthesis
 // path (clang-link `error[TYP-005]: undefined fn vec_<method>`).
-//
 // This helper mirrors the inline-form bound capture: walk `where T: A + B,
 // U: C` and splice `?A` / `?B` into gparams immediately after T's entry,
 // `?C` after U's. Lifetime entries (prefixed `'`) are preserved. Bounds on
@@ -2035,7 +2018,7 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // clean diagnostic if anything else appears. Field-equality literal
             // patterns (`{ field: <literal> }`) are deferred to v0.5+.
             if pk(tokens, cp) != 1 {
-                // v0.4.276 — fold the dual print+panic into a single
+                // fold the dual print+panic into a single
                 // panic() carrying the full diag text. Matches the
                 // MATCH-013 pattern (line ~1040). Probe finding
                 // 2026-04-30: pre-fix adopters saw "error[MATCH-012]:
@@ -2049,8 +2032,7 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             };
             bname = pkv(tokens, cp);
             cp = cp + 1;
-            // v0.6.69 (probe finding 2026-05-02-nested-struct-pattern-
-            // and-tuple-struct-decl-NR020, sub-case 1): canonical Rust
+            //  canonical Rust
             // nested struct pattern `Outer { inner: Inner { ... }, ...
             // } => ...` pre-fix saw `{` (token 52) right after the
             // bname identifier (`Inner`) and panicked NR020 with
@@ -2121,7 +2103,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             name_idx = cp + 2;
         };
         let real_v735: str = pkv(tokens, name_idx);
-        print(str_concat("ERROR: top-level `", str_concat(ref_form_v735, str_concat("` binding mode in a `match` arm pattern (e.g. `match x { ", str_concat(ref_form_v735, str_concat(" ", str_concat(real_v735, " => ... }`)) is not yet supported in Nucleor. Pre-v0.7.35 surfaced as wrong-class `error[NR020]: expected '=>', got identifier`. Sister to v0.7.23 (`ref` inside variant pattern).")))))));
+        print(str_concat("ERROR: top-level `", str_concat(ref_form_v735, str_concat("` binding mode in a `match` arm pattern (e.g. `match x { ", str_concat(ref_form_v735, str_concat(" ", str_concat(real_v735, " => ... }`)) is not yet supported in Nucleor. Sister to v0.7.23 (`ref` inside variant pattern).")))))));
         print(str_concat("       Workaround: drop the `", str_concat(ref_form_v735, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `match x { ", str_concat(real_v735, " => ... }` has the same observable shape.")))));
         panic(str_concat("nucleor: top-level `", str_concat(ref_form_v735, "` binding mode in match arm not yet supported (see ERROR diagnostic above)")));
     };
@@ -2146,7 +2128,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
     // Tokens: 70 = f-suffix-typed lit, 124 = f64 raw-bits lit,
     // 125 = f32 lit. All three trigger the same hazard.
     if att == 70 || att == 124 || att == 125 {
-        panic("error[MATCH-013]: float-literal pattern in `match` arm is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) attempting to lower the float-lit pattern. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.");
+        panic("error[MATCH-013]: float-literal pattern in `match` arm is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.");
     };
     let mut ename: str = "";
     let mut vname: str = "";
@@ -2276,7 +2258,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             // literal at outer pattern level). Workaround: use a guard.
             if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 2 {
                 let neg_lit: i64 = pkv(tokens, cp + 1);
-                print(str_concat("ERROR: bare negative-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(-", str_concat(str_from_int(neg_lit), ")`) is not yet supported in Nucleor. Pre-v0.7.24 this surfaced as wrong-class `error[NR020]: expected ')', got integer literal` because the variant-pattern parser swallowed `-` as the binding name. Sister to v0.7.22 MATCH-015 (bare negative literal at outer pattern level).")))));
+                print(str_concat("ERROR: bare negative-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(-", str_concat(str_from_int(neg_lit), ")`) is not yet supported in Nucleor. Sister to v0.7.22 MATCH-015 (bare negative literal at outer pattern level).")))));
                 print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == -", str_concat(str_from_int(neg_lit), " => { ... } _ => { ... } }`.")))));
                 panic(str_concat("nucleor: bare negative-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
             };
@@ -2291,7 +2273,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             // class. Halt cleanly with a guard workaround.
             if pk(tokens, cp) == 2 {
                 let int_lit_v751: i64 = pkv(tokens, cp);
-                print(str_concat("ERROR: bare integer-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(str_from_int(int_lit_v751), ")`) is not yet supported in Nucleor. Pre-v0.7.51 this SEGFAULTED the compiler at IR-emit because the variant-pattern parser captured the int literal value as the binding-name string and lowered to an invalid LLVM identifier (no diagnostic, just rc=139). Sister to v0.7.22/v0.7.24 (negative-literal halts).")))));
+                print(str_concat("ERROR: bare integer-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(str_from_int(int_lit_v751), ")`) is not yet supported in Nucleor. Sister to v0.7.22/v0.7.24 (negative-literal halts).")))));
                 print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == ", str_concat(str_from_int(int_lit_v751), " => { ... } _ => { ... } }`.")))));
                 panic(str_concat("nucleor: bare integer-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
             };
@@ -2307,7 +2289,7 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             // pointing at float-equality fragility and offering a guard
             // workaround.
             if pk(tokens, cp) == 70 || pk(tokens, cp) == 124 || pk(tokens, cp) == 125 {
-                print(str_concat("error[MATCH-013]: float-literal payload inside a variant pattern (e.g. `", str_concat(vname, "(1.5)`) is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` payloads has no defined semantics in Nucleor. Pre-v0.7.53 this SEGFAULTED the compiler at IR-emit (rc=139, no diagnostic). Sister to v0.4.206 outer-level float-pattern halt and v0.7.51 int-payload halt.")));
+                print(str_concat("error[MATCH-013]: float-literal payload inside a variant pattern (e.g. `", str_concat(vname, "(1.5)`) is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` payloads has no defined semantics in Nucleor. Sister to v0.4.206 outer-level float-pattern halt and v0.7.51 int-payload halt.")));
                 print(str_concat("       Workaround: use a guard with tolerance-based comparison — `match opt { ", str_concat(vname, "(x) if (x - 1.5).abs() < 0.001 => { ... } _ => { ... } }`. Or convert via integer scale (`match (x * 100.0) as i64 { 150 => ..., _ => ... }`).")));
                 panic(str_concat("nucleor: float-literal payload inside `", str_concat(vname, "(...)` is not supported (see ERROR diagnostic above)")));
             };
@@ -2430,8 +2412,7 @@ fn parse_wrapped_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, mode: i6
 #[manual_drop]
 fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
-    // v0.6.60 (probe finding 2026-05-01-rust-syntax-translation-
-    // fidelity-audit, UFCS row): canonical Rust UFCS form
+    //  canonical Rust UFCS form
     // `<S as Foo>::f(&s)` (universal function call syntax — disambiguates
     // method dispatch when multiple traits implement the same fn name)
     // pre-fix saw `<` (token 32) at expression start and fell through
@@ -2449,7 +2430,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // through (the trait_impl_register path at ~line 25478). UFCS
         // therefore acts as a verbose surface-level alias that adopters
         // porting Rust code can paste in directly.
-        //
         // Note: when two traits provide the same method on the same
         // type, both impls register the SAME mangled name and Nucleor
         // emits the duplicate-fn-name diag at struct-emit time
@@ -2507,8 +2487,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print("ERROR: UFCS form `<Type as Trait>::method(args)` parsed but did not match the supported shape. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous.");
         panic("nucleor: UFCS expression form did not match supported shape (see ERROR diagnostic above)");
     };
-    // v0.6.62 (probe finding 2026-05-01-keyword-silent-strip-audit,
-    // `move` closure row): canonical Rust `move ||` / `move |args|`
+    //  canonical Rust `move ||` / `move |args|`
     // closure-by-move pre-fix lexed `move` as an identifier at
     // expression start, then the parser tried to call a fn named
     // `move` on the closure args, surfacing as the clang-link error
@@ -2555,7 +2534,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
         return pr(cp, mk2(pool, 71, pkv(tokens, pos)));
     };
-    // v0.4.24 (NUC-FEEDBACK-002): f32-typed float literal token (lexer
+    // NUC-FEEDBACK-002: f32-typed float literal token (lexer
     // tagged it 125 because of an `f32` suffix). Same body as tt==70
     // but emits AST kind 73 instead of 71 so lower_expr routes it
     // through f32_from_scaled.
@@ -2613,7 +2592,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
         if pk(tokens, cp) != 44 {
             let after_rparen: i64 = expect_tok(tokens, cp, 51);
-            // 
             // `(expr)(args)` shape — parenthesised expression immediately
             // followed by a `(args)` call. Pre-fix this silently lowered
             // as if `(args)` were a separate parenthesised expression and
@@ -2622,7 +2600,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // canonical Rust dispatch-table-via-struct pattern got a
             // giant address-like number where they expected the call
             // result.
-            //
             // Real fix (extend parse_postfix to accept `(args)` on any
             // callable expression + emit indirect-call IR via inttoptr +
             // call) is a substantial multi-ship change. Until that
@@ -2634,8 +2611,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                     print("ERROR: `(expr)(args)` direct-call form (e.g. `(struct.field)(arg)` for fn-pointer fields, `(vec_get(&ops, i))(arg)` for fn-pointer vectors) is not yet supported — the parser silently dropped the args and returned the function-pointer ADDRESS instead of calling it. Workaround: extract the fn-pointer to a local variable first, then call it: `let f = struct.field; f(arg)` or `let f = vec_get(&ops, i); f(arg)` — both work today and produce the expected call result.");
                     panic("nucleor: `(expr)(args)` direct-call form not implemented; see ERROR diagnostic above for workarounds");
                 };
-                // v0.6.28 (probe finding 2026-05-02-paren-call-still-
-                // miscomputes-on-iife-call-result-cast): extends the
+                //  extends the
                 // v0.6.12 halt to three more inner-expression shapes
                 // that *also* silently miscomputed (returned the inner
                 // expression's *value*, e.g. fn-pointer address, instead
@@ -2676,14 +2652,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             items.push(pr_val(er));
             cp = pr_pos(er);
-            // v0.6.77 RFC V1.11 (probe finding 2026-05-01-rust-syntax-
-            // translation-fidelity-audit, array-repeat row): canonical
+            // v0.6.77 RFC V1.11
+            //  canonical
             // Rust `[VAL; N]` (e.g. `let buf: Vec<i64> = [0; 4];`)
             // pre-fix rejected at parse time with `error[NR020]: parse
             // error at byte K: expected ',', got ';'` — the `[V, V, ...]`
             // parser had no `;` branch and the `vec![V; N]` macro
             // (closed v0.6.41) requires the `vec!` prefix.
-            //
             // Now after parsing the first item, peek for `;` — if
             // present, parse N (must be a literal int) and expand to
             // an N-item kind-47 array literal (same lowering as
@@ -2704,7 +2679,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 };
                 let n_val: i64 = node_field(pool, n_node, 1);
                 if n_val < 0 || n_val > 1024 {
-                    print("ERROR: `[VAL; N]` count must be in 0..=1024 (parser-time expansion bound). Pre-v0.6.77 this rejected with the wrong-class NR020. For larger or runtime-evaluated N use the `vec![VAL; N]` form (runtime loop).");
+                    print("ERROR: `[VAL; N]` count must be in 0..=1024 (parser-time expansion bound). For larger or runtime-evaluated N use the `vec![VAL; N]` form (runtime loop).");
                     panic("nucleor: `[VAL; N]` count out of bounds");
                 };
                 let item_node: i64 = vec_get(items, 0);
@@ -2874,7 +2849,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // global ref. Hard adoption blocker for any constructor
             // body using the canonical shorthand form
             // (`fn make(x, y) -> P { P { x, y } }`).
-            //
             // For shorthand-only patterns (`,` / `}` after IDENT, no
             // `:` to confirm field-init shape), require the TYPE
             // identifier (`name`) to start with an uppercase letter.
@@ -2907,7 +2881,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
         };
         // turbofish syntax `name::<TypeArgs>(args)`. Pre-
-        // v0.3.115, the `::<` after `name` was treated as `::ident` —
+        // the `::<` after `name` was treated as `::ident` —
         // qname captured the `<` token's value (garbage), the
         // following `(` failed to match the kind-12 dispatch shape,
         // and the call lowered as an associated-fn-call with a bogus
@@ -2927,7 +2901,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
         if pk(tokens, cp2) == 46 {
             let qname: i64 = pkv(tokens, cp2 + 1);
-            // v0.6.96 (defensive halt): canonical Rust stdlib path
+            // defensive halt: canonical Rust stdlib path
             // `std::mem::swap(...)`, `std::cmp::min(...)`,
             // `std::collections::HashMap::new()`, etc. (3+ `::`-
             // separated path components) pre-fix saw the second `::`
@@ -2953,7 +2927,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 // `EnumName::Variant { field: val, ... }`. Parse the
                 // named fields and produce a kind-12 with values in
                 // SOURCE order (field names are discarded).
-                //
                 // disambiguation guard. Only fire if what's
                 // inside the `{` looks like a field-init list (empty
                 // `}` or IDENT followed by `:`). Without this, the
@@ -3011,7 +2984,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = cp + 1;
         };
         // optional `-> RetType` after the closing `|`. Pre-
-        // v0.3.101, `|x: i64| -> i64 { … }` left the parser pointing
+        // `|x: i64| -> i64 { … }` left the parser pointing
         // at `->`, which neither matched the `{ … }` block branch nor
         // parsed cleanly as an expression — the body parser then
         // produced an `@i64` global ref (clang link error
@@ -3055,7 +3028,6 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // legitimately as Rust idioms but Nucleor doesn't yet parse.
     // Result: silent miscompute → working binary that does the
     // wrong thing.
-    //
     // v0.4.72 / v0.4.81 attempts to panic unconditionally broke
     // tests/rods/pgs_smoke (token 51 = `)` legitimately reached
     // here from macro-expanded code at byte 6571). Per change-map
@@ -3076,7 +3048,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         || fall_tt == 51  // `)`
         || fall_tt == 55  // `]`
         { 1 } else { 0 };
-    // v0.7.2 (defensive halt — labeled loop): canonical Rust loop
+    // defensive halt — labeled loop: canonical Rust loop
     // labels `'outer: for ... { break 'outer; }` pre-fix surfaced
     // as wrong-class `NR020: parse_primary cannot start expression
     // at token kind 98` because token 98 is the lifetime/label
@@ -3086,7 +3058,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print("ERROR: loop labels (`'outer: for ... { break 'outer; }`, `'lbl: loop { continue 'lbl; }`) are not yet supported in Nucleor. Workaround: use a boolean flag to break out of nested loops — `let mut done: i64 = 0; for i in 0..5 { if done == 1 { break; }; for j in 0..5 { if i + j > 3 { done = 1; break; } } }`.");
         panic("nucleor: loop labels not yet supported (see ERROR diagnostic above)");
     };
-    // v0.6.94 (defensive halt — range-as-expression): canonical Rust
+    // defensive halt — range-as-expression: canonical Rust
     // `let r = 0..10;` and `(0..10).step_by(2)` patterns rely on the
     // range syntax `<lo>..<hi>` producing a `Range<T>` value at
     // expression position. Nucleor today only recognises ranges in
@@ -3114,7 +3086,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    // v0.7.7 (defensive halt): C/Java-idiom `x++` / `x--` post-
+    // defensive halt: C/Java-idiom `x++` / `x--` post-
     // increment/decrement operators don't exist in Rust (or Nucleor).
     // Pre-fix surfaced as wrong-class `NR020: parse_primary cannot
     // start expression at token kind 20` (the second `+` after `x+`)
@@ -3217,8 +3189,7 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 print("ERROR: slice syntax `expr[lo..hi]` is not yet supported (was a silent SIGSEGV pre-v0.4.55). Workarounds: for `str` use `str_substring(s, lo, hi)`; for `Vec<T>` use an explicit element-wise loop or build a new Vec via `vec_push` over the desired range.");
                 panic("nucleor: slice expression `expr[lo..hi]` not supported");
             };
-            // v0.6.63 (probe finding 2026-05-02-rfc0034-ct-param-first-
-            // pass-residual-edges, gap 1): canonical RFC-0034 explicit
+            //  canonical RFC-0034 explicit
             // CT-arg call form `ct_inc[42](x)` pre-fix parsed as
             // `name[index_expr]` (kind-10 indexer) followed by `(args)`
             // call — the call lowered to invoke the indexed value as
@@ -3440,7 +3411,7 @@ fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let v_d_pd001: i64 = __nucleor_parse_depth_inc();
     if v_d_pd001 > 1024 {
         let v_byte_pd001: i64 = tok_pos_at(tokens, pos);
-        panic(str_concat("error[PARSE-DEPTH-001]: expression nesting too deep at byte ", str_concat(str_from_int(v_byte_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_pd001), " > 1024). Pre-fix the recursive-descent parser ran out of OS stack at ~3000-4000 nested levels and exited 127 with no diagnostic. Refactor the deeply-nested expression into helper bindings — `let t1 = a + b; let t2 = t1 + c;` — or split a large expression-tree across multiple statements.")))));
+        panic(str_concat("error[PARSE-DEPTH-001]: expression nesting too deep at byte ", str_concat(str_from_int(v_byte_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_pd001), " > 1024). Refactor the deeply-nested expression into helper bindings — `let t1 = a + b; let t2 = t1 + c;` — or split a large expression-tree across multiple statements.")))));
     };
     let result_pd001: Vec<i32> = parse_pipe_expr(tokens, pos, pool);
     __nucleor_parse_depth_dec();
@@ -3487,7 +3458,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             else if v_tt_pt001 == 125 { "f32 literal" }
             else if v_tt_pt001 == 0 { "<EOF>" }
             else { tok_name(v_tt_pt001) };
-        panic(str_concat("error[PARSE-TYPE-001]: expected a type, found ", str_concat(v_what_pt001, str_concat(" at byte ", str_concat(str_from_int(v_byte_pt001), ". Pre-fix this CRASHED the compiler with SIGSEGV on inputs like `let x: 1 + 1 = 5;` because the type-position parser dereferenced the token's value as a str pointer when the token actually carried an integer. Type positions accept type names (`i64`, `Vec<T>`, struct/enum names, etc.), not arbitrary expressions; if you meant to assign an expression, drop the type annotation: `let x: i64 = 1 + 1;` (with a real type) or `let x = 1 + 1;` (let inference fill in the type).")))));
+        panic(str_concat("error[PARSE-TYPE-001]: expected a type, found ", str_concat(v_what_pt001, str_concat(" at byte ", str_concat(str_from_int(v_byte_pt001), ". Type positions accept type names (`i64`, `Vec<T>`, struct/enum names, etc.), not arbitrary expressions; if you meant to assign an expression, drop the type annotation: `let x: i64 = 1 + 1;` (with a real type) or `let x = 1 + 1;` (let inference fill in the type).")))));
     };
     if pk(tokens, pos) == 56 {
         halt_hrtb_not_supported();
@@ -3511,8 +3482,8 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     if pk(tokens, pos) == 54 {
         let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
         let mut cp: i64 = pr_pos(tr);
-        // v0.6.78 RFC V1.11 (probe finding 2026-05-02-array-shape-gaps,
-        // gap 2): canonical Rust slice type `&[T]` as fn-param type
+        // v0.6.78 RFC V1.11
+        //  canonical Rust slice type `&[T]` as fn-param type
         // pre-fix rejected with the wrong-class `error[NR020]: parse
         // error at byte K: expected ';', got ']'` because the array-
         // type parser only knew the `[T; N]` shape. Now accept the
@@ -3540,7 +3511,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         return pr(cp + 1, str_concat("(", str_concat(inner, ")")));
     };
-    // v0.6.92 (defensive halt): canonical Rust `impl Trait` return-
+    // defensive halt: canonical Rust `impl Trait` return-
     // position type (`fn make_iter() -> impl Iterator<Item = i64>`)
     // pre-fix surfaced as wrong-class `error[NR020]: expected '{',
     // got identifier` because parse_type had no `impl` branch — the
@@ -3567,7 +3538,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through.")));
         panic(str_concat("nucleor: raw pointer type `*", str_concat(v073_kind, " T` not yet supported (see ERROR diagnostic above)")));
     };
-    // v0.7.11 (defensive halt): canonical Rust never type `!`
+    // defensive halt: canonical Rust never type `!`
     // (used for diverging fns `fn forever() -> !`, `panic!()`-only
     // bodies) pre-fix CRASHED the compiler with SIGSEGV (rc=139)
     // because parse_type had no token-38 (`!`) branch and fell
@@ -3783,7 +3754,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             };
             params.push(v0508_pname);
         } else if pk(tokens, cp) == 73 {
-            // v0.7.10 (defensive halt): canonical Rust const-generic
+            // defensive halt: canonical Rust const-generic
             // params `<const N: usize>` (used in `struct Buf<const N:
             // usize> { data: [i64; N] }`, `fn id<const X: i32>() ->
             // i32 { X }`) pre-fix surfaced as wrong-class
@@ -3799,7 +3770,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         cp = cp + 1;
         // trait-bound clause `<T: Addable>` / `<T: A + B>`.
-        // Pre-fix this hit NR020 panic at the `:` token (42). Today
+        // Today
         // Nucleor's generics are type-passthrough — codegen emits one
         // monomorphic version regardless of bound — so the bound is
         // semantically a no-op at the IR level. Skip past `:` and
@@ -3817,7 +3788,6 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // pass can verify the trait exists / has at least one
             // impl. Multiple bounds (`<T: A + B>`) all get `?A`,
             // `?B` entries.
-            //
             // v0.7.69 (defensive halt — Rust opt-out trait bound
             // `?Sized`, used to relax the implicit Sized bound on
             // generic params so they accept DSTs like `str`/`[T]`).
@@ -3831,7 +3801,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // wrong-class hazard. Halt cleanly and tell users the
             // bound is a no-op for now (everything is Sized).
             if pk(tokens, cp) == 97 {
-                print("ERROR: opt-out trait bounds `?Sized` (and `?Trait` in general) are not yet supported in Nucleor. Pre-v0.7.69 the `?` token was silently dropped at the bound parser and the trailing `Sized` was stored as a regular bound marker, so adopter intent — \"this generic accepts DSTs / unsized types\" — was lost without signal. Workaround: drop the `?Sized` bound; Nucleor's monomorphic / i64-everywhere ABI assumes every generic param is sized today, so the bound is a no-op.");
+                print("ERROR: opt-out trait bounds `?Sized` (and `?Trait` in general) are not yet supported in Nucleor. Workaround: drop the `?Sized` bound; Nucleor's monomorphic / i64-everywhere ABI assumes every generic param is sized today, so the bound is a no-op.");
                 panic("nucleor: opt-out trait bound `?Sized` not yet supported (see ERROR diagnostic above)");
             };
             while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
@@ -3857,8 +3827,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // on a garbage string offset. Detect the open-paren and emit a
     // clear diagnostic, then skip past the destructure-stmt to
     // recover so the rest of the program still parses.
-    // v0.6.61 (probe finding 2026-05-01-rust-syntax-translation-
-    // fidelity-audit, struct destructure-in-let row): canonical Rust
+    //  canonical Rust
     // `let Point { x, y } = p;` form pre-fix saw `Point` as the
     // binding name + `{ x, y }` as some unparsed garbage + `= p;`
     // as the init, surfacing as wrong-class `error[TYP-008]: binding
@@ -3899,7 +3868,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print("ERROR: array destructure-in-let `let [a, b, c] = [1, 2, 3];` is not yet supported in Nucleor. Workaround: bind the array to a name, then index each slot — `let arr: [i64; 3] = [1, 2, 3]; let a: i64 = arr[0]; let b: i64 = arr[1]; let c: i64 = arr[2];`. Sister to v0.6.61 struct-destructure-in-let and v0.3.81 tuple-destructure-in-let halts.");
         panic("nucleor: array destructure-in-let not yet supported (see ERROR diagnostic above)");
     };
-    // v0.6.95 (defensive halt): canonical Rust let-else shape
+    // defensive halt: canonical Rust let-else shape
     // `let Some(v) = opt else { return; };` (Rust 1.65+) and the
     // sister ctor-pattern-in-let `let Some(v) = opt;` (no else)
     // pre-fix surfaced as wrong-class `NR020: parse_primary cannot
@@ -3916,7 +3885,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     if pk(tokens, cp) == 50 {
-        // v0.8.33 — tuple-destructure-in-let. `let (a, b) = expr;` is
+        // tuple-destructure-in-let. `let (a, b) = expr;` is
         // now accepted. Pre-v0.8.33 this panicked with a halt diagnostic
         // (v0.4.33 introduced the halt to replace the original silent-
         // miscompute where bindings never came into scope). Now: parse
@@ -3985,7 +3954,6 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // and let-init type propagation; until that lands, surface a hard
     // diagnostic for the broken types so adopters don't ship silently-
     // wrong tensor kernels.
-    //
     // `Vec<f64>` is intentionally NOT in the rejected set — it works
     // correctly today because i64 storage cells naturally hold f64 bit
     // patterns via direct memory load (both are 64-bit). Many existing
@@ -4075,7 +4043,7 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 if pk(tokens, ip) != 51 {
                     binding = pkv(tokens, ip);
                     ip = ip + 1;
-                    // v0.6.90 (defensive halt): nested pattern
+                    // defensive halt: nested pattern
                     // `if/while let Some(Some(v)) = opt` pre-fix
                     // surfaced as wrong-class `NR020: expected ')',
                     // got '('` because the parser reads the binding
@@ -4123,7 +4091,7 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // cleanly with a separate-arm workaround for if-let, or use
             // a match for true or-pattern semantics.
             if pk(tokens, ip) == 65 {
-                print("ERROR: or-patterns in `if let` / `while let` (e.g. `if let Some(1) | Some(2) = opt { ... }`) are not yet supported in Nucleor. Pre-v0.7.50 surfaced as wrong-class `error[NR020]: expected '=', got token 65` (token 65 = `|`). Match-arm or-patterns (`match x { 1 | 2 => ... }`) already work — only the if-let / while-let form is missing.");
+                print("ERROR: or-patterns in `if let` / `while let` (e.g. `if let Some(1) | Some(2) = opt { ... }`) are not yet supported in Nucleor. Match-arm or-patterns (`match x { 1 | 2 => ... }`) already work — only the if-let / while-let form is missing.");
                 print("       Workaround: use a `match` for true or-pattern semantics — `match opt { Some(1) | Some(2) => { /* hit */ }, _ => { /* miss */ } }`. Or check each variant separately — `if let Some(x) = opt { if x == 1 || x == 2 { ... } }`.");
                 panic("nucleor: or-pattern in `if let` / `while let` not yet supported (see ERROR diagnostic above)");
             };
@@ -4191,7 +4159,6 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // treating it as an Option pointer, dereferencing garbage.
             // Adopters writing the canonical Rust idiom got a SIGSEGV
             // with no compile-time signal.
-            //
             // Real fix is to wrap these helpers in Option<T> at the
             // stdlib level (RFC-0024 Phase 4 territory). Until then,
             // halt the build with a clear diagnostic that names the
@@ -4228,7 +4195,7 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
     // same `=` vs `==` typo guard as parse_while_stmt.
     if pk(tokens, pr_pos(cr)) == 40 {
-        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Pre-v0.4.69 the parser printed a parse error and silently continued. Did you mean `if x == y { ... }` instead of `if x = y { ... }`?");
+        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Did you mean `if x == y { ... }` instead of `if x = y { ... }`?");
         panic("nucleor: `=` in if-condition position (probably `==` typo)");
     };
     let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
@@ -4282,7 +4249,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 if pk(tokens, ip) != 51 {
                     binding = pkv(tokens, ip);
                     ip = ip + 1;
-                    // v0.6.90 (defensive halt): nested pattern
+                    // defensive halt: nested pattern
                     // `if/while let Some(Some(v)) = opt` pre-fix
                     // surfaced as wrong-class `NR020: expected ')',
                     // got '('` because the parser reads the binding
@@ -4361,7 +4328,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // but silently continued, building a binary with broken IR.
     // Halt cleanly at parse time with a clear hint.
     if pk(tokens, pr_pos(cr)) == 40 {
-        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Pre-v0.4.69 the parser printed a parse error and silently continued, building broken IR. Did you mean `while x == y { ... }` instead of `while x = y { ... }`?");
+        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Did you mean `while x == y { ... }` instead of `while x = y { ... }`?");
         panic("nucleor: `=` in while-condition position (probably `==` typo)");
     };
     let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
@@ -4373,8 +4340,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 #[manual_drop]
 fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos is after 'for', pointing at variable name
-    // v0.6.59 (probe finding 2026-05-01-rust-syntax-translation-
-    // fidelity-audit, tuple-destruct-in-for row): canonical Rust
+    //  canonical Rust
     // `for (k, v) in &map { ... }` and `for (i, x) in items.iter()
     // .enumerate() { ... }` pre-fix saw `(` (token 50) where the
     // parser expected an identifier, then `in` where it expected
@@ -4457,7 +4423,7 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let v_d_stmt_pd001: i64 = __nucleor_parse_depth_inc();
     if v_d_stmt_pd001 > 1024 {
         let v_byte_stmt_pd001: i64 = tok_pos_at(tokens, pos);
-        panic(str_concat("error[PARSE-DEPTH-001]: statement nesting too deep at byte ", str_concat(str_from_int(v_byte_stmt_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_stmt_pd001), " > 1024). Pre-fix the recursive-descent parser ran out of OS stack at ~3000-4000 nested `if`/`while`/`{` levels and exited 127 with no diagnostic. Refactor deeply-nested control flow into helper fns or use a flat `match`/`if-else` chain.")))));
+        panic(str_concat("error[PARSE-DEPTH-001]: statement nesting too deep at byte ", str_concat(str_from_int(v_byte_stmt_pd001), str_concat(" (depth ", str_concat(str_from_int(v_d_stmt_pd001), " > 1024). Refactor deeply-nested control flow into helper fns or use a flat `match`/`if-else` chain.")))));
     };
     let result_stmt_pd001: Vec<i32> = parse_stmt_inner(tokens, pos, pool);
     __nucleor_parse_depth_dec();
@@ -4561,8 +4527,7 @@ fn parse_stmt_inner(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 16 { return parse_return_stmt(tokens, pos + 1, pool); };
     if tt == 18 {
         let mut cp: i64 = pos + 1;
-        // v0.6.57 (probe finding 2026-05-01-rust-syntax-translation-
-        // fidelity-audit, break-with-value row): canonical Rust
+        //  canonical Rust
         // `let r = loop { break 42; };` form pre-fix silently dropped
         // the value — `break` parsed bare (no value), then `42;`
         // became a separate stmt that either tail-expr'd the loop
@@ -4781,7 +4746,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // before the colon expector fires. Pre-fix this surfaced as
         // wrong-class `error[NR020]: expected ':', got '='`.
         if pk(tokens, cp + 1) == 40 {
-            print(str_concat("ERROR: typeless default-value parameter `", str_concat(pn, " = <expr>` in fn signature is not supported in Nucleor (Nucleor requires explicit param types AND does not support default args). Pre-v0.7.49 surfaced as wrong-class `error[NR020]: expected ':', got '='`. Sister to v0.7.38 (typed default-arg halt).")));
+            print(str_concat("ERROR: typeless default-value parameter `", str_concat(pn, " = <expr>` in fn signature is not supported in Nucleor (Nucleor requires explicit param types AND does not support default args). Sister to v0.7.38 (typed default-arg halt).")));
             print(str_concat("       Workaround: declare two fn overloads — one with all params, one without. Or use Option<T> as the param type with the default in the body. See v0.7.38 CHANGELOG entry for example.")));
             panic(str_concat("nucleor: typeless default-value parameter `", str_concat(pn, " = ...` not supported (see ERROR diagnostic above)")));
         };
@@ -4925,7 +4890,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_effect_clause(tokens, cp);
     cp = skip_where_clause(tokens, cp);
-    // v0.7.4 (defensive halt): canonical Rust `extern "C" fn name() {
+    // defensive halt: canonical Rust `extern "C" fn name() {
     // body }` (FFI-exposed fn with body) pre-fix landed here at `{`
     // and parse_extern_fn returned without consuming the body —
     // parse_program then surfaced the body as a stray top-level
@@ -4946,8 +4911,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'struct', at the name
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
-    // v0.6.65 (probe finding 2026-05-02-rfc0034-ct-param-first-pass-
-    // residual-edges, gap 3): canonical RFC-0034 form `struct Buf[N:
+    //  canonical RFC-0034 form `struct Buf[N:
     // usize] { data: Vec<i64> }` (CT-param on a struct decl) pre-fix
     // saw `[` (token 54) where the parser expected `{` or `<`,
     // surfacing as wrong-class `error[NR020]: parse error at byte
@@ -4976,8 +4940,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // (kind 33 with empty fields list). Construction still requires
     // `U {}` value form; a follow-up will let `U` (bare ident) resolve
     // to the zero-field constructor.
-    // v0.6.46 (probe finding 2026-05-02-where-clause-struct-and-impl-
-    // still-NR020): pre-fix `struct Wrapper<T> where T: A { … }` panicked
+    //  pre-fix `struct Wrapper<T> where T: A { … }` panicked
     // with NR020 because `expect_tok(cp, 52)` saw `where` (an ident, not
     // `{`) after the gparams. v0.6.11 wired where-clauses for fn decls
     // but explicitly noted parse_struct_decl was left on the legacy
@@ -4989,8 +4952,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let unit_nid: i64 = mk4(pool, 33, name, mk_list(pool, Vec::new()), gparams);
         return pr(cp + 1, unit_nid);
     };
-    // v0.6.53 (probe finding 2026-05-02-nested-struct-pattern-and-
-    // tuple-struct-decl-NR020 sub-case 2): tuple-struct declaration
+    //  tuple-struct declaration
     // `struct P(i64, i64);` (positional-field shape) is a canonical
     // Rust form. Pre-fix the next-token check below saw `(` (token
     // 50) instead of `{` and panicked NR020 with "expected '{', got
@@ -4999,8 +4961,8 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // with a clean diag at the decl naming the workaround (named-
     // field form). Tuple-struct support is a parse-extension forward-
     // roadmap (positional field synthesis + `p.0` / `p.1` access path).
-    // v0.6.73 RFC V1.1 (probe finding 2026-05-02-nested-struct-pattern-
-    // and-tuple-struct-decl-NR020 sub-case 2): tuple-struct positional-
+    // v0.6.73 RFC V1.1
+    //  tuple-struct positional-
     // field synthesis. Pre-fix `struct P(T1, T2);` halted at parse with
     // a workaround diagnostic. Now: parse the paren-form, synthesize
     // field names `__0`, `__1`, ..., `__N` (matching Rust's positional
@@ -5008,7 +4970,6 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // value retains kind-33 — downstream type-check + lowering use the
     // synthetic field names; constructor `P(a, b)` and field access
     // `p.0` / `p.1` are wired in subsequent commits.
-    //
     // Tuple-struct shape detection: structs with all field names
     // matching `__<digit>+` are tuple-style (used by constructor
     // detection + `.<digit>` access lowering downstream).
@@ -5061,8 +5022,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 12 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
-        // v0.6.36 (probe finding 2026-05-01-self-recursive-struct-infinite-
-        // size-accepted): pre-fix `struct Node { val: i64, next: Node }`
+        //  pre-fix `struct Node { val: i64, next: Node }`
         // (recursive type without Box/&) was accepted at parse + type-check
         // and crashed at runtime with STATUS_STACK_OVERFLOW (Windows
         // exception 0xC00000FD) on instantiation — the struct contains
@@ -5077,7 +5037,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let field_type_v063: str = pr_val(tr);
         if str_eq(field_type_v063, name) == 1 {
             print(str_concat("error[NR036]: recursive type `", str_concat(name, str_concat("` has infinite size — field `", str_concat(fn2, str_concat("` is itself a `", str_concat(name, "` (containing itself directly).")))))));
-            print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. Pre-v0.6.36 Nucleor accepted the declaration and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD). v0.6.36 catches the recursion at parse-time.");
+            print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. v0.6.36 catches the recursion at parse-time.");
             print(str_concat("  Workaround: wrap the recursive field in `Box<", str_concat(name, str_concat(">` (heap-indirection, single-element list shape), or `Option<Box<", str_concat(name, str_concat(">>` (linked-list / tree shape with terminator), or `&", str_concat(name, "` (advisory until borrow lowering of recursive structs lands).")))))));
             // F-026 trailing-PANIC line
             // closure. Lane 1 staged __nucleor_diag_exit; this bootstrap
@@ -5086,8 +5046,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             diag_exit();
             panic(str_concat("nucleor: recursive struct ", str_concat(name, str_concat(" contains itself directly via field ", fn2))));
         };
-        // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
-        // accepted, repro 3): duplicate field name in a struct decl was
+        //  duplicate field name in a struct decl was
         // silently accepted at decl-time; TYP-017 only fired at the init
         // site `P { x: 1, x: 2 }`. Adopters writing typo'd decls
         // (`struct Date { day: i64, day: i64 }`) got no signal until
@@ -5130,7 +5089,7 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
-        // v0.6.97 (defensive halt): canonical Rust struct-update
+        // defensive halt: canonical Rust struct-update
         // syntax `Point { x: 10, ..rest }` (functional record update)
         // pre-fix surfaced as wrong-class `error[NR020]: parse error
         // at byte K: expected ':', got identifier` after the parser
@@ -5196,8 +5155,7 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if vec_len(variants) > 0 && pk(tokens, cp) == 44 { cp = cp + 1; };
         if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
         let vname: i64 = pkv(tokens, cp); cp = cp + 1;
-        // v0.6.35 (probe finding 2026-05-01-enum-discriminant-segfaults-
-        // compiler): pre-fix `enum X { A = 5 }` (canonical Rust explicit-
+        //  pre-fix `enum X { A = 5 }` (canonical Rust explicit-
         // discriminant syntax) crashed the compiler with SEGFAULT inside
         // the type/ownership pass — the parser fell through `= 5` and
         // downstream passes dereferenced bad state. Halt at parse-time
@@ -5237,8 +5195,7 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             cp = expect_tok(tokens, cp, 53);
         };
-        // v0.6.27 (probe finding 2026-05-02-enum-duplicate-variant-names-
-        // silently-accepted): `enum E { A, A, A }` was silently accepted
+        //  `enum E { A, A, A }` was silently accepted
         // with all 3 variants kept distinct, and MATCH-001 confirmed
         // "1 arms for enum with 3 variants" — Nucleor saw them as
         // separate. Same for data variants `enum E { Foo(i64),
@@ -5250,7 +5207,7 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let prior_vname: str = node_field(pool, prior_var, 1);
             if str_eq(prior_vname, vname) == 1 {
                 print(str_concat("error[TYP-040]: duplicate enum variant `", str_concat(vname, str_concat("` in `enum ", str_concat(name, "` (Rust E0428)."))))));
-                print("  Pre-v0.6.27 Nucleor silently kept duplicate variants distinct, so `match` saw the enum as having more variants than the source written suggested (MATCH-001 fired with the wrong arm-count). Variant names must be unique within an enum.");
+                print("  Variant names must be unique within an enum.");
                 print(str_concat("  Workaround: rename or remove the duplicate `", str_concat(vname, "`. If both shapes are needed (e.g. `Foo(i64)` and `Foo(str)`), give them distinct names (`FooInt`, `FooStr`) — Nucleor doesn't yet support trait-style overloaded variants.")));
                 panic(str_concat("duplicate enum variant: ", str_concat(name, str_concat("::", vname))));
             };
@@ -5308,7 +5265,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     cp = skip_where_clause(tokens, cp);
-    // v0.7.13 (defensive halt): canonical Rust trait alias
+    // defensive halt: canonical Rust trait alias
     // `trait Pretty = Show;` (or `trait Foo = Bar + Baz;`) pre-fix
     // surfaced as wrong-class `NR020: parse error: expected '{',
     // got '='` because parse_trait_decl expects `{` after the name
@@ -5340,7 +5297,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             if pk(tokens, cp) == 43 { cp = cp + 1; };
             continue;
         };
-        // v0.6.99 (defensive halt): canonical Rust associated types in
+        // defensive halt: canonical Rust associated types in
         // traits (`type Item;`, `type Item = i64;`) pre-fix surfaced
         // as wrong-class `error[NR020]: parse error: expected token 10
         // (fn), got token 74 (type)`. Halt cleanly with a workaround
@@ -5479,8 +5436,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         type_name = pr_val(target_tr);
         cp = pr_pos(target_tr);
     };
-    // v0.6.46 (probe finding 2026-05-02-where-clause-struct-and-impl-
-    // still-NR020): same gap as struct decls — `impl<T> Foo for T where
+    //  same gap as struct decls — `impl<T> Foo for T where
     // T: Show { … }` panicked NR020 because `expect_tok(cp, 52)` saw
     // `where` after the type. Skip the where-clause so canonical Rust
     // impl blocks parse cleanly. Bounds not yet wired (forward-roadmap).
@@ -5549,7 +5505,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp2) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp2 + 1); cp2 = pr_pos(tr); rtype = pr_val(tr); };
         // substitute `Self` (and `&Self` / `&mut Self`) in
         // the return type with the impl's actual `type_name`. Pre-
-        // v0.3.111, `impl Point { fn new() -> Self { ... } }` left
+        // `impl Point { fn new() -> Self { ... } }` left
         // rtype = "Self" verbatim, so the populate_fn_returns_in_sym
         // pass registered `__fnret_Point__new = "Self"`. Downstream,
         // expr_struct_type couldn't resolve "Self" to a known struct,
@@ -5637,7 +5593,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
         let mut guard_nid: i64 = 0;
         if pk(tokens, cp) == 13 {
             cp = cp + 1;
-            // v0.7.17 (defensive halt): `if let PATTERN = EXPR` in match guard
+            // defensive halt: `if let PATTERN = EXPR` in match guard
             // (Rust 1.77 let_chains / let-guard stabilization). Pre-v0.7.17
             // `parse_expr` was called with `let` as the first token, producing
             // wrong-class `error[NR020]: parse_primary cannot start expression
@@ -5806,8 +5762,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             pending_pub = 0;
         }
         else if pk(tokens, cp) == 73 {
-            // v0.6.55 (probe finding 2026-05-01-rust-syntax-translation-
-            // fidelity-audit, const-fn row): canonical Rust form
+            //  canonical Rust form
             // `const fn double(x: i64) -> i64 { return x * 2; }` was
             // pre-fix rejected with `error[NR020]: parse error at byte
             // 9: expected ':', got identifier` because parse_const_decl
@@ -5889,8 +5844,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: `async fn` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && pk(tokens, cp + 1) == 10 {
-            // v0.6.53 (probe finding 2026-05-01-keyword-silent-strip-
-            // audit, sub-case 1): `unsafe fn dangerous() -> i64 { ... }`
+            //  `unsafe fn dangerous() -> i64 { ... }`
             // pre-fix had the `unsafe` keyword silently stripped at
             // parse — the fn decl parsed normally without the marker.
             // Visible-as-noop for adopters auditing translated Rust
@@ -5908,7 +5862,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // just skipped in the dispatch). Same audit-loss as v0.6.53.
             // Halt cleanly with the same drop-qualifier workaround.
             let v761_kw: str = if pk(tokens, cp + 1) == 66 { "trait" } else { "impl" };
-            print(str_concat("ERROR: `unsafe ", str_concat(v761_kw, "` (e.g. `unsafe ", str_concat(v761_kw, " T { ... }`) is not yet supported in Nucleor. Pre-v0.7.61 the `unsafe` keyword was silently stripped at parse — the decl parsed normally without the marker. Visible-as-noop for adopters auditing translated Rust code. Sister to v0.6.53 `unsafe fn` halt.")))));
+            print(str_concat("ERROR: `unsafe ", str_concat(v761_kw, "` (e.g. `unsafe ", str_concat(v761_kw, " T { ... }`) is not yet supported in Nucleor. Visible-as-noop for adopters auditing translated Rust code. Sister to v0.6.53 `unsafe fn` halt.")))));
             print("       Workaround: drop the `unsafe` qualifier — Nucleor v0.7 has no `unsafe`-gated operations to opt out of, so the qualifier is informational-only at the decl level (the v1 trait/impl-soundness substrate may give it meaning later).");
             panic(str_concat("nucleor: `unsafe ", str_concat(v761_kw, "` decl not yet supported (see ERROR diagnostic above)")));
         }
@@ -5939,8 +5893,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: `macro_rules!` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
-            // v0.6.50 (probe finding 2026-05-02-module-scope-decl-silent-
-            // noop-gaps-type-mod-union-use): pre-fix `union U { a: i64,
+            //  pre-fix `union U { a: i64,
             // b: f64 }` was silently swallowed at parse time then
             // `U { a: 42 }` at use site emitted "unknown struct U" —
             // confusing late error pointing at the use site, not the
@@ -5950,7 +5903,6 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: `union` decl at module scope not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "static") == 1 {
-            // 
             // `static NAME: T = VALUE;` at module scope was silently
             // dropped — the module-item parser skipped the unknown
             // `static` token then advanced past `NAME: T = VALUE;`
@@ -5959,7 +5911,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // `error: use of undefined value '@NAME'`. Surface a clean
             // error at parse time pointing at the `const` workaround
             // (literal init) or fn-wrap (computed init).
-            print("ERROR: `static` items are not yet supported in Nucleor. Pre-v0.6.21 the declaration silently dropped at parse time and any use site failed late at clang link with `error: use of undefined value '@<NAME>'`. Workarounds: for a literal value use `const NAME: T = VALUE;` (module-scope constant, evaluated at compile time); for a computed value wrap in a fn that returns it (`fn name() -> T { return VALUE; }`).");
+            print("ERROR: `static` items are not yet supported in Nucleor. Workarounds: for a literal value use `const NAME: T = VALUE;` (module-scope constant, evaluated at compile time); for a computed value wrap in a fn that returns it (`fn name() -> T { return VALUE; }`).");
             panic("nucleor: `static` decl at module scope not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 11 {
@@ -6588,7 +6540,6 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         // panic test or a bug introduced during refactoring) saw the
         // program return 0 and silently skip whatever statement
         // followed.
-        //
         // Fix: when divisor is zero, skip the fold entirely (leave the
         // div/mod instruction in place — at runtime LLVM `sdiv i64 X, 0`
         // is undefined behavior, typically SIGFPE, which is a loud
@@ -6696,9 +6647,7 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         // bitwise `&` `|` `^` now wired through these iops too, fold
         // bitwise so both paths produce identical answers for constant
         // inputs (e.g. 255 & 15 → 15, not 1 from "both truthy").
-        //
         // Fold bitwise: and(13), or(14), xor(15).
-        //
         // fold through the same bitwise
         // operators that lowering emits. The old self-host emulation used
         // division-based LSB extraction and had to skip negative operands;
@@ -6985,27 +6934,23 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 }
 
 // R14-D2 Phase 1 (v0.8.265) — metadata-only law-rewrite pass (no-op).
-//
 // Algebraic-law canonicalization:
 // the optimizer must have a slot for law-aware rewrites that ONLY
 // fires under a proof flag. Phase 1 ships the pass-list slot as a
 // no-op; Phase 2 wires law metadata (stored at @law lex-capture +
 // AST node attachment) into the body so the pass actually
 // reassociates / commutes per a verified law.
-//
 // Acceptance criteria (this Phase 1):
 //   - the pass exists in opt_fn's pass list (observable scaffold);
 //   - returns 0 rewrites (no-op — matches "implement metadata-only
 //     no-op pass" from build plan §1 R14-D2 ship sequence);
 //   - "false law never triggers rewrite" trivially holds because
 //     no law triggers any rewrite yet.
-//
 // Phase 2 will: (1) consume law metadata from a side table populated
 // at lex/parse time; (2) gate behind a proof flag (e.g. property-test
 // passed) so unverified laws can't drive unsound rewrites; (3) enable
 // one identity rewrite (`f(a, identity) → a`) as the first concrete
 // optimization.
-//
 // Rollback: replace opt_fn's call to opt_law_rewrite_block with a
 // no-op (0) and keep this fn definition in place for future phases.
 
@@ -7018,7 +6963,6 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 // pair, this sentinel keeps the rewrite from firing. Phase 2 wires
 // this to consult per-fn validation metadata produced by
 // `nuc test --check-laws`.
-//
 // `fn_law_id` is reserved for Phase 2 use; today no metadata is
 // plumbed in, so the parameter is unused. Keeping it in the signature
 // now means Phase 2 doesn't need to update every call site.
@@ -7800,7 +7744,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
     if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
-    // v0.3.0 (T3.1): runtime #[deadline] check helper.
+    // T3.1: runtime #[deadline] check helper.
     if str_eq(name, "deadline_enter") { return "__nucleor_deadline_enter"; };
     if str_eq(name, "deadline_exit") { return "__nucleor_deadline_exit"; };
     if str_eq(name, "deadline_poll") { return "__nucleor_deadline_poll"; };
@@ -9974,21 +9918,17 @@ fn emit_externs() -> str {
 // index if the string was already added. Significantly shrinks the
 // .ll output and reduces clang link time on programs with repeated
 // diagnostic strings, IR opcode strings, and rod-helper names.
-//
 // the warm-hashmap
 // substrate is contended with sym_get (every sym_get on a different
 // vec clears the hashmap, causing strtab_intern to re-catchup from 0
 // each call). Net cost was +1s cold (worse than linear).
-//
 // Linear-scan cost on self-host: ~9400 inserts × ~3500 avg scan
 // length = ~33M str_eq compares. With first-byte-fail on most
 // uniques, ~80ms total. Acceptable.
-//
 // v0.7.x P2: keep the tiny-table linear path, then switch to a
 // dedicated strtab-only hashmap threaded alongside the strtab. This
 // avoids the shared warm-cache contention that killed the v0.6.72
 // attempt while preserving low overhead for small adopter programs.
-//
 // Backward-scan optimization: many string literals are emitted in
 // blocks (e.g. emit_externs declarations, repeated diagnostic
 // substrings) where recent inserts are likely to match. Scan from
@@ -10049,11 +9989,9 @@ fn emit_str_constants(strtab: Vec<i32>) -> str {
 // default (1-byte placeholder so the section exists in the linked
 // output); populated when the env var NUCLEOR_PROVENANCE_PATH is
 // set (the --provenance <path> CLI flag sets it).
-//
 // LLVM IR shape:
 //   @.nucleor_provenance_data = constant [N x i8] c"...", section ".nucprov"
 //   @llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section "llvm.metadata"
-//
 // llvm.used keeps the linker from dropping the section when nothing
 // else references it. clang on both -fuse-ld=link (PE/COFF) and
 // -fuse-ld=lld (ELF) honors the section attribute and produces the
@@ -10248,12 +10186,10 @@ fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
 }
 
 // DCE at rod-import boundary.
-//
 // Collect the set of fn names reachable from roots:
 //   - "main" (the entry point)
 //   - All #[export]-marked fns (callable from C/C++ via FFI)
 //   - All fns whose address is taken (op 29 = fn_ptr)
-//
 // Walks the call graph via op 19 (rt-call) and op 31 (user-call)
 // edges. Returns the set of reachable fn names. Use case: programs
 // that `use stdlib::rods::heavy_rod;` but only call one of its 50 fns
@@ -10347,18 +10283,15 @@ fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
 #[manual_drop]
 // Closure-environment runtime. Emitted as LLVM function definitions
 // into every program's .ll output (DCE elides them if unused).
-//
 // Layout (i64 offset → field):
 //   0  refcount    (1 at construction; incremented on retain, decremented
 //                   on release; env is freed when release brings it to 0)
 //   1  fn_ptr      (address of the closure body function)
 //   2  cap_count   (number of capture slots)
 //   3+ caps        (i64 each)
-//
 // Closure value at the surface is `env_ptr | 1` (low-bit tag). The bare
 // `env_ptr` (the heap address) is what these helpers operate on; box/unbox
 // is the conversion between the surface value and the env pointer.
-//
 // Thread safety: non-atomic. Closures inherit the language's existing
 // "shared mutable state is the caller's responsibility" rule (matches
 // Vec/str). Documented in docs/internals/closures.md.
@@ -10534,8 +10467,7 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             let mut sj: i64 = 0;
             while sj < vec_len(seen_fns) {
                 if str_eq(vec_get(seen_fns, sj), fn_name) == 1 {
-                    // v0.6.23 (probe finding 2026-05-02-method-ambiguity-
-                    // misleading-two-modules-diag): when fn_name has
+                    //  when fn_name has
                     // shape `<Type>__<method>`, the collision is most
                     // likely two trait impls of the same method name on
                     // the same struct (Rust E0034 territory) — NOT a
@@ -10582,7 +10514,6 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
                         print(str_concat("  `", str_concat(type_name_v060, str_concat("` has two impls defining `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
                         print(str_concat("  Workaround until full UFCS lands: rename one trait's method (e.g. `", str_concat(method_name_v060, str_concat("_v1` / `", str_concat(method_name_v060, "_v2`), or split the impls across distinct concrete types so the mangled symbols differ."))))));
                         print("  This is Rust's E0034 \"multiple applicable items in scope\" territory — the long-term fix is UFCS disambiguation `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't yet support that surface (forward-roadmap).");
-                        // 
                         // route through __nucleor_diag_exit so the trailing
                         // "PANIC:" line is suppressed in favor of a clean
                         // exit(1). The runtime helper was staged by Lane 1;
@@ -10645,7 +10576,6 @@ fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg);
 // pre-populate them. Cuts per-fn sym_set workload (was ~2 entries
 // per declared fn × N fns = 2*N^2 sym_set calls; now ~1 sym_set
 // per fn-body).
-//
 // v0.7.x P2: store the shared table in a dedicated runtime hashmap.
 // The original shared Vec removed the N^2 sym_set cost but still did a
 // backward linear scan for every fallback lookup; caller attribution
@@ -10660,40 +10590,32 @@ fn fn_return_map_get(m: i64, key: str) -> i64 {
 // v0.4.3 Phase B redo — hash-backed sym_get on a single warm-cache
 // hashmap (one allocation total in the runtime; see nucleor_llvm_rt.c
 // __nucleor_sym_aux_create comment for the design rationale).
-//
 // v0.3.237's per-sym aux model failed because sym_clone -> new aux
 // per clone -> 1.8x peak-memory regression. The warm cache fixes
 // that: ONE NHashMap exists in the runtime; when sym_get is called
 // on a different handle than the cached one, the hashmap is cleared
 // and rebuilt from the new sym. Memory cost is bounded by the size
 // of the largest single sym ever cached.
-//
 // Size threshold: for small syms (< 128 pairs / 256 vec entries),
 // the linear backward scan is competitive (cache-friendly, no
 // hashmap touch) AND avoids warm-cache thrash on the many small
 // clones that branch isolation creates. The hash path only fires
 // for syms above the threshold -- in practice, the long-lived
 // outer module-scope sym that linear scan was actually slow on.
-//
 // Most-recent-entry vec fast path is preserved -- the just-set
 // lookup never touches the hashmap or the threshold check.
-//
 // Correctness invariants (validated by the bootstrap fixed-point
 // gate -- if any of these are wrong, stage_b != stage_c IR diff
 // fires):
-//
 //   sym_set: appends to vec only. Catchup loop in sym_get re-inserts;
 //     hashmap_insert overwrites on duplicate key, so last-write-wins
 //     gives the same answer the backward scan would.
-//
 //   own_put_i / own_put_s: in-place vec_set + hashmap_insert sync
 //     IF this sym is currently the warm one. Without the sync the
 //     hash would return the stale pre-update value.
-//
 //   own_restore: clears the hash if this sym is warm + resets
 //     built_at = 0 so the next sym_get rebuilds from the post-
 //     restore vec.
-//
 //   sym_clone: copies vec contents only. The new sym_handle is
 //     different; on first sym_get against the clone, the warm
 //     cache will reset and rebuild from the clone's vec.
@@ -11140,7 +11062,7 @@ fn fixed_accepts_integer_storage(actual: str) -> i64 {
     return 0;
 }
 
-// v0.4.44 — RFC-0024 Phase 2 building block. Extract the FIRST generic
+// RFC-0024 Phase 2 building block. Extract the FIRST generic
 // type arg from a type string. Examples:
 //   type_first_arg("Vec<i32>")        → "i32"
 //   type_first_arg("Option<f64>")     → "f64"
@@ -11149,7 +11071,6 @@ fn fixed_accepts_integer_storage(actual: str) -> i64 {
 //   type_first_arg("Vec<Vec<i32>>")   → "Vec<i32>" (depth-tracked nesting)
 //   type_first_arg("i64")             → ""    (no generic args)
 //   type_first_arg("")                → ""
-//
 // Used by Phase 2 (constructor type propagation: `let x = Some(value)`
 // to derive `Option<T>` where T = static type of value) and Phase 4
 // (Vec<T> element type extraction for vec_get/first/last/pop dispatch).
@@ -11186,7 +11107,6 @@ fn type_first_arg(t: str) -> str {
 }
 
 // RFC-0046 Phase B (ROBO-7) — coordinate-frame phantom-tag extraction.
-//
 // Returns the `Frame_*` tag from the FIRST generic argument of `t`, or
 // "" when the type carries no recognizable frame tag. Adopters tag
 // spatial values with the canonical zero-cost markers from
@@ -11195,7 +11115,6 @@ fn type_first_arg(t: str) -> str {
 // `Frame_Map`, `Frame_Odom`, `Frame_Unknown`) — anything else with a
 // `Frame_` prefix is also recognized so adopter-defined frames
 // (`Frame_ToolTip`, `Frame_PalletA`, …) work the same way.
-//
 // Hot-path note: skipped instantly when the type has no `<` (the
 // dominant case in type-check); the inner work runs only on
 // generic-shaped types.
@@ -11215,7 +11134,6 @@ fn type_frame_tag(t: str) -> str {
 // matches any frame, RFC-0046 §migration). Returns 0 in every
 // other case so the existing type-check paths stay untouched for
 // non-frame code.
-//
 // The match is intentionally conservative: it requires the base
 // names to match (so `Pose<Frame_Camera>` vs `Vec3<Frame_Base>` is
 // caught by the regular base-name path, not this one) and at least
@@ -11249,7 +11167,6 @@ fn frame_mismatch_diag_message(action: str, expected: str, actual: str) -> str {
 // gparam-binding extraction + substitution for generic-fn
 // return-type inference regression.
 // 2026-05-01-generic-T-propagation-spsc-option-str.
-//
 // Pre-fix: the kind-7 call type-check at line 14413 returned
 // `vec_get(sentry, 1)` directly — the literal rtype string with
 // gparam placeholders (e.g. "Option<T>") unsubstituted. The
@@ -11257,14 +11174,12 @@ fn frame_mismatch_diag_message(action: str, expected: str, actual: str) -> str {
 // rather than the concrete type, which propagated to match-arm
 // bindings → TYP-006 on `print(s)` because `s: T` was treated as
 // `i64` (the i64-everywhere-ABI default for unknown types).
-//
 // `gparam_extract_binding` aligns one (expected, actual) param
 // pair and returns the binding (e.g. expected=`Option<T>`,
 // actual=`Option<str>` → returns `str`). Returns "" if no clean
 // match. Conservative: only handles the common shapes
 // `T` direct, `Wrap<T>`, `&Wrap<T>`, `&mut Wrap<T>`. Nested generic
 // args (e.g. `Vec<Option<T>>`) recurse via type_first_arg.
-//
 // `gparam_extract_binding` is the workhorse; the call-site loop
 // builds an alternating [name, binding, ...] map.
 #[manual_drop]
@@ -11512,7 +11427,6 @@ fn vec_element_type_is_legacy_cell(elem_t: str) -> i64 {
 // type_width:    bit width of a numeric type (0 if non-numeric)
 // type_signedness: 1 = signed int, 2 = unsigned int, 3 = float, 0 = other
 // type_is_int / type_is_float / type_is_numeric: predicates
-//
 // `usize`/`isize` are treated as 64-bit on the only target Nucleor ships
 // today (x86_64 Windows). The type lattice will revisit this when the
 // LP64/ILP32 split arrives with cross-target sysroots.
@@ -11597,7 +11511,6 @@ fn align_up(offset: i64, align: i64) -> i64 {
 // `repr` is "C" (natural alignment), "packed" (no alignment),
 // or "" / "Nucleor" (default — currently 8 bytes per field
 // because Nucleor stores everything as i64 slots in a Vec<i32>).
-//
 // Returns 0 if the struct has any non-primitive field type the
 // computation can't yet handle (nested struct, generic, array).
 // Caller can fall back to default size in that case.
@@ -11645,7 +11558,6 @@ fn struct_byte_size(pool: Vec<i32>, struct_nid: i64, repr: str) -> i64 {
 // T1.1 Phase 3b: read the `repr` attribute from a struct AST node.
 // Looks at the prefix attribute list (if any) for `#[repr(C)]` /
 // `#[repr(packed)]`. Returns "C", "packed", or "" if absent.
-//
 // Currently uses a source-text scan via the surrounding source —
 // will be moved to proper attribute-list AST walking once the
 // generic attribute storage lands.
@@ -11886,7 +11798,6 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // (kind 10); same compile-error class as v0.3.58. Reuses
     // the v0.3.55 __fulltype_<vname> sym entry that preserves
     // the generic; extracts T from "Vec<T>" via str_substring.
-    //
     // also handles fixed-size arrays
     // `[T; N]` (mirrors v0.3.62's binop_float_type extension).
     // Production code uses fixed arrays of structs for known-
@@ -11943,7 +11854,7 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
     sym_set(sym, "__eargs_Option_Some", 1);
     sym_set(sym, "__etag_Option_None", 1);
     sym_set(sym, "__eargs_Option_None", 0);
-    // v0.3.91 (revised): Result variant tags must match the stdlib
+    // revised: Result variant tags must match the stdlib
     // `result.nr` convention (Ok=1, Err=0) so the `?` operator works
     // for BOTH compiler-builtin Ok(x)/Err(x) AND
     // stdlib result_ok(x)/result_err(x) calls. Pre-revision had
@@ -11970,14 +11881,11 @@ fn diag_add(diags: Vec<i32>, severity: str, checker: str, code: str, message: st
 }
 #[manual_drop]
 fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64, col: i64, related_id: str) -> i64 {
-    // v0.6.38 (probe finding 2026-05-01-typ-006-triple-emit-on-call-
-    // site, sister to MATCH-001/TYP-001 dual-emit closure in v0.5.18):
     // dedup at the emit site. Some type-check passes run their per-
     // call type-mismatch check more than once (call site visited
     // through multiple paths — postfix, direct-call dispatch, generic-
     // bound resolution). Each visit re-emitted the same diag; adopters
     // saw a triple error wall for one call.
-    //
     // Walk existing diags; if a row already has identical (code, message,
     // fn_name, line, col), skip the emit. Severity and checker are
     // included in the comparison via code (codes are unique per checker).
@@ -12099,13 +12007,11 @@ fn diag_count_errors(diags: Vec<i32>) -> i64 {
 fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
 
 // RFC-0028 §Suppression — minimal `#[allow(CODE)]` post-filter.
-//
 // Scans the source for the literal pattern `#[allow(CODE)]` and
 // returns a Vec<str> of the CODEs the user has marked as silenced.
 // Whitespace inside the parens is tolerated but the CODE must be a
 // bare identifier (e.g. `NUM-003`, `MATCH-001`) — quoted-string
 // payloads are not supported in the v0.2 subset.
-//
 // `#[allow]` is file-wide for now; per-fn / per-block scoping ships
 // with the v0.4 attribute-with-argument parsing pass that powers
 // RFC-0004 `#[assume]` and RFC-0014 `#[max_depth]`.
@@ -12162,7 +12068,7 @@ fn collect_allowed_codes(source: str) -> Vec<i32> {
     return allowed;
 }
 
-// v0.3.20 (T3.12): per-fn #[allow_fn(CODE)] attribute. Sibling
+// T3.12: per-fn #[allow_fn(CODE)] attribute. Sibling
 // of collect_allowed_codes that ALSO records which fn the
 // attribute attaches to. Returns alternating [fn_name, code, ...]
 // so the diag filter can suppress only when (diag.fn_name,
@@ -12355,7 +12261,7 @@ fn collect_denied_codes(source: str) -> Vec<i32> {
 // at most one of `#[allow(CODE)]` or `#[deny(CODE)]` per code per
 // file. Mutates each promoted diag's severity slot in place via
 // vec_set (the diag inner vec is the actual storage, not a copy).
-// v0.3.21 (T3.13): per-fn #[deny_fn(CODE)] attribute. Sibling
+// T3.13: per-fn #[deny_fn(CODE)] attribute. Sibling
 // of #[allow_fn] (v0.3.20) and the file-wide #[deny] (v0.2.152).
 // Promotes one warning-tier diagnostic to error for the next fn
 // declaration only — useful when a critical fn has stricter
@@ -12438,13 +12344,12 @@ fn collect_deny_fn_pairs(source: str) -> Vec<i32> {
     return pairs;
 }
 
-// v0.3.36 (T3.20): validation pass for #[allow(_fn)] / #[deny(_fn)]
+// T3.20: validation pass for #[allow(_fn)] / #[deny(_fn)]
 // CODE arguments. The four collectors above accept any well-formed
 // substring; a typo like #[allow_fn(RT-099)] would silently absorb
 // (the user's intended diagnostic still fires, but the suppression
 // they wrote points at nothing).
-//
-// v0.3.38 (T3.22): tightened from prefix-only to enumerated. The
+// T3.22: tightened from prefix-only to enumerated. The
 // canonical code set below mirrors cli_explain_full_smoke (verify.sh
 // + verify.ps1). When minting a new code, add to BOTH this list and
 // the cli_explain_full_smoke `codes` array. A future ship may unify
@@ -12931,7 +12836,6 @@ fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
 // such fn, scans its body text for forbidden allocator-builtin
 // call patterns (literal `<name>(` substrings) and fires `RT-001`
 // per violation.
-//
 // Limitations of the source-level check (acceptable for v1):
 //   - False positive if the literal pattern (e.g. `vec_push(`)
 //     appears inside a string or comment in the body. Rare in
@@ -12940,7 +12844,6 @@ fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
 //     a known allocation pattern. Broader transitive, cross-module,
 //     and fn-pointer calls remain out of scope for this v1 scan.
 //   - Per-file scope only; no module boundary tracking.
-//
 // AST-based v2 ships with the rest of RFC-0001 (`#[no_panic]`,
 // `#[no_dyn]`, `#[deadline]`).
 
@@ -13334,21 +13237,17 @@ fn enforce_requires_direct_calls(diags: Vec<i32>, source: str) -> Vec<i32> {
 // vocabulary; G-10 ships a fixed compiler-known vocabulary so the type
 // checker can reason about a small set of dangerous primitives without
 // adopters opting into the full requires/restricts machinery.
-//
 // Initial vocabulary (R3 ships, R4 extends leaf inference):
 //   frees           — fn (or its callees) frees a heap allocation
 //   borrows_mut     — fn (or its callees) takes a &mut borrow
 //   may_return_null — fn may return a null/None sentinel
 //   direct_ffi      — fn (or its callees) reaches a raw FFI surface
-//
 // Two attributes:
 //   #[effect(E1, E2, ...)]       declares the fn produces these effects
 //   #[allow_effect(E1, E2, ...)] silences EFFECT-G10-* on this fn for
 //                                the listed effects (escape hatch)
-//
 // Three diagnostics: EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW,
 // EFFECT-G10-WRONG-ROW. See is_error_code for the per-code rationale.
-//
 // Inference is conservative one-hop:
 //   Pass A — leaf builtins: vec_free / hashmap_free / str_free → frees
 //   Pass B — call propagation: callee with `#[effect(E)]` contributes E
@@ -13540,7 +13439,6 @@ fn g10_fn_has_decl(pairs: Vec<i32>, fn_name: str) -> i64 {
 //     declaration scan).
 //   - `unsafe { }` block in fn body → `unsafe`. Specialized diag:
 //     `UNSAFE-G7-MISSING-ALLOW`.
-//
 // Severity: error (Phase 4 hard-fail). The opt-in gate (R3) keeps
 // existing rod surfaces — which call extern fns extensively without
 // any G-10 attribute — unaffected. Adopters opt their file in by
@@ -13813,14 +13711,11 @@ fn g10_find_ident_from(s: str, from: i64, name: str) -> i64 {
 }
 
 // G-5 deref dataflow: source-text scan for the canonical pattern
-//
 //   let <vname>: ... = <extern_returning_ptr>(...);
-//
 // followed by ANY use of `<vname>` (deref, pass-through to another
 // FFI call, etc.) without a preceding `ptr_is_null(<vname>)` guard
 // in the same fn body. Returns the offending binding name, or "" if
 // the body is clean.
-//
 // Note on Nucleor pragmatics: raw-pointer deref syntax (`*p`) is not
 // currently a user-source feature (parser halts on `*const T` /
 // `*mut T` outside extern decls). The convention is i64 handles
@@ -13949,7 +13844,6 @@ fn enforce_g10_effects(diags: Vec<i32>, source: str) -> Vec<i32> {
     // attribute syntax appears anywhere in the source. The dominant
     // case is "no opt-in" so this keeps the existing verify budget
     // intact.
-    //
     // Pre-fix the silent
     // early-return left adopters with `gates off` as the implicit
     // default for unannotated source — the headline claim
@@ -14328,7 +14222,6 @@ fn lookup_fn_row_in_table(table: Vec<i32>, name: str) -> str {
 // unique-method-name cases (method-effect fixture set:
 // row mismatch, body builtin transitive, restricts block reaching
 // method I/O — all already fire EFF-001/EFF-003).
-//
 // The accidental coverage breaks down when two `impl` blocks define
 // methods with the SAME unqualified name and DIFFERENT rows: the
 // substring search matches every same-name body call regardless of
@@ -14348,7 +14241,6 @@ fn lookup_fn_row_in_table(table: Vec<i32>, name: str) -> str {
 // helper lets callers fail-OPEN cleanly: enforcement skips ambiguous
 // names, and the EFF-G123 banner discloses the surface so adopters
 // have a knob (rename methods, or wait for Phase 4).
-//
 // Returns 0 (no ambiguity) when:
 //   - the name appears once,
 //   - the name appears multiple times but every entry has the same row.
@@ -14472,7 +14364,6 @@ fn restricts_transitive_check(deny_row: str, body: str, table: Vec<i32>, depth_r
 // effect or rowed user-fn whose row overlaps DENY. The existing
 // substring-level `restricts_body_builtin_effect` (Vec::new /
 // Box::new alloc detection) still runs first.
-//
 // Two callee classes are checked at every depth:
 //   1. Builtins listed in `restricts_builtin_effect` — print-family
 //      I/O, char-level I/O, and `channel`.
@@ -14481,7 +14372,6 @@ fn restricts_transitive_check(deny_row: str, body: str, table: Vec<i32>, depth_r
 // Un-rowed user fn callees are walked one hop deeper subject to the
 // depth budget. Whole-program inference across module boundaries,
 // methods, closures, and higher-order effects stay queued.
-//
 // Performance shape: the bodies table is built lazily only when an
 // actual code-position `restricts [` is found, so the compiler
 // self-build (where all `restricts` mentions live in strings or
@@ -14742,10 +14632,8 @@ fn collect_no_alloc_fns(source: str) -> Vec<i32> {
 // require(...)]` is discarded as an unknown attribute, so the
 // parser never sees it; this side-channel scanner recovers the
 // information.
-//
 // Returns a flat Vec of alternating (fn_name, expr_text) entries:
 //   [name0, expr0, name1, expr1, ...]
-//
 // String-literal and `//` comment skipping mirror the no_alloc
 // pattern so the s1 compiler doesn't false-positive on the literal
 // pattern strings inside its own scanner code.
@@ -14819,7 +14707,7 @@ fn collect_fn_requires(source: str) -> Vec<i32> {
                         entries.push(fname);
                         entries.push(etext);
                     };
-                    // v0.4.250 — advance p past the closing `]` of
+                    // advance p past the closing `]` of
                     // this attribute (not past the fn name) so a
                     // subsequent #[require(...)] before the same
                     // fn still gets captured by the outer loop.
@@ -14920,7 +14808,7 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
                         entries.push(fname);
                         entries.push(etext);
                     };
-                    // v0.4.250 — same multiple-attr support as
+                    // same multiple-attr support as
                     // collect_fn_requires.
                     p = expr_end + 2;
                     break;
@@ -14942,7 +14830,6 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
 // The inner expression text per `old(...)` is captured separately.
 // Returns a flat Vec encoding [rewritten_text, n, synth0, inner0,
 // synth1, inner1, ...] where n is the number of olds.
-//
 // At lower-time, the pre-pass lex+parses each inner into the AST
 // pool, and lower_fn pre-evaluates each inner at fn entry storing
 // to an alloca. The rewritten ensure expression's `__old_*`
@@ -15161,7 +15048,6 @@ fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
 // attribute; the require/ensure pre-passes skip these so the
 // contract emit-sites produce no runtime checks. Useful for
 // hot-path fns where the contract is documentation-only.
-//
 // `#[no_check]` does NOT take an expression — marker attr only.
 // Pattern: `#[no_check]` followed by whitespace and `fn NAME`.
 #[manual_drop]
@@ -15307,7 +15193,6 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     };
     // v0.8.75 RFC-0062 G-1 Phase 2b-3 FINAL — unconditional
     // default-flip. Auto-drop is now ON BY DEFAULT for every fn.
-    //
     // Safe path validated:
     //   - v0.8.31/32  #[manual_drop] suppress mechanism
     //   - v0.8.35     safety audit (89 candidates classified)
@@ -15320,17 +15205,14 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     //                 vec_set / hashmap_insert patterns and
     //                 suppresses auto-drop on the local that
     //                 was handed off)
-    //
     // v0.8.65 ATTEMPTED unconditional flip and segfaulted on
     // attention2.nr import because the static heuristic missed
     // rod-side handoffs. v0.8.74 closes that gap by detecting
     // handoffs at lowering time and suppressing immediately.
-    //
     // Re-test confirmed v0.8.75 ready: attention2.nr import
     // compiles cleanly under flip ON. The dataflow detection
     // is conservative (over-suppresses some local-only cases
     // → leaks instead of dropping; never dangling pointer).
-    //
     // Phase 2c will refine via receiver-locality + alias
     // tracking for tighter coverage. Phase 3 deny-by-default
     // for misuse. Phase 4 hard-error promotion at v1.0 cut.
@@ -15676,7 +15558,6 @@ fn fn_return_type(source: str, fn_name: str) -> str {
 // Keep this scanner in the same family as the RT attribute scanners:
 // the lexer/parser intentionally discard unknown `#[...]` lines, so
 // function-level attributes are recovered from resolved source text.
-//
 // Returns flat pairs: [fn_name0, attr_text0, fn_name1, attr_text1, ...].
 #[manual_drop]
 fn collect_isr_entries(source: str) -> Vec<i32> {
@@ -15831,15 +15712,12 @@ fn fn_param_decl_text(source: str, fn_name: str) -> str {
     return "";
 }
 
-// v0.6.31 (probe finding 2026-05-02-isr-attr-validation-gaps, gap a):
-// `#[isr]` placed on a non-fn item (struct, enum, impl, trait, mod, use,
-// const, static, type) was silently dropped on that item AND leaked
+//  was silently dropped on that item AND leaked
 // to the next fn in the file, producing a misleading ISR-001 diag
 // pointing at that next fn (`main` in the typical repro). Adopters
 // removing or fixing the suspect fn would just see the diag shift to
 // the next fn down — the actual misplaced attribute (the struct) was
 // never named.
-//
 // This pass scans for every `#[isr` occurrence and walks forward
 // looking for the next item-keyword. If the first item-keyword found
 // is anything other than `fn`, emit ISR-008 at the attribute's own
@@ -15935,15 +15813,13 @@ fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
-// v0.6.32 (probe finding 2026-05-02-isr-attr-validation-gaps, gaps
-// b/c/d): the `prio` named attribute inside `#[isr(prio = X)]` was
+//  the `prio` named attribute inside `#[isr(prio = X)]` was
 // silently accepted for X = negative-int (`-1`), string-literal
 // (`"high"`), or missing entirely (`#[isr(prio)]`). None of these
 // match the documented `prio = N` non-negative integer-literal shape.
 // Adopters writing `#[isr(prio = "1")]` (typo'd quotes) shipped to
 // embedded target with no priority set — hard-to-diagnose runtime
 // priority-inversion bugs followed.
-//
 // Scans attr_text for `prio`, validates the next non-ws token is
 // `=` followed by a non-negative integer literal. Emits ISR-007 at
 // the attribute's source line for any other shape.
@@ -16047,8 +15923,7 @@ fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
         // ISR locking a mutex on an embedded target deadlocks the
         // whole system; surface the diagnostic at compile time.
         check_atomic_contract_violations(diags, source, fn_name);
-        // v0.6.32 (probe finding 2026-05-02-isr-attr-validation-gaps,
-        // gaps b/c/d): validate `prio = N` named attribute shape.
+        //  validate `prio = N` named attribute shape.
         diags = validate_isr_prio(diags, fn_name, attr_text, vec_get(lc, 0), vec_get(lc, 1));
         i = i + 2;
     };
@@ -16111,15 +15986,14 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
     return 0;
 }
 
-// v0.6.84 RFC V1.4 (probe finding 2026-04-30-rust-syntax-translation-
-// fidelity-audit, derive(PartialEq) row): canonical Rust
+// v0.6.84 RFC V1.4
+//  row): canonical Rust
 // `#[derive(PartialEq)] struct Point { x: i64, y: i64 }` pre-fix
 // emitted only the v0.6.26 `warning[DERIVE-001]` and the derive was
 // silently a no-op. Adopters writing `if a == b { ... }` later got
 // the v0.4.147 TYP-011 ptr-compare diag with workaround pointer
 // "write a helper fn that does the field walk" — but the helper
 // wasn't auto-generated.
-//
 // This pass walks the source, finds `#[derive(...PartialEq...)]`
 // attribute lines followed by a `struct NAME { ... }` or `struct
 // NAME(...);` decl, and APPENDS a generated helper fn at end of
@@ -16130,7 +16004,6 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
 // }`. Adopters can call the generated fn directly; auto-dispatch
 // of `==`/`!=` to the helper is deferred to a follow-on V1.4 ship
 // (needs lower_expr binop kind-4 routing + side-table threading).
-//
 // Conservative scope: skip generic structs (`struct Pair<T>`),
 // skip where-clauses, skip empty unit structs. For named struct
 // fields, walk to the next top-level comma or `}` (depth-tracked
@@ -16138,7 +16011,6 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
 // tuple structs, count types and synthesize `__0`/`__1` names
 // matching the V1.1 (v0.6.74) tuple-struct positional-field
 // synthesis.
-//
 // `!=` on a struct field today does pointer-compare for nested
 // structs (silent miscompute); the per-field helper still works
 // for primitive-typed fields. Document the limitation in CHANGELOG.
@@ -17230,7 +17102,6 @@ fn contract_text_uses_old(text: str) -> i64 {
 // idents resolve. Conservative: we'd rather miss a real
 // undefined-ident (false negative — adopter sees the existing
 // clang-link error) than reject a valid identifier.
-//
 // Regression fixed in v0.4.283: pre-fix,
 // `#[require(undefined_var > 0)]` surfaced a misleading clang-
 // link "undefined function `undefined_var()`" error. CONTRACT-011
@@ -17381,7 +17252,6 @@ fn is_bare_ident(text: str) -> i64 {
 // Vec of (trait_name, method_name, req_count, ens_count) tuples
 // where the count fields are stored as decimal strings (the flat
 // Vec<i32> representation forces all entries to be the same shape).
-//
 // Walking heuristic: scan source for `trait NAME {` blocks; track
 // brace depth so nested decls don't escape; within the trait,
 // scan for `fn METHOD(`; before each fn, scan back/forward for
@@ -17761,7 +17631,6 @@ fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
 // appended (so `vec_push` matches `vec_push(` but not `vec_pushy`),
 // EXCEPT entries already containing `(` or `::` are matched verbatim
 // so they can encode method-call / constructor forms.
-//
 // Includes both the underlying builtin names (rare in user code) and
 // the user-facing forms (`Vec::new(`, `.push(`, etc.) that the s1
 // lowers to those builtins. The dot-prefixed forms catch the method-
@@ -17968,14 +17837,12 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
 // `#[no_panic]` attribute, associates each with the next fn,
 // then scans the fn body for panic-prone call patterns and emits
 // RT-002 per violation.
-//
 // What "can panic" includes:
 //   - `panic("...")`         — explicit panic builtin
 //   - `assert_eq` / `assert_ne` — abort on failure
 //   - `unwrap` / `.unwrap()`  — Option/Result unwrap (panics on None/Err)
 //   - `expect` / `.expect()`  — same with custom message
 //   - `dbg!`                  — convention: panics on assertion fail
-//
 // Same v1 limitations as #[no_alloc]:
 //   - Source-level only (no AST, bounded same-file call-graph chase)
 //   - String/comment-aware skip
@@ -18558,7 +18425,7 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
     return emitted;
 }
 
-// v0.4.280 — closure-body atomic call detection (ATOMIC-006).
+// closure-body atomic call detection (ATOMIC-006).
 // Regression fixed in v0.4.280: closures whose body calls
 // `atomic_*` helpers crash the compiler with `vec_get OOB`
 // because the closure-lowering path doesn't inherit the
@@ -18881,7 +18748,7 @@ fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: 
     };
 }
 
-// v0.3.24 (T3.15): per-symbol FFI safety markers. An `extern fn`
+// T3.15: per-symbol FFI safety markers. An `extern fn`
 // declaration prefixed with `#[ffi_no_alloc]` tells the RT-005
 // check that this particular FFI symbol is known not to allocate;
 // `#[ffi_no_panic]` does the same for panic-prone behaviour.
@@ -19038,7 +18905,6 @@ fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
 // body contains a literal call to the original (wrapper) name.
 // `#[max_depth = N]` opts out — bounded recursion is fine if
 // the user has declared a static bound that fits in the budget.
-//
 // Indirect recursion (A→B→A) requires a call graph and is left
 // for the v2 AST-based check.
 
@@ -19752,7 +19618,6 @@ fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
 // exact byte sequence (with leading newline) does not appear
 // elsewhere in the s1 compiler source — without that, the
 // scanner would self-match on its own needle.
-//
 // Per the RFC: async is non-deterministic by design (thread
 // scheduling, IO wakeups, etc.) and cannot satisfy any RT
 // guarantee. The two have to be mutually exclusive.
@@ -19826,7 +19691,6 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 }
 
 // === T3.3 (v0.3.2): heuristic deadline estimate (RT-004, NOT certified WCET) ===
-//
 // This estimator is NOT certified WCET — it is a fast, conservative
 // heuristic that triggers a warning
 // when a function looks expensive relative to its declared deadline.
@@ -19834,13 +19698,11 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 // reasonably reads as a real WCET model — clarified here, in the
 // emitted diagnostic, and in RFC-0001 to call this out as heuristic.
 // A certified WCET / cost-table contract is Phase 2 (RFC-0001 §WCET).
-//
 // What this pass does:
 // Parses every `#[deadline = N]` fn, estimates its worst-case
 // execution time via a simple statement counter, and emits a
 // compile-time RT-004 warning when the estimate exceeds the
 // declared deadline.
-//
 // Heuristic (conservative, prone to false positives + false
 // negatives — both documented so adopters use `#[allow(RT-004)]`
 // or `#[allow_fn(RT-004)]` to suppress when the estimator is
@@ -19856,7 +19718,6 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 //   - String-literal `;` and comment-`while` are NOT skipped —
 //     accepted v1 false-positive surface
 // Conversion: estimated_us = ceil(units / 10).
-//
 // Ship shape: warning-level diagnostic (not error) because the
 // estimator is deliberately crude. A certified WCET / cost-table
 // pass is future work; the heuristic remains
@@ -19931,20 +19792,17 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     // counts `while` keywords, applies a coarse multiplier ladder
     // (1, 100, 1000, 10000 for 0/1/2/3+ loops). Hard-capped at 1e6
     // units.
-    //
     // R03-D3 Phase 1.5 (v0.8.291): the scan now SKIPS content inside
     // `"` string literals (with `\"` escape) and `//` line comments.
     // Pre-v0.8.291 a body containing `print(";a;b;c;")` over-counted
     // 4 spurious statements; the line-comment skip removes a similar
     // false-positive on `// while (...)` text.
-    //
     // R03-D3 Phase 1.6 (v0.8.292): `loop { ... }` (Nucleor's
     // unbounded-loop form, desugars to `while true`, see s1 lex
     // around line 3843) is now counted toward `while_count` so it
     // participates in the multiplier ladder. Pre-v0.8.292 a `pure fn
     // { loop { ...; ...; }}` tallied while_count=0 → multiplier=1 →
     // severe under-estimate. Closes a real false-NEGATIVE.
-    //
     // Callee-cost aggregation + constant-bound loop bounds are still
     // Phase 2 work.
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
@@ -20037,20 +19895,17 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
 }
 
 // === R10-D2 Phase 1 (v0.8.297): @hot HotViolation enforcement ===
-//
 // Docs name HotViolation / HeapInLoop diagnostics but `nuc perf`
 // emits only generic compile metrics. The `@hot` attribute is
 // discovered but not enforced. A
 // `@hot fn` containing `Vec::new()` or `print()` shipped silently
 // despite the perf-critical annotation.
-//
 // Phase 1: analogous to NUM-009 (R09-D4 v0.8.293) — scan each
 // `@hot` body for known-expensive patterns and emit warning[PERF-2].
 // Severity = warning (not error) because `@hot` is a hint not a
 // hard contract. Adopters use `#[allow_fn(PERF-2)]` to suppress
 // when the cost is intentional. HeapInLoop (PERF-3) is Phase 2
 // (needs nested-block tracking).
-//
 // Returns 0 (clean) or non-zero code naming first violation:
 //   1 = allocation (Vec::new / Box::new)
 //   2 = I/O (print / println / panic)
@@ -20093,7 +19948,6 @@ fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
 }
 
 // === v0.8.308 — consolidated body-diagnostics single-walk pass ===
-//
 // Background: between v0.8.293 and v0.8.307 we added 6 separate
 // emitters, each walking the source independently:
 //   enforce_const_fn_purity (NUM-009)         — v0.8.293
@@ -20102,18 +19956,15 @@ fn hot_fn_body_violation_code(source: str, fn_name: str) -> i64 {
 //   enforce_unawaited_spawn (RACE-002)        — v0.8.299
 //   enforce_deadline_with_await (RACE-007)    — v0.8.300
 //   enforce_pure_fn_purity  (EFF-001/002)     — v0.8.307/v0.8.320
-//
 // User-measured cold compile time blew up: baseline 4.64s ->
 // ~12s (2.6×). Each emitter does an O(F·S) per-fn body extraction
 // — 6 of them stack to ~36M ops on a 12K-line source.
-//
 // This consolidated pass walks the source EXACTLY ONCE, tracks
 // the most recent attribute lines (for `@const_fn` / `@hot`
 // recognition), extracts each fn body in-place (no re-scan from
 // position 0), and runs ALL six checks against the same body
 // substring. Total cost ~O(S + total_body_size) — well under
 // the baseline budget.
-//
 // The 6 individual emitters above are kept as dead code (callable
 // but unwired) so any external integration that imports them
 // keeps working; the wire-in dispatch in compile_file_mode now
@@ -20227,7 +20078,7 @@ fn enforce_body_diagnostics_unified(diags: Vec<i32>, source: str) -> Vec<i32> {
                     if pcode == 0 && str_index_of(pure_body, "scope {") >= 0 { pcode = 4; };
                     if pcode == 0 && str_index_of(pure_body, "spawn {") >= 0 { pcode = 4; };
                     if pcode == 0 && str_index_of(pure_body, "channel(") >= 0 { pcode = 5; };
-                    // v0.8.323 (RFC-0063 Phase 1.5): bridge syntactic-Phase-1
+                    // RFC-0063 Phase 1.5: bridge syntactic-Phase-1
                     // toward semantic-Phase-2b. Inspect body for known-impure
                     // stdlib helpers (vec_push, str_concat, file_*, ...) that
                     // the constructor-only Phase-1 check missed.
@@ -20341,13 +20192,11 @@ fn enforce_hot_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
 }
 
 // === R04-D3 Phase 1.5 (v0.8.300): RACE-007 emitter (deadline + actor await) ===
-//
 // RACE-007 = "Deadline composition under actor await
 // is invalid". Detect: a fn carries `#[deadline = ...]` AND its
 // body calls `async_await(`. The deadline checker can't see
 // past the actor executor boundary — the awaited task may take
 // arbitrarily long.
-//
 // Severity = warning. Suppress with `#[allow_fn(RACE-007)]`.
 #[manual_drop]
 fn enforce_deadline_with_await(diags: Vec<i32>, source: str) -> Vec<i32> {
@@ -20477,18 +20326,15 @@ fn _enforce_deadline_with_await_unused_VESTIGIAL(diags: Vec<i32>, source: str) -
 }
 
 // === R04-D3 Phase 1 (v0.8.299): RACE-002 emitter (unawaited spawn) ===
-//
 // RACE codes RACE-002 / 004 / 006 / 007 / 009 / 010 are registered
 // in `is_known_diag_code` + tools-suite explain registry but NO
 // CODE PATH EMITS THEM. `nuc explain RACE-002` overstates the
 // shipped checker.
-//
 // Phase 1: light up RACE-002 ("Actor method called without await")
 // via a conservative source-pattern check — body contains
 // `async_spawn(` but does NOT contain `async_await(`. That's the
 // fire-and-forget pattern: the spawn returns a handle that's
 // never awaited, so completion ordering is not enforced.
-//
 // Severity = warning. Suppress via `#[allow_fn(RACE-002)]` for
 // genuinely fire-and-forget tasks. Phase 2 lights RACE-004/006/
 // 007 with deeper pattern checks.
@@ -20541,11 +20387,9 @@ fn enforce_unawaited_spawn(diags: Vec<i32>, source: str) -> Vec<i32> {
 }
 
 // === R05-D1 Phase 1 (v0.8.307): pure fn purity enforcement in s1 ===
-//
 // `pure fn` parses but the s1 build path must run the effect checker.
 // tools-suite (`nuc check`) emits EFF-001 for
 // pure-with-effects, but `nuc build` ships the binary regardless.
-//
 // Phase 1: port the same body-substring scan from
 // enforce_const_fn_purity (v0.8.293 NUM-009) for the `pure fn`
 // surface. Direct builtin check only — transitive user-call
@@ -20752,31 +20596,26 @@ fn enforce_pure_fn_purity(diags: Vec<i32>, source: str) -> Vec<i32> {
 }
 
 // === R10-D2 Phase 1.5 (v0.8.298): HeapInLoop PERF-3 detection ===
-//
 // PERF-2 catches alloc / I/O at the @hot fn level.
 // HeapInLoop (PERF-3) catches `Vec::new` / `Box::new` INSIDE a
 // `while` or `loop {}` block — a per-iteration alloc that ships
 // silently is the dominant perf bug class for adopters.
-//
 // Scan ANY fn (not just @hot — the perf hit hurts everywhere).
 // Track loop-depth as we walk the body: enter on `while ... {`
 // or `loop {`, exit on the matching `}`. When we see an alloc
 // site WHILE depth > 0, emit warning[PERF-3].
-//
 // Severity = warning. Suppress with `#[allow_fn(PERF-3)]` when
 // the alloc is intentional (e.g. amortized via reserve()).
-// v0.8.323 (RFC-0063 Phase 1.5): bridge syntactic-Phase-1 toward
+// RFC-0063 Phase 1.5: bridge syntactic-Phase-1 toward
 // semantic-Phase-2b. Returns the first known-impure stdlib helper
 // found in `body`, suffixed with the reason — or "" if none. Catches
 // the soundness gap where a pure fn calls a helper that allocates or
 // does IO via a non-constructor name (vec_push, str_concat, etc.).
-//
 // The list is curated to high-frequency callees from
 // docs/rfcs/helper_manifest.toml (effects != []). Manual sync with
 // the manifest until full call-graph effect propagation lands
 // (Phase 2.0 parser unification + Phase 2.1+ generic monomorphization
 // give us the substrate to do this properly across modules).
-//
 // Conservatism note: only flags helpers whose effect is unambiguous
 // from the name. Read-only accessors (vec_get, vec_len, hashmap_get,
 // str_eq, str_len, str_starts_with, ...) are NOT flagged — they're
@@ -20962,17 +20801,14 @@ fn enforce_heap_in_loop(diags: Vec<i32>, source: str) -> Vec<i32> {
 }
 
 // === R09-D4 Phase 1 (v0.8.293): @const_fn purity enforcement ===
-//
 // `@const_fn` used to be advisory only. A `@const_fn` containing `print()`, `Vec::new()`,
 // `panic()`, etc. compiled cleanly and ran the side effects.
 // Adopters relying on @const_fn for compile-time evaluation
 // guarantees got nothing.
-//
 // User pushback after v0.8.291/.292 ("can this be fixed?") drove
 // this to a real implementation. This is fail-closed: a
 // `@const_fn` body containing any known-effectful pattern fails
 // build with `error[NUM-009]`.
-//
 // Phase 2 work (deferred): actually evaluate the const_fn body
 // at compile time and substitute the result. Today's pass just
 // rejects effectful bodies.
@@ -21995,7 +21831,6 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     // Reset o to snap state without dropping the whole backing store.
     // Branch isolation calls this in hot ownership paths; pop-all then
     // push-all preserved semantics but churned the Vec on every branch.
-    //
     let target_len: i64 = vec_len(snap);
     while vec_len(o) > target_len { o.pop(); };
     let mut i: i64 = 0;
@@ -22105,23 +21940,19 @@ fn own_merge_state_key(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>, key: str, va_in: i
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     // RFC-0062 G-8 Phase 2b/3/4 + G-11 Phase 2b — combined merge
     // semantics at if/else joins.
-    //
     // For state keys (prefix `__os_`, G-8):
     //   both arms moved (va == vb == 2)         → state = 2 (OWN-001 catches subsequent read)
     //   exactly one arm moved (va == 2 XOR vb == 2) → state stays at pre-arm
     //     value (typically 1) and the cond-moved flag is set so
     //     subsequent reads emit OWN-G8-COND-MOVE.
     //   neither moved                           → preserve pre-arm state (no-op)
-    //
     // For init-state keys (prefix `__init_`, excluding `__init_seen_`, G-11):
     //   both arms definitely-assigned (va == 1 && vb == 1) → 1
     //   either arm not assigned                            → 0 (subsequent
     //     read emits INIT-G11-READ-BEFORE-INIT)
-    //
     // For other tracker entries: preserve the legacy "if either arm
     // has value 2, set value 2" semantic so any non-move tracker that
     // piggy-backed on this loop is unaffected.
-    //
     // Both `a` and `b` are consumed (freed) — they are then/else
     // env snapshots that no caller references after merge.
     let mut i: i64 = 0;
@@ -23246,7 +23077,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             if str_eq(fn_name, "atomic_bool") == 1 { g_in_ctor = 1; };
             if str_starts_with(fn_name, "atomic_compare_exchange") == 1 { g_in_ctor = 1; };
             if g_in_ctor == 0 {
-                let g_h_msg: str = str_concat("forbidden struct-literal construction of opaque concurrency-handle type `", str_concat(struct_name, "`. Per RFC-0062 G-handle (Lane 2 audit fix F-CONC-001 v1.0): handles for AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool are opaque — adopter code MUST use the public constructor fns (`atomic_i64(initial)`, `atomic_u64(initial)`, etc.) which return a properly initialized handle backed by a runtime allocation. Pre-fix, struct-literal construction `AtomicI64 { handle: 12345 }` from a saved or fabricated `i64` allowed forging a fake handle — passing the result to atomic_load/store crashed the process via SEGV / UAF. Replace with `let a: AtomicI64 = atomic_i64(initial_value);`."));
+                let g_h_msg: str = str_concat("forbidden struct-literal construction of opaque concurrency-handle type `", str_concat(struct_name, "`. Per RFC-0062 G-handle (Lane 2 audit fix F-CONC-001 v1.0): handles for AtomicI64 / AtomicU64 / AtomicI32 / AtomicU32 / AtomicBool are opaque — adopter code MUST use the public constructor fns (`atomic_i64(initial)`, `atomic_u64(initial)`, etc.) which return a properly initialized handle backed by a runtime allocation. Replace with `let a: AtomicI64 = atomic_i64(initial_value);`."));
                 let g_h_diag_vec: Vec<i32> = own_diags(own);
                 let g_h_source: str = own_source(own);
                 diag_add_at_or_scan(g_h_diag_vec, g_h_source, pool, nid, struct_name, "error", "concurrency", "CONC-G6-OPAQUE-HANDLE", g_h_msg, fn_name, "");
@@ -23261,7 +23092,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             if ic < expected_fc {
                 let part_a: str = str_concat("missing field(s) in `", str_concat(struct_name, "` initialization: only "));
                 let part_b: str = str_concat(str_from_int(ic), str_concat(" of ", str_concat(str_from_int(expected_fc), " fields supplied.")));
-                let part_c: str = " Pre-v0.4.62 missing fields silently defaulted to 0 / empty. List every field explicitly or use a constructor fn.";
+                let part_c: str = " List every field explicitly or use a constructor fn.";
                 diag_add_at_or_scan(diag_vec, source_text, pool, nid, struct_name, "error", "type", "TYP-012", str_concat(part_a, str_concat(part_b, part_c)), fn_name, "");
                 warns = warns + 1;
             };
@@ -23288,7 +23119,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let prior_name: str = node_field(pool, prior_init, 1);
                     if str_eq(prior_name, fname) == 1 {
                         let dp1: str = str_concat("duplicate field `", str_concat(fname, "` in `"));
-                        let dp2: str = str_concat(struct_name, "` initialization. Pre-v0.4.128 the FIRST occurrence won silently with no signal — adopter intent (was the second value the override?) was opaque. Remove one of the duplicate field assignments.");
+                        let dp2: str = str_concat(struct_name, "` initialization. Remove one of the duplicate field assignments.");
                         diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "TYP-017", str_concat(dp1, dp2), fn_name, "");
                         warns = warns + 1;
                         dup_chk = fii;
@@ -23359,7 +23190,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     if kind == 38 {
         let source_text: str = own_source(own);
         let diag_vec: Vec<i32> = own_diags(own);
-        // v0.4.59 (deferred from v0.4.56): MATCH-001 in match-as-expression.
+        // deferred from v0.4.56: MATCH-001 in match-as-expression.
         // Pre-fix `let n: i64 = match c { Color::Red => 1 };` over a non-Red
         // value silently returned 0 because check_expr lacked a kind-38
         // handler — only check_stmt did the exhaustiveness check, so
@@ -23886,7 +23717,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         return warns;
     };
     if kind == 85 {
-        // v0.8.33 — tuple-destructure-in-let ownership tracking.
+        // tuple-destructure-in-let ownership tracking.
         // Register each binding in own so downstream code can reference it.
         let ncv85c: str = node_field(pool, nid, 1);
         let init85c: i64 = node_field(pool, nid, 2);
@@ -24117,7 +23948,6 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                 // syntax; this is the structural check that enforces
                 // it. Phase 4 promotion: registered in is_error_code
                 // so own_diag halts compilation.
-                //
                 // Conservative against false positives: emits only
                 // when expr_param_root proves the return *does* trace
                 // back to a parameter, but to a different one than
@@ -24193,7 +24023,7 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
                         let mut g2m_ret_lt: str = g2_extract_lifetime_label(rtype);
                         if str_len(g2m_ret_lt) == 0 { g2m_ret_lt = g2_source_return_lifetime(source, fn_name); };
                         if str_len(g2m_root_lt) > 0 && str_len(g2m_ret_lt) > 0 && str_eq(g2m_root_lt, g2m_ret_lt) == 0 {
-                            own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2m_param_root, str_concat("' (declared lifetime `'", str_concat(g2m_root_lt, str_concat("`) but the function's return type carries lifetime `'", str_concat(g2m_ret_lt, "`. Per RFC-0062 G-2 multi-input (Lane 2 audit fix v1.0): the returned region must equal the input's declared lifetime. Pre-fix multi-input cases were skipped entirely. Fix the lifetime label on the return type or change which parameter the return traces from.")))))), g2m_param_root);
+                            own_diag(own, fn_name, "BORROW-G2-LIFETIME", str_concat("returned reference is derived from parameter '", str_concat(g2m_param_root, str_concat("' (declared lifetime `'", str_concat(g2m_root_lt, str_concat("`) but the function's return type carries lifetime `'", str_concat(g2m_ret_lt, "`. Per RFC-0062 G-2 multi-input (Lane 2 audit fix v1.0): the returned region must equal the input's declared lifetime. Fix the lifetime label on the return type or change which parameter the return traces from.")))))), g2m_param_root);
                         };
                     };
                 };
@@ -24357,8 +24187,7 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     // the base-name catch-all below so `Pose<Frame_Camera>` and
     // `Pose<Frame_Base>` no longer collapse to the same shape.
     if frame_mismatch_visible(expected, actual) == 1 { return 0; };
-    // v0.6.66 (probe finding 2026-05-01-rust-syntax-translation-
-    // fidelity-audit, char-literal row): canonical Rust `let c: char
+    //  canonical Rust `let c: char
     // = 'a';` pre-fix failed TYP-008 because the char literal lexes
     // as token kind 2 (int with codepoint as value, type "i32"),
     // while the binding's declared type is "char" — types_compatible
@@ -24391,13 +24220,12 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         if exp_fixed == 1 && fixed_accepts_integer_storage(actual) == 1 { return 1; };
         return 0;
     };
-    // v0.6.75 RFC V1.2 (probe finding 2026-05-01-box-new-literal-doesnt-
-    // propagate-T): canonical Rust `let b: Box<i64> = Box::new(5);`
+    // v0.6.75 RFC V1.2
+    //  canonical Rust `let b: Box<i64> = Box::new(5);`
     // pre-fix failed TYP-008 because `Box::new(5)` types as `Box<i32>`
     // (i32 is the literal-default for unsuffixed int literals) and
     // `types_compatible(Box<i64>, Box<i32>)` returned 0 (no Box<T>
     // recursion or literal-widening path).
-    //
     // Note: `type_base_name("Box<T>")` strips the Box wrapper and
     // returns the inner type's base, so we must dispatch the Box<T>
     // shape BEFORE the type_base_name call below — using
@@ -24581,11 +24409,9 @@ fn type_implements_trait(pool: Vec<i32>, prog: i64, type_name: str, trait_name: 
     };
     return 0;
 }
-// v0.6.67 (probe finding 2026-05-02-module-scope-decl-silent-noop-gaps-
-// type-mod-union-use, type-alias sub-gap): look up a type-alias decl
+//  look up a type-alias decl
 // (kind 51) by name in the program. Returns the resolved underlying
 // type string (kind-51 field 2) or "" if no alias matches.
-//
 // short-circuit on shape — aliases are bare
 // identifiers starting with an uppercase letter and containing no
 // generic / ref / array brackets. Skip the prog scan for common
@@ -24727,7 +24553,6 @@ fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
 // local, which OWN-009 already handles). Used by check_fn to verify
 // that a fn with exactly one ref-typed input + ref return derives
 // the return from that single input.
-//
 // For if/else (kind 23), both arms must trace to the same param;
 // otherwise the join is inconclusive and we return "" (conservative
 // — no false positive).
@@ -24885,7 +24710,6 @@ fn builtin_rtype(name: str) -> str {
     if is_nuc_raw_intrinsic(name) == 1 { return "i64"; };
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
-    // 
     // vec_pop is a void-returning runtime helper (removes the last
     // element, returns nothing). Pre-fix builtin_rtype returned ""
     // for it, so `let x = vec_pop(v)` silently bound 0 (TYP-021
@@ -25198,8 +25022,7 @@ fn const_i64_min() -> i64 {
     return (0 - max_i64) - 1;
 }
 
-// v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-u64-imin-
-// shift-divzero, gap 1): unsigned compare for i64 values treated as
+//  unsigned compare for i64 values treated as
 // u64 bit patterns. Same-sign: signed compare matches unsigned. Mixed
 // signs: the negative-as-i64 has the high bit set so when read as u64
 // it's >= 2^63 — strictly greater than any non-negative i64 read as u64.
@@ -25322,8 +25145,7 @@ fn const_i64_binop(op: i64, a: i64, b: i64) -> Vec<i32> {
     if op == 21 { return const_i64_sub(a, b); };
     if op == 22 { return const_i64_mul(a, b); };
     if op == 23 {
-        // v0.6.53 (probe finding 2026-05-02-num-021-coverage-gaps-u64-
-        // imin-shift-divzero, gap 3): div-by-zero in const expression
+        //  div-by-zero in const expression
         // is undefined; flag as overflow so NUM-021 fires at compile
         // time. Pre-fix returned no-value, falling through to runtime
         // PANIC at startup ("PANIC: i64 div by zero" via the
@@ -25368,8 +25190,7 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
         if const_i64_overflow(inner) == 1 { return const_i64_result_ex(0, 0, 1); };
         if vec_get(inner, 0) == 1 {
             let inner_v: i64 = vec_get(inner, 1);
-            // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
-            // u64-imin-shift-divzero, gap 2): canonical Rust literal
+            //  canonical Rust literal
             // `-9223372036854775808` (= i64::MIN) is parsed as unary-
             // minus applied to `9223372036854775808`. The lexer wraps
             // `9223372036854775808` (2^63) to i64::MIN at storage time,
@@ -25586,7 +25407,6 @@ fn unit_dim(t: str) -> str {
 }
 #[manual_drop]
 fn type_dynamic_helper(name: str) -> i64 {
-    // 
     // first-char dispatch — was 41-entry linear chain run per kind-7
     // call-site type-check.
     if str_len(name) == 0 { return 0; };
@@ -26241,9 +26061,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // from lexicographic byte order. Adopters writing canonical
         // Rust (which does lex compare via PartialOrd) got a quiet
         // wrong result.
-        //
-        // v0.6.22 (probe finding 2026-05-02-typ011-recommends-undefined-
-        // str_cmp): the original v0.4.67 workaround text recommended
+        //  the original v0.4.67 workaround text recommended
         // `str_cmp(a, b) <op> 0` — but `str_cmp` was never wired to a
         // runtime helper, so adopters following the recommendation hit
         // TYP-005 / clang link `error: undefined function 'str_cmp()'`.
@@ -26282,7 +26100,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 if str_len(v085_has_derived) == 0 {
                     let v147_op: str = if op == 30 { "==" } else { "!=" };
                     let v147a: str = str_concat("`", str_concat(lt, str_concat(" ", str_concat(v147_op, str_concat(" ", str_concat(lt, "` does pointer comparison."))))));
-                    let v147b: str = " Pre-v0.4.147 the binop lowered to `icmp eq i64` on the two struct pointers — two equal-field structs at different heap addresses returned FALSE. Rust derives PartialEq with field-wise comparison; Nucleor doesn't auto-derive. Compare fields explicitly: `a.field1 == b.field1 && a.field2 == b.field2 && ...`, OR add `#[derive(PartialEq)]` (v0.6.84+) which auto-generates the field-walk helper AND v0.6.85 routes `==`/`!=` directly to it.";
+                    let v147b: str = " Rust derives PartialEq with field-wise comparison; Nucleor doesn't auto-derive. Compare fields explicitly: `a.field1 == b.field1 && a.field2 == b.field2 && ...`, OR add `#[derive(PartialEq)]` (v0.6.84+) which auto-generates the field-walk helper AND v0.6.85 routes `==`/`!=` directly to it.";
                     type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v147a, v147b));
                 };
             };
@@ -26330,8 +26148,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let sh_const: Vec<i32> = const_i64_expr(pool, rhs_check_sh, env);
             let sh_have: i64 = vec_get(sh_const, 0);
             let sh_amt: i64 = vec_get(sh_const, 1);
-            // v0.6.37 (probe finding 2026-05-01-num-008-shift-only-checks-
-            // i64-not-narrow-widths): pre-fix the bound was hard-coded at
+            //  pre-fix the bound was hard-coded at
             // 64 (i64 width), so `let a: i32 = 1 << 32;` silently passed
             // the check + lowered to LLVM `shl i32` with shift amount 32
             // — UB / poison (returns 0 in practice). Adopters writing
@@ -26358,7 +26175,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // Rust's `==` on `Vec<T>` does element-wise comparison via
         // `PartialEq` (requiring `T: PartialEq`). Adopters writing
         // the canonical idiom got a quiet wrong result.
-        // v0.4.53 (DEFERRED): Vec<T> == Vec<T> guard. Pre-fix `v1 == v2`
+        // DEFERRED: Vec<T> == Vec<T> guard. Pre-fix `v1 == v2`
         // for two equal-element Vecs returned FALSE (pointer compare).
         // Initial implementation crashed the compiler on the source-
         // scan fallback path (segfault inside infer_var_type_from_source
@@ -26393,7 +26210,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // (matches Rust's `!` on bool — bitwise on int isn't
         // separately needed since Nucleor exposes `^` for that).
         if kind == 6 && str_len(inner_ty) > 0 && str_eq(inner_ty, "bool") == 0 {
-            type_diag(diags, source, fn_name, fn_name, "TYP-002", str_concat("unary `!` requires a `bool` operand (got `", str_concat(inner_ty, "`). Pre-fix this silently lowered to xor-with-1 on the i64 representation. Use `x == 0` for logical negation of an integer, or cast to bool first (`(x != 0) == false`).")));
+            type_diag(diags, source, fn_name, fn_name, "TYP-002", str_concat("unary `!` requires a `bool` operand (got `", str_concat(inner_ty, "`). Use `x == 0` for logical negation of an integer, or cast to bool first (`(x != 0) == false`).")));
         };
         return inner_ty;
     };
@@ -26442,8 +26259,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
         };
-        // v0.6.20 (probe finding 2026-05-01-assert-eq-ne-macros-silent-
-        // miscompute-on-str): assert_eq!/assert_ne! macros lower to
+        //  assert_eq!/assert_ne! macros lower to
         // assert_eq(i64, i64) / assert_ne(i64, i64) regardless of arg
         // type, doing pointer comparison on str values. Equal-content
         // strings make `assert_eq!("hello", "hello")` always FAIL
@@ -26460,7 +26276,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let cmp_op: str = if str_eq(callee, "assert_eq") == 1 { "==" } else { "!=" };
                 let hint_v060: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq(str_eq(a, b), 1)" } else { "assert_eq(str_eq(a, b), 0)" };
                 let v060a: str = str_concat("`", str_concat(macro_name, str_concat("(a, b)` on `str` arguments does pointer comparison (silent miscompute — equal-bytes strs at different addresses ", str_concat(cmp_op, " return FALSE)."))));
-                let v060b: str = str_concat(" Pre-v0.6.20 `assert_eq!(\"hello\", \"hello\")` always failed and `assert_ne!(\"x\", \"x\")` always passed because the macro lowered to i64 comparison on the str pointers. Use `", str_concat(hint_v060, "` to value-compare via the str_eq runtime helper. Sister to TYP-011 v0.4.52 `str == str` close."));
+                let v060b: str = str_concat(" Use `", str_concat(hint_v060, "` to value-compare via the str_eq runtime helper. Sister to TYP-011 v0.4.52 `str == str` close."));
                 type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v060a, v060b));
             };
         };
@@ -26622,7 +26438,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
         };
         if argc > 0 {
-            // 
             // pre-fix vec_pop was in this read-call set, returning the element
             // type — the type-checker pretended `let x = vec_pop(v)` was a
             // value-returning call (Rust-like) but the runtime helper is
@@ -26824,7 +26639,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // with no arg check. str_len(42) compiled cleanly and SIGSEGV'd
         // at runtime when the helper dereferenced 42 as a const char *.
         // Same hazard class as v0.3.137-v0.3.153 silent miscompiles.
-        //
         // Conservative, incremental: only check arg-0 of helpers whose
         // first arg must be str (v0.3.155 adds str_eq, str_concat,
         // str_substring, str_char_at to the v0.3.154 list of str_len,
@@ -26884,8 +26698,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 || str_eq(callee, "panic") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
                 let arg0_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
-                // v0.6.48 (probe finding 2026-05-02-str-runtime-helpers-
-                // reject-amp-but-strict-accepts): accept `&str` too. Pre-
+                //  accept `&str` too. Pre-
                 // fix `str_len(&s)` was rejected with TYP-006 even though
                 // `&s` lowers identically to `s` (kind-90 unary-ref is a
                 // pass-through in lower_expr at line ~19462), so adopters
@@ -26926,7 +26739,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // i64 (the canonical pattern -- see tests/rods/numeric.nr)
             // pass the i64 directly. Strict type checking on these
             // helpers breaks the round-trip pattern.
-            //
             // The ADOPTER HAZARD (calling f64_to_str(100) thinking 100
             // is a numeric value -> garbage subnormal output) is real
             // but the fix needs a different approach: deprecate the
@@ -26934,7 +26746,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // f64_value_to_str(f: f64) helpers, OR add a compile-time
             // warning (not error) when arg looks like an int literal.
             // Deferred for proper design.
-            //
             // literal-only diagnostic for f64_to_str /
             // f32_to_str when arg 0 is an INT LITERAL (kind 1). Catches
             // the specific adopter mistake `f64_to_str(100)` -- where
@@ -26945,7 +26756,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // pattern) are NOT flagged. This is the conservative middle
             // ground between the rolled-back v0.3.159/160 (too strict)
             // and pre-fix (no diagnostic at all).
-            //
             // Diagnostic is INFORMATIONAL (uses print, not type_diag) so
             // the build doesn't halt. Adopters who genuinely want the
             // bit-pattern behavior can suppress by calling via a variable
@@ -26998,7 +26808,6 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // nonexistent_function(42);` silently emitted broken IR and
         // failed late at clang link with `undefined value
         // '@nonexistent_function'`.
-        //
         // The v0.4.57 attempt fired on closure-generated callees
         // (`__closure_N`) and fn-pointer dispatch sites. v0.4.60 adds
         // 3 filters to suppress those false positives:
@@ -27037,7 +26846,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // are kind-12 type-prefixed mangled calls handled
         // separately), so adopters got the raw clang error pointing
         // at compiler-emitted IR instead of their source. Sister to
-        // v0.4.138 (struct-as-value at kind-3): when the callee
+        // struct-as-value at kind-3: when the callee
         // matches a defined struct name, surface TYP-022 directing
         // to struct-init syntax.
         // fast-fail check — tuple/regular struct names start
@@ -27110,7 +26919,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let v146_expected_argc: i64 = str_to_int(v146_argc_str);
             if argc != v146_expected_argc {
                 let v146a: str = str_concat("wrong number of arguments to closure `", str_concat(callee, str_concat("`: expected ", str_concat(str_from_int(v146_expected_argc), str_concat(", got ", str_from_int(argc))))));
-                let v146b: str = ". Pre-v0.4.146 the indirect call lowered with the supplied arg count and the closure body read undefined registers for the missing params (or ignored extra args), producing garbage at runtime. Match the closure's declared parameter list at every call site.";
+                let v146b: str = ". Match the closure's declared parameter list at every call site.";
                 type_diag(diags, source, fn_name, callee, "TYP-005", str_concat(v146a, v146b));
             };
             // return the closure's body rtype (registered
@@ -27190,7 +26999,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let inner_mn: str = if node_kind(pool, recv_nid) == 8 { node_field(pool, recv_nid, 2) } else { "" };
             let v23a: str = str_concat("chained method `.", str_concat(mname, "()` on a void-returning receiver."));
             let v23b: str = if str_len(inner_mn) > 0 { str_concat(" The inner `.", str_concat(inner_mn, "()` is a void-mutator (push/pop/set/swap/extend/remove/insert/shuffle/free) — these don't return self for chaining in Nucleor.")) } else { "" };
-            let v23c: str = " Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header, producing 0 / wrong bool / garbage at runtime. Split into separate statements: call the mutator on its own line, then call the chained method on the receiver.";
+            let v23c: str = " Split into separate statements: call the mutator on its own line, then call the chained method on the receiver.";
             type_diag(diags, source, fn_name, fn_name, "TYP-023", str_concat(v23a, str_concat(v23b, v23c)));
         };
         // Keep the literal type-mismatch check below before the
@@ -27293,7 +27102,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // the typo'd name and the receiver struct type.
             if f_idx_v9 < 0 {
                 let t18a: str = str_concat("unknown field `.", str_concat(fname_v9, str_concat("` on receiver type `", str_concat(recv_t, "`."))));
-                let t18b: str = " Pre-v0.4.129 this lowered to vec_get(struct, -1) and surfaced at runtime as a misleading `vec_get OOB index -1` panic with no compile-time signal. Check the field name spelling against the struct definition.";
+                let t18b: str = " Check the field name spelling against the struct definition.";
                 type_diag(diags, source, fn_name, fn_name, "TYP-018", str_concat(t18a, t18b));
             };
             return struct_field_type_for_inst(pool, vec_get(structs, si), recv_t, fname_v9);
@@ -27345,7 +27154,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             return "Box<i64>";
         };
         if str_eq(tname, "Tensor") == 1 { return "Tensor<f64>"; };
-        // v0.4.45 — RFC-0024 Phase 2: constructor type propagation.
+        // RFC-0024 Phase 2: constructor type propagation.
         // `Some(value)` → `Option<T>` where T = static type of value.
         // `Ok(value)`   → `Result<T,_>` (E inferred from context later).
         // `None` and `Err(...)` keep returning the bare type — variant
@@ -27413,7 +27222,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let v24_compat: i64 = types_compatible_context(pool, prog, tt, et);
                 if v24_compat == 0 {
                     let v24a: str = str_concat("`if`-expression branches have incompatible types: then-branch is `", str_concat(tt, str_concat("`, else-branch is `", str_concat(et, "`."))));
-                    let v24b: str = " Pre-v0.4.145 the if-expr silently returned the then-branch type and bit-cast the else-branch value into the then-type slot — meaningless garbage at use sites when the else branch was taken. Both branches must have compatible types (Rust E0308). Use a `match` if you need value-vs-type alternation, or convert one branch to match the other.";
+                    let v24b: str = " Both branches must have compatible types (Rust E0308). Use a `match` if you need value-vs-type alternation, or convert one branch to match the other.";
                     type_diag(diags, source, fn_name, fn_name, "TYP-024", str_concat(v24a, v24b));
                 };
             };
@@ -27438,7 +27247,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // Regression: float match scrutinee compiler crash.
         if type_is_float(scrut_t) == 1 {
             let m13a: str = str_concat("float scrutinee in `match` is not supported (got `", str_concat(scrut_t, "`)."));
-            let m13b: str = " Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) trying to lower the int-pattern path against a float scrutinee. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.";
+            let m13b: str = " Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.";
             type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-013", str_concat(m13a, m13b));
             return "i64";
         };
@@ -27460,12 +27269,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // type-check before lowering.
             if str_eq(ename, "__str") == 1 && type_is_int(scrut_t) == 1 {
                 let m11a: str = str_concat("string literal arm in `match` on integer scrutinee (`", str_concat(scrut_t, "`)."));
-                let m11b: str = " Pre-v0.4.140 this lowered to `str_eq(<scrut_i64>, \"<lit>\")` — when the scrutinee value didn't match an earlier int arm, str_eq dereferenced the i64 as a char ptr and SIGSEGV'd at runtime. Use integer literal arms (`1 => ..., 2 => ...`) for an int match, or convert the scrutinee to str (`int_to_str(n)`) to use string literal arms.";
+                let m11b: str = " Use integer literal arms (`1 => ..., 2 => ...`) for an int match, or convert the scrutinee to str (`int_to_str(n)`) to use string literal arms.";
                 type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-011", str_concat(m11a, m11b));
             };
             if str_eq(ename, "__int") == 1 && str_eq(scrut_t, "str") == 1 {
                 let m11ia: str = "integer literal arm in `match` on string scrutinee (`str`).";
-                let m11ib: str = " Pre-v0.4.140 this lowered to integer compare against the str pointer's i64 value — meaningless and silently FALSE in nearly all cases. Use string literal arms (`\"a\" => ..., \"b\" => ...`) for a str match, or convert the scrutinee with `str_to_int(s)` to match on integer values.";
+                let m11ib: str = " Use string literal arms (`\"a\" => ..., \"b\" => ...`) for a str match, or convert the scrutinee with `str_to_int(s)` to match on integer values.";
                 type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-011", str_concat(m11ia, m11ib));
             };
             let at_name: str = if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 { pattern_binding_item_name(str_after_char_local(binding, 124)) } else { pattern_at_prefix_name(binding) };
@@ -27538,7 +27347,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         if str_eq(scrut_base, "i64") == 0
                             && str_eq(scrut_base, "i32") == 0 {
                             let m12a: str = str_concat("pattern variant `", str_concat(ename, str_concat("::", str_concat(vname, str_concat("` belongs to enum `", str_concat(ename, "`, but the scrutinee type is `"))))));
-                            let m12b: str = str_concat(scrut_t, "`. Pre-fix this lowered both enums to integer tags and silently matched by tag value — the canonical silent-miscompile pattern (Rust E0308 / E0532). Use a pattern from the scrutinee's enum type, or convert the scrutinee with an explicit cast / map.");
+                            let m12b: str = str_concat(scrut_t, "`. Use a pattern from the scrutinee's enum type, or convert the scrutinee with an explicit cast / map.");
                             type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-016", str_concat(m12a, m12b));
                         };
                     };
@@ -27605,16 +27414,13 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         };
         // NUC-FEEDBACK-002 -- promoted parse-time
         // narrow-float-vector warning to a HARD type-check error.
-        //
         // NUC-FEEDBACK-002 deeper fix -- DOWNGRADE to a
         // single advisory print (not a TYP-009 hard error), now that
         // the round-trip pattern is verifiable end-to-end:
-        //
         //   let mut v: Vec<f32> = Vec::new();
         //   v.push(1.5 as f32);           // i64 cell holds f32 bit pattern
         //   let s: f32 = f32_from_bits(v[0]);  // reinterpret, no convert
         //   println!("{}", f32_add(s, s as f32));
-        //
         // Pinned by tests/fixtures/t462_vec_f32_round_trip.nr.
         // The advisory tells the adopter that `v[i] as f32` would
         // numeric-cast the integer (silent miscompute), so they must
@@ -27637,7 +27443,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
-            // 
             // when the let RHS is a direct kind-7 call to `vec_pop`, override
             // init_t to "void" so the TYP-021 check below fires. Pre-fix
             // type_expr for vec_pop returned the Vec's element type (treated
@@ -27873,7 +27678,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     };
                     if t16_is_passthrough == 0 {
                         let t16a: str = str_concat("`if` expression assigned to binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "` is missing an `else` branch."))));
-                        let t16b: str = " Pre-v0.4.126 the false-condition path silently fell through to the alloca's zero-init slot — `let x: i64 = if false { 5 };` produced `x == 0` with no signal. Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
+                        let t16b: str = " Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
                         type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
                     };
                 };
@@ -27897,8 +27702,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         };
                     };
                 };
-                // v0.6.45 (probe finding 2026-05-01-num-019-coverage-gap-
-                // binop-vs-literal): pre-fix `let a: u32 = 0 - 5;` evaded
+                //  pre-fix `let a: u32 = 0 - 5;` evaded
                 // NUM-019 because the literal-form check at kind 5 only
                 // matched `let a: u32 = -5;`. The binop form (kind 4)
                 // const-folds to -5 at compile time but the unsigned-
@@ -27951,7 +27755,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     if lit_v < 0 || lit_v > umax_v { out_of_range = 1; };
                 };
                 // removed the s==2 && w==64 negative check.
-                // Closes probe finding 2026-05-01-hex-literal-u64-max-misreports-as-negative.
                 // Pre-fix `let h: u64 = 0xFFFFFFFFFFFFFFFF;` rejected
                 // because the hex literal parsed as i64 = -1 (sign-bit
                 // wrap) and the check fired. But the BIT PATTERN is the
@@ -27996,7 +27799,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
-        // 
         // CRITICAL — `HashMap<i64, V>`, `HashMap<bool, V>`, etc. (any
         // non-str key type) crashed at runtime with STATUS_ACCESS_
         // VIOLATION (rc=-1073741819) on the first hashmap_insert. The
@@ -28025,8 +27827,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         };
         if init >= 0 {
             let init_const: Vec<i32> = const_i64_expr(pool, init, env);
-            // v0.6.50 (probe finding 2026-05-02-num-021-coverage-gaps-
-            // u64-imin-shift-divzero, gap 4): also fire NUM-021 at
+            //  also fire NUM-021 at
             // compile time when a let-binding const expression
             // overflows i64. Pre-fix `let x: i64 = i64::MAX + 1;`
             // PANICked at runtime startup via the strict-intrin trap
@@ -28038,8 +27839,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // path. Skipped for kind-7 (fn call) inits where the
             // const fold returned overflow because the call body
             // chain is opaque from the binding site.
-            // v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-
-            // u64-imin-shift-divzero, gap 1): unsigned-aware overflow
+            //  unsigned-aware overflow
             // routing. If declared type is unsigned, ONLY check
             // u64-overflow (i64 might "overflow" via wrap but still fit
             // u64 — e.g. `let x: u64 = i64::MAX + 1;` has i64 result
@@ -28054,11 +27854,11 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 u64_overflow_v064 = const_u64_overflow(pool, init, env);
             };
             if u64_overflow_v064 == 1 {
-                let m21u_msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, str_concat("` overflows declared unsigned type `", str_concat(tstr, "` at compile time. Pre-fix this silently wrapped through u64 arithmetic during lowering and the binding silently held the wrapped value. Use explicit `wrapping_add_u64` / `saturating_add_u64` / `checked_add_u64` if wrapping is intentional, reduce the operands, or widen the type."))));
+                let m21u_msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, str_concat("` overflows declared unsigned type `", str_concat(tstr, "` at compile time. Use explicit `wrapping_add_u64` / `saturating_add_u64` / `checked_add_u64` if wrapping is intentional, reduce the operands, or widen the type."))));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21u_msg);
                 tenv_clear_const(env, vname);
             } else if is_unsigned == 0 && const_i64_overflow(init_const) == 1 && node_kind(pool, init) != 7 {
-                let m21msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, "` overflows i64 at compile time. Pre-fix this PANICked at runtime startup via the strict-intrin trap — far from the source line. Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional."));
+                let m21msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, "` overflows i64 at compile time. Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional."));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21msg);
                 tenv_clear_const(env, vname);
             }
@@ -28091,7 +27891,6 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // tail-expr-stmt wrapping a print_int / similar void
             // helper), this returns "void". For value-returning
             // bodies it returns the value's type.
-            //
             // type_last_stmt on the closure body must run
             // in a SCOPED env that includes the closure's parameters
             // AND any closure-local let-bindings. Pre-fix `let outer
@@ -28177,7 +27976,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                                 type_diag(diags, source, fn_name, vname, "FRAME-001", frame_mismatch_diag_message(f_action_idx, elem_t, rhs_t));
                             } else {
                                 let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
-                                let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
+                                let pb: str = " List the conversion explicitly or use a typed Vec.";
                                 type_diag(diags, source, fn_name, vname, "TYP-009", str_concat(pa, pb));
                             };
                         };
@@ -28261,7 +28060,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let v142_val_nonvoid: i64 = if str_len(val_t) > 0 && str_eq(val_t, "void") == 0 && type_is_unit(val_t) == 0 { 1 } else { 0 };
             if v142_void_ret == 1 && v142_val_nonvoid == 1 {
                 let v142a: str = str_concat("`return ", str_concat(val_t, str_concat("`-typed value in fn `", str_concat(fn_name, "` whose return type is void / `()` (or no `-> T` declared, defaulting to void)."))));
-                let v142b: str = " Pre-v0.4.142 the value was silently discarded by codegen with no signal — the fn appeared to return cleanly and the value vanished. Either remove the value (`return;`), drop the explicit `return` if it's a tail position, or add `-> <Type>` to the fn signature so the value is part of the contract.";
+                let v142b: str = " Either remove the value (`return;`), drop the explicit `return` if it's a tail position, or add `-> <Type>` to the fn signature so the value is part of the contract.";
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(v142a, v142b));
             };
         } else {
@@ -28272,7 +28071,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // diagnostic. Sister to v0.4.108's tail-expr ret check.
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 {
                 let pa112: str = str_concat("bare `return;` in fn `", str_concat(fn_name, str_concat("` declared to return `", str_concat(rtype, "`."))));
-                let pb112: str = " Pre-v0.4.112 the codegen silently emitted an undef return register; the caller saw 0 / garbage with no signal. Either supply a value (`return <expr>;`) or change the fn signature to `-> ()` / drop the return type.";
+                let pb112: str = " Either supply a value (`return <expr>;`) or change the fn signature to `-> ()` / drop the return type.";
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa112, pb112));
             };
         };
@@ -28371,7 +28170,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         return warns;
     };
     if kind == 85 {
-        // v0.8.33 — tuple-destructure-in-let type pass.
+        // tuple-destructure-in-let type pass.
         // Check the RHS expression; bindings are i64 by default.
         let init85t: i64 = node_field(pool, nid, 2);
         if init85t >= 0 { type_expr(pool, prog, init85t, env, sigs, structs, fn_name, diags, source, tprof); };
@@ -28406,8 +28205,7 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
             let ctype: str = node_field(pool, nid, 2);
             let cinit: i64 = node_field(pool, nid, 3);
             let cres: Vec<i32> = const_i64_expr(pool, cinit, env);
-            // v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-
-            // u64-imin-shift-divzero, gap 1): unsigned-aware overflow
+            //  unsigned-aware overflow
             // routing for const decls. Same pattern as let-stmt: if
             // ctype is unsigned, ONLY check u64-overflow (i64 may
             // "overflow" via wrap but still fit u64). For signed types
@@ -28592,7 +28390,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     let tb_entry: str = list_get(pool, tb_gparams, tb_p);
                     if str_len(tb_entry) > 1 && str_char_at(tb_entry, 0) == 63 {
                         let tb_trait: str = str_substring(tb_entry, 1, str_len(tb_entry));
-                        // v0.7.0 (canonical-Rust acceptance): Rust marker
+                        // canonical-Rust acceptance: Rust marker
                         // traits `Sized`, `Send`, `Sync`, `Unpin`,
                         // `RefUnwindSafe`, `UnwindSafe` are no-ops under
                         // Nucleor's i64-everywhere ABI (all values pass
@@ -28625,7 +28423,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                                 walk_v130 = walk_v130 + 1;
                             };
                             if found_v130 == 0 {
-                                let t19_msg: str = str_concat("trait bound `<T: ", str_concat(tb_trait, str_concat(">` on fn `", str_concat(tb_fname, str_concat("` references unknown trait `", str_concat(tb_trait, "`. Pre-v0.4.130 the bound was parse-skipped and the typo silently compiled. Define the trait, fix the spelling, or import the rod that declares it."))))));
+                                let t19_msg: str = str_concat("trait bound `<T: ", str_concat(tb_trait, str_concat(">` on fn `", str_concat(tb_fname, str_concat("` references unknown trait `", str_concat(tb_trait, "`. Define the trait, fix the spelling, or import the rod that declares it."))))));
                                 type_diag(diags, source, tb_fname, tb_fname, "TYP-019", t19_msg);
                             };
                         };
@@ -28681,7 +28479,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                                 type_diag(diags, source, fn_name, fn_name, "FRAME-001", frame_mismatch_diag_message(f_action_tail, rtype, tail_t));
                             } else {
                                 let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
-                                let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
+                                let pb108: str = " Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
                                 type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));
                             };
                         };
@@ -28695,12 +28493,10 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     // `return` AND the let/assign RHS isn't an
                     // always-returning match/if, the fn body cannot
                     // produce the declared type. Catch at type-check.
-                    //
                     // Conservative: ONLY halts on kinds 20/21 last.
                     // Other ambiguous cases (kind 24/49 loops with
                     // internal return, kind 25 with semi consumed)
                     // pass — too risky for false positives.
-                    //
                     // The "always-returning RHS" check below allows
                     // legitimate patterns like
                     //   let v: T = match r { Ok(x) => return x,
@@ -28708,7 +28504,6 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     // (e.g. tests/fixtures/t367_question_op_chain.nr)
                     // where the let never completes binding because
                     // the match always returns first.
-                    //
                     // Regression: fn without tail expr returned zero.
                     // (Repros 1 and 2; Repro 3 — kind-25 with eaten
                     // semicolon — requires AST-level `;` tracking,
@@ -28775,7 +28570,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                         };
                         if v219_ok == 0 {
                             let pa219: str = str_concat("fn `", str_concat(fn_name, str_concat("` declared to return `", str_concat(rtype, "` but body's last statement is a `let` or assignment that discards its value, and no explicit `return` is present at body top-level."))));
-                            let pb219: str = " Pre-v0.4.219 the lowerer fell through to a synthesized `ret 0`, so the caller silently received 0 (alloca-zero) regardless of declared return type. Add a tail expression of the declared type at the end (`x + y` not `let _z = x + y;`), or an explicit `return val;`. void-typed fns are unaffected.";
+                            let pb219: str = " Add a tail expression of the declared type at the end (`x + y` not `let _z = x + y;`), or an explicit `return val;`. void-typed fns are unaffected.";
                             type_diag(diags, source, fn_name, fn_name, "TYP-026", str_concat(pa219, pb219));
                         };
                     };
@@ -28870,7 +28665,6 @@ fn preflight_source_check(source: str) -> i64 {
     // §1.1 line endings are `\n` or `\r\n`; bare CR is rejected. We
     // run the check on the post-resolve source so embedded CR detection
     // happens once at file boundary.
-    //
     // Heuristic: if any CR (0x0D) byte is NOT immediately followed by
     // LF (0x0A), reject. This allows canonical CRLF cleanly. Embedded
     // CR inside a string literal can't be inspected at this layer
@@ -28906,7 +28700,6 @@ fn preflight_source_check(source: str) -> i64 {
     // between two fns could keep the second from compiling and the
     // resulting NR020 EOF diag mis-points at the file end. The NUL
     // also masquerades as a "valid file" for cache hashing.
-    //
     // Enforcement: we cannot DETECT a mid-source NUL via str_len
     // (it stopped at the first NUL). But the F-011 reproducer expects
     // the NUL to be REJECTED — and embedded NUL is invalid Nucleor
@@ -28914,7 +28707,6 @@ fn preflight_source_check(source: str) -> i64 {
     // assumption. So instead of trying to inspect what we already lost,
     // compare the file's on-disk byte count to the str_len we got back.
     // If they differ, an embedded NUL truncated the read.
-    //
     // (Implementation note: this check needs the source path; the
     // current preflight signature doesn't carry it. The lexer's F-066
     // fall-through still catches a NUL byte that survives into the
@@ -29503,7 +29295,7 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
         return 0;
     };
     if kind == 85 {
-        // v0.8.33 — tuple-destructure-in-let capture walk.
+        // tuple-destructure-in-let capture walk.
         closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
         return 0;
     };
@@ -29662,7 +29454,6 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
         // iN_MIN/-1 corner panics with a clean Nucleor message rather than
         // surfacing as Windows STATUS_INTEGER_OVERFLOW (rc=-1073741675) or
         // SIGFPE on POSIX. Mirrors the existing i64 panic_div path; closes
-        // probe finding 2026-05-01-i32-min-div-neg-one-windows-exception.
         // Unsigned divisions (tw < 0) keep the raw `udiv` path — there is
         // no MIN/-1 trap for unsigned widths.
         let mut narrow_div_helper: str = "";
@@ -29744,7 +29535,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let src_ftype: str = binop_float_type(pool, inner_nid, sym, structs);
         let mut conv_helper: str = "";
         // Float → int / float → float dispatch.
-        //
         // NUC-FEEDBACK runtime safety / Rust-semantic alignment.
         // Pre-fix `f64 as i64` (and `f64 as u64`, `f32 as i64`, `f32 as
         // u64`) fell through to the bitcast-preserving `as_i64` /
@@ -29752,7 +29542,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // bit pattern of 1.5_f64 (~4607182418800017408) instead of `1`
         // -- a silent miscompute when adopters copy-pasted Rust code
         // expecting numeric truncation semantics.
-        //
         // Now: f-source / i64-or-u64 target dispatches to the saturating
         // numeric-truncation helper (matches Rust `as` semantics on
         // overflow). Adopters who genuinely need bit-pattern transit
@@ -29846,7 +29635,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         ir_block_add(blk, ir_call_ex(r, "f64_from_scaled", conv_args));
         return lx_new(r, blk);
     };
-    // v0.4.24 (NUC-FEEDBACK-002): f32 literal (kind 73). Same scaled-int
+    // NUC-FEEDBACK-002: f32 literal (kind 73). Same scaled-int
     // encoding as kind 71 but routes through f32_from_scaled so the
     // resulting i64 is the f32 bit pattern, not the f64 one. Without
     // this, `1.0f32` stored an f64 bit pattern in `Vec<f32>` slots and
@@ -29870,7 +29659,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, blk);
     };
     if kind == 122 {
-        // v0.7.82 (defensive halt): `?` inside a closure body.
+        // defensive halt: `?` inside a closure body.
         // Pre-fix the `?` lowering emitted `ret` from the closure function
         // on the Err/None path (correct Rust semantics — `?` in a closure
         // returns from the closure, not the outer fn). BUT Nucleor closures
@@ -29886,7 +29675,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             panic("nucleor: `?` inside closure body not yet supported (see ERROR diagnostic above)");
         };
         // RFC-0016 phase 1: `?` postfix operator.
-        //
         // tag-convention dispatch for Option vs Result.
         //   Result: Ok=1, Err=0  → tag==0 means err → early return.
         //   Option: Some=0, None=1 → tag==1 means err → early return.
@@ -30003,7 +29791,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // var same-narrow), v0.4.212 (var+literal), AND nested
         // expression chains like `(a + b) * c` where every operand
         // resolves to the same narrow width.
-        //
         // Pre-fix flow for nested narrow `(a + b) * c` (i16):
         //   inner: load i16 → sext i64; load i16 → sext i64;
         //          add i16 → sext i64;  (v0.4.211 narrow path)
@@ -30075,7 +29862,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // existence probe is `sym_get(sym, "__fnret_<Type>__derived_eq")`
             // — populated by populate_fn_returns_in_sym at lower_fn entry.
             // For `!=`: emit `1 - <eq>` so the result is canonical 0/1.
-            //
             // Closes V1.4 (paired with v0.6.84 helper-fn generation).
             // The TYP-011 ptr-compare diag at line ~17027 still fires at
             // type-check time for non-derived structs (pre-existing
@@ -30128,7 +29914,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // `__nucleor_str_eq` and `__nucleor_string_eq` already
             // exist; this is the missing surface-level dispatch from
             // `==`/`!=` to them.
-            //
             // Now: auto-route to the right runtime helper for both
             // forms. For `==`: helper(a, b). For `!=`: 1 - helper(a, b).
             // Sister to v0.6.85's struct ==/!= auto-dispatch via
@@ -30170,12 +29955,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // correct for boolean (0/1) values, but any RHS with side
         // effects or pointer-deref would run when the LHS guard said
         // it shouldn't. The canonical hazard:
-        //
         //   if x != 0 && deref(x).field == y { ... }
-        //
         // pre-fix evaluates deref(x) even when x == 0, which crashes
         // for any caller relying on short-circuit safety.
-        //
         // Fix: emit branch IR. For `A && B`:
         //   1. eval A → a_r
         //   2. cmp a_r != 0 → cond
@@ -30184,10 +29966,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         //   eval_b: eval B → b_r ; cmp b_r != 0 → b_bool ; store b_bool, result ; br merge
         //   false_lbl: store 0, result ; br merge
         //   merge: load result → final
-        //
         // For `A || B`: invert — true branch stores 1, false branch
         // evals B and stores its truthy projection.
-        //
         // The earlier v0.3.145 attempt at this fix used `ir_block_add` for
         // the result alloca (mid-function placement), which broke stage C
         // self-host with a silent exit on large source. Stage A's compiler
@@ -30317,14 +30097,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         else {
             // NUC-FEEDBACK runtime safety -- strict-
             // arithmetic via panic_*_i64 helpers.
-            //
             // REVERTED to OPT-IN default. Strict-by-default
             // (every `+`/`-`/`*` via runtime call) caused an 8.5x
             // self-build perf regression (4-10s -> 85s) because the
             // compiler's own arithmetic loops paid the function-call
             // overhead. The safety case is real, but the perf cost
             // was unacceptable for the common adopter compile flow.
-            //
             // New default: native LLVM `add nsw` (silent wrap on
             // overflow). Opt IN to strict via NUCLEOR_INT_STRICT_ARITH=1
             // for production / safety-critical builds. Other v0.3.x
@@ -30410,7 +30188,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // hot loops that the function-call overhead is negligible
             // (the v0.3.220 perf-revert was for + - * which dominate
             // tight numeric loops, not div).
-            //
             // Lane 1 audit fix (2026-05-08) — close C-003: route u64 div
             // / rem to the unsigned helpers so high-bit-set operands are
             // not silently miscompiled by the signed `/` / `%` in the
@@ -30422,7 +30199,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // bit loops; non-literal RHS can be <0 or >=64 at runtime,
             // which is LLVM poison for shl/ashr. Explicit opt-out is
             // available for low-level kernels that mask externally.
-            //
             // Lane 1 audit fix (2026-05-08) — close C-002: iop 25 (lshr,
             // u64 right shift) joins the shift-panic dispatch so
             // non-literal RHS routes to panic_shr_u64 instead of leaving
@@ -30471,14 +30247,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let cur: Vec<i32> = lx_blk(op_p);
         let r: i64 = ctr_next(regs);
         if str_len(neg_ftype) > 0 {
-            // v0.6.52 (probe finding 2026-05-02-negative-zero-const-fold-
-            // loses-sign + sister 2026-05-02-negative-zero-const-and-
-            // unary-neg-both-lose-sign): pre-fix unary minus on f64/f32
+            //  pre-fix unary minus on f64/f32
             // lowered as `f<T>_sub(0.0, opr)` — IEEE 754 returns `+0.0`
             // for `0 - (-0)`, losing the sign bit. So `let z: f64 =
             // -0.0; print_f64(1.0 / z)` printed `+inf` instead of the
             // correct `-inf`.
-            //
             // Fix uses XOR with the IEEE 754 sign bit (the canonical
             // sign-bit-flip semantics of unary minus). For f64, sign
             // bit is bit 63 → mask `0x8000000000000000` = i64::MIN.
@@ -30493,8 +30266,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(cur, ir_const_int(mask_reg, sign_bit));
             ir_block_add(cur, ir_binop(15, r, opr, mask_reg));
         } else {
-            // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
-            // u64-imin-shift-divzero, gap 2): canonical Rust literal
+            //  canonical Rust literal
             // `-9223372036854775808` (= i64::MIN) parses as unary-minus
             // applied to the literal `9223372036854775808`. The lexer
             // wraps `2^63` to i64::MIN at storage time, so the inner
@@ -30515,9 +30287,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
             // same opt-in default as binop. NUCLEOR_INT_STRICT_ARITH=1
             // routes -x for i64 through panic_neg; default is native sub.
-            //
-            // v0.6.43 (probe finding 2026-05-01-unary-neg-runtime-overflow-
-            // not-checked): pre-fix `neg(-i64::MIN)` silently wrapped to
+            //  pre-fix `neg(-i64::MIN)` silently wrapped to
             // i64::MIN — asymmetric with `+`/`*` which already panic by
             // default via NUCLEOR_INT_STRICT_INTRIN=1 (line ~18724). Now
             // unary-neg also consults NUCLEOR_INT_STRICT_INTRIN with the
@@ -30676,7 +30446,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // remaining prints just gone). Same hazard class as the
         // contextual-kw silent miscompiles: a real call you wrote
         // produces nothing useful and no diagnostic.
-        //
         // Fix: when the call is `print` with a single arg whose static
         // type is an int / float / bool, dispatch to the typed runtime
         // helper instead of __nucleor_print_str. Default falls through
@@ -31229,7 +30998,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     || str_eq(tbase, "bool") == 1
                     || str_eq(tbase, "Vec") == 1 { 1 } else { 0 };
                 if is_uncallable == 1 {
-                    panic(str_concat("error[TYP-014]: cannot call `", str_concat(fn_name, str_concat("(...)` — `", str_concat(fn_name, str_concat("` is bound as type `", str_concat(type_str, "`, which is not callable. Pre-v0.4.122 this lowered to an indirect call that interpreted the value's bits as a function pointer and SIGSEGV'd at runtime. Did you mean to call a different identifier, or to access an element via `[i]` / a method via `.method(args)`?"))))))));
+                    panic(str_concat("error[TYP-014]: cannot call `", str_concat(fn_name, str_concat("(...)` — `", str_concat(fn_name, str_concat("` is bound as type `", str_concat(type_str, "`, which is not callable. Did you mean to call a different identifier, or to access an element via `[i]` / a method via `.method(args)`?"))))))));
                 };
             };
             let fp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(fp_r, fn_slot));
@@ -31393,9 +31162,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // helpers added in nucleor_llvm_rt.c v0.4.90.
                         fn_name = str_concat("option_", mname);
                     } else if str_eq(stype_base, "Option") == 1 && (str_eq(mname, "unwrap_or_default") == 1 || str_eq(mname, "take") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "flatten") == 1 || str_eq(mname, "as_ref") == 1 || str_eq(mname, "as_mut") == 1 || str_eq(mname, "iter") == 1 || str_eq(mname, "ok_or") == 1 || str_eq(mname, "ok_or_else") == 1 || str_eq(mname, "cloned") == 1 || str_eq(mname, "copied") == 1) {
-                        // v0.6.83 (probe finding 2026-04-30-rust-syntax-
-                        // translation-fidelity-audit, Option-method-surface
-                        // gaps): canonical Rust Option methods not yet in
+                        //  canonical Rust Option methods not yet in
                         // Nucleor's runtime surface (`unwrap_or_default`,
                         // `take`, `replace`, `flatten`, `as_ref`, `as_mut`,
                         // `iter`, `ok_or`, `ok_or_else`, `cloned`, `copied`)
@@ -31417,7 +31184,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         } else {
                             "no current shorthand — destructure with `match opt { Some(v) => ..., None => ... }`"
                         };
-                        print(str_concat("ERROR: `Option::", str_concat(mname, str_concat("()` is not yet implemented in Nucleor's Option/Result method surface. Pre-v0.6.83 this fell through to the kind-8 catch-all `vec_", str_concat(mname, str_concat("(receiver)` and surfaced as the wrong-class TYP-005 'Vec<T> has no method'. Workaround: ", str_concat(v083_workaround_opt, ".")))))));
+                        print(str_concat("ERROR: `Option::", str_concat(mname, str_concat("()` is not yet implemented in Nucleor's Option/Result method surface. Workaround: ", str_concat(v083_workaround_opt, ".")))))));
                         panic(str_concat("nucleor: Option method `.", str_concat(mname, "()` not yet supported (see ERROR diagnostic above)")));
                     } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "unwrap_err") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1 || str_eq(mname, "or_else") == 1) {
                         // Result<T,E> method dispatch — same
@@ -31676,8 +31443,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // Rust convention without breaking the
                             // existing helper names. Discovered as a
                             // sister bug while shipping v0.4.86's
-                            // v0.6.82 (probe finding 2026-04-30-rust-syntax-
-                            // translation-fidelity-audit, conversion-idiom row):
                             // canonical Rust conversion-idiom methods
                             // (`.into()`, `.to_string()`, `.to_owned()`,
                             // `.to_vec()`, `.iter_mut()`) pre-fix fell through
@@ -31691,7 +31456,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // idioms aren't Vec methods at all — they're trait-
                             // method conversions that need From/Into / ToOwned
                             // / etc. infrastructure not yet shipped).
-                            //
                             // Halt now with a clean diagnostic naming the idiom
                             // and pointing at the explicit-conversion workaround.
                             // Forward-roadmap: full Into/From/ToOwned trait
@@ -32141,7 +31905,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(mcur, ir_call_ex(mr, mangled, maa));
             return lx_new(mr, mcur);
         };
-        // v0.7.5 (defensive halt): canonical Rust path-rooted fn
+        // defensive halt: canonical Rust path-rooted fn
         // calls `crate::foo(...)`, `super::foo(...)`, `self::foo(...)`
         // pre-fix surfaced via the generic v0.3.71 "unsupported
         // associated-fn call" diag, which mentioned only Vec/String/
@@ -32150,7 +31914,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // workaround pointer (drop the path prefix — Nucleor has a
         // flat fn namespace today).
         if str_eq(tname, "crate") == 1 || str_eq(tname, "super") == 1 || str_eq(tname, "self") == 1 {
-            print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. Pre-v0.7.5 surfaced via the generic 'unsupported associated-fn call' diag mentioning Vec/String/etc. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly.")))))))))));
+            print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly.")))))))))));
             panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
         };
         // v0.7.12 (defensive halt — Rust stdlib smart-pointer types):
@@ -32184,7 +31948,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             print("       `async_spawn` (RFC-0027, see stdlib/rods/async.nr).");
             panic(str_concat("nucleor: smart-pointer type `", str_concat(tname, "` not yet supported (see ERROR diagnostic above)")));
         };
-        // v0.7.6 (defensive halt — Default trait): canonical Rust
+        // defensive halt — Default trait: canonical Rust
         // `i64::default()`, `String::default()`, `Default::default()`
         // pre-fix surfaced via the generic v0.3.71 "unsupported
         // associated-fn call" diag. Default trait isn't yet shipped
@@ -32679,7 +32443,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // NUC-FEEDBACK-010 ask -- improve the error so
         // adopters know what to do instead of seeing the cryptic
         // downstream `use of undefined value '%r.-1'` from clang.
-        //
         // NUC-FEEDBACK-010 follow-on -- TRUE pre-IR halt.
         // Threading lower_error through ~44 lower_expr sites was the
         // architectural blocker; sidestep it by calling panic() from
@@ -32689,8 +32452,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // status 1 BEFORE clang is ever invoked. Adopters see the
         // diagnostic followed by a clean `panic` line, no `%r.-1`
         // confusion, no clang link spew.
-        //
-        // v0.7.8 (defensive halt): canonical Rust complex-receiver
+        // defensive halt: canonical Rust complex-receiver
         // `.await` (e.g. `fetch().await`, `arr[0].await`,
         // `expr.method().await`) pre-fix surfaced as the generic
         // "cannot resolve field access .await" diag because the
@@ -32703,7 +32465,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             print("ERROR: complex-receiver `.await` (e.g. `fetch().await`, `arr[0].await`, `expr.method().await`) is not yet supported in Nucleor. Workaround: extract the expression to a let-binding first, then `.await` the ident — `let h: i64 = fetch(); let v: i64 = h.await;`.");
             panic("nucleor: complex-receiver `.await` not yet supported (see ERROR diagnostic above)");
         };
-        // v0.6.79 (RFC V1.11 adopter wrong-class halt): canonical Rust
+        // RFC V1.11 adopter wrong-class halt: canonical Rust
         // anonymous-tuple binding `let p: (i64, i64) = (5, 7); p.0`
         // pre-fix surfaced as the generic "cannot resolve field access"
         // diag — wrong class. Anonymous tuples are not yet supported in
@@ -32919,7 +32681,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
 // fn body so binop_float_type's kind==7 (call) branch can look up
 // the called fn's return type via the existing sym mechanism — no
 // signature plumbing required.
-//
 // Pool walk caveat: pool nodes form a flat arena. Fn decls are
 // kind 30 (regular) and kind 32 (extern). The walk uses node_kind
 // at every offset and bails early once we run off the end (handled
@@ -32957,7 +32718,6 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
 //     is a closure literal or a closure-bound local.
 // Used by fn_return_map_new to populate __fnret_closure_<name> entries
 // so callers can register their let-bindings for auto-drop release.
-//
 // Scope: top-level stmts only; nested ifs/matches that return closures
 // from one branch are not detected in this pass. Acceptable for v1 —
 // the test surface covers the common `let g = |x|...; return g;` and
@@ -33125,7 +32885,6 @@ fn strip_container_one_level(t: str) -> str {
 // Composes the v0.3.55/65/66/67 operand-kind handlers — kind 3
 // (var ref), kind 9 (struct field), kind 7 (fn-call), and now
 // kind 10 (nested indexing) — and strips one container layer.
-//
 // Returns "" if the operand kind isn't recognized or the type
 // isn't a container shape.
 #[manual_drop]
@@ -33311,7 +33070,7 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     };
     if kind == 71 { return "f64"; };
     if kind == 72 { return "f64"; };
-    // v0.4.24 (NUC-FEEDBACK-002 follow-on): kind 73 is f32 literal,
+    // NUC-FEEDBACK-002 follow-on: kind 73 is f32 literal,
     // introduced when the lexer/parser started preserving the f32 suffix.
     // Without this entry, unary minus on an f32 literal fell to the
     // integer-subtract path and `-1.5f32` evaluated to -3.0 (silent
@@ -33422,7 +33181,6 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // type_base_name strips generics; v0.3.55 added a parallel
     // __fulltype_ entry that preserves the generic so the kind==10
     // dispatcher can extract the element type.
-    //
     // also handles fixed-size arrays
     // `[T; N]` (parsed identically to indexing). Production code
     // uses fixed arrays for state vectors / sensor batches with
@@ -33446,7 +33204,6 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
 // T1.1 Phase 5: map a binop token (via tok_to_ir) and a float type
 // to the corresponding runtime helper name. Returns "" if the op
 // isn't a float-supported binop or the type isn't float.
-//
 // Supported ops (iop values from tok_to_ir):
 //   2  + → f<T>_add        7  == → f<T>_eq
 //   3  - → f<T>_sub        8  != → f<T>_ne
@@ -33479,7 +33236,6 @@ fn float_binop_helper(iop: i64, ftype: str) -> str {
 // correct (e.g. u8 wraps mod 256, i32 truncates from i64, f32
 // narrows from f64). Returns the new register holding the narrowed
 // value, or `vr` unchanged otherwise.
-//
 // `src_kind` is the AST kind of the init expression. For f32
 // narrowing we ONLY narrow when the source is a f64 literal
 // (kind == 71). If the source is already a float expression
@@ -33487,7 +33243,6 @@ fn float_binop_helper(iop: i64, ftype: str) -> str {
 // narrowing would corrupt the already-narrow bit-pattern. This
 // guard is specific to float types; integer narrowing is always
 // safe to apply.
-//
 // Phase 3c stdlib audit complete: i32/u32 narrowing is safe.
 #[manual_drop]
 fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i64) -> i64 {
@@ -33691,11 +33446,9 @@ fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
 // referencing a registered auto-drop binding, return that
 // binding's name. Caller then calls auto_drop_set_state(sym,
 // name, 0) to suppress the auto-drop emit at fn return.
-//
 // vec_push(receiver, value)        — value is arg index 1
 // vec_set(receiver, idx, value)    — value is arg index 2
 // hashmap_insert(map, key, value)  — value is arg index 2
-//
 // Conservative: fires for ANY identifier-typed value arg whose
 // name is in the auto-drop set, regardless of receiver locality.
 // Over-suppresses (might leave a leak instead of correctly
@@ -33887,7 +33640,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // annotation) left __type_s unregistered because `tstr` was "" and the
             // sym_set at line ~25400 is gated on `str_len(sbase) > 0`. Method calls
             // on `s` then fell through recv_is_vec==1 path, emitting vec_split /
-            // vec_contains / etc. — wrong-class TYP-005 at clang link. Fix: detect
+            // vec_contains / etc. — Fix: detect
             // kind-2 (str literal) RHS and stamp tstr="str" so the type entry lands
             // and the v0.4.88 str-method dispatch picks it up correctly.
             else if ik == 2 { tstr = "str"; }
@@ -34145,7 +33898,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return cur;
     };
     if kind == 85 {
-        // v0.8.33 — tuple-destructure-in-let. Node layout:
+        // tuple-destructure-in-let. Node layout:
         //   field 1: names_csv (str) — comma-separated binding names
         //   field 2: init node ID (i64) — the RHS expression
         // Strategy: lower the RHS into rhs_r, then for each name at
@@ -34195,7 +33948,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut vp: Vec<i32> = lower_expr(pool, vn, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             let vr: i64 = lx_reg(vp);
             cur = lx_blk(vp);
-            // v0.4.254 — multi-ensure walk via per-index sym entries.
+            // multi-ensure walk via per-index sym entries.
             let ens_stmt_count: i64 = sym_get(sym, "__current_fn_ensure_count");
             if ens_stmt_count > 0 {
                 let ens_ar: i64 = ctr_next(regs);
@@ -34264,7 +34017,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(cur, ir_ret(vr));
         } else {
             let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0));
-            // v0.4.254 — multi-ensure walk for bare-return path.
+            // multi-ensure walk for bare-return path.
             let ens_bare_count: i64 = sym_get(sym, "__current_fn_ensure_count");
             if ens_bare_count > 0 {
                 let ens_ar2: i64 = ctr_next(regs);
@@ -34704,7 +34457,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // typo'ing a misplaced control-flow stmt got no signal at
         // all. Halt cleanly with NR024.
         if lx < 0 {
-            panic("error[NR024]: `break` outside any loop. Pre-v0.4.112 the codegen silently no-op'd misplaced control-flow stmts; the build succeeded with `break;` deleted from the program. Move the `break;` inside a `loop`/`while`/`for` body, or remove it entirely.");
+            panic("error[NR024]: `break` outside any loop. Move the `break;` inside a `loop`/`while`/`for` body, or remove it entirely.");
         };
         ir_block_add(cur, ir_br(lx));
         return cur;
@@ -34713,7 +34466,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // `continue` outside any loop. Same hazard class
         // as the break case above.
         if lh < 0 {
-            panic("error[NR024]: `continue` outside any loop. Pre-v0.4.112 the codegen silently no-op'd misplaced control-flow stmts; the build succeeded with `continue;` deleted from the program. Move the `continue;` inside a `loop`/`while`/`for` body, or remove it entirely.");
+            panic("error[NR024]: `continue` outside any loop. Move the `continue;` inside a `loop`/`while`/`for` body, or remove it entirely.");
         };
         ir_block_add(cur, ir_br(lh));
         return cur;
@@ -34754,14 +34507,12 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
         // leaked, and the "move-into-struct-field" tracking in
         // auto_drop_mark_constructor_handoffs was dead code for fns
         // outside the explicit auto_drop_fns whitelist.
-        //
         // Flipping to opt-out activates the existing handoff machinery
         // (line 29045 of this file) and closes the ML fixture cluster
         // without per-fn manual_drop
         // annotations across stdlib/rods/ml/. The bug was: handoff
         // recognition logic was correct but the gate that enabled it
         // was inverted vs the comment's stated Phase 2b-3 intent.
-        //
         // #[manual_drop] still wins for fns that explicitly opt out
         // (parsers, low-level helpers, etc. — anywhere the body
         // carries explicit Vec lifetime management).
@@ -35082,7 +34833,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
             };
             // v0.4.246 RFC-0006 — `#[ensure(EXPR)]` runtime check at
             // tail return.
-            // v0.4.250 — multiple #[ensure(...)] attributes per fn.
+            // multiple #[ensure(...)] attributes per fn.
             // Count matching entries; if any present, bind `result`
             // ONCE to a fresh alloca holding rv; then loop over all
             // matches lowering each predicate and emitting one
@@ -35117,7 +34868,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
                 };
             };
             // v0.4.249 RFC-0006 — invariant exit-emit at tail return.
-            // v0.4.253 — if this fn is a constructor (returns the
+            // if this fn is a constructor (returns the
             // parent type, no self param), bind `self` to rv before
             // lowering the predicate so `self.field` resolves.
             let invx_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
@@ -35234,15 +34985,12 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
 // level can be lexed and parsed in parallel. The constraint is the
 // dependency DAG: a file cannot type-check until the signatures of
 // its imports are resolved.
-//
 // Within a single file, the pipeline is sequential (lex → parse →
 // check → lower → emit) because each stage depends on the previous.
 // Parallelism applies across independent files within a level.
-//
 // For single-file compilation (most common case), the parallel frontend
 // has no effect. The incremental compilation cache (§1.3) provides the
 // speed benefit for iterative development.
-//
 // Multi-file parallel compilation is enabled automatically when
 // the import resolver detects multiple independent imports at the
 // same depth level. Each is resolved via thread_spawn + thread_join.
@@ -35256,10 +35004,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
 // compare against cache. If no signature changed, only re-codegen
 // changed function bodies. If a signature changed, invalidate
 // all transitive dependents.
-//
 // Cache format: .nuc_cache/<source_hash>.sig  (signature file)
 //               .nuc_cache/<fn_hash>.ll       (per-function LLVM IR)
-//
 // ALL safety checks (ownership, taint, effect) run on every
 // recompiled function. The cache only avoids re-checking
 // byte-identical unchanged code.
@@ -35318,7 +35064,6 @@ fn cache_v2_strict_intrin_flag() -> str {
 // IR with the previous semantics. This is a real correctness bug:
 // adopters who set NUCLEOR_INT_STRICT_ARITH=1 on a previously-
 // cached build got the non-strict IR back from cache.
-//
 // Fix: parallel `cache_v2_strict_arith_flag()` + entry in
 // `cache_v2_canonical_flags()`. Cache key now changes when the
 // env flips → cache miss → fresh build with correct semantics.
@@ -35611,7 +35356,6 @@ fn llvm_clang_path() -> str {
     // absolute path when found. Falls back to bare `clang` (PATH
     // lookup) if none match — preserves prior behavior for users
     // with a custom install elsewhere.
-    //
     // Resolution order:
     //   1. NUCLEOR_CLANG env override (highest priority — explicit user wish)
     //   2. Windows: C:\Progra~1\LLVM\bin\clang.exe (short path avoids cmd quote overhead)
@@ -35707,7 +35451,6 @@ fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
     // thread stack to 16 MiB so deep recursion in the compiler works.
-    //
     // v0.4.10 RFC-NRT-003 follow-on (Translate SPEC-2 Task 2 finding):
     // lld-link embeds wall-clock timestamps in the PE COFF header
     // (offset 0x108) by default, breaking byte-reproducible builds
@@ -35715,7 +35458,6 @@ fn host_stack_link_flag() -> str {
     // Build-Level-3 attestation for the Translate team. /Brepro tells
     // lld-link to write a deterministic content-hash instead of a
     // timestamp, matching the SOURCE_DATE_EPOCH spirit.
-    //
     // ELF: clang's lld can be deterministic, but the GNU `ld` that
     // ships on stock Debian/Ubuntu embeds a per-link build-id in the
     // ELF .note.gnu.build-id section by default. Two builds of
@@ -36237,7 +35979,6 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     // probe silently misses and the fallback `base_dir + raw_path`
     // (which also doesn't have the stdlib) fires, leaving stdlib
     // imports unresolved at link time.
-    //
     // Rewrite leading `/<drive>/...` -> `<drive>:/...` so the same
     // path works under either shell. POSIX hosts are unaffected
     // (the rewrite is a no-op when the second char isn't a
@@ -36744,7 +36485,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // would fire on self-compilation — a Linux-bootstrap false-positive.
     // str_concat avoids the literal pattern appearing in source text
     // so the search string is constructed at runtime.
-    // v0.8.323 (RFC-0063 Phase 2.0.3 prep): also exempt
+    // RFC-0063 Phase 2.0.3 prep: also exempt
     // nucleor_tools_suite.nr — same rationale (compiler source contains
     // the pattern in error-message strings) and the parser-unification
     // ship needs tools_suite to be able to `import "...nucleor_s1_compiler.nr"`
@@ -36752,7 +36493,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let ce_halt: str = str_concat("compile_error", "!(");
     if is_compiler_src == 0 {
         if str_contains(resolved, ce_halt) == 1 {
-            print("ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.");
+            print("ERROR: compile_error!(...) invocation in source. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.");
             print("       This is the canonical compile_error! semantic — it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.");
             panic("nucleor: compile_error! invoked in source");
         };
@@ -37091,7 +36832,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // present in user code, surfacing the gap that lifetime
     // annotations parse but the borrow checker does not yet
     // enforce them. Phase 4 promotes the warning to error.
-    //
     // Detection: count occurrences of `<'` (lifetime-param-list
     // open) preceded by `fn ` or by `struct ` or by `impl `.
     // Per the gap RFC §2.2 BR-7: "the syntax `fn f<'a>(x: &'a str)
@@ -37257,7 +36997,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         };
     };
     // Algebraic-law optimizer rewrite eligibility audit.
-    //
     // The IR pass `opt_law_rewrite_block` remains a no-op (rewrites
     // do not yet fire). Phase 2-prep ships a build-time eligibility
     // gate that PROVES the proof discipline before any rewrite ever
@@ -37265,12 +37004,10 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // annotated fn after the user has run `nuc test --check-laws`
     // on this source, observed `test result: PASS`, and explicitly
     // opted in via two source attributes:
-    //
     //   `@audit(law_opt_required)`     — file declares it requires
     //                                    the law-rewrite audit
     //   `@audit(check_laws_passed)`    — user declares they have
     //                                    validated --check-laws PASS
-    //
     // Behaviour:
     //   - `@audit(law_opt_required)` absent → no-op (preserves
     //     pre-Phase 2-prep behaviour for every existing source).
@@ -37278,7 +37015,6 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     //     → emit info[LAW-AUDIT-GATE] eligibility report.
     //   - `law_opt_required` present, `check_laws_passed` missing
     //     → halt with error[LAW-003] before any IR is emitted.
-    //
     // This is the bounded slice the v0842 dispatch asked for: the
     // optimizer is moved one step closer to safe rewrite use without
     // enabling broad rewrites today. The actual `f(a, identity) → a`
@@ -37526,7 +37262,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print("  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions) can have arms that diverge in move/borrow behavior — one arm consumes a value, another borrows it. The move tracker today is conservative on simple cases but doesn't fully reason about arm-level divergence. Phase 2b adds move-state join analysis at every control-flow join point; Phase 4 promotes mixed-arm patterns to deny-by-default with `#[allow(divergent_move)]` opt-out. Adopter discipline today: keep arm-level move/borrow behavior consistent (all arms borrow, or all arms consume).");
     };
     };
-    // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
+    // T3.1: wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
     let has_md: i64 = source_has_max_depth_attr_line(after_deadline);
@@ -37536,7 +37272,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // argument position. Synthesizes top-level fns at the head of
     // the source; replaces the closure expression with the synth fn
     // name so downstream parsing sees a normal identifier reference.
-    // v0.6.84 RFC V1.4: generate `<Name>__derived_eq(a, b) -> i64`
+    // generate `<Name>__derived_eq(a, b) -> i64`
     // helpers for `#[derive(...PartialEq...)] struct Name { ... }`.
     // Conservative scope: skips generic structs, where-clauses, and
     // unit/empty structs. Auto-dispatch of `==`/`!=` to the generated
@@ -37748,7 +37484,6 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // from the source content, so a cache hit means an identical source
     // body was preflight-validated already at the time of the cache miss
     // that produced the entry; re-running preflight is redundant.
-    //
     // For sources that took the import-bearing slow path through resolve,
     // the cache key is the post-transform hash of the resolved+expanded
     // source so it correctly invalidates when an imported file changes.
@@ -37823,8 +37558,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Pass 1: collect structs, enums, and externs
     let collect_start: i64 = now_ms();
     let mut fi: i64 = 0;
-    // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
-    // accepted, repros 1+2): `struct W { … } struct W { … }` (same or
+    //  `struct W { … } struct W { … }` (same or
     // different fields) was silently accepted; first decl won for `W { … }`
     // initialization with the second decl's fields unreachable. Sister
     // case to enum-duplicate-variant + duplicate-pub-fn (existing).
@@ -38110,7 +37844,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // no Cell-or-RefCell interior mutability, plus compile-time checks
     // for invalid literal memory-order combinations.
     diags = enforce_atomic_contracts(diags, source);
-    // v0.4.280 — closures whose body calls atomic_* helpers crash
+    // closures whose body calls atomic_* helpers crash
     // the compiler with `vec_get OOB` (probe-finding 2026-05-01).
     // Catch at parse time + halt with ATOMIC-006 instead of melting.
     if enforce_no_atomic_in_closure(source) == 1 {
@@ -38216,7 +37950,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Empty Vecs flow through to lower_fn; the existing walk-all
     // lookups find no matches; no contract IR emits.
     let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
-    // v0.4.275 — validate the env value. Pre-fix, any unrecognized
+    // validate the env value. Pre-fix, any unrecognized
     // value (e.g. `off`, `disabled`,
     // `0`, `none`) silently fell into the "neither release nor
     // cert nor debug" bucket → emit_require=1 + emit_ensure_inv=0
@@ -38253,7 +37987,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let req_name: str = vec_get(req_text_pairs, rti);
         if name_in_no_check(dbc_no_check, req_name) == 1 { rti = rti + 2; continue; };
         let req_text: str = vec_get(req_text_pairs, rti + 1);
-        // v0.4.277 — reject `old()` in #[require]. Pre-fix,
+        // reject `old()` in #[require]. Pre-fix,
         // `#[require(old(x) > 0)]`
         // emitted a misleading clang-link "undefined function
         // `old()`" error. `old()` is meaningful only in #[ensure]
@@ -38266,7 +38000,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
             print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
             return 1;
         };
-        // v0.4.283 — undefined-ident check. Pre-fix,
+        // undefined-ident check. Pre-fix,
         // `#[require(undefined_var > 0)]`
         // surfaced a misleading clang-link "undefined function
         // `undefined_var()`" error. CONTRACT-011 halts at compile
@@ -38286,7 +38020,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         rti = rti + 2;
     };
     // v0.4.246 RFC-0006 — pre-process #[ensure(EXPR)] attributes.
-    // v0.4.251 — also rewrite `old(EXPR)` patterns inside the
+    // also rewrite `old(EXPR)` patterns inside the
     // ensure expression to synthesized binding names, lex+parse
     // each inner separately, and store (fn_name, synth_name,
     // inner_nid) triples in old_snapshots for fn-entry pre-eval.
@@ -38299,7 +38033,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let ens_name: str = vec_get(ens_text_pairs, eti);
         if name_in_no_check(dbc_no_check, ens_name) == 1 { eti = eti + 2; continue; };
         let ens_text: str = vec_get(ens_text_pairs, eti + 1);
-        // v0.4.272 — reject `result` reference in #[ensure] on void fn.
+        // reject `result` reference in #[ensure] on void fn.
         // The fn has no return value to bind to; the alloca slot
         // holds whatever was zero-initialized (or stale prior call
         // state). `result == 0` happens to pass; `result > 0` panics
@@ -38313,7 +38047,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                 return 1;
             };
         };
-        // v0.4.251 — text-level rewrite of `old(EXPR)` to synth names.
+        // text-level rewrite of `old(EXPR)` to synth names.
         let rewrite: Vec<i32> = rewrite_old_in_ensure(ens_text, ens_name);
         let rewritten: str = vec_get(rewrite, 0);
         let nold: i64 = str_to_int(vec_get(rewrite, 1));
@@ -38321,7 +38055,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         while roi < nold {
             let synth: str = vec_get(rewrite, 2 + roi * 2);
             let inner_text: str = vec_get(rewrite, 2 + roi * 2 + 1);
-            // v0.4.271 — heap-aliased reject. If the inner is a bare
+            // heap-aliased reject. If the inner is a bare
             // ident matching a fn param of heap-aliased type
             // (Vec/String/HashMap/HashSet/BTreeMap/BTreeSet/VecDeque/Box),
             // emit CONTRACT-006 because the i64-ABI snapshots the
@@ -38572,13 +38306,11 @@ fn normalize_output_name(raw: str) -> str {
 }
 
 // ===== v0.3.0 (T3.1): #[deadline = N] runtime check rewrite =====
-//
 // Wraps fns annotated `#[deadline = N]` (microseconds) into a thin
 // shim that captures the start time, calls the original body via
 // a synthesized inner fn, then runs `deadline_check(start, N)`
 // before returning. If the elapsed time exceeded N microseconds,
 // the runtime aborts with `error[RT-004]`.
-//
 // Approach: rather than walking the body to find every `return`
 // (which would need bracket-balanced + block-aware scanning), we
 // rename the user's fn to `__nuc_dl_inner_<idx>` and synthesize a
@@ -38587,7 +38319,6 @@ fn normalize_output_name(raw: str) -> str {
 //   let __nuc_dl_r: <ret> = __nuc_dl_inner_<idx>(<args>);
 //   deadline_check(__nuc_dl_start, N);
 //   return __nuc_dl_r;
-//
 // The runtime check runs UNCONDITIONALLY at fn exit. Static WCET
 // bounds (RT-004 at compile time) ship later in v0.3.1.
 
@@ -38737,7 +38468,6 @@ fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
 // tagged" summary — addressing the v0.7.93 Phase A "Discovery:
 // no way to grep for all differentiable fns in a codebase"
 // surface gap.
-//
 // Skips the count when compiling the compiler itself (the
 // pattern appears in this comment + in expand_differentiable
 // dispatcher source). Same self-host guard as the v0.7.98
@@ -38863,7 +38593,6 @@ fn audit_count_three_needles_total(src: str, n1: str, n2: str, n3: str) -> i64 {
 // past attribute args + whitespace + newlines + nested
 // attribute lines, then expects `fn NAME(...)` and captures
 // NAME. Returns `; `-separated list.
-//
 // Used for the audit-channel "list of tagged fns" surface across
 // the remaining 6 attribute families (@differentiable, @attested,
 // @hot, @const_fn, #[max_depth], #[deadline]) plus any future
@@ -38989,10 +38718,8 @@ fn attribute_audit_bracket_device(src: str, needle: str) -> str {
 // capture ALL `key=value` pairs from
 // each `@<attr>(...)` invocation (multi-key form). Returns a
 // `; `-separated list of `key=value` strings.
-//
 // `@thermal(min_temp=-40C, max_temp=85C)` -> "min_temp=-40C; max_temp=85C"
 // `@energy(max=2mJ)` -> "max=2mJ"
-//
 // Captures everything from the first non-whitespace char after
 // `(` up to the matching `)`, then walks through the captured
 // arg-list character-by-character, splitting on `,` (depth-0)
@@ -39057,7 +38784,6 @@ fn attribute_audit_all_kv_pairs(src: str, needle: str) -> str {
 // substring between `=` and the closing `)` or `,`, trimmed of
 // surrounding whitespace. For `@within(200ns)` (no key=), it
 // captures everything between `(` and `)`.
-//
 // Returns `; `-separated list of captured value-strings.
 #[manual_drop]
 fn attribute_audit_value_arg(src: str, needle: str) -> str {
@@ -39585,17 +39311,14 @@ fn expand_max_depth(src: str) -> str {
     };
     return sb_to_str(sb);
 }
-//
 // Resolver-level rewrite of two pieces of async syntax:
 //   `async fn name(...)`  → `fn name(...)` (keyword strip)
 //   `<ident>.await`        → `async_await(<ident>)`
-//
 // The runtime is committed to threads-only (RFC-0027 phase 1):
 // `async_spawn(fn_ptr, arg)` returns an opaque task handle that
 // runs the fn on a real OS thread; `async_await(handle)` joins
 // the thread + returns the captured i64 result. No green-thread
 // scheduler, no future polling — every async fn is a thread.
-//
 // `.await` is restricted to the simple `<ident>.await` form
 // today. Complex receivers (`call().await`, `arr[0].await`)
 // require a let-binding first. T2.8b will lift that restriction
@@ -39638,7 +39361,7 @@ fn expand_async_strip_keyword(src: str) -> str {
             };
             let id_len: i64 = p - id_start;
             if id_len == 5 && str_eq_at(src, id_start, "async") == 1 {
-                // v0.7.9 (defensive halt): canonical Rust `async { ... }`
+                // defensive halt: canonical Rust `async { ... }`
                 // block expression pre-fix surfaced as wrong-class
                 // `error[TYP-005]: undefined function async()` because
                 // expand_async_strip_keyword only handles `async fn`,
@@ -39818,7 +39541,6 @@ fn expand_async_syntax(src: str) -> str {
 }
 
 // ===== T2.3 (v0.2.349): closure literals (no-capture) =====
-//
 // Source-level rewriting of `|args| body` closure expressions in
 // argument position. Each closure is lifted into a synthesized
 // top-level fn (`__closure_<hash>_<idx>`), prepended to the merged
@@ -39826,12 +39548,10 @@ fn expand_async_syntax(src: str) -> str {
 // identifier reference to that fn. The Vec iterator helpers
 // (T2.2 dispatch) then receive a function-pointer value through
 // the existing i64-cell convention — no runtime change required.
-//
 // Scope: NO-CAPTURE closures only (the body must not reference
 // any name that would be undefined at the top-level scope).
 // Closures with captures land in T2.3b once the runtime gains
 // `(fn_ptr, env_ptr)` pair-call support.
-//
 // Disambiguation from bitwise `|`: closures are recognized only
 // when `|` appears in an expression-arg position — immediately
 // preceded (after whitespace) by `(`, `,`, `=`, `=>`, `[`, or
@@ -39840,20 +39560,18 @@ fn expand_async_syntax(src: str) -> str {
 
 #[manual_drop]
 fn close_is_arg_position_char(c: i64) -> i64 {
-    // v0.3.78 (T2.1/2/3 partial close): textual closure-hoisting is
+    // T2.1/2/3 partial close: textual closure-hoisting is
     // now FULLY DISABLED. Pre-v0.3.78, this preprocessor hoisted
     // closures appearing after `(` or `,` into top-level fns, which
     // produced cryptic `@captured` link errors when the closure body
     // referenced any outer-scope variables (the textual layer has
     // no scope info to detect captures).
-    //
     // The AST closure-literal path (kind 42 in lower_expr at line
     // ~9915) handles captures correctly via the v0.3.72 capture_set/
     // capture_get runtime infrastructure. Routing arg-position
     // closures through the AST path makes `v.map(|x| x * factor)`
     // work the same way as `let f = |x| x * factor; v.map(f)` —
     // the documented v1 boundary closes.
-    //
     // The legacy comment about "indirect-call dispatch" no longer
     // applies — the AST kind 42 path correctly emits ir_fn_ptr +
     // capture_set sequence, which works in arg position because
@@ -40060,13 +39778,11 @@ fn expand_closures(src: str) -> str {
 }
 
 // ===== T2.6 (v0.2.346): format-string macro expansion =====
-//
 // Source-level rewriting of `println!(fmt, args...)`,
 // `print!(fmt, args...)`, and `format!(fmt, args...)` calls into
 // the equivalent str_concat + print/print_raw expression chain.
 // Runs in the resolver, AFTER all imports are inlined and BEFORE
 // the source is cached / lexed.
-//
 // Format spec syntax:
 //   {}    — int_to_str(arg)   (default; the most common case)
 //   {:i}  — int_to_str(arg)   (explicit alias)
@@ -40074,12 +39790,10 @@ fn expand_closures(src: str) -> str {
 //   {:f}  — f64_to_str(arg)
 //   {:b}  — bool_to_str(arg)
 //   {{ }} — literal `{` / `}` (Rust convention)
-//
 // Modes:
 //   println!  — wraps result in `print(...)`  (adds trailing \n via runtime)
 //   print!    — wraps result in `print_raw(...)` (no trailing \n)
 //   format!   — bare expression, returns str
-//
 // The expander is identifier- and quote-aware: skips `// ...`
 // line comments, `"..."` string literals, and `'X'` char literals.
 // `name!` after a `.` (method call) is left alone.
@@ -40154,13 +39868,11 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // same name has conflicting types (e.g. `let x: str` in one fn and
 // `let x: i64` in another), return "" so the heuristic falls back
 // to the default int_to_str.
-//
 // Conservative-by-construction: if there's any ambiguity, do nothing.
 // Worst case the adopter sees the original int-as-pointer output and
 // switches to explicit `:s` / `:f` -- still a hazard but a less harmful
 // one than the v0.3.152-rev1 bug where the scan picked the WRONG
 // declaration and crashed (SIGSEGV when an i64 was passed to print_str).
-//
 // Also requires the matched `let` to be followed by a TYPE (not
 // elision via `let x = ...;` without a type annotation) so we never
 // invent a type out of thin air.
@@ -40171,7 +39883,6 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // `<binding>` by index. Looks up the variant's payload-i type via
 // infer_enum_variant_payload_type. Conflict-detects across all
 // occurrences of the same binding name.
-//
 // Conservative-by-construction: the variant-name pattern requires
 // EnumName and VariantName both to start with uppercase letters,
 // avoiding false-positive match on lowercase fn calls (e.g., a
@@ -40490,9 +40201,7 @@ fn infer_var_type_local_back(src: str, var_name: str, match_pos: i64) -> str {
 // the enclosing `match <scrutinee>`, infers the scrutinee's type
 // via infer_var_type_from_source, and extracts the generic parameter
 // (T from Option<T>, T from Result<T, E> for Ok, E for Err).
-//
 // Returns "" if no match or the scrutinee type isn't recognized.
-//
 // This closes the println!/format! gap for typed Option/Result
 // payload bindings: `match x { Some(s) => println!("{}", s) }`
 // where `x: Option<str>` previously printed the raw pointer
@@ -42206,8 +41915,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     if mode == 1 { return chain; };
     if mode == 3 { return str_concat("eprint(", str_concat(chain, ")")); };
     if mode == 4 { return str_concat("eprint_raw(", str_concat(chain, ")")); };
-    // v0.6.39 (probe finding 2026-05-01-panic-assert-macros-drop-format-
-    // args): mode 5 = panic! — pre-fix the textual rewrite stripped `!`
+    //  mode 5 = panic! — pre-fix the textual rewrite stripped `!`
     // and the `panic("got {}", x)` call dropped the args at the runtime
     // helper boundary (panic helper takes a single str). Now route
     // through the same fmt-expansion path as println — the format chain
@@ -42303,8 +42011,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // `unreachable` removed from this strip-and-
                 // continue list — the mode-5 path below now expands it
                 // to `panic("internal error: entered unreachable code")`.
-                // v0.6.76 RFC V1.9 (probe finding 2026-05-01-rust-syntax-
-                // translation-fidelity-audit, assert-format-args row):
+                // v0.6.76 RFC V1.9
                 // canonical Rust `assert!(cond, "fmt {}", arg)` pre-fix
                 // stripped `!` and emitted `assert(cond, "fmt {}", arg)`
                 // — a 3-arg call to the 1-arg `__nucleor_assert(i64)`
@@ -42315,7 +42022,6 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // to assert/assert_eq/assert_ne calls only (cheap name
                 // gate), and only when 2+ (assert) / 3+ (assert_eq/ne)
                 // top-level commas are present (format-arg shape).
-                //
                 // Rewrite shape:
                 //   assert!(c, "fmt", args)   →  if !(c) { panic("fmt-built"); };
                 //   assert_eq!(a, b, "fmt", args) →  if !((a) == (b)) { panic("fmt-built"); };
@@ -42398,15 +42104,13 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                         last_non_ws = 125;
                         continue;
                     };
-                    // v0.6.88 (probe finding 2026-05-02-assert-eq-ne-pointer-
-                    // compare-extends-to-vec-struct-hashmap): canonical Rust
+                    //  canonical Rust
                     // `assert_eq!(a, b)` / `assert_ne!(a, b)` (no format
                     // args) lower to `__nucleor_assert_eq(i64, i64)` which
                     // does pointer comparison. For str / String / derived-
                     // PartialEq struct values, this silently miscomputes —
                     // equal-content values at different heap addresses
                     // fail/pass incorrectly.
-                    //
                     // Rewrite the no-fmt case to `if !((a) <op> (b)) {
                     // panic!("assertion failed: ..."); };` so the
                     // existing v0.6.85+v0.6.87 binop kind-4 auto-dispatch
@@ -42497,8 +42201,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                         if all_ws == 1 {
                             sb_append(sb, "Vec::new()");
                         } else {
-                            // v0.6.41 (probe finding 2026-05-01-vec-repeat-
-                            // syntax-ignores-count): scan for top-level `;`
+                            //  scan for top-level `;`
                             // first — if present, this is the Rust repeat
                             // syntax `vec![X; N]` — emit a while-loop that
                             // pushes X N times. Pre-fix the `;` was treated
@@ -42600,14 +42303,12 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // siblings of println / print.
                 if str_eq(name, "eprintln") == 1 { mode = 3; };
                 if str_eq(name, "eprint") == 1 { mode = 4; };
-                // v0.6.39 (probe finding 2026-05-01-panic-assert-macros-
-                // drop-format-args): mode 5 = panic! — route format args
+                //  mode 5 = panic! — route format args
                 // through the same expansion path as println so
                 // `panic!("got {}", x)` produces `PANIC: got 7` instead of
                 // pre-fix `PANIC: got {}`.
                 if str_eq(name, "panic") == 1 { mode = 5; };
-                // v0.6.56 (probe finding 2026-05-01-rust-syntax-translation-
-                // fidelity-audit, unreachable!() row): canonical Rust
+                //  row): canonical Rust
                 // `unreachable!()` macro pre-fix fell through to the
                 // identifier-then-unary-NOT path and emitted `error[TYP-005]:
                 // undefined function 'unreachable()'` — wrong-class. Now
@@ -42637,7 +42338,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // TYP-005 (arg-bearing). v0.7.25: tightened to a single token-
                 // boundary string-contains scan + one multi-line message.
                 if mode == 0 - 1 && (str_eq(name, "file") == 1 || str_eq(name, "line") == 1 || str_eq(name, "column") == 1 || str_eq(name, "module_path") == 1 || str_eq(name, "stringify") == 1 || str_eq(name, "concat") == 1 || str_eq(name, "env") == 1 || str_eq(name, "option_env") == 1 || str_eq(name, "include_str") == 1 || str_eq(name, "include_bytes") == 1) {
-                    print(str_concat("ERROR: Rust built-in macro `", str_concat(name, "!(...)` is not yet supported in Nucleor. Pre-v0.7.20 surfaced as wrong-class NR020 / TYP-005. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).")));
+                    print(str_concat("ERROR: Rust built-in macro `", str_concat(name, "!(...)` is not yet supported in Nucleor. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).")));
                     print("       Workarounds: file!/line!/column!/module_path!/stringify! → hard-coded literal; concat! → str_concat at runtime or single literal; env!/option_env! → args_get / wrapper script; include_str!/include_bytes! → file_read_string at runtime.");
                     panic(str_concat("nucleor: built-in macro `", str_concat(name, "!(...)` not yet supported (see ERROR diagnostic above)")));
                 };
@@ -42722,7 +42423,6 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
 }
 
 // ===== T1.5c (v0.2.342): resolver-layer name privatization =====
-//
 // Opt-in cross-module visibility enforcement. When the resolver
 // inlines an imported file F, we scan F for `pub fn` declarations.
 // If F has at least one `pub fn`, we identify all NON-pub `fn`
@@ -42731,11 +42431,9 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
 // (whose source is NOT rewritten) then find no symbol for the
 // private name and fail with an unresolved-name error — which is
 // exactly the behavior `pub` is supposed to gate.
-//
 // Files with ZERO `pub fn` declarations get NO rewriting (opt-out
 // for back-compat with pre-T1.5 rod files that have no `pub`
 // markers but whose fns are de-facto callable from any importer).
-//
 // The token rewriter is identifier-aware: it skips string literals,
 // char literals, and `// ...` line comments, and it does NOT rewrite
 // identifiers preceded by `.` (field/method access). Everything else
@@ -42941,7 +42639,6 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     // scans the clang output for any REMAINING `use of undefined
     // value '@<name>'` matches and emits a clean TYP-005 error
     // for each true-undefined fn (typo, missing import, etc.).
-    //
     // Pre-fix v0.4.60 emitted TYP-005 at WARNING tier at type-check
     // time, then let clang fail with its cryptic
     //   target/foo.ll:850:23: error: use of undefined value '@bar'
@@ -42949,7 +42646,6 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     // user gets a single readable line:
     //   error[TYP-005]: undefined function `bar()`. Check spelling
     //   or import the rod that defines it.
-    //
     // Skips compiler-generated names (`__closure_*`, `__vec_*`,
     // privatization-mangled `__priv_*`, etc.) and uppercase-leading
     // names (Type-prefixed variants — those go through their own
@@ -43000,8 +42696,7 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                     && str_char_at(name, 2) == 99
                     && str_char_at(name, 3) == 95 {
                     let user_method: str = str_substring(name, 4, clen);
-                    // v0.6.40 (probe finding 2026-05-01-vec-contains-symbol-
-                    // not-emitted, corrected): if the user wrote fn-form
+                    //  if the user wrote fn-form
                     // `vec_<method>(&v, …)` AND `<method>` is one of the
                     // supported Vec method families, the existing diag
                     // misled — it said `no method .<method>()` even though
@@ -43343,13 +43038,11 @@ fn run_fix_command(argc: i64) -> i64 { return run_external_tool(argc); }
 // stdlib rods). `nuc tools install <url>` downloads a published
 // Nucleor-distributed tool binary, extracts it under $NUC_HOME/tools/
 // <name>/, and writes a shim script in $NUC_HOME/bin/.
-//
 // v1 minimal scope:
 //   nuc tools install <github_release_url>  [--no-verify]
 //   nuc tools uninstall <name>
 //   nuc tools list
 //   nuc tools home          (print resolved $NUC_HOME for diagnostics)
-//
 // Direct-URL install (no central registry yet -- that's v2). Cosign
 // verify is opt-in for v1; required-by-default once we publish a
 // registry. Network ops shell out to curl (ubiquitous on Windows
@@ -43797,7 +43490,6 @@ fn extract_struct_fields_native(src: str, struct_name: str) -> Vec<i32> {
 // C/C++ code (robotics middleware, embedded firmware) call into
 // Nucleor-compiled kernels through the unmangled symbol that
 // the LLVM IR already emits.
-//
 // Returns alternating [fn_name, args_c_decl, c_rtype, ...].
 // args_c_decl is the C-formatted parameter list ("int64_t a, double b")
 // or "void" for no-args; c_rtype is "void" if the fn has no `-> ret`.
@@ -43916,12 +43608,10 @@ fn collect_export_fns_and_sigs(src: str, repr_c: Vec<i32>) -> Vec<i32> {
 }
 
 // T1.1 Phase 9: nuc gen-headers <input.nr> [-o <out.h>]
-//
 // Scans an .nr source file for `extern fn` declarations and emits a
 // matching C header. Useful for cross-language linking when an
 // external C/C++ project wants to call Nucleor-compiled functions
 // (or vice-versa) through a stable ABI.
-//
 // Implementation is a deliberate text-scan rather than a full
 // parser invocation: keeps the subcommand standalone, lets it
 // run on partial / not-yet-compilable .nr files, and matches
@@ -44623,8 +44313,7 @@ fn main() -> i64 {
     } else if str_eq(cmd, "verify-reproducible") {
         // build the file twice with --no-cache,
         // hash both .ll AND .exe outputs, report pass/fail.
-        //
-        // v0.4.10 (Translate SPEC-2 Task 2): now builds with link
+        // Translate SPEC-2 Task 2: now builds with link
         // ENABLED so we also catch linker-side determinism breaks
         // (the lld-link COFF timestamp issue that v0.4.10 fixed
         // with -Wl,/Brepro). IR-only check is necessary but not
