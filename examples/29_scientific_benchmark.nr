@@ -21,9 +21,9 @@
 //   fft-1024       — 1024-point complex FFT (in-place, radix-2).
 //   sort-100K      — qsort of 100K randomly-generated i64s.
 
-use std::linalg;
-use std::fft;
-use std::complex;
+import "stdlib/rods/linalg.nr"
+import "stdlib/rods/fft.nr"
+import "stdlib/rods/complex.nr"
 
 fn iters_from_env() -> i64 {
     if env_has("NUC_BENCH_ITERS") == 1 {
