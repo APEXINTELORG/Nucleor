@@ -97,6 +97,19 @@ All notable public changes to Nucleor are documented here.
   command output.
 - Robotics, control, and real-time features are not safety-certified; users
   integrating with physical systems must follow `SAFETY.md`.
+- `@law(...)` is **scaffolded, not active**. Lex-time capture and
+  diagnostic surfacing work; user-law-driven call-site rewrites,
+  generated property tests, and proof obligations are roadmap work
+  (`docs/architecture.md:91-95`). Treat `@law` as documentation and
+  checker metadata until the rewrite pass lands.
+- Const-generic dimensions for scientific types (`Matrix<R, C>`,
+  `QState<N>`, `f64<Unit>`) are not yet in the language. The
+  typed-newtype-wrapper pattern (`examples/30_typed_matrix.nr`,
+  `docs/internals/typed-wrappers.md`) is the current best practice;
+  shape and unit checks remain runtime, not compile-time.
+- Module-level `pub`/private granularity (RFC-0018) is partial — some
+  cross-module helpers need lifting to `pub` on the file-split branch.
+  No ABI risk; cosmetic visibility surface only.
 
 ## [1.0.0] - 2026-05-08
 

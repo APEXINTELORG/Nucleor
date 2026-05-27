@@ -10,22 +10,27 @@ fn main() -> i64 {
 }
 ```
 
-```powershell
-.\nuc.bat build examples\01_hello.nr -o hello
-.\target\hello.exe
-```
-
 ```bash
 ./nuc build examples/01_hello.nr -o hello
 ./target/hello
 ```
 
+```powershell
+.\nuc.bat build examples\01_hello.nr -o hello
+.\target\hello.exe
+```
+
 ## What It Is
 
 Nucleor is a compact Rust-adjacent language with ownership checks, typed
-standard-library rods, LLVM IR emission, and a self-hosting compiler written in
-Nucleor. The repository includes the Windows bootstrap binary and a portable
-LLVM IR seed for Linux bootstrap.
+standard-library rods, LLVM IR emission, and a self-hosting compiler written
+in Nucleor. Linux is the primary bootstrap path — `tools/bootstrap_linux.sh`
+builds `bin/nucleor` from `bootstrap/nucleor_s1_seed.ll` (a checked-in LLVM IR
+seed, regenerable from source). The committed `bin/nucleor.exe` is a
+convenience for Windows users; it is not the source of truth.
+
+For the case for using Nucleor (and where not to), see
+[docs/why-nucleor.md](docs/why-nucleor.md).
 
 The standard library currently includes about 290 rods and 190 C runtime files.
 It covers the core language runtime, collections, files, strings, time, math,
@@ -36,25 +41,14 @@ simulation, ML-oriented helpers, codecs, sockets, and optional FFI bridges.
 
 | Host | Status | First-use path |
 |---|---|---|
-| Windows x86_64 | Supported | Uses committed `bin/nucleor.exe` through `nuc.bat`. |
-| Linux x86_64 | Supported | Builds `bin/nucleor` from `bootstrap/nucleor_s1_seed.ll` with `tools/bootstrap_linux.sh`. |
+| Linux x86_64 | Supported (primary) | Builds `bin/nucleor` from `bootstrap/nucleor_s1_seed.ll` with `tools/bootstrap_linux.sh`. |
+| Windows x86_64 | Supported | Uses committed `bin/nucleor.exe` through `nuc.bat` (convenience, not required — `tools/bootstrap_windows.ps1` rebuilds from seed). |
 | macOS | Experimental | The POSIX bootstrap path is present, but this release is not macOS-gated. |
 
 Nucleor requires LLVM 18.x. Set `NUCLEOR_CLANG_PATH` to a specific `clang` or
 `clang.exe`, or set `LLVM_SYS_180_PREFIX` to an LLVM installation root.
 
 ## Quick Start
-
-### Windows
-
-```powershell
-git clone https://github.com/APEXINTELORG/Nucleor
-cd Nucleor
-
-.\nuc.bat --version
-.\nuc.bat build examples\01_hello.nr -o hello
-.\target\hello.exe
-```
 
 ### Linux
 
@@ -66,6 +60,17 @@ bash tools/bootstrap_linux.sh
 ./nuc --version
 ./nuc build examples/01_hello.nr -o hello
 ./target/hello
+```
+
+### Windows
+
+```powershell
+git clone https://github.com/APEXINTELORG/Nucleor
+cd Nucleor
+
+.\nuc.bat --version
+.\nuc.bat build examples\01_hello.nr -o hello
+.\target\hello.exe
 ```
 
 ## Language Highlights
