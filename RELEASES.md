@@ -12,7 +12,8 @@ GitHub tag URLs follow the pattern `https://github.com/APEXINTELORG/Nucleor/rele
 
 | Version | Date | Summary |
 |---|---|---|
-| **v1.1.1** |  | Closure capture correctness + per-iteration drop emission |
+| **v1.1.1** | 2026-05-28 | Compiler file split, parser sync, hot-path perf reclaim, closure-capture
+correctness, and use-std-* cfile fix |
 | **v1.1.0** | 2026-05-12 | Linux bootstrap, release verification, Windows perf gate, and public-doc cleanup |
 
 ## v1.0.x
