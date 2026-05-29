@@ -556,6 +556,31 @@ check_manifest "audit_dup_fns_report.csv" \
     "$ROOT/tools/audit_dup_fns.nr" \
     "$ROOT/tools/audit_dup_fns_report.csv" || exit 1
 
+# RFC-0063 Phase 2.0 / DUP-2: lock in the front-end unification. The
+# tools-suite now imports s1's pipeline as the single source of truth,
+# so the duplicate-fn census floor is the CLI driver layer alone (s1's
+# build-driver vs ts's tooling-driver — two binaries that cannot merge)
+# plus a few identical helper copies: 28 rows, 0 with diverging
+# signatures. Re-introducing a duplicate pipeline fn — or letting a
+# tooling call site fork the shared pipeline's signature — must FAIL the
+# gate loudly, not silently regrow the census.
+DUP_CENSUS_CEILING=28
+dup_rows=$(tail -n +2 "$ROOT/tools/audit_dup_fns_report.csv" | grep -c .)
+dup_sigdiff=$(tail -n +2 "$ROOT/tools/audit_dup_fns_report.csv" | awk -F, '$NF=="SIG_DIFFERS"' | grep -c .)
+if [ "$dup_rows" -gt "$DUP_CENSUS_CEILING" ]; then
+    echo "FAIL: s1<->tools duplicate-fn census grew to $dup_rows (ceiling $DUP_CENSUS_CEILING)."
+    echo "      The tools-suite must reuse s1's pipeline modules, not re-introduce a"
+    echo "      private copy. See analysis/RFC-0063-phase2-execution-plan.md."
+    exit 1
+fi
+if [ "$dup_sigdiff" -gt 0 ]; then
+    echo "FAIL: $dup_sigdiff fn(s) now diverge in SIGNATURE between s1 and tools-suite."
+    echo "      Post-unification this must stay 0; a signature fork means a tooling"
+    echo "      call site drifted from the shared s1 pipeline contract."
+    exit 1
+fi
+echo "OK: s1<->tools duplicate-fn census $dup_rows (<= $DUP_CENSUS_CEILING), 0 signature divergence"
+
 # CHANGELOG ↔ public git tag parity. Pre-v1 archive tags are intentionally
 # omitted from the public changelog; v1+ tags remain release-contract entries.
 # Skips silently if not in a git repo (e.g. tarball release).
