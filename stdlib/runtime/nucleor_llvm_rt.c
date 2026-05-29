@@ -2815,31 +2815,71 @@ long long __nucleor_sym_linear_lookup_idx(NVec *v, const char *name) {
 // Forward decls for the runtime helpers we compose below.
 extern long long __nucleor_sym_aux_get(long long sym_handle);
 extern long long __nucleor_hashmap_insert(long long h, const char *key, long long val);
+extern long long __nucleor_sym_aux_built_at(long long sym_handle);
+extern long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n);
+extern long long __nucleor_hashmap_contains(long long h, const char *key);
+extern long long __nucleor_hashmap_get(long long h, const char *key);
 
-// Full-fledged own_put_i in C: scan, mutate-or-push, sync warm-aux.
-// Replaces the .nr-side own_put_i which previously paid 3-5 FFI calls
-// (lookup + vec_set + sym_aux_get + maybe hashmap_insert + maybe two
-// vec_push). One FFI call now does it all. Same semantics as the
-// .nr version. Used by own_put_i and own_put_s — values are i64 in
-// both (str pointers are stored as i64-cast).
+// Full-fledged own_put_i in C: find-or-push, keeping the warm-aux in sync.
+// PERF (2026-05-29): the warm-aux now maps key -> VEC INDEX (not value), so
+// the find is O(1) for large/warm maps instead of an O(n) linear scan — the
+// ownership pass was O(n^2) per fn (it sets ~7 keys per binding + per-stmt
+// state). For small maps (no warm aux) the linear scan is retained (cheap).
+// Correctness: the only in-place truncation of an own map is own_restore,
+// which clears the aux + resets built_at, so stale indices cannot survive a
+// truncation. The vec layout is unchanged (hardcoded slot reads stay valid).
+// Used by own_put_i and own_put_s — values are i64 in both.
 long long __nucleor_own_put_i_full(NVec *v, const char *key, long long val) {
-    if (!v) return 0;
-    long long h = -1;
-    if (key) {
-        int n = v->len;
+    if (!v || !key) {
+        if (v) { __nucleor_vec_push(v, (long long)(intptr_t)key); __nucleor_vec_push(v, val); }
+        return 0;
+    }
+    long long vh = (long long)(intptr_t)v;
+    long long h = __nucleor_sym_aux_get(vh);
+    if (h > 0) {
+        // Catch the index-aux up to the current length (key -> index),
+        // mirroring sym_get's catch-up so the lookup below is authoritative.
+        long long built = __nucleor_sym_aux_built_at(vh);
+        long long n = v->len;
         long long *data = v->data;
-        for (int j = n - 2; j >= 0; j -= 2) {
+        for (long long i = (built < 0 ? 0 : built); i + 1 < n; i += 2) {
+            __nucleor_hashmap_insert(h, (const char *)(intptr_t)data[i], i);
+        }
+        __nucleor_sym_aux_set_built_at(vh, n);
+        if (__nucleor_hashmap_contains(h, key) == 1) {
+            long long idx = __nucleor_hashmap_get(h, key);
+            if (idx >= 0 && idx + 1 < n) {
+                const char *k = (const char *)(intptr_t)data[idx];
+                if (k == key || (k && strcmp(k, key) == 0)) {
+                    data[idx + 1] = val;   // O(1) in-place update
+                    return 0;
+                }
+            }
+            // Index unexpectedly stale — fall through to the linear scan.
+        } else {
+            long long new_idx = v->len;     // index of the key we are about to push
+            __nucleor_vec_push(v, (long long)(intptr_t)key);
+            __nucleor_vec_push(v, val);
+            __nucleor_hashmap_insert(h, key, new_idx);  // key -> index
+            __nucleor_sym_aux_set_built_at(vh, v->len);
+            return 0;
+        }
+    }
+    // No warm aux (small map) or stale-index fallback: linear scan from the
+    // tail (last write wins), mutate in place, else push.
+    {
+        long long n = v->len;
+        long long *data = v->data;
+        for (long long j = n - 2; j >= 0; j -= 2) {
             const char *k = (const char *)(intptr_t)data[j];
             if (k == key || (k && strcmp(k, key) == 0)) {
                 data[j + 1] = val;
-                h = __nucleor_sym_aux_get((long long)(intptr_t)v);
-                if (h > 0) __nucleor_hashmap_insert(h, key, val);
+                long long h2 = __nucleor_sym_aux_get(vh);
+                if (h2 > 0) __nucleor_hashmap_insert(h2, key, j);  // keep index-aux current
                 return 0;
             }
         }
     }
-    /* Push (key, val) — falls through to the safe vec_push that
-       handles inline->heap promotion + capacity doubling. */
     __nucleor_vec_push(v, (long long)(intptr_t)key);
     __nucleor_vec_push(v, val);
     return 0;

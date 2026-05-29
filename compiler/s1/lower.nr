@@ -40,15 +40,38 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     // single warm hashmap; if `s` isn't the currently-warm handle,
     // the hashmap is cleared and built_at reset to 0 so the catchup
     // loop below repopulates from this sym's vec.
+    // PERF (2026-05-29): the warm-aux maps key -> VEC INDEX (not value), in
+    // lockstep with __nucleor_own_put_i_full, so the ownership-map SET is O(1)
+    // instead of an O(n) linear scan (was O(n^2) per fn). Lookup returns the
+    // value at idx+1.
+    //
+    // Staleness: a handle truncated by own_restore while evicted from the
+    // aux's 4-way LRU keeps pre-truncation indices (own_restore can only clear
+    // the aux while the handle is warm). An index-aux is stale-FATAL where the
+    // old value-aux was stale-tolerant, so we VALIDATE the looked-up index
+    // (`vec[idx] == name` and in-bounds) and, only on a stale hit, fall back to
+    // a linear scan to find the true slot. A genuine miss (contains == 0) still
+    // returns immediately — no scan — so absent lookups stay O(1).
     let h: i64 = __nucleor_sym_aux_create(s);
     let built: i64 = __nucleor_sym_aux_built_at(s);
     let mut i: i64 = if built < 0 { 0 } else { built };
     while i + 1 < n {
-        __nucleor_hashmap_insert(h, vec_get(s, i), vec_get(s, i + 1));
+        __nucleor_hashmap_insert(h, vec_get(s, i), i);
         i = i + 2;
     };
     __nucleor_sym_aux_set_built_at(s, n);
-    if __nucleor_hashmap_contains(h, name) == 1 { return __nucleor_hashmap_get(h, name); };
+    if __nucleor_hashmap_contains(h, name) == 1 {
+        let idx: i64 = __nucleor_hashmap_get(h, name);
+        if idx >= 0 && idx + 1 < n && str_eq(vec_get(s, idx), name) == 1 {
+            return vec_get(s, idx + 1);
+        };
+        // Stale index (truncated-while-evicted): scan for the real slot.
+        let mut sj: i64 = n - 2;
+        while sj >= 0 {
+            if str_eq(vec_get(s, sj), name) == 1 { return vec_get(s, sj + 1); };
+            sj = sj - 2;
+        };
+    };
     if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
         let ret_map: i64 = sym_get(s, "__fn_return_map");
         if ret_map >= 0 { return fn_return_map_get(ret_map, name); };
