@@ -113,15 +113,42 @@ extract_decls "$TOOLS_FULL" > "$TMP/tools_dec.txt"
 drift_count=0
 report_drift() {
     local name="$1" left="$2" right="$3"
-    local missing
-    missing=$(comm -23 "$left" "$right" | wc -l | tr -d ' ')
-    if [ "$missing" -gt 0 ]; then
-        echo "DRIFT in $name: $missing entries in s1 but missing from tools"
+    # VER-3a: fail-on-empty. These ABI tables (get_rt_name, is_ptr_ret,
+    # is_ptr_arg, IR declares) are never legitimately empty — both
+    # compilers always carry them. An empty extract means the grep/awk
+    # extractor silently broke after a refactor, which is exactly the
+    # failure that made this gate falsely report OK after the s1 split
+    # (CHANGELOG 1.1.1: "Every extractor returned an empty set on both
+    # sides and the gate falsely reported OK"). A vacuous diff must never
+    # count as parity.
+    if [ ! -s "$left" ] || [ ! -s "$right" ]; then
+        echo "DRIFT GATE BROKEN: '$name' extracted an empty set (s1=$(wc -l <"$left" | tr -d ' '), tools=$(wc -l <"$right" | tr -d ' '))"
+        echo "  An ABI table should never be empty; the extractor likely broke. Failing instead of vacuously passing."
+        drift_count=$((drift_count + 1))
+        return
+    fi
+    # VER-3b: bidirectional. comm -23 = present in s1, missing from tools;
+    # comm -13 = present in tools, missing from s1. The original gate only
+    # checked the first direction, so a table entry added to tools but not
+    # s1 (reverse drift) slipped through silently.
+    local missing_s1 extra_tools
+    missing_s1=$(comm -23 "$left" "$right" | wc -l | tr -d ' ')
+    extra_tools=$(comm -13 "$left" "$right" | wc -l | tr -d ' ')
+    if [ "$missing_s1" -gt 0 ]; then
+        echo "DRIFT in $name: $missing_s1 entries in s1 but missing from tools"
         comm -23 "$left" "$right" | sed 's/^/  + /' | head -20
-        if [ "$missing" -gt 20 ]; then
-            echo "  ... and $((missing - 20)) more"
+        if [ "$missing_s1" -gt 20 ]; then
+            echo "  ... and $((missing_s1 - 20)) more"
         fi
-        drift_count=$((drift_count + missing))
+        drift_count=$((drift_count + missing_s1))
+    fi
+    if [ "$extra_tools" -gt 0 ]; then
+        echo "DRIFT in $name: $extra_tools entries in tools but missing from s1"
+        comm -13 "$left" "$right" | sed 's/^/  - /' | head -20
+        if [ "$extra_tools" -gt 20 ]; then
+            echo "  ... and $((extra_tools - 20)) more"
+        fi
+        drift_count=$((drift_count + extra_tools))
     fi
 }
 
