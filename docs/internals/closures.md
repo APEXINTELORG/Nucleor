@@ -59,6 +59,17 @@ This means closure-typed values and bare fn-ptr values share the same
 i64-everywhere ABI. The same indirect-call site can receive either,
 and the runtime branch handles dispatch.
 
+> **Hard ABI requirement (MEM-5).** The tag scheme is only sound while
+> both env pointers and bare fn-ptr text addresses are **≥2-byte
+> aligned**, so bit 0 is always free for the tag. This is guaranteed
+> today — `malloc`/`__nuc_raw_alloc_i64s` returns ≥8-byte-aligned blocks
+> and function entry points are ≥4-byte aligned on every supported target
+> — but it is a load-bearing invariant, not an incidental fact. Any
+> future custom env allocator MUST preserve ≥2-byte alignment, and a
+> closure value must never be constructed from an unaligned pointer: an
+> odd env pointer reads bit 0 = 0 and is silently mis-dispatched as a
+> bare fn-ptr.
+
 ## Closure body signature
 
 The body function gains a leading `i64` parameter that carries the

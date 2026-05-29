@@ -374,8 +374,15 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
         // The i64 closure value's low bit distinguishes:
         //   bit 0 = 1 → closure: env_ptr | 1; call body(env, args...)
         //   bit 0 = 0 → bare fn-ptr; call directly with just args
-        // (Allocations are 8-byte aligned and text addresses are 4-byte
-        //  aligned on x86_64, so the low bit is free for tagging.)
+        // MEM-5: HARD ABI REQUIREMENT — closure env pointers and bare
+        // fn-ptr text addresses MUST be >=2-byte aligned so bit 0 is free
+        // for the tag. This holds on every supported target: `malloc`
+        // guarantees >=8-byte (max_align_t) alignment for the env block,
+        // and x86_64 / aarch64 function entry points are >=4-byte aligned.
+        // Any future custom env allocator MUST preserve >=2-byte alignment,
+        // or this dispatch silently mis-routes (an odd env reads bit 0 = 0
+        // and is misdispatched as a bare fn-ptr). Never construct a closure
+        // value from an unaligned pointer.
         let clo_reg: i64 = ir_op1(inst);
         let argc: i64 = ir_op2(inst);
         let args: Vec<i32> = ir_extra(inst);

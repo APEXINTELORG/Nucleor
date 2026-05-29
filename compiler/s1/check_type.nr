@@ -9197,7 +9197,14 @@ fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
     if expr_nid < 0 { return ""; };
     if node_kind(pool, expr_nid) != 7 { return ""; };
     let fn_name: str = node_field(pool, expr_nid, 1);
-    let is_free: i64 = if str_eq(fn_name, "vec_free") == 1 || str_eq(fn_name, "str_free") == 1 || str_eq(fn_name, "hashmap_free") == 1 { 1 } else { 0 };
+    // MEM-4: recognize the stdlib free-wrappers, not just the bare
+    // intrinsics. `tok_vec_free` (rods/tokenizer) and the `nuc_*_free`
+    // externs fully release the handle; without listing them auto-drop
+    // would ALSO emit a vec_free for the same binding at scope end —
+    // a corner double-free.
+    let is_free: i64 = if str_eq(fn_name, "vec_free") == 1 || str_eq(fn_name, "str_free") == 1 || str_eq(fn_name, "hashmap_free") == 1
+        || str_eq(fn_name, "tok_vec_free") == 1 || str_eq(fn_name, "nuc_tok_vec_free") == 1
+        || str_eq(fn_name, "nuc_vec_free") == 1 || str_eq(fn_name, "nuc_str_free") == 1 || str_eq(fn_name, "nuc_hashmap_free") == 1 { 1 } else { 0 };
     if is_free == 0 { return ""; };
     let args_list: i64 = node_field(pool, expr_nid, 2);
     if list_len(pool, args_list) <= 0 { return ""; };
