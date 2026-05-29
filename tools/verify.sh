@@ -6629,13 +6629,15 @@ step "PROBE-1 real-world drivers (nuc build/run/test/check/summary/explain/init/
 # `params` section (Nucleor has no sklearn-compatible *_fit_* APIs);
 # parity boundary is on PREDICT-only.
 #
-# VER-2: this probe now runs by default. The reference JSONs under
-# tests/reference/ml/ are checked in, so the only host requirement is
-# `python` on PATH to read them (probe_runner.sh exits 2 → SKIP when it
-# is absent — no live sklearn/numpy fit is performed). Opt out with
-# NUC_VERIFY_ML_PROBE=0. The per-probe retry budget absorbs the residual
-# wrapper-layer flake documented in probe_runner.sh without masking a
-# real wrong-prediction (any successful run that mismatches still FAILs).
+# VER-2: this probe runs by default (opt out with NUC_VERIFY_ML_PROBE=0).
+# The reference JSONs under tests/reference/ml/ are checked in; no live
+# sklearn/numpy fit is performed. VER-5: the parity oracle is now the
+# self-hosted Nucleor comparator (tests/probes/pipeline_parity/
+# compare_probe.nr), so the probe has NO external dependency — `python`
+# is no longer required on PATH. The per-probe retry budget absorbs the
+# residual wrapper-layer flake documented in probe_runner.sh without
+# masking a real wrong-prediction (any successful run that mismatches
+# still FAILs).
 ml_pipeline_probes() {
     if [ "${NUC_VERIFY_ML_PROBE:-1}" = "0" ]; then
         return 2

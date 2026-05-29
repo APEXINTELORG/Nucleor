@@ -59,15 +59,21 @@ if [ ! -x "$BIN" ]; then
     exit 1
 fi
 
-if ! command -v python >/dev/null 2>&1; then
-    echo "SKIP: python not on PATH (required to read reference JSON)" >&2
-    exit 2
-fi
-
 RUNS_PER_PROBE="${PROBE2_RETRY_BUDGET:-5}"
 TMPDIR_PROBE2="${TMPDIR:-/tmp}/probe2_$$"
 mkdir -p "$TMPDIR_PROBE2"
 trap 'rm -rf "$TMPDIR_PROBE2"' EXIT
+
+# VER-5: the parity comparator is now a self-hosted Nucleor program
+# (tests/probes/pipeline_parity/compare_probe.nr), not the four Python
+# oracles — the gate no longer depends on `python` to read the reference
+# JSON. Build it once up front.
+CMP_BIN="$ROOT/target/compare_probe"
+if ! "$BIN" build "$ROOT/tests/probes/pipeline_parity/compare_probe.nr" \
+        -o "compare_probe" >"$TMPDIR_PROBE2/cmp_build.log" 2>&1; then
+    echo "FAIL: could not build the Nucleor parity comparator (see $TMPDIR_PROBE2/cmp_build.log)" >&2
+    exit 1
+fi
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -122,8 +128,7 @@ run_probe() {
         fi
         # Output well-formed; compare against reference predict fields.
         local cmp_log="$TMPDIR_PROBE2/${nn}_cmp.log"
-        if python "$ROOT/tests/probes/pipeline_parity/compare_${nn}.py" \
-                "$run_log" "$ref" >"$cmp_log" 2>&1; then
+        if "$CMP_BIN" "${nn}" "$run_log" "$ref" >"$cmp_log" 2>&1; then
             got_pass=1
             break
         fi
