@@ -3,7 +3,11 @@
 // Falls back to CPU if no GPU or Vulkan not available
 // All GPU work runs at low priority — never impacts gaming or normal use
 
-// Check if GPU compute is available
+// HON-2: detect whether a Vulkan driver/loader is present on the host.
+// This is a *driver-presence* probe, NOT a GPU-compute-readiness check.
+// A return of 1 means "a Vulkan driver was found", NOT "GPU acceleration
+// will be used" — compute dispatch is still CPU fallback (see
+// gpu_backend() / gpu_compute_available()).
 fn gpu_available() -> i64 {
     // Cross-platform vulkaninfo probe. The earlier shape used `where ...
     // 2>nul` which is cmd.exe-only — on POSIX `where` is missing so the
@@ -18,10 +22,21 @@ fn gpu_available() -> i64 {
     return 0;
 }
 
-// Get GPU device info
+// HON-2: honest companion to gpu_available(). Is GPU *compute dispatch*
+// actually available today? No — gpu_map / gpu_reduce / gpu_parallel_for
+// run as CPU sequential fallbacks regardless of whether a Vulkan driver
+// is present. Returns 1 only once real Vulkan shader dispatch is wired
+// (Phase 2). Mirrors gpu_op_is_accelerated().
+fn gpu_compute_available() -> i64 {
+    return 0;
+}
+
+// Get GPU device info. HON-2: report the ACTUAL dispatch path, never an
+// unconditional "GPU compute available" — even with a Vulkan driver
+// present, compute runs on CPU fallback today.
 fn gpu_info() -> str {
-    if gpu_available() == 0 { return "No GPU compute available (Vulkan not found)"; };
-    return "GPU compute available (Vulkan)";
+    if gpu_available() == 0 { return "No Vulkan driver detected; GPU compute runs on CPU fallback (cpu-sequential)."; };
+    return "Vulkan driver detected, but GPU compute dispatch is not wired yet — operations run on CPU fallback (cpu-sequential). See gpu_limitations().";
 }
 
 // Simple parallel computation on GPU (or CPU fallback)

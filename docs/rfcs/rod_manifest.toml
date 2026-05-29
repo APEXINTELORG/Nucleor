@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
-# Total fn definitions: 3867
-# Total LOC: 26904
+# Total fn definitions: 3868
+# Total LOC: 26907
 
 [[rod]]
 name           = "activation2"
@@ -780,9 +780,9 @@ imports        = []
 name           = "gpu"
 path           = "stdlib/rods/gpu.nr"
 description    = "gpu.nr — GPU compute with safety guardrails"
-function_count = 9
+function_count = 10
 cfile_count    = 0
-loc            = 67
+loc            = 70
 imports        = []
 
 [[rod]]
