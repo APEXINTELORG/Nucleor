@@ -5928,6 +5928,10 @@ rt_name_table_in_sync() {
     bash "$ROOT/tools/check_rt_name_table.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+explain_error_table_in_sync() {
+    bash "$ROOT/tools/check_explain_error_table.sh" >$NUC_VERIFY_STEP_LOG 2>&1
+}
+
 rod_void_abi_clean() {
     bash "$ROOT/tools/check_rod_void_abi.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
@@ -6306,6 +6310,7 @@ step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "VER-4: drift-gate canary (gate fails on injected drift)" gate_canary_smoke
 step "get_rt_name generator output matches committed .gen.nr" rt_name_table_in_sync
+step "explain_error generator output matches committed .gen.nr (DUP-7)" explain_error_table_in_sync
 step "rod extern void-return ABI parity" rod_void_abi_clean
 step "tools-suite rebuild" tools_rebuild
 step "R12-D2 registry remote add/list/remove" registry_remote_cli_smoke
