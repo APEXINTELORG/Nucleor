@@ -845,8 +845,6 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_rods_f64_add(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_rods_f64_sub(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_rods_f64_div(i64, i64)\n");
-    sb_append(sb, "declare i64 @__nucleor_capture_set(i64, i64, i64)\n");
-    sb_append(sb, "declare i64 @__nucleor_capture_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrap_i32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sat_i32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_ambient_scheduler()\n");

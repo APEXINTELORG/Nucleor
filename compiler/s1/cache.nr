@@ -161,10 +161,10 @@ fn cache_v2_file_size_mb(path: str) -> i64 {
 #[manual_drop]
 fn rt_o_cache_path(rt_arg: str, alloc_hdr: str, opt_flag: str) -> str {
     if str_eq(env_get_or("NUCLEOR_RT_O_CACHE", "1"), "0") == 1 { return ""; };
-    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
-    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
-    let opt_hash: str = str_from_int(fnv1a_64_str(opt_flag));
-    let clang_hash: str = str_from_int(fnv1a_64_str(llvm_clang_path()));
+    let rt_hash: str = sha256_hex(file_read_string(rt_arg));
+    let alloc_hash: str = sha256_hex(file_read_string(alloc_hdr));
+    let opt_hash: str = sha256_hex(opt_flag);
+    let clang_hash: str = sha256_hex(llvm_clang_path());
     let key: str = str_concat("rt-", str_concat(rt_hash, str_concat("-", str_concat(alloc_hash, str_concat("-", str_concat(opt_hash, str_concat("-", clang_hash)))))));
     return sanitize(str_concat(".nuc_rt_cache/", str_concat(key, host_obj_suffix())));
 }
@@ -196,9 +196,9 @@ fn native_link_cache_allowed(link_flags: str, cfiles: str, libpath_flags: str) -
 
 #[manual_drop]
 fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
-    let ll_hash: str = str_from_int(fnv1a_64_str(ll));
-    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
-    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let ll_hash: str = sha256_hex(ll);
+    let rt_hash: str = sha256_hex(file_read_string(rt_arg));
+    let alloc_hash: str = sha256_hex(file_read_string(alloc_hdr));
     let opt_flag: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-link-v1|");
@@ -221,8 +221,8 @@ fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, 
 #[manual_drop]
 fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
     if str_len(compile_key) == 0 { return ""; };
-    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
-    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let rt_hash: str = sha256_hex(file_read_string(rt_arg));
+    let alloc_hash: str = sha256_hex(file_read_string(alloc_hdr));
     let opt_flag: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-link-v2|");

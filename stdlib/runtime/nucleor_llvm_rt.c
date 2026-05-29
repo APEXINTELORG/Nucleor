@@ -8713,43 +8713,14 @@ long long __nucleor_gelu(long long b)  {
     double inner = 0.7978845608028654 * (d + 0.044715 * d * d * d);
     return __nuc_d2b(0.5 * d * (1.0 + tanh(inner)));
 }
-// ---- Closure capture table (v0.3.72) ----
-// Each closure literal in the source is assigned a unique closure id
-// at lower-time. Captured locals are slot-numbered within that closure.
-// The codegen emits __nucleor_capture_set(clo_id, cap_id, value) at
-// every callsite (right before the closure is invoked) and
-// __nucleor_capture_get(clo_id, cap_id) once per capture at closure
-// entry. The runtime stores each (clo_id, cap_id) → value in a flat
-// 2D table.
-//
-// Threads-only concurrency model (per locked default): a closure is
-// not thread-portable in v0.3.72. Calling the same closure from
-// multiple threads with different capture values is undefined; lift
-// captures into per-thread state instead. This remains a documented
-// v1 limitation of the threads-only async substrate.
-//
-// Sizing rationale: 8192 closures × 32 captures × 8 bytes = 2 MB
-// static. The s1 self-host has < 200 closures total; 8192 is a
-// generous upper bound for production code (most rod modules have
-// 0-30 closures). 32 captures-per-closure handles every realistic
-// case (Rust's median is 1-3 captures; pathological hand-written
-// code with > 32 captures is rare and can hit the runtime guard).
-#define NUC_MAX_CLOSURES 8192
-#define NUC_MAX_CAPTURES 32
-static long long g_capture_table[NUC_MAX_CLOSURES][NUC_MAX_CAPTURES];
-
-long long __nucleor_capture_set(long long clo_id, long long cap_id, long long value) {
-    if (clo_id < 0 || clo_id >= NUC_MAX_CLOSURES) return 0;
-    if (cap_id < 0 || cap_id >= NUC_MAX_CAPTURES) return 0;
-    g_capture_table[clo_id][cap_id] = value;
-    return value;
-}
-
-long long __nucleor_capture_get(long long clo_id, long long cap_id) {
-    if (clo_id < 0 || clo_id >= NUC_MAX_CLOSURES) return 0;
-    if (cap_id < 0 || cap_id >= NUC_MAX_CAPTURES) return 0;
-    return g_capture_table[clo_id][cap_id];
-}
+// ---- Closure capture table — REMOVED (MEM-6) ----
+// The v0.3.72 (clo_id, cap_id) → value table and its
+// __nucleor_capture_set / __nucleor_capture_get accessors were the old
+// closure-capture mechanism. The codegen migrated to the tag-bit env
+// pointer ABI (see compiler/s1/emit.nr op==30 / docs/internals/closures.md)
+// and stopped emitting any calls to these — the 2 MB static table and the
+// two functions were dead (and their emit-side `declare`s have been removed
+// too). Deleted per MEM-6.
 
 long long __nucleor_abs(long long v)   { return v < 0 ? -v : v; }
 long long __nucleor_min(long long a, long long b) { return a < b ? a : b; }
