@@ -39,6 +39,7 @@ typedef struct {
 #define BM25_MAX_TERMS 65536
 
 typedef struct {
+    unsigned int magic;  // SEC-5: BM25_MAGIC; validated on every entry
     PostingList *terms;
     int n_terms;
     int *doc_lengths;   // number of tokens per document (sparse, indexed by doc_id)
@@ -50,6 +51,23 @@ typedef struct {
                          //          n_docs which is max_doc_id + 1). Tracks
                          //          unique non-empty add_doc calls.
 } BM25Index;
+
+// SEC-5: validate the opaque i64 BM25 handle before dereferencing it as a
+// BM25Index* (forged handle / use-after-free / type confusion). Several
+// accessors (nuc_bm25_n_docs/doc_count/n_terms) dereferenced it with no
+// guard at all. Fail closed; the magic is poisoned at free.
+#define BM25_MAGIC 0x424D3235u  /* 'BM25' */
+static BM25Index *bm25_check(long long idx_h) {
+    BM25Index *idx = (BM25Index *)(void *)idx_h;
+    if (!idx || idx->magic != BM25_MAGIC) {
+        fprintf(stderr, "PANIC: BM25-HANDLE-001: invalid or stale BM25 index handle "
+                "%lld passed to a bm25_* function (forged handle, use-after-free, "
+                "or type confusion)\n", idx_h);
+        fflush(stderr);
+        exit(1);
+    }
+    return idx;
+}
 
 static int bm25_find_term(BM25Index *idx, unsigned int hash) {
     for (int i = 0; i < idx->n_terms; i++)
@@ -74,6 +92,7 @@ static int bm25_add_term(BM25Index *idx, unsigned int hash) {
 
 long long nuc_bm25_new(void) {
     BM25Index *idx = (BM25Index *)calloc(1, sizeof(BM25Index));
+    idx->magic = BM25_MAGIC;
     idx->terms = (PostingList *)calloc(BM25_MAX_TERMS, sizeof(PostingList));
     idx->cap_docs = 1024;
     idx->doc_lengths = (int *)calloc(1024, sizeof(int));
@@ -86,7 +105,7 @@ long long nuc_bm25_new(void) {
 // ================================================================
 
 void nuc_bm25_add_doc(long long idx_h, long long doc_id, const char *text) {
-    BM25Index *idx = (BM25Index *)(void *)idx_h;
+    BM25Index *idx = bm25_check(idx_h);
     if (!text) return;
     int did = (int)doc_id;
 
@@ -171,7 +190,7 @@ void nuc_bm25_add_doc(long long idx_h, long long doc_id, const char *text) {
 // ================================================================
 
 long long nuc_bm25_search(long long idx_h, const char *query, long long top_k) {
-    BM25Index *idx = (BM25Index *)(void *)idx_h;
+    BM25Index *idx = bm25_check(idx_h);
     if (!query) return 0;
     int K = (int)top_k;
 
@@ -254,17 +273,17 @@ long long nuc_bm25_search(long long idx_h, const char *query, long long top_k) {
     return (long long)result;
 }
 
-long long nuc_bm25_n_docs(long long idx_h) { return ((BM25Index *)(void *)idx_h)->n_docs; }
+long long nuc_bm25_n_docs(long long idx_h) { return bm25_check(idx_h)->n_docs; }
 // v0.8.108: distinct-doc count (number of unique add_doc calls
 // with previously-unseen doc_ids). For sequential 0..N-1 doc_ids
 // this equals n_docs; for sparse / non-sequential ids this is
 // strictly less than n_docs (which tracks max_doc_id + 1).
-long long nuc_bm25_doc_count(long long idx_h) { return ((BM25Index *)(void *)idx_h)->doc_count; }
-long long nuc_bm25_n_terms(long long idx_h) { return ((BM25Index *)(void *)idx_h)->n_terms; }
+long long nuc_bm25_doc_count(long long idx_h) { return bm25_check(idx_h)->doc_count; }
+long long nuc_bm25_n_terms(long long idx_h) { return bm25_check(idx_h)->n_terms; }
 
 void nuc_bm25_free(long long idx_h) {
-    BM25Index *idx = (BM25Index *)(void *)idx_h;
-    if (!idx) return;
+    BM25Index *idx = bm25_check(idx_h);
+    idx->magic = 0;  /* SEC-5: poison so use-after-free is caught */
     for (int i = 0; i < idx->n_terms; i++) free(idx->terms[i].postings);
     free(idx->terms); free(idx->doc_lengths); free(idx);
 }

@@ -12,9 +12,29 @@ static double _cs_i2f(long long x) { double d; memcpy(&d, &x, 8); return d; }
 static long long _cs_f2i(double f) { long long i; memcpy(&i, &f, 8); return i; }
 
 typedef struct {
+    unsigned int magic;  // SEC-5: CSV_MAGIC; validated on every entry
     char **cells;  // flat [rows * cols]
     int rows, cols;
 } CSVTable;
+
+// SEC-5: CSVTable handles cross the FFI boundary as a bare i64 the Nucleor
+// side treats as opaque. A forged / stale / type-confused i64 would
+// otherwise be dereferenced as a CSVTable* with no validation (e.g.
+// nuc_csv_rows did `((CSVTable*)th)->rows` with not even a NULL guard).
+// Stamp a magic tag at construction and fail closed on every entry; clear
+// it at free so use-after-free is caught too.
+#define CSV_MAGIC 0x43535654u  /* 'CSVT' */
+static CSVTable *csv_check(long long th) {
+    CSVTable *t = (CSVTable *)(void *)th;
+    if (!t || t->magic != CSV_MAGIC) {
+        fprintf(stderr, "PANIC: CSV-HANDLE-001: invalid or stale CSVTable handle "
+                "%lld passed to a csv_* function (forged handle, use-after-free, "
+                "or type confusion)\n", th);
+        fflush(stderr);
+        exit(1);
+    }
+    return t;
+}
 
 // ================================================================
 //  CSV Read
@@ -48,6 +68,7 @@ long long nuc_csv_read(const char *path) {
     if (sz > 0 && buf[sz - 1] != '\n') rows++; // last line without newline
 
     CSVTable *table = (CSVTable *)malloc(sizeof(CSVTable));
+    table->magic = CSV_MAGIC;
     table->rows = rows;
     table->cols = cols;
     table->cells = (char **)calloc((size_t)rows * cols, sizeof(char *));
@@ -100,8 +121,8 @@ long long nuc_csv_read(const char *path) {
 // ================================================================
 
 const char *nuc_csv_get(long long th, long long row, long long col) {
-    CSVTable *t = (CSVTable *)(void *)th;
-    if (!t || (int)row >= t->rows || (int)col >= t->cols) return "";
+    CSVTable *t = csv_check(th);
+    if ((int)row >= t->rows || (int)col >= t->cols) return "";
     char *cell = t->cells[(int)row * t->cols + (int)col];
     return cell ? cell : "";
 }
@@ -116,8 +137,8 @@ long long nuc_csv_get_int(long long th, long long row, long long col) {
     return atoll(s);
 }
 
-long long nuc_csv_rows(long long th) { return ((CSVTable *)(void *)th)->rows; }
-long long nuc_csv_cols(long long th) { return ((CSVTable *)(void *)th)->cols; }
+long long nuc_csv_rows(long long th) { return csv_check(th)->rows; }
+long long nuc_csv_cols(long long th) { return csv_check(th)->cols; }
 
 // ================================================================
 //  Creation and Writing
@@ -125,6 +146,7 @@ long long nuc_csv_cols(long long th) { return ((CSVTable *)(void *)th)->cols; }
 
 long long nuc_csv_new(long long rows, long long cols) {
     CSVTable *t = (CSVTable *)malloc(sizeof(CSVTable));
+    t->magic = CSV_MAGIC;
     t->rows = (int)rows; t->cols = (int)cols;
     t->cells = (char **)calloc((size_t)(t->rows) * t->cols, sizeof(char *));
     for (int i = 0; i < t->rows * t->cols; i++) {
@@ -135,8 +157,8 @@ long long nuc_csv_new(long long rows, long long cols) {
 }
 
 void nuc_csv_set(long long th, long long row, long long col, const char *val) {
-    CSVTable *t = (CSVTable *)(void *)th;
-    if (!t || !val) return;
+    CSVTable *t = csv_check(th);
+    if (!val) return;
     int idx = (int)row * t->cols + (int)col;
     if (idx < 0 || idx >= t->rows * t->cols) return;
     free(t->cells[idx]);
@@ -153,8 +175,8 @@ void nuc_csv_set_float(long long th, long long row, long long col, long long val
 }
 
 void nuc_csv_write(long long th, const char *path) {
-    CSVTable *t = (CSVTable *)(void *)th;
-    if (!t || !path) return;
+    CSVTable *t = csv_check(th);
+    if (!path) return;
     FILE *f = fopen(path, "wb");
     if (!f) return;
     for (int i = 0; i < t->rows; i++) {
@@ -182,8 +204,8 @@ void nuc_csv_write(long long th, const char *path) {
 }
 
 void nuc_csv_free(long long th) {
-    CSVTable *t = (CSVTable *)(void *)th;
-    if (!t) return;
+    CSVTable *t = csv_check(th);
+    t->magic = 0;  /* SEC-5: poison so use-after-free is caught */
     for (int i = 0; i < t->rows * t->cols; i++) free(t->cells[i]);
     free(t->cells); free(t);
 }
