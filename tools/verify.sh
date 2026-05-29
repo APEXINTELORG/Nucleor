@@ -1527,9 +1527,13 @@ build_test() {
     local out exit
     out=$("$exe" 2>&1); exit=$?
     if [ "$dir" = "features" ]; then
-        # Feature parity tests: pass if program ran without crash.
-        # Linux SIGSEGV exit = 139; macOS = 139; Windows = 0xC0000005 = -1073741819.
-        if [ "$exit" -eq 139 ] || [ "$exit" -eq 138 ] || [ "$exit" -eq -1073741819 ] || [ "$exit" -eq -1073740940 ]; then
+        # Feature tests must exit 0. Any non-zero exit is a failure,
+        # including SIGSEGV (139) and the Windows access-violation codes.
+        # VER-1: this previously returned 0 unless the process segfaulted,
+        # which silently ignored the value assertions in the feature tests
+        # (a non-zero `return` from the test was counted as PASS). Enforcing
+        # the exit code activates those assertions.
+        if [ "$exit" -ne 0 ]; then
             return 1
         fi
         return 0
