@@ -86,11 +86,11 @@ fn pipeline(source: str, name: str) -> i64 {
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { ow_warns = ow_warns + check_fn(pool, fn_nid, structs, enums, diags, source, review_path, review_filter); };
+        if node_kind(pool, fn_nid) == 30 { ow_warns = ow_warns + check_fn(pool, fn_nid, structs, enums, diags, source); };
         fi = fi + 1;
     };
     let mut oi: i64 = 0;
-    while oi < vec_len(impl_fns) { ow_warns = ow_warns + check_fn(pool, vec_get(impl_fns, oi), structs, enums, diags, source, review_path, review_filter); oi = oi + 1; };
+    while oi < vec_len(impl_fns) { ow_warns = ow_warns + check_fn(pool, vec_get(impl_fns, oi), structs, enums, diags, source); oi = oi + 1; };
     let mut ty_warns: i64 = type_check_program(pool, prog, structs, diags, source, tprof_new(0));
     let mut raw_warns: i64 = source_rule_check(source, diags);
     // Pass 1.8: effect checking (pure fn)
@@ -154,7 +154,7 @@ fn pipeline(source: str, name: str) -> i64 {
     // Add generated closure functions
     let mut ci: i64 = 0;
     while ci < vec_len(closures) { fns.push(vec_get(closures, ci)); ci = ci + 1; };
-    let ll: str = emit_module_ext(fns, strtab, pool, externs);
+    let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
     return compile_and_run(ll, name);
 }
 

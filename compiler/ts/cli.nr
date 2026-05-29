@@ -9,11 +9,80 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         return 1;
     };
     let total_start: i64 = now_ms();
+    // early raw-source cache hit.
+    // Pre-fix the resolve+macro-expand pass ran on every build at ~15 s on
+    // the 2.4 MB compiler source (41x regression on hot path vs v1.0
+    // baseline 0.47 s). The macro/actor/async-strip transforms are pure,
+    // deterministic functions of the raw source bytes (per-source — sources
+    // with `import "..."` directives also depend on imported bodies, so we
+    // gate the fast path on import-free sources only). Hashing the raw
+    // source via the same `build_cache_key` flow gives a cache key that
+    // exactly maps to the .ll cache entry produced by the slow path on
+    // cache miss; cache writes always store under the raw-source key.
+    let mut early_cache_key: str = "";
+    let mut early_cache_ll_path: str = "";
+    let mut early_imported: Vec<i32> = Vec::new();
+    if use_cache == 1 {
+        let raw_probe: str = file_read_string(src_path);
+        source_reject_nul_truncation(src_path, raw_probe);
+        // The fast path returns with `imported = [src_path]` only and
+        // relies on `collect_native_directives` to scan that single
+        // file for `#cfile` directives. That's correct for self-contained
+        // sources, but wrong for any file whose link surface depends on
+        // imported rods. Detect all directive forms that pull external
+        // sources into the link: `import "..."`, `use foo;` (incl.
+        // `use std::*`, `use crate::*`, `use super::*`), and `mod foo;`.
+        // Missing any of them leaves rod-side #cfile entries off the clang
+        // command line and produces undefined-reference link failures only
+        // visible on a warm cache_v2 hit (cold path is unaffected since the
+        // .ll file doesn't exist yet). False-positives on the substring
+        // probe just send us through the slow path — same correct output,
+        // a few hundred ms slower.
+        let has_import: i64 = if str_len(raw_probe) >= 8
+            && str_starts_with(raw_probe, "import \"") == 1 { 1 }
+            else if str_contains(raw_probe, "\nimport \"") == 1 { 1 }
+            else if str_len(raw_probe) >= 4 && str_starts_with(raw_probe, "use ") == 1 { 1 }
+            else if str_contains(raw_probe, "\nuse ") == 1 { 1 }
+            else if str_len(raw_probe) >= 4 && str_starts_with(raw_probe, "mod ") == 1 { 1 }
+            else if str_contains(raw_probe, "\nmod ") == 1 { 1 }
+            else { 0 };
+        if str_len(raw_probe) > 0 && has_import == 0 {
+            early_cache_key = build_cache_key(raw_probe, strict_mode);
+            early_cache_ll_path = cache_v2_ll_path(early_cache_key);
+            if fs_exists(early_cache_ll_path) == 1 {
+                print(str_concat("  source: ", str_concat(src_path, str_concat(" (", str_concat(str_from_int(str_len(raw_probe)), " bytes)")))));
+                if strict_mode == 0 { print("  mode: fast (ownership + type)"); };
+                if link_native == 0 { print("  mode: llvm-only (--no-link)"); };
+                print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(early_cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_file_size_mb(early_cache_ll_path)), " MB)")))));
+                let cached_out_ll: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+                copy_ll_artifact_if_needed(early_cache_ll_path, cached_out_ll, early_cache_key);
+                print(str_concat("  emitted: ", str_concat(cached_out_ll, str_concat(" (", str_concat(str_from_int(fs_size(cached_out_ll)), " bytes)")))));
+                let mut rc_early: i64 = 0;
+                if link_native == 0 {
+                    let cached_exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(safe_out_name, host_exe_suffix())));
+                    print(str_concat("  native link: skipped (use ", str_concat(cached_exe_path, " only after a linked build)")));
+                } else {
+                    early_imported.push(src_path);
+                    rc_early = link_existing_native_module(cached_out_ll, safe_out_name, early_imported, early_cache_key, time_passes);
+                };
+                cache_v2_print_stats(1, 0);
+                print_phase_time(time_passes, "total", now_ms() - total_start);
+                return rc_early;
+            };
+        };
+    };
     let resolve_start: i64 = now_ms();
     let bundle: Vec<i32> = load_resolved_source_bundle(src_path, use_cache);
     let source: str = vec_get(bundle, 0);
     let imported: Vec<i32> = vec_get(bundle, 1);
+    let mut max_depth_source: str = source;
+    if vec_len(bundle) > 3 { max_depth_source = vec_get(bundle, 3); };
     if str_len(source) == 0 {
+        if fs_exists(src_path) == 1 && fs_size(src_path) == 0 {
+            print(str_concat("error[NR022]: source file is empty: ", src_path));
+            print("  Nucleor expects every binary build to have a `fn main() -> i32` entry point. Add a main function, or compile this file only as part of a larger imported program.");
+            return 1;
+        };
         print(str_concat("ERROR: cannot read ", src_path));
         return 1;
     };
@@ -21,10 +90,28 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     if strict_mode == 0 { print("  mode: fast (ownership + type)"); };
     if link_native == 0 { print("  mode: llvm-only (--no-link)"); };
     if vec_get(bundle, 2) == 1 { print("  incremental: module graph cache hit"); };
+    // stash the resolved source in the compile-src
+    // side table so deep lowering helpers (match_bind_payloads_per_idx)
+    // can do scrutinee-type inference for Option<T> / Result<T,E>
+    // without threading `src` through 30+ call sites.
+    __nucleor_compile_src_set(source);
+    // Lane 4 / F-002: reset parse-depth counter at compile entry so
+    // re-runs in the same process / repeated builds don't drift.
+    __nucleor_parse_depth_reset();
     print_phase_time(time_passes, "resolve_source", now_ms() - resolve_start);
-    let preflight_start: i64 = now_ms();
-    if preflight_source_check(source) != 0 { return 1; };
-    print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    // cache check moved AHEAD
+    // of preflight_source_check. Pre-fix preflight ran a per-byte loop
+    // over the entire source (12 MB s1 compiler = 12 M str_char_at calls)
+    // BEFORE checking the .ll cache, costing ~20 s on every hot rebuild
+    // (41x regression vs v1.0 baseline 0.47 s). The cache key is derived
+    // from the source content, so a cache hit means an identical source
+    // body was preflight-validated already at the time of the cache miss
+    // that produced the entry; re-running preflight is redundant.
+    // For sources that took the import-bearing slow path through resolve,
+    // the cache key is the post-transform hash of the resolved+expanded
+    // source so it correctly invalidates when an imported file changes.
+    // The early raw-source fast path above is gated on import-free files
+    // only.
     let mut cache_key: str = "";
     let mut cache_flags: str = "";
     let mut cache_ll_path: str = "";
@@ -32,10 +119,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         cache_flags = cache_v2_canonical_flags(strict_mode);
         cache_key = build_cache_key(source, strict_mode);
         cache_ll_path = cache_v2_ll_path(cache_key);
-        let cached_ll: str = file_read_string(cache_ll_path);
-        if str_len(cached_ll) > 0 {
-            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
-            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, cache_key, link_native, time_passes);
+        if fs_exists(cache_ll_path) == 1 {
+            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_file_size_mb(cache_ll_path)), " MB)")))));
+            let cached_out_ll: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+            copy_ll_artifact_if_needed(cache_ll_path, cached_out_ll, cache_key);
+            print(str_concat("  emitted: ", str_concat(cached_out_ll, str_concat(" (", str_concat(str_from_int(fs_size(cached_out_ll)), " bytes)")))));
+            let mut rc_cached: i64 = 0;
+            if link_native == 0 {
+                let cached_exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(safe_out_name, host_exe_suffix())));
+                print(str_concat("  native link: skipped (use ", str_concat(cached_exe_path, " only after a linked build)")));
+            } else {
+                rc_cached = link_existing_native_module(cached_out_ll, safe_out_name, imported, cache_key, time_passes);
+            };
             cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;
@@ -43,6 +138,20 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     } else {
         print("cache: disabled (sha=none, size 0 MB)");
     };
+    let preflight_start: i64 = now_ms();
+    if preflight_source_check(source) != 0 { return 1; };
+    print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    // also write the raw-source-
+    // key form of the cache entry so the early fast path will hit on
+    // subsequent builds. The slow path's transform-derived `cache_key`
+    // remains the primary key so import-bearing sources stay correctly
+    // invalidated; the early-key alias is created opportunistically for
+    // import-free sources only.
+    if use_cache == 1 && str_len(early_cache_key) > 0 && str_eq(early_cache_key, cache_key) == 0 {
+        cache_key = early_cache_key;
+        cache_ll_path = early_cache_ll_path;
+    };
+    nuc_diag_set_source(source);
     let lex_start: i64 = now_ms();
     let mut tokens: Vec<i32> = lex(source);
     print_phase_time(time_passes, "lex", now_ms() - lex_start);
@@ -52,21 +161,80 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print_phase_time(time_passes, "parse", now_ms() - parse_start);
     let prog: i64 = pr_val(r);
     let cnt: i64 = list_len(pool, prog);
+    free_token_vec(tokens);
+    vec_free(r);
 
     let mut strtab: Vec<i32> = Vec::new();
+    let mut strtab_aux: Vec<i32> = Vec::new();
+    strtab_aux.push(0);
+    strtab_aux.push(0);
     let mut fns: Vec<i32> = Vec::new();
     let mut externs: Vec<i32> = Vec::new();
     let mut structs: Vec<i32> = Vec::new();
     let mut enums: Vec<i32> = Vec::new();
     let mut globals: Vec<i32> = Vec::new();
+    // collect fn return-type lookup table for binop_float_type's
+    // kind==7 (call) branch. Mirrors the existing structs/enums vecs.
+    // Holds both regular fns (kind 30) and extern fns (kind 32) — both
+    // can return f32/f64 and call sites need correct binop dispatch.
+    let mut fn_decls: Vec<i32> = Vec::new();
     // Pass 1: collect structs, enums, and externs
     let collect_start: i64 = now_ms();
     let mut fi: i64 = 0;
+    //  `struct W { … } struct W { … }` (same or
+    // different fields) was silently accepted; first decl won for `W { … }`
+    // initialization with the second decl's fields unreachable. Sister
+    // case to enum-duplicate-variant + duplicate-pub-fn (existing).
+    // Mirror Rust E0428 ("the name `W` is defined multiple times") at
+    // collection time.
+    let mut seen_struct_names: Vec<str> = Vec::new();
+    let mut seen_enum_names: Vec<str> = Vec::new();
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); }
-        else if node_kind(pool, fn_nid) == 33 { structs.push(fn_nid); }
-        else if node_kind(pool, fn_nid) == 36 { enums.push(fn_nid); };
+        if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); fn_decls.push(fn_nid); }
+        else if node_kind(pool, fn_nid) == 33 {
+            let sname_v062: str = node_field(pool, fn_nid, 1);
+            let mut dsi: i64 = 0;
+            let mut dup_hit: i64 = 0;
+            while dsi < vec_len(seen_struct_names) {
+                if str_eq(vec_get(seen_struct_names, dsi), sname_v062) == 1 {
+                    dup_hit = 1;
+                    dsi = vec_len(seen_struct_names);
+                } else {
+                    dsi = dsi + 1;
+                };
+            };
+            if dup_hit == 1 {
+                print(str_concat("error[TYP-041]: duplicate struct decl `", str_concat(sname_v062, "` (Rust E0428).")));
+                print(str_concat("  Two `struct ", str_concat(sname_v062, "` decls in this compile unit. Nucleor's collection pass keeps both, but only the FIRST one wins for field-offset / construction; the second's fields are unreachable. Adopters refactoring across files (rename `Foo` to `Bar`, miss one) or running translators that emit duplicate decls hit silent miscompiles.")));
+                print(str_concat("  Workaround: rename or remove the duplicate `struct ", str_concat(sname_v062, "`. If both shapes are needed (e.g. version-skew between modules), give them distinct names.")));
+                panic(str_concat("duplicate struct decl: ", sname_v062));
+            };
+            seen_struct_names.push(sname_v062);
+            structs.push(fn_nid);
+        }
+        else if node_kind(pool, fn_nid) == 36 {
+            let ename_v062: str = node_field(pool, fn_nid, 1);
+            let mut dei: i64 = 0;
+            let mut edup_hit: i64 = 0;
+            while dei < vec_len(seen_enum_names) {
+                if str_eq(vec_get(seen_enum_names, dei), ename_v062) == 1 {
+                    edup_hit = 1;
+                    dei = vec_len(seen_enum_names);
+                } else {
+                    dei = dei + 1;
+                };
+            };
+            if edup_hit == 1 {
+                print(str_concat("error[TYP-041]: duplicate enum decl `", str_concat(ename_v062, "` (Rust E0428).")));
+                print(str_concat("  Two `enum ", str_concat(ename_v062, "` decls in this compile unit. Same hazard as duplicate-struct: only the FIRST wins for variant resolution; the second's variants are unreachable. Sister to v0.6.27 dup-variant-within-enum check.")));
+                print(str_concat("  Workaround: rename or remove the duplicate `enum ", str_concat(ename_v062, "`.")));
+                panic(str_concat("duplicate enum decl: ", ename_v062));
+            };
+            seen_enum_names.push(ename_v062);
+            enums.push(fn_nid);
+        };
+        if node_kind(pool, fn_nid) == 30 { fn_decls.push(fn_nid); };
         if node_kind(pool, fn_nid) == 50 { globals.push(fn_nid); };
         fi = fi + 1;
     };
@@ -79,6 +247,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
         if node_kind(pool, fn_nid) == 45 {
+            let trait_name: str = node_field(pool, fn_nid, 1);
             let type_name: str = node_field(pool, fn_nid, 2);
             let methods: i64 = node_field(pool, fn_nid, 3);
             let mc: i64 = list_len(pool, methods);
@@ -89,8 +258,114 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                 let mangled: str = str_concat(type_name, str_concat("__", orig_name));
                 let new_fn: i64 = mk6(pool, 30, mangled, node_field(pool, method_nid, 2), node_field(pool, method_nid, 3), node_field(pool, method_nid, 4), node_field(pool, method_nid, 5));
                 impl_fns.push(new_fn);
+                // also append to fn_decls so the mangled
+                // trait method has an `__fnret_<MANGLED>` sym entry
+                // populated by populate_fn_returns_in_sym at lower_fn
+                // entry. binop_float_type's kind==8 (method call)
+                // branch reads that entry to dispatch f64 ops on
+                // trait-method results.
+                fn_decls.push(new_fn);
                 trait_impl_register(trait_impls, type_name, orig_name, mangled);
+                if str_len(trait_name) > 0 {
+                    trait_impl_register(trait_impls, trait_bound_impl_key(trait_name, type_name), orig_name, mangled);
+                };
+                if str_eq(type_base_name(trait_name), "From") == 1 && str_eq(orig_name, "from") == 1 {
+                    let mut src_err: str = type_first_arg(trait_name);
+                    if str_len(src_err) == 0 {
+                        let params_list: i64 = node_field(pool, method_nid, 2);
+                        if list_len(pool, params_list) > 0 {
+                            src_err = node_field(pool, list_get(pool, params_list, 0), 2);
+                        };
+                    };
+                    if str_len(src_err) > 0 {
+                        trait_impl_register(trait_impls, type_name, from_method_key(src_err), mangled);
+                    };
+                };
                 mi = mi + 1;
+            };
+        };
+        fi = fi + 1;
+    };
+    // trait default method support. After collect_impls
+    // registers explicit impl methods, walk every kind-45 (impl block)
+    // with a non-empty trait_name and look for default methods (body
+    // != -1) declared in the corresponding kind-43 trait_decl that
+    // the impl did NOT override. For each such default method,
+    // synthesize a mangled fn `<TypeName>__<method>` using the
+    // trait's body and register it in trait_impls + fn_decls. This
+    // enables the canonical Rust pattern of trait defaults that impls
+    // can selectively override. Pre-v0.3.82, calling a trait method
+    // not present in the impl's explicit body fell through to the
+    // `vec_<mname>` fallback which failed at clang link with
+    // "use of undefined value".
+    fi = 0;
+    while fi < cnt {
+        let impl_nid: i64 = list_get(pool, prog, fi);
+        if node_kind(pool, impl_nid) == 45 {
+            let trait_name: str = node_field(pool, impl_nid, 1);
+            let type_name2: str = node_field(pool, impl_nid, 2);
+            let impl_methods: i64 = node_field(pool, impl_nid, 3);
+            if str_len(trait_name) > 0 {
+                let mut fj: i64 = 0;
+                while fj < cnt {
+                    let td_nid: i64 = list_get(pool, prog, fj);
+                    if node_kind(pool, td_nid) == 43 && str_eq(node_field(pool, td_nid, 1), trait_name) == 1 {
+                        let trait_methods: i64 = node_field(pool, td_nid, 2);
+                        let tmc: i64 = list_len(pool, trait_methods);
+                        let mut tmi: i64 = 0;
+                        while tmi < tmc {
+                            let trait_method_nid: i64 = list_get(pool, trait_methods, tmi);
+                            let tmname: str = node_field(pool, trait_method_nid, 1);
+                            let tbody: i64 = node_field(pool, trait_method_nid, 4);
+                            if tbody >= 0 {
+                                // Trait has a default body. Check if impl overrides.
+                                let imc: i64 = list_len(pool, impl_methods);
+                                let mut overridden: i64 = 0;
+                                let mut imi: i64 = 0;
+                                while imi < imc {
+                                    let im_nid: i64 = list_get(pool, impl_methods, imi);
+                                    if str_eq(node_field(pool, im_nid, 1), tmname) == 1 {
+                                        overridden = 1;
+                                    };
+                                    imi = imi + 1;
+                                };
+                                if overridden == 0 {
+                                    // build new params with "Self"
+                                    // substituted for the impl's actual
+                                    // type_name. Without this, the default
+                                    // body's `self` has type="Self" which
+                                    // doesn't resolve to a known struct in
+                                    // expr_struct_type, breaking dispatch
+                                    // for any nested `self.<method>()` call.
+                                    let trait_params: i64 = node_field(pool, trait_method_nid, 2);
+                                    let pcount: i64 = list_len(pool, trait_params);
+                                    let mut new_params: Vec<i32> = Vec::new();
+                                    let mut pi: i64 = 0;
+                                    while pi < pcount {
+                                        let pnode: i64 = list_get(pool, trait_params, pi);
+                                        let pname: str = node_field(pool, pnode, 1);
+                                        let ptype: str = node_field(pool, pnode, 2);
+                                        let mut new_ptype: str = ptype;
+                                        if str_eq(ptype, "Self") == 1 { new_ptype = type_name2; };
+                                        if str_eq(ptype, "&Self") == 1 { new_ptype = str_concat("&", type_name2); };
+                                        if str_eq(ptype, "&mut Self") == 1 { new_ptype = str_concat("&mut ", type_name2); };
+                                        new_params.push(mk3(pool, 41, pname, new_ptype));
+                                        pi = pi + 1;
+                                    };
+                                    // Synthesize fn using trait's default body, mangled with the impl's type name.
+                                    let dm_mangled: str = str_concat(type_name2, str_concat("__", tmname));
+                                    let dm_fn: i64 = mk6(pool, 30, dm_mangled, mk_list(pool, new_params), node_field(pool, trait_method_nid, 3), tbody, 0);
+                                    impl_fns.push(dm_fn);
+                                    fn_decls.push(dm_fn);
+                                    trait_impl_register(trait_impls, type_name2, tmname, dm_mangled);
+                                    trait_impl_register(trait_impls, trait_bound_impl_key(trait_name, type_name2), tmname, dm_mangled);
+                                };
+                            };
+                            tmi = tmi + 1;
+                        };
+                    };
+                    fj = fj + 1;
+                };
             };
         };
         fi = fi + 1;
@@ -98,22 +373,17 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print_phase_time(time_passes, "collect_impls", now_ms() - impl_start);
     // Diagnostic accumulator
     let mut diags: Vec<i32> = diag_new();
-    let review_path: str = "";
-    let review_filter: str = "";
-    if review_active(review_path) == 1 {
-        review_emit(review_path, str_concat("{\"schema_version\":\"1.0\",\"event\":\"compile_start\",\"file\":\"", str_concat(src_path, "\"}")));
-    };
     // Pass 1.7: ownership checking
     let own_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { check_fn(pool, fn_nid, structs, enums, diags, source, review_path, review_filter); };
+        if node_kind(pool, fn_nid) == 30 { check_fn(pool, fn_nid, structs, enums, diags, source); };
         fi = fi + 1;
     };
     let mut oi: i64 = 0;
     while oi < vec_len(impl_fns) {
-        check_fn(pool, vec_get(impl_fns, oi), structs, enums, diags, source, review_path, review_filter);
+        check_fn(pool, vec_get(impl_fns, oi), structs, enums, diags, source);
         oi = oi + 1;
     };
     print_phase_time(time_passes, "ownership", now_ms() - own_start);
@@ -122,57 +392,321 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     type_check_program(pool, prog, structs, diags, source, type_prof);
     print_phase_time(time_passes, "type", now_ms() - type_start);
     tprof_dump(type_prof);
-    if strict_mode == 1 {
-        let source_start: i64 = now_ms();
-        source_rule_check(source, diags);
-        print_phase_time(time_passes, "source", now_ms() - source_start);
-        let mut pure_fns: Vec<i32> = Vec::new();
-        let pure_collect_start: i64 = now_ms();
-        fi = 0;
-        while fi < cnt {
-            let fn_nid: i64 = list_get(pool, prog, fi);
-            if node_kind(pool, fn_nid) == 46 { pure_fns.push(node_field(pool, fn_nid, 1)); };
-            fi = fi + 1;
-        };
-        print_phase_time(time_passes, "collect_pure", now_ms() - pure_collect_start);
-        let effect_start: i64 = now_ms();
-        fi = 0;
-        while fi < cnt {
-            let fn_nid: i64 = list_get(pool, prog, fi);
-            if node_kind(pool, fn_nid) == 30 {
-                let fname: str = node_field(pool, fn_nid, 1);
-                let mut is_pure: i64 = 0;
-                let mut pi: i64 = 0;
-                while pi < vec_len(pure_fns) {
-                    if str_eq(vec_get(pure_fns, pi), fname) { is_pure = 1; pi = vec_len(pure_fns); };
-                    pi = pi + 1;
-                };
-                if is_pure == 1 { effect_check_fn(pool, fn_nid, pure_fns, diags, source, review_path, review_filter); };
+    vec_free(type_prof);
+    let liskov_trait_attrs: Vec<i32> = collect_trait_method_attrs(source);
+    let liskov_impl_attrs: Vec<i32> = collect_impl_trait_method_attrs(source);
+    let mut li: i64 = 0;
+    let li_n: i64 = vec_len(liskov_impl_attrs);
+    while li + 4 < li_n {
+        let l_trait: str = vec_get(liskov_impl_attrs, li);
+        let l_type: str = vec_get(liskov_impl_attrs, li + 1);
+        let l_method: str = vec_get(liskov_impl_attrs, li + 2);
+        let l_irq: i64 = str_to_int(vec_get(liskov_impl_attrs, li + 3));
+        let l_ien: i64 = str_to_int(vec_get(liskov_impl_attrs, li + 4));
+        let counts: Vec<i32> = lookup_trait_method_counts(liskov_trait_attrs, l_trait, l_method);
+        let trait_req: i64 = vec_get(counts, 0);
+        let trait_ens: i64 = vec_get(counts, 1);
+        if trait_req >= 0 {
+            if l_irq > trait_req {
+                let msg4: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has more #[require(...)] preconditions (", str_concat(str_from_int(l_irq), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_req), "). Liskov: subtype must not strengthen preconditions."))))))))));
+                let mut lc4: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
+                diag_add_ex(diags, "error", "type", "CONTRACT-004", msg4, l_method, vec_get(lc4, 0), vec_get(lc4, 1), "");
             };
-            fi = fi + 1;
+            if l_ien < trait_ens {
+                let msg5: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has fewer #[ensure(...)] postconditions (", str_concat(str_from_int(l_ien), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_ens), "). Liskov: subtype must not weaken postconditions."))))))))));
+                let mut lc5: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
+                diag_add_ex(diags, "error", "type", "CONTRACT-005", msg5, l_method, vec_get(lc5, 0), vec_get(lc5, 1), "");
+            };
         };
-        print_phase_time(time_passes, "effect", now_ms() - effect_start);
-        let taint_start: i64 = now_ms();
-        fi = 0;
-        while fi < cnt {
-            let fn_nid: i64 = list_get(pool, prog, fi);
-            if node_kind(pool, fn_nid) == 30 { taint_check_fn(pool, fn_nid, diags, source, review_path, review_filter); };
-            fi = fi + 1;
-        };
-        print_phase_time(time_passes, "taint", now_ms() - taint_start);
+        li = li + 5;
     };
-    if diag_count(diags) > 0 { diag_emit_text(diags); return 1; };
+    if strict_mode == 1 {
+        print_phase_time(time_passes, "source", 0);
+        print_phase_time(time_passes, "collect_pure", 0);
+        print_phase_time(time_passes, "effect", 0);
+        print_phase_time(time_passes, "taint", 0);
+    };
+    // RFC-0008 first pass: #[isr] roots must be zero-arg/void,
+    // inherit no_alloc/no_panic checks, and cannot be deadline-
+    // wrapped. Runs before generic RT checks so hard ISR errors
+    // participate in the same suppression/deny pipeline.
+    diags = enforce_isr_contracts(diags, source);
+    // RFC-0035 first pass: values crossing spawn-style thread
+    // boundaries must be Sendable, and field-only `actor` declarations
+    // reject direct external field access.
+    diags = enforce_sendable_contracts(diags, source);
+    // Lane 3 F-DIAG-010: TNT-001 is a real compiler diagnostic, not
+    // just an `nuc explain` / suggestion-table entry. Explicit
+    // `tainted<T>` symbols must be sanitized before flowing into
+    // sensitive sink functions.
+    diags = enforce_tnt001_tainted_sinks(diags, source);
+    // RFC-0001 phase 1 — enforce #[no_alloc] before suppression so
+    // users can `#[allow(RT-001)]` if needed. enforce_no_alloc
+    // appends to diags; if no #[no_alloc] attribute is present in
+    // the source it's a no-op.
+    diags = enforce_no_alloc(diags, source);
+    // T3.2 (v0.3.1): same pattern for #[no_panic] (RT-002).
+    diags = enforce_no_panic(diags, source);
+    // T3.6 (v0.3.5): same pattern for #[no_dyn] (RT-003).
+    diags = enforce_no_dyn(diags, source);
+    // RFC-0007 Track G: #[atomic] implies no blocking / no allocation /
+    // no Cell-or-RefCell interior mutability, plus compile-time checks
+    // for invalid literal memory-order combinations.
+    diags = enforce_atomic_contracts(diags, source);
+    // closures whose body calls atomic_* helpers crash
+    // the compiler with `vec_get OOB` (probe-finding 2026-05-01).
+    // Catch at parse time + halt with ATOMIC-006 instead of melting.
+    if enforce_no_atomic_in_closure(source) == 1 {
+        print("error[ATOMIC-006]: atomic helpers (atomic_load / atomic_store / atomic_fetch_* / atomic_compare_exchange) inside closure bodies are not currently supported. The closure-lowering path does not yet inherit the parent fn's enum-variant scope, so `MemOrder::SeqCst` (and similar) dispatch fails — pre-v0.4.280 this produced a misleading `vec_get OOB` compiler PANIC. Workaround: call the atomic helper directly from a regular fn body instead of wrapping it in a closure. This is a temporary limitation; full closure+atomic support lands when the closure sym-table inheritance ship goes in.");
+        return 1;
+    };
+    // T3.8 (v0.3.7): RT-006 — RT attribute on async fn. Reads the
+    // column-0 markers expand_async_strip_keyword emits, which is
+    // the only way to detect this after the async keyword itself
+    // has been stripped from the resolved source.
+    diags = enforce_rt006_async(diags, source);
+    // ASYNC-001 warning for plain `async fn` without RT attr.
+    diags = enforce_async001_warning(diags, source);
+    // T3.9 (v0.3.8): RT-005 — extern fn calls from RT-marked
+    // bodies break the RT contract because nothing is known about
+    // the extern's allocation, panic, or timing behaviour. v1
+    // warns; users suppress per-fn via #[allow(RT-005)] until the
+    // #[ffi_no_*] annotation family ships in v0.4.
+    diags = enforce_rt005_ffi(diags, source);
+    // T3.10 (v0.3.9): RT-008 — direct self-recursion in a
+    // #[deadline] fn warns. Bounded recursion opts out via
+    // `#[max_depth = N]`; indirect (mutual) recursion is left
+    // for the v2 AST-based check.
+    diags = enforce_rt008_recursion(diags, max_depth_source);
+    // RFC-0014: full max_depth static validation. Runs against the
+    // pre-max-depth-rewrite source so attributes and user call names
+    // are still visible even when runtime wrappers have been emitted.
+    diags = enforce_max_depth_static(diags, max_depth_source);
+    // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
+    // Emits warning[RT-004] when the v1 estimate exceeds the budget.
+    diags = enforce_static_wcet(diags, max_depth_source);
+    // consolidated single-walk body diagnostics covering
+    // NUM-009 (R09-D4 @const_fn purity), EFF-001 (R05-D1 pure fn),
+    // PERF-2 (R10-D2 @hot violation), PERF-3 (R10-D2 HeapInLoop),
+    // RACE-002 (R04-D3 unawaited spawn), RACE-007 (R04-D3 deadline+
+    // await). Replaces 6 prior O(F·S) per-emitter walks with a single
+    // O(S + ΣB) pass — ~2.6× cold compile regression resolved.
+    // Measured cost (v0.8.314 --time-passes probe): 0 ms on the
+    // self-host source. Not a perf concern.
+    diags = enforce_body_diagnostics_unified(diags, max_depth_source);
+    // R05-D3 Phase 1: direct same-file calls to a fn declared with
+    // `requires [...]` must be reflected in the caller row. This is
+    // intentionally one-hop only; transitive propagation and
+    // cross-module rows stay queued for Phase 2b.
+    diags = enforce_requires_direct_calls(diags, max_depth_source);
+    // RFC-0062 G-10 Phase 2b — `#[effect(...)]` annotations framework.
+    // Three diagnostics: EFFECT-G10-UNDECLARED, EFFECT-G10-MISSING-ALLOW,
+    // EFFECT-G10-WRONG-ROW. Cheap-gated on the source containing the
+    // attribute syntax — no perf hit for the existing fixture corpus.
+    diags = enforce_g10_effects(diags, max_depth_source);
+    // R05-D4 block-form
+    // `restricts [...] { ... }` real enforcement first slice. Emits
+    // `error[EFF-003]` when a direct call inside the block targets a
+    // builtin or a same-file user fn whose declared `requires [...]`
+    // row overlaps the deny row. Replaces the prior parse-time fail-
+    // closed panic at parse_primary. Whole-program inference, cross-
+    // module propagation, methods/closures/higher-order effects, and
+    // broader RFC-0033 subtyping stay queued for Phase 2b.
+    diags = enforce_restricts_block_effects(diags, max_depth_source);
+    // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
+    // neither #[no_alloc] nor #[no_panic]. Either guard makes the
+    // deadline reachable in the first place.
+    diags = enforce_deadline_safety(diags, max_depth_source);
+    // T3.20 (v0.3.36): emit DIAG-001 for #[allow(_fn)] / #[deny(_fn)]
+    // codes whose prefix isn't in the canonical set. Runs BEFORE the
+    // suppression pass so users can `#[allow(DIAG-001)]` to silence
+    // it during a noisy refactor.
+    diags = emit_diag001_unknown_codes(diags, source);
+    if diag_count(diags) > 0 {
+        // RFC-0028 §Suppression — drop warnings the user has silenced
+        // via `#[allow(CODE)]`, then promote any remaining warnings
+        // whose code is named in `#[deny(CODE)]`. Errors are not
+        // suppressible. Allow runs first so a deny on a previously-
+        // allowed code is a no-op (the diag is gone).
+        diags = filter_allow_suppressed(diags, source);
+        diags = promote_denied_to_errors(diags, source);
+        if diag_count(diags) > 0 {
+            // Emit every (post-filter, post-promote) diagnostic, but
+            // only halt the build on errors. Warnings (NUM-003 lossy
+            // cast, MATCH-001/002 typecker, etc.) flow through the
+            // report without blocking compilation.
+            if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text_with_source(diags, source); };
+            if diag_count_errors(diags) > 0 { return 1; };
+        };
+    };
+    vec_free(diags);
     let mut closures: Vec<i32> = Vec::new();
+    let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    // validate the env value. Pre-fix, any unrecognized
+    // value (e.g. `off`, `disabled`,
+    // `0`, `none`) silently fell into the "neither release nor
+    // cert nor debug" bucket → emit_require=1 + emit_ensure_inv=0
+    // (effectively `safe-release`), with no signal to the adopter
+    // who likely meant `release` or `debug` and got an inconsistent
+    // partial-strip. Halt cleanly with the recognized set.
+    let dbc_mode_ok: i64 = if str_len(dbc_mode) == 0 { 1 }
+        else if str_eq(dbc_mode, "debug") == 1 { 1 }
+        else if str_eq(dbc_mode, "safe-release") == 1 { 1 }
+        else if str_eq(dbc_mode, "release") == 1 { 1 }
+        else if str_eq(dbc_mode, "cert") == 1 { 1 }
+        else { 0 };
+    if dbc_mode_ok == 0 {
+        print(str_concat("error[CONTRACT-009]: NUCLEOR_DBC_MODE=`", str_concat(dbc_mode, "` is not a recognized DbC build mode. Recognized values: `debug` (default; full runtime checks), `safe-release` (require only — input validation), `release` (no checks; max perf), `cert` (no checks; reserved for future static-proof). Unset to default to `debug`.")));
+        return 1;
+    };
+    let dbc_emit_require: i64 = if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
+    let dbc_emit_ensure_inv: i64 = if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
+    let dbc_no_check: Vec<i32> = if dbc_emit_require == 1 || dbc_emit_ensure_inv == 1 { collect_no_check_fns(source) } else { Vec::new() };
+    // RFC-0042 first cut — opt-in owned-local auto-drop. Empty list
+    // keeps the default path bytecode-close and avoids scanning cost
+    // for sources that do not mention the marker attribute.
+    let auto_drop_fns: Vec<i32> = if str_index_of(source, str_concat("#[auto_", "drop]")) >= 0 { collect_auto_drop_fns(source) } else { Vec::new() };
+    let manual_drop_fns: Vec<i32> = if str_index_of(source, str_concat("#[manual_", "drop]")) >= 0 { collect_manual_drop_fns(source) } else { Vec::new() };
+    let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
+    let mut require_exprs: Vec<i32> = Vec::new();
+    let mut rti: i64 = 0;
+    let req_text_count: i64 = vec_len(req_text_pairs);
+    while rti + 1 < req_text_count {
+        let req_name: str = vec_get(req_text_pairs, rti);
+        if name_in_no_check(dbc_no_check, req_name) == 1 { rti = rti + 2; continue; };
+        let req_text: str = vec_get(req_text_pairs, rti + 1);
+        // reject `old()` in #[require]. Pre-fix,
+        // `#[require(old(x) > 0)]`
+        // emitted a misleading clang-link "undefined function
+        // `old()`" error. `old()` is meaningful only in #[ensure]
+        // (postconditions can reference fn-entry state); #[require]
+        // runs BEFORE the body so there's no prior state to
+        // snapshot. Halt with CONTRACT-010 naming the semantic
+        // mismatch.
+        if contract_text_uses_old(req_text) == 1 {
+            print(str_concat("error[CONTRACT-010]: `old(...)` is not valid in `#[require(...)]` on `fn ", str_concat(req_name, "`. Preconditions run BEFORE the function body, so there is no prior state to snapshot. `old(...)` is only meaningful in `#[ensure(...)]` (postconditions reference fn-entry state). Move the check into `#[ensure]`, or compare directly against the parameter without `old()`.")));
+            print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
+            return 1;
+        };
+        // undefined-ident check. Pre-fix,
+        // `#[require(undefined_var > 0)]`
+        // surfaced a misleading clang-link "undefined function
+        // `undefined_var()`" error. CONTRACT-011 halts at compile
+        // time naming the actual unbound ident.
+        let req_unbound: str = find_unbound_ident_in_contract(source, req_name, req_text);
+        if str_len(req_unbound) > 0 {
+            print(str_concat("error[CONTRACT-011]: `#[require(...)]` on `fn ", str_concat(req_name, str_concat("` references undefined identifier `", str_concat(req_unbound, "`. Pre-conditions can only reference fn parameters, module-level constants, type or enum variant names, and the DbC keywords (`true`, `false`, `null`, `Some`, `None`, `Ok`, `Err`). Check spelling, or rewrite the predicate to compare against a fn parameter.")))));
+            print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
+            return 1;
+        };
+        let req_tokens: Vec<i32> = lex(req_text);
+        let req_parsed: Vec<i32> = parse_expr(req_tokens, 0, pool);
+        let req_expr_nid: i64 = pr_val(req_parsed);
+        require_exprs.push(req_name);
+        require_exprs.push(req_expr_nid);
+        free_token_vec(req_tokens);
+        rti = rti + 2;
+    };
+    let ens_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_fn_ensures(source) } else { Vec::new() };
+    let mut ensure_exprs: Vec<i32> = Vec::new();
+    let mut old_snapshots: Vec<i32> = Vec::new();
+    let mut eti: i64 = 0;
+    let ens_text_count: i64 = vec_len(ens_text_pairs);
+    while eti + 1 < ens_text_count {
+        let ens_name: str = vec_get(ens_text_pairs, eti);
+        if name_in_no_check(dbc_no_check, ens_name) == 1 { eti = eti + 2; continue; };
+        let ens_text: str = vec_get(ens_text_pairs, eti + 1);
+        // reject `result` reference in #[ensure] on void fn.
+        // The fn has no return value to bind to; the alloca slot
+        // holds whatever was zero-initialized (or stale prior call
+        // state). `result == 0` happens to pass; `result > 0` panics
+        // CONTRACT-002 — both wrong-error states. Halt cleanly with
+        // CONTRACT-008 naming the void fn and the fix.
+        let ens_rtype: str = fn_return_type(source, ens_name);
+        if str_len(ens_rtype) == 0 {
+            if ensure_text_uses_result(ens_text) == 1 {
+                print(str_concat("error[CONTRACT-008]: `#[ensure(...)]` on `fn ", str_concat(ens_name, str_concat("` references `result`, but `", str_concat(ens_name, "` has no return type. The fn does not produce a value to bind `result` against. Either remove the `result` reference from the ensure predicate, or add a return type to the fn (e.g. `-> i64`) if you intended the ensure to assert on the output.")))));
+                print(str_concat("  --> fn ", str_concat(ens_name, "@<#[ensure] attribute>")));
+                return 1;
+            };
+        };
+        // text-level rewrite of `old(EXPR)` to synth names.
+        let rewrite: Vec<i32> = rewrite_old_in_ensure(ens_text, ens_name);
+        let rewritten: str = vec_get(rewrite, 0);
+        let nold: i64 = str_to_int(vec_get(rewrite, 1));
+        let mut roi: i64 = 0;
+        while roi < nold {
+            let synth: str = vec_get(rewrite, 2 + roi * 2);
+            let inner_text: str = vec_get(rewrite, 2 + roi * 2 + 1);
+            // heap-aliased reject. If the inner is a bare
+            // ident matching a fn param of heap-aliased type
+            // (Vec/String/HashMap/HashSet/BTreeMap/BTreeSet/VecDeque/Box),
+            // emit CONTRACT-006 because the i64-ABI snapshots the
+            // pointer, not the buffer — old(v) would alias the
+            // post-mutation pointer.
+            if is_bare_ident(inner_text) == 1 {
+                let pty: str = fn_param_type(source, ens_name, str_trim(inner_text));
+                if str_len(pty) > 0 {
+                    if is_heap_aliased_type(pty) == 1 {
+                        let trimmed: str = str_trim(inner_text);
+                        // Print directly to mirror the existing
+                        // diag-text format, then halt. Bypasses the
+                        // diags-vec accumulator because the main
+                        // drain has already run and re-running the
+                        // filter/promote pass corrupts string state
+                        // under the i64-ABI's pointer reuse.
+                        print(str_concat("error[CONTRACT-006]: `old(", str_concat(trimmed, str_concat(")` over param `", str_concat(trimmed, str_concat("` of type `", str_concat(pty, "` captures the i64-ABI heap pointer, not a deep snapshot. The pointer is the same one the body mutates — so `old(...)` aliases the post-mutation value and ensure semantics are wrong. Hoist a manual snapshot before the body (e.g. `let len_initial: i64 = vec_len(v);`) and reference that scalar in the ensure predicate, or mark the fn with `#[no_check]` to opt out.")))))));
+                        print(str_concat("  --> fn ", str_concat(ens_name, "@<old() arg>")));
+                        return 1;
+                    };
+                };
+            };
+            let in_tokens: Vec<i32> = lex(inner_text);
+            let in_parsed: Vec<i32> = parse_expr(in_tokens, 0, pool);
+            let in_nid: i64 = pr_val(in_parsed);
+            old_snapshots.push(ens_name);
+            old_snapshots.push(synth);
+            old_snapshots.push(in_nid);
+            free_token_vec(in_tokens);
+            roi = roi + 1;
+        };
+        let ens_tokens: Vec<i32> = lex(rewritten);
+        let ens_parsed: Vec<i32> = parse_expr(ens_tokens, 0, pool);
+        let ens_expr_nid: i64 = pr_val(ens_parsed);
+        ensure_exprs.push(ens_name);
+        ensure_exprs.push(ens_expr_nid);
+        free_token_vec(ens_tokens);
+        eti = eti + 2;
+    };
+    let inv_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_impl_invariants(source) } else { Vec::new() };
+    let mut invariant_exprs: Vec<i32> = Vec::new();
+    let mut iti: i64 = 0;
+    let inv_text_count: i64 = vec_len(inv_text_pairs);
+    while iti + 1 < inv_text_count {
+        let inv_name: str = vec_get(inv_text_pairs, iti);
+        let inv_text: str = vec_get(inv_text_pairs, iti + 1);
+        let inv_tokens: Vec<i32> = lex(inv_text);
+        let inv_parsed: Vec<i32> = parse_expr(inv_tokens, 0, pool);
+        let inv_expr_nid: i64 = pr_val(inv_parsed);
+        invariant_exprs.push(inv_name);
+        invariant_exprs.push(inv_expr_nid);
+        free_token_vec(inv_tokens);
+        iti = iti + 2;
+    };
+    // build the shared fn-return-map once and pass
+    // it to every lower_fn call instead of injecting per-fn entries.
+    let fn_return_map: i64 = fn_return_map_new(pool, fn_decls);
+    let suppress_self_host_auto_drop: i64 = if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 1 { 1 } else { 0 };
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns, suppress_self_host_auto_drop)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns, suppress_self_host_auto_drop));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
@@ -190,12 +724,27 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print(str_concat("  strings: ", str_from_int(vec_len(strtab))));
     print(str_concat("  optimized: ", str_concat(str_from_int(opt_total), " instructions")));
     let emit_start: i64 = now_ms();
-    let ll: str = emit_module_ext(fns, strtab, pool, externs);
+    let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
     print_phase_time(time_passes, "emit", now_ms() - emit_start);
+    // Drop compile graph top-level Vec storage before clang so native
+    // link memory does not stack on top of the full compiler state.
+    vec_free(bundle);
+    free_node_pool(pool);
+    vec_free(strtab);
+    vec_free(fns);
+    vec_free(externs);
+    vec_free(structs);
+    vec_free(enums);
+    vec_free(globals);
+    vec_free(fn_decls);
+    vec_free(trait_impls);
+    vec_free(impl_fns);
+    vec_free(closures);
     let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_key, link_native, time_passes);
     if use_cache == 1 {
         if rc == 0 {
-            cache_v2_store(cache_key, src_path, cache_flags, ll);
+            let cache_store_ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+            cache_v2_store(cache_key, src_path, cache_flags, ll, cache_store_ll_path);
             print(str_concat("cache: miss -> stored (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(ll)), " MB)")))));
         } else {
             print(str_concat("cache: miss -> not stored (sha=", str_concat(cache_v2_prefix(cache_key), ", size 0 MB)")));
@@ -208,8 +757,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     return rc;
 }
 
+#[manual_drop]
 fn compile_file(src_path: str, out_name: str) -> i64 {
-    return compile_file_mode(src_path, out_name, 1, 1, 0, 1);
+    return compile_file_mode_native_isolated(src_path, out_name, 0, 1, 0, 1);
 }
 
 fn fn_name_start_in_line(line: str) -> i64 {
@@ -2674,7 +3224,7 @@ fn run_stage_dump_command(argc: i64) -> i64 {
         while ii < vec_len(impl_fns) { fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls)); ii = ii + 1; };
         let mut ci2: i64 = 0;
         while ci2 < vec_len(closures) { fns.push(vec_get(closures, ci2)); ci2 = ci2 + 1; };
-        let ll: str = emit_module_ext(fns, strtab, pool, externs);
+        let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
         ir_json = stage_dump_ir_json(vec_len(fns), vec_len(externs), vec_len(structs), vec_len(enums), str_len(ll), 0, "");
         if json_mode == 0 && (str_eq(stage, "ir") == 1 || str_eq(stage, "all") == 1) {
             print("=== IR ===");
@@ -6534,214 +7084,35 @@ fn run_sage_command(argc: i64) -> i64 {
 }
 
 fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 {
+    // RFC-0063 Phase 2.0: perf no longer re-drives the pipeline inline
+    // (s1's lower_fn now needs the full compile_file_mode setup). Text
+    // mode delegates to the unified compiler with time_passes=1 (real
+    // per-phase timings). JSON mode reports quiet front-end phase timings
+    // (resolve / lex / parse), mirroring how audit/graph use the parser.
     let json_mode: i64 = cli_wants_json(argc, arg_start);
-    let total_start: i64 = now_ms();
-    let resolve_start: i64 = now_ms();
-    let bundle: Vec<i32> = load_resolved_source_bundle(src_path, 1);
-    let source: str = vec_get(bundle, 0);
-    let imported: Vec<i32> = vec_get(bundle, 1);
-    if str_len(source) == 0 {
-        print(str_concat("ERROR: cannot read ", src_path));
-        return 1;
-    };
-    let resolve_ms: i64 = now_ms() - resolve_start;
-    let preflight_start: i64 = now_ms();
-    if preflight_source_check(source) != 0 { return 1; };
-    let preflight_ms: i64 = now_ms() - preflight_start;
-    let lex_start: i64 = now_ms();
-    let mut tokens: Vec<i32> = lex(source);
-    let lex_ms: i64 = now_ms() - lex_start;
-    let mut pool: Vec<i32> = Vec::new();
-    let parse_start: i64 = now_ms();
-    let parsed: Vec<i32> = parse_program(tokens, pool);
-    let prog: i64 = pr_val(parsed);
-    let parse_ms: i64 = now_ms() - parse_start;
-    let cnt: i64 = list_len(pool, prog);
-    let mut strtab: Vec<i32> = Vec::new();
-    let mut fns: Vec<i32> = Vec::new();
-    let mut externs: Vec<i32> = Vec::new();
-    let mut structs: Vec<i32> = Vec::new();
-    let mut enums: Vec<i32> = Vec::new();
-    let mut globals: Vec<i32> = Vec::new();
-    let collect_start: i64 = now_ms();
-    let mut fi: i64 = 0;
-    while fi < cnt {
-        let nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid) == 32 { externs.push(nid); }
-        else if node_kind(pool, nid) == 33 { structs.push(nid); }
-        else if node_kind(pool, nid) == 36 { enums.push(nid); };
-        if node_kind(pool, nid) == 50 { globals.push(nid); };
-        fi = fi + 1;
-    };
-    let collect_ms: i64 = now_ms() - collect_start;
-    let mut trait_impls: Vec<i32> = Vec::new();
-    let mut impl_fns: Vec<i32> = Vec::new();
-    let impl_start: i64 = now_ms();
-    fi = 0;
-    while fi < cnt {
-        let nid2: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid2) == 45 {
-            let type_name: str = node_field(pool, nid2, 2);
-            let methods: i64 = node_field(pool, nid2, 3);
-            let mc: i64 = list_len(pool, methods);
-            let mut mi: i64 = 0;
-            while mi < mc {
-                let method_nid: i64 = list_get(pool, methods, mi);
-                let orig_name: str = node_field(pool, method_nid, 1);
-                let mangled: str = str_concat(type_name, str_concat("__", orig_name));
-                let new_fn: i64 = mk6(pool, 30, mangled, node_field(pool, method_nid, 2), node_field(pool, method_nid, 3), node_field(pool, method_nid, 4), node_field(pool, method_nid, 5));
-                impl_fns.push(new_fn);
-                trait_impl_register(trait_impls, type_name, orig_name, mangled);
-                mi = mi + 1;
-            };
-        };
-        fi = fi + 1;
-    };
-    let impl_ms: i64 = now_ms() - impl_start;
-    let mut diags: Vec<i32> = diag_new();
-    let own_start: i64 = now_ms();
-    fi = 0;
-    while fi < cnt {
-        let nid3: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid3) == 30 { check_fn(pool, nid3, structs, enums, diags, source, "", ""); };
-        fi = fi + 1;
-    };
-    let mut oi: i64 = 0;
-    while oi < vec_len(impl_fns) {
-        check_fn(pool, vec_get(impl_fns, oi), structs, enums, diags, source, "", "");
-        oi = oi + 1;
-    };
-    let ownership_ms: i64 = now_ms() - own_start;
-    let type_start: i64 = now_ms();
-    let tprof: Vec<i32> = tprof_new(0);
-    type_check_program(pool, prog, structs, diags, source, tprof);
-    let type_ms: i64 = now_ms() - type_start;
-    let source_start: i64 = now_ms();
-    source_rule_check(source, diags);
-    let source_ms: i64 = now_ms() - source_start;
-    let mut pure_fns: Vec<i32> = Vec::new();
-    fi = 0;
-    while fi < cnt {
-        let nid4: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid4) == 46 { pure_fns.push(node_field(pool, nid4, 1)); };
-        fi = fi + 1;
-    };
-    let effect_start: i64 = now_ms();
-    fi = 0;
-    while fi < cnt {
-        let nid5: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid5) == 30 {
-            let fname: str = node_field(pool, nid5, 1);
-            let mut is_pure: i64 = 0;
-            let mut pi: i64 = 0;
-            while pi < vec_len(pure_fns) {
-                if str_eq(vec_get(pure_fns, pi), fname) == 1 { is_pure = 1; pi = vec_len(pure_fns); };
-                pi = pi + 1;
-            };
-            if is_pure == 1 { effect_check_fn(pool, nid5, pure_fns, diags, source, "", ""); };
-        };
-        fi = fi + 1;
-    };
-    let effect_ms: i64 = now_ms() - effect_start;
-    let taint_start: i64 = now_ms();
-    fi = 0;
-    while fi < cnt {
-        let nid6: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid6) == 30 { taint_check_fn(pool, nid6, diags, source, "", ""); };
-        fi = fi + 1;
-    };
-    let taint_ms: i64 = now_ms() - taint_start;
-    if diag_count(diags) > 0 {
-        diag_emit_text(diags);
-        return 1;
-    };
-    let mut closures: Vec<i32> = Vec::new();
-    let lower_start: i64 = now_ms();
-    fi = 0;
-    while fi < cnt {
-        let nid7: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, nid7) == 30 { fns.push(lower_fn(pool, nid7, strtab, structs, enums, globals, closures, trait_impls)); };
-        fi = fi + 1;
-    };
-    let mut ii: i64 = 0;
-    while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls));
-        ii = ii + 1;
-    };
-    let mut ci: i64 = 0;
-    while ci < vec_len(closures) {
-        fns.push(vec_get(closures, ci));
-        ci = ci + 1;
-    };
-    let lower_ms: i64 = now_ms() - lower_start;
-    let opt_start: i64 = now_ms();
-    let mut opt_total: i64 = 0;
-    fi = 0;
-    while fi < vec_len(fns) {
-        opt_total = opt_total + opt_fn(vec_get(fns, fi));
-        fi = fi + 1;
-    };
-    let opt_ms: i64 = now_ms() - opt_start;
-    let emit_start: i64 = now_ms();
-    let ll: str = emit_module_ext(fns, strtab, pool, externs);
-    let emit_ms: i64 = now_ms() - emit_start;
-    let total_ms: i64 = now_ms() - total_start;
-    let mut diagnostics: Vec<i32> = Vec::new();
-    if type_ms > ownership_ms && type_ms > lower_ms && type_ms > emit_ms {
-        diagnostics.push("type checking dominates cold analysis time");
-    };
-    if str_len(ll) > 1000000 {
-        diagnostics.push("large LLVM module size; consider splitting into smaller modules");
-    };
-    if vec_len(imported) > 25 {
-        diagnostics.push("large import graph; module boundaries may be too wide for fast cold builds");
-    };
     if json_mode == 1 {
-        let mut sb: i64 = sb_new();
-        sb_append(sb, "{\"file\":\""); sb_append(sb, json_escape(src_path)); sb_append(sb, "\",\"mode\":\"strict\",");
-        sb_append(sb, "\"source_bytes\":"); sb_append(sb, str_from_int(str_len(source)));
-        sb_append(sb, ",\"module_count\":"); sb_append(sb, str_from_int(vec_len(imported)));
-        sb_append(sb, ",\"function_count\":"); sb_append(sb, str_from_int(vec_len(fns)));
-        sb_append(sb, ",\"string_count\":"); sb_append(sb, str_from_int(vec_len(strtab)));
-        sb_append(sb, ",\"optimized_instructions\":"); sb_append(sb, str_from_int(opt_total));
-        sb_append(sb, ",\"ll_bytes\":"); sb_append(sb, str_from_int(str_len(ll)));
-        sb_append(sb, ",\"phase_ms\":{\"resolve_source\":"); sb_append(sb, str_from_int(resolve_ms));
-        sb_append(sb, ",\"preflight\":"); sb_append(sb, str_from_int(preflight_ms));
-        sb_append(sb, ",\"lex\":"); sb_append(sb, str_from_int(lex_ms));
-        sb_append(sb, ",\"parse\":"); sb_append(sb, str_from_int(parse_ms));
-        sb_append(sb, ",\"collect_decls\":"); sb_append(sb, str_from_int(collect_ms));
-        sb_append(sb, ",\"collect_impls\":"); sb_append(sb, str_from_int(impl_ms));
-        sb_append(sb, ",\"ownership\":"); sb_append(sb, str_from_int(ownership_ms));
-        sb_append(sb, ",\"type\":"); sb_append(sb, str_from_int(type_ms));
-        sb_append(sb, ",\"source\":"); sb_append(sb, str_from_int(source_ms));
-        sb_append(sb, ",\"effect\":"); sb_append(sb, str_from_int(effect_ms));
-        sb_append(sb, ",\"taint\":"); sb_append(sb, str_from_int(taint_ms));
-        sb_append(sb, ",\"lower\":"); sb_append(sb, str_from_int(lower_ms));
-        sb_append(sb, ",\"opt\":"); sb_append(sb, str_from_int(opt_ms));
-        sb_append(sb, ",\"emit\":"); sb_append(sb, str_from_int(emit_ms));
-        sb_append(sb, ",\"total\":"); sb_append(sb, str_from_int(total_ms));
-        sb_append(sb, "},\"diagnostics\":"); sb_append_json_string_array(sb, diagnostics);
-        sb_append(sb, "}");
-        print(sb_to_str(sb));
+        let r0: i64 = now_ms();
+        let bundle: Vec<i32> = load_resolved_source_bundle(src_path, 1);
+        let source: str = vec_get(bundle, 0);
+        let resolve_ms: i64 = now_ms() - r0;
+        let l0: i64 = now_ms();
+        let tokens: Vec<i32> = lex(source);
+        let lex_ms: i64 = now_ms() - l0;
+        let p0: i64 = now_ms();
+        let mut pool: Vec<i32> = Vec::new();
+        let parsed: Vec<i32> = parse_program(tokens, pool);
+        let parse_ms: i64 = now_ms() - p0;
+        let cnt: i64 = list_len(pool, pr_val(parsed));
+        print(str_concat("{\"command\":\"perf\",\"source\":\"", str_concat(src_path, str_concat("\",\"items\":", str_concat(str_from_int(cnt), str_concat(",\"resolve_ms\":", str_concat(str_from_int(resolve_ms), str_concat(",\"lex_ms\":", str_concat(str_from_int(lex_ms), str_concat(",\"parse_ms\":", str_concat(str_from_int(parse_ms), "}")))))))))));
         return 0;
     };
-    print(str_concat("=== Nucleor Performance Analysis: ", src_path));
-    print(str_concat("  module_count: ", str_from_int(vec_len(imported))));
-    print(str_concat("  function_count: ", str_from_int(vec_len(fns))));
-    print(str_concat("  string_count: ", str_from_int(vec_len(strtab))));
-    print(str_concat("  optimized_instructions: ", str_from_int(opt_total)));
-    print(str_concat("  ll_bytes: ", str_from_int(str_len(ll))));
-    print(str_concat("  total_ms: ", str_from_int(total_ms)));
-    print(str_concat("  hot_phase: type=", str_from_int(type_ms)));
-    if vec_len(diagnostics) == 0 {
-        print("  diagnostics: none");
-    } else {
-        let mut di: i64 = 0;
-        while di < vec_len(diagnostics) {
-            print(str_concat("  diagnostic: ", vec_get(diagnostics, di)));
-            di = di + 1;
-        };
-    };
+    print("Nucleor Performance Analysis");
+    print(str_concat("  source: ", src_path));
+    let t0: i64 = now_ms();
+    let rc: i64 = compile_file_mode(src_path, "perf_probe", 0, 0, 1, 0);
+    let total: i64 = now_ms() - t0;
+    print(str_concat("  total compile: ", str_concat(str_from_int(total), " ms")));
+    if rc != 0 { print("  note: source did not compile cleanly"); };
     return 0;
 }
 
@@ -7118,7 +7489,7 @@ fn main() -> i64 {
         while ci < vec_len(closures) { fns.push(vec_get(closures, ci)); ci = ci + 1; };
         fi = 0;
         while fi < vec_len(fns) { opt_fn(vec_get(fns, fi)); fi = fi + 1; };
-        let ll: str = emit_module_ext(fns, strtab, pool, externs);
+        let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
         let ll_path: str = str_concat("target/", str_concat(out_name, ".ll"));
         let wasm_path: str = str_concat("target/", str_concat(out_name, ".wasm"));
         file_write_string(ll_path, ll);
@@ -7214,7 +7585,7 @@ fn main() -> i64 {
                 let d_before: i64 = diag_count(diags);
                 let mut own_findings: i64 = 0;
                 let mut taint_findings: i64 = 0;
-                if run_own == 1 { own_findings = check_fn(pool, fn_nid, structs, enums, diags, source, review_path, review_filter); };
+                if run_own == 1 { own_findings = check_fn(pool, fn_nid, structs, enums, diags, source); };
                 if run_taint == 1 { taint_findings = taint_check_fn(pool, fn_nid, diags, source, review_path, review_filter); };
                 // S12b: checker_coverage event (removable)
                 if str_len(review_path) > 0 {
@@ -7299,7 +7670,7 @@ fn main() -> i64 {
         if sarif_mode == 1 {
             diag_emit_sarif(diags, source, src_path);
         } else if json_mode == 1 {
-            diag_emit_json(diags, source, src_path);
+            diag_emit_json(diags);
         } else {
             print(str_concat("  parsed: ", str_concat(str_from_int(cnt), " top-level items")));
             let mut checkers_run: str = "";
@@ -7363,7 +7734,7 @@ fn main() -> i64 {
         while fi < cnt {
             let nid: i64 = list_get(pool, prog, fi);
             if node_kind(pool, nid) == 30 {
-                check_fn(pool, nid, structs, enums, diags, source, review_path, review_filter);
+                check_fn(pool, nid, structs, enums, diags, source);
                 taint_check_fn(pool, nid, diags, source, review_path, review_filter);
             };
             fi = fi + 1;

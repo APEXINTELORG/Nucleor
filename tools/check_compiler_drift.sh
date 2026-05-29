@@ -68,6 +68,15 @@ TOOLS_FULL="$TMP/tools_full.nr"
     for f in "$ROOT"/compiler/ts/*.nr; do
         [ -f "$f" ] && { printf '\n'; cat "$f"; }
     done
+    # RFC-0063 Phase 2.0: the tools-suite no longer carries its own copy
+    # of the compiler pipeline — it imports the s1 single source of truth
+    # (compiler/s1/*.nr) plus the residual shared-wave helper layer. The
+    # tools compiler's effective source therefore includes those files, so
+    # the view must too; otherwise the ABI/parser extractors find an empty
+    # tools side (the tables now live only in the imported s1 modules).
+    for f in "$ROOT"/compiler/s1/*.nr "$ROOT"/compiler/nucleor_rfc0063_shared_wave*.nr; do
+        [ -f "$f" ] && { printf '\n'; cat "$f"; }
+    done
 } > "$TOOLS_FULL"
 # Aliases used through the rest of the script. Some checks still need
 # to grep the literal main file (e.g. `pub fn` floor, `compiler_version_label`

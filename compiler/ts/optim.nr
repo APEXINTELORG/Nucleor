@@ -125,37 +125,4 @@ fn opt_merge_blocks(f: Vec<i32>) -> i64 {
 }
 
 // --- Optimizer driver: runs all passes on an entire function ---
-#[manual_drop]
-fn opt_fn(f: Vec<i32>) -> i64 {
-    let mut total: i64 = 0;
-    let mut bi: i64 = 0;
-    // Iteration 1: fold → prop → fold → CSE → dead store → DCE
-    let mut bc: i64 = ir_fn_block_count(f);
-    bi = 0;
-    while bi < bc {
-        let blk: Vec<i32> = ir_fn_get_block(f, bi);
-        total = total + opt_fold_block(blk);
-        total = total + opt_prop_block(blk);
-        total = total + opt_fold_block(blk);
-        total = total + opt_cse_block(blk);
-        total = total + opt_dead_store_block(blk);
-        total = total + opt_dce_block(blk);
-        bi = bi + 1;
-    };
-    // Block merging disabled — predecessor counting doesn't account for
-    // new predecessors created when a merged block's terminator branches elsewhere.
-    // Iteration 2: re-run per-block passes on merged blocks
-    let bc2: i64 = ir_fn_block_count(f);
-    bi = 0;
-    while bi < bc2 {
-        let blk: Vec<i32> = ir_fn_get_block(f, bi);
-        total = total + opt_fold_block(blk);
-        total = total + opt_prop_block(blk);
-        total = total + opt_fold_block(blk);
-        total = total + opt_dead_store_block(blk);
-        total = total + opt_dce_block(blk);
-        bi = bi + 1;
-    };
-    return total;
-}
 
