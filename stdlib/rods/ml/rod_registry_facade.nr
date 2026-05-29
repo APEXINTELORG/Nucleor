@@ -1,4 +1,5 @@
 // rods/ml/rod_registry_facade — nuc add lockfile contract (pinned rod count, transitive deps, registry count, offline replay)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by rod_registry_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

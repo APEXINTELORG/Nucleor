@@ -168,8 +168,18 @@ const char *__nucleor_proc_capture_with_status(const char *cmdline) {
 static int s3_shell_unquotable(const char *s) {
     if (!s) return 0;
     while (*s) {
+        /* Newline / carriage-return inject a second command line on every
+         * platform's shell — reject on both. */
+        if (*s == '\n' || *s == '\r') return 1;
 #ifdef _WIN32
-        if (*s == '"') return 1;
+        /* SEC-7: cmd.exe (which `system()` invokes) performs %VAR% and
+         * !VAR! expansion *inside* "..." double quotes and treats `^` as an
+         * escape — none of which the s3_quote double-quote wrapper can
+         * neutralize. There is no in-band escape for `%` inside quotes, so
+         * fail closed on the whole cmd metacharacter class rather than
+         * silently allow variable / echo injection. (proc_run_argv, when
+         * shipped, bypasses the shell via CreateProcess.) */
+        if (*s == '"' || *s == '%' || *s == '!' || *s == '^') return 1;
 #else
         if (*s == '\'') return 1;
 #endif

@@ -1,4 +1,5 @@
 // rods/ml/tune_facade — Hyperparameter tuning manifest contract (search strategy, parameter space, trial accounting)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by tune_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

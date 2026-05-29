@@ -1,4 +1,5 @@
 // rods/ml/backend_facade — Backend dispatch accounting contract (scalar fallback / CPU / GPU / fused / external backend counts)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by backend_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

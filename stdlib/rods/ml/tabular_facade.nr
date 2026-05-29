@@ -1,4 +1,5 @@
 // rods/ml/tabular_facade — Arrow / Polars / DuckDB table-engine contract (schema, lazy plan, SQL pushdown, zero-copy buffers)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by tabular_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

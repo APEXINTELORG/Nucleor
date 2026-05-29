@@ -1,4 +1,5 @@
 // rods/ml/lab_facade — nuc lab workbench manifest (deterministic cell graph, viewer counts, agent mounts, port)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by lab_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

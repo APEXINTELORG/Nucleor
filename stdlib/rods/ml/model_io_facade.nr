@@ -1,4 +1,5 @@
 // rods/ml/model_io_facade — nuc serve model-loader contract (.ncap, GGUF, safetensors, ONNX, tokenizer, quantization formats)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by model_io_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

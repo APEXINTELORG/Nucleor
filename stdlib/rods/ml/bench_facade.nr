@@ -1,4 +1,5 @@
 // rods/ml/bench_facade — nuc bench telemetry contract (wall time, peak RSS, binary size, dependency count; speed_claim_enabled=0)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by bench_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

@@ -1,4 +1,5 @@
 // rods/ml/serve_facade — nuc serve package contract (model format, quantization, tokenizer, backend, context window, batch size)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by serve_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

@@ -1,4 +1,5 @@
 // rods/ml/capsule_facade — Capsule manifest contract + 10 sub-aspect variants (artifact/device/input/output/rod_graph/source/suite/tolerance/toolchain/verifier)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by capsule_native_available()==0 (HON-1).
 //
 import "stdlib/rods/ml/tensor_facade.nr"
 import "stdlib/rods/jsonl.nr"

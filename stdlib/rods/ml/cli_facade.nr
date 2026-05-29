@@ -1,4 +1,5 @@
 // rods/ml/cli_facade — nuc CLI front-door command contract (new, add, lab, bench, port, capsule, serve, ship)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by cli_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

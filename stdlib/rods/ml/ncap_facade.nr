@@ -1,4 +1,5 @@
 // rods/ml/ncap_facade — .ncap package manifest contract (route count, evidence count, source hashes, signature state)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by ncap_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

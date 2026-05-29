@@ -1,4 +1,5 @@
 // rods/ml/vllm_facade — vLLM-style serving contract (scheduler policy, paged KV cache, block table, eviction policy)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by vllm_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

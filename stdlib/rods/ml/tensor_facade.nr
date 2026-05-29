@@ -19,6 +19,10 @@ struct TensorF64 {
 }
 
 #[repr(C)]
+// HON-3: this type is f32 in NAME and dtype-tag only. Its storage is
+// `Vec<i64>` (raw bit-pattern / metadata lane), NOT a real f32 buffer —
+// there is no native f32 tensor kernel behind it yet. Treat `data` as
+// opaque tagged storage; do not assume IEEE-754 f32 element semantics.
 struct TensorF32 {
     shape: Shape2,
     dtype: i64,

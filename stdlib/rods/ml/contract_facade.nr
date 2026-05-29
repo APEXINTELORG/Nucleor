@@ -1,4 +1,5 @@
 // rods/ml/contract_facade — Runtime shape/dtype contract (compile_time_shape_assertion_count = 0 boundary)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by contract_native_available()==0 (HON-1).
 //
 import "stdlib/rods/ml/tensor_facade.nr"
 import "stdlib/rods/jsonl.nr"

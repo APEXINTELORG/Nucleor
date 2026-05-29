@@ -306,6 +306,7 @@ TOTAL_SKIP=0
 STEP_INDEX=0
 STEP_TOTAL=0
 FAILURES=()
+SKIPPED=()   # VER-8: track skipped step names so the summary can surface them
 
 # Categorize a step name into a coarse bucket for the end-of-run
 # tagged breakdown. Bucket names line up with the architecture
@@ -419,7 +420,7 @@ step() {
     bucket="$(_step_bucket "$name")"
     case "$rc" in
         0)  echo "$prefix $(green 'OK  ')  $name  ($(printf '%6.2fs' "$secs"))"; status=PASS; TOTAL_PASS=$((TOTAL_PASS + 1)); BUCKET_PASS[$bucket]=$((${BUCKET_PASS[$bucket]:-0} + 1)) ;;
-        2)  echo "$prefix $(yellow 'SKIP')  $name  ($(printf '%6.2fs' "$secs"))"; status=SKIP; TOTAL_SKIP=$((TOTAL_SKIP + 1)); BUCKET_SKIP[$bucket]=$((${BUCKET_SKIP[$bucket]:-0} + 1)) ;;
+        2)  echo "$prefix $(yellow 'SKIP')  $name  ($(printf '%6.2fs' "$secs"))"; status=SKIP; TOTAL_SKIP=$((TOTAL_SKIP + 1)); SKIPPED+=("$name"); BUCKET_SKIP[$bucket]=$((${BUCKET_SKIP[$bucket]:-0} + 1)) ;;
         *)  echo "$prefix $(red   'FAIL')  $name  ($(printf '%6.2fs' "$secs"))"; status=FAIL; TOTAL_FAIL=$((TOTAL_FAIL + 1)); FAILURES+=("$name"); BUCKET_FAIL[$bucket]=$((${BUCKET_FAIL[$bucket]:-0} + 1)) ;;
     esac
     if [ "$NUC_VERIFY_CSV_ENABLED" = "1" ]; then
@@ -6690,6 +6691,37 @@ for b in $_buckets; do
     bf=${BUCKET_FAIL[$b]:-0}
     printf "  %-14s %7d %7d %7d\n" "$b" "$bp" "$bs" "$bf"
 done
+
+# VER-8: a green PASS line hides real caveats — list them as a first-class
+# summary so "1673 PASS" can't quietly mean "with 9 rods untested and N
+# steps skipped." Two facts: which steps SKIPped (and so asserted nothing
+# this run), and which stdlib rods have no test that imports them.
+echo ""
+echo "$(dim 'caveats (not failures, but the green line hides them):')"
+echo "  skipped steps: $TOTAL_SKIP$([ "$TOTAL_SKIP" -gt 0 ] && echo ' — asserted nothing this run:')"
+for s in "${SKIPPED[@]}"; do echo "$(dim "    - $s")"; done
+_untracked_skips=$((TOTAL_SKIP - ${#SKIPPED[@]}))
+[ "$_untracked_skips" -gt 0 ] && echo "$(dim "    (+$_untracked_skips feature-internal skip(s); see the SKIP lines above)")"
+# Rods with no importing test. A rod is "tested" if any tests/**/*.nr does
+# `import "stdlib/rods/<rod>.nr"` (or the rod is itself imported transitively
+# by such a file's direct import — kept simple: direct import match).
+_notest_rods=""
+_notest_n=0
+if [ -d "$ROOT/stdlib/rods" ]; then
+    for rod in "$ROOT"/stdlib/rods/*.nr; do
+        [ -f "$rod" ] || continue
+        rel="stdlib/rods/$(basename "$rod")"
+        if ! grep -rqlF "import \"$rel\"" "$ROOT/tests" 2>/dev/null; then
+            _notest_rods="$_notest_rods $(basename "$rod" .nr)"
+            _notest_n=$((_notest_n + 1))
+        fi
+    done
+fi
+if [ "$_notest_n" -gt 0 ]; then
+    echo "  rods with no importing test ($_notest_n):$(dim "$_notest_rods")"
+else
+    echo "  rods with no importing test: 0"
+fi
 
 if [ "$TOTAL_FAIL" -gt 0 ]; then
     exit 1

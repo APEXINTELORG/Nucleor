@@ -45,15 +45,17 @@ fn quant_free(h: i64) { nuc_quant_free(h); }
 
 // === Quantization coverage disclosure ===
 //
-// the rod shipped encode + GEMV / dot for Q4, INT8, ternary; encode-only
-// for FP8 (no FP8 GEMV, no FP8 decode); no grouped quantization at
-// all; no INT8 decode; documented error bounds absent.
+// HON-5: kept in sync with quantize_limitations() below. Current state:
+// Q4 / INT8 / ternary all ship encode + decode + GEMV/dot; FP8 ships
+// encode + decode + GEMV over the simplified signed-byte scaled
+// representation (true IEEE E4M3 bit encoding remains future work);
+// GROUPED signed-Q4 ships grouped_encode / grouped_decode / grouped_gemv
+// with per-group scales. The one real gap is DOCUMENTED ERROR BOUNDS —
+// not published per scheme, so adopters must measure round-trip error
+// before relying on a tolerance.
 //
-// `quant_op_supported(op)` returns
-// 1 if the named op is shipped today, 0 if Phase 2 work, plus
-// `quantize_limitations()` text helper. Phase 2 wires the missing
-// surfaces (FP8 GEMV / decode, INT8 decode, grouped quant, error
-// bounds doc).
+// `quant_op_supported(op)` returns 1 if the named op is shipped today,
+// 0 otherwise; `quantize_limitations()` is the authoritative text helper.
 
 // Returns 1 if the named op is shipped, 0 otherwise.
 // Adopters call this before designing a pipeline around an op.

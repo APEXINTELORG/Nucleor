@@ -1,4 +1,5 @@
 // rods/ml/cert_facade — Unsigned cert profile manifest (source / compiler / backend / agent-trace / reproducible-build evidence requirements)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by cert_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 

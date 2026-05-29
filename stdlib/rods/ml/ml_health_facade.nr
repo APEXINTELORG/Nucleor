@@ -1,4 +1,5 @@
 // rods/ml/ml_health_facade — ML Suite preflight / health check contract (compiler, LLVM, parity summary, NCAP verification)
+// Maturity: CONTRACT-ONLY — records manifest/contract metadata; no native engine or runtime is linked behind it. Enforced by ml_health_native_available()==0 (HON-1).
 //
 import "stdlib/rods/jsonl.nr"
 
