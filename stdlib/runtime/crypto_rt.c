@@ -15,6 +15,10 @@
 #else
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#if defined(__linux__)
+#include <sys/random.h>
+#endif
 #endif
 
 // ================================================================
@@ -174,18 +178,90 @@ const char *nuc_base64_decode(const char *data, long long len) {
 //  Cryptographic Random Bytes
 // ================================================================
 
+// SEC-1: a CSPRNG must never silently return non-random or partial
+// bytes. The previous implementation truncated the length to int,
+// ignored the result of CryptGenRandom / read(), and — on any failure
+// (provider acquire fails, /dev/urandom missing, short read) — returned
+// leaving the caller's buffer untouched (uninitialised stack/heap, i.e.
+// predictable). Every failure path now aborts loudly, the buffer is
+// always filled to completion, and the length is no longer truncated.
 void nuc_random_bytes(long long buf_h, long long len) {
-    char *buf = (char *)(void *)buf_h;
-    int n = (int)len;
+    unsigned char *buf = (unsigned char *)(void *)buf_h;
+
+    if (len < 0) {
+        fprintf(stderr, "PANIC: nuc_random_bytes: negative length %lld\n", len);
+        fflush(stderr);
+        exit(1);
+    }
+    if (len == 0) return;
+    size_t want = (size_t)len;
+
 #ifdef _WIN32
+    // CryptGenRandom fills the whole buffer or fails outright; check both
+    // calls and abort rather than leave the buffer uninitialised.
     HCRYPTPROV prov;
-    if (CryptAcquireContextA(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-        CryptGenRandom(prov, n, (BYTE *)buf);
-        CryptReleaseContext(prov, 0);
+    if (!CryptAcquireContextA(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        fprintf(stderr, "PANIC: nuc_random_bytes: CryptAcquireContext failed (err=%lu)\n",
+                (unsigned long)GetLastError());
+        fflush(stderr);
+        exit(1);
+    }
+    BOOL ok = CryptGenRandom(prov, (DWORD)want, (BYTE *)buf);
+    CryptReleaseContext(prov, 0);
+    if (!ok) {
+        fprintf(stderr, "PANIC: nuc_random_bytes: CryptGenRandom failed (err=%lu)\n",
+                (unsigned long)GetLastError());
+        fflush(stderr);
+        exit(1);
     }
 #else
-    int fd = open("/dev/urandom", O_RDONLY);
-    if (fd >= 0) { read(fd, buf, n); close(fd); }
+    size_t total = 0;
+
+#if defined(__linux__)
+    // Fast path: getrandom(2). Loop over short reads / EINTR; on a hard
+    // error (e.g. ENOSYS on an old kernel) fall through to /dev/urandom
+    // for the remaining bytes (any prefix already written is preserved).
+    while (total < want) {
+        ssize_t r = getrandom(buf + total, want - total, 0);
+        if (r < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        total += (size_t)r;
+    }
+    if (total == want) return;
+#endif
+
+    // Portable path: read /dev/urandom to completion. A partial read or
+    // any error is a hard failure for a CSPRNG — never return weak bytes.
+    int fd = open("/dev/urandom", O_RDONLY
+#ifdef O_CLOEXEC
+                  | O_CLOEXEC
+#endif
+                  );
+    if (fd < 0) {
+        fprintf(stderr, "PANIC: nuc_random_bytes: cannot open /dev/urandom (errno=%d)\n", errno);
+        fflush(stderr);
+        exit(1);
+    }
+    while (total < want) {
+        ssize_t r = read(fd, buf + total, want - total);
+        if (r < 0) {
+            if (errno == EINTR) continue;
+            close(fd);
+            fprintf(stderr, "PANIC: nuc_random_bytes: read(/dev/urandom) failed (errno=%d)\n", errno);
+            fflush(stderr);
+            exit(1);
+        }
+        if (r == 0) {
+            close(fd);
+            fprintf(stderr, "PANIC: nuc_random_bytes: unexpected EOF on /dev/urandom\n");
+            fflush(stderr);
+            exit(1);
+        }
+        total += (size_t)r;
+    }
+    close(fd);
 #endif
 }
 
