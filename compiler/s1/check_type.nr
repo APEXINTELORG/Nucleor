@@ -9154,23 +9154,225 @@ fn auto_drop_emit_live(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, skip_name: 
     return out;
 }
 
-// Per-loop-iteration drop emission. Emits releases only for closure-
-// typed bindings whose idx >= min_idx — i.e. bindings declared INSIDE
-// the loop body (above the outer-scope snapshot).
+// ===== MEM-3: sound per-iteration drop escape analysis =====
+// A loop-body-declared owned Vec/HashMap binding can be released at the END of
+// each iteration (instead of leaking until fn return) IFF it provably does not
+// escape the iteration. Escape routes: passed as an arg to a non-borrow call
+// (ownership transfer), moved/aliased into another binding (`let w = v`),
+// stored into a container slot, returned, or placed in a struct literal.
 //
-// Scoped to closures (not Vec/HashMap/str) because user-defined
-// fns that take owned args (e.g. json_array_push(arr, elem)) are
-// not in the auto_drop_handoff_name registry. If we per-iter-dropped
-// elem at end of body, arr's heap data would point at freed memory.
-// Closures don't have this problem: passing a closure to a higher-
-// order fn is by-value copy of the tagged pointer; the original
-// binding retains ownership of the env (mark_constructor_handoffs
-// skips closure values explicitly).
+// The analysis is CONSERVATIVE and FAIL-SAFE: any shape it cannot positively
+// prove safe is treated as an escape → the drop is SUPPRESSED (a leak, never a
+// double-free). Soundness rests on three facts established in the runtime +
+// lowering: (a) __nucleor_vec_free / hashmap_free are SHALLOW, so an escaped
+// *element's* data is never touched; (b) candidate bindings are top-level in
+// the loop body — nested-in-`if` bindings live in a cloned scope and are
+// excluded here — so they are always allocated when the body-end drop runs;
+// (c) loop-body bindings live in a cloned sym discarded after the loop, so the
+// fn-end drop never also frees them (no double-free across scopes).
 //
-// The proper fix for Vec/HashMap/str-in-loop is escape analysis or
-// a wider handoff tracker; both deferred. Closures fix today.
+// `ad_is_borrow_builtin`: runtime calls that borrow their argument and neither
+// free it nor retain a pointer past the call. MUST contain only true borrows.
 #[manual_drop]
-fn auto_drop_emit_live_above_closures(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, min_idx: i64) -> Vec<i32> {
+fn ad_is_borrow_builtin(name: str) -> i64 {
+    if str_eq(name, "vec_len") == 1 || str_eq(name, "vec_get") == 1 || str_eq(name, "vec_cap") == 1
+        || str_eq(name, "vec_capacity") == 1 || str_eq(name, "vec_is_empty") == 1
+        || str_eq(name, "str_len") == 1 || str_eq(name, "str_char_at") == 1 || str_eq(name, "str_eq") == 1
+        || str_eq(name, "str_substring") == 1 || str_eq(name, "str_index_of") == 1
+        || str_eq(name, "str_contains") == 1 || str_eq(name, "str_starts_with") == 1 || str_eq(name, "str_ends_with") == 1
+        || str_eq(name, "print") == 1 || str_eq(name, "println") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_str") == 1
+        || str_eq(name, "hashmap_len") == 1 || str_eq(name, "hashmap_has") == 1 || str_eq(name, "hashmap_get") == 1
+        || str_eq(name, "hashmap_contains_key") == 1 { return 1; };
+    return 0;
+}
+
+// Does vname (a kind-3 var-ref) appear ANYWHERE in expr subtree `nid`?
+// Fail-safe: an unrecognized expr kind returns 1 (assume present → caller
+// treats it as an escape).
+#[manual_drop]
+fn ad_name_in_subtree(pool: Vec<i32>, nid: i64, vname: str) -> i64 {
+    if nid < 0 { return 0; };
+    let k: i64 = node_kind(pool, nid);
+    if k == 1 || k == 2 || k == 71 || k == 72 || k == 73 { return 0; };
+    if k == 3 { if str_eq(node_field(pool, nid, 1), vname) == 1 { return 1; }; return 0; };
+    if k == 4 {
+        if ad_name_in_subtree(pool, node_field(pool, nid, 2), vname) == 1 { return 1; };
+        return ad_name_in_subtree(pool, node_field(pool, nid, 3), vname);
+    };
+    if k == 5 || k == 6 || k == 90 || k == 91 || k == 92 || k == 99 {
+        return ad_name_in_subtree(pool, node_field(pool, nid, 1), vname);
+    };
+    if k == 7 { return ad_list_mentions(pool, node_field(pool, nid, 2), vname); };
+    if k == 8 {
+        if ad_name_in_subtree(pool, node_field(pool, nid, 1), vname) == 1 { return 1; };
+        return ad_list_mentions(pool, node_field(pool, nid, 3), vname);
+    };
+    if k == 9 {
+        // field access `base.fieldname`: field 1 = base node, field 2 = field
+        // NAME (string, not a node) — recurse only the base.
+        return ad_name_in_subtree(pool, node_field(pool, nid, 1), vname);
+    };
+    if k == 10 {
+        // index `base[idx]`: both fields are nodes.
+        if ad_name_in_subtree(pool, node_field(pool, nid, 1), vname) == 1 { return 1; };
+        return ad_name_in_subtree(pool, node_field(pool, nid, 2), vname);
+    };
+    // kind 12 (UFCS/assoc call) and kind 34 (struct literal) have field
+    // layouts that are not reliably node-typed at the indices we'd need;
+    // probing them risks reading a string/data field as a node id (a
+    // node_kind OOB). Fail safe: report "mentions vname" so any binding used
+    // anywhere near one is conservatively treated as escaping (suppressed).
+    if k == 12 || k == 34 { return 1; };
+    return 1;
+}
+
+#[manual_drop]
+fn ad_list_mentions(pool: Vec<i32>, lid: i64, vname: str) -> i64 {
+    if lid < 0 { return 0; };
+    let n: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < n {
+        if ad_name_in_subtree(pool, list_get(pool, lid, i), vname) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+// Args to a borrow builtin: a bare vname arg is safe (borrowed, not consumed);
+// any other arg is recursively checked.
+#[manual_drop]
+fn ad_args_safe_under_borrow(pool: Vec<i32>, lid: i64, vname: str) -> i64 {
+    if lid < 0 { return 1; };
+    let n: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < n {
+        let a: i64 = list_get(pool, lid, i);
+        if node_kind(pool, a) == 3 && str_eq(node_field(pool, a, 1), vname) == 1 {
+            // bare vname borrowed — safe
+        } else {
+            if ad_expr_vname_safe(pool, a, vname) == 0 { return 0; };
+        };
+        i = i + 1;
+    };
+    return 1;
+}
+
+// Is every use of vname within expr `nid` non-escaping? Fail-safe: any context
+// that mentions vname but is not positively classified safe returns 0.
+#[manual_drop]
+fn ad_expr_vname_safe(pool: Vec<i32>, nid: i64, vname: str) -> i64 {
+    if nid < 0 { return 1; };
+    if ad_name_in_subtree(pool, nid, vname) == 0 { return 1; };
+    let k: i64 = node_kind(pool, nid);
+    if k == 3 { return 0; };
+    if k == 4 {
+        if ad_expr_vname_safe(pool, node_field(pool, nid, 2), vname) == 0 { return 0; };
+        return ad_expr_vname_safe(pool, node_field(pool, nid, 3), vname);
+    };
+    if k == 5 || k == 6 || k == 90 || k == 91 || k == 92 || k == 99 {
+        return ad_expr_vname_safe(pool, node_field(pool, nid, 1), vname);
+    };
+    if k == 7 {
+        if ad_is_borrow_builtin(node_field(pool, nid, 1)) == 1 {
+            return ad_args_safe_under_borrow(pool, node_field(pool, nid, 2), vname);
+        };
+        if ad_list_mentions(pool, node_field(pool, nid, 2), vname) == 1 { return 0; };
+        return 1;
+    };
+    if k == 8 {
+        let recv: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, recv) == 3 && str_eq(node_field(pool, recv, 1), vname) == 1 {
+            // receiver is the binding itself — a method does not hand off its receiver
+        } else {
+            if ad_expr_vname_safe(pool, recv, vname) == 0 { return 0; };
+        };
+        if ad_list_mentions(pool, node_field(pool, nid, 3), vname) == 1 { return 0; };
+        return 1;
+    };
+    if k == 9 {
+        // field access `base.fieldname`: field 2 is a name string, not a node.
+        let base9: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, base9) == 3 && str_eq(node_field(pool, base9, 1), vname) == 1 {
+            return 1;  // reading vname's field is a borrow — safe under shallow free
+        };
+        return ad_expr_vname_safe(pool, base9, vname);
+    };
+    if k == 10 {
+        // index `base[idx]`: base@1, index@2 (both nodes).
+        let base10: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, base10) == 3 && str_eq(node_field(pool, base10, 1), vname) == 1 {
+            // indexing the binding is a read — safe under shallow free
+        } else {
+            if ad_expr_vname_safe(pool, base10, vname) == 0 { return 0; };
+        };
+        return ad_expr_vname_safe(pool, node_field(pool, nid, 2), vname);
+    };
+    return 0;
+}
+
+#[manual_drop]
+fn ad_stmt_list_vname_safe(pool: Vec<i32>, lid: i64, vname: str) -> i64 {
+    if lid < 0 { return 1; };
+    let n: i64 = list_len(pool, lid);
+    let mut i: i64 = 0;
+    while i < n {
+        if ad_stmt_vname_safe(pool, list_get(pool, lid, i), vname) == 0 { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+// Is statement `nid` free of any escaping use of vname? Handles the common
+// loop-body statement kinds; any other kind that could mention vname is
+// fail-safe-suppressed (return 0).
+#[manual_drop]
+fn ad_stmt_vname_safe(pool: Vec<i32>, nid: i64, vname: str) -> i64 {
+    if nid < 0 { return 1; };
+    let k: i64 = node_kind(pool, nid);
+    if k == 20 { return 1; };
+    if k == 21 {
+        let lhs: i64 = node_field(pool, nid, 1);
+        if ad_name_in_subtree(pool, lhs, vname) == 1 {
+            // vname in the lvalue is only OK when it is exactly `vname = ...`
+            // (declaration / reassignment); `arr[vname] = ...` etc. escapes.
+            if node_kind(pool, lhs) != 3 { return 0; };
+        };
+        return ad_expr_vname_safe(pool, node_field(pool, nid, 2), vname);
+    };
+    if k == 22 {
+        if ad_name_in_subtree(pool, node_field(pool, nid, 1), vname) == 1 { return 0; };
+        return 1;
+    };
+    if k == 23 {
+        if ad_expr_vname_safe(pool, node_field(pool, nid, 1), vname) == 0 { return 0; };
+        if ad_stmt_list_vname_safe(pool, node_field(pool, nid, 2), vname) == 0 { return 0; };
+        let en: i64 = node_field(pool, nid, 3);
+        if en >= 0 { return ad_stmt_list_vname_safe(pool, en, vname); };
+        return 1;
+    };
+    if k == 24 {
+        if ad_expr_vname_safe(pool, node_field(pool, nid, 1), vname) == 0 { return 0; };
+        return ad_stmt_list_vname_safe(pool, node_field(pool, nid, 2), vname);
+    };
+    if k == 25 { return ad_expr_vname_safe(pool, node_field(pool, nid, 1), vname); };
+    if k == 28 {
+        if ad_expr_vname_safe(pool, node_field(pool, nid, 2), vname) == 0 { return 0; };
+        if ad_expr_vname_safe(pool, node_field(pool, nid, 3), vname) == 0 { return 0; };
+        return ad_stmt_list_vname_safe(pool, node_field(pool, nid, 4), vname);
+    };
+    return 0;
+}
+
+// Per-loop-iteration drop emission. Releases bindings declared INSIDE the loop
+// body (idx >= min_idx, i.e. above the outer-scope snapshot) at the end of each
+// iteration. Always emits for closure-typed bindings (closures pass by-value
+// copy of the tagged env pointer; the source retains ownership). For Vec /
+// HashMap bindings it additionally requires the MEM-3 escape analysis above to
+// prove the binding does not escape the iteration — otherwise the drop is
+// suppressed (the binding then leaks until fn return, as before, but is never
+// double-freed).
+#[manual_drop]
+fn auto_drop_emit_live_above_closures(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, min_idx: i64, pool: Vec<i32>, body_list: i64) -> Vec<i32> {
     if auto_drop_is_enabled(sym) == 0 { return cur; };
     let count: i64 = sym_get(sym, "__auto_drop_count");
     if count <= min_idx { return cur; };
@@ -9182,7 +9384,16 @@ fn auto_drop_emit_live_above_closures(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i3
             let helper_i: i64 = sym_get(sym, auto_drop_helper_key(i));
             if helper_i >= 0 {
                 let helper: str = helper_i;
+                let mut do_drop: i64 = 0;
                 if str_eq(helper, "nuc_closure_release_boxed") == 1 {
+                    do_drop = 1;
+                } else if str_eq(helper, "vec_free") == 1 || str_eq(helper, "hashmap_free") == 1 {
+                    let vname: str = sym_get(sym, auto_drop_name_key(i));
+                    if str_len(vname) > 0 && ad_stmt_list_vname_safe(pool, body_list, vname) == 1 {
+                        do_drop = 1;
+                    };
+                };
+                if do_drop == 1 {
                     out = auto_drop_emit_index(out, regs, sym, i, "");
                 };
             };
@@ -9859,7 +10070,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let body_min_w: i64 = if body_floor_w < 0 { 0 } else { body_floor_w };
         bb = lower_stmts(pool, node_field(pool, nid, 2), bb, regs, lbls, body_sym_w, fir, strtab, hl, xl, structs, closures, trait_impls);
         if block_has_term(bb) == 0 {
-            bb = auto_drop_emit_live_above_closures(bb, regs, body_sym_w, body_min_w);
+            bb = auto_drop_emit_live_above_closures(bb, regs, body_sym_w, body_min_w, pool, node_field(pool, nid, 2));
             ir_block_add(bb, ir_br(hl));
         };
         let mut xb: Vec<i32> = ir_block_new(xl); ir_fn_add_block(fir, xb); return xb;
@@ -9897,7 +10108,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let for_min: i64 = if for_floor < 0 { 0 } else { for_floor };
         bb = lower_stmts(pool, node_field(pool, nid, 4), bb, regs, lbls, for_body_sym, fir, strtab, il, xl, structs, closures, trait_impls);
         if block_has_term(bb) == 0 {
-            bb = auto_drop_emit_live_above_closures(bb, regs, for_body_sym, for_min);
+            bb = auto_drop_emit_live_above_closures(bb, regs, for_body_sym, for_min, pool, node_field(pool, nid, 4));
             ir_block_add(bb, ir_br(il));
         };
         let mut ib: Vec<i32> = ir_block_new(il); ir_fn_add_block(fir, ib);
