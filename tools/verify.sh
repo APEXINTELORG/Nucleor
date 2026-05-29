@@ -307,6 +307,13 @@ STEP_INDEX=0
 STEP_TOTAL=0
 FAILURES=()
 SKIPPED=()   # VER-8: track skipped step names so the summary can surface them
+# VER-6: ghost-code negative tests — fixtures whose diagnostic-emit path is
+# unwired in v1.0, so they exit rc=0 today (documented gaps, NOT enforced
+# checks). Single source of truth: the negative-test runner accepts rc=0 for
+# exactly these, and the verify summary reports them so the green PASS line
+# never implies these codes are enforced. When a code's emit path lands,
+# delete it from this list and the fixture becomes a real enforced negative.
+GHOST_NEGATIVE_TESTS="err_async001_blocking_in_async err_diag001_unknown_allow_code err_law001_unknown_law err_law004_law_with_no_check err_law006_law_signature_mismatch err_law007_law_inapplicable err_law008_law_redeclaration err_perf2_unrolled_loop err_perf3_cold_alloc err_pkg3_wildcard_no_match err_pkg6_git_dep err_rt005_ffi_alloc err_rt008_recursion_depth err_tnt001_taint_into_sensitive err_dbc_mode_invalid err_no_panic_div_zero err_no_panic_oob_index err_match_unreachable err_move_conditional err_race_deadline_await err_race_unawaited_spawn err_rt004_loop_keyword_counted err_audit_lane1_match_pattern_wrong_enum"
 
 # Categorize a step name into a coarse bucket for the end-of-run
 # tagged breakdown. Bucket names line up with the architecture
@@ -1569,35 +1576,15 @@ build_negative() {
     # RC=0 because the compiler has nothing to emit. Treat that as
     # PASS as long as the file *parses* (rc<2). Real syntax errors
     # in the fixture still FAIL.
-    case " $ename " in
-        *" err_async001_blocking_in_async "*\
-        |*" err_diag001_unknown_allow_code "*\
-        |*" err_law001_unknown_law "*\
-        |*" err_law004_law_with_no_check "*\
-        |*" err_law006_law_signature_mismatch "*\
-        |*" err_law007_law_inapplicable "*\
-        |*" err_law008_law_redeclaration "*\
-        |*" err_perf2_unrolled_loop "*\
-        |*" err_perf3_cold_alloc "*\
-        |*" err_pkg3_wildcard_no_match "*\
-        |*" err_pkg6_git_dep "*\
-        |*" err_rt005_ffi_alloc "*\
-        |*" err_rt008_recursion_depth "*\
-        |*" err_tnt001_taint_into_sensitive "*\
-        |*" err_dbc_mode_invalid "*\
-        |*" err_no_panic_div_zero "*\
-        |*" err_no_panic_oob_index "*\
-        |*" err_match_unreachable "*\
-        |*" err_move_conditional "*\
-        |*" err_race_deadline_await "*\
-        |*" err_race_unawaited_spawn "*\
-        |*" err_rt004_loop_keyword_counted "*\
-        |*" err_audit_lane1_match_pattern_wrong_enum "*)
-            # Ghost-code documenters — RC=0 is acceptable; rc>=2
-            # indicates a parse failure of the fixture itself.
+    # VER-6: ghost-code documenters (single source of truth:
+    # $GHOST_NEGATIVE_TESTS, also reported in the verify summary). Their
+    # diag-emit path is unwired, so RC=0 is acceptable; rc>=2 means the
+    # fixture itself failed to parse, which is still a real failure.
+    for _g in $GHOST_NEGATIVE_TESTS; do
+        if [ "$ename" = "$_g" ]; then
             [ "$rc" -ge 2 ] && return 1 || return 0
-            ;;
-    esac
+        fi
+    done
     if [ "$rc" -eq 0 ]; then
         return 1
     fi
@@ -6710,11 +6697,14 @@ _notest_n=0
 if [ -d "$ROOT/stdlib/rods" ]; then
     for rod in "$ROOT"/stdlib/rods/*.nr; do
         [ -f "$rod" ] || continue
-        rel="stdlib/rods/$(basename "$rod")"
-        if ! grep -rqlF "import \"$rel\"" "$ROOT/tests" 2>/dev/null; then
-            _notest_rods="$_notest_rods $(basename "$rod" .nr)"
-            _notest_n=$((_notest_n + 1))
-        fi
+        rodbase="$(basename "$rod" .nr)"
+        rel="stdlib/rods/$rodbase.nr"
+        # A rod counts as tested if a tests/**/*.nr either direct-imports it
+        # (`import "stdlib/rods/<rod>.nr"`) or pulls it via `use std::<rod>`.
+        if grep -rqlF "import \"$rel\"" "$ROOT/tests" 2>/dev/null; then continue; fi
+        if grep -rqlE "use[[:space:]]+std::$rodbase\b" "$ROOT/tests" 2>/dev/null; then continue; fi
+        _notest_rods="$_notest_rods $rodbase"
+        _notest_n=$((_notest_n + 1))
     done
 fi
 if [ "$_notest_n" -gt 0 ]; then
@@ -6722,6 +6712,11 @@ if [ "$_notest_n" -gt 0 ]; then
 else
     echo "  rods with no importing test: 0"
 fi
+# VER-6: negative-test fixtures whose diag-emit path is unwired — they pass
+# at rc=0 as documenters, NOT as enforced checks. Surfaced so the green line
+# can't imply these codes are gated.
+_ghost_n=$(printf '%s\n' $GHOST_NEGATIVE_TESTS | grep -c .)
+echo "  ghost-code negative tests ($_ghost_n) — documented gaps, not enforced:$(dim " $GHOST_NEGATIVE_TESTS")"
 
 if [ "$TOTAL_FAIL" -gt 0 ]; then
     exit 1
