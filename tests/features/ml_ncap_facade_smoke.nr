@@ -16,5 +16,6 @@ fn main() -> i64 {
     ncap_package_manifest_print(&manifest);
     ncap_package_manifest_emit_jsonl(&manifest);
     ncap_package_manifest_emit_status(1);
+    if ncap_native_available() != 0 { panic("ncap_facade falsely advertises a native backend"); };
     return 0;
 }

@@ -20,5 +20,6 @@ fn main() -> i64 {
     lab_manifest_print(&manifest);
     lab_manifest_emit_jsonl(&manifest);
     lab_manifest_emit_status(1);
+    if lab_native_available() != 0 { panic("lab_facade falsely advertises a native backend"); };
     return 0;
 }

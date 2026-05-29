@@ -16,5 +16,6 @@ fn main() -> i32 {
     experiment_manifest_print(&manifest);
     experiment_manifest_emit_jsonl(&manifest);
     experiment_manifest_emit_status(1);
+    if experiment_native_available() != 0 { panic("experiment_facade falsely advertises a native backend"); };
     return 0;
 }

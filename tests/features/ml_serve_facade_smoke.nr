@@ -16,5 +16,6 @@ fn main() -> i32 {
     serve_manifest_print(&manifest);
     serve_manifest_emit_jsonl(&manifest);
     serve_manifest_emit_status(1);
+    if serve_native_available() != 0 { panic("serve_facade falsely advertises a native backend"); };
     return 0;
 }

@@ -19,5 +19,6 @@ fn main() -> i64 {
     backend_manifest_print(&manifest);
     backend_manifest_emit_jsonl(&manifest);
     backend_manifest_emit_status(1);
+    if backend_native_available() != 0 { panic("backend_facade falsely advertises a native backend"); };
     return 0;
 }

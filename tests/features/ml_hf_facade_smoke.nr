@@ -28,5 +28,6 @@ fn main() -> i64 {
     hf_manifest_print(&manifest);
     hf_manifest_emit_jsonl(&manifest);
     hf_manifest_emit_status(1);
+    if hf_native_available() != 0 { panic("hf_facade falsely advertises a native backend"); };
     return 0;
 }

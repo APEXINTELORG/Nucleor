@@ -20,5 +20,6 @@ fn main() -> i32 {
     onnx_manifest_print(&manifest);
     onnx_manifest_emit_jsonl(&manifest);
     onnx_manifest_emit_status(1);
+    if onnx_native_available() != 0 { panic("onnx_facade falsely advertises a native backend"); };
     return 0;
 }

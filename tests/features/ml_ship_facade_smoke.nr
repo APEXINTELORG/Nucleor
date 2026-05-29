@@ -22,5 +22,6 @@ fn main() -> i64 {
     ship_manifest_print(&manifest);
     ship_manifest_emit_jsonl(&manifest);
     ship_manifest_emit_status(1);
+    if ship_native_available() != 0 { panic("ship_facade falsely advertises a native backend"); };
     return 0;
 }

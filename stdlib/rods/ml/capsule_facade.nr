@@ -1104,3 +1104,11 @@ fn capsule_emit_status(passed: i64) -> i64 {
     emit_json_status(passed);
     return 0;
 }
+
+// HON-1: this rod is a contract/manifest surface — no native capsule engine or
+// runtime is linked behind it. Machine-checkable honesty probe (mirrors
+// gpu_compute_available); it must return 0 until a real native backend lands
+// and is asserted ==0 by the facade smoke test.
+fn capsule_native_available() -> i64 {
+    return 0;
+}

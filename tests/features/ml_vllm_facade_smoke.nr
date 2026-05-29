@@ -23,5 +23,6 @@ fn main() -> i32 {
     vllm_manifest_print(&manifest);
     vllm_manifest_emit_jsonl(&manifest);
     vllm_manifest_emit_status(1);
+    if vllm_native_available() != 0 { panic("vllm_facade falsely advertises a native backend"); };
     return 0;
 }

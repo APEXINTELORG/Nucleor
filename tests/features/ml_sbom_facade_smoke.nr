@@ -19,5 +19,6 @@ fn main() -> i64 {
     sbom_manifest_print(&manifest);
     sbom_manifest_emit_jsonl(&manifest);
     sbom_manifest_emit_status(1);
+    if sbom_native_available() != 0 { panic("sbom_facade falsely advertises a native backend"); };
     return 0;
 }

@@ -19,5 +19,6 @@ fn main() -> i64 {
     ml_health_manifest_print(&manifest);
     ml_health_manifest_emit_jsonl(&manifest);
     ml_health_manifest_emit_status(1);
+    if ml_health_native_available() != 0 { panic("ml_health_facade falsely advertises a native backend"); };
     return 0;
 }

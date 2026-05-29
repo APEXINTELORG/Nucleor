@@ -20,5 +20,6 @@ fn main() -> i64 {
     rod_registry_manifest_print(&manifest);
     rod_registry_manifest_emit_jsonl(&manifest);
     rod_registry_manifest_emit_status(1);
+    if rod_registry_native_available() != 0 { panic("rod_registry_facade falsely advertises a native backend"); };
     return 0;
 }

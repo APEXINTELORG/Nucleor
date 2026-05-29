@@ -26,5 +26,6 @@ fn main() -> i64 {
     tabular_manifest_print(&manifest);
     tabular_manifest_emit_jsonl(&manifest);
     tabular_manifest_emit_status(1);
+    if tabular_native_available() != 0 { panic("tabular_facade falsely advertises a native backend"); };
     return 0;
 }

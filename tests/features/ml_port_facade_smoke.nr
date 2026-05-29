@@ -22,5 +22,6 @@ fn main() -> i64 {
     port_manifest_print(&manifest);
     port_manifest_emit_jsonl(&manifest);
     port_manifest_emit_status(1);
+    if port_native_available() != 0 { panic("port_facade falsely advertises a native backend"); };
     return 0;
 }

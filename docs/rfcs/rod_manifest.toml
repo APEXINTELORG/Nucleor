@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 288
-# Total fn definitions: 3868
-# Total LOC: 26907
+# Total fn definitions: 3890
+# Total LOC: 26973
 
 [[rod]]
 name           = "activation2"
@@ -2319,18 +2319,18 @@ imports        = ["ml/math_facade", "ml/nn_facade", "ml/tensor_facade"]
 name           = "backend_facade"
 path           = "stdlib/rods/ml/backend_facade.nr"
 description    = "Backend dispatch accounting contract (scalar fallback / CPU / GPU / fused / external backend counts)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 94
+loc            = 97
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "bench_facade"
 path           = "stdlib/rods/ml/bench_facade.nr"
 description    = "nuc bench telemetry contract (wall time, peak RSS, binary size, dependency count; speed_claim_enabled=0)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 95
+loc            = 98
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2346,36 +2346,36 @@ imports        = ["ml/math_facade", "ml/tensor_facade"]
 name           = "capsule_facade"
 path           = "stdlib/rods/ml/capsule_facade.nr"
 description    = "Capsule manifest contract + 10 sub-aspect variants (artifact/device/input/output/rod_graph/source/suite/tolerance/toolchain/verifier)"
-function_count = 36
+function_count = 37
 cfile_count    = 0
-loc            = 1023
+loc            = 1026
 imports        = ["jsonl", "ml/tensor_facade"]
 
 [[rod]]
 name           = "cert_facade"
 path           = "stdlib/rods/ml/cert_facade.nr"
 description    = "Unsigned cert profile manifest (source / compiler / backend / agent-trace / reproducible-build evidence requirements)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 94
+loc            = 97
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "cli_facade"
 path           = "stdlib/rods/ml/cli_facade.nr"
 description    = "nuc CLI front-door command contract (new, add, lab, bench, port, capsule, serve, ship)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 95
+loc            = 98
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "contract_facade"
 path           = "stdlib/rods/ml/contract_facade.nr"
 description    = "Runtime shape/dtype contract (compile_time_shape_assertion_count = 0 boundary)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 95
+loc            = 98
 imports        = ["jsonl", "ml/tensor_facade"]
 
 [[rod]]
@@ -2400,36 +2400,36 @@ imports        = []
 name           = "experiment_facade"
 path           = "stdlib/rods/ml/experiment_facade.nr"
 description    = "Experiment tracking manifest contract (run metadata, hyperparameters, checkpoint references)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 87
+loc            = 90
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "gguf_facade"
 path           = "stdlib/rods/ml/gguf_facade.nr"
 description    = "GGUF model loader manifest contract (quantization, tensor metadata, mmap support)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 99
+loc            = 102
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "hf_facade"
 path           = "stdlib/rods/ml/hf_facade.nr"
 description    = "Hugging Face local-first frontend contract (transformers, tokenizers, datasets, safetensors, no Python runtime)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 145
+loc            = 148
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "lab_facade"
 path           = "stdlib/rods/ml/lab_facade.nr"
 description    = "nuc lab workbench manifest (deterministic cell graph, viewer counts, agent mounts, port)"
-function_count = 5
+function_count = 6
 cfile_count    = 0
-loc            = 104
+loc            = 107
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2454,27 +2454,27 @@ imports        = []
 name           = "ml_health_facade"
 path           = "stdlib/rods/ml/ml_health_facade.nr"
 description    = "ML Suite preflight / health check contract (compiler, LLVM, parity summary, NCAP verification)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 96
+loc            = 99
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "model_io_facade"
 path           = "stdlib/rods/ml/model_io_facade.nr"
 description    = "nuc serve model-loader contract (.ncap, GGUF, safetensors, ONNX, tokenizer, quantization formats)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 94
+loc            = 97
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "ncap_facade"
 path           = "stdlib/rods/ml/ncap_facade.nr"
 description    = ".ncap package manifest contract (route count, evidence count, source hashes, signature state)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 77
+loc            = 80
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2490,9 +2490,9 @@ imports        = ["ml/math_facade", "ml/tensor_facade"]
 name           = "onnx_facade"
 path           = "stdlib/rods/ml/onnx_facade.nr"
 description    = "ONNX model loader manifest contract (graph format, opset, external runtime accounting)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 112
+loc            = 115
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2508,36 +2508,36 @@ imports        = ["ml/dtype_core", "ml/shape_core"]
 name           = "port_facade"
 path           = "stdlib/rods/ml/port_facade.nr"
 description    = "nuc port migration planner contract (scaffold path, blocker count, capsule attachability)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 111
+loc            = 114
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "rod_registry_facade"
 path           = "stdlib/rods/ml/rod_registry_facade.nr"
 description    = "nuc add lockfile contract (pinned rod count, transitive deps, registry count, offline replay)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 101
+loc            = 104
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "sbom_facade"
 path           = "stdlib/rods/ml/sbom_facade.nr"
 description    = "Supply-chain inventory contract (sources, toolchain, dependencies, packages, no Python product runtime)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 95
+loc            = 98
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "serve_facade"
 path           = "stdlib/rods/ml/serve_facade.nr"
 description    = "nuc serve package contract (model format, quantization, tokenizer, backend, context window, batch size)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 82
+loc            = 85
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2553,9 +2553,9 @@ imports        = []
 name           = "ship_facade"
 path           = "stdlib/rods/ml/ship_facade.nr"
 description    = "nuc ship packaging contract (source/compiler/rod-lock/artifact-contract/agent-trace requirements)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 111
+loc            = 114
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2571,9 +2571,9 @@ imports        = ["math_typed_special", "ml/math_facade", "ml/tensor_facade"]
 name           = "tabular_facade"
 path           = "stdlib/rods/ml/tabular_facade.nr"
 description    = "Arrow / Polars / DuckDB table-engine contract (schema, lazy plan, SQL pushdown, zero-copy buffers)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 135
+loc            = 138
 imports        = ["jsonl"]
 
 [[rod]]
@@ -2589,16 +2589,16 @@ imports        = ["ml/dtype_core", "ml/shape_core"]
 name           = "tune_facade"
 path           = "stdlib/rods/ml/tune_facade.nr"
 description    = "Hyperparameter tuning manifest contract (search strategy, parameter space, trial accounting)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 88
+loc            = 91
 imports        = ["jsonl"]
 
 [[rod]]
 name           = "vllm_facade"
 path           = "stdlib/rods/ml/vllm_facade.nr"
 description    = "vLLM-style serving contract (scheduler policy, paged KV cache, block table, eviction policy)"
-function_count = 4
+function_count = 5
 cfile_count    = 0
-loc            = 134
+loc            = 137
 imports        = ["jsonl"]

@@ -19,5 +19,6 @@ fn main() -> i64 {
     bench_manifest_print(&manifest);
     bench_manifest_emit_jsonl(&manifest);
     bench_manifest_emit_status(1);
+    if bench_native_available() != 0 { panic("bench_facade falsely advertises a native backend"); };
     return 0;
 }

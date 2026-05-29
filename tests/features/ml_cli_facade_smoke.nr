@@ -19,5 +19,6 @@ fn main() -> i64 {
     cli_manifest_print(&manifest);
     cli_manifest_emit_jsonl(&manifest);
     cli_manifest_emit_status(1);
+    if cli_native_available() != 0 { panic("cli_facade falsely advertises a native backend"); };
     return 0;
 }

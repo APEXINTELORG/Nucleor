@@ -16,5 +16,6 @@ fn main() -> i32 {
     tune_manifest_print(&manifest);
     tune_manifest_emit_jsonl(&manifest);
     tune_manifest_emit_status(1);
+    if tune_native_available() != 0 { panic("tune_facade falsely advertises a native backend"); };
     return 0;
 }

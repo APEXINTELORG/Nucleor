@@ -34,6 +34,7 @@ fn main() -> i32 {
 
     if fail == 0 {
         print("OK ml_capsule_facade_smoke");
+    if capsule_native_available() != 0 { panic("capsule_facade falsely advertises a native backend"); };
         return 0;
     };
     print("FAIL ml_capsule_facade_smoke");

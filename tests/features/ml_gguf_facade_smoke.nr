@@ -18,5 +18,6 @@ fn main() -> i32 {
     gguf_manifest_print(&manifest);
     gguf_manifest_emit_jsonl(&manifest);
     gguf_manifest_emit_status(1);
+    if gguf_native_available() != 0 { panic("gguf_facade falsely advertises a native backend"); };
     return 0;
 }

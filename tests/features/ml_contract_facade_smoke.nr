@@ -55,5 +55,6 @@ fn main() -> i64 {
         accumulator_rule_passed
     );
     shape_dtype_contract_emit_status(passed);
+    if contract_native_available() != 0 { panic("contract_facade falsely advertises a native backend"); };
     return 0;
 }
