@@ -5,14 +5,14 @@
 // Pre-v0.8.142: zero coverage on a quantum-tier rod.
 //
 // Locks five textbook stabilizer-formalism invariants:
-//   1. **Initial |0...0⟩ measure = 0**: cliff_init creates the
+//   1. Initial |0...0⟩ measure = 0: cliff_init creates the
 //      computational-basis ground state; Z-measurement on every
 //      qubit is deterministic 0.
-//   2. **X flips |0⟩ → |1⟩**: after `cliff_x`, Z-measurement
+//   2. X flips |0⟩ → |1⟩: after `cliff_x`, Z-measurement
 //      returns 1.
-//   3. **Z on |0⟩ is identity**: Z eigenstate; measurement still 0.
-//   4. **H twice is identity**: HH = I → measurement still 0.
-//   5. **Bell state correlation**: H q0 + CNOT(0,1) → measure q0
+//   3. Z on |0⟩ is identity: Z eigenstate; measurement still 0.
+//   4. H twice is identity: HH = I → measurement still 0.
+//   5. Bell state correlation: H q0 + CNOT(0,1) → measure q0
 //      and q1 are equal (both 0 or both 1). The defining property
 //      of the Bell pair |Φ⁺⟩.
 //

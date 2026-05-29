@@ -6,13 +6,13 @@
 //
 // Locks four core JSON invariants:
 //
-//   1. **Type tags** — null=0, bool=1, int=2, str=3, array=4,
+//   1. Type tags — null=0, bool=1, int=2, str=3, array=4,
 //      object=5, f64=6 (stable wire format).
-//   2. **Parse number** — json_parse("42") → type=2, int=42;
+//   2. Parse number — json_parse("42") → type=2, int=42;
 //      json_parse("-7") → type=2, int=-7.
-//   3. **Parse + index array** — json_parse("[10,20,30]") →
+//   3. Parse + index array — json_parse("[10,20,30]") →
 //      array_len=3, array_get(1).int = 20.
-//   4. **Stringify round-trip** — stringify(parse("42")) == "42".
+//   4. Stringify round-trip — stringify(parse("42")) == "42".
 //
 // Expected: rc=0.
 

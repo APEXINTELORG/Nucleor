@@ -21,7 +21,7 @@
 // time-invariant approximation around an operating point and a
 // fixed feedback gain is acceptable.
 //
-// **Limitations** (continuous-time CARE / output-feedback LQR /
+// Limitations (continuous-time CARE / output-feedback LQR /
 // time-varying LQR land in v0.6 if needed):
 // - Discrete time only (infinite-horizon CARE for continuous time
 //   uses Hamiltonian eigendecomposition; planned for v0.6).

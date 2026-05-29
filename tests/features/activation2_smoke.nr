@@ -6,10 +6,10 @@
 //
 // Locks four textbook fixed-point invariants:
 //
-//   1. **GELU(0) == 0** — gelu has a zero at x=0 (0 * 0.5 * 1 = 0).
-//   2. **SiLU(0) == 0** — x · sigmoid(x) at x=0 is 0 · 0.5 = 0.
-//   3. **Sigmoid(0) == 0.5** — 1/(1+e^0) = 1/2.
-//   4. **JumpReLU below threshold == 0** — jumprelu([0.5], θ=1.0)
+//   1. GELU(0) == 0 — gelu has a zero at x=0 (0 * 0.5 * 1 = 0).
+//   2. SiLU(0) == 0 — x · sigmoid(x) at x=0 is 0 · 0.5 = 0.
+//   3. Sigmoid(0) == 0.5 — 1/(1+e^0) = 1/2.
+//   4. JumpReLU below threshold == 0 — jumprelu([0.5], θ=1.0)
 //      gates the value to 0.
 //
 // Expected: rc=0.

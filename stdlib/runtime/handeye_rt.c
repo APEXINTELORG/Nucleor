@@ -23,7 +23,7 @@
 //      system (R_a − I)·t_x = R_x·t_b − t_a per motion pair.
 //      Solve via normal equations, accumulated over all motions.
 //
-// **Limitations** (joint rotation+translation optimization
+// Limitations (joint rotation+translation optimization
 // (Daniilidis 1999 dual quaternion form) lands in v0.6 if needed):
 // - Two-step (rotation, then translation). The joint solver
 //   couples the two steps and can be marginally more accurate.

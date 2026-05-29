@@ -32,7 +32,7 @@
 //       // apply steer + forward velocity to vehicle
 //   }
 //
-// **Limitations** (adaptive lookahead / curvature-based gain
+// Limitations (adaptive lookahead / curvature-based gain
 // scheduling land in v0.6 if needed):
 // - Fixed lookahead.
 // - No velocity output (caller decides forward speed).

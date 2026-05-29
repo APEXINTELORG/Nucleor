@@ -8,11 +8,11 @@
 // Locks four jsonl_quote escaping invariants — Python parity
 // runners parse via json.loads and break on bad escaping:
 //
-//   1. **Plain ASCII** — quote("hi") == "\"hi\"".
-//   2. **Backslash escape** — quote("a\\b") writes \\ (two
+//   1. Plain ASCII — quote("hi") == "\"hi\"".
+//   2. Backslash escape — quote("a\\b") writes \\ (two
 //      backslashes in the JSON output).
-//   3. **Double-quote escape** — quote("a\"b") writes \".
-//   4. **Newline escape** — quote with embedded \n writes \\n
+//   3. Double-quote escape — quote("a\"b") writes \".
+//   4. Newline escape — quote with embedded \n writes \\n
 //      (visible escape, not raw newline).
 //
 // Expected: rc=0.

@@ -10,11 +10,11 @@
 // `n_ctrl ≥ 4` (segment between i+1 and i+2 needs neighbors
 // i and i+3) and null-checks `ctrl_ptr` and `out_ptr`:
 //
-//   1. **n_ctrl < 4 returns 0** — degenerate (cannot form a
+//   1. n_ctrl < 4 returns 0 — degenerate (cannot form a
 //      segment with neighbors).
-//   2. **Null ctrl_ptr returns 0** in 2-D.
-//   3. **Null out_ptr returns 0** in 2-D.
-//   4. **3-D variant has the same n ≥ 4 + null-check guards**.
+//   2. Null ctrl_ptr returns 0 in 2-D.
+//   3. Null out_ptr returns 0 in 2-D.
+//   4. 3-D variant has the same n ≥ 4 + null-check guards.
 //
 // Expected: rc=0.
 

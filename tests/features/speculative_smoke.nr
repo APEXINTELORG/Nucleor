@@ -7,14 +7,14 @@
 //
 // Locks four sampling invariants:
 //
-//   1. **Top-K=1 returns argmax** — for logits [10, 0, 0] with
+//   1. Top-K=1 returns argmax — for logits [10, 0, 0] with
 //      top_k=1, the only non-zero probability mass is on
 //      token 0; sample MUST return 0.
-//   2. **Top-K=1 picks middle index when middle is largest** —
+//   2. Top-K=1 picks middle index when middle is largest —
 //      logits [0, 10, 0] → 1.
-//   3. **Top-K=1 picks last index when last is largest** —
+//   3. Top-K=1 picks last index when last is largest —
 //      logits [0, 0, 10] → 2.
-//   4. **Seeded RNG is reproducible** — spec_seed(42) twice
+//   4. Seeded RNG is reproducible — spec_seed(42) twice
 //      followed by sampling from the same uniform-ish logits
 //      with top_k=2 returns the same token both times.
 //

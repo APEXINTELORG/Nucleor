@@ -6,7 +6,7 @@
 // from the un-pushed slots; result Vec was sized
 // `seq_q * d_v` with random bits. Same bug class as v0.8.45 ML-1
 // `nuc_attn_flash` and v0.8.252 kv_cache `get_k`/`get_v`. Surfaced
-// by parallel-agent TRACK A `extern_arity_drift_sweep_2026-05-05`.
+// by TRACK A `extern_arity_drift_sweep_2026-05-05`.
 //
 // Fix (Plan B, non-breaking):
 // - C `nuc_tf_attention` 7-arg renamed to `_split`. Same for `multihead`.
@@ -20,13 +20,13 @@
 //
 // Locks textbook self-attention invariants:
 //
-//   1. **Single-token self-attention is identity** — seq_len=1,
+//   1. Single-token self-attention is identity — seq_len=1,
 //      Q=K=V=[1.0, 2.0] → output equals V (softmax of one score
 //      is 1.0, weighted sum equals V).
-//   2. **5-arg agrees with 7-arg `_split`** — same Q/K/V/seq_len/d_k
+//   2. 5-arg agrees with 7-arg `_split` — same Q/K/V/seq_len/d_k
 //      run through both forms with seq_q=seq_k=seq_len, d_k=d_v=d_k
 //      produces bit-identical output.
-//   3. **Multihead with n_heads=1 equals attention** — same Q/K/V
+//   3. Multihead with n_heads=1 equals attention — same Q/K/V
 //      through `tf_multihead(seq_len=1, d_model=2, n_heads=1)`
 //      should equal `tf_attention(seq_len=1, d_k=2)`.
 //

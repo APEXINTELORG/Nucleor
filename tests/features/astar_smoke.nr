@@ -7,12 +7,12 @@
 // callbacks (neighbor_fn / heuristic_fn) which require closure
 // surface; deferred to dedicated graph-search ships.
 //
-//   1. **astar_new returns valid handle** — non-zero for
+//   1. astar_new returns valid handle — non-zero for
 //      reasonable n_nodes.
-//   2. **path_len before search is 0** — no search → no path.
-//   3. **path_at on empty path returns -1** — out-of-bounds /
+//   2. path_len before search is 0 — no search → no path.
+//   3. path_at on empty path returns -1 — out-of-bounds /
 //      pre-search is the runtime's "no-such-path-step" sentinel.
-//   4. **astar_free does not crash** on a freshly constructed
+//   4. astar_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

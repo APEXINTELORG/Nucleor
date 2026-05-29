@@ -17,7 +17,7 @@
 // outdoor delivery robots, autonomous vehicles, and warehouse
 // transports.
 //
-// **Limitations** (adaptive lookahead, look-ahead time-based
+// Limitations (adaptive lookahead, look-ahead time-based
 // formulation, and waypoint-skipping / path-pruning land in v0.6
 // if needed):
 // - Constant lookahead distance (no velocity-adaptive scheduling).

@@ -30,7 +30,7 @@
 // `imgproc_resize_bilinear` and call this iteratively coarse-to-
 // fine.
 //
-// **Limitations** (multi-scale pyramid / multi-feature parallel
+// Limitations (multi-scale pyramid / multi-feature parallel
 // tracking / orientation tracking land in v0.6 if needed):
 // - Single feature per call.
 // - Translation only — no scale / rotation / affine warp.

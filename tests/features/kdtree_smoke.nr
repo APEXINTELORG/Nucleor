@@ -11,11 +11,11 @@
 //
 // Locks four invariants:
 //
-//   1. **Build returns valid handle** — non-zero for valid input.
-//   2. **k=1 query at (0,0) returns index 0** — querying a tree
+//   1. Build returns valid handle — non-zero for valid input.
+//   2. k=1 query at (0,0) returns index 0 — querying a tree
 //      point itself returns that point as nearest.
-//   3. **k=2 returns 2 results** — k-NN size matches request.
-//   4. **Range search at (0.5, 0.5) with r=0.8 covers all 4** —
+//   3. k=2 returns 2 results — k-NN size matches request.
+//   4. Range search at (0.5, 0.5) with r=0.8 covers all 4 —
 //      diagonal half = √(0.5²+0.5²) ≈ 0.707 < 0.8 → all in.
 //
 // Expected: rc=0.

@@ -8,13 +8,13 @@
 // Pre-v0.8.189: zero coverage.
 //
 // Locks five textbook registry invariants:
-//   1. **Mode IDs stable**: reverse=1, forward=2, mixed=3.
-//   2. **Mode-name round-trip**: name(1) == "reverse".
-//   3. **Empty registry**: count == 0 after clear; lookup of
+//   1. Mode IDs stable: reverse=1, forward=2, mixed=3.
+//   2. Mode-name round-trip: name(1) == "reverse".
+//   3. Empty registry: count == 0 after clear; lookup of
 //      non-registered fn returns -1.
-//   4. **Register + count + lookup**: register("loss") → count
+//   4. Register + count + lookup: register("loss") → count
 //      becomes >0, lookup returns >= 0.
-//   5. **JSON round-trip**: serializes name + mode field.
+//   5. JSON round-trip: serializes name + mode field.
 //
 // Expected: rc=0.
 

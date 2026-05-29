@@ -12,7 +12,7 @@
 // Importing both rods in one program was a duplicate-symbol link
 // error or a silent wrong-target call. The Nucleor-level wrapper
 // names (`quat_from_axis_angle`, `quat_mul`) ALSO collided.
-// Surfaced by parallel-agent TRACK A
+// Surfaced by TRACK A
 // `extern_arity_drift_duplicate_symbol_collisions_2026-05-05`.
 //
 // Fix (kinematics rod renames; quat rod keeps canonical namespace):
@@ -27,17 +27,17 @@
 // - tests/rods/kinematics_smoke.nr `quat_mul` → `kin_quat_mul`.
 // - quat.nr (3-arg, raw-pointer API) untouched.
 //
-// **Breaking** for any Nucleor adopter that imported kinematics.nr
+// Breaking for any Nucleor adopter that imported kinematics.nr
 // and called `quat_from_axis_angle(axis, angle_bits)` 2-arg or
 // `quat_mul(a, b)` 2-arg. Migrate to `kin_quat_*`. Only one in-tree
 // caller existed (tests/rods/kinematics_smoke.nr); updated in this
 // ship.
 //
 // Locks two invariants on the rename:
-//   1. **kin_quat_mul identity composition** — `kin_quat_mul(qid, qid)`
+//   1. kin_quat_mul identity composition — `kin_quat_mul(qid, qid)`
 //      returns a quat whose `quat_w` non-zero (proves the renamed
 //      runtime entry is reached).
-//   2. **Both rods can be imported together** (this fixture imports
+//   2. Both rods can be imported together (this fixture imports
 //      kinematics + quat; if the link still collided, this fixture
 //      would fail at link/load time before main runs).
 //

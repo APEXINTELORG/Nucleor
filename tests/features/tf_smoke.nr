@@ -7,12 +7,12 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **tf_new returns valid handle** — non-zero for reasonable
+//   1. tf_new returns valid handle — non-zero for reasonable
 //      max_frames.
-//   2. **Multiple distinct trees** — two constructions →
+//   2. Multiple distinct trees — two constructions →
 //      distinct handles (frame stores aren't aliased).
-//   3. **Small max_frames is allowed** — max=1 still works.
-//   4. **tf_free does not crash** on a freshly constructed
+//   3. Small max_frames is allowed — max=1 still works.
+//   4. tf_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

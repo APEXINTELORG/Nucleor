@@ -25,11 +25,11 @@
 // are exercised regardless of Python availability.
 //
 // Locks 3 invariants:
-//   1. **`py_available()` returns 0 or 1 deterministically** — never
+//   1. `py_available()` returns 0 or 1 deterministically — never
 //      crashes; returns a stable diagnostic.
-//   2. **`py_free_str("")` is no-op** — empty static fallback safely
+//   2. `py_free_str("")` is no-op — empty static fallback safely
 //      rejected (does not crash).
-//   3. **`py_free_str("<error>")` is no-op** — error-fallback
+//   3. `py_free_str("<error>")` is no-op — error-fallback
 //      static safely rejected.
 //
 // Expected: rc=0.

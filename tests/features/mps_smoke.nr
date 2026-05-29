@@ -9,11 +9,11 @@
 //
 // Locks four textbook quantum-state invariants:
 //
-//   1. **Initial |0⟩ has ⟨Z⟩ = +1** — Z eigenvalue on |0⟩.
-//   2. **X gate flips ⟨Z⟩ to -1** — X|0⟩ = |1⟩, ⟨Z⟩(|1⟩) = -1.
-//   3. **HH = I** — applying H twice returns to |0⟩,
+//   1. Initial |0⟩ has ⟨Z⟩ = +1 — Z eigenvalue on |0⟩.
+//   2. X gate flips ⟨Z⟩ to -1 — X|0⟩ = |1⟩, ⟨Z⟩(|1⟩) = -1.
+//   3. HH = I — applying H twice returns to |0⟩,
 //      ⟨Z⟩ = +1 again.
-//   4. **Fresh MPS has max_bond == 1** — mps_max_bond returns
+//   4. Fresh MPS has max_bond == 1 — mps_max_bond returns
 //      the CURRENT max bond dimension across the chain (not the
 //      cap). At init the state is product |00...⟩ so all bonds = 1.
 //

@@ -28,7 +28,7 @@
 // well-conditioned M (typical for soft-contact LCPs after Baumgarte
 // stabilization), 30–100 iters reach 1e-4 accuracy.
 //
-// **Limitations** (Lemke's algorithm / interior-point methods land
+// Limitations (Lemke's algorithm / interior-point methods land
 // in v0.6 if needed for ill-conditioned systems):
 // - PGS is iterative; for ill-conditioned M (very stiff contacts +
 //   no soft regularization) convergence may be slow.

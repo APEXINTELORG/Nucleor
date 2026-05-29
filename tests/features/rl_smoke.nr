@@ -6,13 +6,13 @@
 // Locks four lifecycle invariants on the replay-buffer surface
 // and discounted-returns scalar math:
 //
-//   1. **Replay-buffer empty**: `rl_replay_size(rb) == 0` after
+//   1. Replay-buffer empty: `rl_replay_size(rb) == 0` after
 //      construction.
-//   2. **Replay-buffer add tracks size**: 5 adds → size == 5.
-//   3. **Discount returns last == last reward**: with rewards
+//   2. Replay-buffer add tracks size: 5 adds → size == 5.
+//   3. Discount returns last == last reward: with rewards
 //      [r0, r1, r2] and any γ, the LAST return is just r_T (no
 //      future rewards to discount).
-//   4. **Discount returns of all-zeros == all-zeros**.
+//   4. Discount returns of all-zeros == all-zeros.
 //
 // PPO/DQN/GAE need actual policy/value tensors which are
 // out-of-scope for a smoke; tested in dedicated RL ships.

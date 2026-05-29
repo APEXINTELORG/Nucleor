@@ -19,7 +19,7 @@
 //   - Coin / disc detection in CAD-like images.
 //   - Pupil / iris detection in eye tracking.
 //
-// **Limitations** (gradient-direction voting / sub-pixel peak
+// Limitations (gradient-direction voting / sub-pixel peak
 // refinement / fast 21HT pre-screening land in v0.6 if needed):
 // - Each (x, y) contributes uniformly along the candidate ring
 //   for each radius — no edge-orientation pruning. For dense

@@ -8,11 +8,11 @@
 // sampling all use raw vars_ptr / out_ptr; deferred to dedicated
 // IK ships.
 //
-//   1. **Stable joint type IDs** — revolute=0, prismatic=1,
+//   1. Stable joint type IDs — revolute=0, prismatic=1,
 //      fixed=2 (RFC-0013 + URDF parser depend on this).
-//   2. **Empty chain** — fk_chain_new → count == 0.
-//   3. **add_joint tracks count** — 3 joints → count 3.
-//   4. **joint_type round-trip** — revolute / prismatic / fixed
+//   2. Empty chain — fk_chain_new → count == 0.
+//   3. add_joint tracks count — 3 joints → count 3.
+//   4. joint_type round-trip — revolute / prismatic / fixed
 //      slots preserved per index.
 //
 // Expected: rc=0.

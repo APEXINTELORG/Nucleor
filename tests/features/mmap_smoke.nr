@@ -8,12 +8,12 @@
 // minimum). Shared-memory APIs not exercised (named SHM has
 // system-wide visibility risk on a CI host).
 //
-//   1. **Open returns valid handle** for an existing 16-byte file.
-//   2. **mmap_size matches file size** — 16 bytes.
-//   3. **write_f64 → sync → reopen → read_f64 round-trip** —
+//   1. Open returns valid handle for an existing 16-byte file.
+//   2. mmap_size matches file size — 16 bytes.
+//   3. write_f64 → sync → reopen → read_f64 round-trip —
 //      writes a known bit pattern at offset 0 and reads it back
 //      after re-opening read-only.
-//   4. **Open of nonexistent file in read-only mode returns 0** —
+//   4. Open of nonexistent file in read-only mode returns 0 —
 //      no crash.
 //
 // Expected: rc=0.

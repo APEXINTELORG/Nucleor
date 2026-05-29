@@ -36,7 +36,7 @@
 //   // resize:
 //   imgproc_resize_bilinear(in_ptr, in_W, in_H, out_ptr, out_W, out_H);
 //
-// **Limitations** (color / multi-channel / FFT-based filters /
+// Limitations (color / multi-channel / FFT-based filters /
 // pyramids land in v0.6 if needed):
 // - Grayscale only (call once per channel for color).
 // - Sobel is fixed 3×3 (no Scharr / larger kernels).

@@ -19,7 +19,7 @@
 //   - Smooth interpolation between handful of waypoints (Bezier
 //     gives more local control than cubic spline).
 //
-// **Limitations** (rational Bezier / NURBS / Bezier curve
+// Limitations (rational Bezier / NURBS / Bezier curve
 // arc-length parameterization land in v0.6 if needed):
 // - Polynomial Bezier only (no weighted/rational variant).
 // - Caller-supplied parameter t (no arc-length re-parameterization).

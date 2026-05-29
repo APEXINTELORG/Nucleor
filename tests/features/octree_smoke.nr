@@ -8,13 +8,13 @@
 //
 // Locks four invariants on the occupancy state machine:
 //
-//   1. **Unknown before insert** — query of a never-inserted
+//   1. Unknown before insert — query of a never-inserted
 //      point returns 0 (unknown).
-//   2. **Insert + query round-trip** — insert (2.5, 1.0, 0.5)
+//   2. Insert + query round-trip — insert (2.5, 1.0, 0.5)
 //      as occupied → query at same point returns 2.
-//   3. **Free vs occupied tracked separately** — distinct
+//   3. Free vs occupied tracked separately — distinct
 //      points stay distinct: inserted-as-free returns 1.
-//   4. **Out-of-bounds insert returns -1** — point at (50, 0, 0)
+//   4. Out-of-bounds insert returns -1 — point at (50, 0, 0)
 //      lies outside half-size 10m root cube.
 //
 // Expected: rc=0.

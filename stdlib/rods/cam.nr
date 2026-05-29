@@ -39,7 +39,7 @@
 //
 //   cam_free(h);
 //
-// **Limitations** (fish-eye / equidistant / equirectangular
+// Limitations (fish-eye / equidistant / equirectangular
 // projections / iterative inverse-distortion land in v0.6 if needed):
 // - Single rectilinear pinhole + Brown-Conrady distortion.
 // - `unproject` does NOT undistort — caller must feed already-

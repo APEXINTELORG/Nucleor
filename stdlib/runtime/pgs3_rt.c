@@ -26,7 +26,7 @@
 // Jordan solve and FD Jacobians are fine; sparse Cholesky and
 // closed-form Jacobians land in v0.6 if needed.
 //
-// **Limitations** (closed-form Jacobians, sparse Cholesky, robust
+// Limitations (closed-form Jacobians, sparse Cholesky, robust
 // kernels land in v0.6):
 // - Numerical FD Jacobians (12 residual evaluations per edge per
 //   iter); fine for hundreds of edges.

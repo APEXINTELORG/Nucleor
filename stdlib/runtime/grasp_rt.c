@@ -6,12 +6,12 @@
 // pointing surface normals (i.e., normals pointing AWAY from the
 // object's interior). The standard quality metrics:
 //
-// - **Antipodal score**: how aligned the grip-direction is with
+// - Antipodal score: how aligned the grip-direction is with
 //   the contact normals. A perfect antipodal grasp (grip line
 //   exactly between the two surface normals) scores +1; a
 //   completely tangential "grasp" scores -1.
 //
-// - **Force closure** (under Coulomb friction): the contact
+// - Force closure (under Coulomb friction): the contact
 //   forces (which must lie in the friction cones at each contact)
 //   can together resist any external wrench applied to the object.
 //   For the 2-contact case, this reduces to a closed-form check:
@@ -22,7 +22,7 @@
 // them, pick the best) and for control-time grasp validation
 // (reject planned grasps that the friction model says will slip).
 //
-// **Limitations** (full convex-hull-of-friction-cone wrench-space
+// Limitations (full convex-hull-of-friction-cone wrench-space
 // metric, multi-finger generalizations, and grasp-stability
 // margins land in v0.6 if needed):
 // - 2-finger / 2-contact only.

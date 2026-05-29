@@ -20,7 +20,7 @@
 //   let xyz: [3]double;
 //   let _ = bezier_eval_3d(ctrl_xyz_ptr, N, t_b, f64_ptr(&xyz[0]));
 //
-// **Limitations** (rational Bezier / NURBS / arc-length
+// Limitations (rational Bezier / NURBS / arc-length
 // reparameterization land in v0.6 if needed):
 // - Polynomial Bezier only.
 // - Caller-supplied parameter t (no arc-length reparam).

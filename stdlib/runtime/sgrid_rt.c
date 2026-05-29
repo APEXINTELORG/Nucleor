@@ -13,7 +13,7 @@
 //   without scanning all of them).
 // - Particle-grid neighborhood lookups in physics sims.
 //
-// **Limitations** (KD-tree / R-tree variants land in v0.6 if
+// Limitations (KD-tree / R-tree variants land in v0.6 if
 // needed for non-uniform point distributions):
 // - Cell size is fixed; choose ≈ expected nearest-neighbor
 //   distance for best performance.

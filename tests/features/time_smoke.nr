@@ -5,10 +5,10 @@
 // zero coverage.
 //
 // Locks three textbook invariants:
-//   1. **Plausible epoch** — time_now_ms returns ms-since-epoch
+//   1. Plausible epoch — time_now_ms returns ms-since-epoch
 //      in [1.7e12, 4.0e12] (post-2023, pre-2096).
-//   2. **Sleep advances time_now_ms** — sleep 5ms → delta ≥ 4.
-//   3. **time_format_ms produces 19-char string** — "YYYY-MM-DD
+//   2. Sleep advances time_now_ms — sleep 5ms → delta ≥ 4.
+//   3. time_format_ms produces 19-char string — "YYYY-MM-DD
 //      HH:MM:SS" is exactly 19 chars (4+1+2+1+2+1+2+1+2+1+2 = 19).
 //
 // Expected: rc=0.

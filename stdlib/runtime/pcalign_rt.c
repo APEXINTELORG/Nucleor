@@ -26,7 +26,7 @@
 //   - AR pose estimation from world-anchor correspondences.
 //   - RANSAC + this combined for outlier-robust registration.
 //
-// **Limitations** (non-rigid / scale / weighted variants land in
+// Limitations (non-rigid / scale / weighted variants land in
 // v0.6 if needed):
 // - Rigid (rotation + translation) only — no scale or shear.
 //   Add scale via Horn's extension if needed.

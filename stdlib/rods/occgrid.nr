@@ -32,7 +32,7 @@
 // Typical inverse-sensor parameters: `l_free = 0.4`, `l_occ = 0.85`
 // (`p_free ≈ 0.40`, `p_occ ≈ 0.70` per observation), threshold 0.65.
 //
-// **Limitations** (3D voxel grid / probabilistic forward sensor
+// Limitations (3D voxel grid / probabilistic forward sensor
 // model land in v0.6 if needed):
 // - 2D only (use `octree.nr` for 3D occupancy).
 // - Bresenham raycast (axis-aligned discretization).

@@ -6,11 +6,11 @@
 // surfaces type-position usage; THIS rod converts values).
 //
 // Locks five textbook unit-conversion invariants:
-//   1. **1 km == 1000 m** (length scale).
-//   2. **1 kg == 1000 g** (mass scale).
-//   3. **1 hr == 3600 s** (time scale).
-//   4. **0 °C == 273.15 K** (temperature offset, NOT scale).
-//   5. **32 °F == 0 °C** (Fahrenheit zero point).
+//   1. 1 km == 1000 m (length scale).
+//   2. 1 kg == 1000 g (mass scale).
+//   3. 1 hr == 3600 s (time scale).
+//   4. 0 °C == 273.15 K (temperature offset, NOT scale).
+//   5. 32 °F == 0 °C (Fahrenheit zero point).
 //
 // All compares are within 1e-6 absolute tolerance.
 //

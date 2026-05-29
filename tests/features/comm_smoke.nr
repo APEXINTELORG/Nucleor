@@ -6,7 +6,7 @@
 //
 // Locks two invariants:
 //   1. set_data + get_data round-trip per rank.
-//   2. **Broadcast**: after broadcast from rank 1, all ranks
+//   2. Broadcast: after broadcast from rank 1, all ranks
 //      hold rank 1's data verbatim.
 //
 // Allreduce / reduce-scatter / grad-accum are out of scope for

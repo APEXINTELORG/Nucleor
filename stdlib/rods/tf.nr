@@ -35,7 +35,7 @@
 //
 //   tf_free(tf);
 //
-// **Limitations** (string-keyed frames / forest / lazy caching land
+// Limitations (string-keyed frames / forest / lazy caching land
 // in v0.6 if needed):
 // - Integer frame IDs only — caller manages name→id mapping.
 // - Single tree only (no disconnected forest).

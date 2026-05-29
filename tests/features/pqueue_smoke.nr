@@ -6,12 +6,12 @@
 //
 // Locks four invariants:
 //
-//   1. **Empty heap** — pq_size == 0; pq_empty == 1.
-//   2. **Min-heap pops smallest key first** — push (5, 'a'),
+//   1. Empty heap — pq_size == 0; pq_empty == 1.
+//   2. Min-heap pops smallest key first — push (5, 'a'),
 //      (1, 'b'), (3, 'c') → pop order 'b', 'c', 'a'.
-//   3. **Max-heap pops largest key first** — same data → pop
+//   3. Max-heap pops largest key first — same data → pop
 //      order 'a', 'c', 'b'.
-//   4. **Push tracks size, peek does not consume** — 3 pushes
+//   4. Push tracks size, peek does not consume — 3 pushes
 //      → size=3; peek returns top without changing size.
 //
 // Expected: rc=0.

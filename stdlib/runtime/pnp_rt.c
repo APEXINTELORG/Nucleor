@@ -22,7 +22,7 @@
 // where exp(δω) is the small-angle Rodrigues approximation for
 // stability (full Rodrigues for big steps).
 //
-// **Limitations** (closed-form EPnP / P3P initialization, RANSAC-
+// Limitations (closed-form EPnP / P3P initialization, RANSAC-
 // based outlier rejection land in v0.6 if needed):
 // - Iterative-only — no closed-form initialization. Caller must
 //   supply a reasonable initial guess (or use identity pose; for

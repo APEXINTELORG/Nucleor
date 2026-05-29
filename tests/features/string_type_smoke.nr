@@ -5,13 +5,13 @@
 // view). Pre-v0.8.178: zero coverage on the wrapper rod.
 //
 // Locks five textbook String invariants:
-//   1. **Empty**: `string_make()` → length 0.
-//   2. **Make-from-str**: `string_of("hello")` → length 5.
-//   3. **Concat str literal**: `make` + push("hi") → length 2,
+//   1. Empty: `string_make()` → length 0.
+//   2. Make-from-str: `string_of("hello")` → length 5.
+//   3. Concat str literal: `make` + push("hi") → length 2,
 //      equals_str("hi").
-//   4. **Push byte**: empty string + push_byte('A'=65) →
+//   4. Push byte: empty string + push_byte('A'=65) →
 //      length 1, byte_at(0)==65.
-//   5. **Predicate (has_prefix)**: `string_of("hello world")`
+//   5. Predicate (has_prefix): `string_of("hello world")`
 //      has_prefix("hello") == 1; has_prefix("xyz") == 0.
 //
 // Expected: rc=0.

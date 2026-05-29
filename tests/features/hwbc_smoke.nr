@@ -12,10 +12,10 @@
 // Locks four invariants (J / x_des use raw ptrs; deferred to IK
 // ships):
 //
-//   1. **hwbc_new returns valid handle**.
-//   2. **Empty-task solve succeeds** — returns 1.
-//   3. **Empty-task qdot is zero** for every joint.
-//   4. **clear + re-solve idempotent zero** — resilient empty
+//   1. hwbc_new returns valid handle.
+//   2. Empty-task solve succeeds — returns 1.
+//   3. Empty-task qdot is zero for every joint.
+//   4. clear + re-solve idempotent zero — resilient empty
 //      stack.
 //
 // Expected: rc=0.

@@ -37,7 +37,7 @@
 //   }
 //   scurve_free(h);
 //
-// **Limitations** (degenerate cases / asymmetric / online retiming
+// Limitations (degenerate cases / asymmetric / online retiming
 // land in v0.6 if needed):
 // - Requires the FULL 7-phase profile — both v_max and a_max must
 //   be reached. `scurve_new` returns 0 for paths too short to

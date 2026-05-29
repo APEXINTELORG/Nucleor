@@ -6,13 +6,13 @@
 //
 // Locks four physics-integration invariants:
 //
-//   1. **Set/get position round-trip** — set (1,2,3) → get
+//   1. Set/get position round-trip — set (1,2,3) → get
 //      px=1, py=2, pz=3.
-//   2. **Free-fall under gravity** — body at rest with g=-9.81
+//   2. Free-fall under gravity — body at rest with g=-9.81
 //      → after dt=1s, vy ≈ -9.81 (Euler integration).
-//   3. **Sphere collision detection** — two unit spheres at
+//   3. Sphere collision detection — two unit spheres at
 //      distance 1.5 collide; at distance 3.0 they don't.
-//   4. **Reset clears all bodies** — after rb_reset, new IDs
+//   4. Reset clears all bodies — after rb_reset, new IDs
 //      restart from 0.
 //
 // Expected: rc=0.

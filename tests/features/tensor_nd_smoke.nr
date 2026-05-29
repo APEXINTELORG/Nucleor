@@ -4,11 +4,11 @@
 // zero coverage.
 //
 // Locks five invariants on a 2×3×4 tensor:
-//   1. **Shape**: ndim=3; shape(0)=2, shape(1)=3, shape(2)=4.
-//   2. **Total**: total = 2*3*4 = 24.
-//   3. **Set + get round-trip**: set(1,2,3, val=42.5) → get(1,2,3) == 42.5.
-//   4. **Fill**: fill(7.0) → get_flat(0..N-1) all == 7.0.
-//   5. **Scale**: scale(2.0) on a fill(3.0) tensor → 6.0 everywhere.
+//   1. Shape: ndim=3; shape(0)=2, shape(1)=3, shape(2)=4.
+//   2. Total: total = 2*3*4 = 24.
+//   3. Set + get round-trip: set(1,2,3, val=42.5) → get(1,2,3) == 42.5.
+//   4. Fill: fill(7.0) → get_flat(0..N-1) all == 7.0.
+//   5. Scale: scale(2.0) on a fill(3.0) tensor → 6.0 everywhere.
 //
 // Expected: rc=0.
 

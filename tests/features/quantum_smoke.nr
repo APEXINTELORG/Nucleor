@@ -7,13 +7,13 @@
 //
 // Locks four textbook quantum-state invariants:
 //
-//   1. **Initial state |0⟩**: prob(qubit=0, state=0) == 1.0;
+//   1. Initial state |0⟩: prob(qubit=0, state=0) == 1.0;
 //      qsim_num_qubits round-trip.
-//   2. **X gate flips |0⟩ → |1⟩**: after qsim_x(0), prob of
+//   2. X gate flips |0⟩ → |1⟩: after qsim_x(0), prob of
 //      measuring 1 on qubit 0 is 1.0.
-//   3. **HH = I**: applying H twice on |0⟩ returns |0⟩
+//   3. HH = I: applying H twice on |0⟩ returns |0⟩
 //      (probability of 0 outcome = 1.0).
-//   4. **CNOT in |10⟩**: |10⟩ + CNOT → |11⟩ (qubit 1 flips).
+//   4. CNOT in |10⟩: |10⟩ + CNOT → |11⟩ (qubit 1 flips).
 //
 // Expected: rc=0.
 

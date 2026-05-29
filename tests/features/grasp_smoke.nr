@@ -7,14 +7,14 @@
 //
 // Locks four textbook geometric invariants:
 //
-//   1. **Perfect antipodal grasp** — contacts at (-1,0,0) and
+//   1. Perfect antipodal grasp — contacts at (-1,0,0) and
 //      (1,0,0) with outward normals (-1,0,0) and (1,0,0).
 //      Grip line is the x-axis; both normals align → score=+1.
-//   2. **Tangential normals score 0** — same contacts but
+//   2. Tangential normals score 0 — same contacts but
 //      normals (0,1,0) and (0,1,0) (both pointing +y) are
 //      orthogonal to grip line → 0.
-//   3. **Force closure with μ=1** for a perfect antipodal pair.
-//   4. **Approach alignment head-on** — surface normal (0,0,1),
+//   3. Force closure with μ=1 for a perfect antipodal pair.
+//   4. Approach alignment head-on — surface normal (0,0,1),
 //      approach (0,0,-1) (antiparallel) → +1.
 //
 // Expected: rc=0.

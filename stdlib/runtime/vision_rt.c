@@ -158,7 +158,7 @@ long long nuc_cam_image_jacobian(
 // configuration where the camera is mounted on the end-effector,
 // also compose with the end-effector → camera transform.
 //
-// **Limitations**:
+// Limitations:
 // - Point features only (line-feature L_s and pose-feature L_s
 //   variants land in v0.6 if needed).
 // - User must supply per-feature depth (no monocular depth
@@ -213,7 +213,7 @@ static int _gj_inv_6x6(const double *A, double *Ainv) {
 // scalars s1, s2 minimizing ‖(c1 + s1·d1) − (c2 + s2·d2)‖²; the
 // 3D point is the midpoint of those two closest points.
 //
-// **Limitations** (linear-DLT triangulation + nonlinear refinement
+// Limitations (linear-DLT triangulation + nonlinear refinement
 // with reprojection minimization land in v0.6 if needed):
 // - Midpoint method only — adequate for short baselines, can have
 //   small bias when baseline is large relative to depth.

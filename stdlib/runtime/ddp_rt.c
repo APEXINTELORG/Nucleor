@@ -27,7 +27,7 @@
 // the extra iLQR iterations needed to match DDP's quadratic
 // convergence.
 //
-// **Limitations** (analytical Hessians via a user-supplied tensor
+// Limitations (analytical Hessians via a user-supplied tensor
 // callback land in v0.6 if needed for performance):
 // - Numerical FD for dynamics Hessians (slow for n_x > ~10).
 // - Same diagonal-Hessian approximation of the cost as iLQR.

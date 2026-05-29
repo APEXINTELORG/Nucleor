@@ -10,11 +10,11 @@
 //
 // Locks four invariants (k-NN uses raw out-ptrs; deferred):
 //
-//   1. **Empty tree** — count == 0; nearest returns -1 before
+//   1. Empty tree — count == 0; nearest returns -1 before
 //      any insert.
-//   2. **Insert tracks count** — 4 inserts → count = 4.
-//   3. **Build returns indexed count** — kdt_build → 4.
-//   4. **Self-match query** — nearest of inserted point
+//   2. Insert tracks count — 4 inserts → count = 4.
+//   3. Build returns indexed count — kdt_build → 4.
+//   4. Self-match query — nearest of inserted point
 //      (1, 1, 1) is index 3.
 //
 // Expected: rc=0.

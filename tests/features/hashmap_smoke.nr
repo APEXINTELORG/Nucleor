@@ -6,12 +6,12 @@
 //
 // Locks four lifecycle/semantics invariants:
 //
-//   1. **Empty map** — map_new → len 0; missing key → has 0.
-//   2. **Set tracks get + len** — set 3 distinct keys → len 3,
+//   1. Empty map — map_new → len 0; missing key → has 0.
+//   2. Set tracks get + len — set 3 distinct keys → len 3,
 //      each get returns its set value.
-//   3. **Overwrite same key** — set "k" twice → len stays 1,
+//   3. Overwrite same key — set "k" twice → len stays 1,
 //      get returns latest value.
-//   4. **Delete removes key** — del flips has to 0 and drops
+//   4. Delete removes key — del flips has to 0 and drops
 //      len by 1.
 //
 // Expected: rc=0.

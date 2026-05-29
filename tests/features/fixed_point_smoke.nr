@@ -7,12 +7,12 @@
 //
 // Locks five textbook Q-format invariants on Q16.16:
 //
-//   1. **Q-format encode/decode**: q_i_bits and q_f_bits round-trip.
-//   2. **Integer round-trip**: from_int(3) → to_int → 3.
-//   3. **from_parts**: from_parts(1, 5000) ≈ 1.5 in Q16.16
+//   1. Q-format encode/decode: q_i_bits and q_f_bits round-trip.
+//   2. Integer round-trip: from_int(3) → to_int → 3.
+//   3. from_parts: from_parts(1, 5000) ≈ 1.5 in Q16.16
 //      (98304 scale = 1.5 * 65536).
-//   4. **Add**: from_int(2) + from_int(3) → to_int → 5.
-//   5. **Mul**: from_parts(1,5000) × from_parts(2,0) →
+//   4. Add: from_int(2) + from_int(3) → to_int → 5.
+//   5. Mul: from_parts(1,5000) × from_parts(2,0) →
 //      to_int → 3 (1.5 × 2 = 3).
 //
 // Expected: rc=0.

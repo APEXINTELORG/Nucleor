@@ -23,7 +23,7 @@
 // optimizer. Use `chomp_optimize_covariant` when the path needs the
 // full inverse smoothness-metric preconditioner used by CHOMP-proper.
 //
-// **Limitations**:
+// Limitations:
 // - Generic high-DOF Cartesian optimization still needs a callback
 //   or robot-model wrapper. `chomp_optimize_cartesian_planar_2link`
 //   provides the first analytical FK/Jacobian Cartesian variant for

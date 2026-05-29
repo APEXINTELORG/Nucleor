@@ -17,11 +17,11 @@
 //
 // Locks four invariants:
 //
-//   1. **Node + element counts** — 9 nodes, 8 triangles.
-//   2. **Corner coordinates** — node 0 at (0,0), node 8 at (1,1).
-//   3. **Boundary classification** — corner 0 is boundary; center
+//   1. Node + element counts — 9 nodes, 8 triangles.
+//   2. Corner coordinates — node 0 at (0,0), node 8 at (1,1).
+//   3. Boundary classification — corner 0 is boundary; center
 //      node 4 (at (0.5, 0.5)) is interior.
-//   4. **Triangle has 3 distinct nodes** — element 0's three local
+//   4. Triangle has 3 distinct nodes — element 0's three local
 //      vertices are pairwise distinct (no degenerate triangles).
 //
 // Expected: rc=0.

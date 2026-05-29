@@ -4,7 +4,7 @@
 // gradients, Gauss-Newton diagonal-Hessian cost approximation,
 // Riccati backward pass with regularization, line-search forward
 // pass), with one addition: each control update during the forward
-// pass is **clamped** to a per-component box `[u_min, u_max]`.
+// pass is clamped to a per-component box `[u_min, u_max]`.
 //
 // This is the simplest principled way to enforce control bounds —
 // it doesn't strictly project the backward-pass gain `K` onto the
@@ -12,7 +12,7 @@
 // feasible control sequences and converges well in practice for
 // soft-bounds-active problems.
 //
-// **Limitations** (Tassa-style projected backward pass land in
+// Limitations (Tassa-style projected backward pass land in
 // v0.6 if needed):
 // - The backward-pass gain `K` is unconstrained; only the forward
 //   pass clamps. When bounds are tightly active over many steps,

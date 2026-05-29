@@ -27,7 +27,7 @@
 //                              better accuracy at large dt or
 //                              tight curvature).
 //
-// **Limitations** (full dynamic bicycle with tire slip / Pacejka
+// Limitations (full dynamic bicycle with tire slip / Pacejka
 // model / lateral acceleration limits land in v0.6 if needed):
 // - Kinematic only — assumes no wheel slip (low-speed regime).
 // - δ clamped externally (caller responsibility).

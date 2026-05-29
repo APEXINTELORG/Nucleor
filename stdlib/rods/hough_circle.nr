@@ -25,7 +25,7 @@
 //       max_circles,
 //       out_circles_ptr);
 //
-// **Limitations** (gradient-direction voting / sub-pixel peak
+// Limitations (gradient-direction voting / sub-pixel peak
 // refinement / 21HT pre-screening land in v0.6 if needed):
 // - Each (x, y) contributes uniformly along the ring per radius
 //   (no edge-orientation pruning). For dense clouds this is

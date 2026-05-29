@@ -27,7 +27,7 @@
 // Image is `double[H*W]` row-major in [0, 255]. Returned corners
 // are sorted by response descending.
 //
-// **Limitations** (Shi-Tomasi response / sub-pixel refinement /
+// Limitations (Shi-Tomasi response / sub-pixel refinement /
 // scale-space (multi-scale Harris) land in v0.6 if needed):
 // - Single-scale (caller pre-builds Gaussian pyramid via
 //   `image_pyramid.nr` for multi-scale).

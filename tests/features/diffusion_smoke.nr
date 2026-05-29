@@ -6,11 +6,11 @@
 // Locks four lifecycle invariants on the schedule + rectified-
 // flow surfaces (heaviest path with cleanest closed-form math):
 //
-//   1. **Linear schedule length**: `linear_schedule(N=10, ...)`
+//   1. Linear schedule length: `linear_schedule(N=10, ...)`
 //      returns Vec of length 10.
-//   2. **Cosine schedule length**: same shape.
-//   3. **Rectified-flow interpolation at t=0** equals x0.
-//   4. **Rectified-flow target = x1 - x0** element-wise.
+//   2. Cosine schedule length: same shape.
+//   3. Rectified-flow interpolation at t=0 equals x0.
+//   4. Rectified-flow target = x1 - x0 element-wise.
 //
 // Expected: rc=0.
 

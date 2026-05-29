@@ -25,7 +25,7 @@
 //               k_att, k_rep, d_max, v, dt,
 //               x_out_ptr, y_out_ptr);
 //
-// **Limitations** (Vector Field Histogram / Navigation Functions
+// Limitations (Vector Field Histogram / Navigation Functions
 // land in v0.6 if needed for narrow-passage scenarios):
 // - 2D only.
 // - Caller supplies obstacle list as point obstacles.

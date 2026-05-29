@@ -1,7 +1,7 @@
 // rods/cilqr — Box-constrained iLQR (clamped forward pass).
 //
 // Same iterative-LQR algorithm as `ilqr.nr`, with one addition:
-// each control update during the forward pass is **clamped** to a
+// each control update during the forward pass is clamped to a
 // per-component box `[u_min, u_max]`. Standard pragmatic way to
 // enforce control bounds without the heavier machinery of
 // projected backward-pass active-set algorithms (Tassa-style box-
@@ -29,7 +29,7 @@
 //
 // Same callback contract as `ilqr.nr` (see that rod's docs).
 //
-// **Limitations** (Tassa-style projected backward pass land in v0.6
+// Limitations (Tassa-style projected backward pass land in v0.6
 // if needed):
 // - Only the forward pass clamps; the backward-pass gain `K` is
 //   unconstrained. When bounds are tightly active over many steps,

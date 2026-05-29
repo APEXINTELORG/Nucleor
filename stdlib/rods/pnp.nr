@@ -25,7 +25,7 @@
 //
 //   let rms = pnp_reprojection_rms(...);   // diagnostic
 //
-// **Limitations** (closed-form EPnP / P3P initialization, RANSAC-
+// Limitations (closed-form EPnP / P3P initialization, RANSAC-
 // based outlier rejection land in v0.6 if needed):
 // - Iterative-only — caller supplies initial guess. Identity pose
 //   works for typical visual servoing setups (converges 5-10 iters).

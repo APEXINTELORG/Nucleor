@@ -8,11 +8,11 @@
 // most contained primitive (single Vec input, deterministic
 // output) and exercises the f64-bits round-trip cleanly:
 //
-//   1. **Sum to 1**: softmax([1, 2, 3]) entries sum to 1.0.
-//   2. **Argmax preserved**: softmax preserves the argmax (largest
+//   1. Sum to 1: softmax([1, 2, 3]) entries sum to 1.0.
+//   2. Argmax preserved: softmax preserves the argmax (largest
 //      input → largest output).
-//   3. **Equal inputs → uniform**: softmax([1, 1, 1]) → all 1/3.
-//   4. **Translation invariance**: softmax(x) == softmax(x+c).
+//   3. Equal inputs → uniform: softmax([1, 1, 1]) → all 1/3.
+//   4. Translation invariance: softmax(x) == softmax(x+c).
 //
 // Expected: rc=0.
 

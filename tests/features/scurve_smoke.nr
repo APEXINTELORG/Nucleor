@@ -6,10 +6,10 @@
 // Locks four invariants on a long path that fits the full
 // 7-phase profile (L=100, v_max=2, a_max=1, j_max=2):
 //
-//   1. **Construction** returns valid handle for full-profile path.
-//   2. **Path length round-trip**: L=100 in → 100 out.
-//   3. **Boundary at t=0**: position == 0.
-//   4. **Boundary at t=T_total**: position ≈ L.
+//   1. Construction returns valid handle for full-profile path.
+//   2. Path length round-trip: L=100 in → 100 out.
+//   3. Boundary at t=0: position == 0.
+//   4. Boundary at t=T_total: position ≈ L.
 //
 // Sister to v0.8.182 topp_smoke (trapezoidal). The s-curve is
 // production-grade jerk-limited; topp is the simpler fallback.

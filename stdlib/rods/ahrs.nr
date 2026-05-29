@@ -38,7 +38,7 @@
 //
 //   ahrs_free(h);
 //
-// **Limitations** (magnetometer fusion / Madgwick variant land
+// Limitations (magnetometer fusion / Madgwick variant land
 // in v0.6 if needed):
 // - Yaw is unobservable from accel (gravity is yaw-invariant).
 //   Yaw drifts at the gyro bias rate; add a magnetometer

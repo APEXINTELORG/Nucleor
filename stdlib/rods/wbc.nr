@@ -48,9 +48,9 @@
 // posture regularizer), mobile-manipulator coordination (base
 // motion + arm pose), redundant-arm IK with multiple objectives.
 //
-// **Limitations** (strict-priority hierarchy / box constraints /
+// Limitations (strict-priority hierarchy / box constraints /
 // torque-level control land in v0.6 if needed):
-// - Weighted QP gives **soft** priorities — large weights nudge
+// - Weighted QP gives soft priorities — large weights nudge
 //   tasks first but do not guarantee strict precedence. For
 //   absolute task ordering, use the Siciliano-Slotine null-space
 //   projection method (planned for v0.6).

@@ -16,10 +16,10 @@
 //   [profile.release]
 //   opt_level = 3
 //
-//   1. **Section dotted keys**: `package.name == "myproject"`.
-//   2. **Int parse**: `package.workers == 4`.
-//   3. **Bool true → 1**: `package.debug == 1`.
-//   4. **Nested section**: `profile.release.opt_level == 3`.
+//   1. Section dotted keys: `package.name == "myproject"`.
+//   2. Int parse: `package.workers == 4`.
+//   3. Bool true → 1: `package.debug == 1`.
+//   4. Nested section: `profile.release.opt_level == 3`.
 //
 // Expected: rc=0.
 

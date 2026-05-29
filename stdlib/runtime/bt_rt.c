@@ -28,7 +28,7 @@
 // scheduling, error recovery (selector: try main plan; if FAIL,
 // fall back to recovery).
 //
-// **Limitations** (blackboard-style data sharing between nodes
+// Limitations (blackboard-style data sharing between nodes
 // + dynamic tree restructuring land in v0.6 if needed):
 // - No blackboard; user passes shared state via the callback
 //   context pointer (one void* per tick).

@@ -28,7 +28,7 @@
 // - Loop closures introduce additional edges between non-adjacent
 //   poses, fixing accumulated drift.
 //
-// **Limitations** (3D pose graphs / sparse Cholesky / robust-cost
+// Limitations (3D pose graphs / sparse Cholesky / robust-cost
 // kernels land in v0.6 if needed):
 // - 2D only (3D extension uses quaternions + 6-DOF residuals).
 // - Dense linear solve via Gauss-Jordan: O(n³) per iter. Fine for

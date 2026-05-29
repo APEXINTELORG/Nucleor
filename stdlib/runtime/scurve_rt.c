@@ -28,9 +28,9 @@
 // velocity profile, which is what the s-curve produces at the
 // velocity level).
 //
-// **Limitations** (degenerate cases / asymmetric / online retiming
+// Limitations (degenerate cases / asymmetric / online retiming
 // land in v0.6 if needed):
-// - **Requires the FULL 7-phase profile** — both v_max and a_max
+// - Requires the FULL 7-phase profile — both v_max and a_max
 //   must be reached. If `T_v < 0` or `T_a < 2·T_j`, the trajectory
 //   would need a degenerate variant (no cruise, or no a_max
 //   plateau). Returns 0 from `scurve_new` in that case; the caller

@@ -4,11 +4,11 @@
 // zero coverage.
 //
 // Locks four invariants on a 10×10 grid at dx=1.0 origin (0,0):
-//   1. **Construction shape**: width=10, height=10, dx=1.0.
-//   2. **Set + get round-trip**: per-cell f64 value preserves.
-//   3. **Initial all-free**: fresh grid cells default to +1e18
+//   1. Construction shape: width=10, height=10, dx=1.0.
+//   2. Set + get round-trip: per-cell f64 value preserves.
+//   3. Initial all-free: fresh grid cells default to +1e18
 //      (large positive — "free everywhere").
-//   4. **Query interpolates**: setting 4 corner cells uniformly
+//   4. Query interpolates: setting 4 corner cells uniformly
 //      to value V → query at center returns V (within tolerance).
 //
 // Expected: rc=0.

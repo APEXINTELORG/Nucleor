@@ -8,14 +8,14 @@
 // Locks four invariants Phase B compiler enforcement must NOT
 // regress:
 //
-//   1. **Stable neuron-model IDs** — LIF=1, Izhikevich=2,
+//   1. Stable neuron-model IDs — LIF=1, Izhikevich=2,
 //      AdEx=3, HodgkinHuxley=4 (the wire format adopter code
 //      depends on).
-//   2. **Spike construction round-trip** — spike(1234, 7) →
+//   2. Spike construction round-trip — spike(1234, 7) →
 //      timestamp 1234, neuron 7.
-//   3. **SpikeTrain push tracks count** — 3 pushes → count=3,
+//   3. SpikeTrain push tracks count — 3 pushes → count=3,
 //      get(0) and get(2) round-trip.
-//   4. **LIF reset → 0 potential** — newly reset LIF state
+//   4. LIF reset → 0 potential — newly reset LIF state
 //      reads zero membrane potential.
 //
 // Expected: rc=0.

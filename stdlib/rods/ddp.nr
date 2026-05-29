@@ -21,7 +21,7 @@
 // - State dimension is large (≥ ~10) — Hessian FD cost dominates.
 // - Dynamics are stiff or non-smooth — Hessians are noisy.
 //
-// **Limitations** (analytical Hessians via a tensor callback land
+// Limitations (analytical Hessians via a tensor callback land
 // in v0.6 if needed for performance):
 // - Numerical FD for dynamics Hessians (slow for large n_x).
 // - Same diagonal cost-Hessian approximation as iLQR.

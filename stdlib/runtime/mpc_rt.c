@@ -24,7 +24,7 @@
 // immediate `u_0` vector and updates the internal warm-start
 // sequence; subsequent calls reuse it.
 //
-// **Limitations** (constrained MPC / robust MPC / shrinking horizon
+// Limitations (constrained MPC / robust MPC / shrinking horizon
 // land in v0.6 if needed):
 // - No state or control constraints. For constrained QPs use
 //   `lcp.nr` to assemble + solve the per-step QP yourself.

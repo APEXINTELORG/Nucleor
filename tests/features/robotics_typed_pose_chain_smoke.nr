@@ -5,7 +5,7 @@
 // coverage; full stack correctness was not locked. The audit's
 // full IK→planner→trajectory chain requires raw double* construction
 // that the current Nucleor surface can't easily build from a fixture.
-// Phase 1 ships the **typed-frame pose chain** end-to-end using
+// Phase 1 ships the typed-frame pose chain end-to-end using
 // `kinematics.nr`'s Vec-handle pose API + `kinematics_frame.nr`'s
 // typed-check helpers — exercises the same correctness pattern
 // (typed frames preserved through composition) against a
@@ -23,17 +23,17 @@
 //   - cold compile <= 4s (preserved).
 //
 // Locks 5 invariants on a deterministic 3-frame chain:
-//   1. **Identity-pose chain compose** — identity ∘ identity = identity;
+//   1. Identity-pose chain compose — identity ∘ identity = identity;
 //      apply to (1, 2, 3) returns (1, 2, 3).
-//   2. **Typed-frame check on chain** — building world→base→camera
+//   2. Typed-frame check on chain — building world→base→camera
 //      with all canonical IDs passes `tf_is_canonical_frame_id` for
 //      each.
-//   3. **Wrong-frame compose rejection** — `kinematics_frame_check_pair`
+//   3. Wrong-frame compose rejection — `kinematics_frame_check_pair`
 //      between camera and base returns 0 (the rejection signal that
 //      Phase 2 promotes to TYP-008 compile error).
-//   4. **Quaternion identity round-trip through pose** — w=1.0
+//   4. Quaternion identity round-trip through pose — w=1.0
 //      preserved through `pose_quat(pose_identity())`.
-//   5. **Typed-frame IDs for kinematic chain** — world (0), base (1),
+//   5. Typed-frame IDs for kinematic chain — world (0), base (1),
 //      camera (2) all in canonical range, all distinct.
 //
 // Expected: rc=0.

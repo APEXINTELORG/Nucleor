@@ -17,7 +17,7 @@
 //   let nn_idx = sgrid_nearest(g, qx_b, qy_b, qz_b);
 //   sgrid_free(g);
 //
-// **Limitations** (KD-tree / R-tree variants land in v0.6 if
+// Limitations (KD-tree / R-tree variants land in v0.6 if
 // needed for non-uniform point distributions):
 // - Cell size is fixed; pick ≈ expected NN distance for best
 //   performance.

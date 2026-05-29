@@ -7,13 +7,13 @@
 // Locks four invariants. os_exit and os_system not exercised
 // (would side-effect the test process).
 //
-//   1. **getpid is positive** — no process has PID 0 on
+//   1. getpid is positive — no process has PID 0 on
 //      Windows or Linux.
-//   2. **getcwd is non-empty** — every process has a current
+//   2. getcwd is non-empty — every process has a current
 //      working directory.
-//   3. **Missing env var returns empty** — os_getenv on a
+//   3. Missing env var returns empty — os_getenv on a
 //      definitely-not-set name returns "".
-//   4. **Set env round-trip** — env_set "X"="value" → getenv
+//   4. Set env round-trip — env_set "X"="value" → getenv
 //      "X" == "value" (cross-checks os_info env mutation).
 //
 // Expected: rc=0.

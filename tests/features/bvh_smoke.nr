@@ -5,11 +5,11 @@
 // Pre-v0.8.160: zero coverage.
 //
 // Locks three textbook BVH invariants:
-//   1. **Overlap query**: a query AABB that contains box[2] but
+//   1. Overlap query: a query AABB that contains box[2] but
 //      not box[0] returns 1 hit (index 2).
-//   2. **Disjoint pairs**: 3 spatially-separated AABBs produce 0
+//   2. Disjoint pairs: 3 spatially-separated AABBs produce 0
 //      self-pairs.
-//   3. **Overlapping pairs**: 2 overlapping AABBs produce
+//   3. Overlapping pairs: 2 overlapping AABBs produce
 //      exactly 1 self-pair (the pair (0, 1)).
 //
 // All bounding-box coordinates are f64-bits.

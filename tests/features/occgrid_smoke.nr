@@ -9,12 +9,12 @@
 // Locks four invariants (find_frontiers and update_scan use raw
 // out-ptrs / array-ptrs; deferred):
 //
-//   1. **Topology round-trip** — width=10, height=20, cell=0.5.
-//   2. **Initial probability is 0.5** — fresh grid has log-odds 0.
-//   3. **update_ray drives p > 0.5 at the hit cell** — sensor
+//   1. Topology round-trip — width=10, height=20, cell=0.5.
+//   2. Initial probability is 0.5 — fresh grid has log-odds 0.
+//   3. update_ray drives p > 0.5 at the hit cell — sensor
 //      at (0.25, 0.25) firing a ray of range 1.0 along the
 //      x-axis bearing makes the cell at (1.25, 0.25) occupied.
-//   4. **clear restores p = 0.5** — after clearing the grid,
+//   4. clear restores p = 0.5 — after clearing the grid,
 //      probability at any cell is 0.5 again.
 //
 // Expected: rc=0.

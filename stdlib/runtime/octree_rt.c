@@ -20,7 +20,7 @@
 //   precomputed octree of the static environment.
 // - Voxel-based collision detection in cluttered scenes.
 //
-// **Limitations** (probabilistic occupancy + log-odds storage +
+// Limitations (probabilistic occupancy + log-odds storage +
 // raycast-based occupancy update land in v0.6 if needed):
 // - Binary occupancy only (occupied / free / unknown).
 // - No raycast-based "carve" (clear cells along the ray).

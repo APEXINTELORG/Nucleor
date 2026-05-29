@@ -4,13 +4,13 @@
 // v0.8.197: zero coverage on the runtime API.
 //
 // Locks five invariants:
-//   1. **Mode IDs stable**: record=1, replay=2, audit=3.
-//   2. **Mode-name round-trip**: name(1) == "record".
-//   3. **Event-kind IDs stable**: rng_draw=1, kernel_launch=2,
+//   1. Mode IDs stable: record=1, replay=2, audit=3.
+//   2. Mode-name round-trip: name(1) == "record".
+//   3. Event-kind IDs stable: rng_draw=1, kernel_launch=2,
 //      sensor_read=3, actuator_write=4, model_load=5,
 //      checkpoint=6.
-//   4. **Event-kind name round-trip**: name(1) == "RngDraw".
-//   5. **Open + append + read-back**: record-mode log accepts
+//   4. Event-kind name round-trip: name(1) == "RngDraw".
+//   5. Open + append + read-back: record-mode log accepts
 //      events; event_count tracks; read accessors round-trip.
 //
 // Expected: rc=0.

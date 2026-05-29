@@ -6,7 +6,7 @@
 // file was processed first; the other rod's calls dispatched to
 // the wrong body and silently miscomputed. Importing both rods
 // in one program was a duplicate-symbol link error or a
-// silent wrong-target call. Surfaced by parallel-agent TRACK A
+// silent wrong-target call. Surfaced by TRACK A
 // `extern_arity_drift_duplicate_symbol_collisions_2026-05-05`.
 //
 // Fix: renamed at the namespace boundary.
@@ -18,16 +18,16 @@
 // - `cam.nr` `nuc_cam_project` (3-arg) untouched — keeps the
 //   canonical `nuc_cam_*` namespace.
 //
-// **Breaking** for any Nucleor adopter that imported vision.nr and
+// Breaking for any Nucleor adopter that imported vision.nr and
 // called `cam_project(K, R, t, X, uv)` (5-arg). Migration: call
 // `vision_project` instead. No in-tree callers existed (vision.nr
 // was uncovered).
 //
 // Locks two invariants on the rename:
 //
-//   1. **vision_project null-input rejection** — runtime null-checks
+//   1. vision_project null-input rejection — runtime null-checks
 //      K/R/t/X/uv; passing 0 for any returns 0.
-//   2. **Both rods can be imported together** (this fixture imports
+//   2. Both rods can be imported together (this fixture imports
 //      cam + vision; if the link still collided, this fixture would
 //      fail at link/load time before main runs).
 //

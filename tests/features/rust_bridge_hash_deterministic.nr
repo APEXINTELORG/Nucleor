@@ -20,15 +20,15 @@
 //     returns the offset_basis as i64).
 //
 // Locks 4 invariants:
-//   1. **Determinism within run** — `hash("hello")` called twice
+//   1. Determinism within run — `hash("hello")` called twice
 //      returns the same value.
-//   2. **Distinct inputs distinct outputs** — `hash("hello") !=
+//   2. Distinct inputs distinct outputs — `hash("hello") !=
 //      hash("world")` (no algorithm trivially folds to zero).
-//   3. **Empty-string pinned** — `hash("")` returns the FNV-1a
+//   3. Empty-string pinned — `hash("")` returns the FNV-1a
 //      offset_basis (0xcbf29ce484222325 as i64 =
 //      -3750763034362895579) — pins the canonical algorithm
 //      identity across Rust versions.
-//   4. **Old `rust_hash_string` still callable** — backward compat.
+//   4. Old `rust_hash_string` still callable — backward compat.
 //
 // Expected: rc=0.
 

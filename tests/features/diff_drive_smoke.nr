@@ -7,12 +7,12 @@
 //
 // Locks four bad-input invariants:
 //
-//   1. **Null v_out / w_out returns 0** — forward kinematics
+//   1. Null v_out / w_out returns 0 — forward kinematics
 //      (velocities) bad output.
-//   2. **L ≤ 0 returns 0 in velocities** — degenerate track width.
-//   3. **Null vl_out / vr_out returns 0** — inverse kinematics
+//   2. L ≤ 0 returns 0 in velocities — degenerate track width.
+//   3. Null vl_out / vr_out returns 0 — inverse kinematics
 //      bad output.
-//   4. **L ≤ 0 in step / step_arc returns 0** — degenerate
+//   4. L ≤ 0 in step / step_arc returns 0 — degenerate
 //      kinematics integration.
 //
 // Expected: rc=0.

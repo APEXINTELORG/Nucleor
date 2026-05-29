@@ -7,12 +7,12 @@
 // Locks four invariants that Phase B compiler ADT must NOT
 // regress when it replaces this stub:
 //
-//   1. **Tag stability** — Some=1, None=0 (wire format).
-//   2. **Predicates** — is_some(Some(x)) = 1, is_none(Some(x)) = 0;
+//   1. Tag stability — Some=1, None=0 (wire format).
+//   2. Predicates — is_some(Some(x)) = 1, is_none(Some(x)) = 0;
 //      is_some(None) = 0, is_none(None) = 1.
-//   3. **unwrap_or default** — None.unwrap_or(99) = 99;
+//   3. unwrap_or default — None.unwrap_or(99) = 99;
 //      Some(7).unwrap_or(99) = 7.
-//   4. **unwrap on Some returns payload** — option_unwrap(Some(42)) = 42.
+//   4. unwrap on Some returns payload — option_unwrap(Some(42)) = 42.
 //
 // Expected: rc=0.
 

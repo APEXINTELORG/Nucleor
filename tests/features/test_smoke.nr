@@ -6,10 +6,10 @@
 // a meta-test).
 //
 // Locks four invariants:
-//   1. **Fresh context**: total=0, passed=0, failed=0.
-//   2. **assert_true increments pass count** on truthy condition.
-//   3. **assert_false increments pass count** on falsey condition.
-//   4. **assert_eq increments fail count** on mismatch.
+//   1. Fresh context: total=0, passed=0, failed=0.
+//   2. assert_true increments pass count on truthy condition.
+//   3. assert_false increments pass count on falsey condition.
+//   4. assert_eq increments fail count on mismatch.
 //
 // We don't directly read counts via getters — the rod doesn't
 // expose them — so we use vec_get on the underlying Vec layout

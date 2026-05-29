@@ -6,7 +6,7 @@
 //! as paragraph breaks in both markdown and HTML output.
 
 // v0.4.165 RFC-0029: per-parameter rendering. `nuc doc` now emits a
-// **Parameters:** bulleted list and a **Returns:** line for every fn
+// Parameters: bulleted list and a Returns: line for every fn
 // (markdown + HTML). Closes the param-rendering deferral from the
 // v0.2 RFC-0029 skeleton ship.
 //
@@ -15,8 +15,8 @@
 // This is a fixture for `tests/fixtures/` (not auto-run by verify).
 // To exercise: `nuc doc tests/fixtures/nuc_doc_param_rendering.nr --out /tmp/out.md`
 // Expect: each fn block contains:
-//   - **Parameters:** with `- `name: type`` lines
-//   - **Returns:** with `<type>` (or absent for void return)
+//   - Parameters: with `- `name: type`` lines
+//   - Returns: with `<type>` (or absent for void return)
 
 /// Adds two integers, returning the sum. Two's-complement
 /// wrapping on overflow.

@@ -4,13 +4,13 @@
 // up/down-sampling. Pre-v0.8.170: zero coverage.
 //
 // Locks four DSP invariants:
-//   1. **Hamming window** length matches request — `window_hamming(64)`
+//   1. Hamming window length matches request — `window_hamming(64)`
 //      returns a 64-element Vec.
-//   2. **Hann window endpoint** — Hann window's first sample is 0
+//   2. Hann window endpoint — Hann window's first sample is 0
 //      (the defining property: `0.5 * (1 - cos(0)) = 0`).
-//   3. **Zero crossings** — alternating-sign signal [+1,-1,+1,-1]
+//   3. Zero crossings — alternating-sign signal [+1,-1,+1,-1]
 //      has 3 zero crossings (one between each adjacent pair).
-//   4. **Downsample halves length** — downsample by factor 2 on
+//   4. Downsample halves length — downsample by factor 2 on
 //      a 10-element signal produces 5 samples.
 //
 // Expected: rc=0.

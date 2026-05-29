@@ -19,7 +19,7 @@
 // - Bayesian filtering on non-vector state spaces (orientation
 //   manifolds, Lie groups) — particles can be any state type.
 //
-// **Limitations** (Rao-Blackwellized particle filter,
+// Limitations (Rao-Blackwellized particle filter,
 // auxiliary-variable PF, and adaptive particle count land in v0.6
 // if needed):
 // - Unweighted-prior initialization (no proposal distribution).

@@ -2,7 +2,7 @@
 // grid (Koenig & Likhachev 2002).
 //
 // Solves the same single-source shortest-path problem as A*, but is
-// designed for **repeated planning** when only a small fraction of
+// designed for repeated planning when only a small fraction of
 // edge costs change between queries — typical in mobile-robot
 // navigation where new obstacles appear / disappear and you don't
 // want to rebuild the whole plan from scratch every time.
@@ -42,7 +42,7 @@
 // obstacle is forbidden. Heuristic is the octile distance, which
 // is admissible AND consistent for 8-connected uniform grids.
 //
-// **Limitations** (any-angle planning / 3-D / continuous costs land
+// Limitations (any-angle planning / 3-D / continuous costs land
 // in v0.6 if needed):
 // - 8-connected grid only.
 // - Per-cell traversal cost (uniform across all 8 incident edges

@@ -4,13 +4,13 @@
 // registry. Pre-v0.8.191: zero coverage on the runtime API.
 //
 // Locks five textbook registry invariants:
-//   1. **Empty registry**: count == 0 after clear.
-//   2. **Register + count**: registering an AuthorRecord
+//   1. Empty registry: count == 0 after clear.
+//   2. Register + count: registering an AuthorRecord
 //      increments count by 1.
-//   3. **Round-trip via get**: registered record's fields read
+//   3. Round-trip via get: registered record's fields read
 //      back exactly.
-//   4. **JSON serialization**: output contains all 5 fields.
-//   5. **Authored constructor**: bare form leaves commit/review
+//   4. JSON serialization: output contains all 5 fields.
+//   5. Authored constructor: bare form leaves commit/review
 //      empty.
 //
 // Expected: rc=0.

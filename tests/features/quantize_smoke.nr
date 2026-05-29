@@ -4,12 +4,12 @@
 // Pre-v0.8.196: zero coverage.
 //
 // Locks three Q4 round-trip invariants:
-//   1. **Encode + decode lossy round-trip on tiny vector**: 4-bit
+//   1. Encode + decode lossy round-trip on tiny vector: 4-bit
 //      quantization preserves values within ~scale/14 (the
 //      worst-case quantization error for 4-bit signed).
-//   2. **Length preservation**: 32-element input → 32-element
+//   2. Length preservation: 32-element input → 32-element
 //      decoded output (block-aligned).
-//   3. **Constant input**: a vector of all-equal values
+//   3. Constant input: a vector of all-equal values
 //      decodes back close to the original constant.
 //
 // Expected: rc=0.

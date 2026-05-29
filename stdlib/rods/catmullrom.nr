@@ -30,7 +30,7 @@
 // between control points (i+1, i+2); fractional part is the local
 // parameter within that segment.
 //
-// **Limitations** (variant tangent scaling / arc-length reparam
+// Limitations (variant tangent scaling / arc-length reparam
 // land in v0.6 if needed):
 // - Requires N >= 4 (segment between i+1 and i+2 needs neighbors
 //   i and i+3).

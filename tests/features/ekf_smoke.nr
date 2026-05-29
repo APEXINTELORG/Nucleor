@@ -9,12 +9,12 @@
 // Locks four lifecycle invariants on the n_x / n_z / n_u
 // constructor variants:
 //
-//   1. **ekf_new with reasonable dims** — non-zero handle.
-//   2. **State/measurement-only filter** — n_u=0 still returns
+//   1. ekf_new with reasonable dims — non-zero handle.
+//   2. State/measurement-only filter — n_u=0 still returns
 //      a valid handle (autonomous system, no control input).
-//   3. **Multiple distinct EKFs** — two constructions return
+//   3. Multiple distinct EKFs — two constructions return
 //      distinct handles (no aliased state).
-//   4. **ekf_free does not crash** on a freshly constructed
+//   4. ekf_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

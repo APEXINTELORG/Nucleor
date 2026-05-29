@@ -24,7 +24,7 @@
 //     scans, accept loop if residual is low).
 //   - Sub-map alignment.
 //
-// **Limitations** (point-to-line ICP / KD-tree NN / outlier
+// Limitations (point-to-line ICP / KD-tree NN / outlier
 // rejection land in v0.6 if needed):
 // - Brute-force nearest-neighbor: `O(N_src · N_dst)` per iter.
 // - No outlier rejection — every src point gets a match.

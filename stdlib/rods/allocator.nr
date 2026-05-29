@@ -5,13 +5,13 @@
 // `stdlib/runtime/allocator_rt.c` — full RFC-0002 `Box<T, A>` /
 // `Allocator` trait integration arrives in v0.4.
 //
-//   - **Arena** (bump): O(1) alloc, no per-allocation free; reset
+//   - Arena (bump): O(1) alloc, no per-allocation free; reset
 //     wipes the whole arena. Use for per-frame / per-request
 //     allocation patterns where everything dies together.
-//   - **Object Pool**: fixed-size slots, freelist of recycled
+//   - Object Pool: fixed-size slots, freelist of recycled
 //     entries. Use for hot allocate/free of same-typed objects
 //     (linked-list nodes, particles, packet buffers).
-//   - **Stack Allocator**: bump with mark/pop. `mark` records the
+//   - Stack Allocator: bump with mark/pop. `mark` records the
 //     current offset; `pop` unwinds back to it. Use for nested
 //     scopes that need to deallocate everything from a checkpoint.
 //

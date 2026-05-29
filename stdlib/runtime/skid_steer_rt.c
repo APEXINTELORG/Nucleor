@@ -23,7 +23,7 @@
 //   - 4-wheel skid platforms.
 //   - Big agricultural / mining vehicles.
 //
-// **Limitations** (slip-aware odometry / yaw-rate fusion / ICR-
+// Limitations (slip-aware odometry / yaw-rate fusion / ICR-
 // estimation from history land in v0.6 if needed):
 // - Caller supplies L_eff (no auto-fit from data).
 // - Kinematic only.

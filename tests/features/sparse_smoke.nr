@@ -5,12 +5,12 @@
 //
 // Locks four textbook sparse-matrix invariants on a 3×3 identity
 // matrix:
-//   1. **Construction shape**: from_coo(I_3) → rows=3, cols=3,
+//   1. Construction shape: from_coo(I_3) → rows=3, cols=3,
 //      nnz=3.
-//   2. **get(i, i) == 1.0** on identity diagonal.
-//   3. **get(i, j) == 0** for i != j (CSR returns 0 for missing
+//   2. get(i, i) == 1.0 on identity diagonal.
+//   3. get(i, j) == 0 for i != j (CSR returns 0 for missing
 //      entries).
-//   4. **Mat-vec preserves x**: I·x == x for any x.
+//   4. Mat-vec preserves x: I·x == x for any x.
 //
 // Expected: rc=0.
 

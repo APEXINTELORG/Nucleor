@@ -6,12 +6,12 @@
 //
 // Locks five textbook info-flow + enclave invariants:
 //
-//   1. **Engine ID stable**: TDX=1, SEV-SNP=2, Apple=3, etc.
-//   2. **Engine name round-trip**: name(1) == "TDX".
-//   3. **Info-flow lattice — Public flows everywhere**.
-//   4. **Info-flow lattice — Secret only flows to Secret** (not
+//   1. Engine ID stable: TDX=1, SEV-SNP=2, Apple=3, etc.
+//   2. Engine name round-trip: name(1) == "TDX".
+//   3. Info-flow lattice — Public flows everywhere.
+//   4. Info-flow lattice — Secret only flows to Secret (not
 //      to Public or Confidential).
-//   5. **Promote takes max** — promote(Public, Secret) == Secret.
+//   5. Promote takes max — promote(Public, Secret) == Secret.
 //
 // Expected: rc=0.
 

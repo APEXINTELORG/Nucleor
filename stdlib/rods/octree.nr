@@ -28,7 +28,7 @@
 //
 //   oct_free(oct);
 //
-// **Limitations** (probabilistic occupancy + log-odds storage +
+// Limitations (probabilistic occupancy + log-odds storage +
 // raycast-based occupancy carve land in v0.6 if needed):
 // - Binary occupancy (occupied / free / unknown).
 // - No raycast carve.

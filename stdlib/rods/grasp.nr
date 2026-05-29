@@ -5,23 +5,23 @@
 // pointing surface normals (away from the object's interior). The
 // metrics shipped:
 //
-// - **Antipodal score**: how aligned the grip-direction is with
+// - Antipodal score: how aligned the grip-direction is with
 //   the contact normals. Score in [-1, 1]; +1 = perfect antipodal,
 //   0 = tangential, -1 = totally wrong direction. Use as a
 //   continuous quality score during grasp synthesis.
 //
-// - **Force closure under Coulomb friction**: binary check that
+// - Force closure under Coulomb friction: binary check that
 //   the grasp can resist arbitrary external wrench given a
 //   friction coefficient μ. For 2-contact grasps this reduces to
 //   "both contact normals lie within the friction cone of the
 //   grip line".
 //
-// - **Approach alignment**: how well-aligned an approach direction
+// - Approach alignment: how well-aligned an approach direction
 //   is with the local surface normal. Useful for scoring candidate
 //   grasps where the gripper's approach axis must avoid being
 //   tangential to (or, worse, behind) the surface.
 //
-// **Limitations** (full convex-hull-of-friction-cone wrench-space
+// Limitations (full convex-hull-of-friction-cone wrench-space
 // metric, multi-finger generalizations, and grasp-stability
 // margins land in v0.6 if needed):
 // - 2-finger / 2-contact only.

@@ -9,13 +9,13 @@
 //
 // Locks four classical Dubins invariants:
 //
-//   1. **Straight-line path** — start (0,0,0) → goal (5,0,0) with
+//   1. Straight-line path — start (0,0,0) → goal (5,0,0) with
 //      R=1: collinear poses with same heading give path length 5
 //      (degenerate LSL with t=0, p=5, q=0).
-//   2. **Negative R returns -1** — invalid input sentinel.
-//   3. **Self-pose returns 0** — start ≡ goal gives path length
+//   2. Negative R returns -1 — invalid input sentinel.
+//   3. Self-pose returns 0 — start ≡ goal gives path length
 //      0 (or very close).
-//   4. **Larger separation gives larger length** — start (0,0,0)
+//   4. Larger separation gives larger length — start (0,0,0)
 //      → (10,0,0) longer than (0,0,0) → (5,0,0) at same R.
 //
 // Expected: rc=0.

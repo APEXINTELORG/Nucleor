@@ -20,7 +20,7 @@
 //   - Sensor calibration table interpolation.
 //   - Visualization curve fitting.
 //
-// **Limitations** (clamped / not-a-knot / monotone Hermite
+// Limitations (clamped / not-a-knot / monotone Hermite
 // boundary conditions land in v0.6 if needed):
 // - "Natural" boundary only (y''_0 = y''_{N-1} = 0).
 // - O(N) sample via binary search; ok for ≤ 10K knots.

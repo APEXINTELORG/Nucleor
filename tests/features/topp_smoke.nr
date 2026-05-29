@@ -7,10 +7,10 @@
 // enough path (L=10, v_max=2, a_max=1) where the cruise phase
 // fits:
 //
-//   1. **Construction returns valid handle** for positive inputs.
-//   2. **path_length round-trip**: L=10 in → 10.0 out.
-//   3. **peak_velocity == v_max** when path is long enough for cruise.
-//   4. **Position at t=0 is 0**, position at t=T is L (boundary).
+//   1. Construction returns valid handle for positive inputs.
+//   2. path_length round-trip: L=10 in → 10.0 out.
+//   3. peak_velocity == v_max when path is long enough for cruise.
+//   4. Position at t=0 is 0, position at t=T is L (boundary).
 //
 // Expected: rc=0.
 

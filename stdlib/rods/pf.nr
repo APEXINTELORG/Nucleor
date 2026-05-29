@@ -27,7 +27,7 @@
 //   dynamics_fp:    fn(x_ptr, u_ptr, x_next_ptr) -> i64
 //   likelihood_fp:  fn(x_ptr, z_ptr) -> i64 (bit-cast f64 likelihood ≥ 0)
 //
-// **Limitations** (Rao-Blackwellized PF, auxiliary-variable PF,
+// Limitations (Rao-Blackwellized PF, auxiliary-variable PF,
 // adaptive particle count land in v0.6 if needed):
 // - Systematic resampling only.
 // - Caller supplies process noise as a diagonal stddev vector

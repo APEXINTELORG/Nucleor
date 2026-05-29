@@ -7,14 +7,14 @@
 //
 // Locks four memory-lifecycle invariants:
 //
-//   1. **Fresh Vec has positive mem_bytes** — the struct header
+//   1. Fresh Vec has positive mem_bytes — the struct header
 //      itself takes space (sizeof(NVec) at minimum).
-//   2. **mem_bytes grows after enough pushes** — exceeding the
+//   2. mem_bytes grows after enough pushes — exceeding the
 //      2-element inline buffer triggers heap allocation; bytes
 //      strictly increase.
-//   3. **vec_clear resets len, preserves bytes** — clear keeps
+//   3. vec_clear resets len, preserves bytes — clear keeps
 //      the backing allocation; len == 0; mem_bytes ≥ pre-clear.
-//   4. **Cleared Vec is reusable** — push after clear writes at
+//   4. Cleared Vec is reusable — push after clear writes at
 //      index 0; vec_get returns the new value.
 //
 // Expected: rc=0.

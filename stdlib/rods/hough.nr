@@ -31,7 +31,7 @@
 //   - Structured-environment SLAM front-end.
 //   - Dominant-line extraction from 2-D feature maps.
 //
-// **Limitations** (probabilistic / circle / 3D / weighted-voting
+// Limitations (probabilistic / circle / 3D / weighted-voting
 // Hough variants land in v0.6 if needed):
 // - Each point contributes 1 vote per θ-bin.
 // - Grid-quantized peak locations (no sub-bin refinement).

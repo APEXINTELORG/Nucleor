@@ -31,7 +31,7 @@
 // Standard scaled-sigma-point parameters (Wan & van der Merwe
 // 2000): α = 1e-3, β = 2 (Gaussian assumption), κ = 0.
 //
-// **Limitations** (square-root form for numerical stability lands
+// Limitations (square-root form for numerical stability lands
 // in v0.6 if needed):
 // - Standard form (no square-root variant) — for very long-running
 //   filters with tight covariance, may need periodic re-symmetrize

@@ -9,13 +9,13 @@
 // On a different host, swap the os_is_windows asserts for the
 // matching family.
 //
-//   1. **Exactly one OS family is true** — Windows / Linux /
+//   1. Exactly one OS family is true — Windows / Linux /
 //      macOS / BSD are mutually exclusive; sum to 1.
-//   2. **Family name matches the boolean** — os_is_windows()
+//   2. Family name matches the boolean — os_is_windows()
 //      ↔ os_family_name() == "windows".
-//   3. **64-bit pointer width** — os_is_64bit() == 1 and
+//   3. 64-bit pointer width — os_is_64bit() == 1 and
 //      os_pointer_bits() == 64 (we don't ship 32-bit Nucleor).
-//   4. **env round-trip** — env_set + getenv read; env_unset
+//   4. env round-trip — env_set + getenv read; env_unset
 //      removes (getenv returns "" or empty).
 //
 // Expected: rc=0.

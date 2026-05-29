@@ -11,10 +11,10 @@
 //
 // Locks four invariants:
 //
-//   1. **Empty graph cost is zero** — no edges → no error.
-//   2. **Initial cost > 0** with mismatched node + edge.
-//   3. **Optimize iters > 0** for non-trivial problem.
-//   4. **Cost decreases** after optimize: post < pre.
+//   1. Empty graph cost is zero — no edges → no error.
+//   2. Initial cost > 0 with mismatched node + edge.
+//   3. Optimize iters > 0 for non-trivial problem.
+//   4. Cost decreases after optimize: post < pre.
 //
 // pgs_get_node uses raw out-ptrs; deferred.
 //

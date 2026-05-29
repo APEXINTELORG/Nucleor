@@ -7,7 +7,7 @@
 // output. MLV/MGN ternary inference miscomputed today.
 //
 // Same bug class as v0.8.45 ML-1, v0.8.252 kv_cache, v0.8.254
-// transformer, v0.8.255 bayesian. Surfaced by parallel-agent
+// transformer, v0.8.255 bayesian. Surfaced by the
 // TRACK A `extern_arity_drift_quantize_2026-05-05`.
 //
 // Fix (Plan B, non-breaking):
@@ -22,9 +22,9 @@
 // Locks textbook ternary GEMV invariants on a 2×2 identity-like
 // matrix ([4, 0; 0, 4]) — trits [+1, 0, 0, +1], absmean = 2.0:
 //
-//   1. **3-arg shim recovers cols correctly** — y = [+1*1 + 0*2,
+//   1. 3-arg shim recovers cols correctly — y = [+1*1 + 0*2,
 //      0*1 + +1*2] * absmean = [2.0, 4.0] for x=[1.0, 2.0].
-//   2. **3-arg matches 4-arg `_full`** — bit-identical output when
+//   2. 3-arg matches 4-arg `_full` — bit-identical output when
 //      cols passed explicitly.
 //
 // Expected: rc=0.

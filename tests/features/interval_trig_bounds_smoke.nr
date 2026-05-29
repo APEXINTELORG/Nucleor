@@ -3,10 +3,10 @@
 //
 // Per audit `BUILD_PLAN_R09_numeric_correctness.md` §1 R09-D2 (HIGH):
 // pre-v0.8.277 had two issues in `stdlib/runtime/interval_rt.c`:
-//   1. **Pool exhaustion silently wrapped** to slot 1 (`interval_next = 1`),
+//   1. Pool exhaustion silently wrapped to slot 1 (`interval_next = 1`),
 //      aliasing all earlier still-live handles — interval-containment
 //      guarantees broke without diagnostic.
-//   2. **Trig widening used a fixed `DBL_EPSILON`** which is the f64
+//   2. Trig widening used a fixed `DBL_EPSILON` which is the f64
 //      spacing at 1.0; for inputs with |x| >> 1 the widening was
 //      narrower than 1 ULP and the result interval did not
 //      rigorously contain the true mathematical value.
@@ -26,14 +26,14 @@
 //   - cold compile <= 4s (preserved — runtime-only edit).
 //
 // Locks 4 invariants:
-//   1. **`sin([0, 0])` contains 0.0** — point-interval at zero.
-//   2. **`sin([0, 2π])` contains -1, 0, 1** — full period sees min,
+//   1. `sin([0, 0])` contains 0.0 — point-interval at zero.
+//   2. `sin([0, 2π])` contains -1, 0, 1 — full period sees min,
 //      mid, max. Result interval should be exactly `[-1, 1]`.
-//   3. **`sin([1e10, 1e10])` returns interval within `[-1, 1]`** —
+//   3. `sin([1e10, 1e10])` returns interval within `[-1, 1]` —
 //      large-magnitude input must not produce a wider-than-bound
 //      result; the nextafter widening at 1e10 is wider than
 //      DBL_EPSILON but the [-1, 1] clamp keeps it valid.
-//   4. **`sin([π/2, π/2])` contains 1.0** — the peak. Old DBL_EPSILON
+//   4. `sin([π/2, π/2])` contains 1.0 — the peak. Old DBL_EPSILON
 //      widening was probably wide enough here (π/2 ≈ 1.57); this
 //      passes both pre and post-fix and is a basic sanity check.
 //

@@ -5,16 +5,16 @@
 // v0.8.164: zero coverage.
 //
 // Locks four textbook clock invariants:
-//   1. **Monotonic non-decreasing** — back-to-back reads of
+//   1. Monotonic non-decreasing — back-to-back reads of
 //      `time_mono_ns` return non-decreasing values (the
 //      defining property of a monotonic clock).
-//   2. **Sleep advances monotonic clock** — sleeping 5ms
+//   2. Sleep advances monotonic clock — sleeping 5ms
 //      advances mono_ms by ≥4 (allow 1ms of slop for short
 //      sleep granularity).
-//   3. **Wall clock returns plausible epoch** — wall_seconds
+//   3. Wall clock returns plausible epoch — wall_seconds
 //      should be > 1700000000 (post-2023) and < 4000000000
 //      (pre-2096).
-//   4. **time_elapsed_ms self-consistency** — start = mono_ms,
+//   4. time_elapsed_ms self-consistency — start = mono_ms,
 //      elapsed = mono_ms - start ≥ 0.
 //
 // Expected: rc=0.

@@ -32,7 +32,7 @@
 // distance to break the scale ambiguity, but for small problems the
 // damping handles it implicitly.
 //
-// **Limitations** (sparse Schur complement, robust kernels,
+// Limitations (sparse Schur complement, robust kernels,
 // per-camera intrinsics, distortion models land in v0.6 if needed):
 // - Dense linear solve: O(dof³) where dof = 6·(N_cam − 1) + 3·N_pts.
 //   Fine for N_cam ≤ 30 and N_pts ≤ 100. Real visual SLAM uses

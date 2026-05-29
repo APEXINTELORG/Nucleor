@@ -16,7 +16,7 @@
 // tracks `p_ref(t)`.
 //
 // The two horizontal axes (x and y) are decoupled under the
-// linear cart-table model — call this rod **twice** (one handle
+// linear cart-table model — call this rod twice (one handle
 // for x, one for y) sharing the same `dt`, `h`, and step count.
 //
 // Workflow:
@@ -44,7 +44,7 @@
 //
 //   zmp_free(h_x);  zmp_free(h_y);
 //
-// **Limitations** (3-D / online preview / variable-height land in
+// Limitations (3-D / online preview / variable-height land in
 // v0.6 if needed):
 // - 1-D per call (call twice for x and y).
 // - Constant CoM height `h`. Variable-height (LIPM with vertical

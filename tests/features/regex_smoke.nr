@@ -5,12 +5,12 @@
 // Pre-v0.8.194: zero coverage.
 //
 // Locks five textbook regex invariants:
-//   1. **Digit predicate**: `'5'` matches; `'a'` doesn't.
-//   2. **Alpha predicate**: `'a'/'Z'` match; `'5'` doesn't.
-//   3. **Literal match**: `regex_match_literal("hello", 1, "ello")`
+//   1. Digit predicate: `'5'` matches; `'a'` doesn't.
+//   2. Alpha predicate: `'a'/'Z'` match; `'5'` doesn't.
+//   3. Literal match: `regex_match_literal("hello", 1, "ello")`
 //      → 1; mismatched literal → 0.
-//   4. **find_first with `\d`**: `"abc123"` × `"\d"` → 3 (first digit).
-//   5. **find_first with literal**: `"abcabc"` × `"bca"` → 1.
+//   4. find_first with `\d`: `"abc123"` × `"\d"` → 3 (first digit).
+//   5. find_first with literal: `"abcabc"` × `"bca"` → 1.
 //
 // Expected: rc=0.
 

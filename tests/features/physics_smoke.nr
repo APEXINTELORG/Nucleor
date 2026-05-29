@@ -12,11 +12,11 @@
 //
 // Locks:
 //
-//   1. **Speed of light c is exact** — exactly 299792458 m/s
+//   1. Speed of light c is exact — exactly 299792458 m/s
 //      (1983 SI redefinition).
-//   2. **Planck h ≈ 6.626e-34** — exact since 2019 redefinition.
-//   3. **Boltzmann kb ≈ 1.381e-23** — exact since 2019.
-//   4. **π matches std math** — within 1e-15 of 3.14159265358979.
+//   2. Planck h ≈ 6.626e-34 — exact since 2019 redefinition.
+//   3. Boltzmann kb ≈ 1.381e-23 — exact since 2019.
+//   4. π matches std math — within 1e-15 of 3.14159265358979.
 //
 // Expected: rc=0.
 

@@ -6,11 +6,11 @@
 //
 // Locks four invariants on the i32x4 lane (cleaner than f32x4
 // for unit testing — no f32 bit-cast machinery required):
-//   1. **Lane access**: i32x4(1,2,3,4) → lane(0)=1, lane(3)=4.
-//   2. **Splat**: splat(7) → all 4 lanes are 7.
-//   3. **Add (vectorwise)**: i32x4(1,2,3,4) + i32x4(10,20,30,40)
+//   1. Lane access: i32x4(1,2,3,4) → lane(0)=1, lane(3)=4.
+//   2. Splat: splat(7) → all 4 lanes are 7.
+//   3. Add (vectorwise): i32x4(1,2,3,4) + i32x4(10,20,30,40)
 //      → lane-wise (11,22,33,44).
-//   4. **Horizontal sum**: i32x4(1,2,3,4) → 10.
+//   4. Horizontal sum: i32x4(1,2,3,4) → 10.
 //
 // Expected: rc=0.
 

@@ -6,13 +6,13 @@
 //
 // Locks four control-theory invariants:
 //
-//   1. **P-only on zero error gives zero output** — setpoint ==
+//   1. P-only on zero error gives zero output — setpoint ==
 //      measurement → e = 0 → u = 0.
-//   2. **P-only with kp=2, e=3 gives u=6** — first-step output
+//   2. P-only with kp=2, e=3 gives u=6 — first-step output
 //      is purely proportional (i and d both 0 on first tick).
-//   3. **Output clamp saturates** — kp=10, e=10, but u_clamp
+//   3. Output clamp saturates — kp=10, e=10, but u_clamp
 //      [-1, 1] forces u=1 (the output's hard ceiling).
-//   4. **Reset clears integral** — non-zero integral after a
+//   4. Reset clears integral — non-zero integral after a
 //      step → reset → integral == 0.
 //
 // Expected: rc=0.

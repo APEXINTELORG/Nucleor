@@ -9,12 +9,12 @@
 // from Nucleor without low-level pointer plumbing — that path
 // is exercised by downstream MPC / impedance ships.
 //
-//   1. **admit_new returns valid handle** — non-zero for a
+//   1. admit_new returns valid handle — non-zero for a
 //      reasonable n_dof.
-//   2. **Fresh state has zero position** — virtual mass-spring
+//   2. Fresh state has zero position — virtual mass-spring
 //      starts at rest at origin.
-//   3. **Fresh state has zero velocity** — likewise.
-//   4. **admit_reset re-zeros state** — even after gain change,
+//   3. Fresh state has zero velocity — likewise.
+//   4. admit_reset re-zeros state — even after gain change,
 //      the (x, ẋ) state is back to zero.
 //
 // Expected: rc=0.

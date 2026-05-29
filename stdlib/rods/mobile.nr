@@ -1,15 +1,15 @@
 // rods/mobile — Differential-drive and Ackermann mobile-robot
 // kinematics + arc-integrated pose update.
 //
-// **Differential drive:**
+// Differential drive:
 //   v_body  = (vL + vR) · wheel_radius / 2
 //   ω_body  = (vR − vL) · wheel_radius / wheelbase
 //
-// **Ackermann (bicycle model):**
+// Ackermann (bicycle model):
 //   v_body  = v
 //   ω_body  = v / wheelbase · tan(δ)        (δ = steering angle)
 //
-// **Exact arc-integrated pose update** from `(x, y, θ)` with
+// Exact arc-integrated pose update from `(x, y, θ)` with
 // `(v, ω)` over `dt`:
 //   if |ω| > ε: arc with radius `R = v / ω`
 //   else      : straight-line integration
@@ -35,7 +35,7 @@
 //   mobile_pose_step(x_b, y_b, theta_b, v_b, w_b, dt_b,
 //                    x_out_ptr, y_out_ptr, theta_out_ptr);
 //
-// **Limitations** (slip / wheel-acceleration limits / mecanum /
+// Limitations (slip / wheel-acceleration limits / mecanum /
 // omnidirectional models land in v0.6 if needed):
 // - No wheel slip / friction.
 // - No actuator dynamics (instant velocity tracking).

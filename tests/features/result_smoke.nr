@@ -4,11 +4,11 @@
 // coverage on the rod itself.
 //
 // Locks five invariants:
-//   1. **Ok constructor + predicate**: ok(42) → is_ok=1, is_err=0.
-//   2. **Err constructor + predicate**: err(99) → is_ok=0, is_err=1.
-//   3. **unwrap_or default**: Err → default; Ok → payload.
-//   4. **unwrap on Ok** returns payload.
-//   5. **to_option**: Ok(42) → Some(42); Err(_) → None.
+//   1. Ok constructor + predicate: ok(42) → is_ok=1, is_err=0.
+//   2. Err constructor + predicate: err(99) → is_ok=0, is_err=1.
+//   3. unwrap_or default: Err → default; Ok → payload.
+//   4. unwrap on Ok returns payload.
+//   5. to_option: Ok(42) → Some(42); Err(_) → None.
 //
 // Expected: rc=0.
 

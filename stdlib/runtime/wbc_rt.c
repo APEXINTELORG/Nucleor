@@ -30,7 +30,7 @@
 // posture regularizer), mobile-manipulator coordination (base
 // motion + arm pose), redundant-arm IK with multiple objectives.
 //
-// **Limitations** (strict-priority hierarchy / box constraints /
+// Limitations (strict-priority hierarchy / box constraints /
 // torque-level control land in v0.6 if needed):
 // - Weighted QP gives soft priorities only — high weight ≠ strict
 //   precedence. For absolute task ordering, use the Siciliano-

@@ -21,7 +21,7 @@
 // pure pinhole (no distortion) and tied to the BA solver state.
 // `cam.nr` is a standalone utility for any camera-using code.
 //
-// **Limitations** (fish-eye / equidistant / equirectangular
+// Limitations (fish-eye / equidistant / equirectangular
 // projections land in v0.6 if needed):
 // - Single rectilinear pinhole + Brown-Conrady distortion.
 // - `unproject` returns a 3-vec direction in the world frame

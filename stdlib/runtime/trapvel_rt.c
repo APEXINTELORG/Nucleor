@@ -23,7 +23,7 @@
 //      sample (position, velocity, acceleration) at time t.
 //      Writes 3 doubles to out_ptr.
 //
-// **Limitations** (S-curve / 7-segment jerk-limited / asymmetric
+// Limitations (S-curve / 7-segment jerk-limited / asymmetric
 // accel-decel land in v0.6 if needed):
 // - Symmetric accel = decel (both = a_max).
 // - Discontinuous acceleration at phase transitions (jerk = inf).

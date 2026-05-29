@@ -9,13 +9,13 @@
 //
 // Locks four classical-orbit-mechanics fixed points:
 //
-//   1. **Kepler 3rd law** — period of a=7000km circular orbit
+//   1. Kepler 3rd law — period of a=7000km circular orbit
 //      ≈ 5829s (LEO ~97 min).
-//   2. **Vis-viva at circular** — v = sqrt(μ/r); for r=a=7000km
+//   2. Vis-viva at circular — v = sqrt(μ/r); for r=a=7000km
 //      gives ≈ 7.546 km/s.
-//   3. **Escape velocity at Earth surface** — v_esc =
+//   3. Escape velocity at Earth surface — v_esc =
 //      sqrt(2μ/r); for r=6378km gives ≈ 11.18 km/s.
-//   4. **Hohmann transfer Δv positive** — non-trivial transfer
+//   4. Hohmann transfer Δv positive — non-trivial transfer
 //      from r1=7000 to r2=10000 has Δv > 0.
 //
 // Expected: rc=0.

@@ -7,11 +7,11 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **prm_new returns valid handle** — non-zero.
-//   2. **Empty roadmap** — node_count and edge_count both 0
+//   1. prm_new returns valid handle — non-zero.
+//   2. Empty roadmap — node_count and edge_count both 0
 //      before build.
-//   3. **path_len before query is 0** — no query → no path.
-//   4. **set_bounds + free do not crash** — exercises the
+//   3. path_len before query is 0 — no query → no path.
+//   4. set_bounds + free do not crash — exercises the
 //      scalar bounds-setter path on every dimension.
 //
 // Expected: rc=0.

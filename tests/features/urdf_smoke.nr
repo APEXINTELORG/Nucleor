@@ -8,11 +8,11 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **urdf_new returns valid handle** — non-zero.
-//   2. **joint_count == 0 pre-parse** — empty parser state.
-//   3. **Multiple distinct URDF parsers** — two constructions
+//   1. urdf_new returns valid handle — non-zero.
+//   2. joint_count == 0 pre-parse — empty parser state.
+//   3. Multiple distinct URDF parsers — two constructions
 //      → distinct handles.
-//   4. **urdf_free does not crash** on a freshly constructed
+//   4. urdf_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

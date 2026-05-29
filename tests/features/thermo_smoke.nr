@@ -5,11 +5,11 @@
 //
 // Locks four textbook physics invariants:
 //
-//   1. **Carnot efficiency**: 1 - Tc/Th. Th=400K, Tc=300K → 0.25.
-//   2. **Carnot edge case**: Tc==Th (no temperature gradient) → 0.
-//   3. **Ideal gas P solve**: PV=nRT solved for P given V, n, T.
+//   1. Carnot efficiency: 1 - Tc/Th. Th=400K, Tc=300K → 0.25.
+//   2. Carnot edge case: Tc==Th (no temperature gradient) → 0.
+//   3. Ideal gas P solve: PV=nRT solved for P given V, n, T.
 //      n=1mol, V=22.4L=0.0224m³, T=273K → P ≈ 101325 Pa (STP).
-//   4. **Stefan-Boltzmann**: P = ε·σ·A·T⁴ at T=1, ε=1, A=1
+//   4. Stefan-Boltzmann: P = ε·σ·A·T⁴ at T=1, ε=1, A=1
 //      → returns σ ≈ 5.67e-8.
 //
 // Expected: rc=0.

@@ -579,7 +579,7 @@ long long nuc_rrt_star_plan(
 //        L      = diag(c_best/2, sqrt(c_best² - c_min²)/2, ..., sqrt(c_best² - c_min²)/2)
 //        C      = rotation aligning e_1 with (goal - start)/c_min
 //
-// **Limitations** (anytime variant + asymptotic-optimality
+// Limitations (anytime variant + asymptotic-optimality
 // theoretical guarantees land in v0.6 if needed):
 // - Falls back to uniform-bounds sampling when no solution found
 //   yet, same as vanilla RRT*.

@@ -4,9 +4,9 @@
 // tree where each internal node's box contains the boxes of its
 // children. Supports two queries:
 //
-//   - **Overlap query**: given an AABB, return all stored AABB
+//   - Overlap query: given an AABB, return all stored AABB
 //     indices whose boxes overlap.
-//   - **Self-pair query**: return all (i, j) i < j where stored
+//   - Self-pair query: return all (i, j) i < j where stored
 //     boxes overlap each other. Use this to enumerate the
 //     candidate object pairs to check with narrow-phase tests.
 //

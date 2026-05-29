@@ -18,16 +18,16 @@
 //
 // Locks 5 invariants — basic correctness + overflow/underflow
 // resilience:
-//   1. **Basic abs(3+4i) = 5.0** — pythagorean triple, no extremes.
-//   2. **Large abs(1e200 + 1e200·i) ≈ √2 · 1e200** — direct
+//   1. Basic abs(3+4i) = 5.0 — pythagorean triple, no extremes.
+//   2. Large abs(1e200 + 1e200·i) ≈ √2 · 1e200 — direct
 //      `1e200^2 = 1e400` overflows DBL_MAX; hypot stays finite.
-//   3. **Tiny abs(1e-200 + 1e-200·i) ≈ √2 · 1e-200** — direct
+//   3. Tiny abs(1e-200 + 1e-200·i) ≈ √2 · 1e-200 — direct
 //      `1e-200^2 = 1e-400` underflows to 0; hypot preserves
 //      magnitude.
-//   4. **Smith's div on (1+0i) / (1e200 + 1e200·i)** — direct
+//   4. Smith's div on (1+0i) / (1e200 + 1e200·i) — direct
 //      `denom = 2e400` overflows; Smith's stays finite (very small
 //      result, but well-defined).
-//   5. **Basic div (4+2i) / (3+1i)** — Pythagorean-style sanity
+//   5. Basic div (4+2i) / (3+1i) — Pythagorean-style sanity
 //      check: numerically equal to the direct formula.
 //
 // Expected: rc=0.

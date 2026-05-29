@@ -37,7 +37,7 @@
 //
 //   sdf_free(h);
 //
-// **Limitations** (3D / Eikonal sweep / fast-marching land in v0.6
+// Limitations (3D / Eikonal sweep / fast-marching land in v0.6
 // if needed):
 // - 2D only.
 // - Only built-in shape primitive is circles. For arbitrary

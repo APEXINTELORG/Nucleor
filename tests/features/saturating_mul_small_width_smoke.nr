@@ -26,10 +26,10 @@
 // directly from Nucleor source.
 //
 // Locks 4 invariants on `n_saturating_mul`:
-//   1. **Identity** — `mul(7, 1) == 7`.
-//   2. **Zero** — `mul(0, INT_MAX) == 0`.
-//   3. **Negative product** — `mul(2, -3) == -6`.
-//   4. **Saturate at i64 boundary** — `mul(LARGE, LARGE)` clamps
+//   1. Identity — `mul(7, 1) == 7`.
+//   2. Zero — `mul(0, INT_MAX) == 0`.
+//   3. Negative product — `mul(2, -3) == -6`.
+//   4. Saturate at i64 boundary — `mul(LARGE, LARGE)` clamps
 //      to i64::MAX without UB. Specifically `mul(2^32, 2^32)`
 //      would naturally be 2^64, which overflows i64 and clamps to
 //      i64::MAX (0x7FFFFFFFFFFFFFFF = 9223372036854775807).

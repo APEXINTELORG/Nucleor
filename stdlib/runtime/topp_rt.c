@@ -19,7 +19,7 @@
 // arc-length `s = topp_position(h, t)` back to robot configuration
 // via the original geometric path.
 //
-// **Limitations** (full phase-plane TOPP / curvature-dependent
+// Limitations (full phase-plane TOPP / curvature-dependent
 // limits land in v0.6 if needed):
 // - Single global v_max + a_max (no path-dependent limits). For a
 //   joint-space path with per-DOF limits the conservative choice

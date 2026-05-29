@@ -25,7 +25,7 @@
 //     y' = y + v · sin(θ) · dt
 //     θ' = θ
 //
-// **Limitations** (slip / wheel-acceleration limits / mecanum /
+// Limitations (slip / wheel-acceleration limits / mecanum /
 // omnidirectional models land in v0.6 if needed):
 // - No wheel slip / friction — pure rolling without slipping.
 // - No actuator dynamics (instant velocity tracking).

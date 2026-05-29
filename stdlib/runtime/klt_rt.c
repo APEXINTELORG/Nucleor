@@ -25,7 +25,7 @@
 //   - Optical-flow / structure-from-motion pipelines.
 //   - Template tracking (one feature per call).
 //
-// **Limitations** (multi-scale pyramid / multi-feature parallel
+// Limitations (multi-scale pyramid / multi-feature parallel
 // tracking / SSD residual / orientation tracking land in v0.6 if
 // needed):
 // - Single feature per call. For dense flow, call once per feature

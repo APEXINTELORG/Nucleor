@@ -6,11 +6,11 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **fsp_new returns valid handle** — non-zero.
-//   2. **path_len before plan is 0** — no plan → no path.
-//   3. **set_resolution + set_goal_tolerance + add_action**
+//   1. fsp_new returns valid handle — non-zero.
+//   2. path_len before plan is 0 — no plan → no path.
+//   3. set_resolution + set_goal_tolerance + add_action
 //      do not crash on the scalar-only path.
-//   4. **fsp_free does not crash** on a freshly constructed
+//   4. fsp_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

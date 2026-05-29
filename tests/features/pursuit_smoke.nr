@@ -9,10 +9,10 @@
 //
 // Locks four invariants:
 //
-//   1. **Empty path** — pursuit_new(8) → point_count == 0.
-//   2. **add_point tracks count** — 3 add_points → count = 3.
-//   3. **Distance-to-goal at goal == 0** — at (10, 0).
-//   4. **Distance-to-goal at start == 10** — straight-line to
+//   1. Empty path — pursuit_new(8) → point_count == 0.
+//   2. add_point tracks count — 3 add_points → count = 3.
+//   3. Distance-to-goal at goal == 0 — at (10, 0).
+//   4. Distance-to-goal at start == 10 — straight-line to
 //      final waypoint.
 //
 // Step-fn outputs (omega/delta) are not unit-tested here —

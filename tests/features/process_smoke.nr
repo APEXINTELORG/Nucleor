@@ -4,11 +4,11 @@
 // proc_capture_status. Pre-v0.8.195: zero coverage.
 //
 // Locks four invariants using Windows-builtin commands:
-//   1. **proc_run on echo**: cmd.exe `/c echo hi` returns 0
+//   1. proc_run on echo: cmd.exe `/c echo hi` returns 0
 //      (success exit code).
-//   2. **proc_capture_stdout** of `echo hello` contains "hello".
-//   3. **proc_capture_status** matches the most recent capture's rc.
-//   4. **Non-existent command returns non-zero** rc.
+//   2. proc_capture_stdout of `echo hello` contains "hello".
+//   3. proc_capture_status matches the most recent capture's rc.
+//   4. Non-existent command returns non-zero rc.
 //
 // Expected: rc=0.
 

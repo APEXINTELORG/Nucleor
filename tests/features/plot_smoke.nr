@@ -9,13 +9,13 @@
 // dependent text); the fixture verifies the lifecycle works
 // end-to-end and writes a non-empty file.
 //
-//   1. **plot_new returns valid handle** — non-zero for
+//   1. plot_new returns valid handle — non-zero for
 //      reasonable canvas size.
-//   2. **plot_line accepts xs/ys Vecs of equal length** —
+//   2. plot_line accepts xs/ys Vecs of equal length —
 //      doesn't crash, returns 0 (success).
-//   3. **plot_save_svg writes a non-empty file** — round-trip
+//   3. plot_save_svg writes a non-empty file — round-trip
 //      via io_read_file; SVG must contain "<svg" near the start.
-//   4. **plot_free does not crash** — repeated free is left to
+//   4. plot_free does not crash — repeated free is left to
 //      caller; this just exercises the standard close path.
 //
 // Expected: rc=0.

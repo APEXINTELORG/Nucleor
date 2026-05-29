@@ -6,10 +6,10 @@
 //
 // Locks four textbook elementary-function fixed points:
 //
-//   1. **sqrt(4) == 2** — square-root of perfect square.
-//   2. **exp(0) == 1** — e⁰ = 1.
-//   3. **log(1) == 0** — ln(1) = 0.
-//   4. **pow(2, 10) == 1024** — base^exp identity.
+//   1. sqrt(4) == 2 — square-root of perfect square.
+//   2. exp(0) == 1 — e⁰ = 1.
+//   3. log(1) == 0 — ln(1) = 0.
+//   4. pow(2, 10) == 1024 — base^exp identity.
 //
 // Trig identities (sin(0)=0, cos(0)=1) are deferred to a
 // dedicated trig fixture if needed.

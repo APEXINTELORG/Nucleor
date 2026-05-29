@@ -29,13 +29,13 @@
 // in 1.12s on dev machine).
 //
 // Locks 4 invariants:
-//   1. **Round-trip uppercase** — `rust_to_uppercase("hello")` returns
+//   1. Round-trip uppercase — `rust_to_uppercase("hello")` returns
 //      "HELLO" (str_eq); free does not crash.
-//   2. **Round-trip regex_find** — find a pattern in text, free the
+//   2. Round-trip regex_find — find a pattern in text, free the
 //      result; no crash.
-//   3. **Free of "0" (empty match)** — `rust_regex_find` returns ""
+//   3. Free of "0" (empty match) — `rust_regex_find` returns ""
 //      when no match; free of "" pointer must not crash.
-//   4. **100 repeated alloc+free cycles** — exercise the reclaim
+//   4. 100 repeated alloc+free cycles — exercise the reclaim
 //      path heavily; runtime must not crash. (Memory growth check
 //      is Phase 2.)
 //

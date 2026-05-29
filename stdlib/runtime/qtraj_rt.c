@@ -36,7 +36,7 @@
 // → dimension (8N + 5N+3) × (8N + 5N+3); easily handled by dense
 // Gauss-Jordan inverse for typical N ≤ 20.
 //
-// **Limitations** (corridor constraints / yaw alignment / general
+// Limitations (corridor constraints / yaw alignment / general
 // degree settings land in v0.6 if needed):
 // - Fixed degree 7 per segment (snap-minimizing). Higher orders
 //   would minimize crackle (5th deriv) etc.

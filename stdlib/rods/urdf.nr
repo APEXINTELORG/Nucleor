@@ -14,7 +14,7 @@
 //     <child link="..."/>
 //   </joint>
 //
-// **Limitations** (full URDF compliance lands in v0.6 if needed):
+// Limitations (full URDF compliance lands in v0.6 if needed):
 // - FK export remains serial-chain only. <parent>/<child> link
 //   relationships are parsed and used to order serial trees; branching
 //   trees and disconnected forests are refused by `urdf_to_fk_chain`

@@ -1767,7 +1767,7 @@ fn doc_extract_signature(line: str) -> Vec<i32> {
         let mut re: i64 = tp;
         while re < llen && str_char_at(line, re) != 123 && str_char_at(line, re) != 59 { re = re + 1; };
         // trim trailing whitespace from the return type so
-        // `**Returns:** `i64`` doesn't render as `i64 ` with a stray space.
+        // `Returns: `i64`` doesn't render as `i64 ` with a stray space.
         while re > tp && (str_char_at(line, re - 1) == 32 || str_char_at(line, re - 1) == 9) { re = re - 1; };
         vec_set(out, 1, str_substring(line, tp, re));
     };

@@ -22,7 +22,7 @@
 // SE(3) log/exp use the standard Lie-algebra parameterization with
 // the exact left-Jacobian for the translation part.
 //
-// **Limitations** (dual quaternions / motor algebra / Plücker
+// Limitations (dual quaternions / motor algebra / Plücker
 // coordinates land in v0.6 if needed):
 // - Translation + quaternion representation only.
 // - SE(3) log/exp uses small-angle Taylor for the rotation

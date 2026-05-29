@@ -7,9 +7,9 @@
 // minimum-overhead char-level path (avoiding BPE training
 // to keep the smoke fast):
 //
-//   1. **Char-level token count** — encoding a 5-byte string
+//   1. Char-level token count — encoding a 5-byte string
 //      "hello" produces a 5-token sequence.
-//   2. **Round-trip** — decoding a char-level encoding's tokens
+//   2. Round-trip — decoding a char-level encoding's tokens
 //      via the same tokenizer reproduces the original text (or
 //      the per-byte encoding's bit-exact char identities).
 //

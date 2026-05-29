@@ -12,7 +12,7 @@
 //
 // 10% goal-biased sampling for better convergence near the goal.
 //
-// **RRT-Connect** and **RRT*** (asymptotically optimal) ship in
+// RRT-Connect and RRT* (asymptotically optimal) ship in
 // v0.5 alongside the URDF + frame-chain integration.
 //
 // See `stdlib/runtime/rrt_rt.c`.

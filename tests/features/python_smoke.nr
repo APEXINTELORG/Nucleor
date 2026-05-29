@@ -4,8 +4,8 @@
 // zero coverage.
 //
 // Locks two lifecycle invariants:
-//   1. **py_available returns 0 or 1** — host predicate.
-//   2. **py_init under-reports correctly** — if Python isn't
+//   1. py_available returns 0 or 1 — host predicate.
+//   2. py_init under-reports correctly — if Python isn't
 //      available, init returns non-zero (error). If available,
 //      returns 0.
 //

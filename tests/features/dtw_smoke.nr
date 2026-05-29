@@ -10,10 +10,10 @@
 // both A and B and validates M/N/dim before allocating the DP
 // table; this fixture verifies those guards):
 //
-//   1. **Null pointers return 0** — both A and B null.
-//   2. **M=0 returns 0** — bad first sequence length.
-//   3. **N=0 returns 0** — bad second sequence length.
-//   4. **dim=0 returns 0** — bad point dimension.
+//   1. Null pointers return 0 — both A and B null.
+//   2. M=0 returns 0 — bad first sequence length.
+//   3. N=0 returns 0 — bad second sequence length.
+//   4. dim=0 returns 0 — bad point dimension.
 //
 // Expected: rc=0.
 

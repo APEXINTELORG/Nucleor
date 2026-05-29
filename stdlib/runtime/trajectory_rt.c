@@ -418,7 +418,7 @@ void nuc_traj_scurve_free(long long h) {
 // adapting to different start/goal pairs). Foundation for
 // imitation learning and skill transfer.
 //
-// **Scope of v0.2.192**: discrete, single-DOF DMP. Multi-DOF
+// Scope of v0.2.192: discrete, single-DOF DMP. Multi-DOF
 // (one DMP per joint) is straightforward — instantiate N
 // independent DMPs. Rhythmic DMPs and full LWR with proper
 // feature scaling ship in v0.5.
@@ -713,7 +713,7 @@ void nuc_dmp_multi_free(long long h) {
 // the segment. Closed form: (sqrt(b[i+1]) - sqrt(b[i])) / a where
 // a = (b[i+1] - b[i]) / 2; falls back to 1/sqrt(b) when a ≈ 0.
 //
-// **Limitations** (full TOPP-RA via convex optimization on each
+// Limitations (full TOPP-RA via convex optimization on each
 // path discretization step lands in v0.6 if needed):
 // - Only piecewise-linear paths. For B-spline / quintic-spline
 //   geometric paths, sample to a piecewise-linear discretization

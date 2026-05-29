@@ -8,15 +8,15 @@
 // Locks four invariants Phase B compiler enforcement must NOT
 // regress:
 //
-//   1. **Stable QEC code IDs + physical-qubit formulas** —
+//   1. Stable QEC code IDs + physical-qubit formulas —
 //      surface(d=3) = d²+(d²-1) = 17; Steane = 7 fixed;
 //      Shor = 9 fixed.
-//   2. **LogicalQubit construction round-trip** — code +
+//   2. LogicalQubit construction round-trip — code +
 //      distance preserved; logical_qubit_count tracks registry.
-//   3. **Schedule push tracks count + total_duration** — two
+//   3. Schedule push tracks count + total_duration — two
 //      pulses of duration d1+d2 → total_duration = d1+d2;
 //      starts at 0, d1 (back-to-back).
-//   4. **Calibration T1/T2 round-trip** — set_t1(q, 5us) →
+//   4. Calibration T1/T2 round-trip — set_t1(q, 5us) →
 //      t1_q1616 = 5 * 65536 (Q1.16 fixed-point).
 //
 // Expected: rc=0.

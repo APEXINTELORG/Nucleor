@@ -16,7 +16,7 @@
 //     ... (dynamics ignored — see limitations)
 //   </joint>
 //
-// **Limitations** (the v0.5 ship is intentionally minimal; the
+// Limitations (the v0.5 ship is intentionally minimal; the
 // follow-on URDF compliance pass lands in v0.6):
 // - FK export remains serial-chain only. <parent>/<child> link
 //   relationships are parsed and used to order serial trees, and

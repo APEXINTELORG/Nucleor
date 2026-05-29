@@ -6,11 +6,11 @@
 // + uuid_is_nil have no dedicated coverage).
 //
 // Locks four format invariants (RFC 4122 §4.4 Random UUID):
-//   1. **Length 36** — `xxxxxxxx-xxxx-Mxxx-Vxxx-xxxxxxxxxxxx`
+//   1. Length 36 — `xxxxxxxx-xxxx-Mxxx-Vxxx-xxxxxxxxxxxx`
 //      = 8 + 4 + 4 + 4 + 12 + 4 dashes = 36 chars.
-//   2. **Dashes at indices 8, 13, 18, 23** — always.
-//   3. **Version byte == '4'** at index 14 (RFC 4122 v4).
-//   4. **uuid_nil + uuid_is_nil** round-trip.
+//   2. Dashes at indices 8, 13, 18, 23 — always.
+//   3. Version byte == '4' at index 14 (RFC 4122 v4).
+//   4. uuid_nil + uuid_is_nil round-trip.
 //
 // Expected: rc=0.
 

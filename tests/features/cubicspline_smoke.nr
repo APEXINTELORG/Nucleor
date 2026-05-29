@@ -9,10 +9,10 @@
 // Locks four bad-input invariants — the runtime requires N≥2
 // and null-checks all three pointer triplets:
 //
-//   1. **fit with n < 2 returns 0** — degenerate.
-//   2. **fit with null ptrs returns 0** — bad input.
-//   3. **sample with n < 2 returns 0** — degenerate.
-//   4. **sample with null ptrs returns 0** — bad input.
+//   1. fit with n < 2 returns 0 — degenerate.
+//   2. fit with null ptrs returns 0 — bad input.
+//   3. sample with n < 2 returns 0 — degenerate.
+//   4. sample with null ptrs returns 0 — bad input.
 //
 // Expected: rc=0.
 

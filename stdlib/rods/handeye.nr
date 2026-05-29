@@ -29,7 +29,7 @@
 //                     Rb_array_ptr, tb_array_ptr, n_motions,
 //                     Rx_out_ptr, tx_out_ptr);
 //
-// **Limitations** (joint rotation+translation optimization
+// Limitations (joint rotation+translation optimization
 // (Daniilidis 1999 dual quaternion form) lands in v0.6 if needed):
 // - Two-step solve. The dual-quaternion joint solver couples
 //   rotation and translation; can be marginally more accurate

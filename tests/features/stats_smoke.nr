@@ -5,14 +5,14 @@
 //
 // Locks five textbook statistical invariants on closed-form
 // inputs:
-//   1. **Mean** of [1,2,3,4,5] == 3.
-//   2. **Median** of [1,2,3,4,5] == 3 (odd-length: middle).
-//   3. **Variance** of [1,2,3,4,5] == 2 (population, n divisor)
+//   1. Mean of [1,2,3,4,5] == 3.
+//   2. Median of [1,2,3,4,5] == 3 (odd-length: middle).
+//   3. Variance of [1,2,3,4,5] == 2 (population, n divisor)
 //      OR == 2.5 (sample, n-1 divisor). We accept either by
 //      checking >1.5 and <3.
-//   4. **Linear regression** on perfectly linear data
+//   4. Linear regression on perfectly linear data
 //      (y = 2x + 1) → slope ≈ 2, intercept ≈ 1, R² ≈ 1.
-//   5. **Correlation** of perfectly linear data ≈ 1.
+//   5. Correlation of perfectly linear data ≈ 1.
 //
 // Expected: rc=0.
 

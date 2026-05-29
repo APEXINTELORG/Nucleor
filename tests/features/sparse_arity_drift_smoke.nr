@@ -10,7 +10,7 @@
 // HIGH severity (rod-overdeclares-C, "wrong-error" class). Same
 // arity-drift family as v0.8.45 ML-1, v0.8.252 kv_cache, v0.8.254
 // transformer, v0.8.255 bayesian, v0.8.256 quantize. Surfaced by
-// parallel-agent TRACK A `extern_arity_drift_sparse_2026-05-05`.
+// TRACK A `extern_arity_drift_sparse_2026-05-05`.
 //
 // Fix (Plan B, non-breaking):
 // - C `nuc_sp_from_coo` 5-arg renamed to `_inferred`.
@@ -21,9 +21,9 @@
 //   `sparse_from_coo_inferred` (5-arg).
 //
 // Locks invariants on a 2×2 identity built from COO:
-//   1. **6-arg from_coo round-trip** — sparse_get diagonal = 1.0,
+//   1. 6-arg from_coo round-trip — sparse_get diagonal = 1.0,
 //      off-diagonal = 0.0; rows/cols/nnz accessors match.
-//   2. **5-arg `_inferred` matches 6-arg** — same matrix produces
+//   2. 5-arg `_inferred` matches 6-arg — same matrix produces
 //      same get / rows / cols / nnz.
 //
 // Expected: rc=0.

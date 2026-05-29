@@ -15,9 +15,9 @@
 // future collision risks. Importing both rods was a duplicate-symbol
 // link error or a silent wrong-target call.
 //
-// Surfaced by parallel-agent TRACK A
+// Surfaced by TRACK A
 // `extern_arity_drift_duplicate_symbol_collisions_2026-05-05`.
-// LAST item of TRACK A — closes the parallel-agent's primary lane.
+// LAST item of TRACK A — closes the 's primary lane.
 //
 // Fix (trajectory rod renames; scurve rod keeps canonical namespace):
 // - trajectory_rt.c: 6 nuc_scurve_* → nuc_traj_scurve_* (new, duration,
@@ -29,19 +29,19 @@
 //   updated to call the new names.
 // - scurve.nr untouched — keeps canonical `nuc_scurve_*` namespace.
 //
-// **Breaking** for any Nucleor adopter that imported trajectory.nr and
+// Breaking for any Nucleor adopter that imported trajectory.nr and
 // called `scurve_new(q0, qT, vmax, amax, jmax)` 5-arg or related;
 // migrate to `traj_scurve_*`. Two in-tree callers updated in this ship.
 //
 // Locks invariants on the rename:
-//   1. **traj_scurve_new + traj_scurve_duration** — q 0→1 with
+//   1. traj_scurve_new + traj_scurve_duration — q 0→1 with
 //      v_max=2, a_max=4, j_max=20 returns a non-zero handle and
 //      duration > 0 (proves the renamed runtime is reached and the
 //      struct round-trips correctly).
-//   2. **traj_scurve_pos_at(0)** — position at t=0 should be q0=0.
-//   3. **scurve_new (4-arg) still works in the same file** — calls
+//   2. traj_scurve_pos_at(0) — position at t=0 should be q0=0.
+//   3. scurve_new (4-arg) still works in the same file — calls
 //      scurve.nr's distinct API on the same import.
-//   4. **Both rods can be imported together** — link-time collision
+//   4. Both rods can be imported together — link-time collision
 //      check; reaching `main` proves the rename worked.
 //
 // Expected: rc=0.

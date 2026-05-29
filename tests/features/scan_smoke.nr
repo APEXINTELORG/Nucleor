@@ -4,11 +4,11 @@
 // coverage.
 //
 // Locks four textbook prefix-scan invariants on [1, 2, 3, 4]:
-//   1. **Inclusive prefix sum**: [1, 2, 3, 4] → [1, 3, 6, 10].
-//   2. **Exclusive prefix sum**: [1, 2, 3, 4] → [0, 1, 3, 6]
+//   1. Inclusive prefix sum: [1, 2, 3, 4] → [1, 3, 6, 10].
+//   2. Exclusive prefix sum: [1, 2, 3, 4] → [0, 1, 3, 6]
 //      (each cell is the sum of strict prefix).
-//   3. **Prefix product**: [1, 2, 3, 4] → [1, 2, 6, 24].
-//   4. **Prefix max**: [3, 1, 4, 1, 5, 9] → [3, 3, 4, 4, 5, 9].
+//   3. Prefix product: [1, 2, 3, 4] → [1, 2, 6, 24].
+//   4. Prefix max: [3, 1, 4, 1, 5, 9] → [3, 3, 4, 4, 5, 9].
 //
 // Expected: rc=0.
 

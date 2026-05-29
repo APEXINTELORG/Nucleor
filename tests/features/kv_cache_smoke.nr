@@ -2,7 +2,7 @@
 //
 // Paged KV cache for LLM inference. Pre-v0.8.252: zero coverage.
 //
-// **Drift fix in this ship.** Pre-v0.8.252 the rod declared 4-arg
+// Drift fix in this ship. Pre-v0.8.252 the rod declared 4-arg
 // getters (`ch, layer, head, pos`) but the C runtime took 5
 // (`start_pos, end_pos`) — silent miscompute, the call site read
 // garbage from the un-pushed end_pos slot and returned a Vec sized
@@ -13,16 +13,16 @@
 //
 // Locks five invariants:
 //
-//   1. **Lifecycle** — `kv_new` returns a non-zero handle; `kv_free`
+//   1. Lifecycle — `kv_new` returns a non-zero handle; `kv_free`
 //      does not crash.
-//   2. **Initial state** — `kv_seq_len(ch) == 0` and
+//   2. Initial state — `kv_seq_len(ch) == 0` and
 //      `kv_blocks_used(ch) == 0` immediately after construction.
-//   3. **Insert advances seq_len** — after inserting at pos=0,
+//   3. Insert advances seq_len — after inserting at pos=0,
 //      `seq_len == 1`; after pos=2, `seq_len == 3`.
-//   4. **Single-position get** — `kv_get_k(ch, l, h, pos)` returns a
+//   4. Single-position get — `kv_get_k(ch, l, h, pos)` returns a
 //      Vec handle of length `head_dim` (was returning garbage-sized
 //      Vec pre-v0.8.252).
-//   5. **Range get matches single-position** — for the same pos,
+//   5. Range get matches single-position — for the same pos,
 //      `kv_get_k_range(ch, l, h, pos, pos+1)` and
 //      `kv_get_k(ch, l, h, pos)` return the same length and the
 //      same first element.

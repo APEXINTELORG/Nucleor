@@ -4,13 +4,13 @@
 // predicate. Pre-v0.8.165: zero coverage on the sort rod.
 //
 // Locks five textbook sort invariants:
-//   1. **Reverse-sorted ints**: [5,4,3,2,1] → [1,2,3,4,5].
-//   2. **Already-sorted ints**: [1,2,3] is_sorted == 1.
-//   3. **Random ints + is_sorted**: [3,1,4,1,5,9,2,6] sorted →
+//   1. Reverse-sorted ints: [5,4,3,2,1] → [1,2,3,4,5].
+//   2. Already-sorted ints: [1,2,3] is_sorted == 1.
+//   3. Random ints + is_sorted: [3,1,4,1,5,9,2,6] sorted →
 //      is_sorted==1; pre-sort is_sorted==0.
-//   4. **String cmp triple**: cmp("a","b") < 0; cmp("b","a") > 0;
+//   4. String cmp triple: cmp("a","b") < 0; cmp("b","a") > 0;
 //      cmp("ab","ab") == 0; cmp("ab","abc") < 0.
-//   5. **sort_by parallel keys**: values=[10,20,30], keys=[3,1,2]
+//   5. sort_by parallel keys: values=[10,20,30], keys=[3,1,2]
 //      → values reorder to [20,30,10] (ascending key order).
 //
 // Expected: rc=0.

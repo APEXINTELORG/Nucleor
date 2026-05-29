@@ -7,11 +7,11 @@
 // Locks four lifecycle invariants on a 50-step trajectory at
 // 0.01s, h=0.8m, with constant ZMP reference at x=0:
 //
-//   1. **Construction** returns valid handle.
-//   2. **Initial state retained**: with c0=0, cdot0=0, cddot0=0
+//   1. Construction returns valid handle.
+//   2. Initial state retained: with c0=0, cdot0=0, cddot0=0
 //      and zmp_ref==0 throughout, com[0] == 0.
-//   3. **Solve returns success** for valid inputs.
-//   4. **CoM stays bounded** under zero-reference tracking — no
+//   3. Solve returns success for valid inputs.
+//   4. CoM stays bounded under zero-reference tracking — no
 //      runaway.
 //
 // Expected: rc=0.

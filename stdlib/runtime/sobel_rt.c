@@ -20,7 +20,7 @@
 //      Writes 3 W×H float images. Pass any output as 0 (NULL) to
 //      skip writing it (e.g., only compute magnitude).
 //
-// **Limitations** (Scharr 3×3 kernels / 5×5 Sobel / sub-pixel
+// Limitations (Scharr 3×3 kernels / 5×5 Sobel / sub-pixel
 // gradient direction land in v0.6 if needed):
 // - Standard Sobel only (no Scharr).
 // - Replicate boundary handling (edges of the image are

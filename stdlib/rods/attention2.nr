@@ -1,14 +1,14 @@
 // rods/attention2 — Modern attention variants
 //
-//   - **FlashAttention** — tiled / online-softmax for long contexts
+//   - FlashAttention — tiled / online-softmax for long contexts
 //     without materializing the full attention matrix.
-//   - **GQA** (Grouped-Query Attention) — used in LLaMA 2/3, Mistral.
+//   - GQA (Grouped-Query Attention) — used in LLaMA 2/3, Mistral.
 //     KV heads are shared across multiple Q heads.
-//   - **MLA** (Multi-Head Latent Attention) — used in DeepSeek-V2/3.
+//   - MLA (Multi-Head Latent Attention) — used in DeepSeek-V2/3.
 //     Compress KV down to a low-rank latent and re-expand at use.
-//   - **Sliding-window** — strict locality; each token attends only
+//   - Sliding-window — strict locality; each token attends only
 //     to the previous W tokens.
-//   - **Differential** — used in DiffTransformer; subtracts two
+//   - Differential — used in DiffTransformer; subtracts two
 //     softmax-attention heads to reduce noise / hallucination.
 //
 // All tensor-shaped arguments are i64 handles to flat-allocated

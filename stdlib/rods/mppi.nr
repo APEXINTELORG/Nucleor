@@ -7,7 +7,7 @@
 // use the weighted average as the new nominal sequence. Output the
 // first control of the nominal, then shift.
 //
-// **No gradient required** — works with arbitrary non-smooth
+// No gradient required — works with arbitrary non-smooth
 // dynamics and costs (binary obstacle indicator costs, friction
 // stick-slip transitions, etc.) where iLQR / DDP would fail.
 // Naturally embarrassingly parallel (each sample is independent).
@@ -40,7 +40,7 @@
 //   - λ small ⇒ aggressive (favors best samples); λ large ⇒ smoother.
 //   - σ ≈ expected control magnitude.
 //
-// **Limitations** (importance-sampling tricks / GPU / smoothing
+// Limitations (importance-sampling tricks / GPU / smoothing
 // land in v0.6 if needed):
 // - Single-threaded sequential sampling.
 // - Diagonal (per-dim) σ only.

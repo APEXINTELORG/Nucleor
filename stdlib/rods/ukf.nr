@@ -28,7 +28,7 @@
 // α = 1e-3, β = 2 (Gaussian assumption), κ = 0. Built into the
 // constructor; can be overridden later via setters if needed.
 //
-// **Limitations** (square-root form for numerical stability lands
+// Limitations (square-root form for numerical stability lands
 // in v0.6 if needed):
 // - Standard form. For very long-running filters with tight
 //   covariance, may need periodic re-symmetrize of P.

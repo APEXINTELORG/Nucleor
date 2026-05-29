@@ -9,12 +9,12 @@
 // double[] pointers (q[4], rpy[3], gyro[3], accel[3]); deferred
 // to dedicated IMU-fusion ships.
 //
-//   1. **ahrs_new returns valid handle** — non-zero for sensible
+//   1. ahrs_new returns valid handle — non-zero for sensible
 //      Kp/Ki gains.
-//   2. **set_gains does not crash** — typical (Kp=1.0, Ki=0.05).
-//   3. **set_gains with zero Ki (pure complementary)** — the
+//   2. set_gains does not crash — typical (Kp=1.0, Ki=0.05).
+//   3. set_gains with zero Ki (pure complementary) — the
 //      common default (Ki disables bias estimation).
-//   4. **ahrs_free does not crash** on a freshly constructed
+//   4. ahrs_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

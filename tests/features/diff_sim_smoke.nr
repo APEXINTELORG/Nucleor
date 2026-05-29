@@ -9,10 +9,10 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **Init returns valid handle** — non-zero.
-//   2. **n_gates == 0 right after init** — no gates applied.
-//   3. **n_gates tracks gate calls** — 3 diff_gate → n_gates 3.
-//   4. **diff_reset clears gate counter** — after reset,
+//   1. Init returns valid handle — non-zero.
+//   2. n_gates == 0 right after init — no gates applied.
+//   3. n_gates tracks gate calls — 3 diff_gate → n_gates 3.
+//   4. diff_reset clears gate counter — after reset,
 //      n_gates == 0.
 //
 // Heavier surfaces (extract, backward, gate_importance) need

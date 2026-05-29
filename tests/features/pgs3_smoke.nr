@@ -9,11 +9,11 @@
 // (cost-decreases) is exercised by the 2-D pgs_smoke and
 // generalizes to 3-D.
 //
-//   1. **pgs3_new returns valid handle** — non-zero.
-//   2. **Empty graph cost is zero** — no edges → no error.
-//   3. **Multiple distinct graphs** — two constructions →
+//   1. pgs3_new returns valid handle — non-zero.
+//   2. Empty graph cost is zero — no edges → no error.
+//   3. Multiple distinct graphs — two constructions →
 //      distinct handles (no aliased state).
-//   4. **pgs3_free does not crash** on a freshly constructed
+//   4. pgs3_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

@@ -7,12 +7,12 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **pf_new returns valid handle** — non-zero.
-//   2. **particle_count round-trip** — n_particles arg is
+//   1. pf_new returns valid handle — non-zero.
+//   2. particle_count round-trip — n_particles arg is
 //      preserved across the constructor.
-//   3. **Multiple distinct PFs** — two constructions return
+//   3. Multiple distinct PFs — two constructions return
 //      distinct handles (no aliased particle pools).
-//   4. **pf_free does not crash** on a freshly constructed
+//   4. pf_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

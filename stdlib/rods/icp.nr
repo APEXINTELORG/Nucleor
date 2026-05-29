@@ -24,7 +24,7 @@
 //   // Verify the residual.
 //   let mse = icp_residual(src_ptr, n_src, tgt_ptr, n_tgt, R_ptr, t_ptr);
 //
-// **Limitations** (KD-tree nearest-neighbor + outlier rejection
+// Limitations (KD-tree nearest-neighbor + outlier rejection
 // land in v0.6 if needed):
 // - Brute-force nearest neighbor: O(N_src · N_tgt) per iteration.
 // - No outlier rejection — every source point gets a match.

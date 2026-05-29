@@ -4,8 +4,8 @@
 //
 // Locks four invariants:
 //   1. Empty: len=0, is_empty=1, pop returns 0.
-//   2. **FIFO order**: push 1, 2, 3 → pop returns 1, 2, 3.
-//   3. **Peek non-destructive**: peek + pop returns same value.
+//   2. FIFO order: push 1, 2, 3 → pop returns 1, 2, 3.
+//   3. Peek non-destructive: peek + pop returns same value.
 //   4. Length tracking: push grows, pop shrinks.
 //
 // Expected: rc=0.

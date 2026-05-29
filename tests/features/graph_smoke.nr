@@ -8,15 +8,15 @@
 //
 // Locks five textbook graph-algorithm invariants:
 //
-//   1. **BFS visit order**: 4-node line 0→1→2→3, BFS from 0 →
+//   1. BFS visit order: 4-node line 0→1→2→3, BFS from 0 →
 //      visit length == 4 (all reachable).
-//   2. **DFS visit order**: same → length == 4.
-//   3. **Dijkstra shortest path**: graph 0→1 (w=1), 1→3 (w=1),
+//   2. DFS visit order: same → length == 4.
+//   3. Dijkstra shortest path: graph 0→1 (w=1), 1→3 (w=1),
 //      0→2 (w=2), 2→3 (w=1) → dist[3] from 0 should be 2 via
 //      0→1→3 (not 3 via 0→2→3).
-//   4. **Topo-sort acyclic DAG**: returns valid topological order
+//   4. Topo-sort acyclic DAG: returns valid topological order
 //      of length n.
-//   5. **Connected components**: 2 disjoint pairs {0-1, 2-3} →
+//   5. Connected components: 2 disjoint pairs {0-1, 2-3} →
 //      2 components.
 //
 // Expected: rc=0.

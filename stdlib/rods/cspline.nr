@@ -36,7 +36,7 @@
 //   }
 //   cspline_free(s);
 //
-// **Limitations** (clamped / periodic / parametric C2 splines land
+// Limitations (clamped / periodic / parametric C2 splines land
 // in v0.6 if needed):
 // - 1-D y over 1-D x only — call N times for N-dimensional trajectories.
 // - Natural BC only (`y''(x_0) = y''(x_N) = 0`).

@@ -8,9 +8,9 @@
 // most of the surface needs callback support. Lock the
 // host-environment query path:
 //
-//   1. **gpu_available returns 0 or 1** (host-state predicate).
-//   2. **gpu_info returns non-empty string** describing state.
-//   3. **gpu_compute_available returns 0** (HON-2: compute dispatch is
+//   1. gpu_available returns 0 or 1 (host-state predicate).
+//   2. gpu_info returns non-empty string describing state.
+//   3. gpu_compute_available returns 0 (HON-2: compute dispatch is
 //      CPU fallback today regardless of driver presence — asserts the
 //      rod does not over-claim GPU acceleration).
 //

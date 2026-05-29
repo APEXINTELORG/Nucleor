@@ -16,7 +16,7 @@
 //     for benchmarks.
 //   - Pre-processing step for hierarchical planners.
 //
-// **Limitations** (concave obstacles / inflation / 3D / dynamic
+// Limitations (concave obstacles / inflation / 3D / dynamic
 // obstacles land in v0.6 if needed):
 // - Convex obstacles only (vertex order: counter-clockwise).
 //   Concave obstacles need decomposition first.

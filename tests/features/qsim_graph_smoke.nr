@@ -7,14 +7,14 @@
 //
 // Locks four invariants:
 //
-//   1. **Union-find merges via transitive close** —
+//   1. Union-find merges via transitive close —
 //      register (0,1) and (1,2) → all three same component.
-//   2. **Component size and count** — after merging q0/q1/q2:
+//   2. Component size and count — after merging q0/q1/q2:
 //      size=3, count=1.
-//   3. **Distinct components don't merge** — register (0,1)
+//   3. Distinct components don't merge — register (0,1)
 //      and (5,6) → q0 and q5 are in different components,
 //      count=2.
-//   4. **Gate DAG depends_on after re-touching qubit** —
+//   4. Gate DAG depends_on after re-touching qubit —
 //      record H on q0 (g0), then CNOT 0→1 (g1) → g1 depends
 //      on g0 (g0 last touched q0).
 //

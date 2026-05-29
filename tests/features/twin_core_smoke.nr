@@ -8,12 +8,12 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **tc_nq round-trip** — tc_init(2, p1, p2) → tc_nq == 2.
-//   2. **noise rates round-trip** — tc_p1q / tc_p2q return the
+//   1. tc_nq round-trip — tc_init(2, p1, p2) → tc_nq == 2.
+//   2. noise rates round-trip — tc_p1q / tc_p2q return the
 //      values passed to tc_init.
-//   3. **Both statevectors are valid** — tc_sv_a and tc_sv_b
+//   3. Both statevectors are valid — tc_sv_a and tc_sv_b
 //      both return non-zero handles.
-//   4. **Distinct statevectors** — tc_sv_a != tc_sv_b (parallel
+//   4. Distinct statevectors — tc_sv_a != tc_sv_b (parallel
 //      cores, not aliased).
 //
 // Expected: rc=0.

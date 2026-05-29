@@ -22,7 +22,7 @@
 //   - Closed-loop tracking layer underneath any path planner
 //     (RRT, A*, vgraph, Dubins).
 //
-// **Limitations** (adaptive lookahead / curvature-based gain
+// Limitations (adaptive lookahead / curvature-based gain
 // scheduling / look-ahead point smoothing land in v0.6 if needed):
 // - Fixed lookahead distance.
 // - No velocity output — caller decides forward speed (typically

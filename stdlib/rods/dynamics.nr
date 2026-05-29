@@ -21,7 +21,7 @@
 //   // ... or for gravity comp only ...
 //   dyn_gravity(dyn, q_ptr, tau_out_ptr);
 //
-// **Limitations** (full Featherstone spatial-vector formulation
+// Limitations (full Featherstone spatial-vector formulation
 // lands in v0.6 if needed for big chains or deep recursion):
 // - Serial chain only (no branching trees — same restriction as
 //   the URDF parser).

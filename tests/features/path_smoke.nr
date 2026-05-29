@@ -6,14 +6,14 @@
 //
 // Locks four invariants spanning the core surface:
 //
-//   1. **path_join inserts separator** — join("a", "b") == "a/b"
+//   1. path_join inserts separator — join("a", "b") == "a/b"
 //      but join("a/", "b") == "a/b" (no double-slash).
-//   2. **path_ext, path_stem, path_filename agree** —
+//   2. path_ext, path_stem, path_filename agree —
 //      "src/foo.nr" → ext=".nr", stem="foo", filename="foo.nr",
 //      parent="src".
-//   3. **path_is_absolute** — "/abs"=1, "rel"=0, "C:/abs"=1
+//   3. path_is_absolute — "/abs"=1, "rel"=0, "C:/abs"=1
 //      (drive-letter Windows form).
-//   4. **path_normalize collapses + flips slashes** —
+//   4. path_normalize collapses + flips slashes —
 //      "a\\b//c" → "a/b/c" (no double, no trailing).
 //
 // Expected: rc=0.

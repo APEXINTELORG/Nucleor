@@ -9,11 +9,11 @@
 // Locks four bad-input invariants — the runtime null-checks
 // `F_out_ptr` and only requires `obs_ptr` if `n_obs > 0`:
 //
-//   1. **Null F_out returns -1** — bad-output sentinel.
-//   2. **Null obs with n_obs > 0 returns -1** — bad-input.
-//   3. **Null obs with n_obs == 0 still requires non-null F_out** —
+//   1. Null F_out returns -1 — bad-output sentinel.
+//   2. Null obs with n_obs > 0 returns -1 — bad-input.
+//   3. Null obs with n_obs == 0 still requires non-null F_out —
 //      n_obs=0 is allowed but F_out is mandatory.
-//   4. **apf_step_2d null x_out / y_out returns negative** —
+//   4. apf_step_2d null x_out / y_out returns negative —
 //      same guard pattern on the integration variant.
 //
 // Expected: rc=0.

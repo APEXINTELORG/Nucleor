@@ -7,7 +7,7 @@
 // Setup: 1-D system A=B=Q=R=1. The discrete algebraic Riccati
 // equation
 //   P = A²P − A²PB(R + B²P)⁻¹BPA + Q
-// reduces to P² − P − 1 = 0 → **P = φ = (1+√5)/2 ≈ 1.618**
+// reduces to P² − P − 1 = 0 → P = φ = (1+√5)/2 ≈ 1.618
 // (golden ratio).
 //
 // The optimal feedback gain
@@ -16,11 +16,11 @@
 //
 // Locks four invariants (compute_u uses raw ptrs; deferred):
 //
-//   1. **lqr_new returns valid handle**.
-//   2. **solve runs at least one iteration** for a stabilizable
+//   1. lqr_new returns valid handle.
+//   2. solve runs at least one iteration for a stabilizable
 //      system.
-//   3. **Riccati P solves to the golden ratio φ ≈ 1.618**.
-//   4. **Optimal gain K = 1/φ ≈ 0.618**.
+//   3. Riccati P solves to the golden ratio φ ≈ 1.618.
+//   4. Optimal gain K = 1/φ ≈ 0.618.
 //
 // Expected: rc=0.
 

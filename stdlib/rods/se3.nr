@@ -37,7 +37,7 @@
 //   // Combined translation + rotation distance
 //   let d_b = se3_distance(tA, qA, tB, qB);
 //
-// **Limitations** (dual quaternions / motor algebra / Plücker
+// Limitations (dual quaternions / motor algebra / Plücker
 // coordinates land in v0.6 if needed):
 // - Translation + quaternion only.
 // - SE(3) log/exp uses small-angle Taylor below 1e-9.

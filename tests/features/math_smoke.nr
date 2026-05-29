@@ -8,12 +8,12 @@
 // overflow guards (v0.8.80/81) which silent-miscompute under
 // NUCLEOR_INT_STRICT_INTRIN=0:
 //
-//   1. **Basic abs/min/max/clamp** — abs(-7)=7, min(3,5)=3,
+//   1. Basic abs/min/max/clamp — abs(-7)=7, min(3,5)=3,
 //      max(3,5)=5, clamp(10, 0, 5)=5, clamp(-1, 0, 5)=0.
-//   2. **pow_int(2, 10) == 1024** — exponent identity (also
+//   2. pow_int(2, 10) == 1024 — exponent identity (also
 //      exercises the NUM-G2 overflow detection path).
-//   3. **gcd(12, 18) == 6** — Euclidean algorithm.
-//   4. **lcm(4, 6) == 12; is_even(4)==1; is_odd(7)==1; sqrt_int(16)==4** —
+//   3. gcd(12, 18) == 6 — Euclidean algorithm.
+//   4. lcm(4, 6) == 12; is_even(4)==1; is_odd(7)==1; sqrt_int(16)==4 —
 //      integer-derivative chain (lcm uses gcd internally).
 //
 // Expected: rc=0.

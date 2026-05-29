@@ -4,13 +4,13 @@
 // ends. Pre-v0.8.165: zero coverage.
 //
 // Locks five textbook deque invariants:
-//   1. **FIFO via push_back / pop_front**: 1,2,3 in → 1,2,3 out.
-//   2. **LIFO via push_back / pop_back**: 1,2,3 in → 3,2,1 out.
-//   3. **Mixed-end push**: push_front(1), push_back(2), push_front(0)
+//   1. FIFO via push_back / pop_front: 1,2,3 in → 1,2,3 out.
+//   2. LIFO via push_back / pop_back: 1,2,3 in → 3,2,1 out.
+//   3. Mixed-end push: push_front(1), push_back(2), push_front(0)
 //      → indexed [0, 1, 2] (front-to-back).
-//   4. **Indexed get/set** preserves ring-offset semantics across
+//   4. Indexed get/set preserves ring-offset semantics across
 //      front-side operations.
-//   5. **Empty / clear**: fresh deque is empty; clear empties.
+//   5. Empty / clear: fresh deque is empty; clear empties.
 //
 // Expected: rc=0.
 

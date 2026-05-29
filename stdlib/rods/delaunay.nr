@@ -2,7 +2,7 @@
 //
 // Bowyer-Watson incremental insertion (Bowyer 1981 / Watson 1981).
 // Foundation for:
-//   - **Voronoi diagrams** (the dual): each Voronoi vertex IS a
+//   - Voronoi diagrams (the dual): each Voronoi vertex IS a
 //     Delaunay-triangle circumcenter; each Voronoi edge connects
 //     circumcenters of adjacent triangles. Use the
 //     `circumcenter_2d` helper to lift triangles into Voronoi
@@ -24,7 +24,7 @@
 //   let ok = circumcenter_2d(ax_b, ay_b, bx_b, by_b, cx_b, cy_b,
 //                             f64_ptr(&cx), f64_ptr(&cy));
 //
-// **Limitations** (sweep-line / 3-D Delaunay / robust predicates
+// Limitations (sweep-line / 3-D Delaunay / robust predicates
 // land in v0.6 if needed):
 // - 2-D only.
 // - Naive O(N²) incremental insertion. Fine up to ~1000 points.

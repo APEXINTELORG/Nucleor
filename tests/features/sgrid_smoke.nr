@@ -4,11 +4,11 @@
 // Pre-v0.8.171: zero coverage.
 //
 // Locks four NN-query invariants on a small 3D point cloud:
-//   1. **Empty grid returns -1**: nearest on empty grid → -1.
-//   2. **Insert returns index**: first insert returns 0, second
+//   1. Empty grid returns -1: nearest on empty grid → -1.
+//   2. Insert returns index: first insert returns 0, second
 //      returns 1, etc.
-//   3. **count tracks insertions**: 5 inserts → count == 5.
-//   4. **Nearest correctness**: 3 points at origin / x=10 / y=10;
+//   3. count tracks insertions: 5 inserts → count == 5.
+//   4. Nearest correctness: 3 points at origin / x=10 / y=10;
 //      query at (1, 0, 0) → nearest is index 0 (origin point).
 //
 // Expected: rc=0.

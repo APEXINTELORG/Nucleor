@@ -7,11 +7,11 @@
 //
 // Locks four interval-arithmetic invariants:
 //
-//   1. **Construction round-trip**: iv_new(2,5) → lo=2, hi=5,
+//   1. Construction round-trip: iv_new(2,5) → lo=2, hi=5,
 //      width=3, mid=3.5.
-//   2. **Containment**: 3 ∈ [2,5] but 1 ∉ [2,5].
-//   3. **Add**: [1,2] + [3,4] = [4,6] (lo+lo, hi+hi).
-//   4. **Neg flips bounds**: -[2,5] = [-5,-2].
+//   2. Containment: 3 ∈ [2,5] but 1 ∉ [2,5].
+//   3. Add: [1,2] + [3,4] = [4,6] (lo+lo, hi+hi).
+//   4. Neg flips bounds: -[2,5] = [-5,-2].
 //
 // Expected: rc=0.
 

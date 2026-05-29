@@ -7,10 +7,10 @@
 //
 // Locks four bad-input invariants on both integrators:
 //
-//   1. **Null out_ptr in step_euler returns 0** — bad output.
-//   2. **L ≤ 0 in step_euler returns 0** — degenerate wheelbase.
-//   3. **Null out_ptr in step_rk4 returns 0** — bad output.
-//   4. **L ≤ 0 in step_rk4 returns 0** — degenerate wheelbase.
+//   1. Null out_ptr in step_euler returns 0 — bad output.
+//   2. L ≤ 0 in step_euler returns 0 — degenerate wheelbase.
+//   3. Null out_ptr in step_rk4 returns 0 — bad output.
+//   4. L ≤ 0 in step_rk4 returns 0 — degenerate wheelbase.
 //
 // Expected: rc=0.
 

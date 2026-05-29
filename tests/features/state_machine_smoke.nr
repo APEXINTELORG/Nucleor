@@ -7,12 +7,12 @@
 // machine (Red=0, Yellow=1, Green=2) with one event class
 // (next=0):
 //
-//   1. **Initial state** — current() returns the configured initial.
-//   2. **Transition fires** — fire(next) at Red transitions to Green
+//   1. Initial state — current() returns the configured initial.
+//   2. Transition fires — fire(next) at Red transitions to Green
 //      (per our wiring); current() reflects new state.
-//   3. **can_fire** — true when a transition exists from current
+//   3. can_fire — true when a transition exists from current
 //      state on that event; false otherwise.
-//   4. **History tracks transitions** — N fires produce N+1 entries
+//   4. History tracks transitions — N fires produce N+1 entries
 //      (initial state + N transitions).
 //
 // on_enter / on_exit fn-pointer callbacks are out-of-scope for

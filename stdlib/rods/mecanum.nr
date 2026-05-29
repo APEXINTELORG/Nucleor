@@ -34,7 +34,7 @@
 //                         vx_b, vy_b, w_b, dt_b,
 //                         f64_ptr(&pose[0]));
 //
-// **Limitations** (wheel-slip / over-determined least-squares /
+// Limitations (wheel-slip / over-determined least-squares /
 // roller-friction model land in v0.6 if needed):
 // - Kinematic only (no slip, no roller friction).
 // - X-pattern only (caller flips signs for O-pattern).

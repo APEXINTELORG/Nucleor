@@ -32,7 +32,7 @@
 //      (4×4 Jacobi rotations).
 //   5. `t = B̄ − R(q) · Ā`.
 //
-// **Limitations** (non-rigid / scale / weighted variants land in
+// Limitations (non-rigid / scale / weighted variants land in
 // v0.6 if needed):
 // - Rigid (rotation + translation) only. For scale-aware alignment,
 //   pre-normalize by point-cloud sigma and rescale post-hoc.

@@ -6,10 +6,10 @@
 //
 // Locks four textbook loss-function invariants:
 //
-//   1. **MSE of identical vectors == 0** — pred==target → 0.
-//   2. **MSE([1,2,3], [2,3,4]) == 1.0** — mean of (1²+1²+1²)/3.
-//   3. **KL(p||p) == 0** — KL of a distribution against itself.
-//   4. **CE on uniform logits + target=0 == log(n)** —
+//   1. MSE of identical vectors == 0 — pred==target → 0.
+//   2. MSE([1,2,3], [2,3,4]) == 1.0 — mean of (1²+1²+1²)/3.
+//   3. KL(p||p) == 0 — KL of a distribution against itself.
+//   4. CE on uniform logits + target=0 == log(n) —
 //      logits=[0,0,0] gives p=1/3, loss = -log(1/3) = log(3).
 //
 // Expected: rc=0.

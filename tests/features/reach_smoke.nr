@@ -7,11 +7,11 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **reach_new returns valid handle** — non-zero.
-//   2. **Empty sampler** — count == 0 before reach_compute.
-//   3. **set_joint_limit on each dim** — no crash exercising
+//   1. reach_new returns valid handle — non-zero.
+//   2. Empty sampler — count == 0 before reach_compute.
+//   3. set_joint_limit on each dim — no crash exercising
 //      the per-joint bounds-setter.
-//   4. **reach_free does not crash** on a freshly constructed
+//   4. reach_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

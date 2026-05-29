@@ -24,7 +24,7 @@
 //
 // `nms = 1` enables 3×3 NMS on the score (sum of |circle - center|).
 //
-// **Limitations** (Bresenham radius is fixed at 3 / scale-space
+// Limitations (Bresenham radius is fixed at 3 / scale-space
 // FAST land in v0.6 if needed):
 // - Single-scale (caller pre-builds Gaussian pyramid via
 //   `image_pyramid.nr` for multi-scale FAST).

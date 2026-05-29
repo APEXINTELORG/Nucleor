@@ -22,7 +22,7 @@
 //   - Calibration target detection.
 //   - Front-end for KLT (`klt_rt.c`).
 //
-// **Limitations** (Shi-Tomasi response / sub-pixel refinement /
+// Limitations (Shi-Tomasi response / sub-pixel refinement /
 // scale-space corner detection (multi-scale Harris) land in v0.6
 // if needed):
 // - Single-scale only (caller can pre-build a Gaussian pyramid

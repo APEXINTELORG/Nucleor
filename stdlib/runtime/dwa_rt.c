@@ -20,7 +20,7 @@
 // User callback: distance to nearest obstacle from a 2D point.
 //   obs_dist_fp: fn(x_b, y_b) -> i64 (bit-cast f64 distance)
 //
-// **Limitations** (TEB / MPC-style local planners with
+// Limitations (TEB / MPC-style local planners with
 // trajectory-level optimization land in v0.6 if needed):
 // - Differential-drive only (Ackermann variant adds steering
 //   constraint).

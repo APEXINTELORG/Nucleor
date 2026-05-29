@@ -9,10 +9,10 @@
 // Locks four bad-input invariants — the runtime null-checks
 // both `ctrl_ptr` and `out_ptr` and validates `n_ctrl ≥ 2`:
 //
-//   1. **Null ctrl_ptr returns 0** in 2-D.
-//   2. **Null out_ptr returns 0** in 2-D.
-//   3. **n_ctrl < 2 returns 0** — degenerate curve.
-//   4. **3-D variant returns 0 on null inputs** — same null-
+//   1. Null ctrl_ptr returns 0 in 2-D.
+//   2. Null out_ptr returns 0 in 2-D.
+//   3. n_ctrl < 2 returns 0 — degenerate curve.
+//   4. 3-D variant returns 0 on null inputs — same null-
 //      check shape as 2-D.
 //
 // Expected: rc=0.

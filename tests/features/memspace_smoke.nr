@@ -7,13 +7,13 @@
 // Locks four invariants that real Phase B compiler enforcement
 // must NOT regress:
 //
-//   1. **Stable IDs** — hbm=1, ddr=2, default=0, unknown=-1.
-//   2. **Compatibility**: same==1, default==1 (either side),
+//   1. Stable IDs — hbm=1, ddr=2, default=0, unknown=-1.
+//   2. Compatibility: same==1, default==1 (either side),
 //      unknown==1 (either side), hbm vs ddr == 0 (cross-pool
 //      hard fail).
-//   3. **Host class membership**: ddr / pinned / unified /
+//   3. Host class membership: ddr / pinned / unified /
 //      default → host; hbm → not host.
-//   4. **Device class membership**: hbm / cxl / scratchpad /
+//   4. Device class membership: hbm / cxl / scratchpad /
 //      npu_sram / gpu_shared → device; ddr → not device.
 //
 // Expected: rc=0.

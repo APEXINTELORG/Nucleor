@@ -38,7 +38,7 @@
 // motion ambiguity. Updates use right-multiplied SO(3) exponential:
 //   t_i ← t_i + δ_t,   R_i ← R_i · exp(δ_θ).
 //
-// **Limitations** (closed-form Jacobians, sparse Cholesky, robust
+// Limitations (closed-form Jacobians, sparse Cholesky, robust
 // kernels land in v0.6 if needed):
 // - Numerical FD Jacobians (12 residual evaluations per edge per iter);
 //   fine for hundreds of edges.

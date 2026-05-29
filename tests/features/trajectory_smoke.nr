@@ -6,12 +6,12 @@
 //
 // Locks five textbook quintic-trajectory invariants:
 //
-//   1. **Boundary at t=0**: pos(0) == q0, vel(0) == v0, acc(0) == a0.
-//   2. **Boundary at t=T**: pos(T) == qT, vel(T) == vT, acc(T) == aT.
-//   3. **Duration round-trip**: duration() == T input.
-//   4. **Constant trajectory**: q0=qT=5, all velocities/accels=0
+//   1. Boundary at t=0: pos(0) == q0, vel(0) == v0, acc(0) == a0.
+//   2. Boundary at t=T: pos(T) == qT, vel(T) == vT, acc(T) == aT.
+//   3. Duration round-trip: duration() == T input.
+//   4. Constant trajectory: q0=qT=5, all velocities/accels=0
 //      → pos at midpoint == 5 (no motion).
-//   5. **Standard rest-to-rest**: q0=0, qT=10, v0=v1=a0=a1=0,
+//   5. Standard rest-to-rest: q0=0, qT=10, v0=v1=a0=a1=0,
 //      T=2 → midpoint position is some intermediate (test it's
 //      between 0 and 10).
 //

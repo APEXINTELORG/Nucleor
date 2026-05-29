@@ -22,7 +22,7 @@
 //   let n  = kdt_knearest(h, qx_b, qy_b, qz_b, k,
 //                         out_indices_ptr, out_dist2_ptr);
 //
-// **Limitations** (incremental rebuild / R*-tree / approximate-NN
+// Limitations (incremental rebuild / R*-tree / approximate-NN
 // land in v0.6 if needed):
 // - Static tree: must call `kdt_build` after all inserts; further
 //   inserts invalidate the tree until rebuilt.

@@ -25,7 +25,7 @@
 //   let _ = quat_slerp(f64_ptr(&q_a[0]), f64_ptr(&q_b[0]),
 //                       t_b, f64_ptr(&q_mid[0]));
 //
-// **Limitations** (rotor / dual-quaternion / quaternion exp+log
+// Limitations (rotor / dual-quaternion / quaternion exp+log
 // land in v0.6 if needed):
 // - Caller responsible for normalizing inputs.
 // - No rotation-matrix conversion (use `stdlib/rods/rotation.nr`

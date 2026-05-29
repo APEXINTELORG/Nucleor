@@ -19,7 +19,7 @@
 //   - Connected-component analysis over occupancy grids.
 //   - Path shape smoothing via gradient descent on the field.
 //
-// **Limitations** (fast-sweeping Eikonal / anisotropic costs land
+// Limitations (fast-sweeping Eikonal / anisotropic costs land
 // in v0.6 if needed):
 // - Unit-ish cost per step only (with the diagonal √2 bonus for
 //   8-connectivity). For arbitrary per-edge costs use Dijkstra

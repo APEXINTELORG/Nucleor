@@ -12,12 +12,12 @@
 //
 // Locks four invariants:
 //
-//   1. **Output length matches seq * d_k** — flat output is
+//   1. Output length matches seq * d_k — flat output is
 //      [seq, d_k].
-//   2. **Uniform softmax produces V mean** — token 0 row 0 = 4.
-//   3. **Both rows are identical** — uniform attention over both
+//   2. Uniform softmax produces V mean — token 0 row 0 = 4.
+//   3. Both rows are identical — uniform attention over both
 //      tokens, so token 0 output == token 1 output.
-//   4. **Sliding-window is causal** — token 0 sees only V[0],
+//   4. Sliding-window is causal — token 0 sees only V[0],
 //      so output[0] == V[0] = (3, 4); token 1 sees V[0] and
 //      V[1] uniformly → (4, 5). Flash attention is bidirectional;
 //      sliding-window is causal.

@@ -9,11 +9,11 @@
 // surface; the composite/decorator construction is testable
 // without ticking.
 //
-//   1. **Empty tree** — bt_new → bt_node_count == 0.
-//   2. **Single composite root** — sequence at root → count 1.
-//   3. **Composite with multiple composite children** — root
+//   1. Empty tree — bt_new → bt_node_count == 0.
+//   2. Single composite root — sequence at root → count 1.
+//   3. Composite with multiple composite children — root
 //      sequence + 3 sequence children → count 4.
-//   4. **Inverter is a node** — adding inverter increments count.
+//   4. Inverter is a node — adding inverter increments count.
 //
 // Expected: rc=0.
 

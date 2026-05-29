@@ -1,7 +1,7 @@
 // v0.8.225 stdlib/rods/pq_crypto.nr first test coverage.
 //
 // RFC-0058 Phase A: post-quantum crypto surface (rod-only).
-// **Runtime is a STUB** — every primitive returns deterministic
+// Runtime is a STUB — every primitive returns deterministic
 // test vectors, NOT secure crypto. Phase B (~400 LOC compiler +
 // ~2000 LOC stdlib + per-algorithm reference implementations)
 // is deferred. Pre-v0.8.225: zero coverage on the standalone
@@ -11,13 +11,13 @@
 // `@crypto_agile` and phantom-typed `PublicKey<Algo>` /
 // `SecretKey<Algo>` / `Signature<Algo>` must NOT regress:
 //
-//   1. **Stable algorithm IDs + kind** — ML-KEM=1 (kem),
+//   1. Stable algorithm IDs + kind — ML-KEM=1 (kem),
 //      ML-DSA=2 (sig), SLH-DSA=3 (sig).
-//   2. **Security levels map to bits** — L1 = 128, L3 = 192,
+//   2. Security levels map to bits — L1 = 128, L3 = 192,
 //      L5 = 256 (NIST AES-equivalent classical strength).
-//   3. **mldsa sign + verify round-trip** — sign then verify
+//   3. mldsa sign + verify round-trip — sign then verify
 //      same digest returns 1; pq_clear isolates between calls.
-//   4. **crypto-agile defaults** — pick_kem == ML-KEM,
+//   4. crypto-agile defaults — pick_kem == ML-KEM,
 //      pick_sig == ML-DSA, pick_sig_backup == SLH-DSA.
 //
 // Expected: rc=0.

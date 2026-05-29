@@ -2,12 +2,12 @@
 //
 // Caller supplies the graph as two function pointers:
 //
-//   - **neighbor_fn(node, out_ids_ptr, out_costs_ptr, cap) -> n** —
+//   - neighbor_fn(node, out_ids_ptr, out_costs_ptr, cap) -> n —
 //     given a node id, fill the output arrays with up to `cap`
 //     (neighbor_id, edge_cost) pairs and return the count actually
 //     written. The arrays are i64 (ids) and i64-bit-cast f64 (costs).
 //
-//   - **heuristic_fn(from, to) -> i64-bit-cast f64** — admissible
+//   - heuristic_fn(from, to) -> i64-bit-cast f64 — admissible
 //     lower-bound on the remaining cost to reach `to` from `from`.
 //     Pass 0 (null fn) for Dijkstra (no heuristic).
 //

@@ -29,7 +29,7 @@
 //                            L_eff_b, dt_b,
 //                            f64_ptr(&pose[0]));
 //
-// **Limitations** (slip-aware odometry / yaw-rate fusion / ICR-
+// Limitations (slip-aware odometry / yaw-rate fusion / ICR-
 // estimation from history land in v0.6 if needed):
 // - Caller supplies L_eff (no auto-fit from data).
 // - Kinematic only.

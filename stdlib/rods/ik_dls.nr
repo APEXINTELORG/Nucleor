@@ -78,9 +78,9 @@ extern fn nuc_ik_manipulability(ch: i64, vars_ptr: i64) -> i64;
 // 1.0 is "as aggressive as the primary update". 0.1-0.5 typical.
 //
 // Common patterns:
-// - **Joint-limit avoidance**: q_pref = midpoint of each joint's
+// - Joint-limit avoidance: q_pref = midpoint of each joint's
 //   range, weight by 1/range².
-// - **Solution-branch selection**: q_pref = previous solve's
+// - Solution-branch selection: q_pref = previous solve's
 //   output (continuity across waypoints).
 extern fn nuc_ik_dls_solve_nullspace(
     ch: i64, vars_ptr: i64,

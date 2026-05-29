@@ -23,7 +23,7 @@
 // Foundation for autonomous mobile robot control, outdoor
 // delivery robots, autonomous vehicles, warehouse transports.
 //
-// **Limitations** (adaptive lookahead, time-based formulation,
+// Limitations (adaptive lookahead, time-based formulation,
 // path pruning land in v0.6 if needed):
 // - Constant lookahead distance (no velocity-adaptive scheduling).
 // - No automatic completion / "near-goal" early-stop.

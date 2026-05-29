@@ -10,13 +10,13 @@
 // Locks four invariants Phase B compiler enforcement must NOT
 // regress:
 //
-//   1. **Stable arch / quant tag IDs** — LLM=1, VLA=2, ...; FP32=32,
+//   1. Stable arch / quant tag IDs — LLM=1, VLA=2, ...; FP32=32,
 //      FP16=16, FP4=4, ... (audit / CI gates depend on stability).
-//   2. **Construct + register round-trip** — register(p) returns
+//   2. Construct + register round-trip — register(p) returns
 //      idx; provenance_get(idx) returns equal arch / quant.
-//   3. **License predicates** — Apache-2.0 / MIT → commercial_ok 1;
+//   3. License predicates — Apache-2.0 / MIT → commercial_ok 1;
 //      "GPL-3.0-only" → commercial_ok 0.
-//   4. **arch_is / quant_is** — predicate matches the registered
+//   4. arch_is / quant_is — predicate matches the registered
 //      values.
 //
 // Expected: rc=0.

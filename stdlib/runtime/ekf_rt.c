@@ -25,7 +25,7 @@
 // Their Jacobians are computed by numerical finite differences
 // against the same callbacks (no analytical-Jacobian requirement).
 //
-// **Limitations** (UKF / particle filter for highly-nonlinear
+// Limitations (UKF / particle filter for highly-nonlinear
 // systems, square-root form for numerical stability, and analytical-
 // Jacobian fast paths land in v0.6 if needed):
 // - Standard EKF (no UKF / sigma-point variants).

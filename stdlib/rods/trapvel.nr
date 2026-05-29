@@ -25,7 +25,7 @@
 //                           f64_ptr(&svr[0]));
 //   // svr[0]=s, svr[1]=v, svr[2]=a
 //
-// **Limitations** (S-curve / 7-segment jerk-limited / asymmetric
+// Limitations (S-curve / 7-segment jerk-limited / asymmetric
 // accel-decel land in v0.6 if needed):
 // - Symmetric accel = decel (both = a_max).
 // - Discontinuous acceleration at phase transitions (jerk = inf).

@@ -3,7 +3,7 @@
 // 1991).
 //
 // Where `wbc.nr` solves a single weighted QP that gives all tasks
-// soft priorities, this rod processes tasks in **strict** priority
+// soft priorities, this rod processes tasks in strict priority
 // order: each subsequent task is constrained to the null space of
 // all higher-priority Jacobians. Lower-priority tasks can never
 // undo or compromise a higher-priority task — only refine within
@@ -42,7 +42,7 @@
 //   for i in 0..n_dof { let q = hwbc_get_qdot(h, i); ... }
 //   let res_post = hwbc_task_residual(h, id_post);  // diagnostics
 //
-// **Limitations** (constrained QP per task / box constraints / SVD-
+// Limitations (constrained QP per task / box constraints / SVD-
 // based null space land in v0.6 if needed):
 // - Damped pseudoinverse only; SVD-based truncation handles rank-
 //   deficient task stacks more robustly.

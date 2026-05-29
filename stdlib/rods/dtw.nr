@@ -26,7 +26,7 @@
 //   // Normalized by alignment path length (M + N − 1):
 //   let avg_b = dtw_distance_normalized(a_ptr, M, b_ptr, N, dim);
 //
-// **Limitations** (warping path backtrack / lower-bound functions /
+// Limitations (warping path backtrack / lower-bound functions /
 // soft-DTW land in v0.6 if needed):
 // - Distance only; no path backtrack.
 // - Euclidean point distance only.

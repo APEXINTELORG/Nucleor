@@ -23,7 +23,7 @@
 //   - Gesture / motion-template matching.
 //   - Demonstration matching for learning-from-demo.
 //
-// **Limitations** (full DTW path / lower-bound functions / soft-DTW
+// Limitations (full DTW path / lower-bound functions / soft-DTW
 // land in v0.6 if needed):
 // - Distance only; no path backtrack here (simplest API). Add a
 //   path variant later if needed for warping-curve visualization.

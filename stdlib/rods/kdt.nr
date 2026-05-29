@@ -41,7 +41,7 @@
 // Inserting after `kdt_build` invalidates the tree; call `kdt_build`
 // again before further queries.
 //
-// **Limitations** (incremental rebuild / R*-tree / approximate-NN
+// Limitations (incremental rebuild / R*-tree / approximate-NN
 // land in v0.6 if needed):
 // - Static tree: must rebuild after any insert.
 // - 3D only.

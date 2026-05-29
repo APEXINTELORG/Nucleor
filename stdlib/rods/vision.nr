@@ -23,7 +23,7 @@
 //   // image coords (x, y) and depth Z — needed by IBVS.
 //   cam_image_jacobian(x_b, y_b, Z_b, L_out_ptr);
 //
-// **Limitations**:
+// Limitations:
 // - Pinhole only — assumes pre-undistorted pixel coordinates.
 //   Real lens distortion (Brown-Conrady, fisheye) lands in v0.6
 //   if needed; typical camera drivers undistort upstream.

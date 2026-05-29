@@ -20,7 +20,7 @@
 // The second is useful for gravity compensation (cancel g(q) so
 // the user only commands desired-motion torques).
 //
-// **Limitations** (full Featherstone spatial-vector formulation
+// Limitations (full Featherstone spatial-vector formulation
 // lands in v0.6 if needed for big chains or deep recursion):
 // - Serial chain only (no branching trees — same restriction as
 //   the URDF parser).
@@ -970,7 +970,7 @@ long long nuc_dyn_cartesian_impedance_6d(long long h,
 // v0.2.215) controls task-space STIFFNESS / DAMPING; this entry
 // point controls task-space ACCELERATION.
 //
-// **Limitations** (full Khatib OSC with operational-space inertia
+// Limitations (full Khatib OSC with operational-space inertia
 // matrix `Λ = (J·M⁻¹·Jᵀ)⁻¹` and the J̇·qd correction lands in
 // v0.6 if needed). The current simplified form is what most
 // manipulator-software-stack OSC implementations actually ship.

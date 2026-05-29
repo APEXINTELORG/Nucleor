@@ -28,7 +28,7 @@
 // Node 0 is gauge-fixed (never moves) to break the global rigid-
 // motion ambiguity. All other nodes are optimization variables.
 //
-// **Limitations** (3D pose graphs / sparse Cholesky / robust
+// Limitations (3D pose graphs / sparse Cholesky / robust
 // kernels land in v0.6 if needed):
 // - 2D only.
 // - Dense linear solve via Gauss-Jordan: O(n³) per iter. Fine for

@@ -8,14 +8,14 @@
 // Locks four invariants Phase B compiler enforcement of TYP-008
 // wavelength-mismatch must NOT regress:
 //
-//   1. **Canonical wavelength bands** — telecom-O = 1310nm,
+//   1. Canonical wavelength bands — telecom-O = 1310nm,
 //      telecom-C = 1550nm, telecom-L = 1625nm; visible RGB =
 //      700/550/450 nm.
-//   2. **Wavelength compatibility** — same nm = 1; cross-band
+//   2. Wavelength compatibility — same nm = 1; cross-band
 //      = 0 (the core silent-miscompute guard).
-//   3. **Phase Q1.16 fixed-point** — phase_radians(2) → q1616
+//   3. Phase Q1.16 fixed-point — phase_radians(2) → q1616
 //      = 2 * 65536 = 131072.
-//   4. **CPU-fallback warning counter** — clear → count = 0;
+//   4. CPU-fallback warning counter — clear → count = 0;
 //      one matmul stub call → count > 0 (hardware-mode mirror
 //      ships in Phase B).
 //

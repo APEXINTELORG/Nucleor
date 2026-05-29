@@ -5,7 +5,7 @@
 // (k-nearest neighbors). The roadmap is a one-time investment;
 // every subsequent (start, goal) query reuses it via graph search.
 //
-// **Multi-query** advantage vs RRT (single-query): roadmap is built
+// Multi-query advantage vs RRT (single-query): roadmap is built
 // once. Use PRM when the same robot is doing many planning queries
 // in the same workspace; use RRT when the world changes between
 // queries.
@@ -15,7 +15,7 @@
 // handle (3 doubles malloc'd), the user fn returns 1 if collision-
 // free, 0 if in collision.
 //
-// **Query function** (v0.2.200) — once the roadmap is built, every
+// Query function (v0.2.200) — once the roadmap is built, every
 // `(start, goal)` query is two k-NN connections + Dijkstra. Reuses
 // the same roadmap; no rebuild needed between queries. Returns the
 // number of nodes on the resulting path (≥ 2 on success, 0 if no

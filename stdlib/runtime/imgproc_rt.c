@@ -22,7 +22,7 @@
 // range is preserved (modulo gradient operators which can produce
 // negative values).
 //
-// **Limitations** (color / multi-channel / FFT-based filters /
+// Limitations (color / multi-channel / FFT-based filters /
 // pyramids land in v0.6 if needed):
 // - Grayscale only. For color, call once per channel.
 // - Sobel operates on a 3×3 stencil — no Scharr or larger kernels.

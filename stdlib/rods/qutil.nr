@@ -33,7 +33,7 @@
 //   qutil_log(q_ptr, omega_ptr);     // rotation vector
 //   qutil_exp(omega_ptr, q_ptr);     // back to quaternion
 //
-// **Limitations** (rotation matrices / 9-DOF tangent splines /
+// Limitations (rotation matrices / 9-DOF tangent splines /
 // dual quaternions land in v0.6 if needed):
 // - Caller must allocate all input/output buffers (3 doubles for
 //   axis-angle / Euler, 4 doubles for quaternions).

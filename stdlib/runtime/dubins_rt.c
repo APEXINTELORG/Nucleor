@@ -13,7 +13,7 @@
 // straight segment. Returns the shortest total path length and
 // the type index (0..5).
 //
-// **Limitations** (path sampling / Reeds-Shepp (with reverse) /
+// Limitations (path sampling / Reeds-Shepp (with reverse) /
 // curvature-bounded smoothing land in v0.6 if needed):
 // - Forward-only (no reverse motion). For a car that can also
 //   reverse use Reeds-Shepp paths (planned for v0.6).

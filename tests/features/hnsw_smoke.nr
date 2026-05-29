@@ -9,11 +9,11 @@
 //
 // Locks four invariants:
 //
-//   1. **Empty index** — hnsw_size == 0 right after construction.
-//   2. **Insert tracks size** — 4 inserts → size 4.
-//   3. **Self-match search** — querying one of the inserted
+//   1. Empty index — hnsw_size == 0 right after construction.
+//   2. Insert tracks size — 4 inserts → size 4.
+//   3. Self-match search — querying one of the inserted
 //      vectors returns its own ID as the nearest result.
-//   4. **k=1 search returns 1 result** — vec_len(search result)
+//   4. k=1 search returns 1 result — vec_len(search result)
 //      matches the requested k.
 //
 // Expected: rc=0.

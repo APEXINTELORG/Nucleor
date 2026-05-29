@@ -4,15 +4,15 @@
 // Pre-v0.8.188: zero coverage.
 //
 // Locks four textbook D* invariants on a 5×5 grid:
-//   1. **Plan succeeds on open grid**: start (0,0) → goal (4,4)
+//   1. Plan succeeds on open grid: start (0,0) → goal (4,4)
 //      → plan returns 1 + non-empty path.
-//   2. **Path starts at goal end** (D* paths walk from start to
+//   2. Path starts at goal end (D* paths walk from start to
 //      goal; first/last cells correspond to those positions —
 //      most impls return path_x[0] = start, path_x[end] = goal).
-//   3. **Replan after obstacle update**: drop a wall in the middle
+//   3. Replan after obstacle update: drop a wall in the middle
 //      → replan succeeds and yields a different (possibly longer)
 //      path.
-//   4. **Unreachable goal**: enclose goal with full-row obstacles
+//   4. Unreachable goal: enclose goal with full-row obstacles
 //      → plan returns 0 (no path).
 //
 // Expected: rc=0.

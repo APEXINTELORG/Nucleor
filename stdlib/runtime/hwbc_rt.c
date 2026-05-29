@@ -3,7 +3,7 @@
 // 1991).
 //
 // Where `wbc.nr` solves a single weighted QP that gives all tasks
-// soft priorities, this rod processes tasks in **strict** priority
+// soft priorities, this rod processes tasks in strict priority
 // order: each subsequent task is constrained to the null space of
 // all higher-priority Jacobians, so it can never undo or compromise
 // a higher-priority task — only refine within the residual freedom.
@@ -26,7 +26,7 @@
 // simpler and converges faster, and weighted QPs handle near-
 // singular task stacks more gracefully.
 //
-// **Limitations** (constrained QP per task / box constraints / SVD-
+// Limitations (constrained QP per task / box constraints / SVD-
 // based null-space land in v0.6 if needed):
 // - Numerical-FD-free closed form. The damped pseudoinverse is the
 //   simplest stable variant; SVD-based truncation handles rank-

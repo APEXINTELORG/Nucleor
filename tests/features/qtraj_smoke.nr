@@ -5,10 +5,10 @@
 //
 // Locks four lifecycle invariants on a 2-segment trajectory
 // (3 waypoints):
-//   1. **Construction** with n_seg=2 → handle, n_segments=2.
-//   2. **total_time** == sum of segment times (1+1=2).
-//   3. **Solve returns success**: 1 on valid input.
-//   4. **Boundary at t=0**: `evaluate_total(deriv=0, t=0)` ==
+//   1. Construction with n_seg=2 → handle, n_segments=2.
+//   2. total_time == sum of segment times (1+1=2).
+//   3. Solve returns success: 1 on valid input.
+//   4. Boundary at t=0: `evaluate_total(deriv=0, t=0)` ==
 //      first waypoint.
 //
 // Expected: rc=0.

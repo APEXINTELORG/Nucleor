@@ -6,10 +6,10 @@
 //
 // Locks four textbook special-function fixed points:
 //
-//   1. **erf(0) == 0** — odd function through origin.
-//   2. **erfc(0) == 1** — erfc(x) = 1 - erf(x).
-//   3. **gamma(5) == 24** — Γ(n) = (n-1)! for integer n; 4! = 24.
-//   4. **norm_cdf(0) == 0.5** — standard normal at zero.
+//   1. erf(0) == 0 — odd function through origin.
+//   2. erfc(0) == 1 — erfc(x) = 1 - erf(x).
+//   3. gamma(5) == 24 — Γ(n) = (n-1)! for integer n; 4! = 24.
+//   4. norm_cdf(0) == 0.5 — standard normal at zero.
 //
 // Expected: rc=0.
 

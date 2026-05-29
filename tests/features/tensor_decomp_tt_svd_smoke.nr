@@ -10,7 +10,7 @@
 //
 // Same arity-drift family as v0.8.45 ML-1, v0.8.252 kv_cache,
 // v0.8.254 transformer, v0.8.255 bayesian, v0.8.256 quantize,
-// v0.8.257 sparse. Surfaced by parallel-agent TRACK A
+// v0.8.257 sparse. Surfaced by TRACK A
 // `extern_arity_drift_tensor_decomp_2026-05-05`.
 //
 // Fix (Plan B, non-breaking):
@@ -24,9 +24,9 @@
 //   `tdecomp_tt_svd_3d_max_rank` (5-arg).
 //
 // Locks invariants on a 2×2×2 tensor:
-//   1. **6-arg returns non-zero handle with non-trivial body** —
+//   1. 6-arg returns non-zero handle with non-trivial body —
 //      header (6 longs) + at least one core element.
-//   2. **6-arg with r1=r2=2 matches 5-arg max_rank=2** — same len.
+//   2. 6-arg with r1=r2=2 matches 5-arg max_rank=2 — same len.
 //
 // Expected: rc=0.
 

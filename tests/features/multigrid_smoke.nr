@@ -10,13 +10,13 @@
 //
 // Locks four invariants:
 //
-//   1. **Residual of zero u + zero f == 0** — Laplacian(0) = 0
+//   1. Residual of zero u + zero f == 0 — Laplacian(0) = 0
 //      with f = 0 gives r = 0 everywhere (sanity gate).
-//   2. **Solver completes** — mg_solve_2d returns success flag
+//   2. Solver completes — mg_solve_2d returns success flag
 //      (0.0 bitcast) without crashing.
-//   3. **Solve preserves zero state** — solving with f = 0
+//   3. Solve preserves zero state — solving with f = 0
 //      starting at u = 0 leaves u all-zero.
-//   4. **Residual after solve is small** — post-solve residual
+//   4. Residual after solve is small — post-solve residual
 //      norm ≤ tol on the trivial problem.
 //
 // Expected: rc=0.

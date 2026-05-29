@@ -11,7 +11,7 @@
 //   2. Zero error → zero output: setpoint == measurement, fresh
 //      controller (no accumulated integral, no prior derivative)
 //      → output ≈ 0.
-//   3. **Reset clears integral**: a saturated integral does not
+//   3. Reset clears integral: a saturated integral does not
 //      survive `pid_reset`. After reset, zero-error update
 //      returns ≈ 0 even if integral was previously wound up.
 //

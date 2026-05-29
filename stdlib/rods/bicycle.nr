@@ -30,7 +30,7 @@
 //                              wheelbase_b, dt_b,
 //                              out_ptr);
 //
-// **Limitations** (full dynamic bicycle with tire slip / Pacejka
+// Limitations (full dynamic bicycle with tire slip / Pacejka
 // model land in v0.6 if needed):
 // - Kinematic only — assumes no wheel slip (low-speed regime).
 // - Caller must clamp `δ` to vehicle limits.

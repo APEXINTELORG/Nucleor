@@ -8,13 +8,13 @@
 // `ssm_discretize_zoh`. The other four ops (selective_scan,
 // SSD, RWKV, xLSTM) need careful tensor setup; deferred.
 //
-//   1. **Output length is 2*N** — Ab and Bb packed in a single
+//   1. Output length is 2*N — Ab and Bb packed in a single
 //      Vec.
-//   2. **Ab[i] = exp(dt * A[i])** — for diagonal A=[-1, -2],
+//   2. Ab[i] = exp(dt * A[i]) — for diagonal A=[-1, -2],
 //      dt=1: Ab = [exp(-1), exp(-2)].
-//   3. **A=0 fallback uses Bb = dt * B** — for A=[0, 0],
+//   3. A=0 fallback uses Bb = dt * B — for A=[0, 0],
 //      B=[1, 2], dt=0.5: Bb = [0.5, 1.0].
-//   4. **A=0 fallback gives Ab = 1** — exp(0) = 1.
+//   4. A=0 fallback gives Ab = 1 — exp(0) = 1.
 //
 // Expected: rc=0.
 

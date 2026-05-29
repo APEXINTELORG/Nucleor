@@ -20,7 +20,7 @@
 // - Object pose estimation against a CAD-model point cloud.
 // - SLAM scan-matching front-end.
 //
-// **Limitations** (KD-tree nearest-neighbor + outlier rejection
+// Limitations (KD-tree nearest-neighbor + outlier rejection
 // land in v0.6 if needed for big point clouds):
 // - Brute-force nearest neighbor: O(N_src · N_tgt) per iteration.
 //   Fine for clouds ≤ 1000 points; for full LiDAR scans, use

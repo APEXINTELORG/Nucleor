@@ -245,7 +245,7 @@ fn dmp_multi_free(h: i64) { nuc_dmp_multi_free(h); }
 //   5. topp_solve(h)                            — run forward+backward
 //   6. read total_time / per-waypoint time / path velocity
 //
-// **Limitations** (full TOPP-RA via convex optimization on a per-
+// Limitations (full TOPP-RA via convex optimization on a per-
 // step basis lands in v0.6 if needed):
 // - Only piecewise-linear paths. Sample splines first.
 // - Symmetric box bounds only.

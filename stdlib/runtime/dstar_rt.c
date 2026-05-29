@@ -34,7 +34,7 @@
 //      Cost of replan ∝ number of cells whose neighborhood was
 //      perturbed — typically a small fraction of the grid.
 //
-// **Limitations** (any-angle planning / 3-D / continuous costs land
+// Limitations (any-angle planning / 3-D / continuous costs land
 // in v0.6 if needed):
 // - 8-connected grid only.
 // - Per-cell traversal cost (uniform across all 8 incident edges

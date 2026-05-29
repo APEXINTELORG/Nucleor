@@ -6,12 +6,12 @@
 //
 // Locks four textbook 3-D-math invariants:
 //
-//   1. **Vec3 component round-trip** — vec3_f64(1,2,3) → x=1, y=2, z=3.
-//   2. **Cross product orthogonality** — x̂ × ŷ = ẑ
+//   1. Vec3 component round-trip — vec3_f64(1,2,3) → x=1, y=2, z=3.
+//   2. Cross product orthogonality — x̂ × ŷ = ẑ
 //      (1,0,0) × (0,1,0) = (0,0,1).
-//   3. **Quaternion identity rotation** — quat_identity rotates
+//   3. Quaternion identity rotation — quat_identity rotates
 //      any vector to itself.
-//   4. **Pose-identity is identity** — pose_identity_apply(v) == v.
+//   4. Pose-identity is identity — pose_identity_apply(v) == v.
 //
 // Expected: rc=0.
 

@@ -11,10 +11,10 @@
 //
 // Locks four invariants:
 //
-//   1. **wbc_new returns valid handle** — non-zero.
-//   2. **Empty-task solve succeeds** — solve returns 1.
-//   3. **Empty-task qdot is zero** for every joint.
-//   4. **clear_tasks then re-solve still gives zero** —
+//   1. wbc_new returns valid handle — non-zero.
+//   2. Empty-task solve succeeds — solve returns 1.
+//   3. Empty-task qdot is zero for every joint.
+//   4. clear_tasks then re-solve still gives zero —
 //      idempotent zero forcing.
 //
 // Expected: rc=0.

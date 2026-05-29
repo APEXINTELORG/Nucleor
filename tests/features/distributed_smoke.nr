@@ -7,14 +7,14 @@
 // Locks four lifecycle/encoding invariants that real Phase B
 // dispatch must NOT regress:
 //
-//   1. **Init + topology query**: distributed_init(0, 1) →
+//   1. Init + topology query: distributed_init(0, 1) →
 //      rank == 0, world_size == 1.
-//   2. **Collectives are identity on world=1**: all_reduce
+//   2. Collectives are identity on world=1: all_reduce
 //      and broadcast return the input handle unchanged.
-//   3. **call_count tracks barrier ops**: every collective
+//   3. call_count tracks barrier ops: every collective
 //      bumps the counter (verifies the rod surface routes
 //      through the runtime).
-//   4. **ShardSpec encoding round-trip**: shard_spec_shard(2)
+//   4. ShardSpec encoding round-trip: shard_spec_shard(2)
 //      → kind == 2, param == 2 (axis preserved).
 //
 // Expected: rc=0.

@@ -11,12 +11,12 @@
 //
 // Locks four invariants:
 //
-//   1. **pq_train returns valid handle** — non-zero.
-//   2. **Encoded code Vec has length M** — one cluster index
+//   1. pq_train returns valid handle — non-zero.
+//   2. Encoded code Vec has length M — one cluster index
 //      per subspace.
-//   3. **Same-cluster vectors get same codes** — vectors 0 and
+//   3. Same-cluster vectors get same codes — vectors 0 and
 //      1 are identical; their PQ codes match.
-//   4. **Different-cluster vectors get different codes** — at
+//   4. Different-cluster vectors get different codes — at
 //      least one of the M subspaces splits cluster A vs B.
 //
 // Distance table / ADC / search use raw arrays in the codebook

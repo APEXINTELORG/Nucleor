@@ -5,11 +5,11 @@
 //
 // Locks four lifecycle invariants on a 16×16 grid at dx=1mm,
 // dt=1ps:
-//   1. **Construction** returns valid handle.
-//   2. **Initial fields zero**: Ez/Hx/Hy at any cell == 0
+//   1. Construction returns valid handle.
+//   2. Initial fields zero: Ez/Hx/Hy at any cell == 0
 //      pre-step.
-//   3. **Initial energy zero**: em_energy == 0 with no source.
-//   4. **Source + step yields non-zero field**: place a source
+//   3. Initial energy zero: em_energy == 0 with no source.
+//   4. Source + step yields non-zero field: place a source
 //      at (8, 8), step once, Ez at source location is non-zero.
 //
 // Expected: rc=0.

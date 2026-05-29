@@ -24,7 +24,7 @@
 // (n_x ≤ 16, n_u ≤ 8), the FD overhead is dominated by the
 // per-iteration backward-pass linear algebra.
 //
-// **Limitations** (analytical gradients via the user-supplied
+// Limitations (analytical gradients via the user-supplied
 // "linearized dynamics" callback land in v0.6 if needed for
 // performance-critical use cases):
 // - Numerical FD for everything (slower than user-supplied

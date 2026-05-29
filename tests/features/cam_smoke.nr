@@ -7,13 +7,13 @@
 // /set_pose all use raw double-array pointers; deferred to
 // dedicated CV ships.
 //
-//   1. **cam_new returns valid handle** — non-zero for reasonable
+//   1. cam_new returns valid handle — non-zero for reasonable
 //      intrinsics.
-//   2. **set_distortion does not crash** — zero distortion (k1=
+//   2. set_distortion does not crash — zero distortion (k1=
 //      k2=k3=p1=p2=0) is the no-op identity case.
-//   3. **set_distortion with non-zero coeffs does not crash** —
+//   3. set_distortion with non-zero coeffs does not crash —
 //      typical Brown-Conrady values.
-//   4. **cam_free does not crash** on a freshly constructed
+//   4. cam_free does not crash on a freshly constructed
 //      handle.
 //
 // Heavier tests (project / unproject round-trip) require raw

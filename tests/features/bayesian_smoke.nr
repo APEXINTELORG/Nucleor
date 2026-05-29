@@ -2,7 +2,7 @@
 //
 // MCMC Bayesian inference. Pre-v0.8.255: zero coverage AND broken ABI.
 //
-// **Drift fix.** Pre-v0.8.255 the rod declared 4-arg
+// Drift fix. Pre-v0.8.255 the rod declared 4-arg
 // `bayes_mcmc_scalar(log_post, x0, n_steps, step_size)` but the C
 // runtime took 5: `(log_post, x0, proposal_std, n_samples, burnin)`.
 // The mismatch was doubly broken — even the matching-arity slots
@@ -10,7 +10,7 @@
 // `proposal_std_bits` f64; rod's `step_size` f64-bits was read as
 // C's `n_samples` integer). Every MCMC call silently miscomputed.
 // Same bug class as v0.8.45 ML-1, v0.8.252 kv_cache, v0.8.254
-// transformer. Surfaced by parallel-agent TRACK A
+// transformer. Surfaced by TRACK A
 // `extern_arity_drift_bayesian_2026-05-05`.
 //
 // Fix: rod ABI corrected to match C exactly — 5-arg
@@ -23,10 +23,10 @@
 // itself requires a function-pointer log-posterior, deferred to
 // follow-up coverage):
 //
-//   1. **Lifecycle** — `bayes_seed(42)` does not crash.
-//   2. **chain_mean** — mean of [1,2,3,4] = 2.5.
-//   3. **chain_std** — population std of [1,2,3,4] ≈ sqrt(1.25) ≈ 1.1180.
-//   4. **acceptance_rate** — all-distinct chain → 1.0; all-equal chain → 0.0.
+//   1. Lifecycle — `bayes_seed(42)` does not crash.
+//   2. chain_mean — mean of [1,2,3,4] = 2.5.
+//   3. chain_std — population std of [1,2,3,4] ≈ sqrt(1.25) ≈ 1.1180.
+//   4. acceptance_rate — all-distinct chain → 1.0; all-equal chain → 0.0.
 //
 // Expected: rc=0.
 

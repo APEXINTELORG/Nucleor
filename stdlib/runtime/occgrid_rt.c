@@ -18,7 +18,7 @@
 //   - Free-space planning (treat cells with `p > 0.5` as obstacles).
 //   - Frontier exploration (boundary between known free and unknown).
 //
-// **Limitations** (3D voxel grid / probabilistic forward sensor
+// Limitations (3D voxel grid / probabilistic forward sensor
 // model / Bayesian downsampling land in v0.6 if needed):
 // - 2D only (use `octree.nr` for 3D occupancy).
 // - Bresenham raycasting (axis-aligned discretization). For sub-

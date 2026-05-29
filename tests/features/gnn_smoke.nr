@@ -6,9 +6,9 @@
 // utility paths.
 //
 // Locks two textbook utility invariants:
-//   1. **ReLU positive pass-through, negative zero**:
+//   1. ReLU positive pass-through, negative zero:
 //      relu([1, -1, 2, -3]) == [1, 0, 2, 0].
-//   2. **LayerNorm zero-mean unit-variance**: layer_norm of a
+//   2. LayerNorm zero-mean unit-variance: layer_norm of a
 //      sequence has approximately zero mean and unit variance
 //      (within tolerance).
 //

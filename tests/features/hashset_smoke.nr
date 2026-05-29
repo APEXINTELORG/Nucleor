@@ -5,12 +5,12 @@
 //
 // Locks four set-semantics invariants:
 //
-//   1. **Empty set** — hss_new() → len 0, is_empty 1.
-//   2. **Insert tracks contains** — insert "alpha", contains
+//   1. Empty set — hss_new() → len 0, is_empty 1.
+//   2. Insert tracks contains — insert "alpha", contains
 //      returns 1; non-inserted "beta" returns 0.
-//   3. **Duplicate insert is no-op** — inserting "x" twice
+//   3. Duplicate insert is no-op — inserting "x" twice
 //      leaves len == 1 (set semantics).
-//   4. **Remove flips contains** — insert+remove → contains 0.
+//   4. Remove flips contains — insert+remove → contains 0.
 //
 // Expected: rc=0.
 

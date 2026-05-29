@@ -21,13 +21,13 @@
 // the predicates against the surface adopters can actually call.
 //
 // Locks 6 invariants:
-//   1. **Real (3D) tensor reports dtype `"i64"`**.
-//   2. **Invalid handle (0) reports dtype `"invalid"`**.
-//   3. **`tensor_can_matmul_2d` rejects two 3D tensors** (both ndim=3, not 2).
-//   4. **`tensor_can_matmul_2d` rejects null handle**.
+//   1. Real (3D) tensor reports dtype `"i64"`.
+//   2. Invalid handle (0) reports dtype `"invalid"`.
+//   3. `tensor_can_matmul_2d` rejects two 3D tensors (both ndim=3, not 2).
+//   4. `tensor_can_matmul_2d` rejects null handle.
 //   5. **`tensor_shape_eq` accepts two same-shape 3D tensors and
 //      rejects two different-shape 3D tensors**.
-//   6. **`tensor_limitations` names DTYPE + SHAPE**.
+//   6. `tensor_limitations` names DTYPE + SHAPE.
 //
 // Expected: rc=0.
 

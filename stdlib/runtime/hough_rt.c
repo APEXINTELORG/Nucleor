@@ -18,7 +18,7 @@
 //   - Structured-environment SLAM front-end.
 //   - Extraction of dominant lines from a 2-D feature map.
 //
-// **Limitations** (probabilistic Hough / circle-Hough / sub-pixel
+// Limitations (probabilistic Hough / circle-Hough / sub-pixel
 // peak refinement land in v0.6 if needed):
 // - Each point contributes 1 vote per θ-bin (no edge-strength
 //   weighting). For weighted voting, replicate input points by

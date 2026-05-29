@@ -23,7 +23,7 @@
 //   let _ = cubicspline_sample(xs_ptr, ys_ptr, y2_ptr, N,
 //                                x_b, f64_ptr(&y));
 //
-// **Limitations** (clamped / not-a-knot / monotone Hermite
+// Limitations (clamped / not-a-knot / monotone Hermite
 // boundary conditions land in v0.6 if needed):
 // - "Natural" boundary only (y'' = 0 at both endpoints → tangent
 //   line at edges).

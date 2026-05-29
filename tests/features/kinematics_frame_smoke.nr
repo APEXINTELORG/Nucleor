@@ -10,12 +10,12 @@
 // Locks four invariants Phase B compiler enforcement must NOT
 // regress:
 //
-//   1. **Stable IDs** — world=0, base=1, camera=2, lidar=3,
+//   1. Stable IDs — world=0, base=1, camera=2, lidar=3,
 //      imu=4, gripper=5, map=6, odom=7, unknown=-1.
-//   2. **Compatibility same** — frame_compatible(camera, camera) = 1.
-//   3. **Compatibility unknown** — unknown side is always
+//   2. Compatibility same — frame_compatible(camera, camera) = 1.
+//   3. Compatibility unknown — unknown side is always
 //      compatible (both directions).
-//   4. **Compatibility cross-frame fails** — camera vs base = 0
+//   4. Compatibility cross-frame fails — camera vs base = 0
 //      (the core silent-miscompute guard).
 //
 // Expected: rc=0.

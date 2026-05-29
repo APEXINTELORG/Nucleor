@@ -10,11 +10,11 @@
 // that the integrator initializes, accepts initial-condition
 // setters, and tracks step count + time.
 //
-//   1. **Init returns success**: tm_init(N=8, order=3) → 1.
-//   2. **Initial state**: tm_get_steps() == 0, tm_get_time() ≈ 0.
-//   3. **Setters**: set_nu, set_omega, set_theta complete without
+//   1. Init returns success: tm_init(N=8, order=3) → 1.
+//   2. Initial state: tm_get_steps() == 0, tm_get_time() ≈ 0.
+//   3. Setters: set_nu, set_omega, set_theta complete without
 //      faulting (no return code; lock by absence of crash).
-//   4. **Step advances**: a single tm_step advances steps to 1.
+//   4. Step advances: a single tm_step advances steps to 1.
 //
 // Expected: rc=0.
 

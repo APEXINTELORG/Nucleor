@@ -5,10 +5,10 @@
 //
 // Locks three lifecycle invariants on a perfectly linear
 // dataset y = 2x:
-//   1. **Matrix accessors round-trip**: mat_set + mat_get
+//   1. Matrix accessors round-trip: mat_set + mat_get
 //      preserve f64-bit values.
-//   2. **Train returns valid model**: non-zero handle.
-//   3. **Predict produces finite output** (no NaN/inf) — exact
+//   2. Train returns valid model: non-zero handle.
+//   3. Predict produces finite output (no NaN/inf) — exact
 //      convergence to the f(x)=2x analytic solution depends
 //      heavily on lambda/lr/epochs choice and is out of scope
 //      for a smoke test.

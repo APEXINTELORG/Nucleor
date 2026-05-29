@@ -9,13 +9,13 @@
 //
 // Locks four invariants:
 //
-//   1. **Top-K winner is the largest logit** — token 0 picks
+//   1. Top-K winner is the largest logit — token 0 picks
 //      expert 0 first; token 1 picks expert 1 first.
-//   2. **Dominant-winner weight ≈ 1 per token** — for logits
+//   2. Dominant-winner weight ≈ 1 per token — for logits
 //      [10,0,0] expert 0 wins by 22000:1; after K=2 renormalize
 //      its weight is ≈ 1.
-//   3. **Indices are within [0, n_experts)** — no garbage IDs.
-//   4. **Balance tracker non-zero CV after uneven dispatch** —
+//   3. Indices are within [0, n_experts) — no garbage IDs.
+//   4. Balance tracker non-zero CV after uneven dispatch —
 //      moe_balance_update on indices [0,0,1,1] (skewed) gives
 //      non-zero load CV (vs. n_experts=3 uniform).
 //

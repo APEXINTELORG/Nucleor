@@ -24,7 +24,7 @@
 //   - Camera trajectories.
 //   - Smooth interpolation through waypoints with local control.
 //
-// **Limitations** (Catmull-Rom variants with arbitrary tangent
+// Limitations (Catmull-Rom variants with arbitrary tangent
 // scales / arc-length reparameterization land in v0.6 if needed):
 // - Requires N ≥ 4 control points (segment between i+1 and i+2
 //   needs neighbors i and i+3).

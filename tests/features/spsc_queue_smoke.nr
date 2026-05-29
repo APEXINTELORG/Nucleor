@@ -7,11 +7,11 @@
 // payload (single-threaded — concurrent semantics are out of
 // smoke scope; here we lock the contract on a fresh queue):
 //
-//   1. **Empty pop** returns None.
-//   2. **Push then pop** returns the pushed value via Some.
-//   3. **FIFO ordering** — push 1, 2, 3 → pop returns Some(1),
+//   1. Empty pop returns None.
+//   2. Push then pop returns the pushed value via Some.
+//   3. FIFO ordering — push 1, 2, 3 → pop returns Some(1),
 //      Some(2), Some(3).
-//   4. **Capacity guard** — push beyond capacity returns false;
+//   4. Capacity guard — push beyond capacity returns false;
 //      a pop frees a slot allowing a subsequent push.
 //
 // Expected: rc=0.

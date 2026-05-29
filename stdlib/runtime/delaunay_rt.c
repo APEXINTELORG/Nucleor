@@ -31,7 +31,7 @@
 //   - Triangle-mesh generation for FEM.
 //   - Natural-neighbor interpolation.
 //
-// **Limitations** (full sweep-line / 3-D Delaunay / robust
+// Limitations (full sweep-line / 3-D Delaunay / robust
 // predicates land in v0.6 if needed):
 // - 2-D only.
 // - Naive O(N²) incremental insertion (no spatial index for

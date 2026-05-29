@@ -13,13 +13,13 @@
 //   - limitations text names the 4 known gaps.
 //
 // Locks 7 invariants:
-//   1. **`q4_encode` shipped** — supported = 1.
-//   2. **`int8_gemv` shipped** — supported = 1.
-//   3. **`fp8_encode` shipped** — supported = 1.
-//   4. **`fp8_gemv` NOT shipped** — supported = 0.
-//   5. **`fp8_decode` NOT shipped** — supported = 0.
-//   6. **`grouped_gemv` NOT shipped** — supported = 0.
-//   7. **Limitations names "FP8" and "GROUPED"** so adopters know
+//   1. `q4_encode` shipped — supported = 1.
+//   2. `int8_gemv` shipped — supported = 1.
+//   3. `fp8_encode` shipped — supported = 1.
+//   4. `fp8_gemv` NOT shipped — supported = 0.
+//   5. `fp8_decode` NOT shipped — supported = 0.
+//   6. `grouped_gemv` NOT shipped — supported = 0.
+//   7. Limitations names "FP8" and "GROUPED" so adopters know
 //      the two biggest gaps at a glance.
 //
 // Expected: rc=0.

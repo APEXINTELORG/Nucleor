@@ -21,7 +21,7 @@
 //   - CAD-model registration when you have surface normals.
 //   - Scan-matching on a surfel map.
 //
-// **Limitations** (KD-tree NN / symmetric plane-to-plane metric /
+// Limitations (KD-tree NN / symmetric plane-to-plane metric /
 // robust kernel land in v0.6 if needed):
 // - Brute-force nearest neighbour O(N_src · N_tgt) per iteration.
 // - Target normals must be provided by the caller (compute them

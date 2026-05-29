@@ -27,7 +27,7 @@
 //     Procrustes: closed-form 2D rigid transform from matched pairs
 //     compose new transform with old; check convergence
 //
-// **Limitations** (point-to-line ICP / KD-tree NN / outlier
+// Limitations (point-to-line ICP / KD-tree NN / outlier
 // rejection land in v0.6 if needed):
 // - Brute-force NN: `O(N_src · N_dst)` per iter.
 // - No outlier rejection — every src point gets a match.

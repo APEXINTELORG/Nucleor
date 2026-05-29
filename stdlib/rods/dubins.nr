@@ -36,7 +36,7 @@
 // Returns `-1.0` (as bit-cast f64) on infeasible (zero R or no
 // valid type — should not happen for positive R and reachable goals).
 //
-// **Limitations** (path sampling / Reeds-Shepp with reverse /
+// Limitations (path sampling / Reeds-Shepp with reverse /
 // curvature-bounded smoothing land in v0.6 if needed):
 // - Forward-only (no reverse motion). Use Reeds-Shepp for reverse.
 // - Returns lengths and segment parameters; does not sample the

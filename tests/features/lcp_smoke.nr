@@ -7,12 +7,12 @@
 // Locks four 1-D LCP invariants — the n=1 case admits closed-form
 // solutions that PGS must reach exactly:
 //
-//   1. **Construction** — lcp_pgs_new(n) returns non-zero handle.
-//   2. **Interior solution** — M=1, q=-2, λ ∈ [0, ∞):
+//   1. Construction — lcp_pgs_new(n) returns non-zero handle.
+//   2. Interior solution — M=1, q=-2, λ ∈ [0, ∞):
 //      w = 1·λ + (-2) = 0 at λ=2, all in interior → λ=2.
-//   3. **Clamped at lower bound** — M=1, q=5, λ ∈ [0, ∞):
+//   3. Clamped at lower bound — M=1, q=5, λ ∈ [0, ∞):
 //      w(λ=0) = 5 ≥ 0 satisfies complementarity at lo → λ=0.
-//   4. **Solver does iterations** — non-trivial solve returns
+//   4. Solver does iterations — non-trivial solve returns
 //      iters > 0 (proves PGS loop is exercised, not no-op).
 //
 // Expected: rc=0.

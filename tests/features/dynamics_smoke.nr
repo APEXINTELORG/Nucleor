@@ -10,13 +10,13 @@
 // friction, motor inertia, gravity). dyn_new requires the
 // FK chain to have at least one joint registered (n_links > 0).
 //
-//   1. **dyn_new returns valid handle** — wraps a fresh
+//   1. dyn_new returns valid handle — wraps a fresh
 //      fk_chain that has joints.
-//   2. **set_link_mass + set_link_com per index** — exercises
+//   2. set_link_mass + set_link_com per index — exercises
 //      the scalar per-link setters.
-//   3. **set_link_inertia per index** — exercises 6-arg
+//   3. set_link_inertia per index — exercises 6-arg
 //      symmetric inertia tensor setter.
-//   4. **set_gravity does not crash** — typical Earth gravity
+//   4. set_gravity does not crash — typical Earth gravity
 //      (0, 0, -9.81).
 //
 // Expected: rc=0.

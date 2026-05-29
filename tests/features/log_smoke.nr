@@ -10,12 +10,12 @@
 // "level under threshold returns without printing" via the
 // store API instead of via stdout capture.
 //
-//   1. **Stable level constants** — DEBUG=0, INFO=1, WARN=2,
+//   1. Stable level constants — DEBUG=0, INFO=1, WARN=2,
 //      ERROR=3, FATAL=4 (wire stability).
-//   2. **Default store level == INFO** — log_level_store()
+//   2. Default store level == INFO — log_level_store()
 //      ships at 1 so DEBUG is filtered by default.
-//   3. **set/get round-trip** — set_level(WARN), get_level == WARN.
-//   4. **Last-write-wins** — set_level called twice; only the
+//   3. set/get round-trip — set_level(WARN), get_level == WARN.
+//   4. Last-write-wins — set_level called twice; only the
 //      second value is observed.
 //
 // Expected: rc=0.

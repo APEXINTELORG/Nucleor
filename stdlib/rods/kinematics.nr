@@ -8,7 +8,7 @@
 // All values are heap-allocated (handles are i64). Caller frees
 // with the matching `*_free` when done.
 //
-// **Frame tagging** — RFC-0003 (typed coordinate frames) calls
+// Frame tagging — RFC-0003 (typed coordinate frames) calls
 // for `Pose<F: Frame>` with compile-time frame correctness. The
 // generic version ships in v0.4 once Nucleor has generics
 // (RFC-0024). v0.2 ships the underlying math here so the

@@ -25,7 +25,7 @@
 //     builds the field from a list of circular obstacles
 //     (`centers_ptr` is `double[n][2]`, `radii_ptr` is `double[n]`).
 //
-// **Limitations** (3D / Eikonal sweep / fast-marching land in v0.6
+// Limitations (3D / Eikonal sweep / fast-marching land in v0.6
 // if needed):
 // - 2D only.
 // - `compute_from_circles` is the only built-in "field-from-shapes"

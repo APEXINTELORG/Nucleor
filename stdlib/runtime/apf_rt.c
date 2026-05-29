@@ -17,7 +17,7 @@
 // with local minima (concave obstacles, narrow passages between
 // obstacles). For those, use DWA or a planner.
 //
-// **Limitations** (Vector Field Histogram, Navigation Functions
+// Limitations (Vector Field Histogram, Navigation Functions
 // land in v0.6 if needed for narrow-passage / local-minimum
 // scenarios):
 // - 2D only (3D extension is straightforward — change every

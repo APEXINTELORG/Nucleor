@@ -5,12 +5,12 @@
 // Cartesian waypoints. Pre-v0.8.161: zero coverage.
 //
 // Locks four textbook spline invariants:
-//   1. **Interpolation**: spline passes through every supplied
+//   1. Interpolation: spline passes through every supplied
 //      waypoint exactly. eval(s, x_k) == y_k.
-//   2. **Linear data → linear spline**: 3 collinear points (y=2x)
+//   2. Linear data → linear spline: 3 collinear points (y=2x)
 //      produce a spline with derivative ≈ 2 anywhere.
-//   3. **Natural BC**: second derivative at boundary x_0 ≈ 0.
-//   4. **Strict-monotonic-x guard**: solve returns 0 (failure) if
+//   3. Natural BC: second derivative at boundary x_0 ≈ 0.
+//   4. Strict-monotonic-x guard: solve returns 0 (failure) if
 //      x is not strictly increasing.
 //
 // Expected: rc=0.

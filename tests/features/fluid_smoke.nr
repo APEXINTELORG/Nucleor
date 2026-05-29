@@ -5,12 +5,12 @@
 //
 // Locks four lifecycle invariants on a 32×32 LBM grid:
 //
-//   1. **Construction** returns valid handle.
-//   2. **Initial density ≈ 1.0**: D2Q9 default density at any
+//   1. Construction returns valid handle.
+//   2. Initial density ≈ 1.0: D2Q9 default density at any
 //      free cell is the equilibrium ρ=1.0.
-//   3. **Initial velocity zero**: vx, vy at any cell == 0
+//   3. Initial velocity zero: vx, vy at any cell == 0
 //      (no flow until inlet is set + steps run).
-//   4. **Inlet + steps drives flow**: set inlet 0.1, run 5 steps,
+//   4. Inlet + steps drives flow: set inlet 0.1, run 5 steps,
 //      vorticity field is computable (returns finite value).
 //
 // Expected: rc=0.

@@ -6,11 +6,11 @@
 //
 // Locks four textbook calculus invariants:
 //
-//   1. **Forward value of x*y at (2,3) == 6** — multiplicative
+//   1. Forward value of x*y at (2,3) == 6 — multiplicative
 //      forward pass.
-//   2. **d/dx(x²) at x=3 == 6** — power rule (computed via x*x).
-//   3. **d/dx(sin(x)) at x=0 == 1** — cos(0) = 1.
-//   4. **d/dx(x+y) at any point == 1** — sum rule.
+//   2. d/dx(x²) at x=3 == 6 — power rule (computed via x*x).
+//   3. d/dx(sin(x)) at x=0 == 1 — cos(0) = 1.
+//   4. d/dx(x+y) at any point == 1 — sum rule.
 //
 // Each test calls ad_reset() first to clear the tape.
 //

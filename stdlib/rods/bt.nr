@@ -4,7 +4,7 @@
 // (Colledanchise & Ögren 2018). A tree of composite + decorator +
 // leaf nodes ticked from the root each control cycle.
 //
-// **Composite nodes:**
+// Composite nodes:
 //   SEQUENCE  — children in order; FAIL on first failure, SUCCESS
 //               only when all succeed.
 //   SELECTOR  — children in order; SUCCESS on first success, FAIL
@@ -12,10 +12,10 @@
 //   PARALLEL  — tick all; SUCCESS when k of n succeed, FAIL when
 //               n - k + 1 fail.
 //
-// **Decorators:**
+// Decorators:
 //   INVERTER  — flips SUCCESS ↔ FAILURE of single child.
 //
-// **Leaves (user-supplied callbacks):**
+// Leaves (user-supplied callbacks):
 //   ACTION    — returns SUCCESS / FAILURE / RUNNING.
 //   CONDITION — returns SUCCESS / FAILURE.
 //
@@ -37,7 +37,7 @@
 //
 //   bt_free(bt);
 //
-// **Limitations** (blackboard-style data sharing between nodes
+// Limitations (blackboard-style data sharing between nodes
 // + dynamic tree restructuring land in v0.6 if needed):
 // - No blackboard; user passes shared state via the `ctx` pointer.
 // - Static tree — built once, ticked many times.

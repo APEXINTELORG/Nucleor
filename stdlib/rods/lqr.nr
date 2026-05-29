@@ -48,7 +48,7 @@
 //
 //   lqr_free(h);
 //
-// **Limitations** (continuous-time CARE / output-feedback LQR /
+// Limitations (continuous-time CARE / output-feedback LQR /
 // time-varying LQR land in v0.6 if needed):
 // - Discrete time only.
 // - State-feedback only (full-state measurement assumed).

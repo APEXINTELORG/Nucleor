@@ -11,12 +11,12 @@
 // Locks four invariants (add_obstacle uses raw vertices_ptr;
 // deferred):
 //
-//   1. **vgraph_new returns valid handle** — non-zero.
-//   2. **Direct-line plan with no obstacles** — path_len == 2
+//   1. vgraph_new returns valid handle — non-zero.
+//   2. Direct-line plan with no obstacles — path_len == 2
 //      (just start + goal).
-//   3. **Path endpoints are start and goal** — path[0] = start,
+//   3. Path endpoints are start and goal — path[0] = start,
 //      path[1] = goal.
-//   4. **Path cost = Euclidean distance** — 3-4-5 triangle.
+//   4. Path cost = Euclidean distance — 3-4-5 triangle.
 //
 // Expected: rc=0.
 

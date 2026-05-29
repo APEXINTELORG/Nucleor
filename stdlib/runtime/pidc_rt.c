@@ -19,7 +19,7 @@
 // during saturation, then takes a long time to unwind once the
 // error reverses.
 //
-// **Limitations** (gain scheduling / derivative-on-measurement /
+// Limitations (gain scheduling / derivative-on-measurement /
 // setpoint weighting land in v0.6 if needed):
 // - Single SISO controller. For multi-DOF coordination use a stack
 //   of independent PIDs or a model-based controller (`wbc.nr`,

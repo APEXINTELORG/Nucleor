@@ -7,12 +7,12 @@
 //
 // Locks four invariants on the activation + vec utility surface:
 //
-//   1. **ReLU clamps negatives to 0** — relu([-3, 5, -1]) →
+//   1. ReLU clamps negatives to 0 — relu([-3, 5, -1]) →
 //      [0, 5, 0].
-//   2. **Sigmoid(0) == 0.5** — 1/(1+e⁰) = 1/2.
-//   3. **vec_concat preserves length and order** — concat
+//   2. Sigmoid(0) == 0.5 — 1/(1+e⁰) = 1/2.
+//   3. vec_concat preserves length and order — concat
 //      ([1,2], [3,4,5]) → length 5, [1,2,3,4,5].
-//   4. **vec_slice extracts subrange** — slice([10,20,30,40,50],
+//   4. vec_slice extracts subrange — slice([10,20,30,40,50],
 //      1, 3) → [20, 30, 40].
 //
 // Heavier surfaces (dense + Adam + attention) need careful

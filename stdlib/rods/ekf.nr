@@ -32,7 +32,7 @@
 // Both Jacobians are computed by numerical finite differences
 // against the same callbacks (no analytical-Jacobian requirement).
 //
-// **Limitations** (UKF / particle filter / square-root form land
+// Limitations (UKF / particle filter / square-root form land
 // in v0.6 if needed):
 // - Standard EKF (no UKF / sigma-point variants).
 // - Numerical-FD Jacobians (slower than analytical).

@@ -15,7 +15,7 @@
 //   - Real-time visual-odometry feature seeds.
 //   - ORB / oFAST / SLAM frontends.
 //
-// **Limitations** (Bresenham circle radius is fixed at 3 / scale-
+// Limitations (Bresenham circle radius is fixed at 3 / scale-
 // space FAST land in v0.6 if needed):
 // - Single-scale. Pre-build a Gaussian pyramid via
 //   `image_pyramid.nr` and run FAST per level for multi-scale.

@@ -48,7 +48,7 @@
 // Algorithm: degree-7 polynomial per segment (8 coefficients per
 // segment) with KKT-system solve over the snap-cost QP.
 //
-// **Limitations** (corridor constraints / yaw alignment / general
+// Limitations (corridor constraints / yaw alignment / general
 // degree settings land in v0.6 if needed):
 // - Fixed degree 7 (snap-minimizing). Higher orders would minimize
 //   crackle (5th derivative) etc.

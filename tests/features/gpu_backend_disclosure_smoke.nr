@@ -17,11 +17,11 @@
 //   - limitations helper returns non-empty string naming key gaps.
 //
 // Locks 5 invariants:
-//   1. **Backend is `cpu-sequential`** today.
-//   2. **`gpu_map` is NOT accelerated** today.
-//   3. **`gpu_reduce` is NOT accelerated** today.
-//   4. **`gpu_parallel_for` is NOT accelerated** today.
-//   5. **Limitations string names "Vulkan"** so adopters know the
+//   1. Backend is `cpu-sequential` today.
+//   2. `gpu_map` is NOT accelerated today.
+//   3. `gpu_reduce` is NOT accelerated today.
+//   4. `gpu_parallel_for` is NOT accelerated today.
+//   5. Limitations string names "Vulkan" so adopters know the
 //      target backend that's still being wired.
 //
 // Expected: rc=0.

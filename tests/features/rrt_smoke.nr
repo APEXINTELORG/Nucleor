@@ -8,10 +8,10 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **rrt_new returns valid handle** — non-zero.
-//   2. **path_len before plan is 0** — no plan → no path.
-//   3. **node_count before plan is 0** — empty tree.
-//   4. **set_bounds + free do not crash** — exercises the
+//   1. rrt_new returns valid handle — non-zero.
+//   2. path_len before plan is 0 — no plan → no path.
+//   3. node_count before plan is 0 — empty tree.
+//   4. set_bounds + free do not crash — exercises the
 //      scalar bounds-setter on every dimension.
 //
 // Expected: rc=0.

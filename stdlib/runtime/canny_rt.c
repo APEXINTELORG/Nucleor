@@ -18,7 +18,7 @@
 //   - Object boundary extraction.
 //   - Pre-processing for OCR / barcode / shape matching.
 //
-// **Limitations** (sub-pixel edge localization / scale-space
+// Limitations (sub-pixel edge localization / scale-space
 // edges land in v0.6 if needed):
 // - 4-direction NMS (0°, 45°, 90°, 135°). Sub-pixel
 //   interpolation along the gradient direction not yet wired.

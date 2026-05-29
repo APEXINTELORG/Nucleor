@@ -24,7 +24,7 @@
 //   - low_thr ~= 0.4 × high_thr is a common ratio.
 //   - For 8-bit images (0..255), high_thr around 100-200 works.
 //
-// **Limitations** (sub-pixel edge localization / scale-space
+// Limitations (sub-pixel edge localization / scale-space
 // edges land in v0.6 if needed):
 // - 4-direction NMS (0°, 45°, 90°, 135°).
 // - Single-scale.

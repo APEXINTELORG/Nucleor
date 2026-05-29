@@ -29,7 +29,7 @@
 //     waypoints for a cleaner executor-facing trajectory).
 //   - 2D / 3D polyline rendering LOD.
 //
-// **Limitations** (Visvalingam-Whyatt / curvature-aware variants
+// Limitations (Visvalingam-Whyatt / curvature-aware variants
 // land in v0.6 if needed):
 // - Euclidean perpendicular-to-segment distance only.
 //

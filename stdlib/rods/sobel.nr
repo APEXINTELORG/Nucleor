@@ -19,7 +19,7 @@
 //
 // Image and outputs are all `double[H*W]` row-major.
 //
-// **Limitations** (Scharr 3×3 / 5×5 Sobel / sub-pixel gradient
+// Limitations (Scharr 3×3 / 5×5 Sobel / sub-pixel gradient
 // direction land in v0.6 if needed):
 // - Standard Sobel only (no Scharr).
 // - Replicate boundary handling.

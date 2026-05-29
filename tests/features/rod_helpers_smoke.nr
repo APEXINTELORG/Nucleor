@@ -6,9 +6,9 @@
 // Locks two invariants on the str-bridge surface (fn-pointer
 // surface needs callback fixtures which are out of smoke scope):
 //
-//   1. **vec_str_push + vec_str_get round-trip** — push 3
+//   1. vec_str_push + vec_str_get round-trip — push 3
 //      strings, read each back exactly.
-//   2. **hvec_str_set + get** — overwrite an existing entry.
+//   2. hvec_str_set + get — overwrite an existing entry.
 //
 // Expected: rc=0.
 

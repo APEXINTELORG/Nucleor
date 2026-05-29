@@ -5,12 +5,12 @@
 //
 // Locks four invariants (single-threaded — multi-thread spawn
 // semantics are out of scope for a smoke):
-//   1. **Channel FIFO**: send a, b, c on a capacity-N channel,
+//   1. Channel FIFO: send a, b, c on a capacity-N channel,
 //      recv returns a, b, c in order. The defining property.
-//   2. **Channel length**: len tracks queued-but-unreceived items.
-//   3. **Mutex lock/unlock**: lock + unlock + relock-after-unlock
+//   2. Channel length: len tracks queued-but-unreceived items.
+//   3. Mutex lock/unlock: lock + unlock + relock-after-unlock
 //      sequence does not deadlock or fault.
-//   4. **cpu_count > 0**: foundational system query for any
+//   4. cpu_count > 0: foundational system query for any
 //      worker-pool autosize logic.
 //
 // Multi-thread spawn / join / parallel-map require a worker fn

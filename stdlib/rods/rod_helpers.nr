@@ -3,13 +3,13 @@
 // Two distinct utility families for rods that need to break out of
 // the i64-only FFI:
 //
-//   - **String <-> i64 vec bridge** — `vec_str_push` /
+//   - String <-> i64 vec bridge — `vec_str_push` /
 //     `vec_str_get` / `vec_str_set` let a Vec<i64> hold C-string
 //     pointers. The underlying storage is a normal Vec; the pointer
 //     value is just stored as i64. The "str" suffix is a reminder
 //     to the reader that the i64 is a `const char *` payload.
 //
-//   - **Function-pointer callers** — `call_fn2(fp, a, b)` and
+//   - Function-pointer callers — `call_fn2(fp, a, b)` and
 //     `call_fn3(fp, a, b, c)` invoke an i64-typed function pointer
 //     with the given args. Used by rods that take user callbacks
 //     (sort comparators, reducers, parallel-map kernels) without

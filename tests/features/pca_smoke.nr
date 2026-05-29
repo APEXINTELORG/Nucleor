@@ -11,11 +11,11 @@
 //
 // Locks four foundational PCA invariants:
 //
-//   1. **PC1 captures 100% of variance** — variance_ratio(0) ≈ 1.0
+//   1. PC1 captures 100% of variance — variance_ratio(0) ≈ 1.0
 //      for perfectly correlated 2-D data.
-//   2. **Variance ratios sum to 1** — across all components.
-//   3. **Eigenvalues sorted descending** — eig(0) ≥ eig(1).
-//   4. **Eigenvalues non-negative** — covariance matrix is
+//   2. Variance ratios sum to 1 — across all components.
+//   3. Eigenvalues sorted descending — eig(0) ≥ eig(1).
+//   4. Eigenvalues non-negative — covariance matrix is
 //      positive semi-definite.
 //
 // Expected: rc=0.

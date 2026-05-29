@@ -10,10 +10,10 @@
 // line search until the cost decreases.
 //
 // Use cases:
-// - **Direct shooting trajectory optimization**: optimize a robot's
+// - Direct shooting trajectory optimization: optimize a robot's
 //   joint torques over a horizon to minimize a cost (e.g., reach
 //   a goal pose with minimum control effort).
-// - **MPC inner loop**: at each control step, solve a finite-horizon
+// - MPC inner loop: at each control step, solve a finite-horizon
 //   iLQR problem from the current state to get the next control
 //   action, then apply only the first control and re-solve.
 //
@@ -28,7 +28,7 @@
 //   let final_cost = ilqr_total_cost(n_x, n_u, T,
 //       x0_ptr, u_seq_ptr, dynamics_fp, stage_cost_fp, terminal_cost_fp);
 //
-// **Limitations** (analytical-gradient and constraint-handling
+// Limitations (analytical-gradient and constraint-handling
 // upgrades land in v0.6 if needed):
 // - Numerical finite differences for all gradients/Hessians.
 //   Slow for large problems but simple to use.

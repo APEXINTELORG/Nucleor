@@ -7,12 +7,12 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **ba_new returns valid handle** — non-zero.
-//   2. **Empty cost is zero** — no observations → no
+//   1. ba_new returns valid handle — non-zero.
+//   2. Empty cost is zero — no observations → no
 //      reprojection error.
-//   3. **Multiple distinct BA problems** — two constructions →
+//   3. Multiple distinct BA problems — two constructions →
 //      distinct handles.
-//   4. **ba_free does not crash** on a freshly constructed
+//   4. ba_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

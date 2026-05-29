@@ -29,7 +29,7 @@
 //            obs_dist_fp,
 //            v_out_ptr, w_out_ptr);
 //
-// **Limitations** (TEB / MPC-style trajectory-level optimization
+// Limitations (TEB / MPC-style trajectory-level optimization
 // land in v0.6 if needed):
 // - Differential-drive only.
 // - Constant velocity within each candidate (no piecewise

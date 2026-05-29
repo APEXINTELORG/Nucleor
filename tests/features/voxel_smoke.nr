@@ -5,11 +5,11 @@
 // Locks four occupancy-grid invariants on a 10×10×10 grid
 // centered at origin with 1.0 resolution (10m cube, 1m voxels):
 //
-//   1. **Total count**: total_count == 1000 (10³).
-//   2. **Initial all-unknown**: occupied_count == 0.
-//   3. **Insert + query round-trip**: insert OCCUPIED at (0,0,0)
+//   1. Total count: total_count == 1000 (10³).
+//   2. Initial all-unknown: occupied_count == 0.
+//   3. Insert + query round-trip: insert OCCUPIED at (0,0,0)
 //      → query (0,0,0) returns 2 (occupied).
-//   4. **Out-of-grid insert returns -1** at (100, 0, 0) (well
+//   4. Out-of-grid insert returns -1 at (100, 0, 0) (well
 //      beyond the +5 grid extent on x).
 //
 // Expected: rc=0.

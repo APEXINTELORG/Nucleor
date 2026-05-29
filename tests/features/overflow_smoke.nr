@@ -9,14 +9,14 @@
 //
 // Locks four invariants:
 //
-//   1. **Stable mode tags** — default=0, wrap=1, sat=2, trap=3
+//   1. Stable mode tags — default=0, wrap=1, sat=2, trap=3
 //      (table-driven kernels depend on stability).
-//   2. **Trap on safe inputs returns same as plain** —
+//   2. Trap on safe inputs returns same as plain —
 //      add_trap(2, 3) == 5; mul_trap(7, 6) == 42.
-//   3. **Wrap on overflow modular** — wrapping i32-range max + 1
+//   3. Wrap on overflow modular — wrapping i32-range max + 1
 //      wraps to i32::MIN. Phase A wrapping{} is i32-clamped at
 //      block boundary; Phase B promotes to full i64.
-//   4. **Mode dispatch routes correctly** — add_with_mode(wrap,
+//   4. Mode dispatch routes correctly — add_with_mode(wrap,
 //      3, 4) == 7; mul_with_mode(trap, 7, 6) == 42; the default
 //      arm (mode=0) takes the plain path.
 //

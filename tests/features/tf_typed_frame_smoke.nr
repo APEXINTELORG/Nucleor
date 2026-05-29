@@ -21,15 +21,15 @@
 // problem that motivated the existing tf_smoke lifecycle-only
 // coverage):
 //
-//   1. **0 (world)** is canonical.
-//   2. **7 (odom)** is canonical (last in-range).
-//   3. **-1 (unknown sentinel)** is canonical.
-//   4. **8** is NOT canonical (just past in-range).
-//   5. **999** is NOT canonical.
-//   6. **-2** is NOT canonical (only -1 is the sentinel).
-//   7. **out-of-range frame_id rejected by `tf_add_frame_typed`** —
+//   1. 0 (world) is canonical.
+//   2. 7 (odom) is canonical (last in-range).
+//   3. -1 (unknown sentinel) is canonical.
+//   4. 8 is NOT canonical (just past in-range).
+//   5. 999 is NOT canonical.
+//   6. -2 is NOT canonical (only -1 is the sentinel).
+//   7. out-of-range frame_id rejected by `tf_add_frame_typed` —
 //      returns 0 without invoking the raw API.
-//   8. **out-of-range parent_id rejected by `tf_add_frame_typed`**.
+//   8. out-of-range parent_id rejected by `tf_add_frame_typed`.
 //
 // Expected: rc=0.
 

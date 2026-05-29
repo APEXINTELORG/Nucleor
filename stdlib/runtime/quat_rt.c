@@ -26,7 +26,7 @@
 //   - Smooth orientation interpolation between keyframes.
 //   - SLAM pose-graph rotation parameterization.
 //
-// **Limitations** (rotor / dual-quaternion / quaternion exp+log
+// Limitations (rotor / dual-quaternion / quaternion exp+log
 // land in v0.6 if needed):
 // - Caller responsible for normalizing inputs (slerp tolerates
 //   small non-unit drift but won't correct it).

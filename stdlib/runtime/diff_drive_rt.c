@@ -26,7 +26,7 @@
 //      Exact constant-curvature arc integration over dt (better
 //      than Euler for non-trivial omega·dt).
 //
-// **Limitations** (wheel-slip / encoder-tick odometry / IMU-fused
+// Limitations (wheel-slip / encoder-tick odometry / IMU-fused
 // pose update land in v0.6 if needed):
 // - Kinematic only (no slip).
 // - Caller supplies wheel speeds (not encoder ticks).

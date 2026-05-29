@@ -25,7 +25,7 @@
 // site set) are flagged with site index `-1` and the corresponding
 // vertex index `-1`. Caller can clip these against a bounding box.
 //
-// **Limitations** (3-D Voronoi / weighted (power) Voronoi /
+// Limitations (3-D Voronoi / weighted (power) Voronoi /
 // adaptive density-based remeshing land in v0.6 if needed):
 // - 2-D only.
 // - Naive O(T²) edge-pair search (where T = #triangles). Fine

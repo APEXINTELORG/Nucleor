@@ -17,16 +17,16 @@
 // SDF + Cartesian variant; TOPP-RA convex per-step + dynamics).
 //
 // Locks 6 invariants — each rod's limitations() helper:
-//   1. **AHRS limitations non-empty + names key constraint** — string
+//   1. AHRS limitations non-empty + names key constraint — string
 //      contains "Mahony" (the algorithm) and "magnetometer" (the
 //      missing-yaw-observability driver).
-//   2. **CHOMP limitations non-empty + names key constraint** —
+//   2. CHOMP limitations non-empty + names key constraint —
 //      string contains "joint-space" (no Cartesian variant) and
 //      "finite differences" (the slow-grad approximation).
-//   3. **TOPP limitations non-empty + names key constraint** —
+//   3. TOPP limitations non-empty + names key constraint —
 //      string contains "piecewise-linear" (only allowed input
 //      shape) and "kinematic" (no dynamics).
-//   4. **All three are distinct** — adopters can tell them apart.
+//   4. All three are distinct — adopters can tell them apart.
 //
 // Expected: rc=0.
 

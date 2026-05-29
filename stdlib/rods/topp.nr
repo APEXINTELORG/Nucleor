@@ -33,7 +33,7 @@
 //
 //   topp_trap_free(h);
 //
-// **Limitations** (full phase-plane TOPP / curvature-dependent
+// Limitations (full phase-plane TOPP / curvature-dependent
 // limits / s-curve land in v0.6 if needed):
 // - Single global v_max + a_max (no path-dependent limits). For
 //   joint-space paths, conservatively pick

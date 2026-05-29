@@ -6,18 +6,18 @@
 // rejection per RFC-0046 Phase B (~200 LOC compiler edit).
 //
 // Locks 6 invariants on the runtime-check helpers:
-//   1. **Strict-compat self-match** — `compatible_strict(2, 2) == 1`
+//   1. Strict-compat self-match — `compatible_strict(2, 2) == 1`
 //      for camera-camera.
-//   2. **Strict-compat distinct rejects** — `compatible_strict(2, 1) == 0`
+//   2. Strict-compat distinct rejects — `compatible_strict(2, 1) == 0`
 //      for camera-base (the Mars Climate Orbiter scenario).
-//   3. **Strict-compat unknown does NOT pass** — unlike the lenient
+//   3. Strict-compat unknown does NOT pass — unlike the lenient
 //      `kinematics_frame_compatible`, strict mode rejects unknown
 //      against anything except itself.
-//   4. **frame_assert match** — returns 1 for self-match, 0 for
+//   4. frame_assert match — returns 1 for self-match, 0 for
 //      mismatch (gates the production check path).
-//   5. **frame_require match returns expected** — returns the
+//   5. frame_require match returns expected — returns the
 //      expected_id on match, -1 on mismatch (chainable check).
-//   6. **frame_check_pair** — both legs match → 1; either mismatch → 0.
+//   6. frame_check_pair — both legs match → 1; either mismatch → 0.
 //
 // Expected: rc=0.
 

@@ -8,13 +8,13 @@
 // run_capture, print/eprint — are not exercised; they side-effect
 // the test process or require user input):
 //
-//   1. **Write + read round-trip** — io_write_file then
+//   1. Write + read round-trip — io_write_file then
 //      io_read_file returns the same bytes.
-//   2. **Append extends content** — write "A" then append "B"
+//   2. Append extends content — write "A" then append "B"
 //      → read returns "AB".
-//   3. **Empty content round-trip** — writing "" yields a
+//   3. Empty content round-trip — writing "" yields a
 //      readable empty string.
-//   4. **Reading missing file returns empty** — io_read_file on
+//   4. Reading missing file returns empty — io_read_file on
 //      a never-created path returns "" (not crash).
 //
 // Expected: rc=0.

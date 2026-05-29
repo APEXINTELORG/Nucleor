@@ -31,7 +31,7 @@
 //   - Soccer/competition platforms.
 //   - Any 4-wheel platform where strafing is required.
 //
-// **Limitations** (wheel-slip / over-determined least-squares /
+// Limitations (wheel-slip / over-determined least-squares /
 // roller-friction model land in v0.6 if needed):
 // - Kinematic only (no slip, no roller friction).
 // - X-pattern roller geometry only (caller flips signs for

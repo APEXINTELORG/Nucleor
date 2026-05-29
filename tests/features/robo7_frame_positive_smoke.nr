@@ -7,20 +7,20 @@
 // `types_compatible` (see `frame_mismatch_visible` in
 // `compiler/nucleor_s1_compiler.nr`):
 //
-//   1. **Same-frame let binding compiles** — `let p1: Pose<Frame_Camera>`
+//   1. Same-frame let binding compiles — `let p1: Pose<Frame_Camera>`
 //      bound to a value already typed `Pose<Frame_Camera>` type-checks
 //      cleanly (no FRAME-001, no TYP-008).
-//   2. **Frame_Unknown is migration-compatible** — `Pose<Frame_Unknown>`
+//   2. Frame_Unknown is migration-compatible — `Pose<Frame_Unknown>`
 //      bound to `Pose<Frame_Camera>` (and the reverse) type-checks
 //      cleanly. RFC-0046 §migration documents this sentinel as the
 //      backwards-compat escape so existing untagged-pose code keeps
 //      compiling while adopters migrate field by field.
-//   3. **Untagged Pose flows into a tagged binding** — `let p: Pose<Frame_Base>
+//   3. Untagged Pose flows into a tagged binding — `let p: Pose<Frame_Base>
 //      = make_pose()` (where `make_pose()` returns the bare `Pose`)
 //      type-checks cleanly. The check is intentionally one-sided:
 //      adopters opt INTO frame typing without breaking every existing
 //      `Pose`-typed call site.
-//   4. **Frame tags carry through chained bindings** — a chain of
+//   4. Frame tags carry through chained bindings — a chain of
 //      same-frame `let`s preserves the tag through each link.
 //
 // Negative coverage for the cross-frame rejection lives at

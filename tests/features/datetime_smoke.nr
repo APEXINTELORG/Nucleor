@@ -5,13 +5,13 @@
 // coverage.
 //
 // Locks five textbook calendar-arithmetic invariants:
-//   1. **UTC ymd round-trip**: from_ymd_utc(2026,5,4,12,30,45) →
+//   1. UTC ymd round-trip: from_ymd_utc(2026,5,4,12,30,45) →
 //      to_ymd → [2026,5,4,12,30,45] back exactly.
-//   2. **diff_days**: 2026-05-04 minus 2026-05-01 == 3.
-//   3. **add_days**: 2026-05-01 + 3 days == 2026-05-04.
-//   4. **add_hours wraps days**: 2026-05-01 12:00 + 24h ==
+//   2. diff_days: 2026-05-04 minus 2026-05-01 == 3.
+//   3. add_days: 2026-05-01 + 3 days == 2026-05-04.
+//   4. add_hours wraps days: 2026-05-01 12:00 + 24h ==
 //      2026-05-02 12:00.
-//   5. **day_of_week** for 2026-05-04 (a Monday in 2026).
+//   5. day_of_week for 2026-05-04 (a Monday in 2026).
 //      tm_wday: 0=Sun, 1=Mon, ..., 6=Sat.
 //
 // Expected: rc=0.

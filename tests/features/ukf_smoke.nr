@@ -9,12 +9,12 @@
 // predict / update all use raw double[] pointers; deferred to
 // dedicated sensor-fusion ships.
 //
-//   1. **ukf_new with reasonable dims** — non-zero handle.
-//   2. **n_u=0 still works** — autonomous system (no control
+//   1. ukf_new with reasonable dims — non-zero handle.
+//   2. n_u=0 still works — autonomous system (no control
 //      input).
-//   3. **Multiple distinct UKFs** — two constructions →
+//   3. Multiple distinct UKFs — two constructions →
 //      distinct handles.
-//   4. **ukf_free does not crash** on a freshly constructed
+//   4. ukf_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

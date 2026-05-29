@@ -36,7 +36,7 @@
 // are same layout `double[N_tgt*3]`, one unit vector per TARGET
 // point.
 //
-// **Limitations** (KD-tree NN / robust kernel / symmetric
+// Limitations (KD-tree NN / robust kernel / symmetric
 // plane-to-plane metric land in v0.6 if needed):
 // - Brute-force nearest-neighbour O(N_src · N_tgt) per iteration.
 // - Caller supplies target normals (no estimation here).

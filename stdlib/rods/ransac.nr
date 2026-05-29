@@ -22,7 +22,7 @@
 //                   seed,
 //                   plane_out_ptr, inlier_count_out_ptr);
 //
-// **Limitations** (generic-callback RANSAC for line/sphere/transform
+// Limitations (generic-callback RANSAC for line/sphere/transform
 // fitting + adaptive trial-count via inlier ratio land in v0.6 if
 // needed):
 // - 3D plane only.

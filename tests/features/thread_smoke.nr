@@ -7,13 +7,13 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **thread_pool_new returns valid handle** — non-zero
+//   1. thread_pool_new returns valid handle — non-zero
 //      for reasonable n_threads.
-//   2. **Multiple distinct pools** — two constructions →
+//   2. Multiple distinct pools — two constructions →
 //      distinct handles (worker thread groups are not aliased).
-//   3. **Single-thread pool valid** — n_threads=1 still works
+//   3. Single-thread pool valid — n_threads=1 still works
 //      (degenerate case).
-//   4. **thread_pool_free does not crash** on a freshly
+//   4. thread_pool_free does not crash on a freshly
 //      constructed pool.
 //
 // Expected: rc=0.

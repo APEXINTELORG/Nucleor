@@ -7,12 +7,12 @@
 //
 // Locks five textbook format invariants on a 3-node graph
 // (0 → 1, 1 → 2):
-//   1. **Format ID stable**: text=1, json=2, dot=3, mermaid=4.
-//   2. **Format name round-trip**: name(3) == "dot"; round-trip
+//   1. Format ID stable: text=1, json=2, dot=3, mermaid=4.
+//   2. Format name round-trip: name(3) == "dot"; round-trip
 //      via format_id matches.
-//   3. **DOT output**: contains "digraph" or "->" markers.
-//   4. **JSON output**: contains "nodes" + "edges" keys.
-//   5. **Mermaid output**: contains "graph" keyword.
+//   3. DOT output: contains "digraph" or "->" markers.
+//   4. JSON output: contains "nodes" + "edges" keys.
+//   5. Mermaid output: contains "graph" keyword.
 //
 // Expected: rc=0.
 

@@ -8,12 +8,12 @@
 // step all use fn-pointers / raw double[]; deferred to dedicated
 // control-loop ships.
 //
-//   1. **mppi_new returns valid handle** — non-zero.
-//   2. **set_sigma per dim** — exercises the scalar per-dim
+//   1. mppi_new returns valid handle — non-zero.
+//   2. set_sigma per dim — exercises the scalar per-dim
 //      noise-stddev setter.
-//   3. **mppi_reset does not crash** — re-zero the warm-start
+//   3. mppi_reset does not crash — re-zero the warm-start
 //      nominal.
-//   4. **mppi_free does not crash** on a freshly constructed
+//   4. mppi_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

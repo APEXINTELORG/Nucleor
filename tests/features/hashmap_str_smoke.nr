@@ -6,13 +6,13 @@
 //
 // Locks four lifecycle/semantics invariants:
 //
-//   1. **Empty map** — hms_new → len 0, is_empty 1, contains
+//   1. Empty map — hms_new → len 0, is_empty 1, contains
 //      missing 0.
-//   2. **Insert tracks contains + len** — 3 distinct keys → len 3,
+//   2. Insert tracks contains + len — 3 distinct keys → len 3,
 //      each get returns its set value.
-//   3. **get_or returns default for missing** — non-inserted key
+//   3. get_or returns default for missing — non-inserted key
 //      → default value.
-//   4. **Remove flips contains + drops len** — insert+remove →
+//   4. Remove flips contains + drops len — insert+remove →
 //      contains 0, len decreases by 1.
 //
 // Expected: rc=0.

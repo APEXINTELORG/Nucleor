@@ -17,14 +17,14 @@
 //   - limitations text names "RandomCap" + "FsCap".
 //
 // Locks 8 invariants:
-//   1. **RandomCap supported** — supported = 1.
-//   2. **FsCap NOT supported** — supported = 0.
-//   3. **NetCap NOT supported** — supported = 0.
-//   4. **TimeCap NOT supported** — supported = 0.
-//   5. **EnvCap NOT supported** — supported = 0.
-//   6. **SchedCap NOT supported** — supported = 0.
-//   7. **`capability_only_supported()` == `"RandomCap"`**.
-//   8. **Limitations text names RandomCap + FsCap**.
+//   1. RandomCap supported — supported = 1.
+//   2. FsCap NOT supported — supported = 0.
+//   3. NetCap NOT supported — supported = 0.
+//   4. TimeCap NOT supported — supported = 0.
+//   5. EnvCap NOT supported — supported = 0.
+//   6. SchedCap NOT supported — supported = 0.
+//   7. `capability_only_supported()` == `"RandomCap"`.
+//   8. Limitations text names RandomCap + FsCap.
 //
 // Expected: rc=0.
 

@@ -17,10 +17,10 @@
 //   - cold compile <= 4s.
 //
 // Locks 4 invariants:
-//   1. **Non-empty** — the helper returns a string with content.
-//   2. **Names surface-code** — `"SURFACE-CODE"` substring present.
-//   3. **Names OpenQASM** — `"OPENQASM"` substring present.
-//   4. **Names mid-circuit feedback** — `"MID-CIRCUIT"` substring present.
+//   1. Non-empty — the helper returns a string with content.
+//   2. Names surface-code — `"SURFACE-CODE"` substring present.
+//   3. Names OpenQASM — `"OPENQASM"` substring present.
+//   4. Names mid-circuit feedback — `"MID-CIRCUIT"` substring present.
 //
 // Expected: rc=0.
 

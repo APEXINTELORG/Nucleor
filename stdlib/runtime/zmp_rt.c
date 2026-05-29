@@ -29,7 +29,7 @@
 // with affine offset term for the tracking reference, then a
 // forward pass to compute u and roll the state.
 //
-// **Limitations** (3-D / online preview / variable-height land in
+// Limitations (3-D / online preview / variable-height land in
 // v0.6 if needed):
 // - 1-D per call (call twice for x and y in the standard 2-DOF
 //   biped formulation; the two axes are independent under the

@@ -31,7 +31,7 @@
 //   4. nuc_tf_lookup(h, source_id, target_id, t_out_ptr, q_out_ptr)
 //   5. nuc_tf_free(h)
 //
-// **Limitations** (string-keyed frames / time-stamped buffer / lazy
+// Limitations (string-keyed frames / time-stamped buffer / lazy
 // caching land in v0.6 if needed):
 // - Integer frame IDs only — caller manages name→id mapping. Use
 //   the `hashmap_str.nr` rod for the mapping.

@@ -27,7 +27,7 @@
 //   - Pair with `bicycle.nr` / `purepursuit.nr` to track the VFH
 //     heading.
 //
-// **Limitations** (VFH+ pre-thresholding masks / VFH* lookahead /
+// Limitations (VFH+ pre-thresholding masks / VFH* lookahead /
 // dynamic-window cost combination land in v0.6 if needed):
 // - 2-D occupancy only.
 // - Robot modelled as a point (caller adds safety inflation to

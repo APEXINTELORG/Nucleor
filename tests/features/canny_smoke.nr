@@ -9,10 +9,10 @@
 // img+edges and requires W ≥ 3 and H ≥ 3 (NMS / Sobel windows
 // need a 3×3 minimum):
 //
-//   1. **Null img returns 0** — bad input.
-//   2. **Null edges returns 0** — bad output buffer.
-//   3. **W < 3 returns 0** — degenerate width.
-//   4. **H < 3 returns 0** — degenerate height.
+//   1. Null img returns 0 — bad input.
+//   2. Null edges returns 0 — bad output buffer.
+//   3. W < 3 returns 0 — degenerate width.
+//   4. H < 3 returns 0 — degenerate height.
 //
 // Expected: rc=0.
 

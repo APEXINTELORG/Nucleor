@@ -15,13 +15,13 @@
 // nominal position trajectory ("compliant tracking") so the robot
 // yields under contact force.
 //
-// Compare to **impedance** control (the dual): impedance maps
+// Compare to impedance control (the dual): impedance maps
 // position deviation to commanded force; admittance maps measured
 // force to commanded position. Use admittance for position-
 // controlled robots that need force compliance; use impedance for
 // torque-controlled robots in stiffness-shaping mode.
 //
-// **Limitations** (full SE(3) impedance / coupling between DOFs /
+// Limitations (full SE(3) impedance / coupling between DOFs /
 // adaptive admittance land in v0.6 if needed):
 // - Per-DOF independent (no off-diagonal M, D, K).
 // - Linear time-invariant — no auto-gain-scheduling.

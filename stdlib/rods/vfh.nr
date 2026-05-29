@@ -36,7 +36,7 @@
 //                     density_threshold_b,
 //                     f64_ptr(&steer_bearing));
 //
-// **Limitations** (full VFH+ pre-thresholding masks / VFH*
+// Limitations (full VFH+ pre-thresholding masks / VFH*
 // multi-step lookahead / dynamic-window cost combination land
 // in v0.6 if needed):
 // - 2-D occupancy only.

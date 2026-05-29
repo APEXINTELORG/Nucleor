@@ -9,10 +9,10 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **mc_ncores returns n_cores arg** — round-trip 4 → 4.
-//   2. **mc_nq returns nq arg** — round-trip 2 → 2.
-//   3. **Step counter starts at 0** — fresh ensemble, no ops.
-//   4. **Core 0 is clean (zero noise)** — mc_p1q(c=0) == 0
+//   1. mc_ncores returns n_cores arg — round-trip 4 → 4.
+//   2. mc_nq returns nq arg — round-trip 2 → 2.
+//   3. Step counter starts at 0 — fresh ensemble, no ops.
+//   4. Core 0 is clean (zero noise) — mc_p1q(c=0) == 0
 //      bitcast (regardless of p1q_base setting).
 //
 // Expected: rc=0.

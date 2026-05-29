@@ -17,7 +17,7 @@
 // forward-only (`dubins.nr`) and forward+reverse (this rod)
 // based on the vehicle capability.
 //
-// **Limitations** (path sampling / smoothing / lateral-acceleration
+// Limitations (path sampling / smoothing / lateral-acceleration
 // constraints land in v0.6 if needed):
 // - Returns length only (not sampled poses along the path).
 // - Non-holonomic. Assumes constant curvature on turns.

@@ -346,7 +346,7 @@ long long nuc_ik_dls_solve(
 // objective.
 //
 // This entry point ships the most common secondary-task pattern:
-// **joint-space posture preference**. Given a desired "rest"
+// joint-space posture preference. Given a desired "rest"
 // configuration `q_pref`, the redundancy is used to pull the
 // solver's output toward `q_pref` while still hitting the
 // position target exactly. Useful for:

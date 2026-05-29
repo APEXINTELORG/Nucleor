@@ -8,14 +8,14 @@
 // Pre-v0.8.180: zero coverage.
 //
 // Locks four invariants:
-//   1. **Stable cap IDs**: documented IDs (fp4=1, fp8=2, etc.)
+//   1. Stable cap IDs: documented IDs (fp4=1, fp8=2, etc.)
 //      match the rod's helper fns.
-//   2. **Phase A device caps return 0**: every device-class
+//   2. Phase A device caps return 0: every device-class
 //      feature (fp4 / fp8 / avx2 / cuda / etc.) returns 0
 //      because Nucleor v0.7+ has no accelerator dispatch yet.
-//   3. **OS family via os_info**: exactly one of
+//   3. OS family via os_info: exactly one of
 //      windows/linux/macos returns 1 (we're on Windows here).
-//   4. **target_caps_has_id**: round-trip — has_id(1) matches
+//   4. target_caps_has_id: round-trip — has_id(1) matches
 //      has_fp4() (both 0); has_id(99) (unknown) returns 0.
 //
 // Expected: rc=0.

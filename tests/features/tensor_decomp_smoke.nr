@@ -5,7 +5,7 @@
 // Pre-v0.8.182: zero coverage.
 //
 // Locks two textbook product invariants:
-//   1. **Kronecker product 2×2 × 2×2** → 4×4 result with the
+//   1. Kronecker product 2×2 × 2×2 → 4×4 result with the
 //      classic structure:
 //
 //        A = [1 2; 3 4],  B = [5 6; 7 8]
@@ -18,7 +18,7 @@
 //
 //      Verify a few key cells.
 //
-//   2. **Khatri-Rao 2×2 ⊙ 2×2** → 4×2 (I*J × R):
+//   2. Khatri-Rao 2×2 ⊙ 2×2 → 4×2 (I*J × R):
 //      column 0: [1*5, 1*7, 3*5, 3*7] = [5, 7, 15, 21]
 //
 // Expected: rc=0.

@@ -5,9 +5,9 @@
 // zero coverage.
 //
 // Locks three symbolic-math invariants:
-//   1. **Constant evaluation**: const(5) evaluates to 5.
-//   2. **Arithmetic eval**: (x + 3) at x=2 → 5.
-//   3. **Polynomial eval**: x² at x=4 → 16.
+//   1. Constant evaluation: const(5) evaluates to 5.
+//   2. Arithmetic eval: (x + 3) at x=2 → 5.
+//   3. Polynomial eval: x² at x=4 → 16.
 //
 // Symbolic differentiation of `pow(x, n)` returns 0 in the
 // current impl (the chain-rule case for pow isn't wired).

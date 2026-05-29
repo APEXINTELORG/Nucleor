@@ -10,7 +10,7 @@
 // vertex index `-1`); caller can clip against a bounding box.
 //
 // Use:
-//   - **Voronoi-graph path planning** — each cell boundary is a
+//   - Voronoi-graph path planning — each cell boundary is a
 //     traversable edge equidistant from the two nearest sites.
 //     Following Voronoi edges maximizes obstacle clearance.
 //   - Centroidal-Voronoi-tessellation iteration (mesh + sample
@@ -31,7 +31,7 @@
 //                              edges_out_ptr,    max_edges,
 //                              i32_ptr(&n_verts));
 //
-// **Limitations** (3-D Voronoi / weighted (power) Voronoi /
+// Limitations (3-D Voronoi / weighted (power) Voronoi /
 // centroidal CVT iteration land in v0.6 if needed):
 // - 2-D only.
 // - Naive O(T²) Delaunay-edge group; fine ≤ ~1000 sites.

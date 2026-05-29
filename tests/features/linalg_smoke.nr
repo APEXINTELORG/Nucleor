@@ -7,11 +7,11 @@
 // Locks four foundational matrix invariants — heavier
 // decompositions are exercised in dedicated ML ships:
 //
-//   1. **Identity construction** — eye(3) → 3×3, diagonal 1,
+//   1. Identity construction — eye(3) → 3×3, diagonal 1,
 //      off-diagonal 0.
-//   2. **Trace of I_n == n** — sum of diagonal.
-//   3. **Determinant of I_n == 1** — by definition.
-//   4. **Transpose round-trip** — transpose(transpose(A)) shape
+//   2. Trace of I_n == n — sum of diagonal.
+//   3. Determinant of I_n == 1 — by definition.
+//   4. Transpose round-trip — transpose(transpose(A)) shape
 //      and entries match A.
 //
 // Expected: rc=0.

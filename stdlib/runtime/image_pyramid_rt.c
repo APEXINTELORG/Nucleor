@@ -16,7 +16,7 @@
 //   - Multi-scale Harris / ORB detection.
 //   - Scale-invariant template matching.
 //
-// **Limitations** (SIFT scale-space DoG / orientation assignment /
+// Limitations (SIFT scale-space DoG / orientation assignment /
 // SIMD 16-byte stride land in v0.6 if needed):
 // - Input image is `double[H][W]` row-major in [0, 255]. Internally
 //   we operate in double so repeated reduce/expand stays stable.

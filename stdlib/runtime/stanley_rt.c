@@ -24,7 +24,7 @@
 //     vehicle: Stanley for sharper response, pure-pursuit for
 //     smooth high-speed cruising.
 //
-// **Limitations** (gain scheduling / yaw-rate feedforward / curvature
+// Limitations (gain scheduling / yaw-rate feedforward / curvature
 // preview land in v0.6 if needed):
 // - No curvature feedforward (only proportional).
 // - Cross-track sign assumes 2-D right-handed frame (z = up).

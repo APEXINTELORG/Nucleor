@@ -7,11 +7,11 @@
 //
 // Locks four lifecycle invariants:
 //
-//   1. **mpc_new returns valid handle** — non-zero.
-//   2. **last_iters == 0 pre-step** — no MPC ticks yet.
-//   3. **mpc_reset does not crash** — re-zero the warm-start
+//   1. mpc_new returns valid handle — non-zero.
+//   2. last_iters == 0 pre-step — no MPC ticks yet.
+//   3. mpc_reset does not crash — re-zero the warm-start
 //      sequence.
-//   4. **mpc_free does not crash** on a freshly constructed
+//   4. mpc_free does not crash on a freshly constructed
 //      handle.
 //
 // Expected: rc=0.

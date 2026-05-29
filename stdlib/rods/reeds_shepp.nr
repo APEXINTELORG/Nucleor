@@ -20,7 +20,7 @@
 //                                R_b,
 //                                f64_ptr(&len));
 //
-// **Limitations** (path sampling / smoothing / lateral-acceleration
+// Limitations (path sampling / smoothing / lateral-acceleration
 // constraints land in v0.6 if needed):
 // - Returns length only (no sampled poses along the path).
 // - Constant curvature on turns; caller smooths cusps if needed.

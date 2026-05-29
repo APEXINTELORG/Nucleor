@@ -24,7 +24,7 @@
 //
 // Input and output images are `double[H*W]` row-major in [0, 255].
 //
-// **Limitations** (SIFT scale-space DoG / orientation assignment /
+// Limitations (SIFT scale-space DoG / orientation assignment /
 // SIMD stride land in v0.6 if needed):
 // - Double-precision internal representation.
 // - Replicate-at-edge boundary handling.

@@ -12,13 +12,13 @@
 // most other rigid-body contact solvers.
 //
 // Use cases:
-// - **Unilateral contact**: λ ∈ [0, ∞) gives the standard
+// - Unilateral contact: λ ∈ [0, ∞) gives the standard
 //   non-penetration constraint (the default bounds set by
 //   `lcp_pgs_new`).
-// - **Coulomb friction**: a 2-direction box `[−μ·λ_n, μ·λ_n]` per
+// - Coulomb friction: a 2-direction box `[−μ·λ_n, μ·λ_n]` per
 //   contact, after pyramidal linearization of the friction cone.
-// - **Joint limits**: λ ∈ [−∞, ∞] with extra bounds.
-// - **Generic bilateral constraint**: λ ∈ [−∞, ∞] gives a normal
+// - Joint limits: λ ∈ [−∞, ∞] with extra bounds.
+// - Generic bilateral constraint: λ ∈ [−∞, ∞] gives a normal
 //   linear solve (PGS for symmetric positive-definite systems).
 //
 // Workflow:
@@ -51,7 +51,7 @@
 //
 //   lcp_pgs_free(h);
 //
-// **Limitations** (Lemke's algorithm / interior-point methods land
+// Limitations (Lemke's algorithm / interior-point methods land
 // in v0.6 if needed for ill-conditioned systems):
 // - PGS is iterative; for ill-conditioned M (very stiff contacts +
 //   no soft regularization) convergence may be slow.

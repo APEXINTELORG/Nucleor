@@ -27,7 +27,7 @@
 //                                    dist_out_ptr,
 //                                    connectivity);
 //
-// **Limitations** (fast-sweeping Eikonal / anisotropic costs land
+// Limitations (fast-sweeping Eikonal / anisotropic costs land
 // in v0.6 if needed):
 // - Unit-ish cost per step only (with √2 diagonal bonus).
 // - Output is cell-count distance (multiply by cell size for metres).

@@ -24,7 +24,7 @@
 //             nuc_reach_workspace_extent
 //   5. nuc_reach_free(h)
 //
-// **Limitations** (joint-limit-aware sampling / non-uniform priors /
+// Limitations (joint-limit-aware sampling / non-uniform priors /
 // KD-tree-accelerated queries land in v0.6 if needed):
 // - Uniform sampling within per-joint bounds (no manifold sampling
 //   for closed kinematic chains).
