@@ -6220,6 +6220,27 @@ rust_bridge_ownership_gate() {
     return 0
 }
 
+manual_drop_leak_gate() {
+    # MEM-1: build + run the conservative semantic manual_drop leak linter
+    # (tools/lint_manual_drop.nr). For every #[manual_drop] fn it flags owned
+    # Vec::new() bindings that are never freed, handed off, or returned on any
+    # path — an unambiguous leak that the parity-only check could never catch.
+    # Baseline is 0 across compiler + stdlib + tests; any new finding FAILs.
+    "$BIN" build "$ROOT/tools/lint_manual_drop.nr" -o "_lint_manual_drop" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_lint_manual_drop"
+    [ -f "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$exe" ] || return 1
+    local mdfiles out
+    mdfiles=$(grep -rl '#\[manual_drop\]' "$ROOT/compiler" "$ROOT/stdlib" "$ROOT/tests" 2>/dev/null)
+    out=$("$exe" $mdfiles 2>&1)
+    printf '%s\n' "$out" >$NUC_VERIFY_RUN_LOG
+    if printf '%s\n' "$out" | grep -q '^LEAK '; then
+        printf '%s\n' "$out" | grep '^LEAK ' | head -12 | sed 's/^/       /'
+        return 1
+    fi
+    return 0
+}
+
 gate_canary_smoke() {
     # VER-4: meta-test that the drift gate itself cannot silently pass. The
     # failure class (one-directional diff + vacuous empty-set OK) already
@@ -6312,6 +6333,7 @@ step "RFC-0008 ISR attribute first-pass contract and IR marker" rfc0008_isr_firs
 step "RFC-0035 Sendable + actor first-pass substrate" rfc0035_sendable_actor_first_pass
 step "NVec inline runtime ownership regressions" vec_inline_runtime_smoke
 step "MEM-2: rust_bridge FFI string-ownership harness (lane)" rust_bridge_ownership_gate
+step "MEM-1: manual_drop leak linter (owned local reaches free/handoff)" manual_drop_leak_gate
 step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
