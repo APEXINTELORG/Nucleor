@@ -1,6 +1,9 @@
 // crypto_rt.c — Cryptographic Primitives for Nucleor
-// SHA-256, HMAC-SHA256, AES-256 (ECB), base64, secure random.
+// SHA-256, HMAC-SHA256, base64, cryptographically-secure random.
 // All from scratch, no external libraries.
+// SEC-2: no symmetric cipher (AES) is implemented here. Do not
+// advertise one until a real, test-vector-verified AEAD construction
+// (e.g. AES-GCM / ChaCha20-Poly1305) lands — never ECB as a headline.
 //
 // Compile: clang -c stdlib/runtime/crypto_rt.c -o target/crypto_rt.obj -O2
 
@@ -66,17 +69,21 @@ const char *nuc_sha256(const char *data, long long len) {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
-    int n = (int)len;
+    // SEC-4: do not truncate the 64-bit length to int. A negative length
+    // is treated as empty; size_t arithmetic keeps the padding math and
+    // block loop correct for inputs above INT_MAX.
+    if (len < 0) len = 0;
+    size_t n = (size_t)len;
 
     // Padding
-    int padded_len = ((n + 9 + 63) / 64) * 64;
+    size_t padded_len = ((n + 9 + 63) / 64) * 64;
     unsigned char *msg = (unsigned char *)calloc(padded_len, 1);
     memcpy(msg, data, n);
     msg[n] = 0x80;
     unsigned long long bits = (unsigned long long)n * 8;
     for (int i = 0; i < 8; i++) msg[padded_len - 1 - i] = (unsigned char)(bits >> (i * 8));
 
-    for (int i = 0; i < padded_len; i += 64) sha256_block(H, msg + i);
+    for (size_t i = 0; i < padded_len; i += 64) sha256_block(H, msg + i);
     free(msg);
 
     char *hex = (char *)malloc(65);
@@ -91,6 +98,12 @@ const char *nuc_sha256(const char *data, long long len) {
 
 const char *nuc_hmac_sha256(const char *key, long long key_len,
                              const char *data, long long data_len) {
+    // SEC-4: reject negative lengths before any (size_t) cast — a
+    // negative→unsigned conversion would request an astronomically
+    // large copy/allocation.
+    if (key_len < 0) key_len = 0;
+    if (data_len < 0) data_len = 0;
+
     unsigned char k_pad[64] = {0};
     if (key_len > 64) {
         // Hash the key first
@@ -101,13 +114,13 @@ const char *nuc_hmac_sha256(const char *key, long long key_len,
             k_pad[i] = (unsigned char)byte;
         }
     } else {
-        memcpy(k_pad, key, (int)key_len);
+        memcpy(k_pad, key, (size_t)key_len);
     }
 
     // Inner: SHA256(k_ipad || data)
-    unsigned char *inner_msg = (unsigned char *)malloc(64 + (int)data_len);
+    unsigned char *inner_msg = (unsigned char *)malloc(64 + (size_t)data_len);
     for (int i = 0; i < 64; i++) inner_msg[i] = k_pad[i] ^ 0x36;
-    memcpy(inner_msg + 64, data, (int)data_len);
+    memcpy(inner_msg + 64, data, (size_t)data_len);
     const char *inner_hash = nuc_sha256((const char *)inner_msg, 64 + data_len);
     free(inner_msg);
 
@@ -133,11 +146,12 @@ const char *nuc_hmac_sha256(const char *key, long long key_len,
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 const char *nuc_base64_encode(const char *data, long long len) {
-    int n = (int)len;
-    int out_len = 4 * ((n + 2) / 3);
+    if (len < 0) len = 0;                       // SEC-4: no int truncation
+    size_t n = (size_t)len;
+    size_t out_len = 4 * ((n + 2) / 3);
     char *out = (char *)malloc(out_len + 1);
-    int j = 0;
-    for (int i = 0; i < n; i += 3) {
+    size_t j = 0;
+    for (size_t i = 0; i < n; i += 3) {
         unsigned int val = ((unsigned char)data[i]) << 16;
         if (i + 1 < n) val |= ((unsigned char)data[i + 1]) << 8;
         if (i + 2 < n) val |= (unsigned char)data[i + 2];
@@ -151,19 +165,34 @@ const char *nuc_base64_encode(const char *data, long long len) {
 }
 
 const char *nuc_base64_decode(const char *data, long long len) {
-    int n = (int)len;
-    int out_len = n * 3 / 4;
-    unsigned char *out = (unsigned char *)malloc(out_len + 1);
-    int j = 0;
-    for (int i = 0; i < n; i += 4) {
+    // SEC-3: well-formed base64 is a non-empty multiple of 4 chars. The
+    // previous loop stepped i by 4 but indexed data[i+2]/data[i+3]
+    // unconditionally, reading (and deriving writes) past the buffer for
+    // any truncated input. Reject malformed lengths up front and return a
+    // valid empty C-string, so callers never see a NULL or a short buffer.
+    // SEC-4: size_t throughout, negative length treated as empty.
+    if (len < 0) len = 0;
+    if (len == 0 || (len % 4) != 0) {
+        char *empty = (char *)malloc(1);
+        empty[0] = 0;
+        return empty;
+    }
+    size_t n = (size_t)len;
+    size_t out_cap = (n / 4) * 3;               // safe upper bound
+    unsigned char *out = (unsigned char *)malloc(out_cap + 1);
+    size_t j = 0;
+    for (size_t i = 0; i < n; i += 4) {
+        // i + 3 < n is guaranteed here (n % 4 == 0), so every read below
+        // is in bounds.
         unsigned int vals[4] = {0};
-        for (int k = 0; k < 4 && i + k < n; k++) {
-            char c = data[i + k];
+        for (int k = 0; k < 4; k++) {
+            char c = data[i + (size_t)k];
             if (c >= 'A' && c <= 'Z') vals[k] = c - 'A';
             else if (c >= 'a' && c <= 'z') vals[k] = c - 'a' + 26;
             else if (c >= '0' && c <= '9') vals[k] = c - '0' + 52;
             else if (c == '+') vals[k] = 62;
             else if (c == '/') vals[k] = 63;
+            // '=' padding or any stray char decodes to 0
         }
         unsigned int triple = (vals[0] << 18) | (vals[1] << 12) | (vals[2] << 6) | vals[3];
         out[j++] = (triple >> 16) & 0xFF;
