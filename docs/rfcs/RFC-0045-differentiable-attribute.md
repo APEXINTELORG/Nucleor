@@ -16,9 +16,9 @@ V2 had the parsed annotation but no semantic enforcement. This RFC restores at t
 
 ## Design
 
-- **Parser:** `@differentiable` as a fn-decl attribute (sister to `@hot`, `@const_fn`, `#[no_alloc]`). Parsed at line ~280 of `compiler/nucleor_s1_compiler.nr` in the attribute-skip loop. Stored on the fn AST node (kind-30).
-- **Codegen:** emits `__nucleor_diff_<fn_name>` symbol alias for the autodiff runtime to discover differentiable fns at link time. Existing `autodiff` rod calls switch from string-name lookup to symbol-table dispatch.
-- **Type-check:** parses cleanly, no errors. (Semantic call-graph enforcement is RFC-0045b — deferred.)
+- Parser: `@differentiable` as a fn-decl attribute (sister to `@hot`, `@const_fn`, `#[no_alloc]`). Parsed at line ~280 of `compiler/nucleor_s1_compiler.nr` in the attribute-skip loop. Stored on the fn AST node (kind-30).
+- Codegen: emits `__nucleor_diff_<fn_name>` symbol alias for the autodiff runtime to discover differentiable fns at link time. Existing `autodiff` rod calls switch from string-name lookup to symbol-table dispatch.
+- Type-check: parses cleanly, no errors. (Semantic call-graph enforcement is RFC-0045b — deferred.)
 
 ## Cost
 

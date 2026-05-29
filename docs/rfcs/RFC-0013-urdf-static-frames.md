@@ -164,13 +164,13 @@ v0.5 ships URDF + xacro support. SDF in v0.6.
 
 ## 5. Alternatives considered
 
-- **Runtime URDF loading (current ROS approach)** — works but
+- Runtime URDF loading (current ROS approach) — works but
   defeats compile-time guarantee.
-- **In-line frame graph declaration** (don't read URDF) — duplicates
+- In-line frame graph declaration (don't read URDF) — duplicates
   info that already exists in URDF; recipe for drift.
-- **Separate manifest (TOML/YAML)** instead of URDF — fragments
+- Separate manifest (TOML/YAML) instead of URDF — fragments
   ecosystem; URDF is the standard.
-- **Skip URDF entirely** — leaves runtime gap for the lookup case.
+- Skip URDF entirely — leaves runtime gap for the lookup case.
 
 ## 6. Open questions
 

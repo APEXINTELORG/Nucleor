@@ -6,10 +6,10 @@
 ## Motivation
 
 Modern foundation-model training and inference is distributed across hundreds-to-thousands of accelerators. Nucleor has `comm.nr` (depth uncertain — needs audit) but doesn't yet match JAX/PyTorch's distributed primitives:
-- **Collectives:** all_reduce, all_gather, reduce_scatter, broadcast
-- **Sharding patterns:** pipeline_parallel, tensor_parallel, expert_parallel
-- **Topology-awareness:** rdma_send/recv, fault-domain replication, NIC-aware ring choice
-- **Checkpointing:** checkpoint, restart, deterministic recovery from mid-step failure
+- Collectives: all_reduce, all_gather, reduce_scatter, broadcast
+- Sharding patterns: pipeline_parallel, tensor_parallel, expert_parallel
+- Topology-awareness: rdma_send/recv, fault-domain replication, NIC-aware ring choice
+- Checkpointing: checkpoint, restart, deterministic recovery from mid-step failure
 
 ## Design
 
@@ -58,9 +58,9 @@ fn restart(path: str) -> Result<TrainState, IoError>
 ### Backend dispatch
 
 Three transports:
-- **CPU MPI / Gloo** — local development, validation
-- **NCCL / NVLink** — NVIDIA GPU clusters
-- **RCCL / xGMI** — AMD GPU clusters
+- CPU MPI / Gloo — local development, validation
+- NCCL / NVLink — NVIDIA GPU clusters
+- RCCL / xGMI — AMD GPU clusters
 
 Compile-time selection via `target.has(NCCL)` / `target.has(MPI)` (RFC-0048 capability queries). Runtime fallback to MPI when no accelerator transport available.
 

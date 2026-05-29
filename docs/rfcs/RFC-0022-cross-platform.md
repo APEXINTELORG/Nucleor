@@ -153,10 +153,10 @@ QEMU.
 
 ## 5. Alternatives considered
 
-- **Stay Windows-only** — non-starter for OSS.
-- **Linux only initially** — macOS users are robotics researchers; ship
+- Stay Windows-only — non-starter for OSS.
+- Linux only initially — macOS users are robotics researchers; ship
   both.
-- **Use Rust's cross tool** — works but adds dep; ship native.
+- Use Rust's cross tool — works but adds dep; ship native.
 
 ## 6. Open questions
 

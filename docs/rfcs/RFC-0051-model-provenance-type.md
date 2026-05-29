@@ -40,10 +40,10 @@ The runtime helper verifies the hash matches the actual file; on mismatch, panic
 
 ## Implementation
 
-- **Parser:** `Model<...>` accepts mixed type-and-string-literal generic params. Reuses existing generic-param parser (extended to accept string-literal arguments alongside type names).
-- **Type-check:** string-literal generic params compare by value at type-equality time. Mismatched provenance fails TYP-008 with a clean "model provenance mismatch on field X" diag.
-- **Codegen:** the params are phantom (zero-cost). The runtime handle dispatches per Arch tag.
-- **Stdlib:** new `model` rod with `load_model`, `infer`, `dispose`, plus `verify_provenance` runtime helper.
+- Parser: `Model<...>` accepts mixed type-and-string-literal generic params. Reuses existing generic-param parser (extended to accept string-literal arguments alongside type names).
+- Type-check: string-literal generic params compare by value at type-equality time. Mismatched provenance fails TYP-008 with a clean "model provenance mismatch on field X" diag.
+- Codegen: the params are phantom (zero-cost). The runtime handle dispatches per Arch tag.
+- Stdlib: new `model` rod with `load_model`, `infer`, `dispose`, plus `verify_provenance` runtime helper.
 
 ## Cost
 

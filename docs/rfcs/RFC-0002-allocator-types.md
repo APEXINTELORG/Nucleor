@@ -231,7 +231,7 @@ impl Drop for Arena {
   iteration, amortizing to O(1) per allocation.
 - No fragmentation (everything is bump-allocated).
 - Zero per-allocation overhead beyond alignment padding.
-- **Cannot deallocate individual values** — `Box<T, Arena>::drop`
+- Cannot deallocate individual values — `Box<T, Arena>::drop`
   runs the value's destructor but the storage stays in the arena
   until `arena.reset()` or `arena.drop()`.
 
@@ -419,18 +419,18 @@ reset. No global heap touched.
 
 ### 4.4 Test plan
 
-- **Unit tests** (`tests/attrs/no_alloc_arena_ok.nr`,
+- Unit tests (`tests/attrs/no_alloc_arena_ok.nr`,
   `no_alloc_pool_ok.nr`, `no_alloc_tlsf_ok.nr`): each demonstrates
   a `#[no_alloc(global)]` function using its allocator.
-- **Negative tests** (`tests/err/`):
+- Negative tests (`tests/err/`):
   - `err_alloc_escape_arena.nr` — Box<T, Arena> returned from fn
     where Arena is local
   - `err_alloc_global_in_no_alloc.nr`
   - `err_alloc_pool_in_no_alloc_pool.nr`
-- **Integration test** (`tests/features/rt_message_loop.nr`): a 1 ms
+- Integration test (`tests/features/rt_message_loop.nr`): a 1 ms
   loop that allocates a `Box<Msg, Pool>`, processes, drops, never
   touches global heap.
-- **Benchmark** (`tests/bench/alloc_latency.nr`): measure
+- Benchmark (`tests/bench/alloc_latency.nr`): measure
   `MAX_ALLOC_NS` claims for each allocator across 1M iterations.
 
 ### 4.5 Migration
@@ -569,16 +569,16 @@ allocator is in play. Type parameters make it explicit.
 
 ## 8. Future extensions (out of scope)
 
-- **Stack-pinned allocators** (allocate on stack frame via VLA-style
+- Stack-pinned allocators (allocate on stack frame via VLA-style
   syntax) — probably never. Stack semantics differ enough that a
   separate type makes more sense.
-- **NUMA-aware allocators** for multi-socket servers — v0.7+.
-- **GPU-memory allocators** (`Box<T, CUDA>`) — interesting; v0.6
+- NUMA-aware allocators for multi-socket servers — v0.7+.
+- GPU-memory allocators (`Box<T, CUDA>`) — interesting; v0.6
   when `rod/cuda.nr` matures.
-- **Custom user-defined allocators** — already supported by the
+- Custom user-defined allocators — already supported by the
   `Allocator` trait; no compiler change needed beyond shipping the
   trait.
-- **Region inference** (Cyclone-style) — v0.7+ candidate if user
+- Region inference (Cyclone-style) — v0.7+ candidate if user
   demand emerges.
 
 ---

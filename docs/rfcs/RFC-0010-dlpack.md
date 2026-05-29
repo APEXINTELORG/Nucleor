@@ -225,13 +225,13 @@ calls the DLPack `deleter`).
 
 ## 5. Alternatives considered
 
-- **Custom serialization (Nucleor-native format)** — fragments
+- Custom serialization (Nucleor-native format) — fragments
   ecosystem; users would convert to/from anyway. Rejected.
-- **Apache Arrow** — broader scope (columnar data); use for
+- Apache Arrow — broader scope (columnar data); use for
   dataframes (RFC-?), not tensors.
-- **Protobuf-encoded tensors** — slow, copy-required. Rejected for
+- Protobuf-encoded tensors — slow, copy-required. Rejected for
   ML use.
-- **Skip DLPack, route everything through ONNX Runtime** — works for
+- Skip DLPack, route everything through ONNX Runtime — works for
   inference; doesn't help training.
 
 ## 6. Open questions

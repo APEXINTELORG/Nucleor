@@ -320,11 +320,11 @@ selector, and download orchestration are all already in
 
 ## 6. Alternatives considered
 
-- **No package manager** — blocks ecosystem.
-- **Run on top of npm/Cargo** — silly.
-- **Centralized server from day one** — operational burden.
+- No package manager — blocks ecosystem.
+- Run on top of npm/Cargo — silly.
+- Centralized server from day one — operational burden.
   GitHub-Pages-as-registry is enough for v0.5.
-- **Use Cargo registry** — license/TOS issues; we're not Rust.
+- Use Cargo registry — license/TOS issues; we're not Rust.
 
 ## 6. Open questions
 

@@ -25,12 +25,12 @@ Quantity literals: SI energy (`uJ`, `mJ`, `J`), SI temperature (`C`, `K`), with 
 
 ## Implementation
 
-- **Parser:** new attribute kinds at the existing attribute-skip loop (line ~280). Stores parsed budget as fn metadata.
-- **Type-check:** advisory only in v2.5. Future ship adds:
+- Parser: new attribute kinds at the existing attribute-skip loop (line ~280). Stores parsed budget as fn metadata.
+- Type-check: advisory only in v2.5. Future ship adds:
   - per-instruction energy model (table of `add: 1pJ`, `mul: 5pJ`, `dram_load: 1nJ`, `tensor_core_op: ...`)
   - call-graph walk summing instruction energies
   - emit `EnergyBudgetExceeded` warning if estimated > declared
-- **Codegen:** emits `__nucleor_meta_energy_<fn>` and `__nucleor_meta_thermal_<fn>` symbols that `nuc perf` / `nuc summary` / IDE plugins can read.
+- Codegen: emits `__nucleor_meta_energy_<fn>` and `__nucleor_meta_thermal_<fn>` symbols that `nuc perf` / `nuc summary` / IDE plugins can read.
 
 ## Cost
 

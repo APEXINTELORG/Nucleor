@@ -50,10 +50,10 @@ Key info-flow rules:
 ## Implementation
 
 V2.12 ship:
-- **Parser:** `Secret<T>` / `Public<T>` / `Confidential<T>` / `ExportControlled<T>` as wrapper types. `@enclave(<engine>)` and `@attested` attributes.
-- **Type-check:** info-flow propagation — Secret-tainted expressions promote result type. Cross-flow Secret→Public rejected with TYP-IFC-001.
-- **Codegen:** at enclave-fn entry, emit `__nucleor_enclave_enter_<engine>`. At exit, `__nucleor_enclave_exit_<engine>`. Today STUB helpers (no real TDX/SEV/SecureEnclave hardware dispatch); adopters get the type-system safety without the hardware isolation until vendor backends ship.
-- **Stdlib:** `enclave::*` + `secret::*` + `constant_time::*` ops.
+- Parser: `Secret<T>` / `Public<T>` / `Confidential<T>` / `ExportControlled<T>` as wrapper types. `@enclave(<engine>)` and `@attested` attributes.
+- Type-check: info-flow propagation — Secret-tainted expressions promote result type. Cross-flow Secret→Public rejected with TYP-IFC-001.
+- Codegen: at enclave-fn entry, emit `__nucleor_enclave_enter_<engine>`. At exit, `__nucleor_enclave_exit_<engine>`. Today STUB helpers (no real TDX/SEV/SecureEnclave hardware dispatch); adopters get the type-system safety without the hardware isolation until vendor backends ship.
+- Stdlib: `enclave::*` + `secret::*` + `constant_time::*` ops.
 
 ## Cost
 

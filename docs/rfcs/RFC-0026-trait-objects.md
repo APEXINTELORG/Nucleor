@@ -142,9 +142,9 @@ for arena-allocated trait objects.
 
 ## 5. Alternatives considered
 
-- **Static dispatch only** — current; insufficient for heterogeneous
+- Static dispatch only — current; insufficient for heterogeneous
   collections.
-- **Existential types** (`impl Trait`) for return positions — ship
+- Existential types (`impl Trait`) for return positions — ship
   alongside (small extension).
 
 ## 6. Open questions

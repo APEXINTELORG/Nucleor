@@ -143,9 +143,9 @@ docs (built on publish).
 
 ## 5. Alternatives considered
 
-- **External tool (Doxygen)** — works but inconsistent with the
+- External tool (Doxygen) — works but inconsistent with the
   language; ship in core.
-- **No doc gen** — non-starter for ecosystem.
+- No doc gen — non-starter for ecosystem.
 
 ## 6. Open questions
 

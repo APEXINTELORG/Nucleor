@@ -175,10 +175,10 @@ ill-defined when side effects exist.
 
 ## 5. Alternatives considered
 
-- **Stay with quarantine** — leaves V1 design unfinished.
-- **Effect handlers (Koka full system)** — too heavy for v0.6;
+- Stay with quarantine — leaves V1 design unfinished.
+- Effect handlers (Koka full system) — too heavy for v0.6;
   ship row-typing only, defer handlers to v0.7+.
-- **Capability-based** (Eff style) — equivalent power, different
+- Capability-based (Eff style) — equivalent power, different
   surface; row-typing is more familiar.
 
 ## 6. Open questions

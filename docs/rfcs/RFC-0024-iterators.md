@@ -144,8 +144,8 @@ RT loops are fine; final `collect` must use a pre-sized container.
 
 ## 5. Alternatives considered
 
-- **Stay with index-based loops** — works but loses ergonomics.
-- **Stream-based (Java)** — sufficient but Rust's design is cleaner
+- Stay with index-based loops — works but loses ergonomics.
+- Stream-based (Java) — sufficient but Rust's design is cleaner
   for systems lang.
 
 ## 6. Open questions

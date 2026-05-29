@@ -226,9 +226,9 @@ fn add(a: f64, b: f64) -> f64
 
 ## 5. Alternatives considered
 
-- **Stay user-asserted (current)** — soundness gap stays open.
-- **Always-on property tests** — slow; opt-in flag.
-- **Skip SMT** — covers most but misses cert path.
+- Stay user-asserted (current) — soundness gap stays open.
+- Always-on property tests — slow; opt-in flag.
+- Skip SMT — covers most but misses cert path.
 
 ## 6. Open questions
 

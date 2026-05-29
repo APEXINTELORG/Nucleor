@@ -155,9 +155,9 @@ error[FMT-001]: 2 positional arguments in format string, but 1 argument provided
 ## 5. Alternatives considered
 
 - **printf-style** — unsafe; bypasses type system.
-- **Python f-string interpolation** — `f"x = {x}"` reads cleaner but
+- Python f-string interpolation — `f"x = {x}"` reads cleaner but
   conflicts with our generic syntax `<...>`. Use `format!` macro.
-- **String concatenation only** — current state; verbose.
+- String concatenation only — current state; verbose.
 
 ## 6. Open questions
 

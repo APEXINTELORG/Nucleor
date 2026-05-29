@@ -211,9 +211,9 @@ Collections panic on:
 
 ## 5. Alternatives considered
 
-- **Skip BTreeMap, ship HashMap only** — loses determinism story.
-- **Use C++ std::unordered_map via FFI** — slow, fragmentation-prone.
-- **Persistent (immutable) collections by default** — too opinionated;
+- Skip BTreeMap, ship HashMap only — loses determinism story.
+- Use C++ std::unordered_map via FFI — slow, fragmentation-prone.
+- Persistent (immutable) collections by default — too opinionated;
   community rod for `Im<T>`.
 
 ## 6. Open questions

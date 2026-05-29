@@ -57,10 +57,10 @@ is mandatory.
 
 Prior art:
 - **C** — `__attribute__((interrupt))` (GCC), `__interrupt` (IAR/Keil)
-- **Rust embedded** — `#[interrupt]` macro from `cortex-m-rt`/PAC
+- Rust embedded — `#[interrupt]` macro from `cortex-m-rt`/PAC
   crates
-- **Ada/SPARK** — `pragma Interrupt_Handler`, `pragma Attach_Handler`
-- **Zig** — `callconv(.Interrupt)` in fn signature
+- Ada/SPARK — `pragma Interrupt_Handler`, `pragma Attach_Handler`
+- Zig — `callconv(.Interrupt)` in fn signature
 
 Nucleor models on Rust embedded — proven design.
 
@@ -113,7 +113,7 @@ Standard set per architecture, ships in `stdlib/embedded/<target>/vectors.nr`.
 - `#[atomic]` — no blocking
 
 Plus a new ISR-specific rule:
-- **No call to a non-`#[isr_safe]` function.** Most functions are
+- No call to a non-`#[isr_safe]` function. Most functions are
   `#[isr_safe]` if they satisfy the above. Stdlib audit manifest
   marks each function.
 
@@ -230,10 +230,10 @@ fn read_ticks() -> u32 {
 
 ## 5. Alternatives considered
 
-- **Macro-based (Rust-embedded model)** — works but loses
+- Macro-based (Rust-embedded model) — works but loses
   compile-time analysis. Attribute is cleaner.
-- **Inline asm trap entry** — too target-specific; let LLVM handle.
-- **No language support, document the convention** — defeats v0.6's
+- Inline asm trap entry — too target-specific; let LLVM handle.
+- No language support, document the convention — defeats v0.6's
   embedded credibility goal.
 
 ## 6. Open questions

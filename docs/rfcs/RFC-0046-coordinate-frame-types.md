@@ -43,9 +43,9 @@ let bad: Pose<Frame_Base> = transform(p_camera, /* wrong-direction tf */);  // �
 
 ## Implementation
 
-- **Type-check:** `Pose<F>` types compare by both base name AND F parameter. `types_compatible(Pose<Camera>, Pose<Base>)` returns 0.
-- **Codegen:** zero-cost — phantom F doesn't materialize. `Pose<Camera>` and `Pose<Base>` lower to identical `{Vec3, Quat}` storage.
-- **Stdlib:** `kinematics` / `tf` / `se3` rods extend their existing `Pose` to the parameterized form. Backward-compat via type alias `type Pose = Pose<Frame_Unknown>;` for adopters who don't care.
+- Type-check: `Pose<F>` types compare by both base name AND F parameter. `types_compatible(Pose<Camera>, Pose<Base>)` returns 0.
+- Codegen: zero-cost — phantom F doesn't materialize. `Pose<Camera>` and `Pose<Base>` lower to identical `{Vec3, Quat}` storage.
+- Stdlib: `kinematics` / `tf` / `se3` rods extend their existing `Pose` to the parameterized form. Backward-compat via type alias `type Pose = Pose<Frame_Unknown>;` for adopters who don't care.
 
 ## Cost
 

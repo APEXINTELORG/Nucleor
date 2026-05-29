@@ -8,8 +8,8 @@
 Optical / photonic accelerators (Lightmatter, Lightelligence, PsiQuantum classical, Luminous, integrated SiPh research) execute matmul / convolution / FFT in the optical domain at fJ/op energy and 100x bandwidth. The frontier writeup positions photonic as a first-class execution form alongside CPU/GPU/quantum.
 
 Nucleor's stdlib has zero photonic surface today. This RFC adds:
-- **LANGUAGE-LEVEL:** types (OpticalTensor, ComplexAmplitude, Phase, Wavelength, MZIMesh) + placement attribute `@photonic`
-- **ROD-LEVEL:** `std.photonic` ops (optical_matmul, configure_mesh, calibrate_phase, model_crosstalk, modulator/detector)
+- LANGUAGE-LEVEL: types (OpticalTensor, ComplexAmplitude, Phase, Wavelength, MZIMesh) + placement attribute `@photonic`
+- ROD-LEVEL: `std.photonic` ops (optical_matmul, configure_mesh, calibrate_phase, model_crosstalk, modulator/detector)
 
 ## Language-level surface
 
@@ -32,9 +32,9 @@ fn optical_layer(x: OpticalTensor<C64, [B, M, K], 1550>,
 ```
 
 Key type-system effects:
-- **Wavelength as type param:** `1550` and `1310` are different types. Mixing them in the same op fails type-check (`mux_dispatch` is the explicit conversion).
-- **Linear ownership of MZIMesh handle:** an `MZIMesh<R, C>` value is move-only — you can't accidentally use the same physical mesh twice in concurrent paths.
-- **Effect tag `optical_path`:** placed on any fn that runs on the photonic device. Composes with the existing capability/effect surface.
+- Wavelength as type param: `1550` and `1310` are different types. Mixing them in the same op fails type-check (`mux_dispatch` is the explicit conversion).
+- Linear ownership of MZIMesh handle: an `MZIMesh<R, C>` value is move-only — you can't accidentally use the same physical mesh twice in concurrent paths.
+- Effect tag `optical_path`: placed on any fn that runs on the photonic device. Composes with the existing capability/effect surface.
 
 ## Rod-level surface (`std.photonic`)
 
@@ -47,10 +47,10 @@ Key type-system effects:
 
 ## Implementation
 
-- **Parser:** the parameterized types use existing generic-param + string-literal-param machinery (RFC-0051 inheritance).
-- **Type-check:** wavelength + shape + complex-scalar params compared by value at type-equality.
-- **Codegen:** photonic ops dispatch to runtime helpers `__nucleor_optical_matmul_*`. Today these are STUBS that fall back to CPU complex-matmul with a runtime warning. Hardware dispatch is a future ship.
-- **Effect:** `@photonic` placement attribute parsed and emitted as fn metadata.
+- Parser: the parameterized types use existing generic-param + string-literal-param machinery (RFC-0051 inheritance).
+- Type-check: wavelength + shape + complex-scalar params compared by value at type-equality.
+- Codegen: photonic ops dispatch to runtime helpers `__nucleor_optical_matmul_*`. Today these are STUBS that fall back to CPU complex-matmul with a runtime warning. Hardware dispatch is a future ship.
+- Effect: `@photonic` placement attribute parsed and emitted as fn metadata.
 
 ## Cost
 

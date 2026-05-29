@@ -517,14 +517,14 @@ multi-robot) define frames outside any URDF.
 
 ## 8. Future extensions
 
-- **URDF-aware static frame chains** (v0.5 — see §3.5).
-- **Velocity transform automation** — `Twist<F>` cross-frame is more
+- URDF-aware static frame chains (v0.5 — see §3.5).
+- Velocity transform automation — `Twist<F>` cross-frame is more
   subtle than `Pose<F>` (involves the relative velocity of the
   frames). Auto-derive from TF chain in v0.6.
-- **Force/torque transform** — `Wrench<F>` cross-frame likewise.
-- **Probabilistic frames** — `PoseWithCovariance<F>` and proper
+- Force/torque transform — `Wrench<F>` cross-frame likewise.
+- Probabilistic frames — `PoseWithCovariance<F>` and proper
   covariance propagation through transforms (v0.7).
-- **Inertial / accelerated frames** for control theory (Coriolis,
+- Inertial / accelerated frames for control theory (Coriolis,
   centrifugal corrections) — research territory; v0.8+.
 - **2D frame variant** (`Pose2D<F>`) — open question 1.
 - **Compile-time typed frame chains for transforms via const generics

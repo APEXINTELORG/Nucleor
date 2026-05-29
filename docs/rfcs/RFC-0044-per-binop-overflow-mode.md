@@ -34,10 +34,10 @@ Both forms compose with surrounding block context — the inline marker override
 
 ## Implementation
 
-- **Parser:** `*#sat` lexes as a single token (avoids ambiguity with `*` followed by a `#[attr]`). New token kind `BINOP_WITH_MODE`.
-- **AST:** kind-4 (binop) gains an optional `mode: i64` field (encoded as 0=default, 1=wrap, 2=sat, 3=trap).
-- **Type-check:** mode propagates to width-check rules (e.g. saturating cast clamps at type boundary; wrapping cast truncates; trapping cast emits panic-on-overflow IR).
-- **Lower:** existing block-form path stays. New per-op path emits the matching helper directly.
+- Parser: `*#sat` lexes as a single token (avoids ambiguity with `*` followed by a `#[attr]`). New token kind `BINOP_WITH_MODE`.
+- AST: kind-4 (binop) gains an optional `mode: i64` field (encoded as 0=default, 1=wrap, 2=sat, 3=trap).
+- Type-check: mode propagates to width-check rules (e.g. saturating cast clamps at type boundary; wrapping cast truncates; trapping cast emits panic-on-overflow IR).
+- Lower: existing block-form path stays. New per-op path emits the matching helper directly.
 
 ## Cost
 

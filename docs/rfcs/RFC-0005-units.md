@@ -47,11 +47,11 @@ right, the implementation never landed. v0.6 ships it.
 ### 2.1 The bug class
 
 Unit-confusion bugs are catastrophic and recurring:
-- **Mars Climate Orbiter (1999):** $327M loss. Newton-seconds vs
+- Mars Climate Orbiter (1999): $327M loss. Newton-seconds vs
   pound-force-seconds.
-- **Gimli Glider (1983):** Air Canada 767 ran out of fuel at 41,000 ft;
+- Gimli Glider (1983): Air Canada 767 ran out of fuel at 41,000 ft;
   kg vs lb.
-- **Robotics weekly:** rad vs deg in joint targets, m vs mm in tool
+- Robotics weekly: rad vs deg in joint targets, m vs mm in tool
   offsets, m/s vs km/h in waypoints.
 
 ### 2.2 Prior art
@@ -207,12 +207,12 @@ Test plan: ports the 3 quarantined `err_unit_*` tests back to
 
 ## 5. Alternatives considered
 
-- **Runtime-only checking** — defeats purpose; rejected.
-- **Per-quantity wrapper structs** (Boost.Units) — verbose, no
+- Runtime-only checking — defeats purpose; rejected.
+- Per-quantity wrapper structs (Boost.Units) — verbose, no
   dimension algebra; rejected.
-- **Macros only** — uom-crate-style; loses type-system integration.
+- Macros only — uom-crate-style; loses type-system integration.
   Rejected.
-- **Skip units entirely** — leaves the bug class open. Rejected per
+- Skip units entirely — leaves the bug class open. Rejected per
   user mandate.
 
 ---

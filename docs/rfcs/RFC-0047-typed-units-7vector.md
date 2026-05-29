@@ -28,9 +28,9 @@ Literal suffixes (`_kg`, `_m`, `_s`, `_N`, `_J`, `_W`, `_Pa`, `_Hz`, ...) lex to
 
 ## Implementation
 
-- **Parser:** `unit<T, [a,b,c,d,e,f,g]>` accepted as type expression. Literal suffixes lex to `unit<f64, [...]>` with SI-prefix scaling baked in at lex-time.
-- **Type-check:** `types_compatible(unit<T, [v1...]>, unit<T, [v2...]>)` requires `v1 == v2`. Multiplication: dim-vector add. Division: dim-vector sub. Power: scalar mul of dim vector. Cast `as f64` strips the dimension (escape hatch — adopter loses dim safety, gets bare scalar).
-- **Codegen:** zero-cost. The dim vector is purely type-level; runtime only sees the scalar T.
+- Parser: `unit<T, [a,b,c,d,e,f,g]>` accepted as type expression. Literal suffixes lex to `unit<f64, [...]>` with SI-prefix scaling baked in at lex-time.
+- Type-check: `types_compatible(unit<T, [v1...]>, unit<T, [v2...]>)` requires `v1 == v2`. Multiplication: dim-vector add. Division: dim-vector sub. Power: scalar mul of dim vector. Cast `as f64` strips the dimension (escape hatch — adopter loses dim safety, gets bare scalar).
+- Codegen: zero-cost. The dim vector is purely type-level; runtime only sees the scalar T.
 
 Lifting V2's implementation: V2 stored the `[i8; 7]` in the type-string slot. Reuse that wire format.
 

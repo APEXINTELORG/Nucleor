@@ -32,9 +32,9 @@ fn snn_inference(input: SpikeTrain, network: NetworkHandle) -> SpikeTrain {
 ```
 
 Key type-system effects:
-- **Spike vs Tensor are distinct.** Adopters can't accidentally pass a tensor to an event-driven path.
-- **Linear ownership of NetworkHandle:** the SNN topology is move-only.
-- **Effect tag `event_driven`:** placed on any fn that consumes spike trains. Composes with capability/effect surface.
+- Spike vs Tensor are distinct. Adopters can't accidentally pass a tensor to an event-driven path.
+- Linear ownership of NetworkHandle: the SNN topology is move-only.
+- Effect tag `event_driven`: placed on any fn that consumes spike trains. Composes with capability/effect surface.
 
 ## Rod-level surface (`std.neuro`)
 
@@ -48,10 +48,10 @@ Key type-system effects:
 
 ## Implementation
 
-- **Parser:** types use the existing generic-param machinery; `enum NeuronModel` with model-tag generic param.
-- **Type-check:** Spike / SpikeTrain / MembranePotential are zero-cost wrappers (move-only via existing ownership checker; the wrapper wraps an i64 handle).
-- **Codegen:** ops dispatch to runtime helpers. Today CPU-fallback (Vec<Spike> in DRAM, integrate-and-fire in a tight loop). Hardware backends per device family are future ships.
-- **Effect:** `@neuromorphic` attribute parsed and emitted as fn metadata.
+- Parser: types use the existing generic-param machinery; `enum NeuronModel` with model-tag generic param.
+- Type-check: Spike / SpikeTrain / MembranePotential are zero-cost wrappers (move-only via existing ownership checker; the wrapper wraps an i64 handle).
+- Codegen: ops dispatch to runtime helpers. Today CPU-fallback (Vec<Spike> in DRAM, integrate-and-fire in a tight loop). Hardware backends per device family are future ships.
+- Effect: `@neuromorphic` attribute parsed and emitted as fn metadata.
 
 ## Cost
 

@@ -39,9 +39,9 @@ Allocation primitives (rod-level, but with type-system enforcement):
 
 ## Implementation
 
-- **Type-check:** `Tensor<T, S>` types compare both T and S parameters. Phantom-typed S (zero runtime cost — the runtime tensor handle has the same i64 layout regardless of pool).
-- **Codegen:** the alloc primitive dispatches to the matching runtime helper (`__nucleor_alloc_hbm`, `__nucleor_alloc_ddr`, etc.). Today only `__nucleor_alloc_ddr` (host RAM via `malloc`) ships; the GPU/CXL/Scratchpad helpers are **STUBS** that fall back to host RAM with a runtime warning.
-- **Stdlib:** `std.mem` adds `alloc<S>`, `prefetch<S>`, `migrate`, `pin`, `evict` primitives. CPU-only path returns the tensor unchanged; GPU-pool path requires future GPU runtime ship.
+- Type-check: `Tensor<T, S>` types compare both T and S parameters. Phantom-typed S (zero runtime cost — the runtime tensor handle has the same i64 layout regardless of pool).
+- Codegen: the alloc primitive dispatches to the matching runtime helper (`__nucleor_alloc_hbm`, `__nucleor_alloc_ddr`, etc.). Today only `__nucleor_alloc_ddr` (host RAM via `malloc`) ships; the GPU/CXL/Scratchpad helpers are **STUBS** that fall back to host RAM with a runtime warning.
+- Stdlib: `std.mem` adds `alloc<S>`, `prefetch<S>`, `migrate`, `pin`, `evict` primitives. CPU-only path returns the tensor unchanged; GPU-pool path requires future GPU runtime ship.
 
 ## Cost
 

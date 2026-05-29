@@ -252,12 +252,12 @@ that auto-converts likely-i64 declarations to `i64` and likely-f64 to
 
 ## 5. Alternatives considered
 
-- **Stay with i64-everywhere** — blocks every other RFC. Rejected.
-- **Go-style implicit (default `int`)** — easier ergonomics but loses
+- Stay with i64-everywhere — blocks every other RFC. Rejected.
+- Go-style implicit (default `int`) — easier ergonomics but loses
   the safety story. Rejected.
-- **Zig-style arbitrary-width (`i7`, `u3`)** — too ambitious for v0.2;
+- Zig-style arbitrary-width (`i7`, `u3`) — too ambitious for v0.2;
   defer.
-- **Skip f8/f16/bf16** — blocks ML inference story. Ship them.
+- Skip f8/f16/bf16 — blocks ML inference story. Ship them.
 
 ## 6. Open questions
 

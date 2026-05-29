@@ -34,8 +34,8 @@ Robotics + RT users do NOT use async. Web/services users do.
 ## 2. Motivation
 
 Async/await is contentious in systems languages:
-- **Pro:** ergonomic for I/O-bound code, web servers, high concurrency.
-- **Con:** hidden allocations, hidden scheduling, executor latency,
+- Pro: ergonomic for I/O-bound code, web servers, high concurrency.
+- Con: hidden allocations, hidden scheduling, executor latency,
   function-color problem (sync/async can't easily compose).
 
 Robotics-first languages (Nucleor's stated target) have hard
@@ -47,12 +47,12 @@ half-baked runtime. Don't pretend Nucleor is async-first; don't
 pretend users never need it.
 
 Prior art tradeoffs:
-- **Rust** — full async/await with no first-class executor; tokio /
+- Rust — full async/await with no first-class executor; tokio /
   async-std / smol compete. Function-color problem real.
-- **Go** — goroutines + channels; no explicit async. Works for most
+- Go — goroutines + channels; no explicit async. Works for most
   cases.
-- **C++** — coroutines (C++20) but ecosystem fragmented.
-- **Zig** — async removed in 0.11; revisiting.
+- C++ — coroutines (C++20) but ecosystem fragmented.
+- Zig — async removed in 0.11; revisiting.
 
 ---
 
@@ -164,11 +164,11 @@ in a small async adapter — explicit, not transparent.
 
 ## 5. Alternatives considered
 
-- **First-class async runtime (Rust + tokio model)** — couples
+- First-class async runtime (Rust + tokio model) — couples
   language to one runtime; we don't want that.
-- **Goroutine model (Go)** — would need GC or sophisticated stack
+- Goroutine model (Go) — would need GC or sophisticated stack
   management; conflicts with no-GC.
-- **No async ever** — abandons L4 web/cloud users; rejected.
+- No async ever — abandons L4 web/cloud users; rejected.
 
 ## 6. Open questions
 

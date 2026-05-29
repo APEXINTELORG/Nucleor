@@ -160,10 +160,10 @@ Top-level package name from `Nucleor.toml` becomes accessible as
 
 ## 5. Alternatives considered
 
-- **Stay with `import` only** — blocks package manager.
-- **Go-style package-per-directory** — less flexible, conflates dir
+- Stay with `import` only — blocks package manager.
+- Go-style package-per-directory — less flexible, conflates dir
   with namespace.
-- **Header-style** (`include`) — preprocessor-textual; rejected.
+- Header-style (`include`) — preprocessor-textual; rejected.
 
 ## 6. Open questions
 

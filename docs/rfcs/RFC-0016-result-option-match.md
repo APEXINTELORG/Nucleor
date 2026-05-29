@@ -196,9 +196,9 @@ allocation, no panic (except `unwrap`). Compose cleanly with
 
 ## 5. Alternatives considered
 
-- **C-style sentinels** — current; bug-prone; rejected.
-- **Exceptions** — runtime cost, no `#[no_panic]` story; rejected.
-- **Multiple return values (Go-style)** — better than sentinels but
+- C-style sentinels — current; bug-prone; rejected.
+- Exceptions — runtime cost, no `#[no_panic]` story; rejected.
+- Multiple return values (Go-style) — better than sentinels but
   no exhaustiveness, no `?` ergonomics; rejected.
 - **`try`/`catch`** — heavier syntax; Rust's `?` won this race.
 

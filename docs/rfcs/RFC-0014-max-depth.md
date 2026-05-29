@@ -52,11 +52,11 @@ size, `#[no_alloc]`-stack-frame check) all fail. Three options:
 Option 2 is the right level for v0.5.
 
 Prior art:
-- **Ada/SPARK** — `pragma Restrictions (Max_Entry_Queue_Length)` and
+- Ada/SPARK — `pragma Restrictions (Max_Entry_Queue_Length)` and
   similar; `#[max_depth]` is the analogous fn-level construct.
-- **Rust** — no first-class equivalent; `#[recursion_limit]` is for
+- Rust — no first-class equivalent; `#[recursion_limit]` is for
   macros only.
-- **WCET tools** — typically require user-supplied loop and recursion
+- WCET tools — typically require user-supplied loop and recursion
   bounds.
 
 ---
@@ -186,9 +186,9 @@ functions in `--profile=cert`. Without it, WCET-005 fires.
 
 ## 5. Alternatives considered
 
-- **Forbid recursion in RT code** — too restrictive.
-- **Infer bound automatically** — research-grade; defer.
-- **Convert recursion to iteration via CPS transform** — possible but
+- Forbid recursion in RT code — too restrictive.
+- Infer bound automatically — research-grade; defer.
+- Convert recursion to iteration via CPS transform — possible but
   changes user code semantics. Better to just bound.
 
 ## 6. Open questions

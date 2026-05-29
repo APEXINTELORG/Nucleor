@@ -387,24 +387,24 @@ Estimated size: ~3000 LOC. Self-hosted in Nucleor (eats own dog food).
 ### 4.5 Demo bindings (ship with v0.4)
 
 To prove the design works on real C++:
-- **Eigen** — `rod/eigen.nr` via `nuc-cxx` over a thin wrapper
+- Eigen — `rod/eigen.nr` via `nuc-cxx` over a thin wrapper
   header (Eigen is template-heavy; a wrapper is needed regardless).
-- **OpenCV high-level** — `rod/opencv_hi.nr` via `nuc-cxx`,
+- OpenCV high-level — `rod/opencv_hi.nr` via `nuc-cxx`,
   complementing the existing C-API `rod/opencv.nr` from §3.10 of
   the Robotics RFC.
-- **MuJoCo** — actually fine with `nuc-bindgen` (C API), but ship
+- MuJoCo — actually fine with `nuc-bindgen` (C API), but ship
   one `nuc-cxx` example for the C++ wrapper headers.
 
 ### 4.6 Test plan
 
-- **Unit:** `tests/cxx/hello_cxx.nr` calls a one-line C++ function.
-- **STL types:** `tests/cxx/stl_string_vector.nr` round-trips
+- Unit: `tests/cxx/hello_cxx.nr` calls a one-line C++ function.
+- STL types: `tests/cxx/stl_string_vector.nr` round-trips
   `std::string` and `std::vector<double>`.
-- **Lifetime:** `tests/cxx/unique_ptr_drop.nr` verifies destructor
+- Lifetime: `tests/cxx/unique_ptr_drop.nr` verifies destructor
   fires.
-- **Exceptions:** `tests/cxx/cxx_exception.nr` — C++ throws,
+- Exceptions: `tests/cxx/cxx_exception.nr` — C++ throws,
   Nucleor catches as `Result::Err`.
-- **Demo:** `examples/15_eigen_solve.nr` — solve `Ax = b` via Eigen.
+- Demo: `examples/15_eigen_solve.nr` — solve `Ax = b` via Eigen.
 
 ### 4.7 Migration
 
@@ -526,15 +526,15 @@ Make Nucleor's compiler read C++ headers natively, no separate tool.
 
 ## 8. Future extensions (out of scope)
 
-- **Direct compiler integration** (Swift 5.9 model) — v1.0+.
-- **Template instantiation lists** — v0.5.
-- **CMake `find_package(Nucleor)`** — v0.5.
-- **C++ coroutines bridging Nucleor async** — v0.8 if/when async
+- Direct compiler integration (Swift 5.9 model) — v1.0+.
+- Template instantiation lists — v0.5.
+- CMake `find_package(Nucleor)` — v0.5.
+- C++ coroutines bridging Nucleor async — v0.8 if/when async
   lands.
-- **C++ modules (C++20)** — v0.6 when adoption is widespread.
-- **MSVC-only intrinsics, GCC-only intrinsics** — opt-in via
+- C++ modules (C++20) — v0.6 when adoption is widespread.
+- MSVC-only intrinsics, GCC-only intrinsics — opt-in via
   `#[cfg]`.
-- **Bridging C++ ranges (`std::ranges`)** to Nucleor iterators — v0.7
+- Bridging C++ ranges (`std::ranges`) to Nucleor iterators — v0.7
   pending iterator-trait spec.
 
 ---

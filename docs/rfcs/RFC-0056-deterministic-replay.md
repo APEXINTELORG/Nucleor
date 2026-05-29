@@ -51,14 +51,14 @@ ReplayEvent variants: `RngDraw`, `KernelLaunch`, `SensorRead`, `ActuatorWrite`, 
 ## Implementation
 
 V2.11 ship:
-- **Parser:** `replay { ... } { ... }` block syntax. Outer braces hold key-value config; inner braces hold the body.
-- **Lower:** the block synthesizes:
+- Parser: `replay { ... } { ... }` block syntax. Outer braces hold key-value config; inner braces hold the body.
+- Lower: the block synthesizes:
   - PRNG init at block entry from declared seed
   - Replay-log-open at block entry
   - Replay-log-close at block exit (or panic-unwind)
   - Per-op event logging (only ops marked `@replay-instrumented` in the autodiff/quantum/distributed/io rods)
-- **Stdlib:** `std.replay` rod with handle + event types + assertion machinery.
-- **Existing rods:** add `@replay-instrumented` annotation to `rand`, `tensor` ops, `io::read_sensor`, `actuator::send`, `model::load`. ~30 op sites.
+- Stdlib: `std.replay` rod with handle + event types + assertion machinery.
+- Existing rods: add `@replay-instrumented` annotation to `rand`, `tensor` ops, `io::read_sensor`, `actuator::send`, `model::load`. ~30 op sites.
 
 ## Cost
 

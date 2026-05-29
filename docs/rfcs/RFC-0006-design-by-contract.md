@@ -71,10 +71,10 @@ ships it as first-class because it's the natural extension of
 RFC-0001's other compile-time-checked properties.
 
 Prior art:
-- **Eiffel** — original DbC language (Bertrand Meyer)
-- **SPARK Ada** — formally proven contracts
-- **C++26 contracts** — stalled; proposed but not standardized
-- **Rust contracts crate** — third-party; runtime-checked
+- Eiffel — original DbC language (Bertrand Meyer)
+- SPARK Ada — formally proven contracts
+- C++26 contracts — stalled; proposed but not standardized
+- Rust contracts crate — third-party; runtime-checked
 - **Dafny / F\* / Kani** — verification-driven
 
 ---
@@ -218,7 +218,7 @@ convention; they live "outside" the no-panic body.
 
 - **`assume!` only** (RFC-0004) — insufficient; can't express caller
   obligations.
-- **Runtime-checked-only contracts** — same overhead as user-written
+- Runtime-checked-only contracts — same overhead as user-written
   asserts; no analysis benefit. Rejected.
 - **Verification-driven (Dafny/F\*-style)** — too heavy for v0.5.
   `cert` profile in v0.7 closes this.

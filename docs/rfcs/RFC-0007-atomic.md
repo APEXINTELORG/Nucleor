@@ -119,7 +119,7 @@ Compiler enforces:
 - No dynamic dispatch (`#[no_dyn]`)
 - **No call to `Mutex::lock`, `RwLock::read`, `RwLock::write`**
 - **No call to `std::thread::sleep`, `Channel::recv` (blocking)**
-- **No syscall** (transitively — through stdlib audit manifest)
+- No syscall (transitively — through stdlib audit manifest)
 
 Implies `#[no_alloc, no_panic, no_dyn]` plus the new "no blocking"
 constraint.
@@ -176,12 +176,12 @@ copies the value into pre-allocated storage. Both safe under
 
 ## 5. Alternatives considered
 
-- **No language attribute, just types** — loses compile-time
+- No language attribute, just types — loses compile-time
   enforcement for "function is lock-free." Rejected.
-- **Software-transactional-memory** — out of scope.
-- **Hazard pointers / RCU** — too specialized for v0.5; can be
+- Software-transactional-memory — out of scope.
+- Hazard pointers / RCU — too specialized for v0.5; can be
   community rod.
-- **Lock elision via HLE/RTM** — Intel-specific; defer.
+- Lock elision via HLE/RTM — Intel-specific; defer.
 
 ## 6. Open questions
 

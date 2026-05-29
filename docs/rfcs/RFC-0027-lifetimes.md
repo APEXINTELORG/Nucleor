@@ -145,10 +145,10 @@ The hardest item in v0.4. Lifetime inference is famously tricky
 
 ## 5. Alternatives considered
 
-- **Stay with elision-only** — too restrictive for real APIs.
-- **Reference counting (Arc)** — defeats purpose; we want the
+- Stay with elision-only — too restrictive for real APIs.
+- Reference counting (Arc) — defeats purpose; we want the
   zero-cost story.
-- **Region inference** (Cyclone-style) — too automatic; users want
+- Region inference (Cyclone-style) — too automatic; users want
   explicit control for non-trivial cases.
 
 ## 6. Open questions

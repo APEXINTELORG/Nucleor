@@ -397,9 +397,9 @@ isn't usable today. Defeats the purpose.
 
 - **`#[require(...)]` / `#[ensure(...)]`** — full design-by-contract.
   RFC-0006.
-- **SMT-backed proof of `assume!` predicates** — `--profile=cert`.
+- SMT-backed proof of `assume!` predicates — `--profile=cert`.
   RFC-0009.
-- **Quantified predicates** (`forall i in 0..n: arr[i] > 0`).
+- Quantified predicates (`forall i in 0..n: arr[i] > 0`).
   Research; not for v0.x.
 - **`prove!` macro** that requires the analyzer to derive the
   predicate (no trust). Stricter form of `assume!`. v0.7+.

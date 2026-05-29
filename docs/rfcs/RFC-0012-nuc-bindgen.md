@@ -60,9 +60,9 @@ emits Rust `extern fn` decls. We model on it.
 
 Prior art:
 - **bindgen** (Rust) — reference design
-- **SWIG** — multi-language; older, more complex
+- SWIG — multi-language; older, more complex
 - **cffi** (Python) — runtime parsing; not statically typed
-- **Zig `@cImport`** — built-in to compiler; convenient
+- Zig `@cImport` — built-in to compiler; convenient
 
 Nucleor's choice: standalone tool (`nuc-bindgen`), invoked from build
 script or by hand. Output is committed to source control (no
@@ -219,11 +219,11 @@ robotics SDKs ship C APIs).
 
 ## 5. Alternatives considered
 
-- **Built-in to compiler (`@cImport`-style Zig)** — coupling. Tool
+- Built-in to compiler (`@cImport`-style Zig) — coupling. Tool
   is more flexible.
-- **Runtime parsing (cffi-style)** — slow, no static typing.
-- **Hand-write everything** — current state; doesn't scale.
-- **Use a Python-based generator** — adds Python build dep; nuc-bindgen
+- Runtime parsing (cffi-style) — slow, no static typing.
+- Hand-write everything — current state; doesn't scale.
+- Use a Python-based generator — adds Python build dep; nuc-bindgen
   is self-contained.
 
 ## 6. Open questions

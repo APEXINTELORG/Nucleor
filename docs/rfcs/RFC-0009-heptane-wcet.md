@@ -170,11 +170,11 @@ Plus shipping Heptane binary as a build dependency (~few MB).
 
 - **aiT (commercial)** — gold standard but $$$. Defer; can ship as
   optional backend in v0.8.
-- **In-house WCET analyzer** — multi-year. Don't reinvent.
-- **Measurement-based timing analysis (MBTA)** — empirical, not
+- In-house WCET analyzer — multi-year. Don't reinvent.
+- Measurement-based timing analysis (MBTA) — empirical, not
   provable. Useful for v0.5 (`nuc check --wcet` runs benchmarks);
   not enough for cert.
-- **Skip cert profile entirely** — abandons safety-cert path.
+- Skip cert profile entirely — abandons safety-cert path.
   Rejected per the Decisions doc commitment.
 
 ## 6. Open questions

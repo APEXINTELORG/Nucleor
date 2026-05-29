@@ -45,12 +45,12 @@ match config {
 ## 2. Motivation
 
 Basic match (RFC-0016) handles enums, but real code wants:
-- **Ranges** (`0..=100`, `'a'..='z'`)
-- **Or-patterns** (`A | B | C`)
-- **Guards** (`if cond` after pattern)
+- Ranges (`0..=100`, `'a'..='z'`)
+- Or-patterns (`A | B | C`)
+- Guards (`if cond` after pattern)
 - **`@`-bindings** (`name @ pattern`)
-- **Slice patterns** (`[a, .., last]`)
-- **Nested destructure** (struct-in-tuple-in-enum)
+- Slice patterns (`[a, .., last]`)
+- Nested destructure (struct-in-tuple-in-enum)
 
 Rust's pattern language is the gold standard. We ship the same.
 
@@ -176,8 +176,8 @@ on non-exhaustive, compiler shows an example uncovered value.
 
 ## 5. Alternatives considered
 
-- **Stay with basic match** — useful but doesn't compete with Rust.
-- **Switch-style only (no ranges/guards)** — C-tier; rejected.
+- Stay with basic match — useful but doesn't compete with Rust.
+- Switch-style only (no ranges/guards) — C-tier; rejected.
 
 ## 6. Open questions
 

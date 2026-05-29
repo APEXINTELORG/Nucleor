@@ -383,11 +383,11 @@ typing. If RFC-0002 slips, v0.3 ships `#[no_alloc]` as
 The 6-pass optimizer must not introduce allocations into a
 `#[no_alloc]` function. This is a soundness requirement:
 
-- **CTFE** (compile-time function execution) is fine — it runs at
+- CTFE (compile-time function execution) is fine — it runs at
   compile time, not runtime.
-- **Effect-driven fusion** is fine — it eliminates intermediates,
+- Effect-driven fusion is fine — it eliminates intermediates,
   removing potential allocations.
-- **Algebraic rewriting** must not introduce a heap-backed
+- Algebraic rewriting must not introduce a heap-backed
   intermediate. If a `@law` rewrite would add an allocation, the
   rewrite is suppressed inside `#[no_alloc]` functions.
 - **`@layout(soa)`** is fine — layout transformation, not allocation.
@@ -483,14 +483,14 @@ work.
 
 ### 4.4 Test plan
 
-- **Unit tests** (`tests/attrs/`): one test per attribute, one test
+- Unit tests (`tests/attrs/`): one test per attribute, one test
   per error code RT-001…RT-008.
-- **Negative tests** (`tests/err/`): `err_rt_alloc_in_no_alloc.nr`,
+- Negative tests (`tests/err/`): `err_rt_alloc_in_no_alloc.nr`,
   `err_rt_panic_in_no_panic.nr`, etc.
-- **Integration tests** (`tests/features/`): a fully-annotated
+- Integration tests (`tests/features/`): a fully-annotated
   PID controller in `features/pid_rt.nr` that compiles, builds, and
   runs at 1 kHz on the host (best-effort timing without hardware).
-- **Showcase** (`examples/13_realtime_control.nr`): a control loop
+- Showcase (`examples/13_realtime_control.nr`): a control loop
   with all four attributes, demonstrating the diagnostic for each
   violation in commented-out code.
 
@@ -642,9 +642,9 @@ This RFC is implemented when:
 - **`#[atomic]`** for lock-free data structures (RFC-0007).
 - **`#[isr]`** for interrupt-service-routine functions, which imply
   all four attributes plus rejection of any blocking call (RFC-0008).
-- **Per-allocator `#[no_alloc(...)]` granularity** — covered by the
+- Per-allocator `#[no_alloc(...)]` granularity — covered by the
   RFC-0002 allocator-types work.
-- **Static WCET via Heptane** — RFC-0009.
+- Static WCET via Heptane — RFC-0009.
 
 ---
 

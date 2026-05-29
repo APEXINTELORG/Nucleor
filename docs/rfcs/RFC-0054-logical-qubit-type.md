@@ -51,10 +51,10 @@ estimate_resources fn deutsch_jozsa(n: u8) {
 ```
 
 Key type-system effects:
-- **Logical and physical qubits are distinct types.** Adopters can't accidentally pass a physical qubit to an op that requires a logical one (decoder will be missing).
-- **Code + distance as type params:** `LogicalQubit<SurfaceCode, 7>` and `LogicalQubit<SurfaceCode, 9>` are distinct types — affects which decoder lookups are valid.
-- **Linear ownership:** all qubit values are move-only (no-cloning theorem at the type level).
-- **Timing attribute `@within(N ns)`:** parsed and emitted as schedule metadata.
+- Logical and physical qubits are distinct types. Adopters can't accidentally pass a physical qubit to an op that requires a logical one (decoder will be missing).
+- Code + distance as type params: `LogicalQubit<SurfaceCode, 7>` and `LogicalQubit<SurfaceCode, 9>` are distinct types — affects which decoder lookups are valid.
+- Linear ownership: all qubit values are move-only (no-cloning theorem at the type level).
+- Timing attribute `@within(N ns)`: parsed and emitted as schedule metadata.
 
 ## Rod-level surface (`std.quantum` extensions)
 
@@ -74,10 +74,10 @@ Existing `quantum` rod gains:
 
 ## Implementation
 
-- **Parser:** new types via generic-param machinery. `@within(...)` attribute reuses RFC-0050 quantity-literal infrastructure.
-- **Type-check:** Code + distance generic params compared by value at type-equality.
-- **Codegen:** logical-qubit ops dispatch to runtime helpers `__nucleor_logical_*`. Today CPU statevector simulator with surface-code distance-3 stub; deeper decoder is future work.
-- **QIR emit:** new pass walking the quantum-fn AST and emitting QIR-shaped LLVM IR via the existing inkwell layer.
+- Parser: new types via generic-param machinery. `@within(...)` attribute reuses RFC-0050 quantity-literal infrastructure.
+- Type-check: Code + distance generic params compared by value at type-equality.
+- Codegen: logical-qubit ops dispatch to runtime helpers `__nucleor_logical_*`. Today CPU statevector simulator with surface-code distance-3 stub; deeper decoder is future work.
+- QIR emit: new pass walking the quantum-fn AST and emitting QIR-shaped LLVM IR via the existing inkwell layer.
 
 ## Cost
 

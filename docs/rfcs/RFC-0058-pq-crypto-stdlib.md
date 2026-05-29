@@ -6,9 +6,9 @@
 ## Motivation
 
 Quantum computers will eventually break RSA / ECC / DH (Shor's algorithm). NIST has standardized three replacement primitives in 2024:
-- **ML-KEM** (Kyber) — key encapsulation
-- **ML-DSA** (Dilithium) — digital signatures
-- **SLH-DSA** (SPHINCS+) — stateless hash-based signatures (backup-class)
+- ML-KEM (Kyber) — key encapsulation
+- ML-DSA (Dilithium) — digital signatures
+- SLH-DSA (SPHINCS+) — stateless hash-based signatures (backup-class)
 
 Adopters building anything that needs to outlive the next 10–15 years (long-lived signed code, time-stamped attestations, etc.) need PQ from day one. Nucleor's `crypto.nr` rod has classical primitives only.
 
@@ -56,10 +56,10 @@ Nucleor's existing Ed25519 release signing stays for backward compat. New releas
 ## Implementation
 
 V2.13 ship:
-- **Stdlib:** `std.security` adds 9 PQ functions + 2 enums. ~2000 LOC stdlib.
-- **Runtime:** link against `liboqs` (Open Quantum Safe — NIST PQ reference impls) OR vendor-impl-equivalent. Today liboqs is the reference; future ships may move to a Nucleor-native impl for self-host independence.
-- **Compiler:** `@crypto_agile` attribute parser (~50 LOC). No type-system changes.
-- **Release pipeline:** dual-sign Nucleor releases with Ed25519 + ML-DSA going forward. `nuc verify` accepts either.
+- Stdlib: `std.security` adds 9 PQ functions + 2 enums. ~2000 LOC stdlib.
+- Runtime: link against `liboqs` (Open Quantum Safe — NIST PQ reference impls) OR vendor-impl-equivalent. Today liboqs is the reference; future ships may move to a Nucleor-native impl for self-host independence.
+- Compiler: `@crypto_agile` attribute parser (~50 LOC). No type-system changes.
+- Release pipeline: dual-sign Nucleor releases with Ed25519 + ML-DSA going forward. `nuc verify` accepts either.
 
 ## Cost
 

@@ -153,9 +153,9 @@ let g: fn(i32) -> i32 = |x| x * mult;  // ERROR: captures mult
 
 ## 5. Alternatives considered
 
-- **Function pointers only** — current state; loses captures.
-- **Single trait** (no Fn/FnMut/FnOnce split) — loses ownership info.
-- **Boxed closures only** — works but performance penalty.
+- Function pointers only — current state; loses captures.
+- Single trait (no Fn/FnMut/FnOnce split) — loses ownership info.
+- Boxed closures only — works but performance penalty.
 
 ## 6. Open questions
 

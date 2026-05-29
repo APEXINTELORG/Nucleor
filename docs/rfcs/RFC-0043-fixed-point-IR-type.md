@@ -17,10 +17,10 @@ Today the type parses but every value collapses to `i64`, so:
 
 Introduce `IrTypeFixed { i_bits: u8, f_bits: u8, signed: bool }` as a first-class IR type alongside the existing scalar types. Width tracking propagates through:
 
-- **Parse:** `fixed<I, F>` and `ufixed<I, F>` both accepted; carries through to AST type-string.
-- **Type-check:** `IrTypeFixed` carried in `__type_<binding>` sym entries. Mixed-arith with `i*` requires explicit `as` cast (mirrors today's strict integer-arith policy).
-- **BinOp lowering:** add/sub track the wider operand width. Multiply doubles fractional bits (`fixed<8,8> * fixed<8,8>` → `fixed<16,16>` intermediate, then truncate-or-saturate per `OverflowMode` to declared result type). Divide is the inverse.
-- **Codegen:** a `fixed<I, F>` value occupies an `i(I+F)` storage slot at runtime; the compiler emits `shl`/`shr`/`mul` sequences scaled to the fractional point.
+- Parse: `fixed<I, F>` and `ufixed<I, F>` both accepted; carries through to AST type-string.
+- Type-check: `IrTypeFixed` carried in `__type_<binding>` sym entries. Mixed-arith with `i*` requires explicit `as` cast (mirrors today's strict integer-arith policy).
+- BinOp lowering: add/sub track the wider operand width. Multiply doubles fractional bits (`fixed<8,8> * fixed<8,8>` → `fixed<16,16>` intermediate, then truncate-or-saturate per `OverflowMode` to declared result type). Divide is the inverse.
+- Codegen: a `fixed<I, F>` value occupies an `i(I+F)` storage slot at runtime; the compiler emits `shl`/`shr`/`mul` sequences scaled to the fractional point.
 
 Runtime helpers: `__nucleor_fixed_mul_qIF` (signed/unsigned variants per bit width), `__nucleor_fixed_div_qIF`, `__nucleor_fixed_to_i64`, `__nucleor_fixed_from_i64`. Code-gen emits inline `shl/shr` for add/sub (no helper needed).
 

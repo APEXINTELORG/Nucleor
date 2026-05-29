@@ -169,9 +169,9 @@ This error occurs when ...
 
 ## 5. Alternatives considered
 
-- **External tool** — defeats the purpose; compiler must own this.
-- **Match LLVM diagnostic format** — Rust style is more user-friendly.
-- **No spans, just file:line** — half-measure; do it once properly.
+- External tool — defeats the purpose; compiler must own this.
+- Match LLVM diagnostic format — Rust style is more user-friendly.
+- No spans, just file:line — half-measure; do it once properly.
 
 ## 6. Open questions
 

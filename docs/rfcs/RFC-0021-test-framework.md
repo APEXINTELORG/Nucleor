@@ -198,10 +198,10 @@ the fixture work.
 
 ## 5. Alternatives considered
 
-- **Stay with main()-prints-OK** — doesn't scale.
-- **External test runner** (like JS) — requires extra tooling; ship
+- Stay with main()-prints-OK — doesn't scale.
+- External test runner (like JS) — requires extra tooling; ship
   in core.
-- **Pytest-style fixtures** — heavier than needed; ship setup/teardown
+- Pytest-style fixtures — heavier than needed; ship setup/teardown
   attribute pair instead.
 
 ## 6. Open questions

@@ -38,12 +38,12 @@ unaffected):
 
 Conservative one-hop. Two passes:
 
-  - **Pass A — leaf builtins.** Hardcoded table inside the compiler
+  - Pass A — leaf builtins. Hardcoded table inside the compiler
     maps a small set of primitive call names to their effect:
     - `vec_free` / `hashmap_free` / `str_free` → `frees`
     - (R4 will add: extern "C" call → `direct_ffi`; raw-pointer return
       → `may_return_null`; `&mut` arg at call site → `borrows_mut`.)
-  - **Pass B — call propagation.** A call to a same-source fn whose
+  - Pass B — call propagation. A call to a same-source fn whose
     `#[effect(...)]` row declares effect E contributes E to the
     caller's produced set.
 

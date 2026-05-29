@@ -32,9 +32,9 @@ if target.arch(AARCH64)   { ... arm_path(); ... }
 
 ## Implementation
 
-- **Parser:** `target.has(X)` and `target.os(Y)` and `target.arch(Z)` recognized as compile-time-builtin call shapes (analogous to the existing `cfg(...)` macro family but always compile-time-resolved).
-- **Const-fold:** compiler resolves the call at the `if` site against the build's target manifest (CLI flags `--target-cpu`, `--target-feature`, OS+arch detected from build host or `--target-triple`).
-- **DCE:** the resolved `false` branch is elided pre-codegen — no stub, no dead helper symbol.
+- Parser: `target.has(X)` and `target.os(Y)` and `target.arch(Z)` recognized as compile-time-builtin call shapes (analogous to the existing `cfg(...)` macro family but always compile-time-resolved).
+- Const-fold: compiler resolves the call at the `if` site against the build's target manifest (CLI flags `--target-cpu`, `--target-feature`, OS+arch detected from build host or `--target-triple`).
+- DCE: the resolved `false` branch is elided pre-codegen — no stub, no dead helper symbol.
 
 Build manifest (CLI / config):
 - `nuc build --target-feature=avx512,fp4,tensor_cores`
