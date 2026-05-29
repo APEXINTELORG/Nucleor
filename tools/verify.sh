@@ -6195,6 +6195,71 @@ rfc0035_sendable_actor_first_pass() {
     return 0
 }
 
+rust_bridge_ownership_gate() {
+    # MEM-2: wire the standalone rust_bridge string-ownership harness into the
+    # gate as a lane (was opt-in only). It builds the rust_bridge crate + a
+    # focused fixture and runs it repeatedly, asserting the FFI string
+    # alloc/free contract holds across process runs (no leak / no double-free,
+    # fail-closed on missing artifacts). Exit-code contract from the harness:
+    #   96 -> POSIX/cargo prerequisites missing  -> SKIP (step rc 2)
+    #    0 -> ownership fixture completed cleanly -> PASS
+    #  else-> build or fixture run failed         -> FAIL
+    local out rc
+    out=$(bash "$ROOT/tools/check_rust_bridge_ownership.sh" \
+        --iterations 25 --fixture string-free 2>&1)
+    rc=$?
+    printf '%s\n' "$out" >$NUC_VERIFY_RUN_LOG
+    if [ "$rc" -eq 96 ]; then
+        echo "       rust_bridge ownership prerequisites missing (cargo/POSIX) — skipped"
+        return 2
+    fi
+    if [ "$rc" -ne 0 ]; then
+        printf '%s\n' "$out" | tail -4 | sed 's/^/       /'
+        return 1
+    fi
+    return 0
+}
+
+gate_canary_smoke() {
+    # VER-4: meta-test that the drift gate itself cannot silently pass. The
+    # failure class (one-directional diff + vacuous empty-set OK) already
+    # broke once; VER-3/DUP-2 added teeth. This canary proves those teeth
+    # stay sharp:
+    #   (1) the real gate passes on the clean tree AND actually ran its
+    #       checks (census line present) without hitting an empty extractor
+    #       on real input — the silent-empty class, asserted absent;
+    #   (2) a known injected divergence (a synthetic SIG_DIFFERS row in the
+    #       duplicate-fn census) makes the gate exit non-zero.
+    # The census CSV is backed up and unconditionally restored.
+    local gate="$ROOT/tools/check_compiler_drift.sh"
+    local csv="$ROOT/tools/audit_dup_fns_report.csv"
+    local out base_rc
+    out=$(bash "$gate" 2>&1); base_rc=$?
+    printf '%s\n' "$out" >$NUC_VERIFY_STEP_LOG
+    if [ "$base_rc" -ne 0 ]; then
+        echo "       baseline drift gate FAILED on clean tree (canary cannot run)"
+        return 1
+    fi
+    if ! printf '%s\n' "$out" | grep -q 'duplicate-fn census'; then
+        echo "       gate did not execute the census check (vacuous pass?)"
+        return 1
+    fi
+    if printf '%s\n' "$out" | grep -q 'extracted an empty set'; then
+        echo "       gate hit an empty extractor on real input (silent-empty class)"
+        return 1
+    fi
+    local bak; bak="$(mktemp)"; cp "$csv" "$bak"
+    printf 'canary_injected_sigdiff,9,8,50,40,0,0,SIG_DIFFERS\n' >> "$csv"
+    local inj_rc=0
+    bash "$gate" >$NUC_VERIFY_RUN_LOG 2>&1 || inj_rc=$?
+    cp "$bak" "$csv"; rm -f "$bak"   # unconditional restore
+    if [ "$inj_rc" -eq 0 ]; then
+        echo "       drift gate PASSED on an injected SIG_DIFFERS row — gate has no teeth!"
+        return 1
+    fi
+    return 0
+}
+
 vec_inline_runtime_smoke() {
     rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
     "$BIN" build "tests/features/vec_extend_self_inline.nr" -o "_vec_extend_self_inline" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
@@ -6230,6 +6295,7 @@ rfc0042_auto_drop_ir_smoke() {
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
+step "VER-4: drift-gate canary (gate fails on injected drift)" gate_canary_smoke
 step "get_rt_name generator output matches committed .gen.nr" rt_name_table_in_sync
 step "rod extern void-return ABI parity" rod_void_abi_clean
 step "tools-suite rebuild" tools_rebuild
@@ -6245,6 +6311,7 @@ step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_s
 step "RFC-0008 ISR attribute first-pass contract and IR marker" rfc0008_isr_first_pass
 step "RFC-0035 Sendable + actor first-pass substrate" rfc0035_sendable_actor_first_pass
 step "NVec inline runtime ownership regressions" vec_inline_runtime_smoke
+step "MEM-2: rust_bridge FFI string-ownership harness (lane)" rust_bridge_ownership_gate
 step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
