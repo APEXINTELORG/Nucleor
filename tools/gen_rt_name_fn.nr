@@ -42,7 +42,13 @@ fn main() -> i64 {
     while p < slen {
         let mut eol: i64 = p;
         while eol < slen && str_char_at(tsv, eol) != 10 { eol = eol + 1; };
-        if eol > p {
+        // Content end trims a trailing CR so a CRLF-checked-out TSV
+        // (core.autocrlf=true; *.tsv is pinned eol=lf in .gitattributes,
+        // this is defense-in-depth) does not leave \r on the last field.
+        // `eol` still points at the LF for advancing p below.
+        let mut cend: i64 = eol;
+        if cend > p && str_char_at(tsv, cend - 1) == 13 { cend = cend - 1; };
+        if cend > p {
             if str_char_at(tsv, p) == 35 {
                 // Comment line. The first run of '#' lines is the TSV file
                 // header (column key + meta). Skip those; pass through any
@@ -50,12 +56,12 @@ fn main() -> i64 {
                 // clusters in the original get_rt_name body) as // comments.
                 if header_done == 1 {
                     sb_append(sb, "    //");
-                    if eol - p > 1 {
+                    if cend - p > 1 {
                         // Drop the leading '#' and the space after it (if any).
                         let mut cstart: i64 = p + 1;
-                        if cstart < eol && str_char_at(tsv, cstart) == 32 { cstart = cstart + 1; };
+                        if cstart < cend && str_char_at(tsv, cstart) == 32 { cstart = cstart + 1; };
                         sb_append(sb, " ");
-                        sb_append(sb, str_substring(tsv, cstart, eol));
+                        sb_append(sb, str_substring(tsv, cstart, cend));
                     };
                     sb_append(sb, "\n");
                 };
