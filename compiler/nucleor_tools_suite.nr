@@ -86,7 +86,7 @@ fn str_is_digits(s: str) -> i64 {
 // constraint in compiler/nucleor_s1_compiler.nr.
 #[manual_drop]
 fn compiler_version_label() -> str {
-    return "1.1.1";
+    return "1.2.0";
 }
 
 // --- PIPELINE: single source of truth, imported from s1 -------------

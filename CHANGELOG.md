@@ -2,6 +2,68 @@
 
 All notable public changes to Nucleor are documented here.
 
+## [1.2.0] - 2026-05-30
+
+**RFC-NRT-004 §H module-prefixed lowering (Phase A) + Windows bootstrap
+LTO link.** Two imported modules can now expose pub fns with identical
+names by opting into module namespacing; Windows cold self-build drops
+from 4.69 s (pre-fix) to 3.30 s, beating the v1.1.1-era 3.55 s baseline
+while carrying all the new feature work. See
+`docs/internals/v1.1.1-to-v1.2.0-narrative.md` for the full story.
+
+### Added
+
+- **RFC-NRT-004 §H module-prefixed lowering (Phase A).** An imported
+  file whose first non-blank line is `// nucleor:module-namespace
+  <prefix>` gets every top-level fn def + intra-file call site
+  rewritten to `<prefix>_<name>`. Eliminates the link-time collision
+  when two modules in one compile unit both define `pub fn X`. The
+  importer references such fns by their prefixed name directly. Three
+  new fns in `compiler/s1/cli.nr` (`mod_h_prefix_from_marker`,
+  `mod_h_collect_top_level_fn_names`, `mod_h_mangle_module_fns`), a
+  hook in each splice arm of `compiler/s1/modules.nr`, and a fix-it
+  rewrite of `compiler/s1/emit.nr`'s duplicate-fn abort message.
+- `tests/features/rfc_nrt_004_h/` — two-module collision spike + the
+  importer that calls both modules' `pub fn kind_to_str` / `pub fn run`
+  by their prefixed names. Validates the mechanism end-to-end.
+- `docs/internals/v1.1.1-to-v1.2.0-narrative.md` — full investigation
+  narrative covering the §H landing, the perf regression that appeared
+  on Windows, the A/B diagnostic that ruled out source-level causes,
+  the LTO/ICF/REF link fix, and the lessons recorded.
+- `PERF_H_CLAWBACK.md` — perf-clawback investigation transcript at
+  repo root.
+
+### Changed
+
+- `tools/bootstrap_windows.ps1` now passes `-flto`, `-Wl,/OPT:ICF`,
+  `-Wl,/OPT:REF` to the bootstrap clang link. Bin size 2.67 MB →
+  1.18 MB on this branch (−56 %), Windows cold self-build 4.69 s →
+  3.30 s (−30 %). Emitted IR unchanged; bootstrap fixed point holds
+  byte-identical.
+- `tools/perf_baseline.json` updated for the new (faster) numbers:
+  `cold_self_build_seconds` 3.73 → 3.30 (measured),
+  `cold_max_allowed_seconds` 4.25 → 4.00.
+  `_perf_h_clawback_rationale` field captures the audit trail.
+- `compiler/s1/emit.nr`'s duplicate-fn abort message reframed as a
+  fix-it pointing at the §H opt-in marker.
+
+### Fixed
+
+- Windows cold self-build regression (4.69 s, observed post-§H) by
+  re-linking the bootstrap with LTO + ICF + REF. The regression was
+  Windows-side execution of the larger `-O0` binary, not a code-level
+  slowdown — A/B against the v1.1.1-era bin proved byte-identical IR
+  (md5 `fb63619530d074cdeee1da716fecbbb4`) and zero added drop calls
+  in `type_expr`.
+
+### Verification
+
+- `tools/check_self_host_md5.sh`: PASS, seed md5
+  `225bf083ea5af691f8aa778a5c5d0c45`.
+- `tools/verify_fast.sh`: PASS / 0 FAIL.
+- `tools/check_perf_regression.ps1`: cold = 3.33 s (max 4.00 s), hot =
+  0.14 s (max 1.0 s), all memory ceilings clean.
+
 ## [1.1.1] - 2026-05-28
 
 **Compiler file split, parser sync, hot-path perf reclaim, closure-capture

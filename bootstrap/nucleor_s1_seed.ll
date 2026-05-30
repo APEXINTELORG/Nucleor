@@ -953,7 +953,7 @@ declare i64 @nuc_diag_col_for_byte(i64)
 @.str.19 = private unnamed_addr constant [21 x i8] c"-9223372036854775808\00"
 @.str.20 = private unnamed_addr constant [11 x i8] c"0123456789\00"
 @.str.21 = private unnamed_addr constant [2 x i8] c"-\00"
-@.str.22 = private unnamed_addr constant [6 x i8] c"1.1.1\00"
+@.str.22 = private unnamed_addr constant [6 x i8] c"1.2.0\00"
 @.str.23 = private unnamed_addr constant [4 x i8] c"u64\00"
 @.str.24 = private unnamed_addr constant [6 x i8] c"usize\00"
 @.str.25 = private unnamed_addr constant [4 x i8] c"u32\00"
