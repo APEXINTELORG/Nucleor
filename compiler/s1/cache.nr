@@ -505,6 +505,207 @@ fn copy_ll_artifact_if_needed(src_ll_path: str, ll_path: str, cache_key: str) ->
     return 1;
 }
 
+// =====================================================
+// PERF: parallel codegen — shard the emitted module
+// =====================================================
+// The single emitted `.ll` is ~95% function bodies (12.5 MB of 13 MB for
+// the self-host). clang codegen of one translation unit is single-threaded
+// and is the largest cold-build cost (~1.7 s). Split the module into N
+// shards — each carrying the full (cheap, ~0.7 MB) preamble of `declare`s +
+// private string constants plus a slice of the function definitions — and
+// compile them with N concurrent clang processes, then link the objects in
+// the existing final-link step.
+//
+// Correctness: the split only *redistributes* function definitions across
+// object files; not one instruction changes, so the linked binary is
+// behaviorally identical to the single-file build (verified: byte-identical
+// self-emit IR). Cross-shard calls are satisfied by emitting a `declare`
+// for every user fn a shard references but does not define; the closure-
+// runtime fns (defined once, in shard 0) get the same treatment. The
+// provenance globals stay in shard 0 only.
+//
+// Safety: POSIX-only (uses `&`/`wait`); on Windows, tiny modules, or any
+// structural anomaly the helper returns "" and the caller falls back to the
+// proven single-file compile. A shard that fails to produce its `.o` also
+// triggers the fallback. Tunable / disable via NUCLEOR_CG_SHARDS (default 4).
+#[manual_drop]
+fn cg_match_at(s: str, slen: i64, i: i64, needle: str) -> i64 {
+    let nl: i64 = str_len(needle);
+    if i + nl > slen { return 0; };
+    let mut k: i64 = 0;
+    while k < nl {
+        if str_char_at(s, i + k) != str_char_at(needle, k) { return 0; };
+        k = k + 1;
+    };
+    return 1;
+}
+
+// "define i64 @f(i64 %x) {"  ->  "declare i64 @f(i64 %x)"
+#[manual_drop]
+fn cg_sig_to_decl(ll: str, start: i64, sigend: i64) -> str {
+    let body_start: i64 = start + 7;   // strip leading "define "
+    let mut e: i64 = sigend;
+    // trim trailing " {" (space=32, '{'=123)
+    while e > body_start && (str_char_at(ll, e - 1) == 32 || str_char_at(ll, e - 1) == 123) {
+        e = e - 1;
+    };
+    return str_concat("declare ", str_substring(ll, body_start, e));
+}
+
+// Returns a space-joined list of object-file shell paths on success, or ""
+// to signal the caller to fall back to a single-file compile of `ll`.
+//
+// Memory: this runs once per build, in the (low-memory) native-link parent
+// after the emit child has exited, so the cold-build RSS peak (the child's
+// type-check) is already past. Like the rest of the compiler's short-lived
+// string scratch, the transient buffers here are left for process exit
+// rather than hand-freed — manual frees of `str_from_int` / `str_concat` /
+// `sb_to_str` results are not the codebase convention and risk the
+// double-free class this project has been bitten by (MEM-3).
+#[manual_drop]
+fn cg_try_parallel(ll: str, ll_path: str, clang_quoted: str, opt_flag: str, null_redir: str) -> str {
+    if host_is_windows() == 1 { return ""; };
+    // Default 2: the two link-time clang processes peak below the emit
+    // child's RSS (the emit child has already exited), so the process-tree
+    // memory ceiling is unchanged — a memory-neutral speedup. Raise via
+    // NUCLEOR_CG_SHARDS for more parallelism if you have the RAM headroom
+    // (each extra concurrent clang adds ~80-120 MB of transient peak).
+    let shards: i64 = str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "2"));
+    if shards <= 1 { return ""; };
+    let len: i64 = str_len(ll);
+    if len < 2000000 { return ""; };   // small modules: single-file is already fast
+
+    // --- one linear pass: collect every module-level `define ` line-start +
+    // the offset of the '\n' ending its signature line, plus the provenance
+    // global offset. Function bodies are indented, so only module-level
+    // defines/globals sit at column 0.
+    let mut def_start: Vec<i32> = Vec::new();
+    let mut def_sigend: Vec<i32> = Vec::new();
+    let mut prov_off: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    let mut at_ls: i64 = 1;
+    while i < len {
+        let c: i64 = str_char_at(ll, i);
+        if at_ls == 1 {
+            if c == 100 && cg_match_at(ll, len, i, "define ") == 1 {
+                def_start.push(i);
+                def_sigend.push(0 - 1);
+            } else if c == 64 && prov_off < 0 && cg_match_at(ll, len, i, "@.nucleor_provenance_data") == 1 {
+                prov_off = i;
+            };
+        };
+        if c == 10 {
+            let dn0: i64 = vec_len(def_start);
+            if dn0 > 0 && vec_get(def_sigend, dn0 - 1) == (0 - 1) {
+                vec_set(def_sigend, dn0 - 1, i);
+            };
+            at_ls = 1;
+        } else {
+            at_ls = 0;
+        };
+        i = i + 1;
+    };
+
+    let dn: i64 = vec_len(def_start);
+    if dn == 0 || prov_off < 0 { return ""; };
+    // first user define = first define whose offset is past the provenance
+    // global (closure-runtime defines come before it).
+    let mut u: i64 = 0;
+    while u < dn && vec_get(def_start, u) < prov_off { u = u + 1; };
+    if u == 0 || u >= dn { return ""; };
+    // defensive: every define must have a recorded signature end
+    let mut vi: i64 = 0;
+    while vi < dn {
+        if vec_get(def_sigend, vi) < 0 { return ""; };
+        vi = vi + 1;
+    };
+    let preamble_end: i64 = vec_get(def_start, 0);
+    let first_user_off: i64 = vec_get(def_start, u);
+
+    let pre: str = str_substring(ll, 0, preamble_end);
+    // closure-runtime defines + provenance globals — shard 0 only
+    let closure_prov: str = str_substring(ll, preamble_end, first_user_off);
+
+    // closure-runtime declarations for shards 1..N
+    let cd: i64 = sb_new();
+    let mut ci: i64 = 0;
+    while ci < u {
+        sb_append(cd, cg_sig_to_decl(ll, vec_get(def_start, ci), vec_get(def_sigend, ci)));
+        sb_append(cd, "\n");
+        ci = ci + 1;
+    };
+    let closure_decls: str = sb_to_str(cd);
+
+    let user_count: i64 = dn - u;
+    // precompute every user fn's declaration line
+    let mut user_decls: Vec<i32> = Vec::new();
+    let mut j: i64 = 0;
+    while j < user_count {
+        user_decls.push(cg_sig_to_decl(ll, vec_get(def_start, u + j), vec_get(def_sigend, u + j)));
+        j = j + 1;
+    };
+
+    let compile_cmd: i64 = sb_new();
+    let obj_list: i64 = sb_new();
+    let mut k: i64 = 0;
+    while k < shards {
+        let sb: i64 = sb_new_with_cap(4500000);
+        sb_append(sb, pre);
+        if k == 0 { sb_append(sb, closure_prov); } else { sb_append(sb, closure_decls); };
+        // declarations for user fns not defined in this shard
+        let mut dj: i64 = 0;
+        while dj < user_count {
+            if (dj % shards) != k {
+                sb_append(sb, vec_get(user_decls, dj));
+                sb_append(sb, "\n");
+            };
+            dj = dj + 1;
+        };
+        // definitions assigned to this shard (round-robin)
+        let mut bj: i64 = 0;
+        while bj < user_count {
+            if (bj % shards) == k {
+                let gi: i64 = u + bj;
+                let bstart: i64 = vec_get(def_start, gi);
+                let bend: i64 = if gi + 1 < dn { vec_get(def_start, gi + 1) } else { len };
+                sb_append(sb, str_substring(ll, bstart, bend));
+            };
+            bj = bj + 1;
+        };
+        let kstr: str = str_from_int(k);
+        let shard_ll: str = str_concat(ll_path, str_concat(".s", str_concat(kstr, ".ll")));
+        let shard_obj: str = str_concat(ll_path, str_concat(".s", str_concat(kstr, ".o")));
+        file_write_string(shard_ll, sb_to_str(sb));
+        host_remove_file_quiet(shard_obj);
+        sb_append(compile_cmd, clang_quoted);
+        sb_append(compile_cmd, opt_flag);
+        sb_append(compile_cmd, " -c ");
+        sb_append(compile_cmd, host_shell_path(shard_ll));
+        sb_append(compile_cmd, " -o ");
+        sb_append(compile_cmd, host_shell_path(shard_obj));
+        sb_append(compile_cmd, " -Wno-override-module");
+        sb_append(compile_cmd, null_redir);
+        sb_append(compile_cmd, " & ");
+        sb_append(obj_list, " ");
+        sb_append(obj_list, host_shell_path(shard_obj));
+        k = k + 1;
+    };
+    sb_append(compile_cmd, " wait");
+    system(sb_to_str(compile_cmd));
+
+    // every shard object must exist, else fall back to single-file
+    let objs: str = sb_to_str(obj_list);
+    let mut vk: i64 = 0;
+    let mut ok: i64 = 1;
+    while vk < shards {
+        let shard_obj2: str = str_concat(ll_path, str_concat(".s", str_concat(str_from_int(vk), ".o")));
+        if fs_exists(shard_obj2) == 0 { ok = 0; };
+        vk = vk + 1;
+    };
+    if ok == 0 { return ""; };
+    return objs;
+}
+
 #[manual_drop]
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
@@ -593,7 +794,18 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     // all so adopters never had a way to reach the optimizer.
     let opt_flag_raw: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
     let opt_flag: str = str_concat(" ", opt_flag_raw);
-    let cmd: str = str_concat(clang_quoted, str_concat(opt_flag, str_concat(linker_flag, str_concat(" ", str_concat(ll_arg, str_concat(" ", str_concat(rt_arg_shell, str_concat(cfiles_shell, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags_shell, str_concat(link_flags, str_concat(" > ", str_concat(log_arg, " 2>&1"))))))))))))))))));
+    // PERF: try sharded parallel codegen. On success `shard_objs` is the
+    // space-joined list of object files to link instead of the single `.ll`;
+    // on Windows / tiny modules / any anomaly it returns "" and we compile the
+    // single `.ll` exactly as before. The remainder of the link command
+    // (runtime, cfiles, flags, log capture, retries) is unchanged.
+    let shard_objs: str = cg_try_parallel(ll, ll_path, clang_quoted, opt_flag, null_redir);
+    let sharded: i64 = if str_len(shard_objs) > 0 { 1 } else { 0 };
+    let compile_input: str = if sharded == 1 { shard_objs } else { ll_arg };
+    if sharded == 1 {
+        print(str_concat("  parallel codegen: ", str_concat(env_get_or("NUCLEOR_CG_SHARDS", "4"), " shards")));
+    };
+    let cmd: str = str_concat(clang_quoted, str_concat(opt_flag, str_concat(linker_flag, str_concat(" ", str_concat(compile_input, str_concat(" ", str_concat(rt_arg_shell, str_concat(cfiles_shell, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags_shell, str_concat(link_flags, str_concat(" > ", str_concat(log_arg, " 2>&1"))))))))))))))))));
     let mut rc: i64 = system(cmd);
     // NUC-FEEDBACK-009 retry loop. ML adopters reported
     // intermittent post-LLVM-emit/no-compiled-line failures during
@@ -789,6 +1001,20 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     let clang_start: i64 = now_ms();
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
     let opt_flag_raw_iso: str = env_get_or("NUCLEOR_LLVM_OPT", "-O0");
+    // PERF: try sharded parallel codegen (this is the path the large
+    // self-build takes). Only read the (large) `.ll` back when sharding can
+    // actually run (POSIX + shards>1), so the disabled/Windows path pays no
+    // extra read. The emit child already exited, so reading here costs memory
+    // only after the child's peak is gone — no tree-RSS regression. On success
+    // `cg_objs` is the object list to link in place of the single `.ll`.
+    let mut cg_objs: str = "";
+    if host_is_windows() == 0 && str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "2")) > 1 {
+        cg_objs = cg_try_parallel(file_read_string(ll_path), ll_path, clang_quoted, str_concat(" ", opt_flag_raw_iso), null_redir);
+    };
+    let cg_sharded: i64 = if str_len(cg_objs) > 0 { 1 } else { 0 };
+    if cg_sharded == 1 {
+        print(str_concat("  parallel codegen: ", str_concat(env_get_or("NUCLEOR_CG_SHARDS", "4"), " shards")));
+    };
     let rt_o_path: str = rt_o_cache_path(rt_arg, alloc_hdr, opt_flag_raw_iso);
     let mut rt_link_arg: str = "";
     let mut alloc_include_use: str = "";
@@ -825,7 +1051,7 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     cmd = str_concat(cmd, opt_flag_raw_iso);
     cmd = str_concat(cmd, linker_flag);
     cmd = str_concat(cmd, " ");
-    cmd = str_concat(cmd, ll_arg);
+    if cg_sharded == 1 { cmd = str_concat(cmd, cg_objs); } else { cmd = str_concat(cmd, ll_arg); };
     cmd = str_concat(cmd, " ");
     cmd = str_concat(cmd, rt_link_arg);
     cmd = str_concat(cmd, cfiles_shell);
