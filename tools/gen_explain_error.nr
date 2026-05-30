@@ -57,7 +57,14 @@ fn main() -> i64 {
     let mut i: i64 = 0;
     while i <= n {
         if i == n || str_char_at(src, i) == 10 {
-            if i > start { lines.push(str_substring(src, start, i)); };
+            // Strip a trailing CR so a CRLF-checked-out TSV (Windows /
+            // core.autocrlf=true, where *.tsv has no eol=lf rule) does not
+            // leave \r on the last field. Without this the `steps` column
+            // gains a phantom \r, flipping empty-steps rows to non-empty and
+            // drifting the generated output from the committed (LF) .gen.nr.
+            let mut e: i64 = i;
+            if e > start && str_char_at(src, e - 1) == 13 { e = e - 1; };
+            if e > start { lines.push(str_substring(src, start, e)); };
             start = i + 1;
         };
         i = i + 1;
