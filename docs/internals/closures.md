@@ -1,7 +1,7 @@
 # Closure Internals
 
 How closure values are represented, captured, called, and released in
-Nucleor v1.1.1+.
+Nucleor v1.1.1+ (v1.2.0 adds RFC-NRT-004 §H module-prefixed lowering on top).
 
 ## Surface
 
