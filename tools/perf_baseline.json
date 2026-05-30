@@ -2,8 +2,8 @@
   "_comment": "Self-build performance and memory baseline for the public release gate. Update with tools/check_perf_regression.ps1 -Update only after a justified intentional improvement; never raise ceilings to absorb a regression.",
   "version_locked_at": "review/h-perf-clawback",
   "locked_at_date": "2026-05-30",
-  "cold_self_build_seconds": 4.69,
-  "cold_max_allowed_seconds": 5.25,
+  "cold_self_build_seconds": 3.30,
+  "cold_max_allowed_seconds": 4.00,
   "hot_self_build_seconds": 0.26,
   "hot_max_allowed_seconds": 1.0,
   "cold_peak_memory_mb": 394,
@@ -17,5 +17,5 @@
   "hot_max_allowed_compiler_memory_mb": 64,
   "_windows_release_note": "The Windows release gate enforces cold and hot self-host compile time, process-tree RSS, and compiler-only RSS. Hosted CI runners are correctness gates; performance baselines belong on a pinned machine.",
   "_anti_compound_rule": "Investigate drift before shipping. Baseline updates are only for measured improvements or deliberate budget changes with recorded rationale.",
-  "_perf_h_clawback_rationale": "2026-05-30: cold ceilings raised after the §H bin rebuild necessarily folded in all accumulated post-v1.1.1 correctness work (DUP-1, MEM-3, MEM-4..6, SEC-1..8, HON-1..5, VER-1..8, §H, perf agent's O(1) ownership). bin/nucleor.exe grew 1.55 MB -> 2.67 MB. A/B against the OLD committed bin on identical current source confirms byte-identical IR with 0 added drop calls in type_expr -- the regression is environmental Windows-side execution of the larger binary, not a code-level slowdown. Linux is unaffected. See PERF_H_CLAWBACK.md for the full investigation. Reverting any post-v1.1.1 landing to chase the prior baseline is explicitly out of scope."
+  "_perf_h_clawback_rationale": "2026-05-30: After §H landed, the rebuilt bin/nucleor.exe initially measured 4.69 s cold (vs 3.55 s on the OLD v1.1.1-era bin) -- a 32% regression. A/B against the OLD bin on identical current source confirmed byte-identical IR with 0 added drop calls in type_expr -- environmental Windows execution of the larger binary, not code. Resolution: rebuilt bin/nucleor.exe with -flto + -Wl,/OPT:ICF + -Wl,/OPT:REF (link-time optimization + identical code folding + dead-code stripping). Bin size 2.67 MB -> 1.18 MB (-56%), cold wall 4.69 s -> 3.30 s. Now FASTER than the OLD baseline (3.55 s) despite carrying all the post-v1.1.1 correctness work + §H. tools/bootstrap_windows.ps1 updated to use the same flags so future seed regens produce the optimized bin. Full investigation: PERF_H_CLAWBACK.md."
 }

@@ -125,14 +125,23 @@ if (-not (Test-Path -LiteralPath $runtime -PathType Leaf)) {
 }
 
 $clang = Resolve-Clang $ClangPath
+# -flto + -Wl,/OPT:ICF + -Wl,/OPT:REF: link-time optimization, identical
+# code folding, and dead-code stripping. On Windows these cut the bootstrap
+# binary from ~2.6 MB to ~1.2 MB (>50%) and reclaim ~30% of cold self-build
+# wall time (4.7 s -> 3.3 s), confirmed against bin/nucleor.exe rebuilt
+# from the v1.1.1+§H source. Linux is unaffected either way. See
+# PERF_H_CLAWBACK.md for the investigation that led to these flags.
 $clangArgs = @(
     "-O2",
+    "-flto",
     "-fuse-ld=lld",
     $seed,
     $runtime,
     "-o",
     $output,
-    "-Wl,/STACK:16777216"
+    "-Wl,/STACK:16777216",
+    "-Wl,/OPT:ICF",
+    "-Wl,/OPT:REF"
 )
 
 $commandLine = Format-CommandLine -Exe $clang -CommandArgs $clangArgs

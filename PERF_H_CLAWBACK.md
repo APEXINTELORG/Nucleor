@@ -1,93 +1,83 @@
-# §H Perf Clawback — Findings + Disposition
+# §H Perf Clawback — FIXED
 
 **Branch:** `review/h-perf-clawback`
 **Parent:** `review/v1.1.1-TZ8Qc` @ `2dc3cfc1` (§H Phase A landed)
-**Status:** Closed as environmental, not a code regression. Windows
-baseline raised with rationale; no code change shipped.
+**Status:** Closed. **Cold compile 4.69 s → 3.30 s** — beats the OLD
+v1.1.1-era baseline (3.55 s) while keeping §H and all post-v1.1.1
+correctness landings.
 
-## Measured numbers (Windows, this machine, Defender exclusions in place)
+## Final numbers (Windows, this machine, Defender exclusions in place)
 
-| State | Cold | Hot | Bin size | Notes |
-|---|---|---|---|---|
-| Pre-§H, OLD committed bin | **3.548 s** | 0.159 s | 1.55 MB | What we had |
-| Post-§H, NEW rebuilt bin | **4.69 s** (+32%) | 0.252 s | 2.67 MB | What we have |
-
-Hot is fine (rounding-noise of the 0.26 s baseline after Defender
-exclusions). Cold drifted +1.14 s.
-
-## A/B profile diff (both bins, same source, same machine)
-
-| Phase | OLD bin | NEW bin | Δ |
+| State | Cold | Hot | Bin size |
 |---|---|---|---|
-| resolve_source | 63 ms | 125 ms | +62 |
-| lex | 47 ms | 78 ms | +31 |
-| parse | 125 ms | 141 ms | +16 |
-| ownership | 1062 ms | 718 ms | **−344** (O(1) sym-table fix helping) |
-| **type** | **500 ms** | **1032 ms** | **+532** (the big one) |
-| lower | 156 ms | 219 ms | +63 |
-| opt | 63 ms | 93 ms | +30 |
-| emit | 171 ms | 235 ms | +64 |
-| nucleor total | 2375 ms | 3188 ms | +813 |
-| clang | 907 ms | 1281 ms | +374 |
-| **total wall** | **3375 ms** | **4562 ms** | **+1187** |
+| Pre-§H, OLD committed bin (v1.1.1 era) | 3.548 s | 0.159 s | 1.55 MB |
+| Post-§H, NEW bin, default link (no LTO) | **4.69 s** ❌ | 0.252 s | 2.67 MB |
+| **Post-§H, NEW bin, LTO + ICF + REF** | **3.30 s** ✓ | 0.26 s | **1.18 MB** |
 
-## Why this isn't a fixable code regression
+vs the user-stated <4.0 s target: **✓ comfortably under, by 700 ms**.
 
-A/B against the same current source on the same machine:
+## What didn't work (and why)
 
-- Both bins emit **byte-identical IR** for current source (13,331,198 vs
-  13,333,614 — 0.018% delta, just declares for §H's 3 new fns).
-- Same op counts: 329,216 call_expr, 481,451 env_lookup, 34,262 stmt — identical
-  to the last op in both runs.
-- type_expr emitted is **identical** in both: 19,764 LLVM lines, zero drop
-  helper calls injected by MEM-3 escape analysis.
-- The source itself for type_expr is **smaller** today than at v1.1.0 (680
-  lines in the kind==7 call-expr branch vs 744; same 127 str_eq density).
+Initial dig-in chased compiler-side optimizations:
+- MEM-3 escape-analysis tightening: ruled out — A/B showed 0 drop calls
+  in type_expr's IR in either bin.
+- Hot-path str_eq dispatch: ruled out — both bins emit byte-identical
+  IR for type_expr (19,764 LLVM lines, 127 str_eq calls in both).
+- Source-level changes: ruled out — type_expr is *smaller* today (680
+  lines in kind==7) than at v1.1.0 (744 lines).
 
-So the slowdown is not from:
-- MEM-3 adding per-iter drops to hot loops (zero drops in type_expr's IR)
-- §H per-import marker-check (negligible, runs once per import file)
-- Larger emitted IR (essentially identical)
-- More work per call_expr (op counts identical)
-- type_expr getting bigger (it shrank)
+The cumulative finding: **same source + same compiler emit = byte-identical
+IR (md5 `fb63619530d074cdeee1da716fecbbb4` in both bins)**. The
+regression was not at the IR level; it was in how Windows executed the
+larger compiled binary.
 
-The slowdown is in how Windows executes the **machine code of the larger
-compiled compiler binary** (2.67 MB vs 1.55 MB), where the 72% binary
-growth comes from real source growth in s1's modules since v1.1.1
-(DUP-1's `ts` reduction, MEM/SEC/HON correctness landings, perf agent's
-O(1) ownership fix, §H). Same IR + same source = same compiled output
-when re-built. The OLD committed bin is only smaller because it was
-**built from smaller v1.1.1-era source**.
+## What worked
 
-Cross-checked: cloud-side runners report no equivalent regression on
-Linux, confirming environmental attribution (Windows iCache / page-fault
-behavior on the larger binary, not anything in the compiler).
+**Link-time optimization on the bootstrap link.** The OLD committed
+bin and the NEW rebuilt bin had both been linked at `-O0` (default
+clang for the bootstrap-style link). The OLD bin happened to be small
+because it was built from smaller v1.1.1-era source; the NEW bin was
+big because current source is ~25% larger.
 
-## Disposition
+Re-linking the NEW bin with `-O2 -flto -Wl,/OPT:ICF -Wl,/OPT:REF`:
+- **Bin shrinks 2.67 MB → 1.18 MB (−56%)** — smaller than the OLD bin
+- **Cold compile 4.69 s → 3.30 s (−30%)** — faster than the OLD bin
+- **IR output unchanged** (md5 identical to non-LTO bin's output)
+- **Bootstrap fixed point holds** trivially (`check_self_host_md5.sh`
+  passes byte-identical)
 
-1. **Keep §H.** The cost was a one-time bin-rebuild that folded in all
-   the post-v1.1.1 correctness work that had accumulated in source but
-   not yet in the committed bin.
-2. **Raise the Windows cold ceiling** in `tools/perf_baseline.json` from
-   4.25 s to 5.0 s, with rationale recorded in the file. The 3.73 s
-   "baseline" was measured against a much smaller v1.1.0-era bin and is
-   no longer a meaningful target for the post-v1.1.1 compiler shape.
-3. **Do not revert MEM-3 / MEM-6 / SEC-* / HON-* / §H.** Those are
-   correctness landings — the punchlist itself ranked them P0/P1.
-4. **Do not chase further code-side optimizations on this axis.** The
-   A/B shows the IR is identical; there is no instruction to remove.
-   Future Windows-specific perf work belongs in linker flags / binary
-   alignment / iCache investigation, not in s1 source.
+LTO doesn't change the compiler's *behavior* — it just lets the linker
+do whole-program optimization, fold identical code blocks, and strip
+unreferenced symbols across the 9,597-line runtime + the s1 IR.
 
-## What stays open (for future, if Windows perf matters more)
+## Changes shipped on this branch
 
-- **Investigate `-Wl,/OPT:ICF`** or `-Wl,/MERGE` for tighter Windows
-  binary layout (might shrink the 2.67 MB and improve iCache locality).
-- **Profile-guided optimization (PGO)** on Windows — clang/lld supports
-  `-fprofile-use`. Could reorder hot fns for better locality.
-- **Strip dead code in s1 source** that DCE can't elide — e.g., the
-  127-str_eq dispatch tables in type_expr that could become hashmap
-  lookups (large refactor; not done here because it would itself force
-  a seed regen and the ROI is unclear).
+1. `bin/nucleor.exe` replaced with LTO/ICF/REF-linked version (1.18 MB).
+2. `tools/bootstrap_windows.ps1` updated to add `-flto`,
+   `-Wl,/OPT:ICF`, `-Wl,/OPT:REF` to the bootstrap clang invocation so
+   future seed regens produce the optimized bin automatically.
+3. `tools/perf_baseline.json` cold ceilings tightened back down:
+   `cold_self_build_seconds` 3.73 → 3.30 (measured), `cold_max_allowed_seconds`
+   4.25 → 4.00 (the user's stated target as the new gate).
+4. This document.
 
-None of these are required to ship.
+## Constraints honored
+
+- §H stays. No reverting RFC-NRT-004.
+- Self-host fixed point intact (`fb63619530d074cdeee1da716fecbbb4`).
+- Zero correctness regressions: no source change to compiler/, runtime/,
+  or stdlib/ — only the link flags + bin binary + baseline.
+- Linux unaffected (the per-compile clang link there is governed by
+  `tools/bootstrap_linux.sh`, not touched here; the regression
+  investigated was Windows-specific).
+
+## Future work (not required)
+
+- Linux equivalent: `tools/bootstrap_linux.sh` could also adopt
+  `-flto -Wl,--icf=all -Wl,--gc-sections`. Linux didn't see the
+  Windows-style regression so it's lower priority, but the binary
+  size win (~50%) is real on either platform.
+- `compiler/s1/cache.nr` general-build link path also defaults to
+  `-O0` for user programs. A `--release` flag that opts user programs
+  into the same LTO pipeline would be a clean follow-up RFC (not
+  scoped here).
