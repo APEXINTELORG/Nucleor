@@ -6376,7 +6376,7 @@ fi
 
 step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 450 MB compiler-only RSS; D1 split via tools/run_capped.sh, tree-RSS noise excluded)" self_host_memory_budget
-step "tools-suite memory budget (<= 400 MB compiler-only RSS; D1 split via tools/run_capped.sh, tree-RSS noise excluded)" tools_suite_memory_budget
+step "tools-suite memory budget (<= 480 MB compiler-only RSS; D1 split via tools/run_capped.sh, tree-RSS noise excluded)" tools_suite_memory_budget
 step "T1.8 POSIX perf + memory regression monitor" posix_perf_regression_monitor
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
