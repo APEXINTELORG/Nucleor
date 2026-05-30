@@ -12,7 +12,8 @@ GitHub tag URLs follow the pattern `https://github.com/APEXINTELORG/Nucleor/rele
 
 | Version | Date | Summary |
 |---|---|---|
-| **v1.2.0** | 2026-05-30 | RFC-NRT-004 §H module-prefixed lowering (Phase A) and Windows bootstrap LTO link (cold self-build 4.69 s → 3.30 s) |
+| **v1.2.0** | 2026-05-30 | RFC-NRT-004 §H module-prefixed lowering (Phase A) + Windows bootstrap
+LTO link |
 
 ## v1.1.x
 
