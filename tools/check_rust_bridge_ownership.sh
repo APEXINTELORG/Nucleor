@@ -291,6 +291,25 @@ doctor_bad() {
 check_readiness() {
     readiness_failed=0
     failure_reason=""
+
+    # POSIX-only harness. The rust_bridge ownership fixture links the
+    # static POSIX archive (libnucleor_rust_bridge.a); a Windows toolchain
+    # produces the MSVC import lib (nucleor_rust_bridge.lib) instead, which
+    # this harness deliberately does not accept. On a Windows host, mark
+    # readiness as unmet so the caller SKIPs (exit 96) rather than building
+    # the .lib and then failing on the absent .a. The simulate-missing
+    # test path bypasses this so the self-test still exercises the logic.
+    if [ "$simulate_missing" = "none" ]; then
+        case "$(uname -s 2>/dev/null || echo unknown)" in
+            MINGW*|MSYS*|CYGWIN*|Windows*)
+                readiness_failed=1
+                failure_reason="POSIX-only harness: Windows host produces the MSVC .lib, not the POSIX .a (run on Linux/macOS or under WSL)"
+                doctor_bad "host-family" "$failure_reason"
+                return
+                ;;
+        esac
+    fi
+
     cargo="$(cargo_path)"
     cargo_native=1
     compiler_present=1

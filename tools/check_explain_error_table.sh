@@ -23,7 +23,11 @@ fi
 TMP_OUT=$(mktemp); trap 'rm -f "$TMP_OUT"' EXIT
 cp "$GEN" "$TMP_OUT"
 "./$GENERATOR_BIN" >/dev/null
-if cmp -s "$GEN" "$TMP_OUT"; then
+# Line-ending-insensitive compare (see check_rt_name_table.sh): the generator
+# writes LF; core.autocrlf=true stores the committed .gen.nr as CRLF, which a
+# byte-exact cmp would false-flag on Windows. Strip CR so only real content
+# drift fails the gate, on any platform.
+if diff -q <(tr -d '\r' < "$GEN") <(tr -d '\r' < "$TMP_OUT") >/dev/null 2>&1; then
   cp "$TMP_OUT" "$GEN"
   entries=$(grep -c "if str_eq" "$GEN")
   echo "OK: explain_error generator output matches committed $GEN ($entries arms)"

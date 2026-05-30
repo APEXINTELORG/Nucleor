@@ -53,7 +53,12 @@ trap 'rm -f "$TMP_OUT"' EXIT
 cp "$GEN" "$TMP_OUT"
 "./$GENERATOR_BIN" >/dev/null
 # Now $GEN is the freshly-generated output; $TMP_OUT is the committed version.
-if cmp -s "$GEN" "$TMP_OUT"; then
+# Compare line-ending-insensitively: the generator emits LF, but a checkout
+# with core.autocrlf=true (common on Windows) stores the committed file as
+# CRLF. A byte-exact cmp would then false-fail on Windows even though the
+# content is identical. Strip CR from both sides so the gate enforces
+# content drift on every platform, independent of git's EOL handling.
+if diff -q <(tr -d '\r' < "$GEN") <(tr -d '\r' < "$TMP_OUT") >/dev/null 2>&1; then
   cp "$TMP_OUT" "$GEN"
   entries=$(grep -c "if str_eq" "$GEN")
   echo "OK: get_rt_name generator output matches committed $GEN ($entries entries)"
