@@ -5394,6 +5394,167 @@ fn content_hash(s: str) -> str {
     return result;
 }
 
+// === RFC-NRT-004 §H: module-prefixed lowering ===
+// An imported file whose first non-blank, non-whitespace line is exactly
+//   // nucleor:module-namespace <prefix>
+// gets all of its top-level fn definitions and intra-file call sites
+// (except `main`) rewritten to `<prefix>_<name>`. Two modules with
+// identical fn names can then be imported into the same compile unit
+// without the link-time duplicate-fn collision. Importers reference the
+// fns by their prefixed names directly (no per-call namespacing syntax
+// is introduced). Phase A scope: the mechanism only — Phase B uses it
+// to drive the residual s1/ts pipeline census toward zero.
+
+#[manual_drop]
+fn mod_h_prefix_from_marker(src: str) -> str {
+    // Return the user-supplied prefix from a `// nucleor:module-namespace
+    // <prefix>` directive on the first non-blank line of src. Returns ""
+    // if the marker is absent or malformed. Prefix must be a valid
+    // identifier ([A-Za-z_][A-Za-z0-9_]*).
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut found: i64 = 0;
+    let mut result: str = "";
+    while p < slen && found == 0 {
+        while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+        if p >= slen {
+            found = 1;
+        } else {
+            let c: i64 = str_char_at(src, p);
+            if c == 10 {
+                p = p + 1;
+            } else if c == 13 {
+                p = p + 1;
+            } else {
+                let marker: str = "// nucleor:module-namespace";
+                let mlen: i64 = str_len(marker);
+                if p + mlen <= slen {
+                    let mut i: i64 = 0;
+                    let mut match_ok: i64 = 1;
+                    while i < mlen && match_ok == 1 {
+                        if str_char_at(src, p + i) != str_char_at(marker, i) { match_ok = 0; };
+                        i = i + 1;
+                    };
+                    if match_ok == 1 {
+                        let mut q: i64 = p + mlen;
+                        while q < slen && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9) { q = q + 1; };
+                        let start: i64 = q;
+                        let mut id_done: i64 = 0;
+                        while q < slen && id_done == 0 {
+                            let ch: i64 = str_char_at(src, q);
+                            if is_alnum(ch) == 1 || ch == 95 { q = q + 1; } else { id_done = 1; };
+                        };
+                        if q > start {
+                            result = str_substring(src, start, q);
+                        };
+                    };
+                };
+                found = 1;
+            };
+        };
+    };
+    return result;
+}
+
+#[manual_drop]
+fn mod_h_collect_top_level_fn_names(source: str) -> Vec<i32> {
+    // Collects every top-level fn name (pub and non-pub) defined in
+    // source, excluding `main`. Reuses priv_extract_fn_decl_info so the
+    // surface (pub/pure/fn variants, trailing `(`) is identical.
+    let slen: i64 = str_len(source);
+    let mut result: Vec<i32> = Vec::new();
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let name: str = vec_get(info, 0);
+        if str_len(name) > 0 {
+            if str_eq(name, "main") == 0 {
+                priv_string_vec_push_unique(result, name);
+            };
+        };
+        p = eol + 1;
+    };
+    return result;
+}
+
+#[manual_drop]
+fn mod_h_mangle_module_fns(src: str, prefix: str, all_names: Vec<i32>) -> str {
+    // Token-aware identifier substitution, mirroring priv_mangle_private_fns
+    // but emitting <prefix>_<name> instead of __priv_<id>__<name>. Skips
+    // // line comments, string/char literals, and identifiers preceded by
+    // `.` (field/method access). The prefix is the user-supplied identifier
+    // from the // nucleor:module-namespace <prefix> marker.
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut last_non_ws: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
+            last_non_ws = 10;
+        } else if c == 34 {
+            let str_start: i64 = p;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    p = p + 2;
+                } else {
+                    p = p + 1;
+                };
+            };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
+            last_non_ws = 34;
+        } else if c == 39 {
+            let char_start: i64 = p;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    p = p + 2;
+                } else {
+                    p = p + 1;
+                };
+            };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, char_start, p);
+            last_non_ws = 39;
+        } else if is_alpha(c) == 1 || c == 95 {
+            let start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
+            if preceded_by_dot == 0 && priv_string_vec_contains_at(all_names, src, start, p) == 1 {
+                sb_append(sb, prefix);
+                sb_append(sb, "_");
+                sb_append_range(sb, src, start, p);
+            } else {
+                sb_append_range(sb, src, start, p);
+            };
+            last_non_ws = str_char_at(src, p - 1);
+        } else {
+            sb_append_char_at(sb, src, p);
+            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
+// (mod_h_apply_if_opted_in wrapper omitted intentionally — modules.nr's
+//  splice path inlines the prefix-check + mangle pattern directly so the
+//  alias-vs-fresh-allocation distinction needed for safe free is visible
+//  at the call site. Matches the priv_apply inline pattern in modules.nr.)
+
 
 #[manual_drop]
 fn compiler_backend_label() -> str {

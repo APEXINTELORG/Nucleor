@@ -440,6 +440,30 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                     let isrc: str = file_read_string(path);
                     source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
+                        // RFC-NRT-004 §H: if the imported file's first
+                        // non-blank line carries the // nucleor:module-namespace
+                        // <prefix> marker, mangle its top-level fn defs +
+                        // intra-file call sites to <prefix>_<name> BEFORE
+                        // priv_apply runs. priv_apply then operates on the
+                        // §H-mangled source. Two modules with identical
+                        // fn names can coexist in one compile unit when
+                        // both opt in with distinct prefixes.
+                        let h_prefix: str = mod_h_prefix_from_marker(isrc);
+                        let mut isrc_h: str = isrc;
+                        let mut isrc_h_mangled: i64 = 0;
+                        if str_len(h_prefix) > 0 {
+                            // h_prefix is a fresh str_substring allocation here;
+                            // free it once we're done with the mangle pass. The
+                            // no-marker case returns the static "" literal which
+                            // must NOT be freed (would corrupt the heap).
+                            let all_names_h: Vec<i32> = mod_h_collect_top_level_fn_names(isrc);
+                            if vec_len(all_names_h) > 0 {
+                                isrc_h = mod_h_mangle_module_fns(isrc, h_prefix, all_names_h);
+                                isrc_h_mangled = 1;
+                            };
+                            vec_free(all_names_h);
+                            str_free(h_prefix);
+                        };
                         // Inline priv_apply_if_opted_in so we know whether the
                         // returned source is an alias of isrc or a fresh
                         // allocation. Without that distinction we cannot free
@@ -448,11 +472,11 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                         // 14 sibling imports, this matters: each iteration's
                         // ~1 MB file source was being held to fn-return, since
                         // the enclosing fn is #[manual_drop].
-                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
-                        let mut isrc_used: str = isrc;
+                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc_h);
+                        let mut isrc_used: str = isrc_h;
                         let mut isrc_mangled: i64 = 0;
                         if vec_len(private_names) > 0 {
-                            isrc_used = priv_mangle_private_fns(isrc, content_hash(path), private_names);
+                            isrc_used = priv_mangle_private_fns(isrc_h, content_hash(path), private_names);
                             isrc_mangled = 1;
                         };
                         module_record_add(module_records, path, isrc_used);
@@ -462,6 +486,7 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                         sb_append(result, resolved_imp);
                         str_free(resolved_imp);
                         if isrc_mangled == 1 { str_free(isrc_used); };
+                        if isrc_h_mangled == 1 { str_free(isrc_h); };
                         str_free(isrc);
                         vec_free(private_names);
                         active_paths.pop();
@@ -511,14 +536,33 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                     let isrc: str = file_read_string(path);
                     source_reject_nul_truncation(path, isrc);
                     if str_len(isrc) > 0 {
+                        // §H opt-in (mirror of the use-arm above; see there
+                        // for the full rationale). Applies module-prefixed
+                        // lowering before priv mangling.
+                        let h_prefix: str = mod_h_prefix_from_marker(isrc);
+                        let mut isrc_h: str = isrc;
+                        let mut isrc_h_mangled: i64 = 0;
+                        if str_len(h_prefix) > 0 {
+                            // h_prefix is a fresh str_substring allocation here;
+                            // free it once we're done with the mangle pass. The
+                            // no-marker case returns the static "" literal which
+                            // must NOT be freed (would corrupt the heap).
+                            let all_names_h: Vec<i32> = mod_h_collect_top_level_fn_names(isrc);
+                            if vec_len(all_names_h) > 0 {
+                                isrc_h = mod_h_mangle_module_fns(isrc, h_prefix, all_names_h);
+                                isrc_h_mangled = 1;
+                            };
+                            vec_free(all_names_h);
+                            str_free(h_prefix);
+                        };
                         // Mirror of the use-arm above; inline the priv_apply
                         // logic so the per-file source can be freed after
                         // the recursive call returns.
-                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
-                        let mut isrc_used: str = isrc;
+                        let private_names: Vec<i32> = priv_collect_private_fn_names(isrc_h);
+                        let mut isrc_used: str = isrc_h;
                         let mut isrc_mangled: i64 = 0;
                         if vec_len(private_names) > 0 {
-                            isrc_used = priv_mangle_private_fns(isrc, content_hash(path), private_names);
+                            isrc_used = priv_mangle_private_fns(isrc_h, content_hash(path), private_names);
                             isrc_mangled = 1;
                         };
                         module_record_add(module_records, path, isrc_used);
@@ -528,6 +572,7 @@ fn resolve_source_with_records_active(src: str, base_dir: str, imported: Vec<i32
                         sb_append(result, resolved_imp);
                         str_free(resolved_imp);
                         if isrc_mangled == 1 { str_free(isrc_used); };
+                        if isrc_h_mangled == 1 { str_free(isrc_h); };
                         str_free(isrc);
                         vec_free(private_names);
                         active_paths.pop();
