@@ -67,12 +67,13 @@ fn main() -> i64 {
                 };
             } else {
                 header_done = 1;
-                // Find tab separator.
+                // Find tab separator. Use cend (CR-trimmed) as the row end
+                // so a trailing CR never leaks into the emitted rt_name.
                 let mut tab: i64 = p;
-                while tab < eol && str_char_at(tsv, tab) != 9 { tab = tab + 1; };
-                if tab < eol {
+                while tab < cend && str_char_at(tsv, tab) != 9 { tab = tab + 1; };
+                if tab < cend {
                     let nuc_name: str = str_substring(tsv, p, tab);
-                    let rt_name: str = str_substring(tsv, tab + 1, eol);
+                    let rt_name: str = str_substring(tsv, tab + 1, cend);
                     sb_append(sb, "    if str_eq(name, \"");
                     sb_append(sb, nuc_name);
                     sb_append(sb, "\") { return \"");
