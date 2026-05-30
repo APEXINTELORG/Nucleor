@@ -307717,7 +307717,7 @@ L0:
   ret i64 %r.13
 L2:
   %r.15 = ptrtoint ptr @.str.5709 to i64
-  %r.16 = ptrtoint ptr @.str.2 to i64
+  %r.16 = ptrtoint ptr @.str.4 to i64
   %r.17.a0 = inttoptr i64 %r.15 to ptr
   %r.17.a1 = inttoptr i64 %r.16 to ptr
   %r.17 = call i64 @__nucleor_env_get_or(ptr %r.17.a0, ptr %r.17.a1)
@@ -310578,7 +310578,7 @@ L8:
   br i1 %br.166.cond, label %L15, label %L16
 L15:
   %r.167 = ptrtoint ptr @.str.5709 to i64
-  %r.168 = ptrtoint ptr @.str.2 to i64
+  %r.168 = ptrtoint ptr @.str.4 to i64
   %r.169.a0 = inttoptr i64 %r.167 to ptr
   %r.169.a1 = inttoptr i64 %r.168 to ptr
   %r.169 = call i64 @__nucleor_env_get_or(ptr %r.169.a0, ptr %r.169.a1)

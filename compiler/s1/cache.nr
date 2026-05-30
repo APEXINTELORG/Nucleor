@@ -565,12 +565,12 @@ fn cg_sig_to_decl(ll: str, start: i64, sigend: i64) -> str {
 #[manual_drop]
 fn cg_try_parallel(ll: str, ll_path: str, clang_quoted: str, opt_flag: str, null_redir: str) -> str {
     if host_is_windows() == 1 { return ""; };
-    // Default 2: the two link-time clang processes peak below the emit
-    // child's RSS (the emit child has already exited), so the process-tree
-    // memory ceiling is unchanged — a memory-neutral speedup. Raise via
-    // NUCLEOR_CG_SHARDS for more parallelism if you have the RAM headroom
-    // (each extra concurrent clang adds ~80-120 MB of transient peak).
-    let shards: i64 = str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "2"));
+    // Default 4: the link-time clang processes run after the emit child has
+    // exited, so they trade transient peak RSS (~60-110 MB each) for codegen
+    // wall time — the cold tree ceiling (512 MB) is sized for this. The
+    // compiler-only RSS is unchanged. Set NUCLEOR_CG_SHARDS=1 to disable, or
+    // =2 for a memory-neutral build on a constrained host.
+    let shards: i64 = str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "4"));
     if shards <= 1 { return ""; };
     let len: i64 = str_len(ll);
     if len < 2000000 { return ""; };   // small modules: single-file is already fast
@@ -1008,7 +1008,7 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
     // only after the child's peak is gone — no tree-RSS regression. On success
     // `cg_objs` is the object list to link in place of the single `.ll`.
     let mut cg_objs: str = "";
-    if host_is_windows() == 0 && str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "2")) > 1 {
+    if host_is_windows() == 0 && str_to_int(env_get_or("NUCLEOR_CG_SHARDS", "4")) > 1 {
         cg_objs = cg_try_parallel(file_read_string(ll_path), ll_path, clang_quoted, str_concat(" ", opt_flag_raw_iso), null_redir);
     };
     let cg_sharded: i64 = if str_len(cg_objs) > 0 { 1 } else { 0 };
