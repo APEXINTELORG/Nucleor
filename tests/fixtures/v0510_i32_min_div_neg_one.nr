@@ -1,6 +1,6 @@
 // Runtime-panic regression for v0.5.10. Build succeeds, exe runs,
 // and panics non-zero rc with a Nucleor-side PANIC message naming
-// the overflow class. Probe-agent finding
+// the overflow class. probe finding
 // 2026-05-01-i32-min-div-neg-one-windows-exception: pre-v0.5.10 this
 // surfaced as Windows STATUS_INTEGER_OVERFLOW (rc=-1073741675), an
 // opaque process exit. v0.5.10 routes narrow-width signed div/rem

@@ -1,5 +1,5 @@
 // stdlib runtime — `str_to_int_strict` opt-in strict variant
-// (v0.5.12). Probe-agent finding
+// (v0.5.12). probe finding
 // 2026-05-01-str-to-int-silent-zero-on-invalid.
 //
 // `str_to_int` returns 0 silently on parse failure (NULL / empty

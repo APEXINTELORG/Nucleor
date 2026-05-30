@@ -13,7 +13,7 @@
 // large floating value rather than reinterpreting the bits as a
 // typed f64. Result: `1.25` printed as `4608308318706860032.000000`.
 //
-// ML_Suite agent reported this in NUC-IMPROVE-004 with a request
+// ML suite reported this in NUC-IMPROVE-004 with a request
 // for `f64_from_bits(bits: i64) -> f64` as the explicit
 // reinterpret. The helper is identity at the runtime ABI level
 // (Nucleor's f64 IS the i64 bit pattern), but the named entry

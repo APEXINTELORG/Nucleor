@@ -10,7 +10,7 @@
 // '@panic'`. Equivalent code in `nuc run` worked correctly because
 // `nucleor.exe` (the s1 compiler) had the strip.
 //
-// This was the harness divergence the ML_Suite agent reported in
+// This was the harness divergence the ML suite reported in
 // NUC-FEEDBACK-001: their tensor smoke test's `assert!` calls
 // failed under `nuc test` while compiling cleanly under `nuc run`.
 //

@@ -1,7 +1,7 @@
 // EXPECT: build fails with CONTRACT-010 mentioning fn name `f`.
 // RFC-0006 — `old(...)` in `#[require]` must reject at compile time.
 //
-// v0.4.277 closes wrong-error finding filed by probe agent
+// v0.4.277 closes wrong-error finding filed by probe
 // 2026-05-01: pre-fix, `#[require(old(x) > 0)]` emitted a
 // misleading clang-link "undefined function `old()`" error.
 // `old()` is only meaningful in `#[ensure]` (postconditions

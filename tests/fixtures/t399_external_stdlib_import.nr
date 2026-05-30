@@ -9,7 +9,7 @@
 // neither, the import injected zero source and every imported
 // symbol failed at clang link with `@<name> undefined`.
 //
-// Adopter symptom (from ML_Suite agent's NUC-FEEDBACK-004):
+// Adopter symptom (from ML suite's NUC-FEEDBACK-004):
 //   error: use of undefined value '@emit_json_array_f64'
 //   error: use of undefined value '@emit_json_metric_i64'
 //

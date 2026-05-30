@@ -1,7 +1,7 @@
 // t448_print_hashmap_value_dispatch.nr -- v0.3.182 regression
 // fixture.
 //
-// Follow-on to v0.3.181 (NUC-FEEDBACK-006 parallel agent).
+// Follow-on to v0.3.181 (NUC-FEEDBACK-006 parallel pass).
 // HashMap<K, V>.get / hashmap_get / btreemap_get / hashmap_remove
 // were still defaulting to print_i64 in the v0.3.178 hardcoded
 // fallback list. For HashMap<str, str>, that printed the str

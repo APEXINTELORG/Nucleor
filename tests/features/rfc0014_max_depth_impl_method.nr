@@ -1,6 +1,6 @@
 // RFC-0014 #[max_depth = N] on an impl method (v0.5.7).
 //
-// Probe-agent finding 2026-05-01 (slug
+// probe finding 2026-05-01 (slug
 // `2026-05-01-max-depth-impl-method-self-recursion-not-bounded`):
 // `#[max_depth = N]` on an impl method that recursively calls
 // `self.method(depth + 1)` falsely fired DEPTH-001. Two-layer bug:

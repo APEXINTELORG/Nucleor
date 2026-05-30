@@ -2,7 +2,7 @@
 // RFC-0007 — atomic helpers inside closure bodies must reject
 // at compile time (ATOMIC-006).
 //
-// v0.4.280 closes compiler-meltdown filed by probe agent
+// v0.4.280 closes compiler-meltdown filed by probe
 // 2026-05-01: closures whose body calls atomic_* helpers crashed
 // the compiler with `vec_get OOB: index <huge>, len 919` (pre-v0.6.29
 // wording; v0.6.29 Rust-canonical: `index out of bounds: the len is 919

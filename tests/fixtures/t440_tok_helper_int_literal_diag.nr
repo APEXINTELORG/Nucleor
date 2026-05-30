@@ -8,7 +8,7 @@
 //
 // Same hazard class as v0.3.170 (vec_*) and v0.3.171
 // (hashmap/hashset/btreemap/btreeset/vecdeque). ML adopters
-// use these heavily (per ML_Suite agent feedback).
+// use these heavily (per ML suite feedback).
 //
 // Fix (v0.3.173): explicit literal-only WARNING for the
 // tokenizer helper family at the type-check site. Variables

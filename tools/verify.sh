@@ -3192,7 +3192,7 @@ t_rfc0006_result_in_void_fn_reject() {
 
 t_rfc0006_old_vec_aliasing_reject() {
     # v0.4.271 RFC-0006 — `old(<heap-typed-expr>)` must be rejected
-    # at compile time. The probe agent (2026-05-01) found that under
+    # at compile time. The probe (2026-05-01) found that under
     # the i64-everywhere ABI, Vec/String/HashMap/HashSet/BTreeMap/
     # BTreeSet/VecDeque/Box are pointers, so `old(v)` snapshots the
     # POINTER, not the buffer — silent-miscompute on adopter's

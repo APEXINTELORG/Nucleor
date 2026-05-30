@@ -1,6 +1,6 @@
 // RFC-0024 generic-T trait-bound method dispatch.
 //
-// Probe-agent finding 2026-05-01-generic-T-trait-bound-method-dispatch:
+// probe finding 2026-05-01-generic-T-trait-bound-method-dispatch:
 // pre-fix, the generic body kept receiver `x` typed as `T`, so
 // lower_expr kind-8 could not find `A__show` and fell through to the
 // synthetic `vec_show(x)` fallback.

@@ -1,7 +1,7 @@
 // t403_math_typed_rod.nr — v0.3.127 NUC-IMPROVE-005 fixture.
 //
 // Pins the `stdlib/rods/math_typed.nr` typed-f64 elementary math
-// rod requested by the ML_Suite agent in NUC-IMPROVE-005. The rod
+// rod requested by the ML suite in NUC-IMPROVE-005. The rod
 // wraps the existing bit-pattern math runtime helpers (`sqrt`,
 // `exp`, `log`, `tanh`, `sin`, `cos`, `pow`) with explicit
 // `f64 -> f64` signatures so ML/scientific code using typed

@@ -1,6 +1,6 @@
 // stdlib/rods/atomic — AtomicBool ordered ops.
 //
-// v0.4.281 closes wrong-error finding filed by probe agent
+// v0.4.281 closes wrong-error finding filed by probe
 // 2026-05-01: AtomicBool shipped in v0.4.273 with only the
 // constructor + drop helpers. Adopters constructing AtomicBool
 // got clang-link "undefined function `atomic_load_bool`" /

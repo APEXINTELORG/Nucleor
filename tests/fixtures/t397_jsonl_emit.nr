@@ -1,7 +1,7 @@
 // t397_jsonl_emit.nr — v0.3.120 NUC-IMPROVE-003 fixture.
 //
 // Pins the `stdlib/rods/jsonl.nr` evidence-emit rod requested by
-// the ML_Suite agent in NUC-IMPROVE-003. The rod produces one
+// the ML suite in NUC-IMPROVE-003. The rod produces one
 // JSON object per line on stdout for Python parity runners that
 // want `json.loads`-clean output instead of fragile stdout scraping.
 //

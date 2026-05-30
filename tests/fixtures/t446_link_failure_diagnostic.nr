@@ -1,7 +1,7 @@
 // t446_link_failure_diagnostic.nr -- v0.3.179 regression fixture
 // (positive smoke).
 //
-// NUC-FEEDBACK-009 (ML_Suite agent, 2026-04-26): intermittent
+// NUC-FEEDBACK-009 (ML suite, 2026-04-26): intermittent
 // nonzero `nuc run` exit after LLVM emit during long verifier
 // pass. Adopters saw "emitted: target/X.ll (...)" then a nonzero
 // exit with no clear signal whether clang errored, never started

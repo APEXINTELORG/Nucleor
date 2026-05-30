@@ -1,6 +1,6 @@
 // RFC-0024 generic-T propagation through call-site rtype inference (v0.5.13).
 //
-// Probe-agent finding 2026-05-01-generic-T-propagation-spsc-option-str:
+// probe finding 2026-05-01-generic-T-propagation-spsc-option-str:
 // pre-fix `let r1 = spsc_pop(&mut q)` where `q: SpscQueue<str>`
 // returned `Option<T>` with T unsubstituted, so the match-arm
 // binding `s` from `Some(s)` typed as i64 (the i64-everywhere-ABI

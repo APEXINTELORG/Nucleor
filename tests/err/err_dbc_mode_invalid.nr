@@ -1,7 +1,7 @@
 // EXPECT: build with NUCLEOR_DBC_MODE=off fails with CONTRACT-009.
 // RFC-0006 — NUCLEOR_DBC_MODE validation.
 //
-// v0.4.275: probe-agent finding 2026-05-01 — unrecognized
+// v0.4.275: probe finding 2026-05-01 — unrecognized
 // values like `off` / `disabled` / `0` / `none` silently fell
 // into a partial-strip bucket (require ran, ensure/invariant
 // stripped — effectively unintended `safe-release`). Adopter

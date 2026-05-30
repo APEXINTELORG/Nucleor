@@ -9,7 +9,7 @@
 // gone). Same hazard class as the contextual-kw silent miscompiles:
 // a real call you wrote produces nothing useful and no diagnostic.
 //
-// Reproducer reported by ML_Suite agent (NUC-FEEDBACK-008):
+// Reproducer reported by ML suite (NUC-FEEDBACK-008):
 //   tensor_i64_print_flat(...);
 //   print("decoded length:");
 //   print(text_token_count_i64(&tokens));   // <-- here, exit 1

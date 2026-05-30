@@ -3939,7 +3939,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // the struct's storage via vec_len/vec_get (type-punned heterogeneous fields,
             // leaked Vec/String/`&T` pointers as integers). Vec<...> short-circuit
             // skips the structs linear scan on the dominant valid case.
-            // Detected + first-implemented by probe agent (orphan commit d8b1006);
+            // Detected + first-implemented by probe (orphan commit d8b1006);
             // integrated to main 2026-04-30.
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`for <var> in <", str_concat(v152_iter_t, ">` is not supported — struct values are not iterable; the kind-49 codegen would bit-walk the struct's storage. Iterate a Vec field explicitly (`for x in s.items`), or build a `Vec<T>` of the values you want to walk.")));
         };

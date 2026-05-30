@@ -2,7 +2,7 @@
 // RFC-0006 — undefined identifier in `#[require]` predicate must
 // reject at compile time (CONTRACT-011).
 //
-// v0.4.283 closes wrong-error finding filed by probe agent
+// v0.4.283 closes wrong-error finding filed by probe
 // 2026-05-01: pre-fix, `#[require(undefined_var > 0)]` surfaced
 // a misleading clang-link "undefined function `undefined_var()`"
 // error — wrong identifier kind (it was used as a value, not a

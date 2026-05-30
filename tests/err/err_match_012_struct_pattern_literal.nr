@@ -3,7 +3,7 @@
 // (rename-binding form). Field-equality literal patterns deferred
 // to v0.5+.
 //
-// v0.4.276: probe-agent finding 2026-04-30 — pre-fix, the diag
+// v0.4.276: probe finding 2026-04-30 — pre-fix, the diag
 // emitted twice (a clean error[MATCH-012]: line followed by a
 // duplicate "PANIC: nucleor: MATCH-012..." line that polluted
 // output). Folded into a single panic carrying the full diag

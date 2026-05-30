@@ -1,6 +1,6 @@
 // RFC-0014 #[max_depth = N] on an impl associated fn (no self) (v0.5.9).
 //
-// Probe-agent finding 2026-05-01 (slug
+// probe finding 2026-05-01 (slug
 // `2026-05-01-max-depth-self-assoc-fn-still-link-fails`):
 // v0.5.7 closed `self.method` form of impl-method recursion under
 // `#[max_depth = N]`, but the no-self assoc-fn form (recurses via

@@ -2,7 +2,7 @@
 // RFC-0006 — `old()` over heap-aliased types must reject at compile time.
 // EXPECT: build fails with CONTRACT-006.
 //
-// v0.4.271 closes the silent-miscompute filed by the probe agent
+// v0.4.271 closes the silent-miscompute filed by the probe
 // 2026-05-01: under the i64-everywhere ABI, Vec/String/HashMap/
 // HashSet/BTreeMap/BTreeSet/VecDeque/Box are i64 pointers. `old(v)`
 // for `v: Vec<T>` snapshots the POINTER VALUE — not the buffer

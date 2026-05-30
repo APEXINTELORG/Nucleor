@@ -1,6 +1,6 @@
 // stdlib `str_char_at_strict` opt-in bounds-checked variant.
 //
-// v0.4.279 — closes probe-agent finding 2026-04-30
+// v0.4.279 — closes probe finding 2026-04-30
 // (str-char-at-oob-silent-read). Default `str_char_at` keeps
 // its v0.3.220 cheap-default semantics (negative-only check;
 // strlen-per-call would be a 75x perf killer in lexer paths).

@@ -1,4 +1,4 @@
-# E-stop wrapper for the probe agent.
+# E-stop wrapper for the probe.
 #
 # Source once per session:
 #   . .\tools\run_capped.ps1

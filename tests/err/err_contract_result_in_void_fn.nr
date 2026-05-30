@@ -1,7 +1,7 @@
 // EXPECT: build fails with CONTRACT-008.
 // RFC-0006 — `result` in `#[ensure]` on a void fn must reject at compile time.
 //
-// v0.4.272 closes silent-miscompute filed by probe agent
+// v0.4.272 closes silent-miscompute filed by probe
 // 2026-05-01: a void fn (no return type) has no value to bind
 // `result` against. Pre-fix, the ensure predicate ran against
 // whatever the alloca slot held — typically zero-init, so
