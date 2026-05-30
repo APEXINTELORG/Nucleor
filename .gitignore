@@ -80,3 +80,4 @@ tools/memory_drift_profile.csv
 out_v*.txt
 err_v*.txt
 audit_scratch_*/
+bin/nucleor_old.exe

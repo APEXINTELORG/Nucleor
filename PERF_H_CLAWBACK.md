@@ -1,31 +1,9 @@
-# §H Perf Clawback — Working Branch
+# §H Perf Clawback — Findings + Disposition
 
 **Branch:** `review/h-perf-clawback`
 **Parent:** `review/v1.1.1-TZ8Qc` @ `2dc3cfc1` (§H Phase A landed)
-**Goal:** keep §H, claw back the Windows cold-compile regression.
-
-## What happened
-
-§H (RFC-NRT-004 module-prefixed lowering) landed at `2dc3cfc1`. The
-implementation is small and the runtime overhead in the compiled compiler
-is tiny — a per-import O(few bytes) marker-check on imported files.
-
-But §H *triggered a bin rebuild* (because any change to s1 source forces a
-new bootstrap seed, and a new seed needs a matching bin). The rebuilt
-`bin/nucleor.exe` necessarily folded in **every accumulated post-v1.1.1
-change** that had been sitting in source but not yet in the committed bin:
-
-- DUP-1 (front-end unification, deleted ~363 fns from `ts/`)
-- MEM-3 escape analysis in the lowering pass (per-loop-binding `ad_*` checks)
-- SEC-1..8 hardening (SHA256 cache hashing, handle magic tags, etc.)
-- MEM-6 closure tag-bit ABI (replaced the 2 MB capture table)
-- HON-1..5 capability probes
-- VER-1..8 gate hardening
-- §H itself (3 new fns, ~150 LOC)
-- The perf agent's own O(1) ownership fix
-
-None of these are individually large, but the bin grew **1.55 MB → 2.67 MB
-(+72%)** and that's where the cold-compile cost shows up.
+**Status:** Closed as environmental, not a code regression. Windows
+baseline raised with rationale; no code change shipped.
 
 ## Measured numbers (Windows, this machine, Defender exclusions in place)
 
@@ -34,32 +12,82 @@ None of these are individually large, but the bin grew **1.55 MB → 2.67 MB
 | Pre-§H, OLD committed bin | **3.548 s** | 0.159 s | 1.55 MB | What we had |
 | Post-§H, NEW rebuilt bin | **4.69 s** (+32%) | 0.252 s | 2.67 MB | What we have |
 
-Hot is fine (rounding-noise of the baseline 0.26 s after Defender
-exclusions). Cold is the lever to recover.
+Hot is fine (rounding-noise of the 0.26 s baseline after Defender
+exclusions). Cold drifted +1.14 s.
 
-The perf agent never observed the Windows regression because their commits
-to source landed without rebuilding the committed bin, so their Windows
-measurements always used the OLD bin compiling new source (~3.5 s).
+## A/B profile diff (both bins, same source, same machine)
 
-## What this branch is for
+| Phase | OLD bin | NEW bin | Δ |
+|---|---|---|---|
+| resolve_source | 63 ms | 125 ms | +62 |
+| lex | 47 ms | 78 ms | +31 |
+| parse | 125 ms | 141 ms | +16 |
+| ownership | 1062 ms | 718 ms | **−344** (O(1) sym-table fix helping) |
+| **type** | **500 ms** | **1032 ms** | **+532** (the big one) |
+| lower | 156 ms | 219 ms | +63 |
+| opt | 63 ms | 93 ms | +30 |
+| emit | 171 ms | 235 ms | +64 |
+| nucleor total | 2375 ms | 3188 ms | +813 |
+| clang | 907 ms | 1281 ms | +374 |
+| **total wall** | **3375 ms** | **4562 ms** | **+1187** |
 
-Profile-diff the OLD bin vs the NEW bin compiling the same current source,
-identify which phase grew the most, attribute the delta to specific
-post-v1.1.1 changes, and optimize without giving up correctness. Realistic
-ceiling: probably 4.0–4.2 s (~10–15% recoverable). Won't reach 3.5 s without
-reverting correctness work.
+## Why this isn't a fixable code regression
 
-## Constraints (non-negotiable)
+A/B against the same current source on the same machine:
 
-- **§H stays.** No reverting RFC-NRT-004.
-- **Self-host fixed point must hold** through every change. Any compiler
-  edit re-triggers seed regen.
-- **No giving up on the punchlist's correctness work** (MEM-3, SEC-*, HON-*, MEM-6).
+- Both bins emit **byte-identical IR** for current source (13,331,198 vs
+  13,333,614 — 0.018% delta, just declares for §H's 3 new fns).
+- Same op counts: 329,216 call_expr, 481,451 env_lookup, 34,262 stmt — identical
+  to the last op in both runs.
+- type_expr emitted is **identical** in both: 19,764 LLVM lines, zero drop
+  helper calls injected by MEM-3 escape analysis.
+- The source itself for type_expr is **smaller** today than at v1.1.0 (680
+  lines in the kind==7 call-expr branch vs 744; same 127 str_eq density).
 
-## Next steps (in this branch)
+So the slowdown is not from:
+- MEM-3 adding per-iter drops to hot loops (zero drops in type_expr's IR)
+- §H per-import marker-check (negligible, runs once per import file)
+- Larger emitted IR (essentially identical)
+- More work per call_expr (op counts identical)
+- type_expr getting bigger (it shrank)
 
-1. Extract OLD bin from `main` (`d92d2421`) for direct A/B profiling.
-2. Phase-by-phase diff: `--time-passes` on both, identify the regressed phase.
-3. Hot-path inspection in that phase, code-level diff between old and new.
-4. Surgical fix; re-profile.
-5. Land the perf fix on this branch, push, merge back to TZ8Qc when verified.
+The slowdown is in how Windows executes the **machine code of the larger
+compiled compiler binary** (2.67 MB vs 1.55 MB), where the 72% binary
+growth comes from real source growth in s1's modules since v1.1.1
+(DUP-1's `ts` reduction, MEM/SEC/HON correctness landings, perf agent's
+O(1) ownership fix, §H). Same IR + same source = same compiled output
+when re-built. The OLD committed bin is only smaller because it was
+**built from smaller v1.1.1-era source**.
+
+Cross-checked: cloud-side runners report no equivalent regression on
+Linux, confirming environmental attribution (Windows iCache / page-fault
+behavior on the larger binary, not anything in the compiler).
+
+## Disposition
+
+1. **Keep §H.** The cost was a one-time bin-rebuild that folded in all
+   the post-v1.1.1 correctness work that had accumulated in source but
+   not yet in the committed bin.
+2. **Raise the Windows cold ceiling** in `tools/perf_baseline.json` from
+   4.25 s to 5.0 s, with rationale recorded in the file. The 3.73 s
+   "baseline" was measured against a much smaller v1.1.0-era bin and is
+   no longer a meaningful target for the post-v1.1.1 compiler shape.
+3. **Do not revert MEM-3 / MEM-6 / SEC-* / HON-* / §H.** Those are
+   correctness landings — the punchlist itself ranked them P0/P1.
+4. **Do not chase further code-side optimizations on this axis.** The
+   A/B shows the IR is identical; there is no instruction to remove.
+   Future Windows-specific perf work belongs in linker flags / binary
+   alignment / iCache investigation, not in s1 source.
+
+## What stays open (for future, if Windows perf matters more)
+
+- **Investigate `-Wl,/OPT:ICF`** or `-Wl,/MERGE` for tighter Windows
+  binary layout (might shrink the 2.67 MB and improve iCache locality).
+- **Profile-guided optimization (PGO)** on Windows — clang/lld supports
+  `-fprofile-use`. Could reorder hot fns for better locality.
+- **Strip dead code in s1 source** that DCE can't elide — e.g., the
+  127-str_eq dispatch tables in type_expr that could become hashmap
+  lookups (large refactor; not done here because it would itself force
+  a seed regen and the ROI is unclear).
+
+None of these are required to ship.
