@@ -1992,7 +1992,17 @@ tools_suite_memory_budget() {
     # 400 MB as a starting point; first CI run will print the
     # observed peak in the OK line, and a follow-up commit can
     # tighten this to (peak * 1.30) once we have data.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 400 "tools-suite" "verify_tools_budget"
+    #
+    # 2026-05-30: raised 400 -> 480. Post-DUP-1 the tools-suite imports the
+    # whole s1 pipeline (single source of truth) and post-§H carries the
+    # module-prefix resolver; measured compiler-only peak is 438 MB. The old
+    # 400 sat below the self-host (s1) ceiling of 450 even though tools-suite
+    # is the strictly larger compilation — an inverted budget. Measured size
+    # increase from landed feature work, not a leak (same basis as the
+    # tools/perf_baseline.json clawback). 480 gives ~10% headroom. (The label
+    # string at the step() call was updated in fa799aca; this is the enforced
+    # value, which that commit missed.)
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 480 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
