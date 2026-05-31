@@ -8,8 +8,8 @@ All notable public changes to Nucleor are documented here.
 LTO link.** Two imported modules can now expose pub fns with identical
 names by opting into module namespacing; Windows cold self-build drops
 from 4.69 s (pre-fix) to 3.30 s, beating the v1.1.1-era 3.55 s baseline
-while carrying all the new feature work. See
-`docs/internals/v1.1.1-to-v1.2.0-narrative.md` for the full story.
+while carrying all the new feature work. See `PERF_H_CLAWBACK.md` for
+the perf investigation detail.
 
 ### Added
 
@@ -26,12 +26,10 @@ while carrying all the new feature work. See
 - `tests/features/rfc_nrt_004_h/` — two-module collision spike + the
   importer that calls both modules' `pub fn kind_to_str` / `pub fn run`
   by their prefixed names. Validates the mechanism end-to-end.
-- `docs/internals/v1.1.1-to-v1.2.0-narrative.md` — full investigation
-  narrative covering the §H landing, the perf regression that appeared
-  on Windows, the A/B diagnostic that ruled out source-level causes,
-  the LTO/ICF/REF link fix, and the lessons recorded.
 - `PERF_H_CLAWBACK.md` — perf-clawback investigation transcript at
-  repo root.
+  repo root, covering the perf regression that appeared on Windows,
+  the A/B diagnostic that ruled out source-level causes, and the
+  LTO/ICF/REF link fix.
 
 ### Changed
 
